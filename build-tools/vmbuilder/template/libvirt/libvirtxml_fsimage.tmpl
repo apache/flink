@@ -1,0 +1,30 @@
+<domain type='kvm'>
+  <name>$hostname</name>
+  <memory>#echo $mem * 1024 #</memory>
+  <vcpu>$cpus</vcpu>
+  <os>
+    <type>hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+  </features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>destroy</on_crash>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <input type='mouse' bus='ps2'/>
+    <graphics type='vnc' port='-1' listen='127.0.0.1'/>
+#for $fs in $filesystems
+    <disk type='file' device='disk'>
+      <source file='$fs.filename' />
+      <target dev='hd$fs.devletters()' />
+    </disk>
+#end for
+  </devices>
+</domain>

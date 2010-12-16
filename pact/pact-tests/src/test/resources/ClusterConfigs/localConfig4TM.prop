@@ -1,0 +1,3 @@
+ClusterProvider#clusterId=local4TM
+LocalClusterProvider#numTaskTrackers=4
+ClusterProvider#clusterProviderType=LocalClusterProvider

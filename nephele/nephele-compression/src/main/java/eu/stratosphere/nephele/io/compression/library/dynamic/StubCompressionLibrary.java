@@ -1,0 +1,50 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.nephele.io.compression.library.dynamic;
+
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
+import eu.stratosphere.nephele.io.compression.Compressor;
+import eu.stratosphere.nephele.io.compression.Decompressor;
+
+public class StubCompressionLibrary implements CompressionLibrary {
+
+	@Override
+	public Compressor getCompressor() throws CompressionException {
+
+		return new StubCompressor();
+	}
+
+	@Override
+	public Decompressor getDecompressor() throws CompressionException {
+
+		return new StubDecompressor();
+	}
+
+	@Override
+	public int getUncompressedBufferSize(int compressedBufferSize) {
+
+		// No overhead, since there is actually no compression
+		return compressedBufferSize;
+	}
+
+	@Override
+	public String getLibraryName() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}
