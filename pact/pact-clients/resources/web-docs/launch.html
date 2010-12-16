@@ -1,0 +1,295 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+
+<head>
+  <title>Nephele/PACT Query Interface</title>
+
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+  <link rel="stylesheet" type="text/css" href="css/nephelefrontend.css">
+  <link rel="stylesheet" type="text/css" href="css/js-graph-it.css">
+  <link rel="stylesheet" type="text/css" href="css/pactgraphs_small.css">
+
+  <script type="text/javascript" src="js/jquery.js"></script>
+  <script type="text/javascript" src="js/js-graph-it.js"></script>
+  <script type="text/javascript" src="js/pactgraph.js"></script>
+
+  <script type="text/javascript">
+    <!--
+      var maxColumnWidth = 200;
+      var minColumnWidth = 100;
+
+      // global variable for the currently requested plan
+      var pactPlanRequested = 0;
+  
+      /*
+       * This function toggels the child checkbox on and of, depending on the parent's state
+       */
+      function toggleShowPlanBox(box)
+      {
+        var child = $('#suspendJobDuringPlanCheck');
+        
+        if (box.is(':checked')) {
+          child.attr('disabled', false);
+        }
+        else {
+          child.attr('disabled', true);
+        }
+      }
+      
+      /*
+       * Shows an error message below the upload field.
+       */
+      function showUploadError(message)
+      {
+        $('#upload_error_text').fadeOut("fast", function () { $('#upload_error_text')[0].innerHTML = "" + message;
+                                                                 $('#upload_error_text').fadeIn("slow"); } );
+      }
+    
+      /*
+       * Checks the selected file and triggers an upload, if all is correct.
+       */
+      function processUpload()
+      {
+        var filename = $('#upload_file_input').attr('value');
+        var len = filename.length;
+        if (len == 0) {
+          showUploadError("Please select a file.");
+        }
+        else if (len > 4 && filename.substr(len - 4, len) == ".jar") {
+          $('#upload_form')[0].submit();
+        }
+        else {
+          showUploadError("Please select a .jar file.");
+        }
+      }
+      
+      /*
+       * This function makes sure only one checkbox is selected.
+       * Upon selection it initializes the drawing of the pact plan.
+       * Upon deselection, it clears the pact plan.
+       */
+      function toggleCheckboxes(box)
+      {
+        if (box.is(':checked')) {
+          $('.jobItemCheckbox').attr('checked', false);
+          box.attr('checked', true);
+          var id = box.parentsUntil('.jobListItem').parent().attr('id').substr(4);
+
+          $('#mainCanvas').html('');
+          $('#planDescription').html('');
+          pactPlanRequested = id;
+
+          $.ajax({
+              type: "GET",
+              url: "pactPlan",
+              data: { job: id },
+              success: function(response) { showPreviewPlan(response); },
+              error:function (xhr, ajaxOptions, thrownError) { alert(xhr.responseText); pactPlanRequested = 0; }    
+          });
+        }
+        else {
+          $('#mainCanvas').html('');
+          $('#planplanDescription').html('');
+        }
+      }
+      
+      /*
+       * Function that takes the returned plan and draws it.
+       */
+      function showPreviewPlan(data)
+      {
+        // check whether this one is still selected
+        var active = $('.jobItemCheckbox:checked');
+        var id = active.parentsUntil('.jobListItem').parent().attr('id').substr(4);
+        
+        if (pactPlanRequested == id) {
+          if (data == undefined || data.jobname == undefined || data.jobname != pactPlanRequested || data.plan == undefined) {
+            pactPlanRequested = 0;
+          }
+
+		  if(data.description != undefined) {
+		  	$('#planDescription').html(data.description);
+		  }
+          drawPactPlan(data.plan, false, "arr2.gif");
+          pactPlanRequested = 0;
+        }
+      }
+
+      /*
+       * Asynchronously loads the jobs and creates a list of them.
+       */
+      function loadJobList()
+      {
+        $.get("jobs", { action: "list" }, createJobList);
+      }
+      
+      /*
+       * Triggers an AJAX request to delete a job.
+       */
+      function deleteJob(id)
+      {
+        var name = id.substr(4);
+        $.get("jobs", { action: "delete", filename: name }, loadJobList);
+      }
+      
+      /*
+       * Creates and lists the returned jobs.
+       */
+      function createJobList(data)
+      {
+        var markup = "";
+        
+        var lines = data.split("\n");
+        for (var i = 0; i < lines.length; i++)
+        {
+          if (lines[i] == null || lines[i].length == 0) {
+            continue;
+
+          }
+          
+          var name = null;
+          var date = null;
+          var tabIx = lines[i].indexOf("\t");
+
+          if (tabIx > 0) {
+            name = lines[i].substr(0, tabIx);
+            if (tabIx < lines[i].length - 1) {
+              date = lines[i].substr(tabIx + 1);
+            }
+            else {
+              date = "unknown date";
+            }
+          }
+          else {
+            name = lines[i];
+            date = "unknown date";
+          }
+          
+          
+          markup += '<div id="job_' + name + '" class="jobListItem"><table class="layoutTable" width="100%"><tr>';
+          markup += '<td width="30px;"><input class="jobItemCheckbox" type="checkbox"></td>';
+          markup += '<td><p class="jobListItemName">' + name + '</p></td>';
+          markup += '<td><p class="jobListItemDate">' + date + '</p></td>';
+          markup += '<td width="30px"><img class="jobItemDeleteIcon" src="img/delete-icon.png" width="24" height="24" /></td>';
+          markup += '</tr></table></div>';
+        }
+        
+        // add the contents
+        $('#jobsContents').attr('innerHTML', markup);
+        
+        // register the event handler that triggers the delete when the delete icon is clicked
+        $('.jobItemDeleteIcon').click(function () { deleteJob($(this).parentsUntil('.jobListItem').parent().attr('id')); } );
+        
+        // register the event handler, that ensures only one checkbox is active
+        $('.jobItemCheckbox').change(function () { toggleCheckboxes($(this)) });
+      }
+      
+      /*
+       * Function that checks and launches a pact job.
+       */
+      function runJob ()
+      {
+         var job = $('.jobItemCheckbox:checked');
+         if (job.length == 0) {
+           $('#run_error_text').fadeOut("fast", function () { $('#run_error_text')[0].innerHTML = "Select a job to run.";
+                                                                 $('#run_error_text').fadeIn("slow"); } );
+           return;
+         }
+         
+         var jobName = job.parentsUntil('.jobListItem').parent().attr('id').substr(4);
+         var showPlan = $('#showPlanCheck').is(':checked');
+         var suspendPlan = $('#suspendJobDuringPlanCheck').is(':checked');
+         var args = $('#commandLineArgsField').attr('value');
+         
+         var url = "runJob?" + $.param({ action: "submit", job: jobName, arguments: args, show_plan: showPlan, suspend: suspendPlan});
+         
+         window.location = url;
+      }
+      
+      /*
+       * Document initialization.
+       */
+      $(document).ready(function ()
+      {
+        // hide the error text sections
+        $('#upload_error_text').fadeOut("fast");
+        $('#run_error_text').fadeOut("fast");
+        
+        // register the event listener that keeps the hidden file form and the text fied in sync
+        $('#upload_file_input').change(function () { $('#upload_file_name_text').attr('value', $(this).attr('value')) } );
+        
+        // register the event handler for the update button
+        $('#upload_submit_button').click(processUpload);
+        $('#run_button').click(runJob);
+        
+        // register the event handler that (in)activates the plan display checkbox
+        $('#showPlanCheck').change(function () { toggleShowPlanBox ($(this)); }); 
+        
+        // start the ajax load of the jobs
+        loadJobList();
+      });
+      
+    //-->
+  </script>
+</head>
+
+<body>
+    <div class="mainHeading" style="min-width: 1225px;">
+      <h1><img src="img/StratosphereLogo.png" width="326" height="100" alt="Stratosphere Logo" />Nephele and PACTs Query Interface</h1>
+    </div>
+
+    <!-- the main panel with the jobs list and the preview pane -->
+    <div style="position: absolute; top: 110px; bottom: 210px; left: 0px; right: 0px; min-width: 1225px;">
+      <div id="jobsContents" class="boxed" style="position: absolute; top: 0px; bottom: 0px; left: 0px; width: 450px; overflow: auto;"></div>
+      <div class="boxed" style="position: absolute; top: 0px; bottom: 0px; left: 460px; right: 0px; overflow: auto;">
+        <div id="mainCanvas" class="canvas" style="position: relative; height: 100%"></div>
+      </div>
+    </div>
+
+    <!-- the footer containing the box with the run properties and the box with the upload field -->
+    <div class="footer" style="min-width: 1225px;">
+    
+      <div class="boxed" style="float: left; width: 700px; height: 200px; position: relative;">
+        <h3>Show or launch selected PACT program...</h3>
+        <div style="margin-top: 30px;">
+          <div>
+          	<div id="planDescription"></div>
+          </div>
+          <div style="text-align: right;">
+            <span class="formLabel">Arguments:</span>
+            <input id="commandLineArgsField" type="text" name="commandLine" style="width: 580px;"/>
+          </div>
+          <div class="spaced" style="margin-left: 20px;">
+            <input type="checkbox" id="showPlanCheck" checked="checked"><span class="formLabel">Show optimizer plan</span>
+            <div id="suspendOption"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><input type="checkbox" id="suspendJobDuringPlanCheck" checked="checked"><span class="formLabel">Suspend execution while showing plan</span></div>
+          </div>
+        </div>
+        <div class="footer" style="text-align: right;">
+          <span id="run_error_text" class="error_text"></span>
+          <input id="run_button" type="button" value="Run Job" style="width: 75px; margin-left: 100px;"/>
+        </div>
+      </div>
+      
+      <div class="boxed" style="float: left; width: 500px; height: 150px; position: relative;">
+        <h3>Select a new PACT program to upload...</h3>
+        <form id="upload_form" action="jobs" enctype="multipart/form-data" method="POST">
+          <div style="position: relative; margin-top: 30px;">
+             <input id="upload_file_name_text" type="text" name="file_name" disabled="disabled" style="position: absolute; top: 0px; right: 85px; width: 380px; z-index: 3;"/>
+             <input type="button" value="Browse" style="width: 75px; position: absolute; right: 0px; top: 0px; z-index: 1;" />
+             <input id="upload_file_input" class="translucent" type="file" name="upload_jar_file" style="position: absolute; right: 0px; top: 0px; height: 30px; width=75px; z-index: 2;" />
+          </div>
+          <div class="footer" style="text-align: right;">
+            <span id="upload_error_text" class="error_text"></span>
+            <input id="upload_submit_button" type="button" value="Upload" style="width: 75px; margin-left: 100px;"/>
+          </div>
+        </form>
+      </div>
+      
+    </div>
+    
+    
+</body>
+
+</html>

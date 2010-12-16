@@ -1,0 +1,5 @@
+CoGroupTest=local1TM,local4TM
+CrossTest=local1TM
+MapTest=local1TM,local4TM
+MatchTest=local1TM
+ReduceTest=local1TM

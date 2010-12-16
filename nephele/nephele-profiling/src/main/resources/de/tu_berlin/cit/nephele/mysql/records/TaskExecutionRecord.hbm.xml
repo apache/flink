@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping package="de.tu_berlin.cit.nephele.mysql.records">
+	<class name="TaskExecutionRecord" table="NEPHELE_TASK_EXECUTION">
+		<!-- class ProfilingRecord.java -->
+		<id name="id" type="long" column="TASK_EXECUTION_ID">
+			<generator class="native" />
+		</id>
+
+		<property name="name" type="string" column="RecordName" />
+		<property name="samplePeriod" type="long" column="SamplePeriod" />
+		<property name="startTime" type="long" column="StartTime" />
+		<property name="endTime" type="long" column="EndTime" />
+
+		<!-- class TaskRecord.java -->
+		<many-to-one name="parent" class="InstanceExecutionRecord" column="INSTANCE_EXECUTION_ID"/>
+		<set name="inputChannels" inverse="true" cascade="all" lazy="false">
+			<key column="TASK_EXECUTION_ID" />
+			<!--
+				one-to-many
+				class="de.tu_berlin.cit.nephele.mysql.ChannelExecutionRecord"/
+			-->
+			<one-to-many class="ChannelExecutionRecord" />
+		</set>
+		<set name="outputChannels" inverse="true" cascade="all" lazy="false">
+			<key column="TASK_EXECUTION_ID" />
+			<!--
+				one-to-many
+				class="de.tu_berlin.cit.nephele.mysql.ChannelExecutionRecord"/
+			-->
+			<one-to-many class="ChannelExecutionRecord" />
+		</set>
+
+		<property name="cpuTime" type="long" column="CPUTime" />
+		<list name="cpuSnapshots" table="NEPHELE_TASK_CPU_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="TASK_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="int" column="CpuUsage" not-null="true" />
+		</list>
+
+		<property name="blockedTime" type="long" column="BlockedTime" />
+		<list name="blockedSnapshots" table="NEPHELE_TASK_BLOCKED_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="TASK_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="int" column="BlockedUsage" not-null="true" />
+		</list>
+
+		<property name="waitedTime" type="long" column="WaitedTime" />
+		<list name="waitedSnapshots" table="NEPHELE_TASK_WAITED_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="TASK_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="int" column="WaitedUsage" not-null="true" />
+		</list>
+
+		<list name="memorySnapshots" table="NEPHELE_TASK_MEMORY_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="TASK_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="long" column="Bytes" not-null="true" />
+		</list>
+
+	</class>
+
+</hibernate-mapping>

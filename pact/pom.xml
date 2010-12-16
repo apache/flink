@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <artifactId>stratosphere</artifactId>
+        <groupId>eu.stratosphere</groupId>
+        <version>0.1</version>
+    </parent>
+
+    <groupId>eu.stratosphere</groupId>
+    <artifactId>pact</artifactId>
+
+    <packaging>pom</packaging>
+
+    <version>0.1</version>
+    <name>pact</name>
+
+    <inceptionYear>2009</inceptionYear>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>nephele</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>sewen</id>
+            <name>Stephan Ewen</name>
+            <email>stephan.ewen@tu-berlin.de</email>
+            <organization>TU-Berlin, DIMA</organization>
+            <organizationUrl>http://www.dima.tu-berlin.de</organizationUrl>
+            <roles>
+                <role>Lead Developer</role>
+            </roles>
+        </developer>
+        <developer>
+            <id>fhueske</id>
+            <name>Fabian Hueske</name>
+            <email>fabian.hueske@tu-berlin.de</email>
+            <organization>TU-Berlin, DIMA</organization>
+            <organizationUrl>http://www.dima.tu-berlin.de</organizationUrl>
+            <roles>
+                <role>Lead Developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <properties>
+    </properties>
+
+    <dependencyManagement>
+        <!--
+        this section defines the module versions that are used if nothing
+        else is specified.
+        -->
+        <dependencies>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+    </dependencies>
+
+    <modules>
+        <module>pact-common</module>
+      	<module>pact-runtime</module>
+        <module>pact-compiler</module>
+        <module>pact-clients</module>
+      	<module>pact-examples</module>
+      	<module>pact-tests</module>
+<!--    <module>pact-test-data</module> -->
+    </modules>
+</project>

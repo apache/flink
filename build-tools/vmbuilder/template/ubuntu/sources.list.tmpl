@@ -1,0 +1,16 @@
+deb $mirror $suite #slurp
+#echo ' '.join($components)
+
+deb $updates_mirror $suite-updates #slurp
+#echo ' '.join($components)
+
+deb $security_mirror $suite-security #slurp
+#echo ' '.join($components)
+
+#if $ppa
+#for $p in $ppa
+deb http://ppa.launchpad.net/$p/ubuntu $suite #slurp
+#echo ' '.join($components)
+
+#end for
+#end if

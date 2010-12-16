@@ -1,0 +1,56 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.pact.runtime.hash;
+
+import java.io.IOException;
+
+import junit.framework.TestCase;
+import eu.stratosphere.nephele.io.Reader;
+import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.runtime.test.util.TestData;
+import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
+import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
+
+public class KeyValuePairHashMapTest extends TestCase {
+	// the size of the input
+	private static int input1Size = 50000;
+
+	// random seeds for the input data generator
+	private static long seed = 561349061987311L;
+
+	// input data generator and reader
+	private Generator generator;
+
+	private Reader<? extends KeyValuePair<TestData.Key, TestData.Value>> reader;
+
+	@Override
+	public void setUp() {
+		generator = new Generator(seed, 500, 16);
+		reader = new RecordReaderMock(generator, input1Size);
+	}
+
+	@Override
+	public void tearDown() {
+		generator = null;
+		reader = null;
+	}
+
+	public void testMap() throws IOException, InterruptedException {
+		while (reader.hasNext()) {
+			reader.next();
+		}
+	}
+}

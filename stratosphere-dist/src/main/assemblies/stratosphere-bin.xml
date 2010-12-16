@@ -1,0 +1,83 @@
+<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
+    <id>stratosphere-bin</id>
+    <formats>
+        <format>dir</format>
+        <!--
+        <format>tar.gz</format>
+        <format>zip</format>
+        -->
+    </formats>
+
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <baseDirectory>stratosphere-${project.version}</baseDirectory>
+    
+    <!-- copy all jar files and their dependencies -->
+    <dependencySets>
+        <dependencySet>
+            <outputDirectory>lib</outputDirectory>
+            <unpack>false</unpack>
+            <useTransitiveDependencies>true</useTransitiveDependencies>
+            <useProjectArtifact>false</useProjectArtifact>
+            <useProjectAttachments>false</useProjectAttachments>
+
+            <excludes>
+              <exclude>*:*examples</exclude>
+            </excludes>
+        </dependencySet>
+    </dependencySets>
+
+    <fileSets>
+    	<fileSet>
+        <!-- copy start scripts -->
+    		<directory>src/main/stratosphere-bin/bin</directory>
+    		<outputDirectory>bin</outputDirectory>
+    		<fileMode>0755</fileMode>
+    	</fileSet>
+    	<fileSet>
+        <!-- copy default configuration -->
+    		<directory>src/main/stratosphere-bin/conf</directory>
+    		<outputDirectory>conf</outputDirectory>
+    		<fileMode>0644</fileMode>
+    	</fileSet>
+    	<fileSet>
+        <!-- create an empty log directory -->
+    		<directory>src/main/stratosphere-bin/doc</directory>
+    		<outputDirectory>log</outputDirectory>
+    		<fileMode>0644</fileMode>
+        <excludes>
+          <exclude>*</exclude>
+        </excludes>
+    	</fileSet>
+    	<fileSet>
+        <!-- copy offline documentation -->
+    		<directory>src/main/stratosphere-bin/doc</directory>
+    		<outputDirectory>doc</outputDirectory>
+    		<fileMode>0644</fileMode>
+    	</fileSet>
+      <fileSet>
+        <!-- copy files for PACT web frontend -->
+    		<directory>../pact/pact-clients/resources</directory>
+    		<outputDirectory>resources</outputDirectory>
+    		<fileMode>0644</fileMode>
+        <excludes>
+          <exclude>*etc/users</exclude>
+        </excludes>
+    	</fileSet>
+      <fileSet>
+        <!-- copy jar files of pact job examples -->
+        <directory>../pact/pact-examples/target</directory>
+        <outputDirectory>examples/pact/</outputDirectory>
+        <fileMode>0644</fileMode>
+        <includes>
+          <include>*.jar</include>
+        </includes>
+        <excludes>
+          <exclude>pact-examples-${project.version}.jar</exclude>
+          <exclude>pact-examples-${project.version}-sources.jar</exclude>
+        </excludes>
+      </fileSet>
+    </fileSets>
+
+</assembly>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="Maven">
+  <bannerLeft>
+    <name>Nephele Website</name>
+    <src>http://maven.apache.org/images/apache-maven-project.png</src>
+    <href>http://maven.apache.org/</href>
+  </bannerLeft>
+  <bannerRight>
+    <src>http://maven.apache.org/images/maven-small.gif</src>
+  </bannerRight>
+  <body>
+    <links>
+      <item name="CIT" href="http://www.cit.tu-berlin.de/" />
+      <item name="DIMA" href="http://www.dima.tu-berlin.de"/>
+    </links>
+
+    <menu name="Nephele">
+      <item name="Introduction" href="index.html"/>
+    </menu>
+
+    <menu ref="reports"/>
+
+  </body>
+</project>
+

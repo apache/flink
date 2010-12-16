@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>pact</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.1</version>
+  </parent>
+
+  <groupId>eu.stratosphere</groupId>
+  <artifactId>pact-examples</artifactId>
+  <version>0.1</version>
+  <name>pact-examples</name>
+  
+  <packaging>jar</packaging>
+
+  <dependencies>
+
+
+
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-compiler</artifactId>
+    	<version>${version}</version>
+    </dependency>
+
+
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-common</artifactId>
+    	<version>${version}</version>
+    </dependency>
+  </dependencies>
+
+  <reporting>
+    <plugins>
+      <plugin>
+        <!--
+          just define the Java version to be used for compiling and
+          plugins
+        -->
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.0</version>
+        <configuration>
+          <source>1.6</source>
+          <target>1.6</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </reporting>
+
+  <build>
+    <plugins>
+      <plugin>
+        <!-- just define the Java version to be used for compiling and plugins -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.6</source>
+          <target>1.6</target>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+      <!-- KMeansIteration -->
+          <execution>
+            <id>KMeansIteration</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+
+            <configuration>
+              <classifier>KMeansIteration</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.datamining.KMeansIteration</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/datamining/KMeansIteration.class</include>
+                <include>**/datamining/KMeansIteration$*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+      <!-- EnumTriangles -->
+          <execution>
+            <id>EnumTriangles</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>EnumTriangles</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.graph.EnumTriangles</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/graph/EnumTriangles.class</include>
+                <include>**/graph/EnumTriangles$*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+      <!-- TPCHQuery3 -->
+          <execution>
+            <id>TPCHQuery3</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery3</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery3</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery3.class</include>
+                <include>**/relational/TPCHQuery3$*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+      <!-- WebLogAnalysis -->
+          <execution>
+            <id>WebLogAnalysis</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>WebLogAnalysis</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.WebLogAnalysis</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/WebLogAnalysis.class</include>
+                <include>**/relational/WebLogAnalysis$*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+      <!-- WordCount -->
+          <execution>
+            <id>WordCount</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>WordCount</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.wordcount.WordCount</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/wordcount/WordCount.class</include>
+                <include>**/wordcount/WordCount$*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+        </executions>
+      </plugin>
+
+    </plugins>
+  </build>
+</project>
