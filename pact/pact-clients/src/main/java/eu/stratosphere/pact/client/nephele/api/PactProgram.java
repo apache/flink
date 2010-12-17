@@ -121,7 +121,12 @@ public class PactProgram {
 	 * @throws ErrorInPlanAssemblerException
 	 */
 	public OptimizedPlan getPreOptimizedPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		return getPreOptimizedPlan(getPlan());
+		Plan plan = getPlan();
+		if(plan != null) {
+			return getPreOptimizedPlan(plan);
+		} else {
+			return null;
+		}
 	}
 
 	/**
