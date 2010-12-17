@@ -631,17 +631,20 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	@Override
 	public Plan getPlan(String... args) {
 
+		int noSubTasks = 1;
+		String dataPointInput = "";
+		String clusterInput = "";
+		String output = "";
+		
 		// check for the correct number of job parameters
-		if (args.length != 4) {
-			return null;
+		if (args.length == 4) {
+			// parse job parameters
+			noSubTasks = Integer.parseInt(args[0]);
+			dataPointInput = args[1];
+			clusterInput = args[2];
+			output = args[3];
 		}
-
-		// parse job parameters
-		int noSubTasks = Integer.parseInt(args[0]);
-		String dataPointInput = args[1];
-		String clusterInput = args[2];
-		String output = args[3];
-
+		
 		// create DataSourceContract for data point input
 		DataSourceContract<PactInteger, CoordVector> dataPoints = new DataSourceContract<PactInteger, CoordVector>(
 			PointInFormat.class, dataPointInput, "Read Data Points");
