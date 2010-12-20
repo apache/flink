@@ -225,9 +225,9 @@ public abstract class TestBase extends TestCase {
 			expectedResult.add(st.nextToken());
 		}
 
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
+		// log expected and computed results
+		LOG.debug("Expected: " + expectedResult);
+		LOG.debug("Computed: " + computedResult);
 
 		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
 			.size());
@@ -235,7 +235,7 @@ public abstract class TestBase extends TestCase {
 		while (!expectedResult.isEmpty()) {
 			String expectedLine = expectedResult.poll();
 			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
+			LOG.debug("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
 			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
 		}
 	}

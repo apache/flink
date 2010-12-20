@@ -21,6 +21,6 @@ import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
 @SuiteClasses( { MapTest.class, ReduceTest.class, MatchTest.class, CrossTest.class, CoGroupTest.class })
-public class ContractsTests {
+public class ContractTests {
 
 }

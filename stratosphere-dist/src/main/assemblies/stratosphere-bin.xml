@@ -4,8 +4,8 @@
     <id>stratosphere-bin</id>
     <formats>
         <format>dir</format>
-        <!--
         <format>tar.gz</format>
+	<!--
         <format>zip</format>
         -->
     </formats>

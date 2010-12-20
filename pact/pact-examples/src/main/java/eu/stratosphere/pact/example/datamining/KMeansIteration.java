@@ -696,7 +696,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, data-points, cluster-centers, output";
+		return "Parameters: [dop] [data-points] [cluster-centers] [output]";
 	}
 
 }

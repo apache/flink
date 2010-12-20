@@ -22,6 +22,7 @@ import java.util.Set;
 
 import junit.framework.Assert;
 
+import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -109,8 +110,8 @@ public class SerializingHashMapTest {
 		Assert.assertTrue("Number of values in map is below lower bound", pactHashMap.numberOfValues() >= SEGMENT_SIZE
 			/ (2 * VALUE_LENGTH + 16));
 
-		System.out.println("Inserted " + pactHashMap.numberOfKeys() + " keys");
-		System.out.println("Inserted " + pactHashMap.numberOfValues() + " values");
+		Logger.getRootLogger().debug("Inserted " + pactHashMap.numberOfKeys() + " keys");
+		Logger.getRootLogger().debug("Inserted " + pactHashMap.numberOfValues() + " values");
 
 		// test value iterators
 		for (Key key : javaHashMap.keySet()) {
