@@ -133,6 +133,28 @@
           <target>1.6</target>
         </configuration>
       </plugin>
+      
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.7</version>
+        <configuration>
+          <systemProperties>
+            <property>
+              <name>java.net.preferIPv4Stack</name>
+              <value>true</value>
+            </property>
+          </systemProperties>
+        
+          <includes>
+            <include>**/ContractTests.java</include>
+            <!--
+            <include>**/JobTests.java</include>
+            -->
+          </includes>
+        </configuration>
+      </plugin>
+      
     </plugins>
   </build>
 </project>

@@ -56,9 +56,6 @@ import eu.stratosphere.pact.test.util.TestBase;
  */
 @RunWith(Parameterized.class)
 public class MapTest extends TestBase
-/*
- * TODO: - Allow multiple data sinks
- */
 
 {
 	public MapTest(String clusterConfig, Configuration testConfig) {
@@ -82,7 +79,6 @@ public class MapTest extends TestBase
 		getHDFSProvider().writeFileToHDFS("mapTest_3.txt", MAP_IN_3);
 		getHDFSProvider().writeFileToHDFS("mapTest_4.txt", MAP_IN_4);
 
-		// getHDFSProvider().createDir(getHDFSProvider().getHdfsHome()+"/result/");
 	}
 
 	public static class MapTestInFormat extends TextInputFormat<PactString, PactString> {
@@ -100,27 +96,11 @@ public class MapTest extends TestBase
 			return true;
 		}
 
-		// @Override
-		// public byte[] writeLine(KeyValuePair<N_String, N_String> pair)
-		// {
-		// return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
-		// }
 	}
 
 	public static class MapTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
 
 		private static final Log LOG = LogFactory.getLog(MapTestOutFormat.class);
-
-		// @Override
-		// public void readLine(KeyValuePair<N_String, N_Integer> pair, byte[] line)
-		// {
-		//
-		// String[] tokens = line.toString().split(" ");
-		//
-		// pair.setKey(new N_String(tokens[0]));
-		// pair.setValue(new N_Integer(Integer.parseInt(tokens[1])));
-		//
-		// }
 
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
