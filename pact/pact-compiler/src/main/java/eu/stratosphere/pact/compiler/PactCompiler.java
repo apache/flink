@@ -25,7 +25,6 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
@@ -324,19 +323,23 @@ public class PactCompiler {
 	 * @param estimator
 	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
 	 */
-	public PactCompiler(DataStatistics stats, CostEstimator estimator) {
+	public PactCompiler(DataStatistics stats, CostEstimator estimator)
+	{
 		this.statistics = stats;
 		this.costEstimator = estimator;
 
-		// get the instance type to schedule pact tasks on
 		Configuration config = GlobalConfiguration.getConfiguration();
+		
+		// get the instance type to schedule pact tasks on		
 		String instanceDescr = config.getString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_KEY,
 			PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION);
 		InstanceType type = null;
 		try {
 			type = InstanceType.getTypeFromString(instanceDescr);
-		} catch (IllegalArgumentException iaex) {
-			LOG.error("Invalid description of standard instance type in PACT configuration: " + instanceDescr, iaex);
+		}
+		catch (IllegalArgumentException iaex) {
+			LOG.error("Invalid description of standard instance type in PACT configuration: " + instanceDescr + 
+				". Using default instance type " + PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION + ".", iaex);
 			type = InstanceType.getTypeFromString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION);
 		}
 		this.pactInstanceType = type;
@@ -345,6 +348,8 @@ public class PactCompiler {
 		int defaultParallelizationDegree = config.getInteger(PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
 			PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
 		if (defaultParallelizationDegree < 1) {
+			LOG.error("Invalid default degree of parallelism: " + defaultParallelizationDegree + 
+				". Using default degree of " + PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE + ".");
 			defaultParallelizationDegree = PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE;
 		}
 		this.defaultDegreeOfParallelism = defaultParallelizationDegree;
@@ -353,25 +358,14 @@ public class PactCompiler {
 		int defaultInNodePar = config.getInteger(PactConfigConstants.DEFAULT_PARALLELIZATION_INTRA_NODE_DEGREE_KEY,
 			PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE);
 		if (defaultInNodePar < 1) {
+			LOG.error("Invalid default degree of intra-node parallelism: " + defaultParallelizationDegree + 
+				". Using default degree of " + PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE + ".");
 			defaultInNodePar = PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE;
 		}
 		this.defaultIntraNodeParallelism = defaultInNodePar;
 
-		// compute the amount of memory usable per instance
-		int memory = config.getInteger(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY, -1);
-		if (memory == -1) {
-			String frac = config.getString(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION_KEY, String
-				.valueOf(ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION));
-			float fraction;
-			try {
-				fraction = Float.parseFloat(frac);
-			} catch (NumberFormatException nfex) {
-				fraction = ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION;
-			}
-
-			memory = (int) (pactInstanceType.getMemorySize() * fraction);
-		}
-		this.memoryPerInstance = memory;
+		// get the amount of memory usable per instance
+		this.memoryPerInstance = pactInstanceType.getMemorySize();
 	}
 
 	// ------------------------------------------------------------------------

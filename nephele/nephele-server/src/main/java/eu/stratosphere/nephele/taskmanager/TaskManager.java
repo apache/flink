@@ -147,7 +147,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 * @param configDir
 	 *        the directory containing the configuration files for the task manager
 	 */
-	public TaskManager(String configDir) {
+	public TaskManager(String configDir) throws Exception {
 
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
@@ -158,8 +158,7 @@ public class TaskManager implements TaskOperationProtocol {
 			try {
 				jobManagerAddress = DiscoveryService.getJobManagerAddress();
 			} catch (DiscoveryException e) {
-				e.printStackTrace();
-				System.exit(FAILURERETURNCODE);
+				throw new Exception("Failed to initialize discovery service. " + e.getMessage(), e);
 			}
 
 		} else {
@@ -194,7 +193,7 @@ public class TaskManager implements TaskOperationProtocol {
 				.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
-			System.exit(FAILURERETURNCODE);
+			throw new Exception("Failed to initialize connection to JobManager. " + e.getMessage(), e);
 		}
 		this.jobManager = jobManager;
 
@@ -205,7 +204,7 @@ public class TaskManager implements TaskOperationProtocol {
 				NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
-			System.exit(FAILURERETURNCODE);
+			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
 		}
 		this.lookupService = lookupService;
 
@@ -217,7 +216,7 @@ public class TaskManager implements TaskOperationProtocol {
 			taskManagerServer.start();
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
-			System.exit(FAILURERETURNCODE);
+			throw new Exception("Failed to taskmanager server. " + e.getMessage(), e);
 		}
 		this.taskManagerServer = taskManagerServer;
 
@@ -226,8 +225,8 @@ public class TaskManager implements TaskOperationProtocol {
 			final String profilerClassName = GlobalConfiguration.getString(ProfilingUtils.TASKMANAGER_CLASSNAME_KEY,
 				null);
 			if (profilerClassName == null) {
-				LOG.error("Cannot find class name for the profiler");
-				System.exit(FAILURERETURNCODE);
+				LOG.error("Cannot find class name for the profiler.");
+				throw new Exception("Cannot find class name for the profiler.");
 			}
 			this.profiler = ProfilingUtils.loadTaskManagerProfiler(profilerClassName, jobManagerAddress.getAddress(),
 				this.localInstanceConnectionInfo);
@@ -248,8 +247,7 @@ public class TaskManager implements TaskOperationProtocol {
 				tmpDirPath);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
-			ioe.printStackTrace();
-			System.exit(FAILURERETURNCODE);
+			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
 		}
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
@@ -260,32 +258,20 @@ public class TaskManager implements TaskOperationProtocol {
 		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath);
 
 		// Initialize the memory manager
-		long memorySize = GlobalConfiguration.getInteger(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY,
-			ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY);
+		long memorySize = GlobalConfiguration.getInteger(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY, -1);
+		
 		if (memorySize < 1) {
-			// get the fraction configuration
-			String mss = GlobalConfiguration.getString(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION_KEY,
-				String.valueOf(ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION));
-			float fract = ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION;
-			try {
-				fract = Float.parseFloat(mss);
-			} catch (NumberFormatException nfex) {
-				LOG.warn("Invalid parameter for " + ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION_KEY
-					+ " in the configuration. Using default value of "
-					+ ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION
-					+ " for the memory fraction dedicated to the MemoryManager.");
-			}
-
-			LOG.info("Initializing MemoryManager with a fraction of " + fract + " of the total free memory.");
-
-			this.memoryManager = DefaultMemoryManager.getWithHeapFraction(fract,
-				ConfigConstants.DEFAULT_MEMORY_MANAGER_MIN_UNRESERVED_MEMORY);
-		} else {
-			LOG.info("Initializing memory manager with " + memorySize + " megabytes of memory");
-			this.memoryManager = new DefaultMemoryManager(memorySize * 1024L * 1024L);
+			memorySize = ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY;
+			LOG.warn("Memory manager size (" + ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY + 
+				") undefined for this task manager. Using default memory size of " +
+				ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY + "MB.");
+			
 		}
+		
+		LOG.info("Initializing memory manager with " + memorySize + " megabytes of memory");
+		this.memoryManager = new DefaultMemoryManager(memorySize * 1024L * 1024L);
 
-		// Initialize the io manager
+		// Initialize the I/O manager
 		this.ioManager = new IOManager(tmpDirPath);
 
 		// Add shutdown hook for clean up tasks
@@ -319,7 +305,15 @@ public class TaskManager implements TaskOperationProtocol {
 		String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
 
 		// Create a new task manager object
-		TaskManager taskManager = new TaskManager(configDir);
+		TaskManager taskManager = null;
+		try { 
+			taskManager = new TaskManager(configDir);
+		}
+		catch (Throwable t) {
+			System.err.println("Taskmanager startup failed:" + t.getMessage());
+			t.printStackTrace(System.err);
+			System.exit(FAILURERETURNCODE);
+		}
 
 		// Run the main I/O loop
 		taskManager.runIOLoop();

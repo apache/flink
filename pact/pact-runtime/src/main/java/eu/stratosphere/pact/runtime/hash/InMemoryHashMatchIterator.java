@@ -27,8 +27,10 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 
-@SuppressWarnings("unchecked")
+
+@SuppressWarnings("rawtypes")
 public class InMemoryHashMatchIterator implements MatchTaskIterator {
+	
 	private Reader<? extends KeyValuePair> readerBuild;
 
 	private Reader<? extends KeyValuePair> readerProbe;
@@ -109,6 +111,7 @@ public class InMemoryHashMatchIterator implements MatchTaskIterator {
 		return false;
 	}
 
+	@SuppressWarnings("unchecked")
 	private void buildHash() throws IOException, InterruptedException {
 		build = new HashMap<Key, Collection<Value>>();
 

@@ -16,15 +16,6 @@
 
   <packaging>jar</packaging>
 
-  <!--<dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.7</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>-->
-
   <!-- FIXME: (aa) don't know why, this doesn't seem to work (try "/nephele-common$ mvn surefire:test") -->
   <!--<build>
     <plugins>

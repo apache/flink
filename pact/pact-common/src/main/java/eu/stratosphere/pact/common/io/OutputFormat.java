@@ -36,16 +36,6 @@ public abstract class OutputFormat<K extends Key, V extends Value> extends Stub<
 	protected FSDataOutputStream stream;
 
 	/**
-	 * Creates a KeyValue pair that can be used together with the writePair()
-	 * method. The runtime will try to reuse the pair for several writePair()
-	 * calls.
-	 * 
-	 * @return
-	 */
-	// TODO: seems to be unnecessary
-	public abstract KeyValuePair<K, V> createPair();
-
-	/**
 	 * Writes the pair to the underlying output stream.
 	 * 
 	 * @param pair

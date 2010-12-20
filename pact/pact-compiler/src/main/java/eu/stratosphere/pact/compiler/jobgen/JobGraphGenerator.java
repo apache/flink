@@ -849,7 +849,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			numSortBuffers = sortMem / MAX_SORT_HEAP_BUFFER_SIZE + 1;
 			// correct rounding loss
 			numSortBuffers = sortMem / (sortMem / numSortBuffers);
-		} else if (sortMem > 3 * 64) {
+		} else if (sortMem > 3 * 16) {
 			numSortBuffers = 3;
 		} else if (sortMem >= 2 * MIN_SORT_HEAP) {
 			numSortBuffers = 2;

@@ -22,8 +22,12 @@ public class LocalTaskManagerThread extends Thread {
 	private TaskManager taskManager;
 
 	public LocalTaskManagerThread(String configDir) {
-
-		this.taskManager = new TaskManager(configDir);
+		try {
+			this.taskManager = new TaskManager(configDir);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not start local TaskManager: " + e.getMessage(), e);
+		}
 	}
 
 	@Override

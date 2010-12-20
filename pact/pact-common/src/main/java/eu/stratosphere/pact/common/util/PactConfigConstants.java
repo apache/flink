@@ -21,11 +21,12 @@ package eu.stratosphere.pact.common.util;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class PactConfigConstants {
+	
 	// ------------------------------------------------------------------------
-	// Configuration Keys
+	//                          Configuration Keys
 	// ------------------------------------------------------------------------
 
-	// ------------------------------ Parallelism -----------------------------
+	// ---------------------------- Parallelism -------------------------------
 
 	/**
 	 * The key for the config parameter defining the default degree of parallelization for user functions.
@@ -89,7 +90,7 @@ public final class PactConfigConstants {
 	/**
 	 * The default degree of parallelism for PACT user functions.
 	 */
-	public static final int DEFAULT_PARALLELIZATION_DEGREE = 2;
+	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
 
 	/**
 	 * The default intra-node parallelism
@@ -105,7 +106,7 @@ public final class PactConfigConstants {
 	/**
 	 * The description of the default instance type that is booked for the execution of PACT tasks.
 	 */
-	public static final String DEFAULT_INSTANCE_TYPE_DESCRIPTION = "standard,2,1,2048,10,10";
+	public static final String DEFAULT_INSTANCE_TYPE_DESCRIPTION = "standard,2,1,300,10,0";
 
 	// ----------------------------- Web Frontend -----------------------------
 

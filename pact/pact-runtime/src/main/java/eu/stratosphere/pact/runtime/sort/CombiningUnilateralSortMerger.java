@@ -97,7 +97,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader, float offsetArrayPerc,
 			AbstractTask parentTask, boolean combineLastMerge)
-																throws IOException, MemoryAllocationException {
+	throws IOException, MemoryAllocationException
+	{
 		super(memoryManager, ioManager, numSortBuffers, sizeSortBuffer, ioMemorySize, maxNumFileHandles,
 			keySerialization, valueSerialization, keyComparator, reader, offsetArrayPerc, parentTask);
 
@@ -123,8 +124,11 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 */
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask) {
-		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, ioMemorySize, parentTask);
+			MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
+			int buffersToKeepBeforeSpilling)
+	{
+		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, ioMemorySize,
+			parentTask, buffersToKeepBeforeSpilling);
 	}
 
 	// ------------------------------------------------------------------------
@@ -212,15 +216,20 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		private final IOManager ioManager;
 
 		private final int ioMemorySize;
+		
+		private final int buffersToKeepBeforeSpilling;
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask) {
+				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
+				int buffersToKeepBeforeSpilling)
+		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 
 			// members
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
 			this.ioMemorySize = ioMemorySize;
+			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
 		}
 
 		/**

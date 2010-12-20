@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @param <V>
  */
 public abstract class TextInputFormat<K extends Key, V extends Value> extends InputFormat<K, V> {
+	
 	public static final String FORMAT_PAIR_DELIMITER = "delimiter";
 
 	private byte[] readBuffer;
@@ -87,11 +88,15 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 	@Override
 	public void configure(Configuration parameters) {
 		String delimString = parameters.getString(FORMAT_PAIR_DELIMITER, "\n");
-		if (delimString != null && delimString.length() != 1) {
+		
+		if (delimString == null) {
+			throw new IllegalArgumentException("The delimiter not be null.");
+		}
+		else if (delimString.length() != 1) {
 			throw new IllegalArgumentException("The delimiter must currently be a single char string.");
 		}
 
-		delimiter = delimString != null ? (byte) delimString.charAt(0) : -1;
+		delimiter = (byte) delimString.charAt(0);
 	}
 
 	/**
@@ -105,9 +110,6 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 		this.readPos = 0;
 		this.overLimit = false;
 		this.end = false;
-
-		// TODO: Set delimiter
-		// this.delimiter = delimiter;
 
 		try {
 			if (start != 0) {
@@ -136,10 +138,6 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 	public void close() {
 		wrapBuffer = null;
 		readBuffer = null;
-
-		// if (stream != null) {
-		// stream.close();
-		// }
 	}
 
 	/**

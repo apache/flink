@@ -94,11 +94,6 @@ public class WordCountMapReducePactMassiveTest extends TestBase {
 		public byte[] writeLine(KeyValuePair<Text, Integer> pair) {
 			return (pair.getKey().toString() + ":" + pair.getValue().toString() + "\n").getBytes();
 		}
-
-		@Override
-		public KeyValuePair<Text, Integer> createPair() {
-			return new KeyValuePair<Text, Integer>(new Text(), new Integer());
-		}
 	}
 
 	public static class Mapper extends MapStub<Text, Text, Text, Integer> {
