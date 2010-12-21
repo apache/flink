@@ -65,9 +65,9 @@ public class All2AllSPTest extends TestBase {
 	@Override
 	protected void preSubmit() throws Exception {
 
-		pathsPath = getHDFSProvider().getHdfsHome() + "/paths";
+		pathsPath = getFilesystemProvider().getTempDirPath() + "/paths";
 		
-		getHDFSProvider().writeFileToHDFS(pathsPath, paths);
+		getFilesystemProvider().createFile(pathsPath, paths);
 		System.out.println("Paths:\n>" + paths + "<");
 	}
 
@@ -76,7 +76,7 @@ public class All2AllSPTest extends TestBase {
 
 		All2AllSP a2aSP = new All2AllSP();
 		Plan plan = a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", "4"),
-				pathsPath, getHDFSProvider().getHdfsHome() + "/iter_1.txt");
+				pathsPath, getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -91,7 +91,7 @@ public class All2AllSPTest extends TestBase {
 		// Test results
 
 		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/iter_1.txt");
+		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 		String line = reader.readLine();
 		Assert.assertNotNull("No output computed", line);
@@ -125,8 +125,8 @@ public class All2AllSPTest extends TestBase {
 		}
 
 		// clean up hdfs
-		getHDFSProvider().delete(pathsPath, true);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/iter_1.txt", false);
+		getFilesystemProvider().delete(pathsPath, true);
+		getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/iter_1.txt", false);
 
 	}
 

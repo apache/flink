@@ -57,7 +57,7 @@ public class WordCountMapReduceTest extends TestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		OutputStream os = getHDFSProvider().getHdfsOutputStream(TEST_FILE_IN);
+		OutputStream os = getFilesystemProvider().getOutputStream(TEST_FILE_IN);
 		Writer wr = new OutputStreamWriter(os);
 		for (int i = 0; i < TEST_DATA_NUM.length; i++) {
 			for (int j = 0; j < TEST_DATA_NUM[i]; j++) {
@@ -140,7 +140,7 @@ public class WordCountMapReduceTest extends TestBase {
 		Thread.sleep(20 * 1000);
 
 		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/" + TEST_FILE_OUT);
+		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/" + TEST_FILE_OUT);
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 		String line = reader.readLine();
 		Assert.assertNotNull("no output", line);

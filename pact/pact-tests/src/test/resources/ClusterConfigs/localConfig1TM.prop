@@ -1,3 +1,4 @@
 ClusterProvider#clusterId=local1TM
 LocalClusterProvider#numTaskTrackers=1
 ClusterProvider#clusterProviderType=LocalClusterProvider
+FilesystemProvider#filesystemType=local_fs

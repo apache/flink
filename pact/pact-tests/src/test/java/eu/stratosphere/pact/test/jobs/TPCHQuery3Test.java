@@ -145,20 +145,20 @@ public class TPCHQuery3Test extends TestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		ordersPath = getHDFSProvider().getHdfsHome() + "/orders";
-		lineitemsPath = getHDFSProvider().getHdfsHome() + "/lineitems";
+		ordersPath = getFilesystemProvider().getTempDirPath() + "/orders";
+		lineitemsPath = getFilesystemProvider().getTempDirPath() + "/lineitems";
 
 		String[] splits = splitInputString(orders, '\n', 4);
-		getHDFSProvider().createDir(ordersPath);
+		getFilesystemProvider().createDir(ordersPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(ordersPath + "/part_" + i + ".txt", splits[i]);
+			getFilesystemProvider().createFile(ordersPath + "/part_" + i + ".txt", splits[i]);
 			System.out.println("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
 		splits = splitInputString(lineitems, '\n', 4);
-		getHDFSProvider().createDir(lineitemsPath);
+		getFilesystemProvider().createDir(lineitemsPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(lineitemsPath + "/part_" + i + ".txt", splits[i]);
+			getFilesystemProvider().createFile(lineitemsPath + "/part_" + i + ".txt", splits[i]);
 			System.out.println("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
@@ -169,7 +169,7 @@ public class TPCHQuery3Test extends TestBase {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		Plan plan = tpch3.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), ordersPath, lineitemsPath, (getHDFSProvider().getHdfsHome() + "/result.txt"));
+				config.getString("TPCHQuery3Test#NoSubtasks", "1"), ordersPath, lineitemsPath, (getFilesystemProvider().getTempDirPath() + "/result.txt"));
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -184,7 +184,7 @@ public class TPCHQuery3Test extends TestBase {
 		// Test results
 
 		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
+		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/result.txt");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 		String line = reader.readLine();
 		Assert.assertNotNull("No output computed", line);
@@ -218,9 +218,9 @@ public class TPCHQuery3Test extends TestBase {
 		}
 
 		// clean up hdfs
-		getHDFSProvider().delete(ordersPath, true);
-		getHDFSProvider().delete(lineitemsPath, true);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/result.txt", true);
+		getFilesystemProvider().delete(ordersPath, true);
+		getFilesystemProvider().delete(lineitemsPath, true);
+		getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/result.txt", true);
 
 	}
 

@@ -35,18 +35,16 @@ import junit.framework.TestCase;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
-import eu.stratosphere.pact.test.util.minicluster.HDFSProvider;
 
 /**
  * @author Erik Nijkamp
@@ -90,7 +88,6 @@ public abstract class TestBase extends TestCase {
 	@After
 	public void stopCluster() throws Exception {
 		LOG.info("######################### stop - cluster config : " + clusterConfig + " #########################");
-		cluster.getHDFSProvider().getFileSystem().close();
 		cluster.stopCluster();
 		ClusterProviderPool.removeInstance(clusterConfig);
 		FileSystem.closeAll();
@@ -111,12 +108,14 @@ public abstract class TestBase extends TestCase {
 	}
 
 	/**
-	 * Returns the HDFS provider of the cluster setup
+	 * Returns the FilesystemProvider of the cluster setup
 	 * 
-	 * @return The HDFS provider of the cluster setup
+	 * @see eu.stratosphere.pact.test.util.filesystem.FilesystemProvider
+	 * 
+	 * @return The FilesystemProvider of the cluster setup
 	 */
-	public HDFSProvider getHDFSProvider() {
-		return cluster.getHDFSProvider();
+	public FilesystemProvider getFilesystemProvider() {
+		return cluster.getFilesystemProvider();
 	}
 
 	/**
@@ -190,11 +189,11 @@ public abstract class TestBase extends TestCase {
 		String[] resultFiles = new String[1];
 
 		// Determine all result files
-		if (getHDFSProvider().getFileSystem().getFileStatus(new Path(hdfsPath)).isDir()) {
-			LinkedList<String> files = new LinkedList<String>();
-			for (FileStatus fs : getHDFSProvider().getFileSystem().listStatus(new Path(hdfsPath))) {
-				if (!fs.isDir()) {
-					files.add(fs.getPath().toString());
+		if (getFilesystemProvider().isDir(hdfsPath)) {
+			List<String> files = new ArrayList<String>();
+			for (String file : getFilesystemProvider().listFiles(hdfsPath)) {
+				if (!getFilesystemProvider().isDir(file)) {
+					files.add(file);
 				}
 			}
 			resultFiles = files.toArray(resultFiles);
@@ -206,7 +205,7 @@ public abstract class TestBase extends TestCase {
 		PriorityQueue<String> computedResult = new PriorityQueue<String>();
 		for (String resultFile : resultFiles) {
 			// read each result file
-			InputStream is = getHDFSProvider().getHdfsInputStream(resultFile);
+			InputStream is = getFilesystemProvider().getInputStream(resultFile);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 			String line = reader.readLine();
 

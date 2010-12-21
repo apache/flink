@@ -19,7 +19,17 @@
 
   <dependencies>
     
-
+	<dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>nephele-common</artifactId>
+      <version>${version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>nephele-hdfs</artifactId>
+      <version>${version}</version>
+    </dependency>
 
     <dependency>
       <groupId>eu.stratosphere</groupId>
@@ -147,6 +157,9 @@
           </systemProperties>
         
           <includes>
+            <!--
+            <include>**/TestNepheleMiniCluster.java</include>
+            -->   
             <include>**/ContractTests.java</include>
             <!--
             <include>**/JobTests.java</include>

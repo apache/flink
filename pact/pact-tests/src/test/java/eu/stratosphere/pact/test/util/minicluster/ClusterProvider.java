@@ -17,42 +17,39 @@ package eu.stratosphere.pact.test.util.minicluster;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 
 public abstract class ClusterProvider {
 
 	protected Configuration config;
 
-	protected HDFSProvider hdfsProvider;
+	protected FilesystemProvider filesystemProvider;
 
 	protected boolean nepheleRunning = false;
 
-	protected boolean hdfsRunning = false;
+	protected boolean filesystemRunning = false;
 
 	protected static String clusterProviderType;
 
 	public void stopCluster() throws Exception {
 		stopNephele();
-		stopHDFS();
-	}
-
-	public void clearDFS() throws Exception {
-		clearHDFS();
+		stopFS();
 	}
 
 	public ClusterProvider(Configuration config) {
 		this.config = config;
 	}
 
-	public HDFSProvider getHDFSProvider() {
-		return hdfsProvider;
+	public FilesystemProvider getFilesystemProvider() {
+		return filesystemProvider;
 	}
 
 	protected boolean nepheleIsRunning() {
 		return nepheleRunning;
 	}
 
-	protected boolean hdfsIsRunning() {
-		return hdfsRunning;
+	protected boolean fsIsRunning() {
+		return filesystemRunning;
 	}
 
 	public abstract void submitJobAndWait(JobGraph jobGraph, String jarFilePath) throws Exception;
@@ -61,10 +58,10 @@ public abstract class ClusterProvider {
 
 	protected abstract void stopNephele() throws Exception;
 
-	protected abstract void startHDFS() throws Exception;
+	protected abstract void startFS() throws Exception;
 
-	protected abstract void stopHDFS() throws Exception;
+	protected abstract void stopFS() throws Exception;
 
-	protected abstract void clearHDFS() throws Exception;
+	protected abstract void clearFS() throws Exception;
 
 }

@@ -41,7 +41,7 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class EnumTrianglesTest extends TestBase {
 
-	String edgesPath = getHDFSProvider().getHdfsHome() + "/triangleEdges";
+	String edgesPath = getFilesystemProvider().getTempDirPath() + "/triangleEdges";
 
 	private String edges = "A|B|\n" + "A|C|\n" + "B|C|\n" + "B|D|\n" + "B|E|\n" + "B|F|\n" + "B|I|\n" + "C|D|\n"
 		+ "E|F|\n" + "F|G|\n" + "F|I|\n" + "G|H|\n" + "G|J|\n" + "H|I|\n" + "H|J|\n" + "H|K|\n" + "I|K|\n";
@@ -66,9 +66,9 @@ public class EnumTrianglesTest extends TestBase {
 	protected void preSubmit() throws Exception {
 
 		String[] splits = splitInputString(edges, '\n', 4);
-		getHDFSProvider().createDir(edgesPath);
+		getFilesystemProvider().createDir(edgesPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(edgesPath + "/part_" + i + ".txt", splits[i]);
+			getFilesystemProvider().createFile(edgesPath + "/part_" + i + ".txt", splits[i]);
 			System.out.println("Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
@@ -78,7 +78,7 @@ public class EnumTrianglesTest extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		EnumTriangles enumTriangles = new EnumTriangles();
-		Plan plan = enumTriangles.getPlan(edgesPath, getHDFSProvider().getHdfsHome() + "/triangles.txt", config
+		Plan plan = enumTriangles.getPlan(edgesPath, getFilesystemProvider().getTempDirPath() + "/triangles.txt", config
 			.getString("EnumTrianglesTest#NoSubtasks", "1"));
 
 		PactCompiler pc = new PactCompiler();
@@ -94,7 +94,7 @@ public class EnumTrianglesTest extends TestBase {
 		// Test results
 
 		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/triangles.txt");
+		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/triangles.txt");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 		String line = reader.readLine();
 		Assert.assertNotNull("No output computed", line);
@@ -128,8 +128,8 @@ public class EnumTrianglesTest extends TestBase {
 		}
 
 		// clean up hdfs
-		getHDFSProvider().delete(edgesPath, true);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/triangles.txt", false);
+		getFilesystemProvider().delete(edgesPath, true);
+		getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/triangles.txt", false);
 
 	}
 

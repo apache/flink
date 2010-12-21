@@ -41,11 +41,11 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class WebLogAnalysisTest extends TestBase {
 
-	String docsPath = getHDFSProvider().getHdfsHome() + "/docs";
+	String docsPath = getFilesystemProvider().getTempDirPath() + "/docs";
 
-	String ranksPath = getHDFSProvider().getHdfsHome() + "/ranks";
+	String ranksPath = getFilesystemProvider().getTempDirPath() + "/ranks";
 
-	String visitsPath = getHDFSProvider().getHdfsHome() + "/visits";
+	String visitsPath = getFilesystemProvider().getTempDirPath() + "/visits";
 
 	// TODO: copy test data from generator
 	String docs = "aaaaa|Bombs Allah Dschihad Blubb Bla asdfas a dsfas asdfasdf asdfas|\n"
@@ -110,23 +110,23 @@ public class WebLogAnalysisTest extends TestBase {
 	protected void preSubmit() throws Exception {
 
 		String[] splits = splitInputString(docs, '\n', 4);
-		getHDFSProvider().createDir(docsPath);
+		getFilesystemProvider().createDir(docsPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(docsPath + "/part_" + i + ".txt", splits[i]);
+			getFilesystemProvider().createFile(docsPath + "/part_" + i + ".txt", splits[i]);
 			System.out.println("Docs Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
 		splits = splitInputString(ranks, '\n', 4);
-		getHDFSProvider().createDir(ranksPath);
+		getFilesystemProvider().createDir(ranksPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(ranksPath + "/part_" + i + ".txt", splits[i]);
+			getFilesystemProvider().createFile(ranksPath + "/part_" + i + ".txt", splits[i]);
 			System.out.println("Ranks Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
 		splits = splitInputString(visits, '\n', 4);
-		getHDFSProvider().createDir(visitsPath);
+		getFilesystemProvider().createDir(visitsPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(visitsPath + "/part_" + i + ".txt", splits[i]);
+			getFilesystemProvider().createFile(visitsPath + "/part_" + i + ".txt", splits[i]);
 			System.out.println("Visits Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
@@ -137,7 +137,7 @@ public class WebLogAnalysisTest extends TestBase {
 
 		WebLogAnalysis relOLAP = new WebLogAnalysis();
 		Plan plan = relOLAP.getPlan(config.getString("WebLogAnalysisTest#NoSubtasks", "1"),
-			docsPath, ranksPath, visitsPath, getHDFSProvider().getHdfsHome() + "/result.txt");
+			docsPath, ranksPath, visitsPath, getFilesystemProvider().getTempDirPath() + "/result.txt");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -152,7 +152,7 @@ public class WebLogAnalysisTest extends TestBase {
 		// Test results
 
 		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
+		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/result.txt");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 		String line = reader.readLine();
 		Assert.assertNotNull("No output computed", line);
@@ -186,10 +186,10 @@ public class WebLogAnalysisTest extends TestBase {
 		}
 
 		// clean up hdfs
-		getHDFSProvider().delete(docsPath, true);
-		getHDFSProvider().delete(ranksPath, true);
-		getHDFSProvider().delete(visitsPath, true);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/result.txt", true);
+		getFilesystemProvider().delete(docsPath, true);
+		getFilesystemProvider().delete(ranksPath, true);
+		getFilesystemProvider().delete(visitsPath, true);
+		getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/result.txt", true);
 
 	}
 

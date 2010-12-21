@@ -45,9 +45,9 @@ public class KMeansIterationTest extends TestBase {
 
 	KMeanDataGenerator kmdg = new KMeanDataGenerator(500, 10, 2);
 
-	String dataPath = getHDFSProvider().getHdfsHome() + "/dataPoints";
+	String dataPath = getFilesystemProvider().getTempDirPath() + "/dataPoints";
 
-	String clusterPath = getHDFSProvider().getHdfsHome() + "/clusters";
+	String clusterPath = getFilesystemProvider().getTempDirPath() + "/clusters";
 
 	String resultPath = clusterPath + "/iter_1.txt";
 
@@ -70,21 +70,21 @@ public class KMeansIterationTest extends TestBase {
 		int partitionSize = (dataFile.length() / noPartitions) - 2;
 
 		// create data path
-		getHDFSProvider().createDir(dataPath);
+		getFilesystemProvider().createDir(dataPath);
 
 		// TODO: check splitting!
 		// split data file and copy parts
 		for (int i = 0; i < noPartitions; i++) {
 			int cutPos = dataFile.indexOf('\n', (partitionSize < dataFile.length() ? partitionSize
 				: (dataFile.length() - 1)));
-			getHDFSProvider().writeFileToHDFS(dataPath + "/part_" + i + ".txt", dataFile.substring(0, cutPos) + "\n");
+			getFilesystemProvider().createFile(dataPath + "/part_" + i + ".txt", dataFile.substring(0, cutPos) + "\n");
 			System.out.println("Points Part " + (i + 1) + ":\n>" + dataFile.substring(0, cutPos) + "\n<");
 			dataFile = dataFile.substring(cutPos + 1);
 		}
 
 		// create cluster path and copy data
-		getHDFSProvider().createDir(clusterPath);
-		getHDFSProvider().writeFileToHDFS(clusterPath + "/iter_0.txt", clusterFile);
+		getFilesystemProvider().createDir(clusterPath);
+		getFilesystemProvider().createFile(clusterPath + "/iter_0.txt", clusterFile);
 		System.out.println("Clusters: \n>" + clusterFile + "<");
 
 	}
@@ -112,7 +112,7 @@ public class KMeansIterationTest extends TestBase {
 		// Test results
 
 		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(clusterPath + "/iter_1.txt");
+		InputStream is = getFilesystemProvider().getInputStream(clusterPath + "/iter_1.txt");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 		String line = reader.readLine();
 		Assert.assertNotNull("No output computed", line);
@@ -147,8 +147,8 @@ public class KMeansIterationTest extends TestBase {
 		}
 
 		// clean up hdfs
-		getHDFSProvider().delete(dataPath, true);
-		getHDFSProvider().delete(clusterPath, true);
+		getFilesystemProvider().delete(dataPath, true);
+		getFilesystemProvider().delete(clusterPath, true);
 
 	}
 
