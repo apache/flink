@@ -13,18 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.jobs;
+package eu.stratosphere.pact.test.pactPrograms;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
 
-import junit.framework.Assert;
-
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -41,6 +36,8 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class TPCHQuery3Test extends TestBase {
 
+	private static final Log LOG = LogFactory.getLog(TPCHQuery3Test.class);
+	
 	String ordersPath = null;
 
 	String lineitemsPath = null;
@@ -139,11 +136,6 @@ public class TPCHQuery3Test extends TestBase {
 	}
 
 	@Override
-	protected String getJarFilePath() {
-		return null;
-	}
-
-	@Override
 	protected void preSubmit() throws Exception {
 		ordersPath = getFilesystemProvider().getTempDirPath() + "/orders";
 		lineitemsPath = getFilesystemProvider().getTempDirPath() + "/lineitems";
@@ -152,14 +144,14 @@ public class TPCHQuery3Test extends TestBase {
 		getFilesystemProvider().createDir(ordersPath);
 		for (int i = 0; i < splits.length; i++) {
 			getFilesystemProvider().createFile(ordersPath + "/part_" + i + ".txt", splits[i]);
-			System.out.println("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
+			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
 		splits = splitInputString(lineitems, '\n', 4);
 		getFilesystemProvider().createDir(lineitemsPath);
 		for (int i = 0; i < splits.length; i++) {
 			getFilesystemProvider().createFile(lineitemsPath + "/part_" + i + ".txt", splits[i]);
-			System.out.println("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
+			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
 	}
@@ -169,7 +161,10 @@ public class TPCHQuery3Test extends TestBase {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		Plan plan = tpch3.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), ordersPath, lineitemsPath, (getFilesystemProvider().getTempDirPath() + "/result.txt"));
+				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
+				getFilesystemProvider().getURIPrefix()+ordersPath, 
+				getFilesystemProvider().getURIPrefix()+lineitemsPath, 
+				getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath() + "/result.txt");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -182,40 +177,7 @@ public class TPCHQuery3Test extends TestBase {
 	protected void postSubmit() throws Exception {
 
 		// Test results
-
-		// read result
-		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
-
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(this.expectedResult, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
+		compareResultsByLinesInMemory(expectedResult, getFilesystemProvider().getTempDirPath() + "/result.txt");
 
 		// clean up hdfs
 		getFilesystemProvider().delete(ordersPath, true);

@@ -13,18 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.jobs;
+package eu.stratosphere.pact.test.pactPrograms;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
 
-import junit.framework.Assert;
-
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -41,7 +36,9 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class EnumTrianglesTest extends TestBase {
 
-	String edgesPath = getFilesystemProvider().getTempDirPath() + "/triangleEdges";
+	private static final Log LOG = LogFactory.getLog(EnumTrianglesTest.class);
+	
+	String edgesPath = null; 
 
 	private String edges = "A|B|\n" + "A|C|\n" + "B|C|\n" + "B|D|\n" + "B|E|\n" + "B|F|\n" + "B|I|\n" + "C|D|\n"
 		+ "E|F|\n" + "F|G|\n" + "F|I|\n" + "G|H|\n" + "G|J|\n" + "H|I|\n" + "H|J|\n" + "H|K|\n" + "I|K|\n";
@@ -58,18 +55,15 @@ public class EnumTrianglesTest extends TestBase {
 	}
 
 	@Override
-	protected String getJarFilePath() {
-		return null;
-	}
-
-	@Override
 	protected void preSubmit() throws Exception {
 
+		edgesPath = getFilesystemProvider().getTempDirPath() + "/triangleEdges";
+		
 		String[] splits = splitInputString(edges, '\n', 4);
 		getFilesystemProvider().createDir(edgesPath);
 		for (int i = 0; i < splits.length; i++) {
 			getFilesystemProvider().createFile(edgesPath + "/part_" + i + ".txt", splits[i]);
-			System.out.println("Part " + (i + 1) + ":\n>" + splits[i] + "<");
+			LOG.debug("Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
 	}
@@ -78,8 +72,10 @@ public class EnumTrianglesTest extends TestBase {
 	protected JobGraph getJobGraph() throws Exception {
 
 		EnumTriangles enumTriangles = new EnumTriangles();
-		Plan plan = enumTriangles.getPlan(edgesPath, getFilesystemProvider().getTempDirPath() + "/triangles.txt", config
-			.getString("EnumTrianglesTest#NoSubtasks", "1"));
+		Plan plan = enumTriangles.getPlan(
+				config.getString("EnumTrianglesTest#NoSubtasks", "1"),
+				getFilesystemProvider().getURIPrefix() + edgesPath, 
+				getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath() + "/triangles.txt");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -92,40 +88,7 @@ public class EnumTrianglesTest extends TestBase {
 	protected void postSubmit() throws Exception {
 
 		// Test results
-
-		// read result
-		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/triangles.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
-
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(expected, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
+		compareResultsByLinesInMemory(expected, getFilesystemProvider().getTempDirPath() + "/triangles.txt");
 
 		// clean up hdfs
 		getFilesystemProvider().delete(edgesPath, true);
@@ -139,7 +102,7 @@ public class EnumTrianglesTest extends TestBase {
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		Configuration config = new Configuration();
-		config.setInteger("EnumTrianglesTest#NoSubtasks", 4);
+		config.setInteger("EnumTrianglesTest#NoSubtasks", 1);
 		tConfigs.add(config);
 
 		return toParameterList(tConfigs);

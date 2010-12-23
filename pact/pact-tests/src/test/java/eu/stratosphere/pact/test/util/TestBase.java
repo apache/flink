@@ -74,9 +74,9 @@ public abstract class TestBase extends TestCase {
 	private void verifyJvmOptions() {
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
-			+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
+				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 		Assert.assertTrue("IPv4 stack required - set JVM option: -Djava.net.preferIPv4Stack=true", "true".equals(System
-			.getProperty("java.net.preferIPv4Stack")));
+				.getProperty("java.net.preferIPv4Stack")));
 	}
 
 	@Before
@@ -123,7 +123,7 @@ public abstract class TestBase extends TestCase {
 	 * lists
 	 * 
 	 * @param tConfigs
-	 *        list of PACT test configurations
+	 *            list of PACT test configurations
 	 * @return list of JUnit test configurations
 	 * @throws IOException
 	 * @throws FileNotFoundException
@@ -184,21 +184,19 @@ public abstract class TestBase extends TestCase {
 	 * @param expectedResult
 	 * @param hdfsPath
 	 */
-	protected void compareResultsByLinesInMemory(String expectedResultStr, String hdfsPath) throws Exception {
+	protected void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
 
-		String[] resultFiles = new String[1];
+		ArrayList<String> resultFiles = new ArrayList<String>();
 
 		// Determine all result files
-		if (getFilesystemProvider().isDir(hdfsPath)) {
-			List<String> files = new ArrayList<String>();
-			for (String file : getFilesystemProvider().listFiles(hdfsPath)) {
+		if (getFilesystemProvider().isDir(resultPath)) {
+			for (String file : getFilesystemProvider().listFiles(resultPath)) {
 				if (!getFilesystemProvider().isDir(file)) {
-					files.add(file);
+					resultFiles.add(resultPath+"/"+file);
 				}
 			}
-			resultFiles = files.toArray(resultFiles);
 		} else {
-			resultFiles[0] = hdfsPath;
+			resultFiles.add(resultPath);
 		}
 
 		// collect lines of all result files
@@ -216,7 +214,6 @@ public abstract class TestBase extends TestCase {
 			}
 			reader.close();
 		}
-		assertEquals("Computed Result is empty", 0, computedResult.size());
 
 		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
 		StringTokenizer st = new StringTokenizer(expectedResultStr, "\n");
@@ -228,8 +225,7 @@ public abstract class TestBase extends TestCase {
 		LOG.debug("Expected: " + expectedResult);
 		LOG.debug("Computed: " + computedResult);
 
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
+		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult.size());
 
 		while (!expectedResult.isEmpty()) {
 			String expectedLine = expectedResult.poll();

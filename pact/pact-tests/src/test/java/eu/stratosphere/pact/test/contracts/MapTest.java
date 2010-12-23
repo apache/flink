@@ -156,41 +156,9 @@ public class MapTest extends TestBase
 	protected void postSubmit() throws Exception {
 		String tempDir = getFilesystemProvider().getTempDirPath();
 		
-		// read result
-		InputStream is = getFilesystemProvider().getInputStream(tempDir+ "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
-
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(MAP_RESULT, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		LOG.debug("Expected: " + expectedResult);
-		LOG.debug("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			LOG.debug("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
-
-		getFilesystemProvider().delete(tempDir+ "/result.txt", false);
+		compareResultsByLinesInMemory(MAP_RESULT, tempDir+ "/result.txt");
+		
+		getFilesystemProvider().delete(tempDir+ "/result.txt", true);
 		getFilesystemProvider().delete(tempDir+ "/mapInput", true);
 		
 	}

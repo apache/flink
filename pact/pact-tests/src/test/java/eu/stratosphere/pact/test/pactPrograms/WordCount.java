@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.jobs;
+package eu.stratosphere.pact.test.pactPrograms;
 
 import java.io.DataInput;
 import java.io.DataOutput;

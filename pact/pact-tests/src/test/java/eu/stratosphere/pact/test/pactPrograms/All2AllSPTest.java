@@ -13,18 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.jobs;
+package eu.stratosphere.pact.test.pactPrograms;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
 
-import junit.framework.Assert;
-
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -41,42 +36,40 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class All2AllSPTest extends TestBase {
 
+	private static final Log LOG = LogFactory.getLog(All2AllSPTest.class);
+
 	String pathsPath = null;
-	
+
 	private String paths = "A|C|7| |\n" + "A|D|6| |\n" + "B|A|1| |\n" + "B|D|2| |\n" + "C|B|3| |\n" + "C|E|10| |\n"
-		+ "C|F|12| |\n" + "C|G|9| |\n" + "D|F|5| |\n" + "E|H|2| |\n" + "F|E|3| |\n" + "G|F|1| |\n" + "H|D|2| |\n"
-		+ "H|E|4| |\n";
+			+ "C|F|12| |\n" + "C|G|9| |\n" + "D|F|5| |\n" + "E|H|2| |\n" + "F|E|3| |\n" + "G|F|1| |\n" + "H|D|2| |\n"
+			+ "H|E|4| |\n";
 
 	private String expected = "A|C|7| |\n" + "A|B|10|C|\n" + "A|D|6| |\n" + "A|E|17|C|\n" + "A|F|11|D|\n"
-		+ "A|G|16|C|\n" + "B|A|1| |\n" + "B|C|8|A|\n" + "B|D|2| |\n" + "B|F|7|D|\n" + "C|A|4|B|\n" + "C|B|3| |\n"
-		+ "C|D|5|B|\n" + "C|E|10| |\n" + "C|F|10|G|\n" + "C|G|9| |\n" + "C|H|12|E|\n" + "D|E|8|F|\n" + "D|F|5| |\n"
-		+ "E|D|4|H|\n" + "E|H|2| |\n" + "F|E|3| |\n" + "F|H|5|E|\n" + "G|E|4|F|\n" + "G|F|1| |\n" + "H|D|2| |\n"
-		+ "H|E|4| |\n" + "H|F|7|D|\n";
+			+ "A|G|16|C|\n" + "B|A|1| |\n" + "B|C|8|A|\n" + "B|D|2| |\n" + "B|F|7|D|\n" + "C|A|4|B|\n" + "C|B|3| |\n"
+			+ "C|D|5|B|\n" + "C|E|10| |\n" + "C|F|10|G|\n" + "C|G|9| |\n" + "C|H|12|E|\n" + "D|E|8|F|\n" + "D|F|5| |\n"
+			+ "E|D|4|H|\n" + "E|H|2| |\n" + "F|E|3| |\n" + "F|H|5|E|\n" + "G|E|4|F|\n" + "G|F|1| |\n" + "H|D|2| |\n"
+			+ "H|E|4| |\n" + "H|F|7|D|\n";
 
 	public All2AllSPTest(Configuration config) {
 		super(config);
 	}
 
 	@Override
-	protected String getJarFilePath() {
-		return null;
-	}
-
-	@Override
 	protected void preSubmit() throws Exception {
 
 		pathsPath = getFilesystemProvider().getTempDirPath() + "/paths";
-		
+
 		getFilesystemProvider().createFile(pathsPath, paths);
-		System.out.println("Paths:\n>" + paths + "<");
+		LOG.debug("Paths:\n>" + paths + "<");
 	}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 
 		All2AllSP a2aSP = new All2AllSP();
-		Plan plan = a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", "4"),
-				pathsPath, getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
+		Plan plan = a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", "4"), 
+				getFilesystemProvider().getURIPrefix() + pathsPath, 
+				getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -89,40 +82,7 @@ public class All2AllSPTest extends TestBase {
 	protected void postSubmit() throws Exception {
 
 		// Test results
-
-		// read result
-		InputStream is = getFilesystemProvider().getInputStream(getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
-
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(expected, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
+		compareResultsByLinesInMemory(expected, getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
 
 		// clean up hdfs
 		getFilesystemProvider().delete(pathsPath, true);
@@ -151,7 +111,7 @@ public class All2AllSPTest extends TestBase {
 		// split data file and copy parts
 		for (int i = 0; i < noSplits - 1; i++) {
 			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
+					: (splitString.length() - 1)));
 			splits[i] = splitString.substring(0, cutPos) + "\n";
 			splitString = splitString.substring(cutPos + 1);
 		}

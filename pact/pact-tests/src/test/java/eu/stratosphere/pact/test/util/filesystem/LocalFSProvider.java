@@ -63,7 +63,7 @@ public class LocalFSProvider implements FilesystemProvider {
 		
 		if(f.isDirectory() && recursive) {
 			for(String c : f.list()) {
-				this.delete(c,true);
+				this.delete(path+"/"+c,true);
 			}
 			f.delete();
 			

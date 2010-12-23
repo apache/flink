@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.jobs;
+package eu.stratosphere.pact.test.pactPrograms;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -21,11 +21,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.Set;
 
 import org.junit.Assert;
 import org.junit.runner.RunWith;
@@ -42,29 +39,29 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
-import eu.stratosphere.pact.test.jobs.WordCount.Integer;
-import eu.stratosphere.pact.test.jobs.WordCount.Mapper;
-import eu.stratosphere.pact.test.jobs.WordCount.Reducer;
-import eu.stratosphere.pact.test.jobs.WordCount.Text;
-import eu.stratosphere.pact.test.jobs.WordCount.TextFormatIn;
-import eu.stratosphere.pact.test.jobs.WordCount.TextFormatOut;
+import eu.stratosphere.pact.test.pactPrograms.WordCount.Integer;
+import eu.stratosphere.pact.test.pactPrograms.WordCount.Mapper;
+import eu.stratosphere.pact.test.pactPrograms.WordCount.Reducer;
+import eu.stratosphere.pact.test.pactPrograms.WordCount.Text;
+import eu.stratosphere.pact.test.pactPrograms.WordCount.TextFormatIn;
+import eu.stratosphere.pact.test.pactPrograms.WordCount.TextFormatOut;
 import eu.stratosphere.pact.test.util.TestBase;
 
 /**
  * @author Erik Nijkamp
  */
 @RunWith(Parameterized.class)
-public class WordCountMapReducePactTest extends TestBase {
+public class WordCountMultipleTaskTrackersTest extends TestBase {
 
 	private static final String TEST_FILE_IN = "words.txt";
 
 	private static final String TEST_FILE_OUT = "result";
 
-	private static final String[] TEST_DATA_STR = { "4", "1", "2", "99", "10" };
+	private static final String[] TEST_DATA_STR = { "4444", "1111", "2222" };
 
-	private static final int[] TEST_DATA_NUM = { 4, 1, 2, 99, 10 };
+	private static final int[] TEST_DATA_NUM = { 4, 1, 2 };
 
-	public WordCountMapReducePactTest(Configuration config) {
+	public WordCountMultipleTaskTrackersTest(Configuration config) {
 		super(config);
 		// TODO Auto-generated constructor stub
 	}
@@ -96,6 +93,10 @@ public class WordCountMapReducePactTest extends TestBase {
 		reduce.setInput(map);
 		map.setInput(source);
 
+		// TODO not defined by user, afaik (en)
+		map.setStubParameter("noSubTasks", "" + config.getInteger("NoSubtasks", 1));
+		reduce.setStubParameter("noSubTasks", "" + config.getInteger("NoSubtasks", 1));
+
 		Plan plan = new Plan(sink);
 
 		PactCompiler pc = new PactCompiler();
@@ -117,10 +118,8 @@ public class WordCountMapReducePactTest extends TestBase {
 		String line = reader.readLine();
 		Assert.assertNotNull("no output", line);
 
-		// expected words
-		Set<String> words = new HashSet<String>(Arrays.asList(TEST_DATA_STR));
-
 		// check aggregation
+		int[] counts = new int[TEST_DATA_NUM.length];
 		while (line != null) {
 			// print
 			System.out.println("### >>> out = " + line);
@@ -133,20 +132,19 @@ public class WordCountMapReducePactTest extends TestBase {
 			// find word and verify occurrences
 			for (int i = 0; i < TEST_DATA_STR.length; i++) {
 				if (word.equals(TEST_DATA_STR[i])) {
-					Assert.assertTrue(count == TEST_DATA_NUM[i]);
+					counts[i] += count;
 					break;
 				}
 			}
-
-			// remove word
-			words.remove(word);
 
 			// next
 			line = reader.readLine();
 		}
 
-		// check totality
-		Assert.assertTrue(words.isEmpty());
+		// check counts
+		for (int i = 0; i < TEST_DATA_NUM.length; i++) {
+			Assert.assertTrue(counts[i] == TEST_DATA_NUM[i]);
+		}
 
 		// done
 		reader.close();

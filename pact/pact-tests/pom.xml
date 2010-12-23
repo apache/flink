@@ -159,11 +159,11 @@
           <includes>
             <!--
             <include>**/TestNepheleMiniCluster.java</include>
-            -->   
-            <include>**/ContractTests.java</include>
-            <!--
-            <include>**/JobTests.java</include>
             -->
+            
+            <include>**/ContractTests.java</include>    
+            <include>**/PactProgramTests.java</include>
+            
           </includes>
         </configuration>
       </plugin>
