@@ -20,8 +20,8 @@ import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
-// @SuiteClasses( { All2AllSPTest.class, EnumTrianglesTest.class, KMeansIterationTest.class, TPCHQuery3Test.class, WebLogAnalysisTest.class })
-@SuiteClasses( { TPCHQuery3Test.class })
+// @SuiteClasses( { All2AllSPTest.class, EnumTrianglesTest.class, KMeansIterationTest.class, TPCHQuery3Test.class, WebLogAnalysisTest.class, WordCountTest.class })
+@SuiteClasses( { WordCountTest.class, KMeansIterationTest.class, TPCHQuery3Test.class })
 public class PactProgramTests {
 
 }
