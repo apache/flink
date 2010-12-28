@@ -21,9 +21,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This class defines the output contracts, realized as java annotations. To use an output contract, simply add the
- * annotation above the class declaration of the class that realized the user function. For example, to declare the
- * <i>SameKey</i> output contract for a map-type function, use it the following way:
+ * This class defines the output contracts, realized as java annotations. To use
+ * an output contract, simply add the annotation above the class declaration of
+ * the class that realized the user function. For example, to declare the
+ * <i>SameKey</i> output contract for a map-type function, use it the following
+ * way:
  * 
  * <pre>
  * \@OutputContract.SameKey
@@ -44,9 +46,10 @@ import java.lang.annotation.Target;
  */
 public class OutputContract {
 	/**
-	 * Annotation representing the <b>Same-Key</b> output contract. A class implementing the user
-	 * function of a PACT may declare this annotation. That way it assures to produce on each invocation
-	 * only key/value pairs with the same key, as the key it was invoked with.
+	 * Annotation representing the <b>Same-Key</b> output contract. A class
+	 * implementing the user function of a PACT may declare this annotation.
+	 * That way it assures to produce on each invocation only key/value pairs
+	 * with the same key, as the key it was invoked with.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -54,9 +57,10 @@ public class OutputContract {
 	};
 
 	/**
-	 * Annotation representing the <b>Super-Key</b> output contract. A class implementing the user
-	 * function of a PACT may declare this annotation. That way it assures to produce on each invocation
-	 * only key/value pairs, where the key is a super-key of the key it was invoked with.
+	 * Annotation representing the <b>Super-Key</b> output contract. A class
+	 * implementing the user function of a PACT may declare this annotation.
+	 * That way it assures to produce on each invocation only key/value pairs,
+	 * where the key is a super-key of the key it was invoked with.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -64,9 +68,10 @@ public class OutputContract {
 	};
 
 	/**
-	 * Annotation representing the <b>Unique-Key</b> output contract. A class implementing the user
-	 * function of a PACT, or a data source may declare this annotation.
-	 * That way the user function or data source assures to produce globally unique keys.
+	 * Annotation representing the <b>Unique-Key</b> output contract. A class
+	 * implementing the user function of a PACT, or a data source may declare
+	 * this annotation. That way the user function or data source assures to
+	 * produce globally unique keys.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -74,12 +79,14 @@ public class OutputContract {
 	};
 
 	/**
-	 * Annotation representing the <b>Same-Key-Of-First-Input</b> output contract. A class implementing
-	 * the user function of a PACT may declare this annotation, if it has two inputs with potentially
-	 * different keys, such as for example a function using the <i>Cross</i> contract.
+	 * Annotation representing the <b>Same-Key-Of-First-Input</b> output
+	 * contract. A class implementing the user function of a PACT may declare
+	 * this annotation, if it has two inputs with potentially different keys,
+	 * such as for example a function using the <i>Cross</i> contract.
 	 * <p>
-	 * The meaning of this contract is the same as that of the Same-Key {@link #SameKey} contract, only referring to the
-	 * <b>first</b> of the two keys in the current method invocation.
+	 * The meaning of this contract is the same as that of the Same-Key
+	 * contract, only referring to the <b>first</b> of the two keys in the
+	 * current method invocation.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -87,12 +94,14 @@ public class OutputContract {
 	};
 
 	/**
-	 * Annotation representing the <b>Super-Key-Of-First-Input</b> output contract. A class implementing
-	 * the user function of a PACT may declare this annotation, if it has two inputs with potentially
-	 * different keys, such as for example a function using the <i>Cross</i> contract.
+	 * Annotation representing the <b>Super-Key-Of-First-Input</b> output
+	 * contract. A class implementing the user function of a PACT may declare
+	 * this annotation, if it has two inputs with potentially different keys,
+	 * such as for example a function using the <i>Cross</i> contract.
 	 * <p>
-	 * The meaning of this contract is the same as that of the Super-key {@link #SuperKey} contract, only referring to
-	 * the <b>first</b> of the two keys in the current method invocation.
+	 * The meaning of this contract is the same as that of the Super-key
+	 * contract, only referring to the <b>first</b> of the two keys in the
+	 * current method invocation.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -100,12 +109,14 @@ public class OutputContract {
 	};
 
 	/**
-	 * Annotation representing the <b>Same-Key-Of-Second-Input</b> output contract. A class implementing
-	 * the user function of a PACT may declare this annotation, if it has two inputs with potentially
-	 * different keys, such as for example a function using the <i>Cross</i> contract.
+	 * Annotation representing the <b>Same-Key-Of-Second-Input</b> output
+	 * contract. A class implementing the user function of a PACT may declare
+	 * this annotation, if it has two inputs with potentially different keys,
+	 * such as for example a function using the <i>Cross</i> contract.
 	 * <p>
-	 * The meaning of this contract is the same as that of the Same-Key {@link #SameKey} contract, but only referring to
-	 * the <b>second</b> of the two keys in the current method invocation.
+	 * The meaning of this contract is the same as that of the Same-Key
+	 * contract, but only referring to the <b>second</b> of the two keys in the
+	 * current method invocation.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -113,12 +124,14 @@ public class OutputContract {
 	};
 
 	/**
-	 * Annotation representing the <b>Super-Key-Of-Second-Input</b> output contract. A class implementing
-	 * the user function of a PACT may declare this annotation, if it has two inputs with potentially
-	 * different keys, such as for example a function using the <i>Cross</i> contract.
+	 * Annotation representing the <b>Super-Key-Of-Second-Input</b> output
+	 * contract. A class implementing the user function of a PACT may declare
+	 * this annotation, if it has two inputs with potentially different keys,
+	 * such as for example a function using the <i>Cross</i> contract.
 	 * <p>
-	 * The meaning of this contract is the same as that of the Super-key {@link #SuperKey} contract, only referring to
-	 * the <b>second</b> of the two keys in the current method invocation.
+	 * The meaning of this contract is the same as that of the Super-key
+	 * contract, only referring to the <b>second</b> of the two keys in the
+	 * current method invocation.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -129,7 +142,8 @@ public class OutputContract {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Private constructor to prevent instantiation. This class is intended only as a container.
+	 * Private constructor to prevent instantiation. This class is intended only
+	 * as a container.
 	 */
 	private OutputContract() {
 	}

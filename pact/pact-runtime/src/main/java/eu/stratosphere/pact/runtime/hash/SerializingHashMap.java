@@ -154,7 +154,8 @@ public class SerializingHashMap<K extends Key, V extends Value> {
 	/**
 	 * Put the key/value pair in the hash map.
 	 * 
-	 * @param pair
+	 * @param key
+	 * @param value
 	 * @throws IOException
 	 */
 	public void put(K key, V value) throws OutOfMemoryException {
