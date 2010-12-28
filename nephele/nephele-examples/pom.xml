@@ -15,6 +15,7 @@
     <version>0.1</version>
     <name>nephele-examples</name>
     <packaging>jar</packaging>
+    
     <dependencies>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>

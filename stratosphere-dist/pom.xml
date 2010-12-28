@@ -17,6 +17,8 @@
     <packaging>pom</packaging>
     
     <dependencies>
+    
+    	<!-- BINARIES -->
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-common</artifactId>
@@ -92,6 +94,22 @@
     		<artifactId>pact-runtime</artifactId>
     		<version>${version}</version>
     	</dependency>
+    	
+    	<!--  SOURCES -->
+    	<dependency>
+          <groupId>eu.stratosphere</groupId>
+          <artifactId>pact</artifactId>
+          <version>${version}</version>
+		  <classifier>sources</classifier>
+        </dependency>
+        
+        <dependency>
+          <groupId>eu.stratosphere</groupId>
+          <artifactId>nephele</artifactId>
+          <version>${version}</version>
+		  <classifier>sources</classifier>
+        </dependency>
+        
     </dependencies>
 
     <build>
@@ -109,8 +127,9 @@
                 </executions>
                 <configuration>
                     <descriptors>
-                        <descriptor>src/main/assemblies/stratosphere-bin.xml</descriptor>
-			                    </descriptors>
+                        <descriptor>src/main/assemblies/bin.xml</descriptor>
+                        <descriptor>src/main/assemblies/src.xml</descriptor>
+			        </descriptors>
                 </configuration>
             </plugin>
         </plugins>
