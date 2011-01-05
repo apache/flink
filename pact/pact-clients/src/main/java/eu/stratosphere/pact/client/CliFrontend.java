@@ -187,7 +187,7 @@ public class CliFrontend {
 	 * Reads configuration settings. The default path can be overridden
 	 * by setting the ENV variable "NEPHELE_CONF_DIR".
 	 * 
-	 * @return
+	 * @return Nephele's configuration
 	 */
 	protected Configuration getConfiguration() {
 		String location = null;

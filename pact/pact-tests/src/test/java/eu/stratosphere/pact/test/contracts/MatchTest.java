@@ -56,11 +56,10 @@ import eu.stratosphere.pact.test.util.TestBase;
  */
 @RunWith(Parameterized.class)
 public class MatchTest extends TestBase
-/*
- * TODO: - Allow multiple data sinks - Rename Merge to Match
- */
 
 {
+	private static final Log LOG = LogFactory.getLog(MatchTest.class);
+
 	public MatchTest(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
@@ -82,38 +81,30 @@ public class MatchTest extends TestBase
 	private static final String MATCH_RIGHT_IN_4 = "1 1\n2 2\n2 2\n8 1\n";
 
 	private static final String MATCH_RESULT = "1 0\n1 0\n1 0\n1 0\n1 1\n1 1\n1 1\n1 1\n1 2\n1 2\n1 2\n1 2\n1 3\n1 3\n1 3\n1 3\n"
-		+ "3 0\n3 0\n3 1\n3 1\n3 2\n3 2\n3 3\n3 3\n"
-		+ "2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n";
+			+ "3 0\n3 0\n3 1\n3 1\n3 2\n3 2\n3 3\n3 3\n"
+			+ "2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		getHDFSProvider().createDir(getHDFSProvider().getHdfsHome() + "/match_left");
+		String tempPath = getFilesystemProvider().getTempDirPath();
 
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_left/matchTest_1.txt",
-			MATCH_LEFT_IN_1);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_left/matchTest_2.txt",
-			MATCH_LEFT_IN_2);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_left/matchTest_3.txt",
-			MATCH_LEFT_IN_3);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_left/matchTest_4.txt",
-			MATCH_LEFT_IN_4);
+		getFilesystemProvider().createDir(tempPath + "/match_left");
 
-		getHDFSProvider().createDir(getHDFSProvider().getHdfsHome() + "/match_right");
+		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_1.txt", MATCH_LEFT_IN_1);
+		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_2.txt", MATCH_LEFT_IN_2);
+		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_3.txt", MATCH_LEFT_IN_3);
+		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_4.txt", MATCH_LEFT_IN_4);
 
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_right/matchTest_1.txt",
-			MATCH_RIGHT_IN_1);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_right/matchTest_2.txt",
-			MATCH_RIGHT_IN_2);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_right/matchTest_3.txt",
-			MATCH_RIGHT_IN_3);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/match_right/matchTest_4.txt",
-			MATCH_RIGHT_IN_4);
+		getFilesystemProvider().createDir(tempPath + "/match_right");
+
+		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_1.txt", MATCH_RIGHT_IN_1);
+		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_2.txt", MATCH_RIGHT_IN_2);
+		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_3.txt", MATCH_RIGHT_IN_3);
+		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_4.txt", MATCH_RIGHT_IN_4);
 
 	}
 
 	public static class MatchTestInFormat extends TextInputFormat<PactString, PactString> {
-
-		private static final Log LOG = LogFactory.getLog(MatchTestInFormat.class);
 
 		@Override
 		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
@@ -121,19 +112,17 @@ public class MatchTest extends TestBase
 			pair.setKey(new PactString(new String((char) line[0] + "")));
 			pair.setValue(new PactString(new String((char) line[2] + "")));
 
-			LOG.info("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
 			return true;
 		}
 	}
 
 	public static class MatchTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
 
-		private static final Log LOG = LogFactory.getLog(MatchTestOutFormat.class);
-
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
 
-			LOG.info("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
 
 			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
 		}
@@ -141,13 +130,13 @@ public class MatchTest extends TestBase
 
 	public static class TestMatcher extends MatchStub<PactString, PactString, PactString, PactString, PactInteger> {
 
-		private static final Log LOG = LogFactory.getLog(TestMatcher.class);
-
 		@Override
 		public void match(PactString key, PactString value1, PactString value2, Collector<PactString, PactInteger> out) {
-			out.collect(key, new PactInteger(Integer.parseInt(value1.toString()) - Integer.parseInt(value2.toString())));
+			out
+					.collect(key, new PactInteger(Integer.parseInt(value1.toString())
+							- Integer.parseInt(value2.toString())));
 
-			LOG.info("Processed: [" + key + "," + value1 + "] + [" + key + "," + value2 + "]");
+			LOG.debug("Processed: [" + key + "," + value1 + "] + [" + key + "," + value2 + "]");
 		}
 
 	}
@@ -155,39 +144,40 @@ public class MatchTest extends TestBase
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 
+		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
+
 		DataSourceContract<PactString, PactString> input_left = new DataSourceContract<PactString, PactString>(
-			MatchTestInFormat.class, getHDFSProvider().getHdfsHome() + "/match_left");
+				MatchTestInFormat.class, pathPrefix + "/match_left");
 		input_left.setFormatParameter("delimiter", "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		DataSourceContract<PactString, PactString> input_right = new DataSourceContract<PactString, PactString>(
-			MatchTestInFormat.class, getHDFSProvider().getHdfsHome() + "/match_right");
+				MatchTestInFormat.class, pathPrefix + "/match_right");
 		input_right.setFormatParameter("delimiter", "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		MatchContract<PactString, PactString, PactString, PactString, PactInteger> testMatcher = new MatchContract<PactString, PactString, PactString, PactString, PactInteger>(
-			TestMatcher.class);
+				TestMatcher.class);
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 		testMatcher.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
-			config.getString("MatchTest#LocalStrategy", ""));
+				config.getString("MatchTest#LocalStrategy", ""));
 		if (config.getString("MatchTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
 			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
+					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
 			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
-		} else if (config.getString("MatchTest#ShipStrategy", "").equals(
-			"BROADCAST_SECOND")) {
+					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
+		} else if (config.getString("MatchTest#ShipStrategy", "").equals("BROADCAST_SECOND")) {
 			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
+					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
 			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
+					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
 		} else {
 			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
-				config.getString("MatchTest#ShipStrategy", ""));
+					config.getString("MatchTest#ShipStrategy", ""));
 		}
 
 		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
-			MatchTestOutFormat.class, getHDFSProvider().getHdfsHome() + "/result.txt");
+				MatchTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testMatcher);
@@ -206,43 +196,13 @@ public class MatchTest extends TestBase
 
 	@Override
 	protected void postSubmit() throws Exception {
-		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
+		String tempPath = getFilesystemProvider().getTempDirPath();
 
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(MATCH_RESULT, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
-
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/result.txt", false);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/match_left", true);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/match_right", true);
+		compareResultsByLinesInMemory(MATCH_RESULT, tempPath + "/result.txt");
+		
+		getFilesystemProvider().delete(tempPath + "/result.txt", true);
+		getFilesystemProvider().delete(tempPath + "/match_left", true);
+		getFilesystemProvider().delete(tempPath + "/match_right", true);
 
 	}
 
@@ -252,7 +212,7 @@ public class MatchTest extends TestBase
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT,
-			PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND };
+				PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND };
 
 		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION, "BROADCAST_FIRST", "BROADCAST_SECOND" };
 
@@ -269,11 +229,6 @@ public class MatchTest extends TestBase
 		}
 
 		return toParameterList(MatchTest.class, tConfigs);
-	}
-
-	@Override
-	protected String getJarFilePath() {
-		return "/home/fhueske/distTests.jar";
 	}
 
 }

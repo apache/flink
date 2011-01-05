@@ -62,7 +62,7 @@ public class MapNode extends SingleInputNode {
 	 *        The old connection to copy properties from.
 	 * @param globalProps
 	 *        The global properties of this copy.
-	 * @param globalProps
+	 * @param localProps
 	 *        The local properties of this copy.
 	 */
 	protected MapNode(MapNode template, OptimizerNode pred, PactConnection conn, GlobalProperties globalProps,

@@ -13,31 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.pact.test.util.filesystem;
 
-import java.lang.annotation.Annotation;
+import java.io.IOException;
 
-/**
- * Interface that indicates that the output contract for a Contract
- * can also be set by using the setOutputContract method instead
- * of annotations.
- * 
- * @author Moritz Kaufmann
- */
-public interface OutputContractConfigurable {
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
-	/**
-	 * The output contract for the contract
-	 * 
-	 * @param clazz The class of the OutputContract that is attached.
-	 */
-	public void setOutputContract(Class<? extends Annotation> clazz);
+public class ExternalDFSProvider extends HDFSProvider {
+	public ExternalDFSProvider(String configDir) {
+		super(configDir);
+	}
 
-	/**
-	 * Returns the output contract that was set.
-	 * 
-	 * @return The class of the attached OutputContract.
-	 */
-	public Class<? extends Annotation> getOutputContract();
+	public void start() throws Exception {
+		Configuration config = new Configuration(false);
+		config.addResource(new Path(configDir + "/hadoop-default.xml"));
+		config.addResource(new Path(configDir + "/hadoop-site.xml"));
 
+		hdfs = FileSystem.get(config);
+	}
+
+	public void stop() {
+		try {
+			hdfs.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		hdfs = null;
+	}
+	
 }

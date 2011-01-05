@@ -40,7 +40,7 @@ public abstract class OutputFormat<K extends Key, V extends Value> extends Stub<
 	 * method. The runtime will try to reuse the pair for several writePair()
 	 * calls.
 	 * 
-	 * @return
+	 * @return A KeyValuePair to be used in the writePair() method.
 	 */
 	// TODO: seems to be unnecessary
 	public abstract KeyValuePair<K, V> createPair();

@@ -43,8 +43,8 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.pact.test.util.minicluster.HDFSProvider;
-import eu.stratosphere.pact.test.util.minicluster.MiniDFSProvider;
+import eu.stratosphere.pact.test.util.filesystem.HDFSProvider;
+import eu.stratosphere.pact.test.util.filesystem.MiniDFSProvider;
 import eu.stratosphere.pact.test.util.minicluster.NepheleMiniCluster;
 
 /**
@@ -76,7 +76,7 @@ public class TestNepheleMiniCluster extends TestCase {
 	}
 
 	protected void preSubmit() throws Exception {
-		OutputStream os = hdfs.getHdfsOutputStream("input.txt");
+		OutputStream os = hdfs.getOutputStream("input.txt");
 		Writer wr = new OutputStreamWriter(os);
 		wr.write("hello\n");
 		wr.write("foo\n");
@@ -89,14 +89,14 @@ public class TestNepheleMiniCluster extends TestCase {
 
 		JobFileInputVertex input = new JobFileInputVertex("Output 1", jobGraph);
 		input.setFileInputClass(FileLineReader.class);
-		input.setFilePath(new Path(hdfs.getHdfsHome() + "/input.txt"));
+		input.setFilePath(new Path(hdfs.getTempDirPath() + "/input.txt"));
 
 		JobTaskVertex task = new JobTaskVertex("Task 1", jobGraph);
 		task.setTaskClass(GrepTask.class);
 
 		JobFileOutputVertex output = new JobFileOutputVertex("Output 1", jobGraph);
 		output.setFileOutputClass(FileLineWriter.class);
-		output.setFilePath(new Path(hdfs.getHdfsHome() + "/output.txt"));
+		output.setFilePath(new Path(hdfs.getTempDirPath() + "/output.txt"));
 
 		input.connectTo(task, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 		task.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
@@ -105,7 +105,7 @@ public class TestNepheleMiniCluster extends TestCase {
 	}
 
 	protected void postSubmit() throws Exception {
-		InputStream is = hdfs.getHdfsInputStream(hdfs.getHdfsHome() + "/output.txt");
+		InputStream is = hdfs.getInputStream(hdfs.getTempDirPath() + "/output.txt");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 		String line = reader.readLine();
 		Assert.assertNotNull("no output", line);

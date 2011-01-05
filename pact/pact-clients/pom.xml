@@ -19,39 +19,17 @@
 
   <dependencies>
     
-<!--
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>nephele-hdfs</artifactId>
-      <version>1.0-SNAPSHOT</version>
-    </dependency>
--->
     <dependency>
       <groupId>eu.stratosphere</groupId>
       <artifactId>pact-common</artifactId>
       <version>${version}</version>
     </dependency>
+
     <dependency>
       <groupId>eu.stratosphere</groupId>
       <artifactId>pact-compiler</artifactId>
       <version>${version}</version>
     </dependency>
-
-<!--
-    <dependency>
-      <groupId>com.martiansoftware</groupId>
-      <artifactId>jsap</artifactId>
-      <version>2.1</version>
-      <type>jar</type>
-    </dependency>
-    <dependency>
-    	<groupId>org.cyclopsgroup</groupId>
-    	<artifactId>jcli</artifactId>
-    	<version>1.0-alpha-4</version>
-    </dependency>
--->
-
-
 
     <dependency>
     	<groupId>commons-cli</groupId>
@@ -104,32 +82,12 @@
 
   <reporting>
     <plugins>
-      <plugin>
-        <!--
-          just define the Java version to be used for compiling and
-          plugins
-        -->
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.0</version>
-        <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
-        </configuration>
-      </plugin>
     </plugins>
   </reporting>
 
   <build>
     <plugins>
-      <plugin>
-        <!-- just define the Java version to be used for compiling and plugins -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
+  
 </project>
