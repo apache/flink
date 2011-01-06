@@ -17,7 +17,18 @@ package eu.stratosphere.nephele.jobmanager.scheduler;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 
+/**
+ * This interface can be implemented in order to receive notifications about certain scheduling events.
+ * 
+ * @author warneke
+ */
 public interface SchedulingListener {
 
+	/**
+	 * Called by the scheduler to indicate that the given job has been removed from the scheduler.
+	 * 
+	 * @param executionGraph
+	 *        the job which has been removed from the scheduler
+	 */
 	void jobRemovedFromScheduler(ExecutionGraph executionGraph);
 }
