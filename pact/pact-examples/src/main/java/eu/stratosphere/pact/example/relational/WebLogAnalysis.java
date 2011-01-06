@@ -37,48 +37,65 @@ import eu.stratosphere.pact.example.relational.util.StringTupleDataInFormat;
 import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
+/**
+ * Implements the following relational OLAP query as PACT program:
+ * 
+ * <code><pre>
+ * SELECT r.pageURL, r.pageRank, r.avgDuration
+ * FROM Documents d JOIN Rankings r
+ * 	ON d.url = r.url
+ * WHERE CONTAINS(d.text, [keywords])
+ * 	AND r.rank > [rank]
+ * 	AND NOT EXISTS (
+ * 		SELECT * FROM Visits v
+ * 		WHERE v.url = d.url
+ * 			AND v.visitDate < 2000-01-01); 
+ * </pre></code> Table Schemas: <code><pre>
+ * CREATE TABLE Documents (
+ * 	url VARCHAR(100) PRIMARY KEY,
+ * 	contents TEXT );
+ * 
+ * CREATE TABLE Rankings (
+ * 	pageRank INT,
+ * 	pageURL VARCHAR(100) PRIMARY KEY,     
+ * 	avgDuration INT );       
+ * 
+ * CREATE TABLE UserVisits (
+ * 	sourceIP VARCHAR(16),
+ * 	destURL VARCHAR(100),
+ * 	visitDate DATE,
+ * 	adRevenue FLOAT,
+ * 	userAgent VARCHAR(64),
+ * 	countryCode VARCHAR(3),
+ * 	languageCode VARCHAR(6),
+ * 	searchWord VARCHAR(32),
+ * 	duration INT );
+ * </pre></code>
+ */
+
 public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 
 	/**
-	 * Implements the following relational OLAP query as PACT program:
-	 * SELECT r.pageURL, r.pageRank, r.avgDuration
-	 * FROM Documents d JOIN Rankings r
-	 * ON d.url = r.url
-	 * WHERE CONTAINS(d.text, [keywords])
-	 * AND r.rank > [rank]
-	 * AND NOT EXISTS (
-	 * SELECT * FROM Visits v
-	 * WHERE v.url = d.url
-	 * AND v.visitDate < 2000-01-01);
-	 * Table Schemas:
-	 * CREATE TABLE Documents (
-	 * url VARCHAR(100) PRIMARY KEY,
-	 * contents TEXT );
-	 * CREATE TABLE Rankings (
-	 * pageRank INT,
-	 * pageURL VARCHAR(100) PRIMARY KEY,
-	 * avgDuration INT );
-	 * CREATE TABLE UserVisits (
-	 * sourceIP VARCHAR(16),
-	 * destURL VARCHAR(100),
-	 * visitDate DATE,
-	 * adRevenue FLOAT,
-	 * userAgent VARCHAR(64),
-	 * countryCode VARCHAR(3),
-	 * languageCode VARCHAR(6),
-	 * searchWord VARCHAR(32),
-	 * duration INT );
+	 * Input contract
 	 */
 
 	@SameKey
-	public static class FilterDocs extends MapStub<PactString, Tuple, PactString, Tuple> {
-
-		private static final String[] KEYWORDS = { "cloud", "atomic", "cosmic", "universe", "chromospheres",
-			"statistics", "resolution", "theory", "data", "extraterrestrial", "atoms", "kinematics" };
+	public static class FilterDocs extends
+			MapStub<PactString, Tuple, PactString, Tuple> {
+		// TODO find appropriate threshold
+		/*
+		 * private static final String[] KEYWORDS = { "cloud", "atomic",
+		 * "cosmic", "universe", "chromospheres", "statistics", "resolution",
+		 * "theory", "data", "extraterrestrial", "atoms", "kinematics" };
+		 */
+		private static final String[] KEYWORDS = { "editors", "oscillations",
+				"convection" };
 
 		@Override
-		protected void map(PactString key, Tuple value, Collector<PactString, Tuple> out) {
+		protected void map(PactString key, Tuple value,
+				Collector<PactString, Tuple> out) {
 			// FILTER
+			// Only collect the document if all keywords are contained
 			String docText = value.getStringValueAt(1);
 			boolean allContained = true;
 			for (String kw : KEYWORDS) {
@@ -94,12 +111,22 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		}
 	}
 
-	public static class FilterRanks extends MapStub<PactString, Tuple, PactString, Tuple> {
+	/**
+	 * Input contract 
+	 * TODO: add javadoc
+	 * 
+	 */
 
-		private static final int rankFilter = 50;
+	public static class FilterRanks extends
+			MapStub<PactString, Tuple, PactString, Tuple> {
+
+		// TODO find appropriate threshold
+		// private static final int rankFilter = 50;
+		private static final int rankFilter = 0;
 
 		@Override
-		protected void map(PactString key, Tuple value, Collector<PactString, Tuple> out) {
+		protected void map(PactString key, Tuple value,
+				Collector<PactString, Tuple> out) {
 			// FILTER
 			int rank = (int) value.getLongValueAt(0);
 			if (rank > rankFilter) {
@@ -111,34 +138,52 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		}
 	}
 
-	public static class FilterVisits extends MapStub<PactString, Tuple, PactString, Tuple> {
+	/**
+	 * Input contract TODO: add javadoc
+	 */
 
-		private static final int yearFilter = 1980;
+	public static class FilterVisits extends
+			MapStub<PactString, Tuple, PactString, Tuple> {
+
+		// TODO find appropriate threshold
+		// private static final int yearFilter = 2010;
+		private static final int yearFilter = 1970;
 
 		@Override
-		protected void map(PactString key, Tuple value, Collector<PactString, Tuple> out) {
+		protected void map(PactString key, Tuple value,
+				Collector<PactString, Tuple> out) {
 			// FILTER
 			if (Integer.parseInt(value.getStringValueAt(2).substring(6, 10)) < yearFilter) {
-				out.collect(new PactString(value.getStringValueAt(1)), new Tuple());
+				out.collect(new PactString(value.getStringValueAt(1)),
+						new Tuple());
 			}
 		}
 	}
 
+	/**
+	 * Input contract Output contract @SameKey TODO: add javadoc
+	 */
 	@SameKey
-	public static class JoinDocRanks extends MatchStub<PactString, Tuple, Tuple, PactString, Tuple> {
+	public static class JoinDocRanks extends
+			MatchStub<PactString, Tuple, Tuple, PactString, Tuple> {
 
 		@Override
-		public void match(PactString key, Tuple value1, Tuple value2, Collector<PactString, Tuple> out) {
+		public void match(PactString key, Tuple value1, Tuple value2,
+				Collector<PactString, Tuple> out) {
 			out.collect(key, value2);
 		}
 	}
 
+	/**
+	 * Input contract Output contract @SameKey TODO: add javadoc
+	 */
 	@SameKey
-	public static class AntiJoinVisits extends CoGroupStub<PactString, Tuple, Tuple, PactString, Tuple> {
+	public static class AntiJoinVisits extends
+			CoGroupStub<PactString, Tuple, Tuple, PactString, Tuple> {
 
 		@Override
-		public void coGroup(PactString key, Iterator<Tuple> values1, Iterator<Tuple> values2,
-				Collector<PactString, Tuple> out) {
+		public void coGroup(PactString key, Iterator<Tuple> values1,
+				Iterator<Tuple> values2, Collector<PactString, Tuple> out) {
 			if (!values1.hasNext()) {
 				while (values2.hasNext()) {
 					out.collect(key, values2.next());
@@ -152,7 +197,13 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 
 		// check for the correct number of job parameters
 		if (args.length != 5) {
-			return null;
+			// Default parameter
+			args = new String[5];
+			args[0] = "1";
+			args[1] = "hdfs://localhost:9000/demo/webLog/docs_new";
+			args[2] = "hdfs://localhost:9000/demo/webLog/ranks_new";
+			args[3] = "hdfs://localhost:9000/demo/webLog/visits_new";
+			args[4] = "hdfs://localhost:9000/demo/result";
 		}
 
 		int noSubTasks = Integer.parseInt(args[0]);
@@ -162,49 +213,49 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		String output = args[4];
 
 		DataSourceContract<PactString, Tuple> docs = new DataSourceContract<PactString, Tuple>(
-			StringTupleDataInFormat.class, docsInput, "Documents");
+				StringTupleDataInFormat.class, docsInput, "Documents");
 		docs.setFormatParameter(TextInputFormat.FORMAT_PAIR_DELIMITER, "\n");
 		docs.setDegreeOfParallelism(noSubTasks);
 		docs.setOutputContract(UniqueKey.class);
 
 		DataSourceContract<PactString, Tuple> ranks = new DataSourceContract<PactString, Tuple>(
-			StringTupleDataInFormat.class, ranksInput, "Ranks");
+				StringTupleDataInFormat.class, ranksInput, "Ranks");
 		ranks.setFormatParameter(TextInputFormat.FORMAT_PAIR_DELIMITER, "\n");
 		ranks.setDegreeOfParallelism(noSubTasks);
 
 		DataSourceContract<PactString, Tuple> visits = new DataSourceContract<PactString, Tuple>(
-			StringTupleDataInFormat.class, visitsInput, "Visits");
+				StringTupleDataInFormat.class, visitsInput, "Visits");
 		visits.setFormatParameter(TextInputFormat.FORMAT_PAIR_DELIMITER, "\n");
 		visits.setDegreeOfParallelism(noSubTasks);
 
 		MapContract<PactString, Tuple, PactString, Tuple> filterDocs = new MapContract<PactString, Tuple, PactString, Tuple>(
-			FilterDocs.class, "Filter Docs");
+				FilterDocs.class, "Filter Docs");
 		filterDocs.setDegreeOfParallelism(noSubTasks);
 		filterDocs.getCompilerHints().setSelectivity(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 
 		MapContract<PactString, Tuple, PactString, Tuple> filterRanks = new MapContract<PactString, Tuple, PactString, Tuple>(
-			FilterRanks.class, "Filter Ranks");
+				FilterRanks.class, "Filter Ranks");
 		filterRanks.setDegreeOfParallelism(noSubTasks);
 		filterRanks.getCompilerHints().setSelectivity(0.25f);
 
 		MapContract<PactString, Tuple, PactString, Tuple> filterVisits = new MapContract<PactString, Tuple, PactString, Tuple>(
-			FilterVisits.class, "Filter Visits");
+				FilterVisits.class, "Filter Visits");
 		filterVisits.setDegreeOfParallelism(noSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
 		filterVisits.getCompilerHints().setSelectivity(0.2f);
 
 		MatchContract<PactString, Tuple, Tuple, PactString, Tuple> joinDocsRanks = new MatchContract<PactString, Tuple, Tuple, PactString, Tuple>(
-			JoinDocRanks.class, "Join DocRanks");
+				JoinDocRanks.class, "Join DocRanks");
 		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
 		joinDocsRanks.getCompilerHints().setSelectivity(0.15f);
 
 		CoGroupContract<PactString, Tuple, Tuple, PactString, Tuple> antiJoinVisits = new CoGroupContract<PactString, Tuple, Tuple, PactString, Tuple>(
-			AntiJoinVisits.class, "Antijoin DocsVisits");
+				AntiJoinVisits.class, "Antijoin DocsVisits");
 		antiJoinVisits.setDegreeOfParallelism(noSubTasks);
 
 		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
-			StringTupleDataOutFormat.class, output, "Result");
+				StringTupleDataOutFormat.class, output, "Result");
 		result.setDegreeOfParallelism(noSubTasks);
 
 		result.setInput(antiJoinVisits);
