@@ -60,6 +60,9 @@ public class WebFrontend {
 			// load the global configuration
 			GlobalConfiguration.loadConfiguration(configDir);
 			Configuration config = GlobalConfiguration.getConfiguration();
+			
+			// add stratosphere base dir to config
+			config.setString(PactConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY, configDir+"/..");
 
 			// get the listening port
 			int port = config.getInteger(PactConfigConstants.WEB_FRONTEND_PORT_KEY,

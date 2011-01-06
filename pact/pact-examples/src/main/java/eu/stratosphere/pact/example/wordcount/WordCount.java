@@ -95,7 +95,11 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		@Override
 		protected void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
 
-			StringTokenizer tokenizer = new StringTokenizer(key.toString());
+			String line = key.toString();
+			line = line.replaceAll("\\W", " ");
+			line = line.toLowerCase();
+			
+			StringTokenizer tokenizer = new StringTokenizer(line);
 			while (tokenizer.hasMoreElements()) {
 				String element = (String) tokenizer.nextElement();
 				out.collect(new PactString(element), new PactInteger(1));

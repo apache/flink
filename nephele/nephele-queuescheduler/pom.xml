@@ -11,7 +11,16 @@
   <name>nephele-queuescheduler</name>
   <version>0.1</version>
   <url>http://maven.apache.org</url>
-  <build>
+  
+  <dependencies>
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>nephele-server</artifactId>
+    	<version>${version}</version>
+    </dependency>
+  </dependencies>
+  
+    <build>
   	<plugins>
   	  <plugin>
       <groupId>org.apache.maven.plugins</groupId>
@@ -23,11 +32,5 @@
   	  </plugin>
   	</plugins>
   </build>
-  <dependencies>
-    <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>nephele-server</artifactId>
-    	<version>${version}</version>
-    </dependency>
-  </dependencies>
+  
 </project>

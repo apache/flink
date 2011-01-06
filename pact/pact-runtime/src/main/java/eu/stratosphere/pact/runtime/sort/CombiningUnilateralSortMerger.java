@@ -50,8 +50,10 @@ import eu.stratosphere.pact.runtime.task.ReduceTask;
  * The {@link CombiningUnilateralSortMerger} is part of a merge-sort implementation.
  * The {@link ReduceTask} requires a grouping of the incoming key-value pairs by key. Typically grouping is achieved by
  * determining a total order for the given set of pairs (sorting). Thereafter an iteration over the ordered set is
- * performed and each time the key changes the consecutive objects are united into a new group. Reducers that are
- * provided with a {@link CombineStub} implementation can reduce the data before it is written to disk.
+ * performed and each time the key changes the consecutive objects are united into a new group. Reducers have a combining feature
+ * can reduce the data before it is written to disk. In order to implement a combining Reducer, the 
+ * {@link eu.stratosphere.pact.common.stub.ReduceStub#combine(Key, Iterator, Collector)} method must be implemented and the ReduceStub 
+ * must be annotated with the {@link eu.stratosphere.pact.common.contract.ReduceContract.Combinable} annotation.
  * Conceptually, a merge sort with combining works as follows:
  * (1) Divide the unsorted list into n sublists of about 1/n the size. (2) Sort each sublist recursively by re-applying
  * merge sort. (3) Combine all tuples with the same key within a sublist (4) Merge the two sublists back into one sorted
@@ -111,15 +113,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 	/**
 	 * @param exceptionHandler
-	 * @param keySerialization
-	 * @param valueSerialization
 	 * @param queues
 	 * @param memoryManager
 	 * @param ioManager
 	 * @param ioMemorySize
-	 * @param keyComparator
 	 * @param parentTask
-	 * @return
+	 * @return A thread that spills data to disk.
 	 */
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
@@ -134,7 +133,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	/**
 	 * @param channelIDs
 	 * @param ioMemorySize
-	 * @return
+	 * @return The ID of the channel that holds the merged data of all input channels.
 	 */
 	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize) {
 		List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>(channelIDs.size());

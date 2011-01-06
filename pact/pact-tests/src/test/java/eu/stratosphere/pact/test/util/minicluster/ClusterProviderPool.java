@@ -58,7 +58,7 @@ public class ClusterProviderPool {
 			} else {
 				throw new Exception("No or unknown cluster provider type configured");
 			}
-			instance.startHDFS();
+			instance.startFS();
 			instance.startNephele();
 
 			clusterPool.put(clusterId, instance);

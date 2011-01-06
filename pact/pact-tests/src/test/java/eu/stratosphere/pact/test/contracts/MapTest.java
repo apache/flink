@@ -58,6 +58,8 @@ import eu.stratosphere.pact.test.util.TestBase;
 public class MapTest extends TestBase
 
 {
+	private static final Log LOG = LogFactory.getLog(MapTest.class);
+	
 	public MapTest(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
@@ -74,16 +76,18 @@ public class MapTest extends TestBase
 
 	@Override
 	protected void preSubmit() throws Exception {
-		getHDFSProvider().writeFileToHDFS("mapTest_1.txt", MAP_IN_1);
-		getHDFSProvider().writeFileToHDFS("mapTest_2.txt", MAP_IN_2);
-		getHDFSProvider().writeFileToHDFS("mapTest_3.txt", MAP_IN_3);
-		getHDFSProvider().writeFileToHDFS("mapTest_4.txt", MAP_IN_4);
+		String tempDir = getFilesystemProvider().getTempDirPath();
+		
+		getFilesystemProvider().createDir(tempDir + "/mapInput");
+		
+		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_1.txt", MAP_IN_1);
+		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_2.txt", MAP_IN_2);
+		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_3.txt", MAP_IN_3);
+		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_4.txt", MAP_IN_4);
 
 	}
 
 	public static class MapTestInFormat extends TextInputFormat<PactString, PactString> {
-
-		private static final Log LOG = LogFactory.getLog(MapTestInFormat.class);
 
 		@Override
 		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
@@ -91,7 +95,7 @@ public class MapTest extends TestBase
 			pair.setKey(new PactString(new String((char) line[0] + "")));
 			pair.setValue(new PactString(new String((char) line[2] + "")));
 
-			LOG.info("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
 
 			return true;
 		}
@@ -100,11 +104,9 @@ public class MapTest extends TestBase
 
 	public static class MapTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
 
-		private static final Log LOG = LogFactory.getLog(MapTestOutFormat.class);
-
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-			LOG.info("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
 
 			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
 		}
@@ -112,21 +114,21 @@ public class MapTest extends TestBase
 
 	public static class TestMapper extends MapStub<PactString, PactString, PactString, PactInteger> {
 
-		private static final Log LOG = LogFactory.getLog(TestMapper.class);
-
 		public void map(PactString key, PactString value, Collector<PactString, PactInteger> out) {
 			if (Integer.parseInt(key.toString()) + Integer.parseInt(value.toString()) < 10) {
 				out.collect(value, new PactInteger(Integer.parseInt(key.toString()) + 10));
 
-				LOG.info("Processed: [" + key + "," + value + "]");
+				LOG.debug("Processed: [" + key + "," + value + "]");
 			}
 		}
 	}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
+		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
+		
 		DataSourceContract<PactString, PactString> input = new DataSourceContract<PactString, PactString>(
-			MapTestInFormat.class, getHDFSProvider().getHdfsHome());
+			MapTestInFormat.class, pathPrefix+"/mapInput");
 		input.setFormatParameter("delimiter", "\n");
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
@@ -135,7 +137,7 @@ public class MapTest extends TestBase
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
-			MapTestOutFormat.class, getHDFSProvider().getHdfsHome() + "/result.txt");
+			MapTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testMapper);
@@ -152,45 +154,13 @@ public class MapTest extends TestBase
 
 	@Override
 	protected void postSubmit() throws Exception {
-		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
-
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(MAP_RESULT, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
-
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/result.txt", false);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/mapTest_1.txt", false);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/mapTest_2.txt", false);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/mapTest_3.txt", false);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/mapTest_4.txt", false);
+		String tempDir = getFilesystemProvider().getTempDirPath();
+		
+		compareResultsByLinesInMemory(MAP_RESULT, tempDir+ "/result.txt");
+		
+		getFilesystemProvider().delete(tempDir+ "/result.txt", true);
+		getFilesystemProvider().delete(tempDir+ "/mapInput", true);
+		
 	}
 
 	@Parameters

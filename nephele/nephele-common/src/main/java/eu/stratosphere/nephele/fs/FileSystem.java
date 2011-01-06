@@ -381,14 +381,17 @@ public abstract class FileSystem {
 
 	private int getNumberOfBlocks(long length, long blocksize) {
 
-		int numberOfBlocks;
+		if(blocksize != 0) {
+			int numberOfBlocks;
+			numberOfBlocks = (int) (length / blocksize);
+	
+			if ((length % blocksize) != 0) {
+				numberOfBlocks++;
+			}
 
-		numberOfBlocks = (int) (length / blocksize);
-
-		if ((length % blocksize) != 0) {
-			numberOfBlocks++;
+			return numberOfBlocks;
+		} else {
+			return 1;
 		}
-
-		return numberOfBlocks;
 	}
 }

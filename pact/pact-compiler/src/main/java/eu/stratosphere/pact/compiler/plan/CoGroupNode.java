@@ -67,7 +67,7 @@ public class CoGroupNode extends TwoInputNode {
 	 *        The new predecessor for the second input.
 	 * @param conn1
 	 *        The old connection of the first input to copy properties from.
-	 * @param conn1
+	 * @param conn2
 	 *        The old connection of the second input to copy properties from.
 	 * @param globalProps
 	 *        The global properties of this copy.
