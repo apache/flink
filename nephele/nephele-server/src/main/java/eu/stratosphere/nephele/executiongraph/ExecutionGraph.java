@@ -28,7 +28,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.instance.AbstractInstance;
@@ -65,7 +65,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class ExecutionGraph implements ExecutionNotifiable {
+public class ExecutionGraph implements ExecutionListener {
 
 	/**
 	 * The log object used for debugging.

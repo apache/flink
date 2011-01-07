@@ -34,7 +34,7 @@ public class LocalInstanceNotifier extends Thread {
 	/**
 	 * The {@link InstanceListener} object to send the notification to.
 	 */
-	private final InstanceListener instanceNotifiable;
+	private final InstanceListener instanceListener;
 
 	/**
 	 * The ID of the job the new instance belongs to.
@@ -49,15 +49,15 @@ public class LocalInstanceNotifier extends Thread {
 	/**
 	 * Constructs a new instance notifier object.
 	 * 
-	 * @param instanceNotifiable
-	 *        the notifiable object to send the notification to
+	 * @param instanceListener
+	 *        the listener object to send the notification to
 	 * @param jobID
 	 *        the ID of the job the newly allocated resources belongs to
 	 * @param allocatedResource
 	 *        the resource allocated for the job
 	 */
-	public LocalInstanceNotifier(InstanceListener instanceNotifiable, JobID jobID, AllocatedResource allocatedResource) {
-		this.instanceNotifiable = instanceNotifiable;
+	public LocalInstanceNotifier(InstanceListener instanceListener, JobID jobID, AllocatedResource allocatedResource) {
+		this.instanceListener = instanceListener;
 		this.jobID = jobID;
 		this.allocatedResource = allocatedResource;
 	}
@@ -68,7 +68,7 @@ public class LocalInstanceNotifier extends Thread {
 	@Override
 	public void run() {
 
-		this.instanceNotifiable.resourceAllocated(this.jobID, this.allocatedResource);
+		this.instanceListener.resourceAllocated(this.jobID, this.allocatedResource);
 
 	}
 }

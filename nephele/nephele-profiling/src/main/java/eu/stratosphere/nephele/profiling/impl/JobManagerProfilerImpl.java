@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingException;
-import eu.stratosphere.nephele.profiling.ProfilingNotifiable;
+import eu.stratosphere.nephele.profiling.ProfilingListener;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInputGateProfilingData;
@@ -59,7 +59,7 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 
 	private final Server profilingServer;
 
-	private final Map<JobID, List<ProfilingNotifiable>> registeredNotifiables = new HashMap<JobID, List<ProfilingNotifiable>>();
+	private final Map<JobID, List<ProfilingListener>> registeredListeners = new HashMap<JobID, List<ProfilingListener>>();
 
 	private final Map<JobID, JobProfilingData> registeredJobs = new HashMap<JobID, JobProfilingData>();
 
@@ -99,8 +99,8 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	@Override
 	public void unregisterProfilingJob(ExecutionGraph executionGraph) {
 
-		synchronized (this.registeredNotifiables) {
-			this.registeredNotifiables.remove(executionGraph.getJobID());
+		synchronized (this.registeredListeners) {
+			this.registeredListeners.remove(executionGraph.getJobID());
 		}
 
 		synchronized (this.registeredJobs) {
@@ -127,10 +127,10 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 			return;
 		}
 
-		synchronized (this.registeredNotifiables) {
+		synchronized (this.registeredListeners) {
 
-			final List<ProfilingNotifiable> jobNotifiables = this.registeredNotifiables.get(profilingData.getJobID());
-			if (jobNotifiables == null) {
+			final List<ProfilingListener> jobListeners = this.registeredListeners.get(profilingData.getJobID());
+			if (jobListeners == null) {
 				return;
 			}
 
@@ -139,7 +139,7 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 				profilingData.getExecutionVertexID().toManagementVertexID(), profilingData.getProfilingInterval(),
 				profilingData.getJobID(), timestamp, (timestamp - profilingStart));
 
-			final Iterator<ProfilingNotifiable> it = jobNotifiables.iterator();
+			final Iterator<ProfilingListener> it = jobListeners.iterator();
 			while (it.hasNext()) {
 				it.next().processProfilingEvents(threadProfilingEvent);
 			}
@@ -168,22 +168,22 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 					jobID, timestamp, timestamp - jobProfilingData.getProfilingStart(), profilingData
 						.getInstanceConnectionInfo().toString());
 
-				synchronized (this.registeredNotifiables) {
+				synchronized (this.registeredListeners) {
 
-					List<ProfilingNotifiable> jobNotifiables = this.registeredNotifiables.get(jobID);
-					if (jobNotifiables == null) {
+					List<ProfilingListener> jobListeners = this.registeredListeners.get(jobID);
+					if (jobListeners == null) {
 						continue;
 					}
 
 					final InstanceSummaryProfilingEvent instanceSummary = jobProfilingData
 						.getInstanceSummaryProfilingData(timestamp);
 
-					final Iterator<ProfilingNotifiable> notifiableIterator = jobNotifiables.iterator();
-					while (notifiableIterator.hasNext()) {
-						final ProfilingNotifiable profilingNotifiable = notifiableIterator.next();
-						profilingNotifiable.processProfilingEvents(singleInstanceProfilingEvent);
+					final Iterator<ProfilingListener> listenerIterator = jobListeners.iterator();
+					while (listenerIterator.hasNext()) {
+						final ProfilingListener profilingListener = listenerIterator.next();
+						profilingListener.processProfilingEvents(singleInstanceProfilingEvent);
 						if (instanceSummary != null) {
-							profilingNotifiable.processProfilingEvents(instanceSummary);
+							profilingListener.processProfilingEvents(instanceSummary);
 						}
 					}
 				}
@@ -199,10 +199,10 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 			return;
 		}
 
-		synchronized (this.registeredNotifiables) {
+		synchronized (this.registeredListeners) {
 
-			final List<ProfilingNotifiable> jobNotifiables = this.registeredNotifiables.get(profilingData.getJobID());
-			if (jobNotifiables == null) {
+			final List<ProfilingListener> jobListeners = this.registeredListeners.get(profilingData.getJobID());
+			if (jobListeners == null) {
 				return;
 			}
 
@@ -211,7 +211,7 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 				.toManagementVertexID(), profilingData.getProfilingInterval(), profilingData.getJobID(), timestamp,
 				timestamp - profilingStart);
 
-			final Iterator<ProfilingNotifiable> it = jobNotifiables.iterator();
+			final Iterator<ProfilingListener> it = jobListeners.iterator();
 			while (it.hasNext()) {
 				it.next().processProfilingEvents(inputGateProfilingEvent);
 			}
@@ -226,10 +226,10 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 			return;
 		}
 
-		synchronized (this.registeredNotifiables) {
+		synchronized (this.registeredListeners) {
 
-			final List<ProfilingNotifiable> jobNotifiables = this.registeredNotifiables.get(profilingData.getJobID());
-			if (jobNotifiables == null) {
+			final List<ProfilingListener> jobListeners = this.registeredListeners.get(profilingData.getJobID());
+			if (jobListeners == null) {
 				return;
 			}
 
@@ -238,7 +238,7 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 				.getExecutionVertexID().toManagementVertexID(), profilingData.getProfilingInterval(), profilingData
 				.getJobID(), timestamp, timestamp - profilingStart);
 
-			final Iterator<ProfilingNotifiable> it = jobNotifiables.iterator();
+			final Iterator<ProfilingListener> it = jobListeners.iterator();
 			while (it.hasNext()) {
 				it.next().processProfilingEvents(outputGateProfilingEvent);
 			}
@@ -284,35 +284,35 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	}
 
 	@Override
-	public void registerForProfilingData(JobID jobID, ProfilingNotifiable profilingNotifiable) {
+	public void registerForProfilingData(JobID jobID, ProfilingListener profilingListener) {
 
-		synchronized (this.registeredNotifiables) {
+		synchronized (this.registeredListeners) {
 
-			List<ProfilingNotifiable> jobNotifiables = this.registeredNotifiables.get(jobID);
-			if (jobNotifiables == null) {
-				jobNotifiables = new ArrayList<ProfilingNotifiable>();
-				this.registeredNotifiables.put(jobID, jobNotifiables);
+			List<ProfilingListener> jobListeners = this.registeredListeners.get(jobID);
+			if (jobListeners == null) {
+				jobListeners = new ArrayList<ProfilingListener>();
+				this.registeredListeners.put(jobID, jobListeners);
 			}
 
-			jobNotifiables.add(profilingNotifiable);
+			jobListeners.add(profilingListener);
 		}
 
 	}
 
 	@Override
-	public void unregisterFromProfilingData(JobID jobID, ProfilingNotifiable profilingNotifiable) {
+	public void unregisterFromProfilingData(JobID jobID, ProfilingListener profilingListener) {
 
-		synchronized (this.registeredNotifiables) {
+		synchronized (this.registeredListeners) {
 
-			List<ProfilingNotifiable> jobNotifiables = this.registeredNotifiables.get(jobID);
-			if (jobNotifiables == null) {
+			List<ProfilingListener> jobListeners = this.registeredListeners.get(jobID);
+			if (jobListeners == null) {
 				return;
 			}
 
-			jobNotifiables.remove(profilingNotifiable);
+			jobListeners.remove(profilingListener);
 
-			if (jobNotifiables.isEmpty()) {
-				this.registeredNotifiables.remove(jobID);
+			if (jobListeners.isEmpty()) {
+				this.registeredListeners.remove(jobID);
 			}
 		}
 	}

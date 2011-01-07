@@ -58,7 +58,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 
 public class CloudManagerTest {
 
-	private static final class MyInstanceNotifiable implements InstanceListener {
+	private static final class MyInstanceListener implements InstanceListener {
 
 		int nrAvailable = 0;
 
@@ -118,9 +118,9 @@ public class CloudManagerTest {
 
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener myInstanceListener = new MyInstanceListener();
 		CloudManager cm = new CloudManager();
-		cm.setInstanceListener(myInstanceNotifiable);
+		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType defaultIT = cm.getDefaultInstanceType();
 
@@ -138,9 +138,9 @@ public class CloudManagerTest {
 
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener myInstanceListener = new MyInstanceListener();
 		CloudManager cm = new CloudManager();
-		cm.setInstanceListener(myInstanceNotifiable);
+		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type1 = cm.getSuitableInstanceType(16, 16, 2048, 40, 80);
 		InstanceType type2 = cm.getSuitableInstanceType(2, 2, 2048, 40, 10);
@@ -170,9 +170,9 @@ public class CloudManagerTest {
 
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener myInstanceListener = new MyInstanceListener();
 		CloudManager cm = new CloudManager();
-		cm.setInstanceListener(myInstanceNotifiable);
+		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type = cm.getInstanceTypeByName("m1.small");
 
@@ -190,9 +190,9 @@ public class CloudManagerTest {
 
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener myInstanceListener = new MyInstanceListener();
 		CloudManager cm = new CloudManager();
-		cm.setInstanceListener(myInstanceNotifiable);
+		cm.setInstanceListener(myInstanceListener);
 
 		JobID jobID = new JobID();
 		Configuration conf = new Configuration();

@@ -17,7 +17,7 @@ package eu.stratosphere.nephele.profiling;
 
 import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
 
-public interface ProfilingNotifiable {
+public interface ProfilingListener {
 
 	void processProfilingEvents(ProfilingEvent profilingEvent);
 }

@@ -111,11 +111,11 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerExecutionNotifiable(ExecutionVertexID id, Configuration jobConfiguration,
+	public void registerExecutionListener(ExecutionVertexID id, Configuration jobConfiguration,
 			Environment environment) {
 
 		// Register profiling hook for the environment
-		environment.registerExecutionNotifiable(new EnvironmentListenerImpl(this, id, environment, this.timerInterval));
+		environment.registerExecutionListener(new EnvironmentListenerImpl(this, id, environment, this.timerInterval));
 	}
 
 	@Override
@@ -145,7 +145,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	}
 
 	@Override
-	public void unregisterExecutionNotifiable(ExecutionVertexID id) {
+	public void unregisterExecutionListener(ExecutionVertexID id) {
 		/*
 		 * Nothing to do here, the task will unregister itself when its
 		 * execution state has either switched to FINISHED, CANCELLED,

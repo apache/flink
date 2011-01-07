@@ -588,7 +588,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Create wrapper object and register it as an observer
 		final EnvironmentWrapper wrapper = new EnvironmentWrapper(this, id, ee);
-		ee.registerExecutionNotifiable(wrapper);
+		ee.registerExecutionListener(wrapper);
 
 		boolean enableProfiling = false;
 		if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
@@ -596,7 +596,7 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		if (enableProfiling) {
-			this.profiler.registerExecutionNotifiable(id, jobConfiguration, ee);
+			this.profiler.registerExecutionListener(id, jobConfiguration, ee);
 		}
 
 		try {
@@ -688,7 +688,7 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		if (this.profiler != null) {
-			this.profiler.unregisterExecutionNotifiable(id);
+			this.profiler.unregisterExecutionListener(id);
 		}
 
 		// Check if there are still vertices running that belong to the same job
