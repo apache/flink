@@ -141,6 +141,11 @@ public class TaskManager implements TaskOperationProtocol {
 	private IOManager ioManager;
 
 	/**
+	 * Stores whether the task manager has already been shut down.
+	 */
+	private boolean isShutDown = false;
+
+	/**
 	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
 	 * receive an initial configuration.
 	 * 
@@ -324,8 +329,8 @@ public class TaskManager implements TaskOperationProtocol {
 		// Run the main I/O loop
 		taskManager.runIOLoop();
 
-		// Clean up
-		taskManager.cleanUp();
+		// Shut down
+		taskManager.shutdown();
 	}
 
 	/**
@@ -475,7 +480,7 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		// Shutdown the individual components of the task manager
-		cleanUp();
+		shutdown();
 	}
 
 	/**
@@ -771,11 +776,15 @@ public class TaskManager implements TaskOperationProtocol {
 	}
 
 	/**
-	 * Performs clean up operations on task manager exit
+	 * Shuts the task manager down.
 	 */
-	public void cleanUp() {
+	public synchronized void shutdown() {
 
-		LOG.info("Cleaning up TaskManager");
+		if (this.isShutDown) {
+			return;
+		}
+
+		LOG.info("Shutting down TaskManager");
 
 		// Stop RPC proxy for the task manager
 		RPC.stopProxy(this.jobManager);
@@ -801,6 +810,18 @@ public class TaskManager implements TaskOperationProtocol {
 			this.memoryManager.shutdown();
 			this.memoryManager = null;
 		}
+
+		this.isShutDown = true;
+	}
+
+	/**
+	 * Checks whether the task manager has already been shut down.
+	 * 
+	 * @return <code>true</code> if the task manager has already been shut down, <code>false</code> otherwise
+	 */
+	public synchronized boolean isShutDown() {
+
+		return this.isShutDown;
 	}
 
 	/**
