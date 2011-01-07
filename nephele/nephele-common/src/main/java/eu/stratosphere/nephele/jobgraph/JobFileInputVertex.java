@@ -275,7 +275,7 @@ public class JobFileInputVertex extends JobInputVertex {
 		}
 
 		final int numSubtasks = getNumberOfSubtasks();
-		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(numSubtasks);
+		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>();
 
 		// get all the files that are involved in the splits
 		List<FileStatus> files = new ArrayList<FileStatus>();
@@ -301,7 +301,7 @@ public class JobFileInputVertex extends JobInputVertex {
 			}
 
 			final long minSplitSize = 1;
-			final long maxSplitSize = totalLength / numSubtasks + (totalLength % numSubtasks == 0 ? 0 : 1);
+			final long maxSplitSize = (numSubtasks < 1) ? Long.MAX_VALUE : (totalLength / numSubtasks + (totalLength % numSubtasks == 0 ? 0 : 1));
 
 			// now that we have the files, generate the splits
 			for (FileStatus file : files) {
