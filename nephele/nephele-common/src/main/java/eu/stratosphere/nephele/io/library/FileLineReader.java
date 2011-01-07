@@ -38,9 +38,6 @@ public class FileLineReader extends AbstractFileInputTask {
 
 		FileInputSplit[] splits = getFileInputSplits();
 
-		int j = 0;
-
-		System.out.println("+++ Number of splits: " + splits.length);
 		for (int i = 0; i < splits.length; i++) {
 
 			FileInputSplit split = splits[i];
