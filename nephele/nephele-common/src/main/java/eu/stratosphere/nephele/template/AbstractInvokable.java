@@ -80,7 +80,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the minimum number of subtasks the respective task must be split into at runtime
 	 */
-	public int getMinumumNumberOfSubtasks() {
+	public int getMinimumNumberOfSubtasks() {
 		// The default implementation always returns 1
 		return 1;
 	}

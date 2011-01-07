@@ -262,7 +262,7 @@ public class JobFileInputVertex extends JobInputVertex {
 	@Override
 	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable) {
 
-		return invokable.getMinumumNumberOfSubtasks();
+		return invokable.getMinimumNumberOfSubtasks();
 	}
 
 	/**
