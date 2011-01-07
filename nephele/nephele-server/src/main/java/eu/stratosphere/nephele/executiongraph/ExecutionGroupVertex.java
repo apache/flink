@@ -494,8 +494,6 @@ public class ExecutionGroupVertex {
 					this.groupMembers.add(vertex);
 				}
 			}
-
-			System.out.println("Number of members is now " + this.groupMembers.size());
 		}
 
 		// After the number of members is adjusted we start rewiring
@@ -526,8 +524,6 @@ public class ExecutionGroupVertex {
 
 			while (it.hasNext()) {
 				final ExecutionGroupEdge edge = it.next();
-				System.out.println("Unwiring " + this.getName() + " to " + edge.getTargetVertex().getName()
-					+ "(forwards)");
 				this.executionGraph.unwire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
 					edge.getIndexOfInputGate());
 			}
@@ -538,8 +534,6 @@ public class ExecutionGroupVertex {
 			Iterator<ExecutionGroupEdge> it = this.backwardLinks.iterator();
 			while (it.hasNext()) {
 				final ExecutionGroupEdge edge = it.next();
-				System.out.println("Unwiring " + edge.getSourceVertex().getName() + " to " + this.getName()
-					+ "(backwards)");
 				this.executionGraph.unwire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
 					edge.getIndexOfInputGate());
 			}
@@ -786,9 +780,6 @@ public class ExecutionGroupVertex {
 				+ (((this.groupMembers.size() % this.numberOfSubtasksPerInstance) != 0) ? 1 : 0);
 		}
 		final List<AllocatedResource> availableInstances = collectAvailabbleResources();
-
-		System.out.println(getName() + ": requires " + numberOfRequiredInstances + " instances, has available "
-			+ availableInstances.size() + " instances");
 
 		// Check if the number of available instances is sufficiently large, if not generate new instances
 		while (availableInstances.size() < numberOfRequiredInstances) {

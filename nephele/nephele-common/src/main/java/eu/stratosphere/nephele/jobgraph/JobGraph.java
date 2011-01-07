@@ -554,7 +554,6 @@ public class JobGraph implements IOReadableWritable {
 
 		// First read total number of vertices;
 		final int numVertices = in.readInt();
-		// System.out.println("Number of vertices: " + numVertices);
 
 		// First, recreate each vertex and add it to reconstructionMap
 		for (int i = 0; i < numVertices; i++) {
@@ -676,7 +675,6 @@ public class JobGraph implements IOReadableWritable {
 
 		for (int i = 0; i < this.userJars.size(); i++) {
 			if (!fs.exists(this.userJars.get(i))) {
-				System.out.println("Cannot find " + this.userJars.get(i));
 				throw new IOException("Cannot find jar file " + this.userJars.get(i));
 			}
 		}
@@ -730,7 +728,6 @@ public class JobGraph implements IOReadableWritable {
 
 				// Read the size of the jar file
 				final long sizeOfJar = in.readLong();
-				System.out.println("Size of jar is " + sizeOfJar);
 
 				// Add the jar to the library manager
 				LibraryCacheManager.addLibrary(this.jobID, p, sizeOfJar, in);
