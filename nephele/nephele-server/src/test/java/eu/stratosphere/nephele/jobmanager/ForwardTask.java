@@ -20,10 +20,9 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.StringRecord;
 
-public class GrepTask extends AbstractTask {
+public class ForwardTask extends AbstractTask {
 
 	private RecordReader<StringRecord> input = null;
-
 	private RecordWriter<StringRecord> output = null;
 
 	@Override
@@ -32,7 +31,6 @@ public class GrepTask extends AbstractTask {
 		while (this.input.hasNext()) {
 
 			StringRecord s = input.next();
-			System.out.println("Emittet record " + s);
 			this.output.emit(s);
 		}
 	}

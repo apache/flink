@@ -43,8 +43,8 @@ public class JobManagerCleanUp extends Thread {
 	@Override
 	public void run() {
 
-		// Trigger clean up tasks
-		this.jobManager.cleanUp();
+		// Shut down the job manager properly
+		this.jobManager.shutdown();
 	}
 
 }
