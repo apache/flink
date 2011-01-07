@@ -1,0 +1,10 @@
+*.swp
+logs.zip
+*.jar
+target
+.classpath
+.project
+.settings
+*.class
+filter.properties
+tmp/*
