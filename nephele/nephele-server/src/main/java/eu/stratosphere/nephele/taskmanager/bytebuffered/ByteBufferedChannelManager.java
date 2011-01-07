@@ -682,7 +682,6 @@ public class ByteBufferedChannelManager {
 	public void shutdown() {
 
 		LOG.info("Shutting down network channel manager");
-		System.out.println("Shutting down network channel manager");
 
 		// Interrupt the threads we started
 		synchronized (this.incomingConnectionThreads) {
