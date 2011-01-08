@@ -69,8 +69,6 @@ public class ByteBufferedChannelManager {
 
 	private static final int DEFAULT_NUMBER_OF_CONNECTION_RETRIES = 10;
 
-	private static final int DEFAULT_NUMBER_OF_TRANSMISSION_RETRIES = 3;
-
 	private final Deque<ByteBuffer> emptyReadBuffers = new ArrayDeque<ByteBuffer>();
 
 	private final Deque<ByteBuffer> emptyWriteBuffers = new ArrayDeque<ByteBuffer>();
@@ -110,8 +108,6 @@ public class ByteBufferedChannelManager {
 	private final int numberOfReadBuffers;
 
 	private final int numberOfWriteBuffers;
-
-	private final int numberOfTransmissionRetries;
 
 	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService, InetAddress incomingDataAddress,
 			int incomingDataPort, String tmpDir)
@@ -154,8 +150,6 @@ public class ByteBufferedChannelManager {
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
-		this.numberOfTransmissionRetries = configuration.getInteger("channel.network.numberOfTransmissionRetries",
-			DEFAULT_NUMBER_OF_TRANSMISSION_RETRIES);
 		this.isSpillingAllowed = configuration.getBoolean("channel.network.allowSpilling", DEFAULT_ALLOW_SPILLING);
 
 		LOG.info("Starting NetworkChannelManager with Spilling "
@@ -434,8 +428,8 @@ public class ByteBufferedChannelManager {
 			final OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
 			if (outgoingConnection != null) {
 				outgoingConnection.dropAllQueuedEnvelopesForChannel(byteBufferedOutputChannel.getID(), true);
-				if (outgoingConnection.getTotalNumberOfQueuedEnvelopes() == 0) { // TODO: Change to canBeRemoved to
-					// reflect no envelopes, no
+				if (outgoingConnection.canBeRemoved()) {
+					// reflects no envelopes, no
 					// currentEnvelope and not connected
 					this.outgoingConnections.remove(connectionAddress);
 				}

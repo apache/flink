@@ -27,35 +27,85 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 
+/**
+ * This class represents an outgoing TCP connection through which {@link TransferEnvelope} objects can be sent.
+ * {@link TransferEnvelope} objects are received from the {@link ByteBufferedChannelManager} and added to a queue. An
+ * additional network thread then takes the envelopes from the queue and transmits them to the respective destination
+ * host.
+ * 
+ * @author warneke
+ */
 public class OutgoingConnection {
 
+	/**
+	 * The log object used to report debug information and possible errors.
+	 */
 	private static final Log LOG = LogFactory.getLog(OutgoingConnection.class);
 
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
 	private final InetSocketAddress connectionAddress;
 
+	/**
+	 * The outgoing connection thread which actually transmits the queued transfer envelopes.
+	 */
 	private final OutgoingConnectionThread connectionThread;
 
+	/**
+	 * The queue of transfer envelopes to be transmitted.
+	 */
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
+	/**
+	 * The {@link TransferEnvelopeSerializer} object used to transform the envelopes into a byte stream.
+	 */
 	private final TransferEnvelopeSerializer serializer = new TransferEnvelopeSerializer();
 
+	/**
+	 * The {@link TransferEnvelope} that is currently processed.
+	 */
 	private TransferEnvelope currentEnvelope = null;
 
+	/**
+	 * Stores whether the underlying TCP connection is established. As this variable is accessed by the byte buffered
+	 * channel manager and the outgoing connection thread, it must be protected by a monitor.
+	 */
 	private boolean isConnected = false;
 
+	/**
+	 * The overall number of connection retries which shall be performed before a connection error is reported.
+	 */
 	private final int numberOfConnectionRetries;
 
+	/**
+	 * The number of connection retries left before an I/O error is reported.
+	 */
 	private int retriesLeft = 0;
 
+	/**
+	 * The timestamp of the last connection retry.
+	 */
 	private long timstampOfLastRetry = 0;
 
+	/**
+	 * The period of time in milliseconds that shall be waited before a connection attempt is considered to be failed.
+	 */
 	private static long RETRYINTERVAL = 1000L; // 1 second
 
+	/**
+	 * Constructs a new outgoing connection object.
+	 * 
+	 * @param byteBufferedChannelManager
+	 *        the byte buffered channel manager which manages the different connections
+	 * @param connectionAddress
+	 *        the address of the destination host this outgoing connection object is supposed to connect to
+	 * @param connectionThread
+	 *        the connection thread which actually handles the network transfer
+	 * @param numberOfConnectionRetries
+	 *        the number of connection retries allowed before an I/O error is reported
+	 */
 	public OutgoingConnection(ByteBufferedChannelManager byteBufferedChannelManager,
 			InetSocketAddress connectionAddress, OutgoingConnectionThread connectionThread,
 			int numberOfConnectionRetries) {
@@ -66,12 +116,21 @@ public class OutgoingConnection {
 		this.numberOfConnectionRetries = numberOfConnectionRetries;
 	}
 
+	/**
+	 * Adds a new {@link TransferEnvelope} to the queue of envelopes to be transmitted to the destination host of this
+	 * connection.
+	 * <p>
+	 * This method should only be called by the {@link ByteBufferedChannelManager} object.
+	 * 
+	 * @param transferEnvelope
+	 *        the envelope to be added to the transfer queue
+	 */
 	public void queueEnvelope(TransferEnvelope transferEnvelope) {
 
 		synchronized (this.queuedEnvelopes) {
 
 			if (!this.isConnected) {
-				this.retriesLeft = numberOfConnectionRetries;
+				this.retriesLeft = this.numberOfConnectionRetries;
 				this.timstampOfLastRetry = System.currentTimeMillis();
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
@@ -81,10 +140,34 @@ public class OutgoingConnection {
 		}
 	}
 
+	/**
+	 * Returns the {@link InetSocketAddress} to the destination host this outgoing connection is supposed to be
+	 * connected to.
+	 * <p>
+	 * This method should be called by the {@link OutgoingConnectionThread} object only.
+	 * 
+	 * @return the {@link InetSocketAddress} to the destination host this outgoing connection is supposed to be
+	 *         connected to
+	 */
 	public InetSocketAddress getConnectionAddress() {
 		return this.connectionAddress;
 	}
 
+	/**
+	 * Reports a problem which occurred while establishing the underlying TCP connection to this outgoing connection
+	 * object. Depending on the number of connection retries left, this method will either try to reestablish the TCP
+	 * connection or report an I/O error to all tasks which have queued envelopes for this connection. In the latter
+	 * case all queued envelopes will be dropped and all included buffers will be freed.
+	 * <p>
+	 * This method should only be called by the {@link OutgoingConnectionThread} object.
+	 * 
+	 * @param socketChannel
+	 *        the socket representing the TCP connection to which the connection problem relates
+	 * @param key
+	 *        the interest key for the connection attempt
+	 * @param ioe
+	 *        thrown if an error occurs while reseting the underlying TCP connection
+	 */
 	public void reportConnectionProblem(SocketChannel socketChannel, SelectionKey key, IOException ioe) {
 
 		// First, write exception to log
@@ -134,6 +217,7 @@ public class OutgoingConnection {
 			final Iterator<TransferEnvelope> iter = this.queuedEnvelopes.iterator();
 			while (iter.hasNext()) {
 				final TransferEnvelope envelope = iter.next();
+				iter.remove();
 				this.byteBufferedChannelManager.reportIOExceptionForOutputChannel(envelope.getSource(), ioe);
 				// Recycle the buffer inside the envelope
 				if (envelope.getBuffer() != null) {
@@ -145,6 +229,21 @@ public class OutgoingConnection {
 		}
 	}
 
+	/**
+	 * Reports an I/O error which occurred while writing data to the TCP connection. As a result of the I/O error the
+	 * connection is closed and the interest keys are canceled. Moreover, the task which queued the currently
+	 * transmitted transfer envelope is notified about the error and the current envelope is dropped. If the current
+	 * envelope contains a buffer, the buffer is freed.
+	 * <p>
+	 * This method should only be called by the {@link OutgoingConnectionThread} object.
+	 * 
+	 * @param socketChannel
+	 *        the socket channel which caused the transmission problem
+	 * @param key
+	 *        the interest key to be canceled
+	 * @param ioe
+	 *        thrown if an error occurs while reseting the connection
+	 */
 	public void reportTransmissionProblem(SocketChannel socketChannel, SelectionKey key, IOException ioe) {
 
 		// First, write exception to log
@@ -156,7 +255,6 @@ public class OutgoingConnection {
 			LOG.error("The connection between " + socketChannel.socket().getLocalAddress() + " and "
 				+ socketChannel.socket().getRemoteSocketAddress() + " experienced an IOException");
 		}
-		LOG.error(ioe);
 
 		// Close the connection and cancel the interest key
 		synchronized (this.queuedEnvelopes) {
@@ -170,40 +268,36 @@ public class OutgoingConnection {
 
 			key.cancel();
 
-			// Trigger new connection, because we cannot rely on a newly queued enveloped to do so
-			this.connectionThread.triggerConnect(this);
-			this.timstampOfLastRetry = System.currentTimeMillis();
-			this.isConnected = true;
-		}
+			// Error is fatal
+			LOG.error(ioe);
 
-		// If we were transmitting an envelope,
-		if (this.currentEnvelope != null) {
-			// Increase transmission error counter //TODO: FIX ME
-			/*
-			 * this.currentEnvelope.increaseNumberOfTransmissionErrors();
-			 * if(this.currentEnvelope.hasAnotherTransmissionAttempt()) {
-			 * System.out.println("OUTGOING: Transmission error during " + this.currentEnvelope.getSequenceNumber());
-			 * this.serializer.reset();
-			 * if(this.currentEnvelope.getBuffer() != null) {
-			 * //Retransmit the entire buffer
-			 * //TODO: Fix me
-			 * //this.currentEnvelope.getBuffer().position(0);
-			 * }
-			 * } else {
-			 * //Too many transmission errors
-			 * LOG.error("Fatal number of transmission errors for envelope from " + this.currentEnvelope.getSource());
-			 * this.byteBufferedChannelManager.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
-			 * if(this.currentEnvelope.getBuffer() != null) {
-			 * this.currentEnvelope.getBuffer().recycleBuffer();
-			 * }
-			 * this.currentEnvelope = null;
-			 * }
-			 */
-		} else {
-			// TODO: Handle this case
+			// Trigger new connection if there are more envelopes to be transmitted
+			if (this.queuedEnvelopes.isEmpty()) {
+				this.isConnected = false;
+			} else {
+				this.connectionThread.triggerConnect(this);
+				this.isConnected = true;
+			}
+
+			// We must assume the current envelope is corrupted so we notify the task which created it.
+			if (this.currentEnvelope != null) {
+				this.byteBufferedChannelManager
+					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
+				if (this.currentEnvelope.getBuffer() != null) {
+					this.currentEnvelope.getBuffer().recycleBuffer();
+					this.currentEnvelope = null;
+				}
+			}
 		}
 	}
 
+	/**
+	 * Checks whether further retries are left for establishing the underlying TCP connection.
+	 * 
+	 * @param currentTime
+	 *        the current system time in milliseconds since January 1st, 1970
+	 * @return <code>true</code> if there are retries left, <code>false</code> otherwise
+	 */
 	private boolean hasRetriesLeft(long currentTime) {
 
 		if (currentTime - this.timstampOfLastRetry >= RETRYINTERVAL) {
@@ -217,6 +311,18 @@ public class OutgoingConnection {
 		return true;
 	}
 
+	/**
+	 * Writes the content of the current {@link TransferEnvelope} object to the given {@link WritableByteChannel}
+	 * object.
+	 * <p>
+	 * This method should only be called by the {@link OutgoingConnectionThread} object.
+	 * 
+	 * @param writableByteChannel
+	 *        the channel to write to
+	 * @return <code>true</code> if there is more data from this/other queued envelopes to be written to this channel
+	 * @throws IOException
+	 *         thrown if an error occurs while writing the data to the channel
+	 */
 	public boolean write(WritableByteChannel writableByteChannel) throws IOException {
 
 		if (this.currentEnvelope == null) {
@@ -251,6 +357,19 @@ public class OutgoingConnection {
 		return true;
 	}
 
+	/**
+	 * Closes the TCP connection represented by this connection object and cancels associated interest key if no more
+	 * {@link TransferEnvelope} objects are in the transmission queue.
+	 * <p>
+	 * This method should only be called by the {@link OutgoingConnectionThread} object.
+	 * 
+	 * @param socketChannel
+	 *        the socket referring to the TCP connection to be closed
+	 * @param key
+	 *        the interest key to be canceled
+	 * @throws IOException
+	 *         thrown if an error occurs while closing the TCP connection
+	 */
 	public void closeConnection(SocketChannel socketChannel, SelectionKey key) throws IOException {
 
 		synchronized (this.queuedEnvelopes) {
@@ -263,6 +382,16 @@ public class OutgoingConnection {
 		}
 	}
 
+	/**
+	 * Returns the number of queued {@link TransferEnvelope} objects with the given channel ID. The
+	 * flag <code>source</code> states whether the given channel ID refers to the source or the destination channel ID.
+	 * 
+	 * @param channelID
+	 *        the channel ID to count the queued envelopes for
+	 * @param source
+	 *        <code>true</code> to indicate the given channel ID refers to the source, <code>false</code> otherwise
+	 * @return the number of queued transfer envelopes for the given channel ID
+	 */
 	public int getNumberOfQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
 
 		synchronized (this.queuedEnvelopes) {
@@ -287,6 +416,17 @@ public class OutgoingConnection {
 		}
 	}
 
+	/**
+	 * Removes all queued {@link TransferEnvelope} objects from the transmission which match the given channel ID. The
+	 * flag <code>source</code> states whether the given channel ID refers to the source or the destination channel ID.
+	 * <p>
+	 * This method should only be called by the byte buffered channel manager.
+	 * 
+	 * @param channelID
+	 *        the channel ID to count the queued envelopes for
+	 * @param source
+	 *        <code>true</code> to indicate the given channel ID refers to the source, <code>false</code> otherwise
+	 */
 	public void dropAllQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
 
 		synchronized (this.queuedEnvelopes) {
@@ -304,9 +444,28 @@ public class OutgoingConnection {
 		}
 	}
 
-	public int getTotalNumberOfQueuedEnvelopes() {
+	/**
+	 * Checks whether this outgoing connection object manages an active connection or can be removed by the
+	 * {@link ByteBufferedChannelManager} object.
+	 * <p>
+	 * This method should only be called by the byte buffered channel manager.
+	 * 
+	 * @return <code>true</code> if this object is no longer manages an active connection and can be removed,
+	 *         <code>false</code> otherwise.
+	 */
+	public boolean canBeRemoved() {
+
 		synchronized (this.queuedEnvelopes) {
-			return this.queuedEnvelopes.size();
+
+			if (this.isConnected) {
+				return false;
+			}
+
+			if (this.currentEnvelope != null) {
+				return false;
+			}
+
+			return this.queuedEnvelopes.isEmpty();
 		}
 	}
 }
