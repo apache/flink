@@ -163,7 +163,8 @@ public class ExecutionGraph implements ExecutionListener {
 	private void applyUserDefinedSettings(HashMap<AbstractJobVertex, ExecutionGroupVertex> temporaryGroupVertexMap)
 			throws GraphConversionException {
 
-		// TODO: Check for cycles in the instance dependency chain
+		// The check for cycles in the dependency chain for instance sharing is already checked in
+		// <code>submitJob</code> method of the job manager
 
 		// If there is no cycle, apply the settings to the corresponding group vertices
 		Iterator<AbstractJobVertex> it = temporaryGroupVertexMap.keySet().iterator();

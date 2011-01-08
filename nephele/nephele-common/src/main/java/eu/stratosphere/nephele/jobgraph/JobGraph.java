@@ -23,9 +23,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
 import java.util.Vector;
 
@@ -265,7 +267,8 @@ public class JobGraph implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns an array of all job vertices that are registered with the job graph.
+	 * Returns an array of all job vertices that are registered with the job graph. The order in which the vertices
+	 * appear in the list is not defined.
 	 * 
 	 * @return an array of all job vertices that are registered with the job graph
 	 */
@@ -766,6 +769,13 @@ public class JobGraph implements IOReadableWritable {
 		return userJars.toArray(new Path[0]);
 	}
 
+	/**
+	 * Checks if any vertex of this job graph has an outgoing edge which is set to <code>null</code>. If this is the
+	 * case the respective vertex is returned.
+	 * 
+	 * @return the vertex which has an outgoing edge set to <code>null</code> or <code>null</code> if no such vertex
+	 *         exists
+	 */
 	public AbstractJobVertex findVertexWithNullEdges() {
 
 		final AbstractJobVertex[] allVertices = getAllJobVertices();
@@ -786,5 +796,43 @@ public class JobGraph implements IOReadableWritable {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Checks if the instance dependency chain created with the <code>setVertexToShareInstancesWith</code> method is
+	 * acyclic.
+	 * 
+	 * @return <code>true</code> if the dependency chain is acyclic, <code>false</code> otherwise
+	 */
+	public boolean isInstanceDependencyChainAcyclic() {
+
+		final AbstractJobVertex[] allVertices = this.getAllJobVertices();
+		final Set<AbstractJobVertex> alreadyVisited = new HashSet<AbstractJobVertex>();
+
+		for (AbstractJobVertex vertex : allVertices) {
+
+			if (alreadyVisited.contains(vertex)) {
+				continue;
+			}
+
+			AbstractJobVertex vertexToShareInstancesWith = vertex.getVertexToShareInstancesWith();
+			if (vertexToShareInstancesWith != null) {
+
+				final Set<AbstractJobVertex> cycleMap = new HashSet<AbstractJobVertex>();
+
+				while (vertexToShareInstancesWith != null) {
+
+					if (cycleMap.contains(vertexToShareInstancesWith)) {
+						return false;
+					} else {
+						alreadyVisited.add(vertexToShareInstancesWith);
+						cycleMap.add(vertexToShareInstancesWith);
+						vertexToShareInstancesWith = vertexToShareInstancesWith.getVertexToShareInstancesWith();
+					}
+				}
+			}
+		}
+
+		return true;
 	}
 }

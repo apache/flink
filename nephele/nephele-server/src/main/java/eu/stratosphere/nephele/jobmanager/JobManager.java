@@ -409,7 +409,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return result;
 		}
 
-		LOG.info("The graph of job " + job.getName() + " is acyclic");
+		LOG.debug("The graph of job " + job.getName() + " is acyclic");
 
 		// Check constrains on degree
 		jv = job.areVertexDegreesCorrect();
@@ -419,7 +419,16 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return result;
 		}
 
-		LOG.info("All vertices of job " + job.getName() + " have the correct degree");
+		LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
+
+		if (!job.isInstanceDependencyChainAcyclic()) {
+			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+				"The dependency chain for instance sharing contains a cycle");
+
+			return result;
+		}
+
+		LOG.debug("The dependency chain for instance sharing is acyclic");
 
 		// Try to create initial execution graph from job graph
 		LOG.info("Creating initial execution graph from job graph " + job.getName());
