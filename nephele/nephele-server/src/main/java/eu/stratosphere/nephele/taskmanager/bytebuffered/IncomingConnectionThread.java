@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -33,7 +34,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 
 public class IncomingConnectionThread extends Thread {
 
-	private static final Log LOG = LogFactory.getLog(OutgoingConnectionThread.class);
+	private static final Log LOG = LogFactory.getLog(IncomingConnectionThread.class);
 
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
@@ -71,21 +72,27 @@ public class IncomingConnectionThread extends Thread {
 
 				if (!pendingIncomingConnections.isEmpty()) {
 					final IncomingConnection incomingConnection = pendingIncomingConnections.poll();
-					final SocketChannel socketChannel = incomingConnection.getSockeChannel();
-					try {
-						socketChannel.configureBlocking(false);
-						final SelectionKey key = socketChannel.register(this.selector, SelectionKey.OP_READ);
-						key.attach(incomingConnection);
+					final ReadableByteChannel readableByteChannel = incomingConnection.getReadableByteChannel();
+					if (readableByteChannel instanceof SocketChannel) {
+						final SocketChannel socketChannel = (SocketChannel) readableByteChannel;
+						try {
+							socketChannel.configureBlocking(false);
+							final SelectionKey key = socketChannel.register(this.selector, SelectionKey.OP_READ);
+							key.attach(incomingConnection);
 
-						/*
-						 * if(Math.random() < 0.1f) {
-						 * System.out.println("GENERATING I/O EXCEPTION2");
-						 * throw new IOException("Auto generated I/O exception");
-						 * }
-						 */
+							/*
+							 * if(Math.random() < 0.1f) {
+							 * System.out.println("GENERATING I/O EXCEPTION2");
+							 * throw new IOException("Auto generated I/O exception");
+							 * }
+							 */
 
-					} catch (IOException ioe) {
-						incomingConnection.reportTransmissionProblem(null, ioe);
+						} catch (IOException ioe) {
+							incomingConnection.reportTransmissionProblem(null, ioe);
+						}
+					} else {
+						LOG.error("Found pending incoming connection which is not of type SocketChannel buf of type "
+							+ readableByteChannel.getClass());
 					}
 				}
 			}
@@ -150,16 +157,17 @@ public class IncomingConnectionThread extends Thread {
 		}
 
 		// Register the new incoming connection with the byte buffered channel manager
-		this.byteBufferedChannelManager.registerIncomingConnectionFromNetwork(clientSocket);
+		final InetSocketAddress remoteAddress = (InetSocketAddress) clientSocket.socket().getRemoteSocketAddress();
+		final IncomingConnectionID incomingConnectionID = new IncomingConnectionID(remoteAddress.getAddress());
+		this.byteBufferedChannelManager.registerIncomingConnection(incomingConnectionID, clientSocket);
 
 	}
 
 	private void doRead(SelectionKey key) {
 
 		final IncomingConnection incomingConnection = (IncomingConnection) key.attachment();
-		final SocketChannel socketChannel = incomingConnection.getSockeChannel();
 		try {
-			incomingConnection.read(socketChannel);
+			incomingConnection.read();
 
 			/*
 			 * if(Math.random() < 0.005f) {
@@ -170,6 +178,7 @@ public class IncomingConnectionThread extends Thread {
 
 		} catch (EOFException eof) {
 			if (incomingConnection.isCloseUnexpected()) {
+				final SocketChannel socketChannel = (SocketChannel) key.channel();
 				LOG.error("Connection from " + socketChannel.socket().getRemoteSocketAddress()
 					+ " was closed unexpectedly");
 				incomingConnection.reportTransmissionProblem(key, eof);

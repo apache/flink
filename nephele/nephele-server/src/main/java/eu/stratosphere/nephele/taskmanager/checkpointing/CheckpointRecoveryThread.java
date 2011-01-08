@@ -15,9 +15,6 @@
 
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
-import java.io.EOFException;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 
@@ -35,14 +32,12 @@ public class CheckpointRecoveryThread extends Thread {
 		this.channelCheckpoint = channelCheckpoint;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void run() {
 
-		try {
-
-			this.channelCheckpoint.recover(this.byteBufferedChannelManager);
-		} catch (IOException ioe) {
-			ioe.printStackTrace(); // TODO: Handle this correctly
-		}
+		this.channelCheckpoint.recover(this.byteBufferedChannelManager);
 	}
 }

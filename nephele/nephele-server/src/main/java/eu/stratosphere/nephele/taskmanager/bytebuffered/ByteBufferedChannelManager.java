@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -81,7 +82,7 @@ public class ByteBufferedChannelManager {
 
 	private final Map<InetSocketAddress, OutgoingConnection> outgoingConnections = new HashMap<InetSocketAddress, OutgoingConnection>();
 
-	private final Map<InetAddress, IncomingConnection> incomingConnections = new HashMap<InetAddress, IncomingConnection>();
+	private final Map<IncomingConnectionID, IncomingConnection> incomingConnections = new HashMap<IncomingConnectionID, IncomingConnection>();
 
 	private final Set<OutOfByteBuffersListener> registeredOutOfWriteBuffersListeners = new HashSet<OutOfByteBuffersListener>();
 
@@ -435,49 +436,37 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	public IncomingConnection registerIncomingConnectionFromCheckpoint() {
+	public IncomingConnection registerIncomingConnection(IncomingConnectionID incomingConnectionID,
+			ReadableByteChannel readableByteChannel) {
 
-		// TODO: Register connection in hash map
-
-		return new IncomingConnection(this, null, true);
-
-	}
-
-	public void registerIncomingConnectionFromNetwork(SocketChannel socketChannel) {
-
-		final InetSocketAddress remoteInetSocketAddress = (InetSocketAddress) socketChannel.socket()
-			.getRemoteSocketAddress();
-		// System.out.println("Registering incoming connection from " + remoteInetSocketAddress.getAddress());
-
-		final IncomingConnection incomingConnection = new IncomingConnection(this, socketChannel, false);
+		final IncomingConnection incomingConnection = new IncomingConnection(incomingConnectionID, this,
+			readableByteChannel);
 
 		synchronized (this.incomingConnections) {
 
 			// Find previous connection
-			final IncomingConnection previousConnection = this.incomingConnections.get(remoteInetSocketAddress
-				.getAddress());
+			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
 
 			// Set previous connection if there is any and set sequence number to expect
 			incomingConnection.setPreviousConnection(previousConnection);
-			this.incomingConnections.put(remoteInetSocketAddress.getAddress(), incomingConnection);
+			this.incomingConnections.put(incomingConnectionID, incomingConnection);
 		}
 
-		// Register connection with an incoming connection thread
-		getIncomingConnectionThread().addToPendingIncomingConnections(incomingConnection);
+		// Register connection with an incoming connection thread if this is a network connection
+		if (readableByteChannel instanceof SocketChannel) {
+			getIncomingConnectionThread().addToPendingIncomingConnections(incomingConnection);
+		}
+
+		return incomingConnection;
 	}
 
-	public void unregisterIncomingConnection(SocketChannel socketChannel) {
-
-		final InetSocketAddress remoteInetSocketAddress = (InetSocketAddress) socketChannel.socket()
-			.getRemoteSocketAddress();
+	public void unregisterIncomingConnection(IncomingConnectionID incomingConnectionID,
+			ReadableByteChannel readableByteChannel) {
 
 		synchronized (this.incomingConnections) {
-
-			final IncomingConnection incomingConnection = this.incomingConnections.remove(remoteInetSocketAddress
-				.getAddress());
+			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
 			if (incomingConnection == null) {
-				LOG.error("Cannot unregister incoming connection from host " + remoteInetSocketAddress.getAddress());
-				return;
+				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
 			}
 		}
 	}

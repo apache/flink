@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -26,44 +27,68 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.util.StringUtils;
 
+/**
+ * This class represents an incoming data connection through which data streams are read and transformed into
+ * {@link TransferEnvelope} objects. The source of the data stream can be either a TCP connection or a recovery
+ * checkpoint.
+ * 
+ * @author warneke
+ */
 public class IncomingConnection {
 
+	/**
+	 * The log object used to report debug information and possible errors.
+	 */
 	private static final Log LOG = LogFactory.getLog(IncomingConnection.class);
 
-	private SocketChannel socketChannel;
+	/**
+	 * The readable byte channel through which the input data is retrieved.
+	 */
+	private final ReadableByteChannel readableByteChannel;
 
+	/**
+	 * The {@link TransferEnvelopeDeserializer} used to transform the read bytes into transfer envelopes which can be
+	 * passed on to the respective channels.
+	 */
 	private final TransferEnvelopeDeserializer deserializer;
 
+	/**
+	 * The byte buffered channel manager which handles and dispatches the received transfer envelopes.
+	 */
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
+	/**
+	 * Indicates if this incoming connection object reads from a checkpoint or a TCP connection.
+	 */
 	private final boolean readsFromCheckpoint;
+
+	private final IncomingConnectionID incomingConnectionID;
 
 	private IncomingConnection previousConnection = null;
 
-	public IncomingConnection(ByteBufferedChannelManager byteBufferedChannelManager, SocketChannel socketChannel,
-			boolean readsFromCheckpoint) {
+	public IncomingConnection(IncomingConnectionID incomingConnectionID,
+			ByteBufferedChannelManager byteBufferedChannelManager, ReadableByteChannel readableByteChannel) {
+		this.incomingConnectionID = incomingConnectionID;
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.readsFromCheckpoint = (this.readableByteChannel instanceof FileChannel);
 		this.deserializer = new TransferEnvelopeDeserializer(byteBufferedChannelManager, readsFromCheckpoint);
-		this.socketChannel = socketChannel;
-		this.readsFromCheckpoint = readsFromCheckpoint;
-	}
-
-	public SocketChannel getSockeChannel() {
-		return this.socketChannel;
+		this.readableByteChannel = readableByteChannel;
 	}
 
 	public void reportTransmissionProblem(SelectionKey key, IOException ioe) {
 
 		// First, write IOException to log
-		LOG.error("Connection from " + this.socketChannel.socket().getRemoteSocketAddress()
-			+ " encountered an IOException");
+		if (!this.readsFromCheckpoint) {
+			final SocketChannel socketChannel = (SocketChannel) this.readableByteChannel;
+			LOG.error("Connection from " + socketChannel.socket().getRemoteSocketAddress()
+				+ " encountered an IOException");
+		}
 		LOG.error(ioe);
-		ioe.printStackTrace();
 
 		try {
-			socketChannel.close();
+			this.readableByteChannel.close();
 		} catch (IOException e) {
-			LOG.debug("An error occurred while closing the socket");
+			LOG.debug("An error occurred while closing the byte channel");
 		}
 
 		// Cancel key
@@ -77,19 +102,18 @@ public class IncomingConnection {
 		}
 
 		this.deserializer.reset();
-		// Unregister socket connection
-		this.byteBufferedChannelManager.unregisterIncomingConnection(this.socketChannel);
-		this.socketChannel = null;
+		// Unregister incoming connection
+		this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
 	}
 
-	public void read(ReadableByteChannel readableByteChannel) throws IOException, EOFException {
+	public void read() throws IOException, EOFException {
 
 		if (!isActiveConnection()) {
 			System.out.println("Is not active connection");
 			return;
 		}
 
-		this.deserializer.read(readableByteChannel);
+		this.deserializer.read(this.readableByteChannel);
 
 		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
 		if (transferEnvelope != null) {
@@ -107,14 +131,10 @@ public class IncomingConnection {
 		this.previousConnection = previousConnection;
 	}
 
-	public boolean isActiveConnection() {
+	private boolean isActiveConnection() {
 
 		if (this.readsFromCheckpoint) {
 			return true;
-		}
-
-		if (this.socketChannel == null) {
-			return false;
 		}
 
 		// Channel is connected, if there is no previous connection, this is the active connection
@@ -122,8 +142,8 @@ public class IncomingConnection {
 			return true;
 		}
 
-		// This cannot be the active connection if it is not connected
-		if (!this.socketChannel.isConnected() || !this.socketChannel.isOpen()) {
+		// This cannot be the active connection if corresponding byte channel is closed
+		if (!this.readableByteChannel.isOpen()) {
 			return false;
 		}
 
@@ -138,18 +158,23 @@ public class IncomingConnection {
 		return true;
 	}
 
+	public ReadableByteChannel getReadableByteChannel() {
+		return this.readableByteChannel;
+	}
+
 	public void closeConnection(SelectionKey key) {
 
 		try {
-			this.socketChannel.close();
+			this.readableByteChannel.close();
 		} catch (IOException ioe) {
 			LOG.error("On IOException occured while closing the socket: + " + StringUtils.stringifyException(ioe));
 		}
 
 		// Cancel key
-		key.cancel();
+		if (key != null) {
+			key.cancel();
+		}
 
-		byteBufferedChannelManager.unregisterIncomingConnection(this.socketChannel);
-		this.socketChannel = null;
+		this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
 	}
 }
