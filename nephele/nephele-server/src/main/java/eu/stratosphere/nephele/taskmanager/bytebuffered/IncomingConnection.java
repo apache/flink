@@ -40,8 +40,6 @@ public class IncomingConnection {
 
 	private IncomingConnection previousConnection = null;
 
-	private int sequenceNumberToExpectNext = 0;
-
 	public IncomingConnection(ByteBufferedChannelManager byteBufferedChannelManager, SocketChannel socketChannel,
 			boolean readsFromCheckpoint) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
@@ -61,8 +59,6 @@ public class IncomingConnection {
 			+ " encountered an IOException");
 		LOG.error(ioe);
 		ioe.printStackTrace();
-
-		System.out.println("INCOMING: Error occurred during " + this.sequenceNumberToExpectNext);
 
 		try {
 			socketChannel.close();
@@ -97,24 +93,6 @@ public class IncomingConnection {
 
 		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
 		if (transferEnvelope != null) {
-
-			if (transferEnvelope.getSequenceNumber() <= this.sequenceNumberToExpectNext) {
-				/*
-				 * A smaller sequence is fine. It indicates that the sender has generated a new object
-				 * for an outgoing connection. However, this only happens if no data is queued to be sent.
-				 */
-				// this.sequenceNumberToExpectNext = transferEnvelope.getSequenceNumber() + 1;
-			} else {
-				/**
-				 * This is a severe error. Since we do not know which channel is affected by the
-				 * data loss, the problem must be propergates to alll network input channels.
-				 */
-				// IOException ioe = new IOException("Received transfer envelope " +
-				// transferEnvelope.getSequenceNumber() + ", but expected " + this.sequenceNumberToExpectNext);
-				// networkChannelManager.reportIOExceptionForAllInputChannels(ioe);
-				// throw ioe;
-			}
-
 			this.byteBufferedChannelManager.queueIncomingTransferEnvelope(transferEnvelope);
 		}
 
@@ -173,13 +151,5 @@ public class IncomingConnection {
 
 		byteBufferedChannelManager.unregisterIncomingConnection(this.socketChannel);
 		this.socketChannel = null;
-	}
-
-	public int getSequenceNumberToExpectNext() {
-		return this.sequenceNumberToExpectNext;
-	}
-
-	public void setSequenceNumberToExpectNext(int sequenceNumberToExpectNext) {
-		this.sequenceNumberToExpectNext = sequenceNumberToExpectNext;
 	}
 }

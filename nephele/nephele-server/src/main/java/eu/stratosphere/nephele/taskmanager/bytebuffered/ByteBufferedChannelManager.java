@@ -83,8 +83,6 @@ public class ByteBufferedChannelManager {
 
 	private final Map<InetAddress, IncomingConnection> incomingConnections = new HashMap<InetAddress, IncomingConnection>();
 
-	private final Map<InetAddress, Integer> sequenceToNumbersToExpectNext = new HashMap<InetAddress, Integer>();
-
 	private final Set<OutOfByteBuffersListener> registeredOutOfWriteBuffersListeners = new HashSet<OutOfByteBuffersListener>();
 
 	private final FileBufferManager fileBufferManager;
@@ -461,18 +459,6 @@ public class ByteBufferedChannelManager {
 
 			// Set previous connection if there is any and set sequence number to expect
 			incomingConnection.setPreviousConnection(previousConnection);
-			if (previousConnection == null) {
-				Integer sequenceNumberToExpectNext = this.sequenceToNumbersToExpectNext.get(remoteInetSocketAddress
-					.getAddress());
-				if (sequenceNumberToExpectNext == null) {
-					incomingConnection.setSequenceNumberToExpectNext(0);
-				} else {
-					incomingConnection.setSequenceNumberToExpectNext(sequenceNumberToExpectNext.intValue());
-				}
-			} else {
-				incomingConnection.setSequenceNumberToExpectNext(previousConnection.getSequenceNumberToExpectNext());
-			}
-
 			this.incomingConnections.put(remoteInetSocketAddress.getAddress(), incomingConnection);
 		}
 
@@ -493,11 +479,7 @@ public class ByteBufferedChannelManager {
 				LOG.error("Cannot unregister incoming connection from host " + remoteInetSocketAddress.getAddress());
 				return;
 			}
-
-			this.sequenceToNumbersToExpectNext.put(remoteInetSocketAddress.getAddress(), incomingConnection
-				.getSequenceNumberToExpectNext());
 		}
-
 	}
 
 	private OutgoingConnectionThread getOutgoingConnectionThread() {
