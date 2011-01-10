@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.DeserializationBuffer2;
+import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
@@ -49,7 +49,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	/**
 	 * The deserialization buffer used to deserialize records.
 	 */
-	private final DeserializationBuffer2<T> deserializationBuffer;
+	private final DeserializationBuffer<T> deserializationBuffer;
 
 	private Buffer compressedDataBuffer = null;
 
@@ -93,7 +93,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	public AbstractByteBufferedInputChannel(InputGate<T> inputGate, int channelIndex,
 			RecordDeserializer<T> deserializer, ChannelID channelID, CompressionLevel compressionLevel) {
 		super(inputGate, channelIndex, channelID, compressionLevel);
-		this.deserializationBuffer = new DeserializationBuffer2<T>(deserializer, false);
+		this.deserializationBuffer = new DeserializationBuffer<T>(deserializer, false);
 
 		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel);
 	}

@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.DeserializationBuffer2;
+import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 
 public class TransferEnvelopeDeserializer {
@@ -48,10 +48,10 @@ public class TransferEnvelopeDeserializer {
 
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
-	private final DeserializationBuffer2<ChannelID> channelIDDeserializationBuffer = new DeserializationBuffer2<ChannelID>(
+	private final DeserializationBuffer<ChannelID> channelIDDeserializationBuffer = new DeserializationBuffer<ChannelID>(
 		new DefaultRecordDeserializer<ChannelID>(ChannelID.class), true);
 
-	private final DeserializationBuffer2<EventList> notificationListDeserializationBuffer = new DeserializationBuffer2<EventList>(
+	private final DeserializationBuffer<EventList> notificationListDeserializationBuffer = new DeserializationBuffer<EventList>(
 		new DefaultRecordDeserializer<EventList>(EventList.class), true);
 
 	private final ByteBuffer existanceBuffer = ByteBuffer.allocate(1); // 1 byte for existence of buffer
