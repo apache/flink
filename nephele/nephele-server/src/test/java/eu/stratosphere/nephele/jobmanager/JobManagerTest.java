@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobmanager;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -30,7 +31,12 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.omg.PortableInterceptor.SUCCESSFUL;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -46,6 +52,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
+import eu.stratosphere.nephele.util.TestUtils;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
@@ -54,6 +61,8 @@ import eu.stratosphere.nephele.jobmanager.JobManager;
  * @author warneke
  */
 public class JobManagerTest {
+
+	private static JobManagerThread jobManagerThread = null;
 
 	/**
 	 * This is an auxiliary class to run the job manager thread.
@@ -90,143 +99,107 @@ public class JobManagerTest {
 			// Shut down
 			this.jobManager.shutdown();
 		}
-	}
 
-	/**
-	 * The content of the input file used during the test.
-	 */
-	private static final String INPUTCONTENT = "aa\r\nbb\r\ncc\r\ndd\r\nee\r\nff\r\ngg\r\n";
+		/**
+		 * Checks whether the encapsulated job manager is completely shut down.
+		 * 
+		 * @return <code>true</code> if the encapsulated job manager is completely shut down, <code>false</code>
+		 *         otherwise
+		 */
+		public boolean isShutDown() {
 
-	/**
-	 * Writes the input file used during this test to the directory for temporary files.
-	 * 
-	 * @param inputFilename
-	 *        the name of the input file
-	 * @return a {@link File} object referring to the input file
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while writing the input data
-	 */
-	private File createInputFile(String inputFilename) throws IOException {
-
-		final File inputFile = new File(getTempDir() + File.separator + inputFilename);
-
-		if (inputFile.exists()) {
-			inputFile.delete();
+			return this.jobManager.isShutDown();
 		}
-
-		inputFile.createNewFile();
-		FileWriter fw = new FileWriter(inputFile);
-		fw.write(INPUTCONTENT);
-		fw.close();
-
-		return inputFile;
 	}
 
 	/**
-	 * Reads the path to the directory for temporary files from the configuration and returns it.
-	 * 
-	 * @return the path to the directory for temporary files
+	 * Sets up Nephele in local mode.
 	 */
-	private String getTempDir() {
+	@BeforeClass
+	public static void startNephele() {
 
-		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+		if (jobManagerThread == null) {
+
+			// create the job manager
+			JobManager jobManager = null;
+
+			try {
+
+				Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
+					String.class });
+				c.setAccessible(true);
+				jobManager = c.newInstance(new Object[] { new String(System.getProperty("user.dir") + "/correct-conf"),
+					new String("local") });
+
+			} catch (SecurityException e) {
+				fail(e.getMessage());
+			} catch (NoSuchMethodException e) {
+				fail(e.getMessage());
+			} catch (IllegalArgumentException e) {
+				fail(e.getMessage());
+			} catch (InstantiationException e) {
+				fail(e.getMessage());
+			} catch (IllegalAccessException e) {
+				fail(e.getMessage());
+			} catch (InvocationTargetException e) {
+				fail(e.getMessage());
+			}
+
+			// Start job manager thread
+			if (jobManager != null) {
+				jobManagerThread = new JobManagerThread(jobManager);
+				jobManagerThread.start();
+			}
+		}
 	}
 
 	/**
-	 * Constructs a random filename. The filename is a string of 16 hex characters followed by a <code>.dat</code>
-	 * prefix.
-	 * 
-	 * @return the random filename
+	 * Shuts Nephele down.
 	 */
-	private String getRandomFilename() {
+	@AfterClass
+	public static void stopNephele() {
 
-		final char[] alphabeth = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+		if (jobManagerThread != null) {
+			jobManagerThread.interrupt();
 
-		String filename = "";
-		for (int i = 0; i < 16; i++) {
-			filename += alphabeth[(int) (Math.random() * alphabeth.length)];
+			while (!jobManagerThread.isShutDown()) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException i) {
+					break;
+				}
+			}
 		}
-
-		return filename + ".dat";
 	}
 
 	/**
-	 * Creates a jar file from the class with the given class name and stores it in the directory for temporary files.
-	 * 
-	 * @param className
-	 *        the name of the class to create a jar file from
-	 * @return a {@link File} object referring to the jar file
-	 * @throws IOException
-	 *         thrown if an error occurs while writing the jar file
-	 */
-	private File createJarFile(String className) throws IOException {
-
-		final String jarPath = getTempDir() + File.separator + className + ".jar";
-		final File jarFile = new File(jarPath);
-
-		if (jarFile.exists()) {
-			jarFile.delete();
-		}
-
-		final JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath), new Manifest());
-		final String classPath = JobManagerTest.class.getResource("").getPath() + className + ".class";
-		final File classFile = new File(classPath);
-
-		String packageName = JobManagerTest.class.getPackage().getName();
-		packageName = packageName.replaceAll("\\.", "\\/");
-		jos.putNextEntry(new JarEntry("/" + packageName + "/" + className + ".class"));
-
-		final FileInputStream fis = new FileInputStream(classFile);
-		final byte[] buffer = new byte[1024];
-		int num = fis.read(buffer);
-
-		while (num != -1) {
-			jos.write(buffer, 0, num);
-			num = fis.read(buffer);
-		}
-
-		fis.close();
-		jos.close();
-
-		return jarFile;
-	}
-
-	/**
-	 * This test starts Nephele in local mode and executes a simple forwarding task. The test is considered successful
-	 * if the input data equals the output data.
+	 * Tests of the Nephele channels with a large (> 1 MB) file.
 	 */
 	@Test
-	public void test() {
+	public void largeFileTest() {
 
-		// create the job manager
-		JobManager jobManager = null;
+		test(1000000);
+	}
 
-		try {
+	/**
+	 * Tests of the Nephele channels with a file of zero bytes size.
+	 */
+	@Test
+	public void zeroSizeFileTest() {
 
-			Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
-				String.class });
-			c.setAccessible(true);
-			jobManager = c.newInstance(new Object[] { new String(System.getProperty("user.dir") + "/correct-conf"),
-				new String("local") });
+		test(0);
+	}
 
-		} catch (SecurityException e) {
-			fail(e.getMessage());
-		} catch (NoSuchMethodException e) {
-			fail(e.getMessage());
-		} catch (IllegalArgumentException e) {
-			fail(e.getMessage());
-		} catch (InstantiationException e) {
-			fail(e.getMessage());
-		} catch (IllegalAccessException e) {
-			fail(e.getMessage());
-		} catch (InvocationTargetException e) {
-			fail(e.getMessage());
-		}
-
-		// Create job manager thread and run it
-		final JobManagerThread jobManagerThread = new JobManagerThread(jobManager);
-		jobManagerThread.start();
+	/**
+	 * Creates a file with a sequence of 0 to <code>limit</code> integer numbers
+	 * and triggers a sample job. The sample reads all the numbers from the input file and pushes them through a
+	 * network, a file, and an in-memory channel. Eventually, the numbers are written back to an output file. The test
+	 * is considered successful if the input file equals the output file.
+	 * 
+	 * @param limit
+	 *        the upper bound for the sequence of numbers to be generated
+	 */
+	private void test(int limit) {
 
 		try {
 
@@ -234,9 +207,9 @@ public class JobManagerTest {
 			final String forwardClassName = ForwardTask.class.getSimpleName();
 
 			// Create input and jar files
-			final String inputFilename = getRandomFilename();
-			final File inputFile = createInputFile(inputFilename);
-			final File jarFile = createJarFile(forwardClassName);
+			final File inputFile = TestUtils.createInputFile(limit);
+			final File outputFile = new File(TestUtils.getTempDir() + File.separator + TestUtils.getRandomFilename());
+			final File jarFile = TestUtils.createJarFile(forwardClassName);
 
 			// Create job graph
 			final JobGraph jg = new JobGraph("Job Graph 1");
@@ -244,62 +217,60 @@ public class JobManagerTest {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + getTempDir() + File.separator + inputFilename));
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
 
-			// task vertex
+			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
 			t1.setTaskClass(ForwardTask.class);
 
+			// task vertex 2
+			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
+			t2.setTaskClass(ForwardTask.class);
+
 			// output vertex
-			final String outputFilename = getRandomFilename();
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + getTempDir() + File.separator + outputFilename));
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
 
 			// connect vertices
 			try {
 				i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-				t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+				t1.connectTo(t2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+				t2.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 			} catch (JobGraphDefinitionException e) {
 				e.printStackTrace();
 			}
 
 			// add jar
-			jg.addJar(new Path("file://" + getTempDir() + File.separator + forwardClassName + ".jar"));
+			jg.addJar(new Path("file://" + TestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
 			JobClient jobClient = new JobClient(jg);
-			jobClient.submitJobAndWait();
+			if (!jobClient.submitJobAndWait()) {
+				fail("Job execution failed");
+			}
 
-			final char[] buffer = new char[INPUTCONTENT.toCharArray().length];
+			// Finally, compare output file to initial number sequence
+			final BufferedReader bufferedReader = new BufferedReader(new FileReader(outputFile));
+			for (int i = 0; i < limit; i++) {
+				final String number = bufferedReader.readLine();
+				try {
+					assertEquals(i, Integer.parseInt(number));
+				} catch (NumberFormatException e) {
+					fail(e.getMessage());
+				}
+			}
 
-			// check whether the output file is the same as the input file
-			FileReader fr = new FileReader(new File(getTempDir() + File.separator + outputFilename));
-			fr.read(buffer);
-			fr.close();
-
-			assertEquals(INPUTCONTENT, new String(buffer));
+			bufferedReader.close();
 
 			// Remove temporary files
 			inputFile.delete();
-			new File(getTempDir() + File.separator + outputFilename).delete();
+			outputFile.delete();
 			jarFile.delete();
 
 		} catch (IOException ioe) {
+			ioe.printStackTrace();
 			fail(ioe.getMessage());
-		} finally {
-
-			// Stop job manager
-			jobManagerThread.interrupt();
-
-			// Wait until the shut down is complete
-			while (!jobManager.isShutDown()) {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException i) {
-					break;
-				}
-			}
 		}
 	}
 }
