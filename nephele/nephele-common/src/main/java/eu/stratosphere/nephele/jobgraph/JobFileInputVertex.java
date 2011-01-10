@@ -301,7 +301,8 @@ public class JobFileInputVertex extends JobInputVertex {
 			}
 
 			final long minSplitSize = 1;
-			final long maxSplitSize = (numSubtasks < 1) ? Long.MAX_VALUE : (totalLength / numSubtasks + (totalLength % numSubtasks == 0 ? 0 : 1));
+			final long maxSplitSize = (numSubtasks < 1) ? Long.MAX_VALUE : (totalLength / numSubtasks + (totalLength
+				% numSubtasks == 0 ? 0 : 1));
 
 			// now that we have the files, generate the splits
 			for (FileStatus file : files) {
@@ -313,33 +314,41 @@ public class JobFileInputVertex extends JobInputVertex {
 
 				final long maxBytesForLastSplit = (long) (splitSize * MAX_SPLIT_SIZE_DISCREPANCY);
 
-				// get the block locations and make sure they are in order with respect to their offset
-				BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, len);
-				Arrays.sort(blocks);
+				if (len > 0) {
 
-				long bytesUnassigned = len;
-				long position = 0;
+					// get the block locations and make sure they are in order with respect to their offset
+					final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, len);
+					Arrays.sort(blocks);
 
-				int blockIndex = 0;
+					long bytesUnassigned = len;
+					long position = 0;
 
-				while (bytesUnassigned > maxBytesForLastSplit) {
-					// get the block containing the majority of the data
-					blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
-					// create a new split
-					FileInputSplit fis = new FileInputSplit(file.getPath(), position, splitSize, blocks[blockIndex]
-						.getHosts());
-					inputSplits.add(fis);
+					int blockIndex = 0;
 
-					// adjust the positions
-					position += splitSize;
-					bytesUnassigned -= splitSize;
-				}
+					while (bytesUnassigned > maxBytesForLastSplit) {
+						// get the block containing the majority of the data
+						blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
+						// create a new split
+						FileInputSplit fis = new FileInputSplit(file.getPath(), position, splitSize, blocks[blockIndex]
+							.getHosts());
+						inputSplits.add(fis);
 
-				// assign the last split
-				if (bytesUnassigned > 0) {
-					blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
-					FileInputSplit fis = new FileInputSplit(file.getPath(), position, bytesUnassigned,
-						blocks[blockIndex].getHosts());
+						// adjust the positions
+						position += splitSize;
+						bytesUnassigned -= splitSize;
+					}
+
+					// assign the last split
+					if (bytesUnassigned > 0) {
+						blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
+						final FileInputSplit fis = new FileInputSplit(file.getPath(), position, bytesUnassigned,
+							blocks[blockIndex].getHosts());
+						inputSplits.add(fis);
+					}
+				} else {
+					// special case with a file of zero bytes size
+					final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, 0);
+					final FileInputSplit fis = new FileInputSplit(file.getPath(), 0, 0, blocks[0].getHosts());
 					inputSplits.add(fis);
 				}
 			}
