@@ -20,27 +20,16 @@ import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.omg.PortableInterceptor.SUCCESSFUL;
 
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
