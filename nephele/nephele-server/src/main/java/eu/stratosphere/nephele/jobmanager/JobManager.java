@@ -329,6 +329,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		}
 
 		this.isShutDown = true;
+		LOG.debug("Shutdown of job manager completed");
 	}
 
 	/**
