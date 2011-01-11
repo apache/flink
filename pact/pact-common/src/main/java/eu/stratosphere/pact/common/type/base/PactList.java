@@ -35,8 +35,10 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * @see java.util.List
  * @see java.util.ArrayList
  * 
+ * @param <V> Type of the list elements.
+ * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
+ * 
  */
 public abstract class PactList<V extends Value> implements Value, List<V> {
 	

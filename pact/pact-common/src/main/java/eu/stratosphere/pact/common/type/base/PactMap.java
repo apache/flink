@@ -34,8 +34,11 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * @see java.util.Map
  * @see java.util.HashMap
  * 
+ * @param <K> Type of the map's key element.
+ * @param <V> Type of the map's value element.
+ * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
+ * 
  */
 public abstract class PactMap<K extends Value, V extends Value> implements Value, Map<K, V> {
 	

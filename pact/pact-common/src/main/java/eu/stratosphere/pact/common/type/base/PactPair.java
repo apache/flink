@@ -27,9 +27,12 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * PactList encapsulates two objects that implement the Key interface. 
  * 
  * @see eu.stratosphere.pact.common.type.Key
+ * 
+ * @param <U> Type of the pair's first element.
+ * @param <V> Type of the pair's second element.
  *  
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
+ * 
  */
 public abstract class PactPair<U extends Key, V extends Key> implements Key {
 	
