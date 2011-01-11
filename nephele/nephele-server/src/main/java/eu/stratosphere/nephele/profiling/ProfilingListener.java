@@ -13,33 +13,11 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager;
+package eu.stratosphere.nephele.profiling;
 
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
 
-public class GrepTask extends AbstractTask {
+public interface ProfilingListener {
 
-	private RecordReader<StringRecord> input = null;
-
-	private RecordWriter<StringRecord> output = null;
-
-	@Override
-	public void invoke() throws Exception {
-
-		while (this.input.hasNext()) {
-
-			StringRecord s = input.next();
-			System.out.println("Emittet record " + s);
-			this.output.emit(s);
-		}
-	}
-
-	@Override
-	public void registerInputOutput() {
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class, null);
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
-	}
+	void processProfilingEvents(ProfilingEvent profilingEvent);
 }

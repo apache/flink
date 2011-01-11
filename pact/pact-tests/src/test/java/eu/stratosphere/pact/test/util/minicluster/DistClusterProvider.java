@@ -25,6 +25,9 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.template.IllegalConfigurationException;
+import eu.stratosphere.pact.test.util.Constants;
+import eu.stratosphere.pact.test.util.filesystem.ExternalDFSProvider;
 
 public class DistClusterProvider extends ClusterProvider {
 
@@ -56,15 +59,20 @@ public class DistClusterProvider extends ClusterProvider {
 	}
 
 	@Override
-	protected void startHDFS() throws Exception {
+	protected void startFS() throws Exception {
 
-		if (hdfsIsRunning()) {
+		if (fsIsRunning()) {
 			return;
 		}
 
-		hdfsProvider = new ExternalDFSProvider(this.hdfsConfigDir);
-		hdfsProvider.start();
-		this.hdfsRunning = true;
+		if(config.getString(Constants.FILESYSTEM_TYPE, "").equals("external_hdfs")) {
+			filesystemProvider = new ExternalDFSProvider(this.hdfsConfigDir);
+		} else {
+			throw new IllegalConfigurationException("Invalid file system type: "+config.getString(Constants.FILESYSTEM_TYPE, ""));
+		}
+		
+		filesystemProvider.start();
+		this.filesystemRunning = true;
 	}
 
 	@Override
@@ -101,15 +109,15 @@ public class DistClusterProvider extends ClusterProvider {
 	}
 
 	@Override
-	protected void stopHDFS() throws Exception {
+	protected void stopFS() throws Exception {
 
-		if (!hdfsIsRunning()) {
+		if (!fsIsRunning()) {
 			return;
 		}
 
 		// stop HDFS provider
-		hdfsProvider.stop();
-		this.hdfsRunning = false;
+		filesystemProvider.stop();
+		this.filesystemRunning = false;
 
 	}
 
@@ -118,8 +126,8 @@ public class DistClusterProvider extends ClusterProvider {
 	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#clearHDFS()
 	 */
 	@Override
-	protected void clearHDFS() throws Exception {
-		hdfsProvider.getFileSystem().delete(new org.apache.hadoop.fs.Path("/"), true);
+	protected void clearFS() throws Exception {
+		filesystemProvider.delete("/", true);
 	}
 
 	@Override

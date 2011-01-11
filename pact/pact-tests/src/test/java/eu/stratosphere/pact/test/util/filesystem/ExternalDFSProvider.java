@@ -13,14 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.contracts;
+package eu.stratosphere.pact.test.util.filesystem;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
-import org.junit.runners.Suite.SuiteClasses;
+import java.io.IOException;
 
-@RunWith(Suite.class)
-@SuiteClasses( { MapTest.class, ReduceTest.class, MatchTest.class, CrossTest.class, CoGroupTest.class })
-public class ContractsTests {
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
+public class ExternalDFSProvider extends HDFSProvider {
+	public ExternalDFSProvider(String configDir) {
+		super(configDir);
+	}
+
+	public void start() throws Exception {
+		Configuration config = new Configuration(false);
+		config.addResource(new Path(configDir + "/hadoop-default.xml"));
+		config.addResource(new Path(configDir + "/hadoop-site.xml"));
+
+		hdfs = FileSystem.get(config);
+	}
+
+	public void stop() {
+		try {
+			hdfs.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		hdfs = null;
+	}
+	
 }

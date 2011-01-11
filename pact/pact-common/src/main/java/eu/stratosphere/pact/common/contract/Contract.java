@@ -89,7 +89,7 @@ public abstract class Contract implements Visitable<Contract> {
 	 * code at runtime. Parameters that the user code needs to access at runtime to configure its behavior are
 	 * typically stored as stub parameters.
 	 * 
-	 * @see getStubParameters()
+	 * @see #getStubParameters()
 	 * @param key
 	 *        The parameter key.
 	 * @param value
@@ -104,7 +104,7 @@ public abstract class Contract implements Visitable<Contract> {
 	 * code at runtime. Parameters that the user code needs to access at runtime to configure its behavior are
 	 * typically stored as stub parameters.
 	 * 
-	 * @see getStubParameters()
+	 * @see #getStubParameters()
 	 * @param key
 	 *        The parameter key.
 	 * @param value
@@ -119,7 +119,7 @@ public abstract class Contract implements Visitable<Contract> {
 	 * code at runtime. Parameters that the user code needs to access at runtime to configure its behavior are
 	 * typically stored as stub parameters.
 	 * 
-	 * @see getStubParameters()
+	 * @see #getStubParameters()
 	 * @param key
 	 *        The parameter key.
 	 * @param value

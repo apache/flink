@@ -43,26 +43,26 @@ public interface JobManagerProfiler {
 	void unregisterProfilingJob(ExecutionGraph executionGraph);
 
 	/**
-	 * Registers the given {@link ProfilingNotifiable} object to receive
+	 * Registers the given {@link ProfilingListener} object to receive
 	 * profiling data for the job with the given job ID.
 	 * 
 	 * @param jobID
 	 *        the ID of the job to receive profiling data for
-	 * @param profilingNotifiable
-	 *        the {@link ProfilingNotifiable} object to register
+	 * @param profilingListener
+	 *        the {@link ProfilingListener} object to register
 	 */
-	void registerForProfilingData(JobID jobID, ProfilingNotifiable profilingNotifiable);
+	void registerForProfilingData(JobID jobID, ProfilingListener profilingListener);
 
 	/**
-	 * Unregisters the given {@link ProfilingNotifiable} object from receiving
+	 * Unregisters the given {@link ProfilingListener} object from receiving
 	 * profiling data issued by the job manager's profiling component.
 	 * 
 	 * @param jobID
-	 *        the ID of the job the {@link ProfilingNotifiable} object has originally been registered for
-	 * @param profilingNotifiable
-	 *        the {@link ProfilingNotifiable} object to unregister
+	 *        the ID of the job the {@link ProfilingListener} object has originally been registered for
+	 * @param profilingListener
+	 *        the {@link ProfilingListener} object to unregister
 	 */
-	void unregisterFromProfilingData(JobID jobID, ProfilingNotifiable profilingNotifiable);
+	void unregisterFromProfilingData(JobID jobID, ProfilingListener profilingListener);
 
 	/**
 	 * Shuts done the job manager's profiling component

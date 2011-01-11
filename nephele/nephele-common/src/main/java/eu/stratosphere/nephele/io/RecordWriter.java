@@ -156,18 +156,42 @@ public class RecordWriter<T extends Record> implements Writer<T> {
 		return outputGate;
 	}
 
-	public void subscribeToEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Subscribes the listener object to receive events of the given type.
+	 * 
+	 * @param eventListener
+	 *        the listener object to register
+	 * @param eventType
+	 *        the type of event to register the listener for
+	 */
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to output gate
-		this.outputGate.subscribeToEvent(eventNotifiable, eventType);
+		this.outputGate.subscribeToEvent(eventListener, eventType);
 	}
 
-	public void unsubscribeFromEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Removes the subscription for events of the given type for the listener object.
+	 * 
+	 * @param eventListener
+	 *        the listener object to cancel the subscription for
+	 * @param eventType
+	 *        the type of the event to cancel the subscription for
+	 */
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to output gate
-		this.outputGate.unsubscribeFromEvent(eventNotifiable, eventType);
+		this.outputGate.unsubscribeFromEvent(eventListener, eventType);
 	}
 
+	/**
+	 * Publishes an event.
+	 * 
+	 * @param event
+	 *        the event to be published
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the event
+	 */
 	public void publishEvent(AbstractTaskEvent event) throws IOException {
 
 		// Delegate call to output gate

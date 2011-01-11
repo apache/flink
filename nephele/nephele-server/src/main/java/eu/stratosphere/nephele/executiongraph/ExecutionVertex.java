@@ -114,7 +114,7 @@ public class ExecutionVertex {
 		this.environment = new Environment(jobID, groupVertex.getName(), invokableClass, groupVertex.getConfiguration());
 
 		// Register the vertex itself as a listener for state changes
-		this.environment.registerExecutionNotifiable(this.executionGraph);
+		this.environment.registerExecutionListener(this.executionGraph);
 		this.environment.instantiateInvokable();
 	}
 

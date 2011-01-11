@@ -48,7 +48,7 @@ public class ClusterManagerTest {
 
 	public static boolean EXECUTE_LONG_TESTS = false;
 
-	private static final class MyInstanceNotifiable implements InstanceListener {
+	private static final class MyInstanceListener implements InstanceListener {
 		int nrAvailable = 0;
 
 		final Multimap<JobID, AllocatedResource> resourcesOfJobs = HashMultimap.create();
@@ -85,9 +85,9 @@ public class ClusterManagerTest {
 		// - getInstanceTypeByName
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		MyInstanceNotifiable dummyInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener dummyInstanceListener = new MyInstanceListener();
 		ClusterManager cm = new ClusterManager();
-		cm.setInstanceListener(dummyInstanceNotifiable);
+		cm.setInstanceListener(dummyInstanceListener);
 		try {
 
 			InstanceType defaultIT = cm.getDefaultInstanceType();
@@ -121,9 +121,9 @@ public class ClusterManagerTest {
 	public void testAllocationDeallocation() throws InstanceException {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		MyInstanceNotifiable dummyInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener dummyInstanceListener = new MyInstanceListener();
 		ClusterManager cm = new ClusterManager();
-		cm.setInstanceListener(dummyInstanceNotifiable);
+		cm.setInstanceListener(dummyInstanceListener);
 		try {
 			InetAddress inetAddress = null;
 			try {
@@ -143,7 +143,7 @@ public class ClusterManagerTest {
 			Thread.sleep(500);
 
 			// all 4 are registered
-			assertEquals(4, dummyInstanceNotifiable.resourcesOfJobs.get(jobID).size());
+			assertEquals(4, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
 
 			try {
 				cm.requestInstance(jobID, new Configuration(), cm.getDefaultInstanceType());
@@ -153,14 +153,14 @@ public class ClusterManagerTest {
 			}
 
 			List<AllocatedResource> resources = new ArrayList<AllocatedResource>(
-				dummyInstanceNotifiable.resourcesOfJobs.get(jobID));
+				dummyInstanceListener.resourcesOfJobs.get(jobID));
 
 			for (AllocatedResource i : resources) {
 				cm.releaseAllocatedResource(jobID, new Configuration(), i);
 			}
 
 			// none are registered but they are not maked as dead
-			assertEquals(4, dummyInstanceNotifiable.resourcesOfJobs.get(jobID).size());
+			assertEquals(4, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
 
 			// however, we can create new ones
 			for (int i = 0; i < 4; ++i) {
@@ -171,7 +171,7 @@ public class ClusterManagerTest {
 			Thread.sleep(500);
 
 			// all 4+4 are registered
-			assertEquals(8, dummyInstanceNotifiable.resourcesOfJobs.get(jobID).size());
+			assertEquals(8, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -195,9 +195,9 @@ public class ClusterManagerTest {
 		overwrite.setInteger("cloud.ec2.cleanupinterval", 10000);
 		GlobalConfiguration.includeConfiguration(overwrite);
 
-		MyInstanceNotifiable dummyInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener dummyInstanceListener = new MyInstanceListener();
 		ClusterManager cm = new ClusterManager();
-		cm.setInstanceListener(dummyInstanceNotifiable);
+		cm.setInstanceListener(dummyInstanceListener);
 		try {
 			InetAddress inetAddress = null;
 			try {
@@ -214,7 +214,7 @@ public class ClusterManagerTest {
 			}
 
 			// all 4 are registered
-			assertEquals(4, dummyInstanceNotifiable.resourcesOfJobs.get(jobID).size());
+			assertEquals(4, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
 
 			try {
 				cm.requestInstance(jobID, new Configuration(), cm.getDefaultInstanceType());
@@ -224,7 +224,7 @@ public class ClusterManagerTest {
 			}
 
 			List<AllocatedResource> resources = new ArrayList<AllocatedResource>(
-				dummyInstanceNotifiable.resourcesOfJobs.get(jobID));
+				dummyInstanceListener.resourcesOfJobs.get(jobID));
 
 			// now we wait for 25 seconds -> the instances should be gone
 
@@ -234,7 +234,7 @@ public class ClusterManagerTest {
 			}
 
 			// none are registered, all dead
-			assertEquals(0, dummyInstanceNotifiable.resourcesOfJobs.get(jobID).size());
+			assertEquals(0, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
 
 			try {
 				cm.releaseAllocatedResource(jobID, new Configuration(), resources.get(0));

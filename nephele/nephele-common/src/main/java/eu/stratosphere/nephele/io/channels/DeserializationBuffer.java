@@ -15,8 +15,10 @@
 
 package eu.stratosphere.nephele.io.channels;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 
 import eu.stratosphere.nephele.io.DataInputBuffer;
 import eu.stratosphere.nephele.io.IOReadableWritable;
@@ -48,113 +50,92 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 	private RecordDeserializer<T> deserializer = null;
 
 	/**
-	 * Number of bytes already read from the length field.
-	 */
-	private int bytesReadFromLength = 0;
-
-	/**
-	 * Number of bytes already read from the buffer.
-	 */
-	private int bytesReadFromBuffer = 0;
-
-	/**
 	 * Buffer to reconstruct the length field.
 	 */
-	byte[] lengthBuf = new byte[SIZEOFINT];
+	ByteBuffer lengthBuf = ByteBuffer.allocate(SIZEOFINT);
 
 	/**
 	 * Size of the record to be deserialized in bytes.
 	 */
-	private int recordLength = 0;
+	private int recordLength = -1;
+
+	private final boolean propagateEndOfStream;
 
 	/**
 	 * Temporary buffer.
 	 */
-	private byte[] tempBuffer = null;
+	ByteBuffer tempBuffer = null;
 
 	/**
 	 * Constructs a new deserialization buffer with the specified type.
 	 * 
 	 * @param type
 	 *        the type of the record the deserialization buffer can be used for
+	 * @param propagateEndOfStream
+	 *        <code>true> if end of stream notifications during the
+	 * deserialization process shall be propagated to the caller, <code>false</code> otherwise
 	 */
-	public DeserializationBuffer(RecordDeserializer<T> deserializer) {
+	public DeserializationBuffer(RecordDeserializer<T> deserializer, boolean propagateEndOfStream) {
 		this.deserializer = deserializer;
+		this.propagateEndOfStream = propagateEndOfStream;
 	}
 
 	/**
-	 * Reads the data from the provided {@link ByteBuffer} and attempts to deserialize the record from the data.
-	 * If the {@link ByteBuffer} does not contain all the data that is required for deserializing the data is stored
-	 * internally and deserialization is continued on the next call of this method.
+	 * Reads data from the given byte channel and deserializes an object of type <code>T</code> from it.
 	 * 
-	 * @param buffer
-	 *        the byte buffer to read the data from
-	 * @return the deserialized record of the byte buffer contained all the data required for deserialization,
-	 *         <code>null</code> otherwise
+	 * @param readableByteChannel
+	 *        the byte channel to read data from
+	 * @return an object of type <code>T</code>
 	 * @throws IOException
-	 *         thrown if an error occurs while deserializing the record
+	 *         thrown if an error occurs while reading the data or deserializing the object
 	 */
-	public T readData(ByteBuffer buffer) throws IOException {
+	public T readData(ReadableByteChannel readableByteChannel) throws IOException {
 
-		if (bytesReadFromLength < SIZEOFINT) {
-			final int length = Math.min(SIZEOFINT - bytesReadFromLength, buffer.remaining());
-			buffer.get(lengthBuf, bytesReadFromLength, length);
-			bytesReadFromLength += length;
+		if (this.recordLength < 0) {
+			if (readableByteChannel.read(this.lengthBuf) == -1 && this.propagateEndOfStream) {
+				if (this.lengthBuf.position() == 0) {
+					throw new EOFException();
+				} else {
+					throw new IOException("Deserilization error: Expected to read " + this.lengthBuf.remaining()
+						+ " more bytes of length information from the stream!");
+				}
+			}
 
-			if (bytesReadFromLength < SIZEOFINT) {
+			if (this.lengthBuf.hasRemaining()) {
 				return null;
 			}
 
-			recordLength = byteArrayToInt(lengthBuf);
+			this.recordLength = byteArrayToInt(lengthBuf.array());
 
-			if (tempBuffer == null) {
-				tempBuffer = new byte[recordLength];
+			if (this.tempBuffer == null) {
+				tempBuffer = ByteBuffer.allocate(recordLength);
 			}
 
-			if (tempBuffer.length < recordLength) {
-				// for(int i = buffer.position(); i < buffer.position() + 20; i++) {
-				// System.out.print((char)buffer.get(i));
-				// }
-				// System.out.println("");
-				// System.out.println("Increasing temp buffer to " + recordLength);
-				tempBuffer = new byte[recordLength];
+			if (this.tempBuffer.capacity() < recordLength) {
+				tempBuffer = ByteBuffer.allocate(recordLength);
 			}
 
-			bytesReadFromBuffer = 0;
+			// Important: limit the number of bytes that can be read into the buffer
+			this.tempBuffer.position(0);
+			this.tempBuffer.limit(this.recordLength);
 		}
 
-		if (buffer.remaining() == 0)
+		if (readableByteChannel.read(tempBuffer) == -1 && this.propagateEndOfStream) {
+			throw new IOException("Deserilization error: Expected to read " + this.tempBuffer.remaining()
+				+ " more bytes from stream!");
+		}
+
+		if (this.tempBuffer.hasRemaining()) {
 			return null;
-
-		{
-			final int length = Math.min(recordLength - bytesReadFromBuffer, buffer.remaining());
-			buffer.get(tempBuffer, bytesReadFromBuffer, length);
-			bytesReadFromBuffer += length;
-
-			if (bytesReadFromBuffer < recordLength) {
-				return null;
-			}
-
-			deserializationBuffer.reset(tempBuffer, recordLength);
-
-			// TODO erik (mod)
-			/*
-			 * T record = null;
-			 * try {
-			 * record = type.newInstance();
-			 * } catch(Exception e) {
-			 * throw new IOException(e);
-			 * }
-			 * record.read(deserializationBuffer);
-			 */
-
-			T record = deserializer.deserialize(deserializationBuffer);
-
-			// If this has really worked out, prepare for the next item
-			bytesReadFromLength = 0;
-
-			return record;
 		}
+
+		deserializationBuffer.reset(tempBuffer.array(), this.recordLength);
+		final T record = deserializer.deserialize(deserializationBuffer);
+
+		this.recordLength = -1;
+		this.lengthBuf.clear();
+
+		return record;
 	}
 
 	/**
@@ -174,25 +155,37 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 		return number;
 	}
 
-	// TODO: Does this have to be public?
-	public int getLengthOfNextRecord() {
-
-		if (bytesReadFromLength < SIZEOFINT) {
-			return -1;
-		}
-
-		return this.recordLength;
-	}
-
-	// TODO: Does this have to be public?
-	public int getBytesFilledInBuffer() {
-
-		return this.bytesReadFromBuffer;
-	}
-
+	/**
+	 * Clears the internal buffers of the deserializer and resets its state.
+	 */
 	public void clear() {
 
-		this.bytesReadFromBuffer = 0;
-		this.bytesReadFromLength = 0;
+		this.recordLength = -1;
+		if (this.tempBuffer != null) {
+			this.tempBuffer.clear();
+		}
+		if (this.lengthBuf != null) {
+			this.lengthBuf.clear();
+		}
+	}
+
+	/**
+	 * Checks if the deserializer has data from a previous deserialization attempt stored in its internal buffers which
+	 * is not yet finished.
+	 * 
+	 * @return <code>true</code> if the deserializer's internal buffers contain data from a previous deserialization
+	 *         attempt, <code>false</code> otherwise
+	 */
+	public boolean hasUnfinishedData() {
+
+		if (this.recordLength != -1) {
+			return true;
+		}
+
+		if (this.lengthBuf.position() > 0) {
+			return true;
+		}
+
+		return false;
 	}
 }

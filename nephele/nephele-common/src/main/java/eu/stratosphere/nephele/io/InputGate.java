@@ -507,21 +507,48 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String toString() {
 		return "Input " + super.toString();
 	}
 
-	public void subscribeToEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Subscribes the listener object to receive events of the given type.
+	 * 
+	 * @param eventListener
+	 *        the listener object to register
+	 * @param eventType
+	 *        the type of event to register the listener for
+	 */
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
-		this.eventNotificationManager.subscribeToEvent(eventNotifiable, eventType);
+		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
 	}
 
-	public void unsubscribeFromEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Removes the subscription for events of the given type for the listener object.
+	 * 
+	 * @param eventListener
+	 *        the listener object to cancel the subscription for
+	 * @param eventType
+	 *        the type of the event to cancel the subscription for
+	 */
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
-		this.eventNotificationManager.unsubscribeFromEvent(eventNotifiable, eventType);
+		this.eventNotificationManager.unsubscribeFromEvent(eventListener, eventType);
 	}
 
+	/**
+	 * Publishes an event.
+	 * 
+	 * @param event
+	 *        the event to be published
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the event
+	 */
 	public void publishEvent(AbstractTaskEvent event) throws IOException {
 
 		// Copy event to all connected channels
@@ -531,6 +558,12 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 		}
 	}
 
+	/**
+	 * Passes a received event on to the event notification manager so it cam ne dispatched.
+	 * 
+	 * @param event
+	 *        the event to pass on to the notification manager
+	 */
 	public void deliverEvent(AbstractTaskEvent event) {
 
 		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);

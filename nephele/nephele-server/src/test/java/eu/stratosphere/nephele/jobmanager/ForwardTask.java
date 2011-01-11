@@ -13,11 +13,31 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.profiling;
+package eu.stratosphere.nephele.jobmanager;
 
-import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.types.StringRecord;
 
-public interface ProfilingNotifiable {
+public class ForwardTask extends AbstractTask {
 
-	void processProfilingEvents(ProfilingEvent profilingEvent);
+	private RecordReader<StringRecord> input = null;
+	private RecordWriter<StringRecord> output = null;
+
+	@Override
+	public void invoke() throws Exception {
+
+		while (this.input.hasNext()) {
+
+			StringRecord s = input.next();
+			this.output.emit(s);
+		}
+	}
+
+	@Override
+	public void registerInputOutput() {
+		this.input = new RecordReader<StringRecord>(this, StringRecord.class, null);
+		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
+	}
 }

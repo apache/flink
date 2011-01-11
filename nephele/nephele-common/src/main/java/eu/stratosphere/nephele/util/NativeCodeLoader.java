@@ -70,9 +70,6 @@ public class NativeCodeLoader {
 
 		final String libraryPath = directory + File.separator + filename;
 
-		System.out.println("DIRECTORY: " + libraryPath);
-		System.out.println("FILENAME: " + filename);
-
 		synchronized (loadedLibrarySet) {
 
 			final File outputFile = new File(directory, filename);

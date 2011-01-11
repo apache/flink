@@ -85,8 +85,7 @@
               type: "GET",
               url: "pactPlan",
               data: { job: id },
-              success: function(response) { showPreviewPlan(response); },
-              error:function (xhr, ajaxOptions, thrownError) { alert(xhr.responseText); pactPlanRequested = 0; }    
+              success: function(response) { showPreviewPlan(response); }
           });
         }
         else {

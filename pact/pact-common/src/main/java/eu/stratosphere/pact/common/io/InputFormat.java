@@ -51,7 +51,7 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 	 * method. The runtime will try to reuse the pair for several nextPair()
 	 * calls.
 	 * 
-	 * @return
+	 * @return A KeyValuePair to be use in the nextPair() method.
 	 */
 	public abstract KeyValuePair<K, V> createPair();
 

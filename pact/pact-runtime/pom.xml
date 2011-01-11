@@ -19,14 +19,11 @@
 
   <dependencies>
 
-
-
     <dependency>
       <groupId>eu.stratosphere</groupId>
       <artifactId>nephele-server</artifactId>
       <version>${version}</version>
     </dependency>
-
 
     <dependency>
       <groupId>eu.stratosphere</groupId>
@@ -34,40 +31,27 @@
       <version>${version}</version>
     </dependency>
 
-
-
-
-
   </dependencies>
 
   <reporting>
     <plugins>
-      <plugin>
-        <!--
-          just define the Java version to be used for compiling and
-          plugins
-        -->
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.0</version>
-        <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
-        </configuration>
-      </plugin>
     </plugins>
   </reporting>
 
   <build>
     <plugins>
+
       <plugin>
-        <!-- just define the Java version to be used for compiling and plugins -->
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.7</version>
         <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
+          <excludes>
+            <exclude>**/TestData.java</exclude>
+          </excludes>
         </configuration>
       </plugin>
+      
     </plugins>
   </build>
 </project>

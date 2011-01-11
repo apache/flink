@@ -33,7 +33,7 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 
 	private static int nextID = 1;
 
-	private Contract child;
+	private Contract input;
 
 	private Order globalOrder = Order.NONE;
 
@@ -78,19 +78,19 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 	/**
 	 * Returns the input or null if none is set
 	 * 
-	 * @return
+	 * @return the contract's input contract
 	 */
 	public Contract getInput() {
-		return child;
+		return input;
 	}
 
 	/**
 	 * Connects the input to the task wrapped in this contract
 	 * 
-	 * @param input
+	 * @param input the contract's input contract
 	 */
-	public DataSinkContract<KT, VT> setInput(Contract child) {
-		this.child = child;
+	public DataSinkContract<KT, VT> setInput(Contract input) {
+		this.input = input;
 		return this;
 	}
 
@@ -146,8 +146,8 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 	@Override
 	public void accept(Visitor<Contract> visitor) {
 		visitor.preVisit(this);
-		if (child != null)
-			child.accept(visitor);
+		if (input != null)
+			input.accept(visitor);
 		visitor.postVisit(this);
 	}
 
@@ -163,7 +163,7 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 	 * Returns the configured file path where the output is
 	 * written to.
 	 * 
-	 * @return
+	 * @return The path to which the output shall be written
 	 */
 	public String getFilePath() {
 		return filePath;
@@ -172,8 +172,8 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 	/**
 	 * Configure the settings for the output format.
 	 * 
-	 * @param key
-	 * @param value
+	 * @param key The key of the format parameter.
+	 * @param value The value of the format parameter.
 	 */
 	public void setFormatParameter(String key, String value) {
 		formatParameters.setString(key, value);
@@ -182,7 +182,7 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 	/**
 	 * Returns the parameters set for the OutputFormat
 	 * 
-	 * @return
+	 * @return The configuration holding all format parameters.
 	 */
 	public Configuration getFormatParameters() {
 		return formatParameters;

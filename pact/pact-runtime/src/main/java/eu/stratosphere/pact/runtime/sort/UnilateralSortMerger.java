@@ -324,7 +324,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 *        The queues through which the thread communicates with the other threads.
 	 * @param parentTask
 	 *        The task at which the thread registers itself (for profiling purposes).
-	 * @return
+	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
 			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask) {
@@ -400,7 +400,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 *        The channels that are to be merged and returned.
 	 * @param ioMemorySize
 	 *        The size of I/O memory that can be used for reading.
-	 * @return
+	 * @return An iterator over the merged KeyValuePairs of the input channels.
 	 * @throws MemoryAllocationException
 	 * @throws IOException
 	 *         Thrown, if the readers
@@ -442,7 +442,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * @param channelIDs
 	 * @param ioMemorySize
-	 * @return
+	 * @return A list of channels that can be merged in one turn.
 	 * @throws Exception
 	 */
 	protected List<Channel.ID> mergeChannelList(List<Channel.ID> channelIDs, int ioMemorySize) throws Exception {
@@ -469,7 +469,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * @param channelIDs
 	 * @param ioMemorySize
-	 * @return
+	 * @return The ID of the channel that hold the merged data of the input channels.
 	 */
 	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize) {
 		List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();

@@ -39,8 +39,14 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
+import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 
+/**
+ * The queue scheduler mains of queue of all submitted jobs and executes one job at a time.
+ * 
+ * @author warneke
+ */
 public class QueueScheduler implements Scheduler {
 
 	/**
@@ -48,12 +54,29 @@ public class QueueScheduler implements Scheduler {
 	 */
 	private static final Log LOG = LogFactory.getLog(QueueScheduler.class);
 
+	/**
+	 * The job queue where all submitted jobs go to.
+	 */
 	private Deque<ExecutionGraph> jobQueue = new ArrayDeque<ExecutionGraph>();
 
+	/**
+	 * The instance manager assigned to this scheduler.
+	 */
 	private final InstanceManager instanceManager;
 
+	/**
+	 * The listener object which is notified about scheduling events by the scheduler.
+	 */
 	private final SchedulingListener schedulingListener;
 
+	/**
+	 * Constructs a new queue scheduler.
+	 * 
+	 * @param schedulingListener
+	 *        the listener object to receive notifications about scheduling events
+	 * @param instanceManager
+	 *        the instance manager to be used with this scheduler
+	 */
 	public QueueScheduler(SchedulingListener schedulingListener, InstanceManager instanceManager) {
 
 		this.schedulingListener = schedulingListener;
@@ -225,8 +248,8 @@ public class QueueScheduler implements Scheduler {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void schedulJob(ExecutionGraph executionGraph) {
-
+	public void schedulJob(ExecutionGraph executionGraph) throws SchedulingException {
+		
 		synchronized (this.jobQueue) {
 
 			final ExecutionGraphIterator it = new ExecutionGraphIterator(executionGraph, true);
@@ -238,7 +261,7 @@ public class QueueScheduler implements Scheduler {
 						+ ExecutionState.CREATED);
 				}
 
-				vertex.getEnvironment().registerExecutionNotifiable(new QueueExecutionNotifiable(this, vertex));
+				vertex.getEnvironment().registerExecutionListener(new QueueExecutionListener(this, vertex));
 				vertex.setExecutionState(ExecutionState.SCHEDULED);
 
 			}
@@ -346,12 +369,18 @@ public class QueueScheduler implements Scheduler {
 
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
 		// TODO Auto-generated method stub
 
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public InstanceManager getInstanceManager() {
 		return this.instanceManager;

@@ -16,8 +16,7 @@
 
   <packaging>jar</packaging>
 
-  <!-- FIXME: (aa) don't know why, this doesn't seem to work (try "/nephele-common$ mvn surefire:test") -->
-  <!--<build>
+  <build>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -27,5 +26,5 @@
         </configuration>
       </plugin>
     </plugins>
-  </build>-->
+  </build>
 </project>

@@ -15,17 +15,10 @@
 
 package eu.stratosphere.pact.test.contracts;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
-
-import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -56,11 +49,10 @@ import eu.stratosphere.pact.test.util.TestBase;
  */
 @RunWith(Parameterized.class)
 public class CrossTest extends TestBase
-/*
- * TODO: - Allow multiple data sinks
- */
 
 {
+	private static final Log LOG = LogFactory.getLog(CrossTest.class);
+
 	public CrossTest(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
@@ -82,37 +74,29 @@ public class CrossTest extends TestBase
 	private static final String CROSS_RIGHT_IN_4 = "4 4\n4 8\n";
 
 	private static final String CROSS_RESULT = "2 0\n2 0\n2 1\n2 1\n3 1\n3 1\n3 3\n3 3\n4 2\n4 2\n5 3\n5 3\n"
-		+ "3 -1\n3 -1\n3 0\n3 0\n4 0\n4 0\n4 2\n4 2\n5 1\n5 1\n6 2\n6 2\n"
-		+ "4 -2\n4 -2\n4 -1\n4 -1\n5 -1\n5 -1\n6 0\n6 0\n" + "5 -3\n5 -3\n5 -2\n5 -2\n6 -2\n6 -2\n";
+			+ "3 -1\n3 -1\n3 0\n3 0\n4 0\n4 0\n4 2\n4 2\n5 1\n5 1\n6 2\n6 2\n"
+			+ "4 -2\n4 -2\n4 -1\n4 -1\n5 -1\n5 -1\n6 0\n6 0\n" + "5 -3\n5 -3\n5 -2\n5 -2\n6 -2\n6 -2\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		getHDFSProvider().createDir(getHDFSProvider().getHdfsHome() + "/cross_left");
+		String tempDir = getFilesystemProvider().getTempDirPath();
 
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_left/crossTest_1.txt",
-			CROSS_LEFT_IN_1);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_left/crossTest_2.txt",
-			CROSS_LEFT_IN_2);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_left/crossTest_3.txt",
-			CROSS_LEFT_IN_3);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_left/crossTest_4.txt",
-			CROSS_LEFT_IN_4);
+		getFilesystemProvider().createDir(tempDir + "/cross_left");
 
-		getHDFSProvider().createDir(getHDFSProvider().getHdfsHome() + "/cross_right");
+		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_1.txt", CROSS_LEFT_IN_1);
+		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_2.txt", CROSS_LEFT_IN_2);
+		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_3.txt", CROSS_LEFT_IN_3);
+		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_4.txt", CROSS_LEFT_IN_4);
 
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_right/crossTest_1.txt",
-			CROSS_RIGHT_IN_1);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_right/crossTest_2.txt",
-			CROSS_RIGHT_IN_2);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_right/crossTest_3.txt",
-			CROSS_RIGHT_IN_3);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cross_right/crossTest_4.txt",
-			CROSS_RIGHT_IN_4);
+		getFilesystemProvider().createDir(tempDir + "/cross_right");
+
+		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_1.txt", CROSS_RIGHT_IN_1);
+		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_2.txt", CROSS_RIGHT_IN_2);
+		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_3.txt", CROSS_RIGHT_IN_3);
+		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_4.txt", CROSS_RIGHT_IN_4);
 	}
 
 	public static class CrossTestInFormat extends TextInputFormat<PactString, PactString> {
-
-		private static final Log LOG = LogFactory.getLog(CrossTestInFormat.class);
 
 		@Override
 		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
@@ -120,7 +104,7 @@ public class CrossTest extends TestBase
 			pair.setKey(new PactString(new String((char) line[0] + "")));
 			pair.setValue(new PactString(new String((char) line[2] + "")));
 
-			LOG.info("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
 			return true;
 		}
 	}
@@ -129,20 +113,21 @@ public class CrossTest extends TestBase
 
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
+			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+			
 			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
 		}
 	}
 
-	public static class TestCross extends CrossStub<PactString, PactString, PactString, PactString, PactString, PactInteger> {
-
-		private static final Log LOG = LogFactory.getLog(TestCross.class);
+	public static class TestCross extends
+			CrossStub<PactString, PactString, PactString, PactString, PactString, PactInteger> {
 
 		public void cross(PactString key1, PactString value1, PactString key2, PactString value2,
 				Collector<PactString, PactInteger> out) {
-			LOG.info("Processing { [" + key1 + "," + value1 + "] , [" + key2 + "," + value2 + "] }");
+			LOG.debug("Processing { [" + key1 + "," + value1 + "] , [" + key2 + "," + value2 + "] }");
 			if (Integer.parseInt(value1.toString()) + Integer.parseInt(value2.toString()) <= 6) {
 				out.collect(new PactString(Integer.parseInt(key1.toString()) + Integer.parseInt(key2.toString()) + ""),
-					new PactInteger(Integer.parseInt(value2.toString()) - Integer.parseInt(value1.toString())));
+						new PactInteger(Integer.parseInt(value2.toString()) - Integer.parseInt(value1.toString())));
 			}
 		}
 
@@ -150,39 +135,41 @@ public class CrossTest extends TestBase
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
+
+		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
+
 		DataSourceContract<PactString, PactString> input_left = new DataSourceContract<PactString, PactString>(
-			CrossTestInFormat.class, getHDFSProvider().getHdfsHome() + "/cross_left");
+				CrossTestInFormat.class, pathPrefix + "/cross_left");
 		input_left.setFormatParameter("delimiter", "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		DataSourceContract<PactString, PactString> input_right = new DataSourceContract<PactString, PactString>(
-			CrossTestInFormat.class, getHDFSProvider().getHdfsHome() + "/cross_right");
+				CrossTestInFormat.class, pathPrefix + "/cross_right");
 		input_right.setFormatParameter("delimiter", "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		CrossContract<PactString, PactString, PactString, PactString, PactString, PactInteger> testCross = new CrossContract<PactString, PactString, PactString, PactString, PactString, PactInteger>(
-			TestCross.class);
+				TestCross.class);
 		testCross.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 		testCross.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
-			config.getString("CrossTest#LocalStrategy", ""));
+				config.getString("CrossTest#LocalStrategy", ""));
 		if (config.getString("CrossTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
 			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
+					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
 			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
-		} else if (config.getString("CrossTest#ShipStrategy", "").equals(
-			"BROADCAST_SECOND")) {
+					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
+		} else if (config.getString("CrossTest#ShipStrategy", "").equals("BROADCAST_SECOND")) {
 			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
+					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
 			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-				PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
+					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
 		} else {
 			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
-				config.getString("CrossTest#ShipStrategy", ""));
+					config.getString("CrossTest#ShipStrategy", ""));
 		}
 
 		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
-			CrossTestOutFormat.class, getHDFSProvider().getHdfsHome() + "/result.txt");
+				CrossTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testCross);
@@ -202,43 +189,13 @@ public class CrossTest extends TestBase
 	@Override
 	protected void postSubmit() throws Exception {
 
-		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
-
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(CROSS_RESULT, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
-
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/result.txt", false);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/cross_left", true);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/cross_right", true);
+		String tempDir = getFilesystemProvider().getTempDirPath();
+		
+		compareResultsByLinesInMemory(CROSS_RESULT, tempDir + "/result.txt");
+		
+		getFilesystemProvider().delete(tempDir + "/result.txt", true);
+		getFilesystemProvider().delete(tempDir + "/cross_left", true);
+		getFilesystemProvider().delete(tempDir + "/cross_right", true);
 	}
 
 	@Parameters
@@ -247,9 +204,9 @@ public class CrossTest extends TestBase
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST,
-			PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND,
-			PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST,
-			PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND };
+				PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND,
+				PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST,
+				PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND };
 
 		String[] shipStrategies = { "BROADCAST_FIRST", "BROADCAST_SECOND"
 		// PactCompiler.HINT_SHIP_STRATEGY_BROADCAST

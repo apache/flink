@@ -34,7 +34,7 @@ public class ClusterInstanceNotifier extends Thread {
 	/**
 	 * The {@link InstanceListener} object to send the notification to.
 	 */
-	private final InstanceListener instanceNotifiable;
+	private final InstanceListener instanceListener;
 
 	/**
 	 * The instance the notification refers to.
@@ -44,13 +44,13 @@ public class ClusterInstanceNotifier extends Thread {
 	/**
 	 * Constructs a new instance notifier object.
 	 * 
-	 * @param instanceNotifiable
-	 *        the notifiable object to send the notification to
+	 * @param instanceListener
+	 *        the listener to send the notification to
 	 * @param allocatedSlice
 	 *        the slice with has been allocated for the job
 	 */
-	public ClusterInstanceNotifier(InstanceListener instanceNotifiable, AllocatedSlice allocatedSlice) {
-		this.instanceNotifiable = instanceNotifiable;
+	public ClusterInstanceNotifier(InstanceListener instanceListener, AllocatedSlice allocatedSlice) {
+		this.instanceListener = instanceListener;
 		this.allocatedSlice = allocatedSlice;
 	}
 
@@ -60,7 +60,7 @@ public class ClusterInstanceNotifier extends Thread {
 	@Override
 	public void run() {
 
-		this.instanceNotifiable.resourceAllocated(this.allocatedSlice.getJobID(), new AllocatedResource(
+		this.instanceListener.resourceAllocated(this.allocatedSlice.getJobID(), new AllocatedResource(
 			this.allocatedSlice.getHostingInstance(), this.allocatedSlice.getAllocationID()));
 
 	}

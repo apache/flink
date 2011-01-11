@@ -121,7 +121,12 @@ public class PactProgram {
 	 * @throws ErrorInPlanAssemblerException
 	 */
 	public OptimizedPlan getPreOptimizedPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		return getPreOptimizedPlan(getPlan());
+		Plan plan = getPlan();
+		if(plan != null) {
+			return getPreOptimizedPlan(plan);
+		} else {
+			return null;
+		}
 	}
 
 	/**
@@ -136,7 +141,7 @@ public class PactProgram {
 	 * Returns the JobGraph corresponding to the generated optimized plan.
 	 * The JobGraph can be send to the nephele cluster for execution.
 	 * 
-	 * @return
+	 * @return The optimized JobGraph of the PactProgram.
 	 * @throws ProgramInvocationException
 	 * @throws ErrorInPlanAssemblerException
 	 */
@@ -148,7 +153,7 @@ public class PactProgram {
 	 * Returns the File object of the jar file that is used as base for the
 	 * pact program.
 	 * 
-	 * @return
+	 * @return The jar-file of the PactProgram.
 	 */
 	public File getJarFile() {
 		return jarFile;
@@ -158,7 +163,7 @@ public class PactProgram {
 	 * Returns the description provided by the PlanAssembler class. This
 	 * may contain a description of the plan itself and its arguments.
 	 * 
-	 * @return
+	 * @return The description of the PactProgram's input parameters.
 	 * @throws ProgramInvocationException
 	 * @throws ErrorInPlanAssemblerException
 	 */
@@ -176,7 +181,7 @@ public class PactProgram {
 	 * any HTML tags. This may contain a description of the plan itself
 	 * and its arguments.
 	 * 
-	 * @return
+	 * @return The description of the PactProgram's input parameters without HTML mark-up.
 	 * @throws ProgramInvocationException
 	 * @throws ErrorInPlanAssemblerException
 	 */
@@ -229,9 +234,7 @@ public class PactProgram {
 	 * or it is read from the manifest of the jar. The assembler is handed the given options
 	 * for its assembly.
 	 * 
-	 * @param jarFile
-	 *        The path to the jar file.
-	 * @param mainClassName
+	 * @param clazz
 	 *        The name of the assembler class, or null, if the class should be read from
 	 *        the manifest.
 	 * @param options

@@ -59,9 +59,9 @@ public class DataSourceNode extends OptimizerNode {
 	 * 
 	 * @param template
 	 *        The node to create a copy of.
-	 * @param globalProps
+	 * @param gp
 	 *        The global properties of this copy.
-	 * @param localProps
+	 * @param lp
 	 *        The local properties of this copy.
 	 */
 	protected DataSourceNode(DataSourceNode template, GlobalProperties gp, LocalProperties lp) {

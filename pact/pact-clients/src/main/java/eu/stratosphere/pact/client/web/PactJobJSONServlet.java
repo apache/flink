@@ -73,17 +73,19 @@ public class PactJobJSONServlet extends HttpServlet {
 
 		// create the pact plan
 		try {
-			PactProgram pactProgram = new PactProgram(jarFile, (String[]) null);
+			PactProgram pactProgram = new PactProgram(jarFile, new String[0]);
 			OptimizedPlan optPlan = pactProgram.getPreOptimizedPlan();
 			String programDescription = pactProgram.getDescription();
-			String json = new JSONGenerator().compilePlanToJSON(optPlan);
-
+			
 			resp.setStatus(HttpServletResponse.SC_OK);
 			PrintWriter wrt = resp.getWriter();
 			wrt.print("{ \"jobname\": \"");
 			wrt.print(jobName);
-			wrt.print("\", \"plan\": ");
-			wrt.println(json);
+			if(optPlan != null) {
+				wrt.print("\", \"plan\": ");
+				String json = new JSONGenerator().compilePlanToJSON(optPlan);
+				wrt.println(json);
+			}
 			if (programDescription != null) {
 				wrt.print(", \"description\": \"");
 				wrt.print(escapeString(programDescription));

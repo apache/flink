@@ -35,25 +35,23 @@ import junit.framework.TestCase;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
-import eu.stratosphere.pact.test.util.minicluster.HDFSProvider;
 
 /**
  * @author Erik Nijkamp
  * @author Fabian Hueske
  */
 public abstract class TestBase extends TestCase {
-	private static final int MINIMUM_HEAP_SIZE_MB = 512;
+	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	private static final Log LOG = LogFactory.getLog(TestBase.class);
 
@@ -76,9 +74,9 @@ public abstract class TestBase extends TestCase {
 	private void verifyJvmOptions() {
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
-			+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
+				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 		Assert.assertTrue("IPv4 stack required - set JVM option: -Djava.net.preferIPv4Stack=true", "true".equals(System
-			.getProperty("java.net.preferIPv4Stack")));
+				.getProperty("java.net.preferIPv4Stack")));
 	}
 
 	@Before
@@ -90,7 +88,6 @@ public abstract class TestBase extends TestCase {
 	@After
 	public void stopCluster() throws Exception {
 		LOG.info("######################### stop - cluster config : " + clusterConfig + " #########################");
-		cluster.getHDFSProvider().getFileSystem().close();
 		cluster.stopCluster();
 		ClusterProviderPool.removeInstance(clusterConfig);
 		FileSystem.closeAll();
@@ -99,6 +96,8 @@ public abstract class TestBase extends TestCase {
 
 	@Test
 	public void testJob() throws Exception {
+		System.out.println("Start Test");
+		
 		// pre-submit
 		preSubmit();
 
@@ -111,12 +110,14 @@ public abstract class TestBase extends TestCase {
 	}
 
 	/**
-	 * Returns the HDFS provider of the cluster setup
+	 * Returns the FilesystemProvider of the cluster setup
 	 * 
-	 * @return The HDFS provider of the cluster setup
+	 * @see eu.stratosphere.pact.test.util.filesystem.FilesystemProvider
+	 * 
+	 * @return The FilesystemProvider of the cluster setup
 	 */
-	public HDFSProvider getHDFSProvider() {
-		return cluster.getHDFSProvider();
+	public FilesystemProvider getFilesystemProvider() {
+		return cluster.getFilesystemProvider();
 	}
 
 	/**
@@ -124,7 +125,7 @@ public abstract class TestBase extends TestCase {
 	 * lists
 	 * 
 	 * @param tConfigs
-	 *        list of PACT test configurations
+	 *            list of PACT test configurations
 	 * @return list of JUnit test configurations
 	 * @throws IOException
 	 * @throws FileNotFoundException
@@ -153,7 +154,7 @@ public abstract class TestBase extends TestCase {
 		}
 
 		if (clusterConfigs.isEmpty()) {
-			LOG.warn("no test config defined for test-class '" + testClassName + "'");
+			LOG.warn("No test config defined for test-class '" + testClassName + "'. Using default config: '"+Constants.DEFAULT_TEST_CONFIG+"'.");	
 			clusterConfigs.add(Constants.DEFAULT_TEST_CONFIG);
 		}
 
@@ -185,28 +186,26 @@ public abstract class TestBase extends TestCase {
 	 * @param expectedResult
 	 * @param hdfsPath
 	 */
-	protected void compareResultsByLinesInMemory(String expectedResultStr, String hdfsPath) throws Exception {
+	protected void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
 
-		String[] resultFiles = new String[1];
+		ArrayList<String> resultFiles = new ArrayList<String>();
 
 		// Determine all result files
-		if (getHDFSProvider().getFileSystem().getFileStatus(new Path(hdfsPath)).isDir()) {
-			LinkedList<String> files = new LinkedList<String>();
-			for (FileStatus fs : getHDFSProvider().getFileSystem().listStatus(new Path(hdfsPath))) {
-				if (!fs.isDir()) {
-					files.add(fs.getPath().toString());
+		if (getFilesystemProvider().isDir(resultPath)) {
+			for (String file : getFilesystemProvider().listFiles(resultPath)) {
+				if (!getFilesystemProvider().isDir(file)) {
+					resultFiles.add(resultPath+"/"+file);
 				}
 			}
-			resultFiles = files.toArray(resultFiles);
 		} else {
-			resultFiles[0] = hdfsPath;
+			resultFiles.add(resultPath);
 		}
 
 		// collect lines of all result files
 		PriorityQueue<String> computedResult = new PriorityQueue<String>();
 		for (String resultFile : resultFiles) {
 			// read each result file
-			InputStream is = getHDFSProvider().getHdfsInputStream(resultFile);
+			InputStream is = getFilesystemProvider().getInputStream(resultFile);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 			String line = reader.readLine();
 
@@ -217,7 +216,6 @@ public abstract class TestBase extends TestCase {
 			}
 			reader.close();
 		}
-		assertEquals("Computed Result is empty", 0, computedResult.size());
 
 		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
 		StringTokenizer st = new StringTokenizer(expectedResultStr, "\n");
@@ -225,17 +223,16 @@ public abstract class TestBase extends TestCase {
 			expectedResult.add(st.nextToken());
 		}
 
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
+		// log expected and computed results
+		LOG.debug("Expected: " + expectedResult);
+		LOG.debug("Computed: " + computedResult);
 
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
+		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult.size());
 
 		while (!expectedResult.isEmpty()) {
 			String expectedLine = expectedResult.poll();
 			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
+			LOG.debug("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
 			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
 		}
 	}

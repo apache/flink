@@ -13,9 +13,10 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.util.minicluster;
+package eu.stratosphere.pact.test.util.filesystem;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -34,7 +35,6 @@ public class MiniDFSProvider extends HDFSProvider {
 		super(getTempDir() + "/config");
 	}
 
-	@Override
 	public void start() throws Exception {
 		deleteDir(getTempDir());
 
@@ -66,8 +66,14 @@ public class MiniDFSProvider extends HDFSProvider {
 			.close();
 	}
 
-	@Override
 	public void stop() {
+
+		try {
+			hdfs.close();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		
 		cluster.shutdown();
 
 		deleteDir(getTempDir());

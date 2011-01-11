@@ -26,13 +26,29 @@ import java.util.Set;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
+/**
+ * Generic map base type for PACT programs that implements the Value and Map interfaces.
+ * PactMap encapsulates a Java HashMap object.
+ * 
+ * @see eu.stratosphere.pact.common.type.Value
+ * @see java.util.Map
+ * @see java.util.HashMap
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ */
 public abstract class PactMap<K extends Value, V extends Value> implements Value, Map<K, V> {
+	
+	// type of the map's key
 	private final Class<K> keyClass;
-
+	// type of the map's value
 	private final Class<V> valueClass;
-
+	// encapsulated map
 	private final Map<K, V> map;
 
+	/**
+	 * Initializes the encapsulated map with an empty HashMap.
+	 */
 	public PactMap() {
 		this.keyClass = ReflectionUtil.<K> getTemplateType1(this.getClass());
 		this.valueClass = ReflectionUtil.<V> getTemplateType2(this.getClass());
@@ -40,6 +56,11 @@ public abstract class PactMap<K extends Value, V extends Value> implements Value
 		this.map = new HashMap<K, V>();
 	}
 
+	/**
+	 * Initializes the encapsulated map with a HashMap filled with all entries of the provided map.
+	 * 
+	 * @param map Map holding all entries with which the new encapsulated map is filled.
+	 */
 	public PactMap(Map<K, V> map) {
 		this.keyClass = ReflectionUtil.<K> getTemplateType1(this.getClass());
 		this.valueClass = ReflectionUtil.<V> getTemplateType2(this.getClass());
@@ -47,6 +68,10 @@ public abstract class PactMap<K extends Value, V extends Value> implements Value
 		this.map = new HashMap<K, V>(map);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 		int size = in.readInt();
@@ -67,6 +92,10 @@ public abstract class PactMap<K extends Value, V extends Value> implements Value
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.map.size());
@@ -76,6 +105,10 @@ public abstract class PactMap<K extends Value, V extends Value> implements Value
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
 	@Override
 	public String toString() {
 		return this.map.toString();
@@ -114,50 +147,110 @@ public abstract class PactMap<K extends Value, V extends Value> implements Value
 		return true;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#clear()
+	 */
+	@Override
 	public void clear() {
 		this.map.clear();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#containsKey(java.lang.Object)
+	 */
+	@Override
 	public boolean containsKey(final Object key) {
 		return this.map.containsKey(key);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#containsValue(java.lang.Object)
+	 */
+	@Override
 	public boolean containsValue(final Object value) {
 		return this.map.containsValue(value);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#entrySet()
+	 */
+	@Override
 	public Set<Entry<K, V>> entrySet() {
 		return this.map.entrySet();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#get(java.lang.Object)
+	 */
+	@Override
 	public V get(final Object key) {
 		return this.map.get(key);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#isEmpty()
+	 */
+	@Override
 	public boolean isEmpty() {
 		return this.map.isEmpty();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#keySet()
+	 */
+	@Override
 	public Set<K> keySet() {
 		return this.map.keySet();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#put(java.lang.Object, java.lang.Object)
+	 */
+	@Override
 	public V put(final K key, final V value) {
 		return this.map.put(key, value);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#putAll(java.util.Map)
+	 */
+	@Override
 	public void putAll(final Map<? extends K, ? extends V> m) {
 		this.map.putAll(m);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#remove(java.lang.Object)
+	 */
+	@Override
 	public V remove(final Object key) {
 		return this.map.remove(key);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#size()
+	 */
+	@Override
 	public int size() {
 		return this.map.size();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.Map#values()
+	 */
+	@Override
 	public Collection<V> values() {
 		return this.map.values();
 	}

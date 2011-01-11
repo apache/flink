@@ -99,7 +99,7 @@ public class TestMergeIterator {
 		KeyValuePair<TestData.Key, TestData.Value> pair1 = iterator.next();
 		while (iterator.hasNext()) {
 			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
-			System.out.println("1 -> " + pair1.getKey() + " | 2 -> " + pair2.getKey());
+			Logger.getRootLogger().debug("1 -> " + pair1.getKey() + " | 2 -> " + pair2.getKey());
 			Assert.assertTrue(comparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
 			pair1 = pair2;
 		}

@@ -237,7 +237,7 @@ public class NepheleMiniCluster {
 	@SuppressWarnings("deprecation")
 	public void stop() throws Exception {
 		if (jobManager != null) {
-			jobManager.cleanUp();
+			jobManager.shutdown();
 		}
 
 		if (runner != null) {

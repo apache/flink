@@ -137,6 +137,14 @@ public class LocalInstanceManager implements InstanceManager {
 		if (this.localTaskManagerThread != null) {
 			// Interrupt the thread running the task manager
 			this.localTaskManagerThread.interrupt();
+			
+			while(!this.localTaskManagerThread.isTaskManagerShutDown()) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					break;
+				}
+			}
 		}
 
 	}

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.util.minicluster;
+package eu.stratosphere.pact.test.util.filesystem;
 
 import java.io.File;
 import java.io.FileReader;
@@ -22,11 +22,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-public abstract class HDFSProvider {
+public abstract class HDFSProvider implements FilesystemProvider {
+	
 	protected FileSystem hdfs;
 
 	protected final String configDir;
@@ -46,53 +49,55 @@ public abstract class HDFSProvider {
 	public String getConfigDir() {
 		return configDir;
 	}
-
-	public OutputStream getHdfsOutputStream(String file) throws IOException {
+	
+	public OutputStream getOutputStream(String file) throws IOException {
 		return hdfs.create(new org.apache.hadoop.fs.Path(file));
 	}
 
-	public InputStream getHdfsInputStream(String file) throws IOException {
+	public InputStream getInputStream(String file) throws IOException {
 		return hdfs.open(new org.apache.hadoop.fs.Path(file));
 	}
 
-	public String getHdfsHome() {
-		return hdfs.getHomeDirectory().toString();
+	public String getTempDirPath() {
+		return "/user/"+hdfs.getHomeDirectory().getName();
 	}
 
-	public String getHdfsRoot() {
-		return hdfs.getUri().toString();
-	}
-
-	public String getHdfsDir(String dir) {
-		return hdfs.getUri().toString() + dir;
-	}
-
-	public void createDir(String dirName) throws IOException {
-		getFileSystem().mkdirs(new Path(dirName));
+	public boolean createDir(String dirName) throws IOException {
+		if(!getFileSystem().mkdirs(new Path(dirName))) {
+			return false;
+		}
+		
 		while (!getFileSystem().exists(new Path(dirName))) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
+		return true;
 	}
 
-	public void delete(String path, boolean recursive) throws IOException {
-		getFileSystem().delete(new Path(path), recursive);
+	public boolean delete(String path, boolean recursive) throws IOException {
+		if(!getFileSystem().delete(new Path(path), recursive)) {
+			return false;
+		}
+		
 		while (getFileSystem().exists(new Path(path))) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
+		return true;
 	}
 
-	public void writeFileToHDFS(String fileName, String fileContent) throws IOException {
-		OutputStream os = this.getHdfsOutputStream(fileName);
+	public boolean createFile(String fileName, String fileContent) throws IOException {
+		if(getFileSystem().exists(new Path(fileName))) {
+			return false;
+		}
+		
+		OutputStream os = this.getOutputStream(fileName);
 		Writer wr = new OutputStreamWriter(os);
 		wr.write(fileContent);
 		wr.close();
@@ -100,15 +105,19 @@ public abstract class HDFSProvider {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
+		return true;
 	}
 
-	public void copyLocalFileToHDFS(String localFile, String hdfsFile) throws IOException {
+	public boolean copyFile(String localFile, String hdfsFile) throws IOException {
+		if(getFileSystem().exists(new Path(hdfsFile))) {
+			return false;
+		}
+		
 		FileReader fr = new FileReader(new File(localFile));
-		OutputStream os = this.getHdfsOutputStream(hdfsFile);
+		OutputStream os = this.getOutputStream(hdfsFile);
 		Writer wr = new OutputStreamWriter(os);
 
 		while (fr.ready()) {
@@ -116,5 +125,25 @@ public abstract class HDFSProvider {
 		}
 		wr.close();
 		fr.close();
+		
+		return true;
 	}
+	
+	public String[] listFiles(String dir) throws IOException {
+		FileStatus[] fss = hdfs.listStatus(new Path(dir));
+		ArrayList<String> fileList = new ArrayList<String>(fss.length);
+		for(FileStatus fs : fss) {
+			fileList.add(fs.getPath().toString());
+		}		
+		return fileList.toArray(new String[1]);
+	}
+	
+	public boolean isDir(String file) throws IOException {
+		return hdfs.getFileStatus(new Path(file)).isDir();
+	}
+	
+	public String getURIPrefix() {
+		return hdfs.getUri().toString();
+	}
+	
 }

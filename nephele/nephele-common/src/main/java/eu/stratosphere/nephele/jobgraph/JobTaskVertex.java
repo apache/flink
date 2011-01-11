@@ -177,7 +177,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable) {
 
 		// Delegate call to invokable
-		return invokable.getMinumumNumberOfSubtasks();
+		return invokable.getMinimumNumberOfSubtasks();
 	}
 
 	/**

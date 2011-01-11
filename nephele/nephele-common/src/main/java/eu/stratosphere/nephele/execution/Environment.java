@@ -121,9 +121,9 @@ public class Environment implements Runnable, IOReadableWritable {
 	private JobID jobID = null;
 
 	/**
-	 * List of {@link ExecutionNotifiable} object which shall be notified about changes of the execution state.
+	 * List of {@link ExecutionListener} object which shall be notified about changes of the execution state.
 	 */
-	private final List<ExecutionNotifiable> executionNotifiables = new ArrayList<ExecutionNotifiable>();
+	private final List<ExecutionListener> executionListeners = new ArrayList<ExecutionListener>();
 
 	/**
 	 * The runtime configuration of the task encapsulated in the environment object.
@@ -201,32 +201,32 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
-	 * Registers the {@link ExecutionNotifiable} object for this environment. This object
+	 * Registers the {@link ExecutionListener} object for this environment. This object
 	 * will be notified about important events during the task execution.
 	 * 
-	 * @param executionNotifiable
+	 * @param executionListener
 	 *        the object to be notified for important events during the task execution
 	 */
-	public void registerExecutionNotifiable(ExecutionNotifiable executionNotifiable) {
+	public void registerExecutionListener(ExecutionListener executionListener) {
 
-		synchronized (this.executionNotifiables) {
+		synchronized (this.executionListeners) {
 
-			if (!this.executionNotifiables.contains(executionNotifiable)) {
-				this.executionNotifiables.add(executionNotifiable);
+			if (!this.executionListeners.contains(executionListener)) {
+				this.executionListeners.add(executionListener);
 			}
 		}
 	}
 
 	/**
-	 * Unregisters the {@link ExecutionNotifiable} object for this environment. This object
+	 * Unregisters the {@link ExecutionListener} object for this environment. This object
 	 * will no longer be notified about important events during the task execution.
 	 * 
-	 * @param executionNotifible
+	 * @param executionListener the lister object to be unregistered
 	 */
-	public void unregisterExecutionNotifiable(ExecutionNotifiable executionNotifible) {
+	public void unregisterExecutionListener(ExecutionListener executionListener) {
 
-		synchronized (this.executionNotifiables) {
-			this.executionNotifiables.remove(executionNotifible);
+		synchronized (this.executionListeners) {
+			this.executionListeners.remove(executionListener);
 		}
 	}
 
@@ -788,9 +788,9 @@ public class Environment implements Runnable, IOReadableWritable {
 		duplicatedEnvironment.jobID = this.jobID;
 		duplicatedEnvironment.taskName = this.taskName;
 		duplicatedEnvironment.executingThread = this.executingThread;
-		final Iterator<ExecutionNotifiable> it2 = this.executionNotifiables.iterator();
+		final Iterator<ExecutionListener> it2 = this.executionListeners.iterator();
 		while (it2.hasNext()) {
-			duplicatedEnvironment.executionNotifiables.add(it2.next());
+			duplicatedEnvironment.executionListeners.add(it2.next());
 		}
 		duplicatedEnvironment.runtimeConfiguration = this.runtimeConfiguration;
 
@@ -974,8 +974,8 @@ public class Environment implements Runnable, IOReadableWritable {
 		this.executionState = newExecutionState;
 
 		// Notify all the observers
-		synchronized (this.executionNotifiables) {
-			final Iterator<ExecutionNotifiable> it = this.executionNotifiables.iterator();
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
 				it.next().executionStateChanged(this, newExecutionState, optionalMessage);
 			}
@@ -1003,7 +1003,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
-	 * Sends a notification to all registered {@link ExecutionNotifiable} objects that a new user thread has been
+	 * Sends a notification to all registered {@link ExecutionListener} objects that a new user thread has been
 	 * started.
 	 * 
 	 * @param userThread
@@ -1011,8 +1011,8 @@ public class Environment implements Runnable, IOReadableWritable {
 	 */
 	public void userThreadStarted(Thread userThread) {
 
-		synchronized (this.executionNotifiables) {
-			final Iterator<ExecutionNotifiable> it = this.executionNotifiables.iterator();
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
 				it.next().userThreadStarted(this, userThread);
 			}
@@ -1021,15 +1021,15 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
-	 * Sends a notification to all registered {@link ExecutionNotifiable} objects that a user thread has finished.
+	 * Sends a notification to all registered {@link ExecutionListener} objects that a user thread has finished.
 	 * 
 	 * @param userThread
 	 *        the user thread which has finished
 	 */
 	public void userThreadFinished(Thread userThread) {
 
-		synchronized (this.executionNotifiables) {
-			final Iterator<ExecutionNotifiable> it = this.executionNotifiables.iterator();
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
 				it.next().userThreadFinished(this, userThread);
 			}

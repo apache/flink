@@ -15,18 +15,11 @@
 
 package eu.stratosphere.pact.test.contracts;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
-
-import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -58,11 +51,9 @@ import eu.stratosphere.pact.test.util.TestBase;
  */
 @RunWith(Parameterized.class)
 public class ReduceTest extends TestBase
-/*
- * TODO: - Allow multiple data sinks
- */
 
 {
+	private static final Log LOG = LogFactory.getLog(ReduceTest.class);
 
 	public ReduceTest(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
@@ -81,21 +72,17 @@ public class ReduceTest extends TestBase
 	@Override
 	protected void preSubmit() throws Exception {
 
-		this.getHDFSProvider().createDir(getHDFSProvider().getHdfsHome() + "/reduceInput");
+		String tempDir = getFilesystemProvider().getTempDirPath();
 
-		this.getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/reduceInput/reduceTest_1.txt",
-			REDUCE_IN_1);
-		this.getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/reduceInput/reduceTest_2.txt",
-			REDUCE_IN_2);
-		this.getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/reduceInput/reduceTest_3.txt",
-			REDUCE_IN_3);
-		this.getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/reduceInput/reduceTest_4.txt",
-			REDUCE_IN_4);
+		this.getFilesystemProvider().createDir(tempDir + "/reduceInput");
+
+		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_1.txt", REDUCE_IN_1);
+		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_2.txt", REDUCE_IN_2);
+		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_3.txt", REDUCE_IN_3);
+		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_4.txt", REDUCE_IN_4);
 	}
 
 	public static class ReduceTestInFormat extends TextInputFormat<PactString, PactString> {
-
-		private static final Log LOG = LogFactory.getLog(ReduceTestInFormat.class);
 
 		@Override
 		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
@@ -103,17 +90,16 @@ public class ReduceTest extends TestBase
 			pair.setKey(new PactString(new String((char) line[0] + "")));
 			pair.setValue(new PactString(new String((char) line[2] + "")));
 
-			LOG.info("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
 			return true;
 		}
 	}
 
 	public static class ReduceTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
-		private static final Log LOG = LogFactory.getLog(ReduceTestOutFormat.class);
 
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-			LOG.info("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
 
 			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
 		}
@@ -121,7 +107,6 @@ public class ReduceTest extends TestBase
 
 	@Combinable
 	public static class TestReducer extends ReduceStub<PactString, PactString, PactString, PactInteger> {
-		private static final Log LOG = LogFactory.getLog(TestReducer.class);
 
 		@Override
 		public void reduce(PactString key, Iterator<PactString> values, Collector<PactString, PactInteger> out) {
@@ -131,7 +116,7 @@ public class ReduceTest extends TestBase
 				PactString v = values.next();
 				sum += Integer.parseInt(v.toString());
 
-				LOG.info("Processed: [" + key + "," + v + "]");
+				LOG.debug("Processed: [" + key + "," + v + "]");
 			}
 			out.collect(key, new PactInteger(sum));
 		}
@@ -144,7 +129,7 @@ public class ReduceTest extends TestBase
 				PactString v = values.next();
 				sum += Integer.parseInt(v.toString());
 
-				LOG.info("Combined: [" + key + "," + v + "]");
+				LOG.debug("Combined: [" + key + "," + v + "]");
 			}
 
 			out.collect(key, new PactString(sum + ""));
@@ -153,22 +138,23 @@ public class ReduceTest extends TestBase
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
+		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
+
 		DataSourceContract<PactString, PactString> input = new DataSourceContract<PactString, PactString>(
-			ReduceTestInFormat.class, getHDFSProvider().getHdfsHome() + "/reduceInput");
+				ReduceTestInFormat.class, pathPrefix + "/reduceInput");
 		input.setFormatParameter("delimiter", "\n");
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
 		ReduceContract<PactString, PactString, PactString, PactInteger> testReducer = new ReduceContract<PactString, PactString, PactString, PactInteger>(
-			TestReducer.class);
-		testReducer
-			.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
+				TestReducer.class);
+		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 		testReducer.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
-			config.getString("ReduceTest#LocalStrategy", ""));
+				config.getString("ReduceTest#LocalStrategy", ""));
 		testReducer.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
-			config.getString("ReduceTest#ShipStrategy", ""));
+				config.getString("ReduceTest#ShipStrategy", ""));
 
 		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
-			ReduceTestOutFormat.class, getHDFSProvider().getHdfsHome() + "/result.txt");
+				ReduceTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testReducer);
@@ -187,42 +173,12 @@ public class ReduceTest extends TestBase
 	@Override
 	protected void postSubmit() throws Exception {
 
-		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
+		String tempDir = getFilesystemProvider().getTempDirPath();
 
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(REDUCE_RESULT, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
-
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/result.txt", false);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/reduceInput", true);
+		compareResultsByLinesInMemory(REDUCE_RESULT, tempDir + "/result.txt");
+		
+		getFilesystemProvider().delete(tempDir + "/result.txt", true);
+		getFilesystemProvider().delete(tempDir + "/reduceInput", true);
 	}
 
 	@Parameters

@@ -13,9 +13,6 @@
  *
  **********************************************************************************************************************/
 
-/**
- * 
- */
 package eu.stratosphere.pact.example.wordcount;
 
 import java.util.Iterator;
@@ -48,7 +45,8 @@ import eu.stratosphere.pact.common.type.base.PactString;
 public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 
 	/**
-	 * {@inheritDoc}
+	 * Converts a input string (a line) into a KeyValuePair with the string
+	 * being the key and the value being a zero Integer.
 	 */
 	public static class LineInFormat extends TextInputFormat<PactString, PactInteger> {
 
@@ -65,7 +63,8 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Writes a (String,Integer)-KeyValuePair to a string. The output format is:
+	 * "&lt;key&gt;&nbsp;&lt;value&gt;\nl"
 	 */
 	public static class WordCountOutFormat extends TextOutputFormat<PactString, PactInteger> {
 
@@ -83,7 +82,10 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Converts a (String,Integer)-KeyValuePair into multiple KeyValuePairs. The
+	 * key string is tokenized by spaces. For each token a new
+	 * (String,Integer)-KeyValuePair is emitted where the Token is the key and
+	 * an Integer(1) is the value.
 	 */
 	public static class TokenizeLine extends MapStub<PactString, PactInteger, PactString, PactInteger> {
 
@@ -93,7 +95,11 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		@Override
 		protected void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
 
-			StringTokenizer tokenizer = new StringTokenizer(key.toString());
+			String line = key.toString();
+			line = line.replaceAll("\\W", " ");
+			line = line.toLowerCase();
+			
+			StringTokenizer tokenizer = new StringTokenizer(line);
 			while (tokenizer.hasMoreElements()) {
 				String element = (String) tokenizer.nextElement();
 				out.collect(new PactString(element), new PactInteger(1));
@@ -103,8 +109,11 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Counts the number of values for a given key. Hence, the number of
+	 * occurences of a given token (word) is computed and emitted. The key is
+	 * not modified, hence a SameKey OutputContract is attached to this class.
 	 */
+	@SameKey
 	@Combinable
 	public static class CountWords extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
 
@@ -138,6 +147,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public Plan getPlan(String... args) {
+
 		if (args == null) {
 			args = new String[0];
 		}
@@ -146,21 +156,20 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		String dataInput = (args.length > 1 && args[1] != null ? args[1] : "hdfs://localhost:9000/countwords/data");
 		String output = (args.length > 2 && args[2] != null ? args[2] : "hdfs://localhost:9000/countwords/result");
 
-		DataSourceContract<PactString, PactInteger> data = new DataSourceContract<PactString, PactInteger>(LineInFormat.class,
-			dataInput, "Lines");
+		DataSourceContract<PactString, PactInteger> data = new DataSourceContract<PactString, PactInteger>(
+				LineInFormat.class, dataInput, "Input Lines");
 		data.setDegreeOfParallelism(noSubTasks);
 
 		MapContract<PactString, PactInteger, PactString, PactInteger> mapper = new MapContract<PactString, PactInteger, PactString, PactInteger>(
-			TokenizeLine.class, "Tokenize Lines");
+				TokenizeLine.class, "Tokenize Lines");
 		mapper.setDegreeOfParallelism(noSubTasks);
-		mapper.setOutputContract(SameKey.class);
 
 		ReduceContract<PactString, PactInteger, PactString, PactInteger> reducer = new ReduceContract<PactString, PactInteger, PactString, PactInteger>(
-			CountWords.class, "Count Words");
+				CountWords.class, "Count Words");
 		reducer.setDegreeOfParallelism(noSubTasks);
 
-		DataSinkContract<PactString, PactInteger> out = new DataSinkContract<PactString, PactInteger>(WordCountOutFormat.class,
-			output, "Output");
+		DataSinkContract<PactString, PactInteger> out = new DataSinkContract<PactString, PactInteger>(
+				WordCountOutFormat.class, output, "Output");
 		out.setDegreeOfParallelism(noSubTasks);
 
 		out.setInput(reducer);
@@ -175,9 +184,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "WordCount: [noSubStasks] [input] [output] <br />"
-			+ "\t noSubTasks: defines the degree of parallelism <br />" + "\t input: Location of the input file <br />"
-			+ "\t output: Location of the output file <br />";
+		return "Parameters: [noSubStasks] [input] [output]";
 	}
 
 }

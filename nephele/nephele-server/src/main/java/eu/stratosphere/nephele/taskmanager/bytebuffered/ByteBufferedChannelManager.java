@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -69,8 +70,6 @@ public class ByteBufferedChannelManager {
 
 	private static final int DEFAULT_NUMBER_OF_CONNECTION_RETRIES = 10;
 
-	private static final int DEFAULT_NUMBER_OF_TRANSMISSION_RETRIES = 3;
-
 	private final Deque<ByteBuffer> emptyReadBuffers = new ArrayDeque<ByteBuffer>();
 
 	private final Deque<ByteBuffer> emptyWriteBuffers = new ArrayDeque<ByteBuffer>();
@@ -83,9 +82,7 @@ public class ByteBufferedChannelManager {
 
 	private final Map<InetSocketAddress, OutgoingConnection> outgoingConnections = new HashMap<InetSocketAddress, OutgoingConnection>();
 
-	private final Map<InetAddress, IncomingConnection> incomingConnections = new HashMap<InetAddress, IncomingConnection>();
-
-	private final Map<InetAddress, Integer> sequenceToNumbersToExpectNext = new HashMap<InetAddress, Integer>();
+	private final Map<IncomingConnectionID, IncomingConnection> incomingConnections = new HashMap<IncomingConnectionID, IncomingConnection>();
 
 	private final Set<OutOfByteBuffersListener> registeredOutOfWriteBuffersListeners = new HashSet<OutOfByteBuffersListener>();
 
@@ -110,8 +107,6 @@ public class ByteBufferedChannelManager {
 	private final int numberOfReadBuffers;
 
 	private final int numberOfWriteBuffers;
-
-	private final int numberOfTransmissionRetries;
 
 	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService, InetAddress incomingDataAddress,
 			int incomingDataPort, String tmpDir)
@@ -154,8 +149,6 @@ public class ByteBufferedChannelManager {
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
-		this.numberOfTransmissionRetries = configuration.getInteger("channel.network.numberOfTransmissionRetries",
-			DEFAULT_NUMBER_OF_TRANSMISSION_RETRIES);
 		this.isSpillingAllowed = configuration.getBoolean("channel.network.allowSpilling", DEFAULT_ALLOW_SPILLING);
 
 		LOG.info("Starting NetworkChannelManager with Spilling "
@@ -434,8 +427,8 @@ public class ByteBufferedChannelManager {
 			final OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
 			if (outgoingConnection != null) {
 				outgoingConnection.dropAllQueuedEnvelopesForChannel(byteBufferedOutputChannel.getID(), true);
-				if (outgoingConnection.getTotalNumberOfQueuedEnvelopes() == 0) { // TODO: Change to canBeRemoved to
-					// reflect no envelopes, no
+				if (outgoingConnection.canBeRemoved()) {
+					// reflects no envelopes, no
 					// currentEnvelope and not connected
 					this.outgoingConnections.remove(connectionAddress);
 				}
@@ -443,67 +436,39 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	public IncomingConnection registerIncomingConnectionFromCheckpoint() {
+	public IncomingConnection registerIncomingConnection(IncomingConnectionID incomingConnectionID,
+			ReadableByteChannel readableByteChannel) {
 
-		// TODO: Register connection in hash map
-
-		return new IncomingConnection(this, null, true);
-
-	}
-
-	public void registerIncomingConnectionFromNetwork(SocketChannel socketChannel) {
-
-		final InetSocketAddress remoteInetSocketAddress = (InetSocketAddress) socketChannel.socket()
-			.getRemoteSocketAddress();
-		// System.out.println("Registering incoming connection from " + remoteInetSocketAddress.getAddress());
-
-		final IncomingConnection incomingConnection = new IncomingConnection(this, socketChannel, false);
+		final IncomingConnection incomingConnection = new IncomingConnection(incomingConnectionID, this,
+			readableByteChannel);
 
 		synchronized (this.incomingConnections) {
 
 			// Find previous connection
-			final IncomingConnection previousConnection = this.incomingConnections.get(remoteInetSocketAddress
-				.getAddress());
+			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
 
 			// Set previous connection if there is any and set sequence number to expect
 			incomingConnection.setPreviousConnection(previousConnection);
-			if (previousConnection == null) {
-				Integer sequenceNumberToExpectNext = this.sequenceToNumbersToExpectNext.get(remoteInetSocketAddress
-					.getAddress());
-				if (sequenceNumberToExpectNext == null) {
-					incomingConnection.setSequenceNumberToExpectNext(0);
-				} else {
-					incomingConnection.setSequenceNumberToExpectNext(sequenceNumberToExpectNext.intValue());
-				}
-			} else {
-				incomingConnection.setSequenceNumberToExpectNext(previousConnection.getSequenceNumberToExpectNext());
-			}
-
-			this.incomingConnections.put(remoteInetSocketAddress.getAddress(), incomingConnection);
+			this.incomingConnections.put(incomingConnectionID, incomingConnection);
 		}
 
-		// Register connection with an incoming connection thread
-		getIncomingConnectionThread().addToPendingIncomingConnections(incomingConnection);
+		// Register connection with an incoming connection thread if this is a network connection
+		if (readableByteChannel instanceof SocketChannel) {
+			getIncomingConnectionThread().addToPendingIncomingConnections(incomingConnection);
+		}
+
+		return incomingConnection;
 	}
 
-	public void unregisterIncomingConnection(SocketChannel socketChannel) {
-
-		final InetSocketAddress remoteInetSocketAddress = (InetSocketAddress) socketChannel.socket()
-			.getRemoteSocketAddress();
+	public void unregisterIncomingConnection(IncomingConnectionID incomingConnectionID,
+			ReadableByteChannel readableByteChannel) {
 
 		synchronized (this.incomingConnections) {
-
-			final IncomingConnection incomingConnection = this.incomingConnections.remove(remoteInetSocketAddress
-				.getAddress());
+			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
 			if (incomingConnection == null) {
-				LOG.error("Cannot unregister incoming connection from host " + remoteInetSocketAddress.getAddress());
-				return;
+				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
 			}
-
-			this.sequenceToNumbersToExpectNext.put(remoteInetSocketAddress.getAddress(), incomingConnection
-				.getSequenceNumberToExpectNext());
 		}
-
 	}
 
 	private OutgoingConnectionThread getOutgoingConnectionThread() {
@@ -682,7 +647,6 @@ public class ByteBufferedChannelManager {
 	public void shutdown() {
 
 		LOG.info("Shutting down network channel manager");
-		System.out.println("Shutting down network channel manager");
 
 		// Interrupt the threads we started
 		synchronized (this.incomingConnectionThreads) {

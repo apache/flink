@@ -22,14 +22,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.instance.AbstractInstance;
@@ -66,7 +65,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class ExecutionGraph implements ExecutionNotifiable {
+public class ExecutionGraph implements ExecutionListener {
 
 	/**
 	 * The log object used for debugging.
@@ -164,7 +163,8 @@ public class ExecutionGraph implements ExecutionNotifiable {
 	private void applyUserDefinedSettings(HashMap<AbstractJobVertex, ExecutionGroupVertex> temporaryGroupVertexMap)
 			throws GraphConversionException {
 
-		// TODO: Check for cycles in the instance dependency chain
+		// The check for cycles in the dependency chain for instance sharing is already checked in
+		// <code>submitJob</code> method of the job manager
 
 		// If there is no cycle, apply the settings to the corresponding group vertices
 		Iterator<AbstractJobVertex> it = temporaryGroupVertexMap.keySet().iterator();
@@ -214,7 +214,6 @@ public class ExecutionGraph implements ExecutionNotifiable {
 		while (it2.hasNext()) {
 			final ExecutionGroupVertex groupVertex = it2.next();
 			if (groupVertex.getVertexToShareInstancesWith() == null) {
-				System.out.println("Finally calling reassign instances for " + groupVertex.getName());
 				groupVertex.reassignInstances();
 				this.repairInstanceAssignment();
 			}
@@ -406,7 +405,6 @@ public class ExecutionGraph implements ExecutionNotifiable {
 			throws GraphConversionException {
 
 		// Unwire the respective gate of the source vertices
-		System.out.println("Number of sources (" + source.getName() + "): " + source.getCurrentNumberOfGroupMembers());
 		for (int i = 0; i < source.getCurrentNumberOfGroupMembers(); i++) {
 
 			final ExecutionVertex sourceVertex = source.getGroupMember(i);

@@ -9,11 +9,8 @@
 	<version>0.1</version>
 	
 	<name>stratosphere</name>
-	
 	<packaging>pom</packaging>
-
 	<url>http://www.stratosphere.eu</url>
-	
 	<inceptionYear>2009</inceptionYear>
 	
 	<licenses>
@@ -35,6 +32,7 @@
 				<role>Lead Developer</role>
 			</roles>
 		</developer>
+		
 		<developer>
 			<id>sewen</id>
 			<name>Stephan Ewen</name>
@@ -45,6 +43,7 @@
 				<role>Lead Developer</role>
 			</roles>
 		</developer>
+		
 		<developer>
 			<id>fhueske</id>
 			<name>Fabian Hueske</name>
@@ -128,6 +127,7 @@
 	
 	<reporting>
 		<plugins>
+		
 			<plugin>
 				<!--
 					just define the Java version to be used for compiling and plugins
@@ -141,23 +141,27 @@
 					<compilerArgument></compilerArgument>
 				</configuration>
 			</plugin>
+			
 			<plugin>
 				<!-- measure and report source code complexity -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>javancss-maven-plugin</artifactId>
 				<version>2.0</version>
 			</plugin>
+			
 			<plugin>
 				<!-- analyze dependencies in source code -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>jdepend-maven-plugin</artifactId>
 			</plugin>
+			
 			<!--
 				disabled because currently no SCM defined generates changelog
 				<plugin> <groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-changelog-plugin</artifactId>
 				<version>2.2-SNAPSHOT</version> </plugin>
 			-->
+			
 			<plugin>
 				<!-- report occurrences of various todo markers in code -->
 				<groupId>org.codehaus.mojo</groupId>
@@ -172,15 +176,19 @@
 					</tags>
 				</configuration>
 			</plugin>
+			
 			<!--
-				todo: reenable when SCM is available <plugin>
+				todo: reenable when SCM is available 
+			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>scmchangelog-maven-plugin</artifactId>
 				<version>1.2</version> <configuration>
 				<connectionUrl>scm:svn:https://projekte.itmc.tu-dortmund.de/svn/sla4dgrid/trunk</connectionUrl>
 				<tagBase>https://projekte.itmc.tu-dortmund.de/svn/sla4dgrid/tags/</tagBase>
-				<filter>.*</filter> </configuration> </plugin>
+				<filter>.*</filter> </configuration> 
+			</plugin>
 			-->
+			
 			<plugin>
 				<!--
 					generates cross references in code so that you can click in the
@@ -192,6 +200,7 @@
 					<linkJavadoc>true</linkJavadoc>
 				</configuration>
 			</plugin>
+			
 			<plugin>
 				<!-- discovers frequent bugs in programs -->
 				<groupId>org.codehaus.mojo</groupId>
@@ -204,6 +213,7 @@
 					<xmlOutput>true</xmlOutput>
 				</configuration>
 			</plugin>
+			
 			<plugin>
 				<!-- maven source code analysis for frequent bugs-->
 				<artifactId>maven-pmd-plugin</artifactId>
@@ -220,12 +230,16 @@
 					</reportSet>
 				</reportSets>
 			</plugin>
+			
+			<!--
 			<plugin>
-				<!-- generation of JavaDoc -->
+				generation of JavaDoc
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<!-- <version>2.5</version> -->
+				<version>2.5</version>
 			</plugin>
+			-->
+			
 			<plugin>
 				<!-- style checker -->
 				<groupId>org.apache.maven.plugins</groupId>
@@ -235,12 +249,14 @@
 					<configLocation>nephele/checkstyle.xml</configLocation>
 				</configuration>
 			</plugin>
+			
 			<plugin>
 				<!-- execution of Unit Tests -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-report-plugin</artifactId>
-				<!-- <version>2.4.2</version> -->
+				<version>2.7</version>
 			</plugin>
+			
 			<plugin>
 				<!-- check coverage of tests -->
 				<groupId>org.codehaus.mojo</groupId>
@@ -252,6 +268,7 @@
 					</formats>
 				</configuration>
 			</plugin>
+			
 			<!--
 				Generator for QA reports, summarizes various inputs and draws
 				diagrams indicating improvements/deterioration <plugin>
@@ -262,10 +279,12 @@
 				<report>report-movers-all</report> </reports> </reportSet>
 				</reportSets> </plugin>
 			-->
+			
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>dashboard-maven-plugin</artifactId>
 			</plugin>
+			
 		</plugins>
 	</reporting>
 
@@ -283,6 +302,25 @@
 					<target>1.6</target>
 				</configuration>
 			</plugin>
+
+     		<plugin>
+          	  <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-javadoc-plugin</artifactId>
+              <version>2.7</version>
+              <executions>
+                <execution>
+                  <id>javadoc:aggregate-jar</id>
+                  <goals>
+                    <goal>aggregate-jar</goal>
+                  </goals>
+                  <phase>compile</phase>
+                  <configuration>
+                    <quiet>true</quiet>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+	
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-eclipse-plugin</artifactId>
@@ -291,28 +329,17 @@
 					<classpathContainers>
 						<classpathContainer>
 							org.eclipse.jdt.launching.JRE_CONTAINER
-            					</classpathContainer>
+            			</classpathContainer>
 					</classpathContainers>
 				</configuration>
 			</plugin>
+			
+			<!--
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.1.1</version>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<!--
+			
 					check whether license information is included in files, can be used
 					to insert headers as well
-				-->
+					
 				<groupId>com.google.code.maven-license-plugin</groupId>
 				<artifactId>maven-license-plugin</artifactId>
 				<version>1.4.0</version>
@@ -320,11 +347,13 @@
 					<header>src/main/etc/header.txt</header>
 				</configuration>
 			</plugin>
+			-->
+			<!--
 			<plugin>
-				<!--
+				
 					plugin that tests which fraction of the source code is covered by
 					JUnit tests
-				-->
+
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>cobertura-maven-plugin</artifactId>
 				<configuration>
@@ -347,10 +376,12 @@
 					</execution>
 				</executions>
 			</plugin>
+			-->
+			<!-- 
 			<plugin>
-				<!--
+			
 					plugin that tests whether the code style is appropriate
-				-->
+					
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
 				<version>2.3</version>
@@ -362,6 +393,7 @@
 					</dependency>
 				</dependencies>
 			</plugin>
+			 -->
 		</plugins>
 	</build>
 

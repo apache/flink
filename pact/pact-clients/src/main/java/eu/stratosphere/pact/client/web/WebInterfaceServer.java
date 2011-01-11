@@ -77,15 +77,59 @@ public class WebInterfaceServer {
 		if (nepheleConfig == null) {
 			nepheleConfig = config;
 		}
+		
+		// get base path of Stratosphere installation
+		String basePath = nepheleConfig.getString(PactConfigConstants.STRATOSPHERE_BASE_DIR_PATH_KEY,"");
 
-		File webDir = new File(config.getString(PactConfigConstants.WEB_ROOT_PATH_KEY,
-			PactConfigConstants.DEFAULT_WEB_ROOT_DIR));
-		File tmpDir = new File(config.getString(PactConfigConstants.WEB_TMP_DIR_KEY,
-			PactConfigConstants.DEFAULT_WEB_TMP_DIR));
-		File uploadDir = new File(config.getString(PactConfigConstants.WEB_JOB_UPLOAD_DIR_KEY,
-			PactConfigConstants.DEFAULT_WEB_JOB_STORAGE_DIR));
-		File planDumpDir = new File(config.getString(PactConfigConstants.WEB_PLAN_DUMP_DIR_KEY,
-			PactConfigConstants.DEFAULT_WEB_PLAN_DUMP_DIR));
+		File webDir;
+		File tmpDir;
+		File uploadDir;
+		File planDumpDir;
+		
+		String webDirPath = config.getString(PactConfigConstants.WEB_ROOT_PATH_KEY,
+				PactConfigConstants.DEFAULT_WEB_ROOT_DIR);
+		
+		if(webDirPath.startsWith("/")) {
+			// absolute path
+			webDir = new File(webDirPath);
+		} else {
+			// path relative to base dir
+			webDir = new File(basePath+"/"+webDirPath);
+		}
+		
+		String tmpDirPath = config.getString(PactConfigConstants.WEB_TMP_DIR_KEY,
+				PactConfigConstants.DEFAULT_WEB_TMP_DIR);
+		
+		if(tmpDirPath.startsWith("/")) {
+			// absolute path
+			tmpDir = new File(tmpDirPath);
+		} else {
+			// path relative to base dir
+			tmpDir = new File(basePath+"/"+tmpDirPath);
+		}
+		
+		String uploadDirPath = config.getString(PactConfigConstants.WEB_JOB_UPLOAD_DIR_KEY,
+				PactConfigConstants.DEFAULT_WEB_JOB_STORAGE_DIR);
+		
+		if(uploadDirPath.startsWith("/")) {
+			// absolute path
+			uploadDir = new File(uploadDirPath);
+		} else {
+			// path relative to base dir
+			uploadDir = new File(basePath+"/"+uploadDirPath);
+		}
+
+		String planDumpDirPath = config.getString(PactConfigConstants.WEB_PLAN_DUMP_DIR_KEY,
+				PactConfigConstants.DEFAULT_WEB_PLAN_DUMP_DIR);
+		
+		if(planDumpDirPath.startsWith("/")) {
+			// absolute path
+			planDumpDir = new File(planDumpDirPath);
+		} else {
+			// path relative to base dir
+			planDumpDir = new File(basePath+"/"+planDumpDirPath);
+		}
+		
 
 		LOG.debug("Setting up web frontend server, using web-root directory '" + webDir.getAbsolutePath() + "'.");
 		LOG.debug("Web frontend server will store temporary files in '" + tmpDir.getAbsolutePath()

@@ -261,6 +261,6 @@ public class JobFileOutputVertex extends JobOutputVertex {
 	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable) {
 
 		// Delegate call to invokable
-		return invokable.getMinumumNumberOfSubtasks();
+		return invokable.getMinimumNumberOfSubtasks();
 	}
 }
