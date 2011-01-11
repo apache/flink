@@ -22,15 +22,33 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
+/**
+ * Generic pair base type for PACT programs that implements the Key interfaces.
+ * PactList encapsulates two objects that implement the Key interface. 
+ * 
+ * @see eu.stratosphere.pact.common.type.Key
+ * 
+ * @param <U> Type of the pair's first element.
+ * @param <V> Type of the pair's second element.
+ *  
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * 
+ */
 public abstract class PactPair<U extends Key, V extends Key> implements Key {
+	
+	// class of the first pair element
 	private final Class<U> firstClass;
-
+	// class of the second pair element
 	private final Class<V> secondClass;
 
+	// the first pair element
 	private U first;
-
+	// the second pair element
 	private V second;
 
+	/**
+	 * Initializes both encapsulated pair elements with empty objects.
+	 */
 	public PactPair() {
 		this.firstClass = ReflectionUtil.<U> getTemplateType1(this.getClass());
 		this.secondClass = ReflectionUtil.<V> getTemplateType2(this.getClass());
@@ -45,6 +63,12 @@ public abstract class PactPair<U extends Key, V extends Key> implements Key {
 		}
 	}
 
+	/**
+	 * Initializes the encapsulated pair elements with the provided values.
+	 * 
+	 * @param first Initial value of the first encapsulated pair element.
+	 * @param second Initial value of the second encapsulated pair element.
+	 */
 	public PactPair(final U first, final V second) {
 		this.firstClass = ReflectionUtil.<U> getTemplateType1(this.getClass());
 		this.secondClass = ReflectionUtil.<V> getTemplateType1(this.getClass());
@@ -54,19 +78,19 @@ public abstract class PactPair<U extends Key, V extends Key> implements Key {
 	}
 
 	/**
-	 * Returns the first.
+	 * Returns the first encapsulated pair element.
 	 * 
-	 * @return the first
+	 * @return The first encapsulated pair element.
 	 */
 	public U getFirst() {
 		return this.first;
 	}
 
 	/**
-	 * Sets the first to the specified value.
+	 * Sets the first encapsulated pair element to the specified value.
 	 * 
 	 * @param first
-	 *        the first to set
+	 *        The new value of the first encapsulated pair element.
 	 */
 	public void setFirst(final U first) {
 		if (first == null)
@@ -76,19 +100,19 @@ public abstract class PactPair<U extends Key, V extends Key> implements Key {
 	}
 
 	/**
-	 * Returns the second.
+	 * Returns the second encapsulated pair element.
 	 * 
-	 * @return the second
+	 * @return The second encapsulated pair element.
 	 */
 	public V getSecond() {
 		return this.second;
 	}
 
 	/**
-	 * Sets the second to the specified value.
+	 * Sets the second encapsulated pair element to the specified value.
 	 * 
 	 * @param second
-	 *        the second to set
+	 *        The new value of the second encapsulated pair element.
 	 */
 	public void setSecond(final V second) {
 		if (second == null)
@@ -97,23 +121,39 @@ public abstract class PactPair<U extends Key, V extends Key> implements Key {
 		this.second = second;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
 	@Override
 	public String toString() {
 		return "<" + this.first.toString() + "|" + this.second.toString() + ">";
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 		this.first.read(in);
 		this.second.read(in);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		this.first.write(out);
 		this.second.write(out);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Comparable#compareTo(java.lang.Object)
+	 */
 	@Override
 	public int compareTo(final Key o) {
 		if (!(o instanceof PactPair<?, ?>))

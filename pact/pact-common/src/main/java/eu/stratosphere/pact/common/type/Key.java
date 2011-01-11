@@ -20,8 +20,12 @@ package eu.stratosphere.pact.common.type;
  * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
  * the same type.
  * <p>
- * This interface extends {@link eu.stratosphere.nephele.io.IOReadableWritable} and hence requires values to implement
- * their serialization.
+ * This interface extends {@link eu.stratosphere.pact.common.type.Value} and requires to implement
+ * the serialization of its value.
+ * 
+ * @see eu.stratosphere.pact.common.type.Value
+ * @see eu.stratosphere.nephele.io.IOReadableWritable
+ * @see java.lang.Comparable
  */
 public interface Key extends Value, Comparable<Key> {
 }

@@ -51,7 +51,7 @@ import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
  * @author Fabian Hueske
  */
 public abstract class TestBase extends TestCase {
-	private static final int MINIMUM_HEAP_SIZE_MB = 512;
+	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	private static final Log LOG = LogFactory.getLog(TestBase.class);
 
