@@ -74,9 +74,9 @@ public class InstanceType {
 	 * 
 	 * @param identifier
 	 *        identifier for this instance type
-	 * @param numComputeUnits
+	 * @param numberOfComputeUnits
 	 *        number of computational units of this instance type
-	 * @param numCores
+	 * @param numberOfCores
 	 *        number of CPU cores of this instance type
 	 * @param memorySize
 	 *        amount of main memory of this instance type (in MB)
@@ -159,8 +159,8 @@ public class InstanceType {
 	}
 
 	/**
-	 * Returns a String representation of this instance in the same form as it is parsed by the {@link
-	 * getTypeFromString(java.lang.String)} method.
+	 * Returns a String representation of this instance in the same form as it is parsed by the
+	 * {@link #getTypeFromString(java.lang.String)} method.
 	 * 
 	 * @return A String representation of this instance type.
 	 */

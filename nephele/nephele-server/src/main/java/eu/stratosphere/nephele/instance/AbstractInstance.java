@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 /**
- * An abstract instance represents a resource a task manager runs on.
+ * An abstract instance represents a resource a {@link eu.stratosphere.nephele.taskmanager.TaskManager} runs on.
  * 
  * @author warneke
  */
@@ -148,7 +148,7 @@ public abstract class AbstractInstance extends NetworkNode implements ChannelCon
 	}
 
 	/**
-	 * Submits the task represented by the given {@link Environment} object to the instance's {@link TaskManager}.
+	 * Submits the task represented by the given {@link Environment} object to the instance's {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
 	 * 
 	 * @param id
 	 *        the ID of the vertex to be submitted
@@ -167,7 +167,7 @@ public abstract class AbstractInstance extends NetworkNode implements ChannelCon
 	}
 
 	/**
-	 * Cancels the task identified by the given ID at the instance's {@link TaskManager}.
+	 * Cancels the task identified by the given ID at the instance's {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
 	 * 
 	 * @param id
 	 *        the ID identifying the task to be canceled
