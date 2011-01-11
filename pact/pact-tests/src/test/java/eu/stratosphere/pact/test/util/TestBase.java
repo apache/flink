@@ -96,6 +96,8 @@ public abstract class TestBase extends TestCase {
 
 	@Test
 	public void testJob() throws Exception {
+		System.out.println("Start Test");
+		
 		// pre-submit
 		preSubmit();
 
@@ -152,7 +154,7 @@ public abstract class TestBase extends TestCase {
 		}
 
 		if (clusterConfigs.isEmpty()) {
-			LOG.warn("no test config defined for test-class '" + testClassName + "'");
+			LOG.warn("No test config defined for test-class '" + testClassName + "'. Using default config: '"+Constants.DEFAULT_TEST_CONFIG+"'.");	
 			clusterConfigs.add(Constants.DEFAULT_TEST_CONFIG);
 		}
 
