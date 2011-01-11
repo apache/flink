@@ -21,18 +21,62 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
 
+/**
+ * String base type for PACT programs that implements the Key interface.
+ * PactString encapsulates a Java String object.
+ * 
+ * @see eu.stratosphere.pact.common.type.Key
+ * @see java.lang.String
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ */
 public class PactString implements Key {
 
 	private String value;
 
+	/**
+	 * Initializes the encapsulated String object with an empty string.	
+	 */
 	public PactString() {
 		this.value = "";
 	}
 
+	/**
+	 * Initializes the encapsulated String object with the provided value.
+	 * 
+	 * @param value Initial value of the encapsulated string.
+	 */
 	public PactString(final String value) {
 		this.value = value;
 	}
 
+	/**
+	 * Returns the value of the encapsulated string.
+	 * 
+	 * @return The value of the encapsulated string.
+	 */
+	public String getValue() {
+		return this.value;
+	}
+
+	/**
+	 * Sets the value of the encapsulated string to the specified value.
+	 * 
+	 * @param value
+	 *        The new value of the encapsulated string.
+	 */
+	public void setValue(final String value) {
+		if (value == null)
+			throw new NullPointerException("Value must not be null");
+
+		this.value = value;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 		final int maxBit = 0x1 << 7;
@@ -79,6 +123,10 @@ public class PactString implements Key {
 		this.value = new String(data);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		final int maxBit = 0x1 << 7;
@@ -104,33 +152,19 @@ public class PactString implements Key {
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
 	@Override
 	public String toString() {
 		return this.value;
 	}
 
-	/**
-	 * Returns the value.
-	 * 
-	 * @return the value
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
-	public String getValue() {
-		return this.value;
-	}
-
-	/**
-	 * Sets the value to the specified value.
-	 * 
-	 * @param value
-	 *        the value to set
-	 */
-	public void setValue(final String value) {
-		if (value == null)
-			throw new NullPointerException("value must not be null");
-
-		this.value = value;
-	}
-
 	@Override
 	public int compareTo(final Key o) {
 		if (!(o instanceof PactString))

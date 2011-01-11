@@ -21,33 +21,85 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
 
+/**
+ * Integer base type for PACT programs that implements the Key interface.
+ * PactInteger encapsulates a Java primitive int.
+ * 
+ * @see eu.stratosphere.pact.common.type.Key
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ */
 public class PactInteger implements Key {
 
 	private int value;
 
+	/**
+	 * Initializes the encapsulated int with 0.
+	 */
 	public PactInteger() {
 		this.value = 0;
 	}
 
+	/**
+	 * Initializes the encapsulated int with the provided value.
+	 * 
+	 * @param value Inital value of the encapsulated int.
+	 */
 	public PactInteger(final int value) {
 		this.value = value;
 	}
+	
+	/**
+	 * Returns the value of the encapsulated int.
+	 * 
+	 * @return the value of the encapsulated int.
+	 */
+	public int getValue() {
+		return this.value;
+	}
 
+	/**
+	 * Sets the encapsulated int to the specified value.
+	 * 
+	 * @param value
+	 *        the new value of the encapsulated int.
+	 */
+	public void setValue(final int value) {
+		this.value = value;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
 	@Override
 	public String toString() {
 		return String.valueOf(this.value);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 		this.value = in.readInt();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.value);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Comparable#compareTo(java.lang.Object)
+	 */
 	@Override
 	public int compareTo(final Key o) {
 		if (!(o instanceof PactInteger))
@@ -56,25 +108,6 @@ public class PactInteger implements Key {
 		final int other = ((PactInteger) o).value;
 
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
-	}
-
-	/**
-	 * Returns the value.
-	 * 
-	 * @return the value
-	 */
-	public int getValue() {
-		return this.value;
-	}
-
-	/**
-	 * Sets the value to the specified value.
-	 * 
-	 * @param value
-	 *        the value to set
-	 */
-	public void setValue(final int value) {
-		this.value = value;
 	}
 
 	/*
