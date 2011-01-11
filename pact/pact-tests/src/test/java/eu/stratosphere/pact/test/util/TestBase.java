@@ -72,6 +72,7 @@ public abstract class TestBase extends TestCase {
 	}
 
 	private void verifyJvmOptions() {
+		System.out.println("JVM: "+System.getProperty("java.net.preferIPv4Stack"));
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
@@ -96,6 +97,8 @@ public abstract class TestBase extends TestCase {
 
 	@Test
 	public void testJob() throws Exception {
+		System.out.println("Start Test");
+		
 		// pre-submit
 		preSubmit();
 
@@ -152,7 +155,7 @@ public abstract class TestBase extends TestCase {
 		}
 
 		if (clusterConfigs.isEmpty()) {
-			LOG.warn("no test config defined for test-class '" + testClassName + "'");
+			LOG.warn("No test config defined for test-class '" + testClassName + "'. Using default config: '"+Constants.DEFAULT_TEST_CONFIG+"'.");	
 			clusterConfigs.add(Constants.DEFAULT_TEST_CONFIG);
 		}
 
