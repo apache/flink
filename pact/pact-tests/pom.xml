@@ -131,10 +131,7 @@
         <version>2.7</version>
         <configuration>
           <systemPropertyVariables>
-            <property>
-              <name>java.net.preferIPv4Stack</name>
-              <value>true</value>
-            </property>
+            <java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
           </systemPropertyVariables>
         
           <includes>
