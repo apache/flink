@@ -46,14 +46,15 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * on http://www.tpc.org/tpch/ .This implementation is tested with
  * the DB2 data format.  
  * THe PACT program implements a modified version of the query 3 of 
- * the TPC-H benchmark including a join, aggregation, filtering and 
- * projection.
+ * the TPC-H benchmark including one join, some filtering and an
+ * aggregation.
  * 
  * SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
  * FROM orders, lineitem
  * WHERE l_orderkey = o_orderkey
- * AND o_custkey IN [X]
- * AND o_orderdate > [Y]
+ * AND o_orderstatus = "X" 
+ * AND YEAR(o_orderdate) > Y
+ * AND o_orderpriority LIKE "Z%"
  * GROUP BY l_orderkey, o_shippriority;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
@@ -97,11 +98,11 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		private final String PRIO_FILTER = "5";
 
 		/**
-		 * Filters the orders table by custKey and orderDate
-		 * TODO
-		 *  o_custkey IN [X] AND o_orderdate > [Y]
-		 *  o_orderstatus = "F" AND year(o_orderdate) = 1993
-		 *  AND o_orderPriority LIKE "5%"
+		 * Filters the orders table by year, orderstatus and orderpriority
+		 *
+		 *  o_orderstatus = "X" 
+		 *  AND YEAR(o_orderdate) > Y
+		 *  AND o_orderpriority LIKE "Z"
 	 	 *  
 	 	 * Output Schema:
 	 	 *  Key: ORDERKEY
@@ -322,6 +323,9 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		return new Plan(result, "TPCH Q3");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String getDescription() {
 		return "Parameters: dop, orders-input, lineitem-input, result";
