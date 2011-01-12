@@ -26,14 +26,19 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
 /**
  * Contract for all tasks that have one input like "map".
  * 
- * @author DIMA
+ * @author Erik Nijkamp
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public abstract class SingleInputContract<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
 		Contract implements OutputContractConfigurable {
+	
+	// user implemented stub class
 	protected final Class<? extends SingleInputStub<IK, IV, OK, OV>> clazz;
 
+	// input contract of this contract
 	protected Contract input;
 
+	// output contract
 	protected Class<? extends Annotation> outputContract;
 
 	/**

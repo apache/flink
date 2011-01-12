@@ -21,33 +21,85 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
 
+/**
+ * Long base type for PACT programs that implements the Key interface.
+ * PactLong encapsulates a Java primitive long.
+ * 
+ * @see eu.stratosphere.pact.common.type.Key
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ */
 public class PactLong implements Key {
 
 	private long value;
 
+	/**
+	 * Initializes the encapsulated long with 0.
+	 */
 	public PactLong() {
 		this.value = 0;
 	}
 
+	/**
+	 * Initializes the encapsulated long with the specified value. 
+	 * 
+	 * @param value Initial value of the encapsulated long.
+	 */
 	public PactLong(final long value) {
 		this.value = value;
 	}
 
+	/**
+	 * Returns the value of the encapsulated long.
+	 * 
+	 * @return The value of the encapsulated long.
+	 */
+	public long getValue() {
+		return this.value;
+	}
+
+	/**
+	 * Sets the value of the encapsulated long to the specified value.
+	 * 
+	 * @param value
+	 *        The new value of the encapsulated long.
+	 */
+	public void setValue(final long value) {
+		this.value = value;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
 	@Override
 	public String toString() {
 		return String.valueOf(this.value);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 		this.value = in.readLong();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeLong(this.value);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Comparable#compareTo(java.lang.Object)
+	 */
 	@Override
 	public int compareTo(final Key o) {
 		if (!(o instanceof PactLong))
@@ -56,25 +108,6 @@ public class PactLong implements Key {
 		final long other = ((PactLong) o).value;
 
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
-	}
-
-	/**
-	 * Returns the value.
-	 * 
-	 * @return the value
-	 */
-	public long getValue() {
-		return this.value;
-	}
-
-	/**
-	 * Sets the value to the specified value.
-	 * 
-	 * @param value
-	 *        the value to set
-	 */
-	public void setValue(final long value) {
-		this.value = value;
 	}
 
 	/*

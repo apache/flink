@@ -19,10 +19,13 @@ import eu.stratosphere.nephele.types.Record;
 
 /**
  * This interface has to be implemented by all data types that act as values. Values are consumed
- * and produced by user functions that run inside PACTs.
+ * and produced by user functions (PACT stubs) that run inside PACTs.
  * <p>
- * This interface extends {@link eu.stratosphere.nephele.io.IOReadableWritable} and hence requires values to implement
- * their serialization.
+ * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
+ * the serialization of its value.
+ * 
+ * @see eu.stratosphere.nephele.types.Record
+ * @see eu.stratosphere.nephele.io.IOReadableWritable
  */
 public interface Value extends Record {
 }

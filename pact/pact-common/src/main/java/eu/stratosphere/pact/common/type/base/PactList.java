@@ -27,28 +27,64 @@ import java.util.ListIterator;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
+/**
+ * Generic list base type for PACT programs that implements the Value and List interfaces.
+ * PactList encapsulates a Java ArrayList object.
+ * 
+ * @see eu.stratosphere.pact.common.type.Value
+ * @see java.util.List
+ * @see java.util.ArrayList
+ * 
+ * @param <V> Type of the list elements.
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * 
+ */
 public abstract class PactList<V extends Value> implements Value, List<V> {
+	
+	// Type of list elements
 	private final Class<V> valueClass;
-
+	// Encapsulated list
 	private final List<V> list;
 
+	/**
+	 * Initializes the encapsulated list with an empty ArrayList.
+	 * 
+	 * @see java.util.ArrayList
+	 */
 	public PactList() {
 		this.valueClass = ReflectionUtil.<V> getTemplateType1(this.getClass());
 
 		this.list = new ArrayList<V>();
 	}
 
+	/**
+	 * Initializes the encapsulated list with an ArrayList filled with all object contained in the specified Collection object.
+	 * 
+	 * @see java.util.ArrayList
+	 * @see java.util.Collection
+	 * 
+	 * @param c Collection of initial element of the encapsulated list.
+	 */
 	public PactList(final Collection<V> c) {
 		this.valueClass = ReflectionUtil.<V> getTemplateType1(this.getClass());
 
 		this.list = new ArrayList<V>(c);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#iterator()
+	 */
 	@Override
 	public Iterator<V> iterator() {
 		return this.list.iterator();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 		int size = in.readInt();
@@ -68,6 +104,10 @@ public abstract class PactList<V extends Value> implements Value, List<V> {
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.list.size());
@@ -108,90 +148,200 @@ public abstract class PactList<V extends Value> implements Value, List<V> {
 		return true;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#add(int, java.lang.Object)
+	 */
+	@Override
 	public void add(final int index, final V element) {
 		this.list.add(index, element);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#add(java.lang.Object)
+	 */
+	@Override
 	public boolean add(final V e) {
 		return this.list.add(e);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#addAll(java.util.Collection)
+	 */
+	@Override
 	public boolean addAll(final Collection<? extends V> c) {
 		return this.list.addAll(c);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#addAll(int, java.util.Collection)
+	 */
+	@Override
 	public boolean addAll(final int index, final Collection<? extends V> c) {
 		return this.list.addAll(index, c);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#clear()
+	 */
+	@Override
 	public void clear() {
 		this.list.clear();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#contains(java.lang.Object)
+	 */
+	@Override
 	public boolean contains(final Object o) {
 		return this.list.contains(o);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#containsAll(java.util.Collection)
+	 */
+	@Override
 	public boolean containsAll(final Collection<?> c) {
 		return this.list.containsAll(c);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#get(int)
+	 */
+	@Override
 	public V get(final int index) {
 		return this.list.get(index);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#indexOf(java.lang.Object)
+	 */
+	@Override
 	public int indexOf(final Object o) {
 		return this.list.indexOf(o);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#isEmpty()
+	 */
+	@Override
 	public boolean isEmpty() {
 		return this.list.isEmpty();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#lastIndexOf(java.lang.Object)
+	 */
+	@Override
 	public int lastIndexOf(final Object o) {
 		return this.list.lastIndexOf(o);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#listIterator()
+	 */
+	@Override
 	public ListIterator<V> listIterator() {
 		return this.list.listIterator();
 	}
-
+	
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#listIterator(int)
+	 */
+	@Override
 	public ListIterator<V> listIterator(final int index) {
 		return this.list.listIterator(index);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#remove(int)
+	 */
+	@Override
 	public V remove(final int index) {
 		return this.list.remove(index);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#remove(java.lang.Object)
+	 */
+	@Override
 	public boolean remove(final Object o) {
 		return this.list.remove(o);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#removeAll(java.util.Collection)
+	 */
+	@Override
 	public boolean removeAll(final Collection<?> c) {
 		return this.list.removeAll(c);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#retainAll(java.util.Collection)
+	 */
+	@Override
 	public boolean retainAll(final Collection<?> c) {
 		return this.list.retainAll(c);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#set(int, java.lang.Object)
+	 */
+	@Override
 	public V set(final int index, final V element) {
 		return this.list.set(index, element);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#size()
+	 */
+	@Override
 	public int size() {
 		return this.list.size();
 	}
-
+	
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#subList(int, int)
+	 */
+	@Override
 	public List<V> subList(final int fromIndex, final int toIndex) {
 		return this.list.subList(fromIndex, toIndex);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#toArray()
+	 */
+	@Override
 	public Object[] toArray() {
 		return this.list.toArray();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.util.List#toArray(T[])
+	 */
+	@Override
 	public <T> T[] toArray(final T[] a) {
 		return this.list.toArray(a);
 	}

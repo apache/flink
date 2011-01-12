@@ -26,7 +26,8 @@ import eu.stratosphere.pact.common.type.Value;
  * Contract for end nodes which produce no output. Typically the input is written
  * to a file, or materialized in another way.
  * 
- * @author DIMA
+ * @author Erik Nijkamp
+ * @author Moritz Kaufmann
  */
 public class DataSinkContract<KT extends Key, VT extends Value> extends Contract {
 	private static String defaultName = "DataSink #";
