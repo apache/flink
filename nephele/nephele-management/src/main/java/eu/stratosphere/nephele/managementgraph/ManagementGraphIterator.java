@@ -182,7 +182,7 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 	 *        the management graph that should be traversed
 	 * @param startStage
 	 *        the index of the stage of the graph where the traversal is supposed to begin
-	 * @param confineToStage
+	 * @param confinedToStage
 	 *        <code>false</code> if the graph iterator is allowed to traverse to upper (in case of reverse order
 	 *        traversal lower) stages, <code>true</code> otherwise.
 	 * @param forward

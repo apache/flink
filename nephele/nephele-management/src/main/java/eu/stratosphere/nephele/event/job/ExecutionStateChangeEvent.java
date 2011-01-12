@@ -43,7 +43,7 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 	 *        the timestamp of the event
 	 * @param managementVertexID
 	 *        identifies the vertex this event refers to
-	 * @param executionState
+	 * @param newExecutionState
 	 *        the new execution state of the vertex this event refers to
 	 */
 	public ExecutionStateChangeEvent(long timestamp, ManagementVertexID managementVertexID,

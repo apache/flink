@@ -274,51 +274,6 @@ public class ManagementGraph implements IOReadableWritable {
 		return reverseTopologicalSort;
 	}
 
-	/**
-	 * Returns all list of all possible paths though the management graph, starting
-	 * at the input vertices. Each path is represented by a list of vertices.
-	 * 
-	 * @return a list of all possible paths through the management graph
-	 */
-	/*
-	 * public List<List<ManagementGroupVertex>> getListOfAllPathsThroughGraph() {
-	 * final List<List<ManagementGroupVertex>> listOfAllPaths = new ArrayList<List<ManagementGroupVertex>>();
-	 * final int numberOfInputGroupVertices = getNumberOfInputGroupVertices(0);
-	 * for(int i = 0; i < numberOfInputGroupVertices; i++) {
-	 * final ManagementGroupVertex startVertex = getInputGroupVertex(0, i);
-	 * final List<ManagementGroupVertex> currentPath = new ArrayList<ManagementGroupVertex>();
-	 * currentPath.add(startVertex);
-	 * constructListOfAllPaths(listOfAllPaths, currentPath);
-	 * }
-	 * return listOfAllPaths;
-	 * }
-	 */
-
-	/*
-	 * private static void constructListOfAllPaths(List<List<ManagementGroupVertex>> listOfAllPaths,
-	 * List<ManagementGroupVertex> currentPath) {
-	 * final ManagementGroupVertex currentVertex = currentPath.get(currentPath.size()-1);
-	 * if(currentVertex.getNumberOfForwardEdges() == 0) {
-	 * //Output vertex, add current path to list of all paths
-	 * listOfAllPaths.add(currentPath);
-	 * } else {
-	 * for(int i = 0; i < currentVertex.getNumberOfForwardEdges(); i++) {
-	 * final ManagementGroupVertex targetVertex = currentVertex.getForwardEdge(i).getTarget();
-	 * if(i < (currentVertex.getNumberOfForwardEdges()-1)) {
-	 * //Duplicate list
-	 * List<ManagementGroupVertex> newPath = new ArrayList<ManagementGroupVertex>();
-	 * newPath.addAll(currentPath);
-	 * newPath.add(targetVertex);
-	 * constructListOfAllPaths(listOfAllPaths, newPath);
-	 * } else {
-	 * currentPath.add(targetVertex);
-	 * constructListOfAllPaths(listOfAllPaths, currentPath);
-	 * }
-	 * }
-	 * }
-	 * }
-	 */
-
 	@Override
 	public void read(DataInput in) throws IOException {
 

@@ -44,7 +44,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @param jobID
 	 *        the ID identifying the job
 	 * @return the management graph for the job
-	 * @thrown IOException thrown if an error occurs while retrieving the management graph
+	 * @throws IOException thrown if an error occurs while retrieving the management graph
 	 */
 	ManagementGraph getManagementGraph(JobID jobID) throws IOException;
 
@@ -55,7 +55,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @param jobID
 	 *        the ID identifying the job
 	 * @return the network topology for the job
-	 * @thrown IOException thrown if an error occurs while retrieving the network topology
+	 * @throws IOException thrown if an error occurs while retrieving the network topology
 	 */
 	NetworkTopology getNetworkTopology(JobID jobID) throws IOException;
 
