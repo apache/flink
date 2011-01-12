@@ -52,17 +52,17 @@
 
 	<property>
 		<key>jobmanager.instancemanager.local.type</key>
-		<value>standard,2,1,300,10,10</value>
+		<value>standard,2,1,300,10,0</value>
 	</property>
 	
 	<property>
 		<key>jobmanager.instancemanager.cluster.type.1</key>
-		<value>standard,2,1,1024,10,10</value>
+		<value>standard,2,1,1024,20,0</value>
 	</property>
 	
 	<property>
 		<key>jobmanager.instancemanager.cluster.type.2</key>
-		<value>medium,2,1,1024,20,20</value>
+		<value>medium,4,2,2048,40,0</value>
 	</property>
 	
 	<property>

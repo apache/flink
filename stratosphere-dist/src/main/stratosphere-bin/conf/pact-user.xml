@@ -49,7 +49,7 @@
 	     user function on. -->	
 	<property>
 		<key>pact.parallelization.default-instance-type</key>
-		<value>standard,2,1,300,10,10</value>
+		<value>standard,2,1,300,10,0</value>
 	</property>
 	
 	

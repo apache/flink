@@ -49,20 +49,6 @@ public abstract class TextOutputFormat<K extends Key, V extends Value> extends O
 	 * {@inheritDoc}
 	 */
 	@Override
-	public KeyValuePair<K, V> createPair() {
-		try {
-			return new KeyValuePair<K, V>(ok.newInstance(), ov.newInstance());
-		} catch (InstantiationException e) {
-			throw new RuntimeException(e);
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	protected void initTypes() {
 		super.ok = getTemplateType1(getClass());
 		super.ov = getTemplateType2(getClass());

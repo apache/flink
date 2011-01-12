@@ -21,6 +21,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -39,6 +40,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -100,9 +102,25 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  */
 public class ClusterManager implements InstanceManager {
 
-	/** Logging facility */
+	// ------------------------------------------------------------------------
+	//                        Internal Constants
+	// ------------------------------------------------------------------------	
+	
+	/**
+	 * Logging facility
+	 */
 	private static final Log LOG = LogFactory.getLog(ClusterManager.class);
 
+	/**
+	 * The name of the file which contains the IP to instance type mapping.
+	 */
+	private static final String SLAVE_FILE_NAME = "slaves";
+	
+	/**
+	 * 
+	 */
+	private final static String CONFIG_DIR_KEY = "config.dir";
+	
 	/**
 	 * Period after which we check whether hosts did not send heart-beat
 	 * messages.
@@ -110,45 +128,26 @@ public class ClusterManager implements InstanceManager {
 	private static final int BASE_INTERVAL = 10 * 1000; // 10 sec.
 
 	/**
-	 * The key to retrieve the index of the default instance type from the configuration.
-	 */
-	private static final String DEFAULT_INSTANCE_TYPE_INDEX_KEY = "jobmanager.instancemanager.cluster.defaulttype";
-
-	/**
-	 * The key to retrieve the clean up interval from the configuration.
-	 */
-	private static final String CLEANUP_INTERVAL_KEY = "jobmanager.instancemanager.cluster.cleanupinterval";
-
-	/**
 	 * Default duration after which a host is purged in case it did not send
 	 * a heart-beat message.
 	 */
 	private static final int DEFAULT_CLEANUP_INTERVAL = 2 * 60; // 2 min.
 
+	
+	// ------------------------------------------------------------------------
+	//                             Fields
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Duration after which a host is purged in case it did not send a
 	 * heart-beat message.
 	 */
 	private final long cleanUpInterval;
 
-	/** Object that is notified if instances become available or vanish */
-	private InstanceListener instanceListener;
-
 	/**
-	 * The key prefix to retrieve the definition of the individual instance types.
+	 * The index of the default instance type.
 	 */
-	private static final String INSTANCE_TYPE_PREFIX_KEY = "jobmanager.instancemanager.cluster.type.";
-
-	/**
-	 * The default definition for an instance type, if no other configuration is provided.
-	 */
-	private static final String DEFAULT_INSTANCE_TYPE = "default,2,1,2048,10,10";
-
-	private static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
-
 	private final int defaultInstanceTypeIndex;
-
-	private final static String CONFIG_DIR_KEY = "config.dir";
 
 	/**
 	 * Set of hosts known to run a task manager that are thus able to execute
@@ -165,11 +164,6 @@ public class ClusterManager implements InstanceManager {
 	private final Multimap<JobID, AllocatedSlice> slicesOfJob = HashMultimap.create();
 
 	/**
-	 * The name of the file which contains the IP to instance type mapping.
-	 */
-	private static final String SLAVE_FILE_NAME = "slaves";
-
-	/**
 	 * Map of IP addresses to instance types.
 	 */
 	private final Map<InetAddress, InstanceType> ipToInstanceTypeMapping = Maps.newHashMap();
@@ -180,7 +174,15 @@ public class ClusterManager implements InstanceManager {
 	 */
 	private final InstanceType[] availableInstanceTypes;
 
+	/**
+	 * 
+	 */
 	private final NetworkTopology networkTopology;
+	
+	/**
+	 * Object that is notified if instances become available or vanish
+	 */
+	private InstanceListener instanceListener;
 
 	/**
 	 * Periodic task that checks whether hosts have not sent their heart-beat
@@ -223,31 +225,40 @@ public class ClusterManager implements InstanceManager {
 		}
 	};
 
+	// ------------------------------------------------------------------------
+	//                       Constructor and set-up
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Constructor.
 	 */
 	public ClusterManager() {
 
 		// Load the instance type this cloud can offer
-		this.availableInstanceTypes = populateInstanceTypeArray();
+		this.availableInstanceTypes = populateInstanceTypeArray(LOG);
 
-		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
+		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(
+			ConfigConstants.INSTANCE_MANAGER_CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
 
 		if ((tmpCleanUpInterval % BASE_INTERVAL) != 0) {
-			LOG.warn("Invalid clean up interval. Reverting to " + DEFAULT_CLEANUP_INTERVAL);
+			LOG.warn("Invalid clean up interval. Reverting to default cleanup interval of " +
+				DEFAULT_CLEANUP_INTERVAL + " secs.");
 			tmpCleanUpInterval = DEFAULT_CLEANUP_INTERVAL;
 		}
 
 		this.cleanUpInterval = tmpCleanUpInterval;
 
-		int tmpDefaultInstanceTypeIndex = GlobalConfiguration.getInteger(DEFAULT_INSTANCE_TYPE_INDEX_KEY,
-			DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
-		if (tmpDefaultInstanceTypeIndex >= this.availableInstanceTypes.length) {
-			LOG.warn("Incorrect index to for default instance type, switching to default "
-				+ DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
-			tmpDefaultInstanceTypeIndex = DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX;
+		int tmpDefaultInstanceTypeIndex = GlobalConfiguration.getInteger(
+			ConfigConstants.INSTANCE_MANAGER_DEFAULT_INSTANCE_TYPE_INDEX_KEY,
+			ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
+		
+		if (tmpDefaultInstanceTypeIndex > this.availableInstanceTypes.length) {
+			LOG.warn("Incorrect index to for default instance type (" + tmpDefaultInstanceTypeIndex + 
+				"), switching to default index " + ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
+			
+			tmpDefaultInstanceTypeIndex = ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX;
 		}
-		this.defaultInstanceTypeIndex = tmpDefaultInstanceTypeIndex;
+		this.defaultInstanceTypeIndex = tmpDefaultInstanceTypeIndex - 1;
 
 		this.networkTopology = loadNetworkTopology();
 
@@ -310,22 +321,25 @@ public class ClusterManager implements InstanceManager {
 	 * @return list of available instance types sorted by price (cheapest to
 	 *         most expensive)
 	 */
-	private InstanceType[] populateInstanceTypeArray() {
+	public static InstanceType[] populateInstanceTypeArray(Log log) {
 
-		final List<InstanceType> instanceTypes = Lists.newArrayList();
+		final List<InstanceType> instanceTypes = new ArrayList<InstanceType>();
 
 		// read instance types
 		int count = 1;
 		while (true) {
 
-			final String key = INSTANCE_TYPE_PREFIX_KEY + Integer.toString(count);
+			final String key = ConfigConstants.INSTANCE_MANAGER_INSTANCE_TYPE_PREFIX_KEY + Integer.toString(count);
 			String descr = GlobalConfiguration.getString(key, null);
+			
 			if (descr == null) {
 				if (count == 1) {
-					LOG
-						.error("Configuration does not contain at least one definition for an instance type, using default "
-							+ DEFAULT_INSTANCE_TYPE);
-					descr = DEFAULT_INSTANCE_TYPE;
+					if (log != null) {
+						LOG.error("Configuration does not contain at least one definition for an instance type, " +
+							"using default instance type: "+ ConfigConstants.DEFAULT_INSTANCE_TYPE);
+					}
+							
+					descr = ConfigConstants.DEFAULT_INSTANCE_TYPE;
 				} else {
 					break;
 				}
@@ -335,23 +349,32 @@ public class ClusterManager implements InstanceManager {
 			try {
 				// if successful add new instance type
 				instanceTypes.add(InstanceType.getTypeFromString(descr));
-			} catch (Throwable t) {
-				LOG.error("Error parsing " + key + ":" + descr, t);
 			}
-
+			catch (Throwable t) {
+				if (log != null) {
+					LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: " + 
+						ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
+				}
+				
+				// wee need to add an instance type anyways, because otherwise a non-parsable instance description
+				// would cause the numbering to be wrong.
+				instanceTypes.add(InstanceType.getTypeFromString(ConfigConstants.DEFAULT_INSTANCE_TYPE));
+			}
+			
 			// Increase key index
 			++count;
 		}
 
-		// sort by price
-		Collections.sort(instanceTypes, new Comparator<InstanceType>() {
-			@Override
-			public int compare(InstanceType o1, InstanceType o2) {
-				return o1.getPricePerHour() - o2.getPricePerHour();
-			}
-		});
+//		cannot be done since this changes the order and makes the default instance type index wrong
+//		 sort by price
+//		Collections.sort(instanceTypes, new Comparator<InstanceType>() {
+//			@Override
+//			public int compare(InstanceType o1, InstanceType o2) {
+//				return o1.getPricePerHour() - o2.getPricePerHour();
+//			}
+//		});
 
-		return instanceTypes.toArray(new InstanceType[0]);
+		return instanceTypes.toArray(new InstanceType[instanceTypes.size()]);
 	}
 
 	/**
@@ -428,7 +451,7 @@ public class ClusterManager implements InstanceManager {
 	@Override
 	public InstanceType getDefaultInstanceType() {
 
-		return this.availableInstanceTypes[this.defaultInstanceTypeIndex - 1];
+		return this.availableInstanceTypes[this.defaultInstanceTypeIndex];
 	}
 
 	/**

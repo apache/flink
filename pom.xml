@@ -137,7 +137,8 @@
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
-					<compilerArgument>-g:none -O</compilerArgument>
+					<!--   High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
+					<compilerArgument></compilerArgument>
 				</configuration>
 			</plugin>
 			
