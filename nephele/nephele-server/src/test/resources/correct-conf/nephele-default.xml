@@ -40,4 +40,8 @@
         <key>channel.file.decompressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoDecompressor</value>
     </property>
+    <property>
+        <key>taskmanager.memory.size</key>
+        <value>8</value>
+    </property>
 </configuration>
