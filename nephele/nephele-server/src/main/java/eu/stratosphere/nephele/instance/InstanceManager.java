@@ -83,8 +83,10 @@ public interface InstanceManager {
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the {@link InstanceConnectionInfo} object attached to the heart beat message
+	 * @param hardwareDescription
+	 *        a hardware description with details on the instance's compute resources.
 	 */
-	void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo);
+	void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription);
 
 	/**
 	 * Translates the name of an instance type to the corresponding instance type object.

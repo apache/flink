@@ -70,6 +70,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
@@ -506,10 +507,10 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo) {
+	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
 		// Delegate call to instance manager
-		this.instanceManager.reportHeartBeat(instanceConnectionInfo);
+		this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 	}
 
 	/**

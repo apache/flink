@@ -32,6 +32,8 @@ import static org.junit.Assert.*;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -46,30 +48,36 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  */
 public class ClusterManagerTest {
 
-	public static boolean EXECUTE_LONG_TESTS = false;
+	public static final boolean EXECUTE_LONG_TESTS = false;
 
 	private static final class MyInstanceListener implements InstanceListener {
-		int nrAvailable = 0;
+
+		private volatile int numberOfAllocatedInstances = 0;
 
 		final Multimap<JobID, AllocatedResource> resourcesOfJobs = HashMultimap.create();
 
 		@Override
 		public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
-			--nrAvailable;
-			assertTrue(nrAvailable >= 0);
+			--this.numberOfAllocatedInstances;
+			assertTrue(this.numberOfAllocatedInstances >= 0);
 
-			assertTrue(resourcesOfJobs.containsEntry(jobID, allocatedResource));
-			resourcesOfJobs.remove(jobID, allocatedResource);
+			assertTrue(this.resourcesOfJobs.containsEntry(jobID, allocatedResource));
+			this.resourcesOfJobs.remove(jobID, allocatedResource);
 		}
 
 		@Override
 		public void resourceAllocated(JobID jobID, AllocatedResource allocatedResource) {
-			assertTrue(nrAvailable >= 0);
-			++nrAvailable;
+			assertTrue(this.numberOfAllocatedInstances >= 0);
+			++this.numberOfAllocatedInstances;
 
-			assertFalse(resourcesOfJobs.containsEntry(jobID, allocatedResource));
+			assertFalse(this.resourcesOfJobs.containsEntry(jobID, allocatedResource));
 
-			resourcesOfJobs.put(jobID, allocatedResource);
+			this.resourcesOfJobs.put(jobID, allocatedResource);
+		}
+
+		public int getNumberOfAllocatedInstances() {
+
+			return this.numberOfAllocatedInstances;
 		}
 	};
 
@@ -77,20 +85,20 @@ public class ClusterManagerTest {
 	public void testCleanup() {
 	}
 
+	/**
+	 * This test covers the parsing of instance types from the configuration and the default instance type.
+	 */
 	@Test
 	public void testInstanceConfiguration() {
-		// this verifies:
-		// - parsing of configuration
-		// - getDefaultInstanceType
-		// - getInstanceTypeByName
+
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		MyInstanceListener dummyInstanceListener = new MyInstanceListener();
-		ClusterManager cm = new ClusterManager();
+		final MyInstanceListener dummyInstanceListener = new MyInstanceListener();
+		final ClusterManager cm = new ClusterManager();
 		cm.setInstanceListener(dummyInstanceListener);
 		try {
 
-			InstanceType defaultIT = cm.getDefaultInstanceType();
+			final InstanceType defaultIT = cm.getDefaultInstanceType();
 
 			assertNotNull(defaultIT);
 			assertEquals("small", defaultIT.getIdentifier());
@@ -105,7 +113,6 @@ public class ClusterManagerTest {
 				cm.shutdown();
 			}
 		}
-
 	}
 
 	@Test
@@ -117,30 +124,42 @@ public class ClusterManagerTest {
 		assertEquals("m1.small", m.group(1));
 	}
 
+	/**
+	 * This test checks the correctness of extracting instance types from the configuration, mapping IPs to instance
+	 * types from the slave file
+	 * 
+	 * @throws InstanceException
+	 */
 	@Test
-	public void testAllocationDeallocation() throws InstanceException {
+	public void testAllocationDeallocation() {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener dummyInstanceListener = new MyInstanceListener();
 		ClusterManager cm = new ClusterManager();
 		cm.setInstanceListener(dummyInstanceListener);
+		InetAddress inetAddress = null;
+
 		try {
-			InetAddress inetAddress = null;
 			try {
 				inetAddress = InetAddress.getByName("192.168.198.1");
 			} catch (UnknownHostException e) {
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
-			InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(inetAddress, 1234, 1235);
-			cm.reportHeartBeat(instanceConnectionInfo);
+			final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(inetAddress, 1234, 1235);
+			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
+				32L * 1024L * 1024L * 1024L, 32L * 1024L * 1024L * 1024L);
+			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 			// now we should be able to request 4 m1.large instances
-			JobID jobID = new JobID();
+			final JobID jobID = new JobID();
 			for (int i = 0; i < 4; ++i) {
-				cm.requestInstance(jobID, new Configuration(), cm.getDefaultInstanceType());
+				try {
+					cm.requestInstance(jobID, new Configuration(), cm.getDefaultInstanceType());
+				} catch (InstanceException e) {
+					fail(e.getMessage());
+				}
 			}
 
-			// wait for all threads to report instance availability
-			Thread.sleep(500);
+			waitForInstanceArrival(dummyInstanceListener, 4, 1000);
 
 			// all 4 are registered
 			assertEquals(4, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
@@ -152,32 +171,58 @@ public class ClusterManagerTest {
 				assertTrue(true); // we expect the exception
 			}
 
-			List<AllocatedResource> resources = new ArrayList<AllocatedResource>(
+			final List<AllocatedResource> resources = new ArrayList<AllocatedResource>(
 				dummyInstanceListener.resourcesOfJobs.get(jobID));
 
 			for (AllocatedResource i : resources) {
-				cm.releaseAllocatedResource(jobID, new Configuration(), i);
+				try {
+					cm.releaseAllocatedResource(jobID, new Configuration(), i);
+				} catch (InstanceException e) {
+					fail(e.getMessage());
+				}
 			}
 
-			// none are registered but they are not maked as dead
+			// none are registered but they are not marked as dead
 			assertEquals(4, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
 
 			// however, we can create new ones
 			for (int i = 0; i < 4; ++i) {
-				cm.requestInstance(jobID, new Configuration(), cm.getDefaultInstanceType());
+				try {
+					cm.requestInstance(jobID, new Configuration(), cm.getDefaultInstanceType());
+				} catch (InstanceException e) {
+					fail(e.getMessage());
+				}
 			}
 
 			// wait for all threads to report instance availability
-			Thread.sleep(500);
+			try {
+				Thread.sleep(500);
+			} catch(InterruptedException e) {
+				e.printStackTrace();
+			}
 
 			// all 4+4 are registered
 			assertEquals(8, dummyInstanceListener.resourcesOfJobs.get(jobID).size());
 
-		} catch (InterruptedException e) {
-			e.printStackTrace();
 		} finally {
 			if (cm != null) {
 				cm.shutdown();
+			}
+		}
+	}
+
+	private void waitForInstanceArrival(MyInstanceListener instanceListener, int numberOfInstances, long maxWaitTime) {
+
+		final long startTime = System.currentTimeMillis();
+		while (instanceListener.getNumberOfAllocatedInstances() < numberOfInstances) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+
+			if ((System.currentTimeMillis() - startTime) >= maxWaitTime) {
+				break;
 			}
 		}
 	}
@@ -206,7 +251,9 @@ public class ClusterManagerTest {
 				e.printStackTrace();
 			}
 			InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(inetAddress, 1234, 1235);
-			cm.reportHeartBeat(instanceConnectionInfo);
+			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
+				32L * 1024L * 1024L * 1024L, 32L * 1024L * 1024L * 1024L);
+			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 			// now we should be able to request 4 m1.large instances
 			JobID jobID = new JobID();
 			for (int i = 0; i < 4; ++i) {

@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -115,8 +116,11 @@ public class LocalInstanceManager implements InstanceManager {
 		new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResource).start();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo) {
+	public void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
 		synchronized (this.synchronizationObject) {
 			if (this.allocatedResource == null) {

@@ -44,6 +44,8 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -139,6 +141,8 @@ public class TaskManager implements TaskOperationProtocol {
 	private MemoryManager memoryManager;
 
 	private IOManager ioManager;
+
+	private final HardwareDescription hardwareDescription;
 
 	/**
 	 * Stores whether the task manager has already been shut down.
@@ -262,17 +266,23 @@ public class TaskManager implements TaskOperationProtocol {
 		// Initialize the checkpoint manager
 		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath);
 
+		// Determine hardware description
+		this.hardwareDescription = HardwareDescriptionFactory.extractFromSystem();
+		if (this.hardwareDescription == null) {
+			LOG.warn("Cannot determine hardware description");
+		}
+
 		// Initialize the memory manager
 		long memorySize = GlobalConfiguration.getInteger(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY, -1);
-		
+
 		if (memorySize < 1) {
 			memorySize = ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY;
-			LOG.warn("Memory manager size (" + ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY + 
+			LOG.warn("Memory manager size (" + ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY +
 				") undefined for this task manager. Using default memory size of " +
 				ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY + "MB.");
-			
+
 		}
-		
+
 		LOG.info("Initializing memory manager with " + memorySize + " megabytes of memory");
 		this.memoryManager = new DefaultMemoryManager(memorySize * 1024L * 1024L);
 
@@ -311,10 +321,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Create a new task manager object
 		TaskManager taskManager = null;
-		try { 
+		try {
 			taskManager = new TaskManager(configDir);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			System.err.println("Taskmanager startup failed:" + t.getMessage());
 			t.printStackTrace(System.err);
 			System.exit(FAILURERETURNCODE);
@@ -464,7 +473,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Send heartbeat
 			try {
-				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo);
+				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo, this.hardwareDescription);
 			} catch (IOException e) {
 				LOG.debug("sending the heart beat caused on IO Exception");
 			}

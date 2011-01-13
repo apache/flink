@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -44,6 +42,7 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -103,9 +102,9 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
 public class ClusterManager implements InstanceManager {
 
 	// ------------------------------------------------------------------------
-	//                        Internal Constants
-	// ------------------------------------------------------------------------	
-	
+	// Internal Constants
+	// ------------------------------------------------------------------------
+
 	/**
 	 * Logging facility
 	 */
@@ -115,12 +114,12 @@ public class ClusterManager implements InstanceManager {
 	 * The name of the file which contains the IP to instance type mapping.
 	 */
 	private static final String SLAVE_FILE_NAME = "slaves";
-	
+
 	/**
 	 * 
 	 */
 	private final static String CONFIG_DIR_KEY = "config.dir";
-	
+
 	/**
 	 * Period after which we check whether hosts did not send heart-beat
 	 * messages.
@@ -133,11 +132,10 @@ public class ClusterManager implements InstanceManager {
 	 */
 	private static final int DEFAULT_CLEANUP_INTERVAL = 2 * 60; // 2 min.
 
-	
 	// ------------------------------------------------------------------------
-	//                             Fields
+	// Fields
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Duration after which a host is purged in case it did not send a
 	 * heart-beat message.
@@ -178,7 +176,7 @@ public class ClusterManager implements InstanceManager {
 	 * 
 	 */
 	private final NetworkTopology networkTopology;
-	
+
 	/**
 	 * Object that is notified if instances become available or vanish
 	 */
@@ -226,16 +224,16 @@ public class ClusterManager implements InstanceManager {
 	};
 
 	// ------------------------------------------------------------------------
-	//                       Constructor and set-up
+	// Constructor and set-up
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Constructor.
 	 */
 	public ClusterManager() {
 
-		// Load the instance type this cloud can offer
-		this.availableInstanceTypes = populateInstanceTypeArray(LOG);
+		// Load the instance type this cluster can offer
+		this.availableInstanceTypes = populateInstanceTypeArray();
 
 		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(
 			ConfigConstants.INSTANCE_MANAGER_CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
@@ -251,15 +249,16 @@ public class ClusterManager implements InstanceManager {
 		int tmpDefaultInstanceTypeIndex = GlobalConfiguration.getInteger(
 			ConfigConstants.INSTANCE_MANAGER_DEFAULT_INSTANCE_TYPE_INDEX_KEY,
 			ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
-		
+
 		if (tmpDefaultInstanceTypeIndex > this.availableInstanceTypes.length) {
-			LOG.warn("Incorrect index to for default instance type (" + tmpDefaultInstanceTypeIndex + 
+			LOG.warn("Incorrect index to for default instance type (" + tmpDefaultInstanceTypeIndex +
 				"), switching to default index " + ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
-			
+
 			tmpDefaultInstanceTypeIndex = ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX;
 		}
 		this.defaultInstanceTypeIndex = tmpDefaultInstanceTypeIndex - 1;
 
+		// load the network topology from the slave file
 		this.networkTopology = loadNetworkTopology();
 
 		// load IP to instance type mapping from slave file
@@ -275,7 +274,7 @@ public class ClusterManager implements InstanceManager {
 	 * slave file. If locating or reading the slave file fails, the method
 	 * will return an empty network topology.
 	 * 
-	 * @return
+	 * @return the network topology as read from the slave file
 	 */
 	private NetworkTopology loadNetworkTopology() {
 
@@ -321,7 +320,7 @@ public class ClusterManager implements InstanceManager {
 	 * @return list of available instance types sorted by price (cheapest to
 	 *         most expensive)
 	 */
-	public static InstanceType[] populateInstanceTypeArray(Log log) {
+	private InstanceType[] populateInstanceTypeArray() {
 
 		final List<InstanceType> instanceTypes = new ArrayList<InstanceType>();
 
@@ -331,14 +330,12 @@ public class ClusterManager implements InstanceManager {
 
 			final String key = ConfigConstants.INSTANCE_MANAGER_INSTANCE_TYPE_PREFIX_KEY + Integer.toString(count);
 			String descr = GlobalConfiguration.getString(key, null);
-			
+
 			if (descr == null) {
 				if (count == 1) {
-					if (log != null) {
-						LOG.error("Configuration does not contain at least one definition for an instance type, " +
-							"using default instance type: "+ ConfigConstants.DEFAULT_INSTANCE_TYPE);
-					}
-							
+					LOG.error("Configuration does not contain at least one definition for an instance type, " +
+							"using default instance type: " + ConfigConstants.DEFAULT_INSTANCE_TYPE);
+
 					descr = ConfigConstants.DEFAULT_INSTANCE_TYPE;
 				} else {
 					break;
@@ -348,31 +345,21 @@ public class ClusterManager implements InstanceManager {
 			// parse entry
 			try {
 				// if successful add new instance type
+				final InstanceType instanceType = InstanceType.getTypeFromString(descr);
+				LOG.info("Loaded instance type " + instanceType.getIdentifier() + " from the configuration");
 				instanceTypes.add(InstanceType.getTypeFromString(descr));
-			}
-			catch (Throwable t) {
-				if (log != null) {
-					LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: " + 
-						ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
-				}
-				
-				// wee need to add an instance type anyways, because otherwise a non-parsable instance description
+			} catch (Throwable t) {
+				LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: " +
+					ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
+
+				// we need to add an instance type anyways, because otherwise a non-parsable instance description
 				// would cause the numbering to be wrong.
 				instanceTypes.add(InstanceType.getTypeFromString(ConfigConstants.DEFAULT_INSTANCE_TYPE));
 			}
-			
+
 			// Increase key index
 			++count;
 		}
-
-//		cannot be done since this changes the order and makes the default instance type index wrong
-//		 sort by price
-//		Collections.sort(instanceTypes, new Comparator<InstanceType>() {
-//			@Override
-//			public int compare(InstanceType o1, InstanceType o2) {
-//				return o1.getPricePerHour() - o2.getPricePerHour();
-//			}
-//		});
 
 		return instanceTypes.toArray(new InstanceType[instanceTypes.size()]);
 	}
@@ -442,7 +429,6 @@ public class ClusterManager implements InstanceManager {
 		} catch (IOException e) {
 			LOG.error("Cannot load IP to instance type mapping from file: " + e);
 		}
-
 	}
 
 	/**
@@ -578,7 +564,8 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo) {
+	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
+		
 		ClusterInstance host = registeredHosts.get(instanceConnectionInfo);
 
 		// check whether we have discovered a new host

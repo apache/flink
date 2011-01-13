@@ -46,6 +46,8 @@ import com.google.common.collect.Multimap;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -323,7 +325,9 @@ public class CloudManagerTest {
 			instanceID = instance.getInstanceId();
 
 			// report heart beat
-			cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000, 20000));
+			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
+				32L * 1024L * 1024L * 1024L, 32L * 1024L * 1024L * 1024L);
+			cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000, 20000), hardwareDescription);
 
 		} catch (SecurityException e) {
 			e.printStackTrace();
