@@ -43,6 +43,7 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -920,7 +921,13 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	@Override
 	public void setInstanceListener(InstanceListener instanceListener) {
-		// TODO Auto-generated method stub
+		
 		this.instanceListener = instanceListener;
+	}
+
+	@Override
+	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

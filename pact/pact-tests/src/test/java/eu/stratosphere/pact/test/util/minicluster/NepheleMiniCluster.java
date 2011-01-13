@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.JobManager;
@@ -122,7 +123,7 @@ public class NepheleMiniCluster {
 			memory /= (1024 * 1024);
 		}
 
-		final InstanceType instanceType = new InstanceType("default-local", 1, 1, (int) memory, 1, 0);
+		final InstanceType instanceType = InstanceTypeFactory.construct("default-local", 1, 1, (int) memory, 1, 0);
 
 		// config
 		final String nepheleConfigDirJob = nepheleConfigDir + "/job";

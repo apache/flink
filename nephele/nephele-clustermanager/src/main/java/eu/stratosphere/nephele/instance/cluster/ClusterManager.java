@@ -48,31 +48,20 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 /**
- * Instance Manager for a homogeneous cluster.
+ * Instance Manager for a static cluster.
  * <p>
- * If Nephele is executed on a compute cluster, no cloud management is available to allocate and release instances
- * (virtual machines). This cluster manager compensates for the lack of a cloud management. The cluster manager acts on
- * the following principle:<br>
- * Each node available for computation in the cluster shall start a task manager. The task manager registers at the job
- * manager and sends periodic heart-beat messages that are forwarded to this {@link ClusterManager}. If a new task
- * manager appears, this means that a new host has been registered that is available for being used. If a task manager
- * stops sending heat-beat messages, the respective host has died.
- * <p>
- * Each host in the cluster executes just one task manager. This host can be partitioned by number of CPUs, memory, etc.
- * The cluster manager shall take care that one host of 8 CPUs can create for example 4 instances of two CPUs each.
+ * The cluster manager can handle heterogeneous instances (compute nodes). Each instance type used in the cluster must
+ * be described in the configuration. The configuration must include the number of different instance types as well as
+ * description of the hardware profile of each instance type.
  * <p>
  * This is a sample configuration: <code>
- * # machine is dead if it did not sent heat-beat messages for 120 seconds
- * cloud.ec2.cleanupinterval = 120000
- * # name of user who requests resources (not used)
- * job.cloud.username = battre
- * 
  * # number of instance types defined in this cluster
  * clustermgr.nrtypes = 5 
  * 
@@ -86,19 +75,16 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * 
  * # default instance type
  * clustermgr.instancetype.defaultInstance = m1.large
+ * </code> Each instance is expected to run exactly one {@link TaskManager}. When the {@link TaskManager} registers with
+ * the {@link JobManager} it sends a {@link HardwareDescription} which describes the actual hardware characteristics of
+ * the instance (compute node). The cluster manage will attempt to match the report hardware characteristics with one of
+ * the configured instance types. Moreover, the cluster manager is capable of partitioning larger instances (compute
+ * nodes) into smaller, less powerful instances.
+ * <p>
+ * This class is thread-safe.
  * 
- * # type of all nodes in the cluster
- *  # compute units for entire CPU: 8x2500 = 20000
- * clustermgr.standardhost.numComputeUnits = 20000
- *  # number of cores: 8
- * clustermgr.standardhost.numCores        = 8
- *  # memory size in MB: 32 GB = 32*1024 MB = 32768 MB
- * clustermgr.standardhost.memorySize      = 32768
- *  # disk capacity in GB: 200 GB   
- * clustermgr.standardhost.diskCapacity    = 200
- * </code> This class is thread-safe.
- * 
- * @author Dominic Battre
+ * @author battre
+ * @author warneke
  */
 public class ClusterManager implements InstanceManager {
 
@@ -107,7 +93,7 @@ public class ClusterManager implements InstanceManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Logging facility
+	 * The log object used to report debugging and error information.
 	 */
 	private static final Log LOG = LogFactory.getLog(ClusterManager.class);
 
@@ -117,7 +103,7 @@ public class ClusterManager implements InstanceManager {
 	private static final String SLAVE_FILE_NAME = "slaves";
 
 	/**
-	 * 
+	 * The key to extract the configuration directory from the global configuration.
 	 */
 	private final static String CONFIG_DIR_KEY = "config.dir";
 
@@ -144,16 +130,13 @@ public class ClusterManager implements InstanceManager {
 	private final long cleanUpInterval;
 
 	/**
-	 * The index of the default instance type.
+	 * The default instance type.
 	 */
-	private final int defaultInstanceTypeIndex;
+	private final InstanceType defaultInstanceType;
 
 	/**
 	 * Set of hosts known to run a task manager that are thus able to execute
 	 * tasks.
-	 * <p>
-	 * The key of this hash set is the socket of the task manager from which we have received a heart-beat. As long as
-	 * we keep receiving heart-beats we assume the cluster node is online.
 	 */
 	private final Map<InstanceConnectionInfo, ClusterInstance> registeredHosts = Maps.newHashMap();
 
@@ -257,13 +240,14 @@ public class ClusterManager implements InstanceManager {
 
 			tmpDefaultInstanceTypeIndex = ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX;
 		}
-		this.defaultInstanceTypeIndex = tmpDefaultInstanceTypeIndex - 1;
+
+		this.defaultInstanceType = this.availableInstanceTypes[tmpDefaultInstanceTypeIndex - 1];
+
+		// sort available instances by CPU core
+		sortAvailableInstancesByNumberOfCPUCores();
 
 		// load the network topology from the slave file
 		this.networkTopology = loadNetworkTopology();
-
-		// load IP to instance type mapping from slave file
-		loadIPToInstanceTypeMapping();
 
 		// look every BASEINTERVAL milliseconds for crashed hosts
 		final boolean runTimerAsDaemon = true;
@@ -271,9 +255,27 @@ public class ClusterManager implements InstanceManager {
 	}
 
 	/**
-	 * Attempts to load the current network topology from the
-	 * slave file. If locating or reading the slave file fails, the method
-	 * will return an empty network topology.
+	 * Sorts the list of available instance types by the number of CPU cores in an ascending order.
+	 */
+	private void sortAvailableInstancesByNumberOfCPUCores() {
+
+		if (this.availableInstanceTypes.length < 2) {
+			return;
+		}
+
+		for (int i = 1; i < this.availableInstanceTypes.length; i++) {
+			final InstanceType it = this.availableInstanceTypes[i];
+			int j = i;
+			while (j > 0 && this.availableInstanceTypes[j - 1].getNumberOfCores() > it.getNumberOfCores()) {
+				this.availableInstanceTypes[j] = this.availableInstanceTypes[j - 1];
+				--j;
+			}
+		}
+	}
+
+	/**
+	 * Attempts to load the current network topology from the slave file. If locating or reading the slave file fails,
+	 * the method will return an empty network topology.
 	 * 
 	 * @return the network topology as read from the slave file
 	 */
@@ -366,79 +368,12 @@ public class ClusterManager implements InstanceManager {
 	}
 
 	/**
-	 * Reads the IP to instance type mapping from the slave file.
-	 */
-	private void loadIPToInstanceTypeMapping() {
-
-		final String configDir = GlobalConfiguration.getString(CONFIG_DIR_KEY, null);
-		if (configDir == null) {
-			LOG.error("Cannot find configuration directory to read IP to instance type mapping");
-			return;
-		}
-
-		final File slaveFile = new File(configDir + File.separator + SLAVE_FILE_NAME);
-		if (!slaveFile.exists()) {
-			LOG.error("Cannot access slave file to read IP to instance type mapping");
-			return;
-		}
-
-		final Pattern pattern = Pattern.compile("^(\\S+)\\s*(\\S*)\\s*$");
-
-		try {
-
-			final BufferedReader input = new BufferedReader(new FileReader(slaveFile));
-
-			String line = null;
-
-			while ((line = input.readLine()) != null) {
-
-				final Matcher m = pattern.matcher(line);
-				if (!m.matches()) {
-					LOG.error("Entry does not match format: " + line);
-					continue;
-				}
-				InetAddress address = null;
-				String host = m.group(1);
-				try {
-					final int pos = host.lastIndexOf('/');
-					if (pos != -1) {
-						host = host.substring(pos + 1);
-					}
-					address = InetAddress.getByName(host);
-				} catch (UnknownHostException e) {
-					LOG.error("Cannot resolve " + host + " to a hostname/IP address", e);
-					continue;
-				}
-
-				InstanceType instanceType = null;
-				String instanceTypeName = m.group(2);
-				if (instanceTypeName == null || instanceTypeName.length() == 0) {
-					instanceType = getDefaultInstanceType();
-				} else {
-					instanceType = getInstanceTypeByName(instanceTypeName);
-					if (instanceType == null) {
-						instanceType = getDefaultInstanceType();
-						LOG.warn(m.group(2) + " does not refer to a valid instance type, switching to default");
-					}
-				}
-
-				this.ipToInstanceTypeMapping.put(address, instanceType);
-			}
-
-			input.close();
-
-		} catch (IOException e) {
-			LOG.error("Cannot load IP to instance type mapping from file: " + e);
-		}
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public InstanceType getDefaultInstanceType() {
 
-		return this.availableInstanceTypes[this.defaultInstanceTypeIndex];
+		return this.defaultInstanceType;
 	}
 
 	/**
@@ -565,8 +500,9 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
-		
+	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo,
+			HardwareDescription hardwareDescription) {
+
 		ClusterInstance host = registeredHosts.get(instanceConnectionInfo);
 
 		// check whether we have discovered a new host
@@ -621,5 +557,11 @@ public class ClusterManager implements InstanceManager {
 	@Override
 	public void setInstanceListener(InstanceListener instanceListener) {
 		this.instanceListener = instanceListener;
+	}
+
+	@Override
+	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

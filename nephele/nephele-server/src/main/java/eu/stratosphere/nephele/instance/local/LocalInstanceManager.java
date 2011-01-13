@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
+import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
 
@@ -31,6 +32,7 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -202,5 +204,11 @@ public class LocalInstanceManager implements InstanceManager {
 
 		return InstanceTypeFactory.construct("default", hardwareDescription.getNumberOfCPUCores(),
 			hardwareDescription.getNumberOfCPUCores(), physicalMemory, diskCapacityInGB, 0);
+	}
+
+	@Override
+	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

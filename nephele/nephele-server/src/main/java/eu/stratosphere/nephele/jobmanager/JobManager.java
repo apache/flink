@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
@@ -73,6 +74,7 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
@@ -819,5 +821,14 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public synchronized boolean isShutDown() {
 
 		return this.isShutDown;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+
+		// Delegate call to the instance manager
+		return this.instanceManager.getListOfAvailableInstanceTypes();
 	}
 }
