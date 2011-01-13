@@ -25,11 +25,13 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -45,6 +47,8 @@ public class LocalInstanceManager implements InstanceManager {
 
 	private AllocatedResource allocatedResource = null;
 
+	private HardwareDescription hardwareDescription;
+
 	private LocalTaskManagerThread localTaskManagerThread;
 
 	private final NetworkTopology networkTopology;
@@ -57,7 +61,7 @@ public class LocalInstanceManager implements InstanceManager {
 		String descr = config.getString(ConfigConstants.JOBMANAGER_LOCALINSTANCE_TYPE_KEY, null);
 		try {
 			if (descr != null) {
-				type = InstanceType.getTypeFromString(descr);
+				type = InstanceTypeFactory.constructFromDescription(descr);
 			}
 		} catch (IllegalArgumentException iaex) {
 			LogFactory.getLog(LocalInstanceManager.class).error(
@@ -127,6 +131,8 @@ public class LocalInstanceManager implements InstanceManager {
 				this.allocatedResource = new AllocatedResource(new LocalInstance(this.defaultInstanceType,
 					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology),
 					new AllocationID());
+				
+				this.hardwareDescription = hardwareDescription;
 			}
 		}
 	}
@@ -141,8 +147,8 @@ public class LocalInstanceManager implements InstanceManager {
 		if (this.localTaskManagerThread != null) {
 			// Interrupt the thread running the task manager
 			this.localTaskManagerThread.interrupt();
-			
-			while(!this.localTaskManagerThread.isTaskManagerShutDown()) {
+
+			while (!this.localTaskManagerThread.isTaskManagerShutDown()) {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) {
@@ -174,25 +180,27 @@ public class LocalInstanceManager implements InstanceManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates an instance type for the local machine that calls this method. The local instance is
-	 * given the system's number of CPU cores, the amount of memory currently available to the system
-	 * (actually 80% of it) and the amount of disc space in the temp directory.
+	 * Creates a default instance type based on the hardware characteristics of the machine that calls this method. The
+	 * default instance type contains the machine's number of CPU cores and size of physical memory. The disc capacity
+	 * is calculated from the free space in the directory for temporary files.
 	 * 
-	 * @return An instance type for the local machine.
+	 * @return the default instance type used for the local machine
 	 */
 	public static final InstanceType createDefaultInstanceType() {
-		final Runtime runtime = Runtime.getRuntime();
 
-		final int numberOfCPUCores = runtime.availableProcessors();
-		final int memorySizeInMB = (int) ((runtime.freeMemory() + (runtime.maxMemory() - runtime.totalMemory())) * 0.8f / (1024 * 1024));
+		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.extractFromSystem();
 
 		int diskCapacityInGB = 0;
-		final String tempDir = System.getProperty("java.io.tmpdir");
+		final String tempDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
 		if (tempDir != null) {
 			File f = new File(tempDir);
-			diskCapacityInGB = (int) (f.getFreeSpace() * 0.8f / (1024 * 1024 * 1024));
+			diskCapacityInGB = (int) (f.getFreeSpace() / (1024L * 1024L * 1024L));
 		}
 
-		return new InstanceType("default", numberOfCPUCores, numberOfCPUCores, memorySizeInMB, diskCapacityInGB, 0);
+		final int physicalMemory = (int) (hardwareDescription.getSizeOfPhysicalMemory() / (1024L * 1024L));
+
+		return InstanceTypeFactory.construct("default", hardwareDescription.getNumberOfCPUCores(),
+			hardwareDescription.getNumberOfCPUCores(), physicalMemory, diskCapacityInGB, 0);
 	}
 }

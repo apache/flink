@@ -79,6 +79,12 @@ public class HardwareDescriptionFactory {
 	private static String os = null;
 
 	/**
+	 * Private constructor, so class cannot be instantiated.
+	 */
+	private HardwareDescriptionFactory() {
+	}
+
+	/**
 	 * Extracts a hardware description object from the system.
 	 * 
 	 * @return the hardware description object or <code>null</code> if at least one value for the hardware description

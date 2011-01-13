@@ -52,6 +52,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cloud.CloudInstance;
 import eu.stratosphere.nephele.instance.cloud.CloudManager;
 import eu.stratosphere.nephele.instance.cloud.FloatingInstance;
@@ -297,7 +298,7 @@ public class CloudManagerTest {
 
 		// request instance
 		try {
-			cm.requestInstance(jobID, conf, new InstanceType("m1.small", 1, 1, 2048, 40, 10));
+			cm.requestInstance(jobID, conf, InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"));
 		} catch (InstanceException e) {
 			e.printStackTrace();
 		}
@@ -327,7 +328,8 @@ public class CloudManagerTest {
 			// report heart beat
 			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
 				32L * 1024L * 1024L * 1024L, 32L * 1024L * 1024L * 1024L);
-			cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000, 20000), hardwareDescription);
+			cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000, 20000),
+				hardwareDescription);
 
 		} catch (SecurityException e) {
 			e.printStackTrace();

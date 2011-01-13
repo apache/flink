@@ -48,6 +48,7 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -345,16 +346,16 @@ public class ClusterManager implements InstanceManager {
 			// parse entry
 			try {
 				// if successful add new instance type
-				final InstanceType instanceType = InstanceType.getTypeFromString(descr);
+				final InstanceType instanceType = InstanceTypeFactory.constructFromDescription(descr);
 				LOG.info("Loaded instance type " + instanceType.getIdentifier() + " from the configuration");
-				instanceTypes.add(InstanceType.getTypeFromString(descr));
+				instanceTypes.add(instanceType);
 			} catch (Throwable t) {
 				LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: " +
 					ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
 
 				// we need to add an instance type anyways, because otherwise a non-parsable instance description
 				// would cause the numbering to be wrong.
-				instanceTypes.add(InstanceType.getTypeFromString(ConfigConstants.DEFAULT_INSTANCE_TYPE));
+				instanceTypes.add(InstanceTypeFactory.constructFromDescription(ConfigConstants.DEFAULT_INSTANCE_TYPE));
 			}
 
 			// Increase key index

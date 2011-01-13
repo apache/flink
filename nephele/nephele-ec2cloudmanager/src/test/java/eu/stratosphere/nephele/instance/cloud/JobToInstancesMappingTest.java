@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cloud.CloudInstance;
 import eu.stratosphere.nephele.instance.cloud.JobToInstancesMapping;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -36,7 +36,7 @@ public class JobToInstancesMappingTest {
 		final NetworkTopology networkTopology = NetworkTopology.createEmptyTopology();
 
 		JobToInstancesMapping map = new JobToInstancesMapping("wenjun", "1234567", "abcdefg");
-		CloudInstance ci = new CloudInstance("i-1234ABCD", new InstanceType("m1.small", 1, 1, 2048, 40, 10), "wenjun",
+		CloudInstance ci = new CloudInstance("i-1234ABCD", InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"), "wenjun",
 			new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121), 1234567890,
 			networkTopology.getRootNode(), networkTopology);
 

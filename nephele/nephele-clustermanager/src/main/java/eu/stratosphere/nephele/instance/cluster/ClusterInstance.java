@@ -25,6 +25,7 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
@@ -116,7 +117,7 @@ class ClusterInstance extends AbstractInstance {
 			&& remainingCapacity.getDiskCapacity() >= reqType.getDiskCapacity()) {
 
 			// reduce available capacity by what has been requested
-			remainingCapacity = new InstanceType(remainingCapacity.getIdentifier(), remainingCapacity
+			remainingCapacity = InstanceTypeFactory.construct(remainingCapacity.getIdentifier(), remainingCapacity
 				.getNumberOfComputeUnits()
 				- reqType.getNumberOfComputeUnits(), remainingCapacity.getNumberOfCores() - reqType.getNumberOfCores(),
 				remainingCapacity.getMemorySize() - reqType.getMemorySize(), remainingCapacity.getDiskCapacity()
@@ -147,7 +148,7 @@ class ClusterInstance extends AbstractInstance {
 		final AllocatedSlice slice = this.allocatedSlices.remove(allocationID);
 		if (slice != null) {
 
-			this.remainingCapacity = new InstanceType(this.remainingCapacity.getIdentifier(), this.remainingCapacity
+			this.remainingCapacity = InstanceTypeFactory.construct(this.remainingCapacity.getIdentifier(), this.remainingCapacity
 				.getNumberOfComputeUnits()
 				+ slice.getType().getNumberOfComputeUnits(), this.remainingCapacity.getNumberOfCores()
 				+ slice.getType().getNumberOfCores(), this.remainingCapacity.getMemorySize()

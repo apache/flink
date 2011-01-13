@@ -15,9 +15,12 @@
 
 package eu.stratosphere.nephele.instance;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * An instance type describes the hardware resources a task manager runs on. According
@@ -26,18 +29,12 @@ import java.util.regex.PatternSyntaxException;
  * 
  * @author warneke
  */
-public class InstanceType {
-	/**
-	 * The pattern used to parse descriptions of instance types.
-	 */
-	private static Pattern descr_pattern = null;
-
-	// ------------------------------------------------------------------------
+public class InstanceType implements IOReadableWritable {
 
 	/**
 	 * The identifier for this instance type.
 	 */
-	private final String identifier;
+	private String identifier;
 
 	/**
 	 * The number of computational units of this instance type.
@@ -47,27 +44,33 @@ public class InstanceType {
 	 * specified number of compute units expresses the fraction of the
 	 * CPU capacity promised to a user.
 	 */
-	private final int numberOfComputeUnits;
+	private int numberOfComputeUnits = 0;
 
 	/**
 	 * The number of CPU cores of this instance type.
 	 */
-	private final int numberOfCores;
+	private int numberOfCores = 0;
 
 	/**
 	 * The amount of main memory of this instance type (in MB).
 	 */
-	private final int memorySize;
+	private int memorySize = 0;
 
 	/**
 	 * The disk capacity of this instance type (in GB).
 	 */
-	private final int diskCapacity;
+	private int diskCapacity = 0;
 
 	/**
 	 * The price per hour that is charged for running instances of this type.
 	 */
-	private final int pricePerHour;
+	private int pricePerHour = 0;
+
+	/**
+	 * Public constructor required for the serialization process.
+	 */
+	public InstanceType() {
+	}
 
 	/**
 	 * Creates a new instance type.
@@ -85,7 +88,7 @@ public class InstanceType {
 	 * @param pricePerHour
 	 *        price per hour that is charged for running instances of this type
 	 */
-	public InstanceType(String identifier, int numberOfComputeUnits, int numberOfCores, int memorySize,
+	InstanceType(String identifier, int numberOfComputeUnits, int numberOfCores, int memorySize,
 			int diskCapacity, int pricePerHour) {
 
 		this.identifier = identifier;
@@ -166,60 +169,46 @@ public class InstanceType {
 	 */
 	public String toStringRepresentation() {
 		StringBuilder bld = new StringBuilder(32);
-		bld.append(identifier);
+		bld.append(this.identifier);
 		bld.append(',');
-		bld.append(numberOfComputeUnits);
+		bld.append(this.numberOfComputeUnits);
 		bld.append(',');
-		bld.append(numberOfCores);
+		bld.append(this.numberOfCores);
 		bld.append(',');
-		bld.append(memorySize);
+		bld.append(this.memorySize);
 		bld.append(',');
-		bld.append(diskCapacity);
+		bld.append(this.diskCapacity);
 		bld.append(',');
-		bld.append(pricePerHour);
+		bld.append(this.pricePerHour);
 
 		return bld.toString();
 	}
 
-	// ------------------------------------------------------------------------
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(DataOutput out) throws IOException {
+
+		StringRecord.writeString(out, this.identifier);
+		out.writeInt(this.numberOfComputeUnits);
+		out.writeInt(this.numberOfCores);
+		out.writeInt(this.memorySize);
+		out.writeInt(this.diskCapacity);
+		out.writeInt(this.pricePerHour);
+	}
 
 	/**
-	 * Gets an instance type parsed from its string description.
-	 * 
-	 * @param description
-	 *        The string description of the instance type.
-	 * @return An instance that corresponds to the description.
-	 * @throws IllegalArgumentException
-	 *         Thrown, if the string does not correctly describe an instance.
+	 * {@inheritDoc}
 	 */
-	public static final InstanceType getTypeFromString(String description) throws IllegalArgumentException {
-		if (descr_pattern == null) {
-			try {
-				descr_pattern = Pattern.compile("^([^,]+),(\\d+),(\\d+),(\\d+),(\\d+),(\\d+)$");
-			} catch (PatternSyntaxException psex) {
-				throw new RuntimeException("Invalid Regex Pattern to parse instance description.", psex);
-			}
-		}
+	@Override
+	public void read(DataInput in) throws IOException {
 
-		try {
-			final Matcher m = descr_pattern.matcher(description);
-
-			if (!m.matches()) {
-				throw new IllegalArgumentException("The value '" + description + "' does not match pattern "
-					+ descr_pattern.toString());
-			}
-
-			final String identifier = m.group(1);
-			final int numComputeUnits = Integer.parseInt(m.group(2));
-			final int numCores = Integer.parseInt(m.group(3));
-			final int memorySize = Integer.parseInt(m.group(4));
-			final int diskCapacity = Integer.parseInt(m.group(5));
-			final int pricePerHour = Integer.parseInt(m.group(6));
-
-			return new InstanceType(identifier, numComputeUnits, numCores, memorySize, diskCapacity, pricePerHour);
-		} catch (Exception e) {
-			throw new IllegalArgumentException("The value '" + description + "' does not match pattern "
-				+ descr_pattern.toString());
-		}
+		this.identifier = StringRecord.readString(in);
+		this.numberOfComputeUnits = in.readInt();
+		this.numberOfCores = in.readInt();
+		this.memorySize = in.readInt();
+		this.diskCapacity = in.readInt();
+		this.pricePerHour = in.readInt();
 	}
 }

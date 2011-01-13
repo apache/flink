@@ -28,6 +28,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
@@ -335,12 +336,12 @@ public class PactCompiler {
 			PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION);
 		InstanceType type = null;
 		try {
-			type = InstanceType.getTypeFromString(instanceDescr);
+			type = InstanceTypeFactory.constructFromDescription(instanceDescr);
 		}
 		catch (IllegalArgumentException iaex) {
 			LOG.error("Invalid description of standard instance type in PACT configuration: " + instanceDescr + 
 				". Using default instance type " + PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION + ".", iaex);
-			type = InstanceType.getTypeFromString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION);
+			type = InstanceTypeFactory.constructFromDescription(PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION);
 		}
 		this.pactInstanceType = type;
 

@@ -26,6 +26,7 @@ import static org.junit.Assert.*;
 
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cluster.AllocatedSlice;
 import eu.stratosphere.nephele.instance.cluster.ClusterInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -45,7 +46,8 @@ public class HostInClusterTest {
 		int memorySize = 32 * 1024;
 		int diskCapacity = 200;
 		int pricePerHour = 10;
-		final InstanceType capacity = new InstanceType(identifier, numComputeUnits, numCores, memorySize, diskCapacity,
+		final InstanceType capacity = InstanceTypeFactory.construct(identifier, numComputeUnits, numCores, memorySize,
+			diskCapacity,
 			pricePerHour);
 		final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(socket.getAddress(), socket
 			.getPort(), 1235);
@@ -80,7 +82,7 @@ public class HostInClusterTest {
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;
 		final int diskCapacity = 200 / 8;
-		final InstanceType type = new InstanceType("dummy", numComputeUnits, numCores, memorySize, diskCapacity, -1);
+		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize, diskCapacity, -1);
 
 		for (int run = 0; run < 2; ++run) {
 			// do this twice to check that everything is correctly freed
@@ -95,10 +97,10 @@ public class HostInClusterTest {
 			}
 
 			// now no resources should be left
-			assertNull(host.createSlice(new InstanceType("dummy", 1, 0, 0, 0, 0), jobID));
-			assertNull(host.createSlice(new InstanceType("dummy", 0, 1, 0, 0, 0), jobID));
-			assertNull(host.createSlice(new InstanceType("dummy", 0, 0, 1, 0, 0), jobID));
-			assertNull(host.createSlice(new InstanceType("dummy", 0, 0, 0, 1, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 1, 0, 0, 0, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 1, 0, 0, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 1, 0, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 0, 1, 0), jobID));
 
 			for (int i = 0; i < 8; ++i) {
 				host.removeAllocatedSlice(slices[i].getAllocationID());
@@ -117,7 +119,7 @@ public class HostInClusterTest {
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;
 		final int diskCapacity = 200 / 8;
-		final InstanceType type = new InstanceType("dummy", numComputeUnits, numCores, memorySize, diskCapacity, -1);
+		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize, diskCapacity, -1);
 
 		for (int run = 0; run < 2; ++run) {
 			// do this twice to check that everything is correctly freed
@@ -132,10 +134,10 @@ public class HostInClusterTest {
 			}
 
 			// now no resources should be left
-			assertNull(host.createSlice(new InstanceType("dummy", 1, 0, 0, 0, 0), jobID));
-			assertNull(host.createSlice(new InstanceType("dummy", 0, 1, 0, 0, 0), jobID));
-			assertNull(host.createSlice(new InstanceType("dummy", 0, 0, 1, 0, 0), jobID));
-			assertNull(host.createSlice(new InstanceType("dummy", 0, 0, 0, 1, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 1, 0, 0, 0, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 1, 0, 0, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 1, 0, 0), jobID));
+			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 0, 1, 0), jobID));
 
 			List<AllocatedSlice> removedSlices = host.removeAllAllocatedSlices();
 

@@ -27,8 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,6 +43,7 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -167,9 +166,6 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			throw new RuntimeException("Illegal configuration, cloudmgr.nrtypes is not configured");
 		}
 
-		// read instance types
-		final Pattern pattern = Pattern.compile("^([^,]+),(\\d+),(\\d+),(\\d+),(\\d+),(\\d+)$");
-
 		for (int i = 0; i < num; ++i) {
 
 			final String key = "cloudmgr.instancetype." + (i + 1);
@@ -178,27 +174,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 				throw new RuntimeException("Illegal configuration for " + key);
 			}
 
-			try {
-				final Matcher m = pattern.matcher(type);
-				if (!m.matches()) {
-					throw new Exception(key + " does not match pattern " + pattern.toString());
-				}
-
-				final String identifier = m.group(1);
-				final int numComputeUnits = Integer.parseInt(m.group(2));
-				final int numCores = Integer.parseInt(m.group(3));
-				final int memorySize = Integer.parseInt(m.group(4));
-				final int diskCapacity = Integer.parseInt(m.group(5));
-				final int pricePerHour = Integer.parseInt(m.group(6));
-
-				final InstanceType instanceType = new InstanceType(identifier, numComputeUnits, numCores, memorySize,
-					diskCapacity, pricePerHour);
-				instanceTypes.add(instanceType);
-
-			} catch (Exception e) {
-				LOG.error("Error parsing " + key + ":" + type, e);
-				throw new RuntimeException("Error parsing " + key + ":" + type, e);
-			}
+			instanceTypes.add(InstanceTypeFactory.constructFromDescription(type));
 		}
 
 		// sort by price
