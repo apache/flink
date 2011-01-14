@@ -24,7 +24,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
- * Contract for all tasks that have two inputs like "reduce" or "cross".
+ * Contract for all tasks that have two inputs.
  * 
  * @author DIMA
  */
@@ -62,7 +62,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the class type of the first input key
 	 * 
-	 * @return
+	 * @return The class of the first input key.
 	 */
 	public Class<? extends Key> getFirstInputKeyClass() {
 		return ReflectionUtil.getTemplateType1(this.getClass());
@@ -71,7 +71,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the class type of the first input value
 	 * 
-	 * @return
+	 * @return The class of the first input value.
 	 */
 	public Class<? extends Value> getFirstInputValueClass() {
 		return ReflectionUtil.getTemplateType2(this.getClass());
@@ -80,7 +80,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the class type of the second input key
 	 * 
-	 * @return
+	 * @return The class of the second input key.
 	 */
 	public Class<? extends Key> getSecondInputKeyClass() {
 		return ReflectionUtil.getTemplateType3(this.getClass());
@@ -89,7 +89,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the class type of the second input value
 	 * 
-	 * @return
+	 * @return The type of the second input value.
 	 */
 	public Class<? extends Value> getSecondInputValueClass() {
 		return ReflectionUtil.getTemplateType4(this.getClass());
@@ -98,7 +98,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the class type of the output key
 	 * 
-	 * @return
+	 * @return The class of the output key.
 	 */
 	public Class<? extends Key> getOutputKeyClass() {
 		return ReflectionUtil.getTemplateType5(this.getClass());
@@ -107,7 +107,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the class type of the output value
 	 * 
-	 * @return
+	 * @return The class of the output value.
 	 */
 	public Class<? extends Value> getOutputValueClass() {
 		return ReflectionUtil.getTemplateType6(this.getClass());
@@ -116,7 +116,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the first input or null if none is set
 	 * 
-	 * @return
+	 * @return The contract's first input contract.
 	 */
 	public Contract getFirstInput() {
 		return firstInput;
@@ -125,16 +125,16 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Returns the second input or null if none is set
 	 * 
-	 * @return
+	 * @return The contract's second input contract.
 	 */
 	public Contract getSecondInput() {
 		return secondInput;
 	}
 
 	/**
-	 * Connects the second input to the task wrapped in this contract
+	 * Connects the first input to the task wrapped in this contract
 	 * 
-	 * @param firstInput
+	 * @param firstInput The contract that is connected as the first input.
 	 */
 	public void setFirstInput(Contract firstInput) {
 		this.firstInput = firstInput;
@@ -143,7 +143,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	/**
 	 * Connects the second input to the task wrapped in this contract
 	 * 
-	 * @param secondInput
+	 * @param secondInput The contract that is connected as the second input.
 	 */
 	public void setSecondInput(Contract secondInput) {
 		this.secondInput = secondInput;

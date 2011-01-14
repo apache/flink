@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.jobmanager.scheduler.local;
 
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.jobgraph.JobStatus;
  * 
  * @author warneke
  */
-public class LocalExecutionNotifiable implements ExecutionNotifiable {
+public class LocalExecutionListener implements ExecutionListener {
 
 	/**
 	 * The instance of the {@link LocalScheduler}.
@@ -50,7 +50,7 @@ public class LocalExecutionNotifiable implements ExecutionNotifiable {
 	 * @param executionVertex
 	 *        the {@link ExecutionVertex} the received notification refer to
 	 */
-	public LocalExecutionNotifiable(LocalScheduler localScheduler, ExecutionVertex executionVertex) {
+	public LocalExecutionListener(LocalScheduler localScheduler, ExecutionVertex executionVertex) {
 		this.localScheduler = localScheduler;
 		this.executionVertex = executionVertex;
 	}

@@ -73,7 +73,7 @@ public class PartialOrderPriorityQueue<T> extends AbstractQueue<T> implements Qu
 	/**
 	 * Returns the remaining capacity of the backing array.
 	 * 
-	 * @return
+	 * @return The remaining capacity of the backing array.
 	 */
 	public int remainingCapacity() {
 		return capacity - size;

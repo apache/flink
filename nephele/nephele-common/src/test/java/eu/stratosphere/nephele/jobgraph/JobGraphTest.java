@@ -35,8 +35,6 @@ package eu.stratosphere.nephele.jobgraph;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.IllegalConfigurationException;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -73,11 +71,11 @@ public class JobGraphTest {
 
 	@Test
 	public void testJobGraph() {
-		// check if the backward edge really points to the preceeding vertex
-		JobGraph jg = new JobGraph();
+		// check if the backward edge really points to the preceding vertex
+		final JobGraph jg = new JobGraph();
 
-		JobTaskVertex v1 = new JobTaskVertex(jg);
-		JobTaskVertex v2 = new JobTaskVertex(jg);
+		final JobTaskVertex v1 = new JobTaskVertex(jg);
+		final JobTaskVertex v2 = new JobTaskVertex(jg);
 
 		try {
 			v1.connectTo(v2);
@@ -87,6 +85,41 @@ public class JobGraphTest {
 
 		assertEquals(v1, v2.getBackwardConnection(0).getConnectedVertex());
 
+	}
+
+	/**
+	 * In this test we construct a job graph and set the dependency chain for instance sharing in a way that a cycle is
+	 * created. The test is considered successful if the cycle is detected.
+	 */
+	@Test
+	public void detectCycleInInstanceSharingDependencyChain() {
+
+		final JobGraph jg = new JobGraph();
+
+		final JobTaskVertex v1 = new JobTaskVertex("v1", jg);
+		final JobTaskVertex v2 = new JobTaskVertex("v2", jg);
+		final JobTaskVertex v3 = new JobTaskVertex("v3", jg);
+		final JobTaskVertex v4 = new JobTaskVertex("v4", jg);
+
+		try {
+			v1.connectTo(v2);
+			v2.connectTo(v3);
+			v3.connectTo(v4);
+		} catch (JobGraphDefinitionException ex) {
+			Logger.getLogger(JobGraphTest.class.getName()).log(Level.SEVERE, null, ex);
+		}
+
+		// Dependency chain is acyclic
+		v1.setVertexToShareInstancesWith(v2);
+		v3.setVertexToShareInstancesWith(v2);
+		v4.setVertexToShareInstancesWith(v1);
+
+		assertEquals(jg.isInstanceDependencyChainAcyclic(), true);
+
+		// Create a cycle v4 -> v1 -> v2 -> v4
+		v2.setVertexToShareInstancesWith(v4);
+
+		assertEquals(jg.isInstanceDependencyChainAcyclic(), false);
 	}
 
 	// TODO add test methods here.

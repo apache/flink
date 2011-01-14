@@ -15,10 +15,13 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
-import org.apache.hadoop.fs.Path;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.template.IllegalConfigurationException;
+import eu.stratosphere.pact.test.util.Constants;
+import eu.stratosphere.pact.test.util.filesystem.HDFSProvider;
+import eu.stratosphere.pact.test.util.filesystem.LocalFSProvider;
+import eu.stratosphere.pact.test.util.filesystem.MiniDFSProvider;
 
 public class LocalClusterProvider extends ClusterProvider {
 
@@ -32,21 +35,28 @@ public class LocalClusterProvider extends ClusterProvider {
 		super(config);
 
 		this.numTaskTrackers = Integer.parseInt(config.getString(
-			"LocalClusterProvider#numTaskTrackers", "-1"));
+			Constants.CLUSTER_NUM_TASKTRACKER, "-1"));
 		if (numTaskTrackers == -1) {
 			throw new Exception("Number of task trackers was not specified");
 		}
 	}
 
 	@Override
-	protected void startHDFS() throws Exception {
-		if (hdfsIsRunning()) {
+	protected void startFS() throws Exception {
+		if (fsIsRunning()) {
 			return;
 		}
 
-		hdfsProvider = new MiniDFSProvider();
-		hdfsProvider.start();
-		hdfsRunning = true;
+		if(config.getString(Constants.FILESYSTEM_TYPE, "").equals("local_fs")) {
+			filesystemProvider = new LocalFSProvider();
+		} else if(config.getString(Constants.FILESYSTEM_TYPE, "").equals("mini_hdfs")) {
+			filesystemProvider = new MiniDFSProvider();
+		} else {
+			throw new IllegalConfigurationException("Invalid file system type: "+config.getString(Constants.FILESYSTEM_TYPE, ""));
+		}
+		
+		filesystemProvider.start();
+		filesystemRunning = true;
 	}
 
 	@Override
@@ -56,22 +66,25 @@ public class LocalClusterProvider extends ClusterProvider {
 		}
 
 		String nepheleConfigDir = System.getProperty("user.dir") + "/tmp/nephele/config";
-		if (hdfsProvider == null) {
-			startHDFS();
+		if (filesystemProvider == null) {
+			startFS();
 		}
-		String hdfsConfigDir = hdfsProvider.getConfigDir();
+		String hdfsConfigDir = "";
+		if(this.config.getString(Constants.FILESYSTEM_TYPE, "").equals("mini_hdfs")) {
+			hdfsConfigDir = ((HDFSProvider)filesystemProvider).getConfigDir();
+		}
 		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, numTaskTrackers);
 		nepheleRunning = true;
 	}
 
 	@Override
-	protected void stopHDFS() throws Exception {
-		if (!hdfsIsRunning()) {
+	protected void stopFS() throws Exception {
+		if (!fsIsRunning()) {
 			return;
 		}
 
-		hdfsProvider.stop();
-		hdfsRunning = false;
+		filesystemProvider.stop();
+		filesystemRunning = false;
 	}
 
 	@Override
@@ -94,8 +107,8 @@ public class LocalClusterProvider extends ClusterProvider {
 	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#clearHDFS()
 	 */
 	@Override
-	protected void clearHDFS() throws Exception {
-		hdfsProvider.getFileSystem().delete(new Path("/"), true);
+	protected void clearFS() throws Exception {
+		filesystemProvider.delete("/", true);
 	}
 
 }

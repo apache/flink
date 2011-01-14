@@ -33,11 +33,9 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	private int numNodes;
 
 	/**
-	 * Creates a new cost estimator that assumes a given number of nodes, unless
+	 * Creates a new cost estimator that assumes four nodes, unless
 	 * the parameters of a contract indicate anything else.
 	 * 
-	 * @param numNodes
-	 *        The number of nodes in the cluster.
 	 */
 	public FixedSizeClusterCostEstimator() {
 		this(4); // @parallelism

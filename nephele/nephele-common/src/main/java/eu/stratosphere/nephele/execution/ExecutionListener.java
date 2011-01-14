@@ -21,7 +21,7 @@ package eu.stratosphere.nephele.execution;
  * 
  * @author warneke
  */
-public interface ExecutionNotifiable {
+public interface ExecutionListener {
 
 	/**
 	 * Called when the execution state of the associated task has changed.

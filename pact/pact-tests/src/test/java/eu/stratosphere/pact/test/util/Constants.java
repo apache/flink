@@ -27,6 +27,10 @@ public interface Constants
 	String CLUSTER_PROVIDER_TYPE = "ClusterProvider#clusterProviderType";
 
 	String CLUSTER_PROVIDER_ID = "ClusterProvider#clusterId";
+	
+	String FILESYSTEM_TYPE = "FilesystemProvider#filesystemType";
+	
+	String CLUSTER_NUM_TASKTRACKER = "LocalClusterProvider#numTaskTrackers";
 
 	String DEFAULT_TEST_CONFIG = "local1TM";
 

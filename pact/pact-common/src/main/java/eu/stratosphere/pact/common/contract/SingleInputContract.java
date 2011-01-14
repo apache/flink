@@ -60,7 +60,7 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	/**
 	 * Returns the class type of the input key
 	 * 
-	 * @return
+	 * @return The class of the input key.
 	 */
 	public Class<? extends Key> getInputKeyClass() {
 		return ReflectionUtil.getTemplateType1(this.getClass());
@@ -69,7 +69,7 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	/**
 	 * Returns the class type of the input value
 	 * 
-	 * @return
+	 * @return The class of the input value.
 	 */
 	public Class<? extends Value> getInputValueClass() {
 		return ReflectionUtil.getTemplateType2(this.getClass());
@@ -78,7 +78,7 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	/**
 	 * Returns the class type of the output key
 	 * 
-	 * @return
+	 * @return The class of the output key.
 	 */
 	public Class<? extends Key> getOutputKeyClass() {
 		return ReflectionUtil.getTemplateType3(this.getClass());
@@ -87,7 +87,7 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	/**
 	 * Returns the class type of the output value
 	 * 
-	 * @return
+	 * @return The class of the output value.
 	 */
 	public Class<? extends Value> getOutputValueClass() {
 		return ReflectionUtil.getTemplateType4(this.getClass());
@@ -96,7 +96,7 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	/**
 	 * Returns the input or null if none is set
 	 * 
-	 * @return
+	 * @return The contract's input contract.
 	 */
 	public Contract getInput() {
 		return input;
@@ -105,7 +105,7 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	/**
 	 * Connects the input to the task wrapped in this contract
 	 * 
-	 * @param input
+	 * @param input The contract will be set as input.
 	 */
 	public void setInput(Contract input) {
 		this.input = input;

@@ -242,7 +242,7 @@ public class LocalScheduler implements Scheduler {
 						+ ExecutionState.CREATED);
 				}
 
-				vertex.getEnvironment().registerExecutionNotifiable(new LocalExecutionNotifiable(this, vertex));
+				vertex.getEnvironment().registerExecutionListener(new LocalExecutionListener(this, vertex));
 				vertex.setExecutionState(ExecutionState.SCHEDULED);
 
 			}

@@ -41,7 +41,7 @@ public abstract class TextOutputFormat<K extends Key, V extends Value> extends O
 	 * '\n' for line based formats).
 	 * 
 	 * @param pair
-	 * @return
+	 * @return The serialized KeyValuePair.
 	 */
 	public abstract byte[] writeLine(KeyValuePair<K, V> pair);
 

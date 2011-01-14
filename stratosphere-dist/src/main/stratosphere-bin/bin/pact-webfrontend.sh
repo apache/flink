@@ -20,8 +20,6 @@ STARTSTOP=$1
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-webDir="$bin/../resources/web-docs/"
-
 # get nephele config
 . "$bin"/nephele-config.sh
 
@@ -50,7 +48,7 @@ case $STARTSTOP in
                         fi
                 fi
                 echo starting PACT Webfrontend
-		$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR -webdir $webDir &
+		$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR &
 		echo $! > $pid
 	;;
 

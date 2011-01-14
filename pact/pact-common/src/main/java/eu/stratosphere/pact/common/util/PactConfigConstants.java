@@ -51,6 +51,11 @@ public final class PactConfigConstants {
 	// ----------------------------- Web Frontend -----------------------------
 
 	/**
+	 * The key for Stratosphere's base dir path
+	 */
+	public static final String STRATOSPHERE_BASE_DIR_PATH_KEY = "stratosphere.base.dir.path";
+	
+	/**
 	 * The key for the config parameter defining port for the pact web-frontend server.
 	 */
 	public static final String WEB_FRONTEND_PORT_KEY = "pact.web.port";
@@ -117,7 +122,7 @@ public final class PactConfigConstants {
 	/**
 	 * The default path of the directory containing the web documents.
 	 */
-	public static final String DEFAULT_WEB_ROOT_DIR = "../resources/web-docs/";
+	public static final String DEFAULT_WEB_ROOT_DIR = "./resources/web-docs/";
 
 	/**
 	 * The default directory to store temporary objects (e.g. during file uploads).

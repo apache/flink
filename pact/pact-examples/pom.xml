@@ -19,51 +19,28 @@
 
   <dependencies>
 
-
-
     <dependency>
     	<groupId>eu.stratosphere</groupId>
     	<artifactId>pact-compiler</artifactId>
     	<version>${version}</version>
     </dependency>
 
-
     <dependency>
     	<groupId>eu.stratosphere</groupId>
     	<artifactId>pact-common</artifactId>
     	<version>${version}</version>
     </dependency>
+    
   </dependencies>
 
   <reporting>
     <plugins>
-      <plugin>
-        <!--
-          just define the Java version to be used for compiling and
-          plugins
-        -->
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.0</version>
-        <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
-        </configuration>
-      </plugin>
     </plugins>
   </reporting>
 
   <build>
     <plugins>
-      <plugin>
-        <!-- just define the Java version to be used for compiling and plugins -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
-        </configuration>
-      </plugin>
-
+      
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -188,7 +165,7 @@
 
         </executions>
       </plugin>
-
+      
     </plugins>
   </build>
 </project>

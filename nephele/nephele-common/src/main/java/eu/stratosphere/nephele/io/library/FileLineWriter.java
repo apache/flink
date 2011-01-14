@@ -15,9 +15,6 @@
 
 package eu.stratosphere.nephele.io.library;
 
-import java.io.IOException;
-
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -26,7 +23,6 @@ import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * A file line writer reads string records its input gate and writes them to the associated output file.
@@ -35,59 +31,52 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public class FileLineWriter extends AbstractFileOutputTask {
 
+	/**
+	 * The record reader through which incoming string records are received.
+	 */
 	private RecordReader<StringRecord> input = null;
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void invoke() throws ExecutionFailureException {
+	public void invoke() throws Exception {
 
-		try {
+		Path outputPath = getFileOutputPath();
 
-			Path outputPath = getFileOutputPath();
+		FileSystem fs = FileSystem.get(outputPath.toUri());
+		if (fs.exists(outputPath)) {
+			FileStatus status = fs.getFileStatus(outputPath);
 
-			FileSystem fs = FileSystem.get(outputPath.toUri());
-			if (fs.exists(outputPath)) {
-				FileStatus status = fs.getFileStatus(outputPath);
-
-				if (status.isDir()) {
-					outputPath = new Path(outputPath.toUri().toString() + "/file_" + getIndexInSubtaskGroup() + ".txt");
-				}
+			if (status.isDir()) {
+				outputPath = new Path(outputPath.toUri().toString() + "/file_" + getIndexInSubtaskGroup() + ".txt");
 			}
-
-			FSDataOutputStream outputStream = fs.create(outputPath, true);
-
-			int i = 0;
-
-			while (input.hasNext()) {
-
-				try {
-					StringRecord record = input.next();
-					i++;
-					byte[] recordByte = (record.toString() + "\r\n").getBytes();
-					outputStream.write(recordByte, 0, recordByte.length);
-					// TODO: Implement me
-					// System.out.println(input.next());
-					// TODO Auto-generated catch block
-				} catch (InterruptedException e) {
-					// TODO: Handle interruption properly
-					e.printStackTrace();
-				}
-
-			}
-
-			System.out.println("WRITER: Wrote " + i + "records ");
-
-			outputStream.close();
-
-		} catch (IOException ioe) {
-			throw new ExecutionFailureException(StringUtils.stringifyException(ioe));
 		}
+
+		final FSDataOutputStream outputStream = fs.create(outputPath, true);
+
+		while (this.input.hasNext()) {
+
+			StringRecord record = this.input.next();
+			byte[] recordByte = (record.toString() + "\r\n").getBytes();
+			outputStream.write(recordByte, 0, recordByte.length);
+		}
+
+		outputStream.close();
+
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void registerInputOutput() {
-		input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
+		this.input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int getMaximumNumberOfSubtasks() {
 		// The default implementation always returns -1

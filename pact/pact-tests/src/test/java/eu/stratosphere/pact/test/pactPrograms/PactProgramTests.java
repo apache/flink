@@ -13,28 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.util.minicluster;
+package eu.stratosphere.pact.test.pactPrograms;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
+import org.junit.runners.Suite.SuiteClasses;
 
-public class ExternalDFSProvider extends HDFSProvider {
-	public ExternalDFSProvider(String configDir) {
-		super(configDir);
-	}
+@RunWith(Suite.class)
+// @SuiteClasses( { All2AllSPTest.class, EnumTrianglesTest.class, KMeansIterationTest.class, TPCHQuery3Test.class, WebLogAnalysisTest.class, WordCountTest.class })
+@SuiteClasses( { WordCountTest.class, KMeansIterationTest.class, TPCHQuery3Test.class })
+public class PactProgramTests {
 
-	@Override
-	public void start() throws Exception {
-		Configuration config = new Configuration(false);
-		config.addResource(new Path(configDir + "/hadoop-default.xml"));
-		config.addResource(new Path(configDir + "/hadoop-site.xml"));
-
-		hdfs = FileSystem.get(config);
-	}
-
-	@Override
-	public void stop() {
-		hdfs = null;
-	}
 }

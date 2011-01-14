@@ -73,9 +73,7 @@ public class ExecutionGraphTest {
 
 	private static final String INPUTCONTENT = "a\r\nb\r\nc\r\nd\r\n";
 
-	private static final int SLEEPINTERVAL = 5000;
-
-	private static final class MyInstanceNotifiable implements InstanceListener {
+	private static final class MyInstanceListener implements InstanceListener {
 
 		int nrAvailable = 0;
 
@@ -305,9 +303,9 @@ public class ExecutionGraphTest {
 		final String confDir = System.getProperty("user.dir") + "/correct-conf";
 		GlobalConfiguration.loadConfiguration(confDir);
 
-		MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener myInstanceListener = new MyInstanceListener();
 		LocalInstanceManager lim = new LocalInstanceManager(confDir);
-		lim.setInstanceListener(myInstanceNotifiable);
+		lim.setInstanceListener(myInstanceListener);
 
 		// now convert job graph to execution graph
 		try {
@@ -484,13 +482,6 @@ public class ExecutionGraphTest {
 		finally {
 			// Stop the local instance manager
 			lim.shutdown();
-
-			// Wait for local task manager to stop and release ports
-			try {
-				Thread.sleep(SLEEPINTERVAL);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
 		}
 	}
 
@@ -550,9 +541,9 @@ public class ExecutionGraphTest {
 		final String confDir = System.getProperty("user.dir") + "/correct-conf";
 		GlobalConfiguration.loadConfiguration(confDir);
 
-		MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		MyInstanceListener myInstanceListener = new MyInstanceListener();
 		final LocalInstanceManager lim = new LocalInstanceManager(confDir);
-		lim.setInstanceListener(myInstanceNotifiable);
+		lim.setInstanceListener(myInstanceListener);
 
 		// now convert job graph to execution graph
 		try {
@@ -622,13 +613,6 @@ public class ExecutionGraphTest {
 		finally {
 			// Stop the local instance manager
 			lim.shutdown();
-
-			// Wait for local task manager to stop and release ports
-			try {
-				Thread.sleep(SLEEPINTERVAL);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
 		}
 	}
 
@@ -722,9 +706,9 @@ public class ExecutionGraphTest {
 		final String confDir = System.getProperty("user.dir") + "/correct-conf";
 		GlobalConfiguration.loadConfiguration(confDir);
 
-		final MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		final MyInstanceListener myInstanceListener = new MyInstanceListener();
 		final LocalInstanceManager lim = new LocalInstanceManager(confDir);
-		lim.setInstanceListener(myInstanceNotifiable);
+		lim.setInstanceListener(myInstanceListener);
 
 		// now convert job graph to execution graph
 		try {
@@ -898,13 +882,6 @@ public class ExecutionGraphTest {
 		finally {
 			// Stop the local instance manager
 			lim.shutdown();
-
-			// Wait for local task manager to stop and release ports
-			try {
-				Thread.sleep(SLEEPINTERVAL);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
 		}
 	}
 
@@ -1020,9 +997,9 @@ public class ExecutionGraphTest {
 		final String confDir = System.getProperty("user.dir") + "/correct-conf";
 		GlobalConfiguration.loadConfiguration(confDir);
 
-		final MyInstanceNotifiable myInstanceNotifiable = new MyInstanceNotifiable();
+		final MyInstanceListener myInstanceListener = new MyInstanceListener();
 		final LocalInstanceManager lim = new LocalInstanceManager(confDir);
-		lim.setInstanceListener(myInstanceNotifiable);
+		lim.setInstanceListener(myInstanceListener);
 
 		// now convert job graph to execution graph
 		try {
@@ -1064,13 +1041,6 @@ public class ExecutionGraphTest {
 		finally {
 			// Stop the local instance manager
 			lim.shutdown();
-
-			// Wait for local task manager to stop and release ports
-			try {
-				Thread.sleep(SLEEPINTERVAL);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
 		}
 	}
 }

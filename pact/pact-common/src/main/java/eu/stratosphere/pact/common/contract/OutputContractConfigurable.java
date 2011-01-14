@@ -29,14 +29,14 @@ public interface OutputContractConfigurable {
 	/**
 	 * The output contract for the contract
 	 * 
-	 * @param clazz
+	 * @param clazz The class of the OutputContract that is attached.
 	 */
 	public void setOutputContract(Class<? extends Annotation> clazz);
 
 	/**
 	 * Returns the output contract that was set.
 	 * 
-	 * @return
+	 * @return The class of the attached OutputContract.
 	 */
 	public Class<? extends Annotation> getOutputContract();
 

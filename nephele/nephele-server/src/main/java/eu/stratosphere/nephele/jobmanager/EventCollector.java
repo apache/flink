@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.event.job.ManagementEvent;
 import eu.stratosphere.nephele.event.job.NewJobEvent;
 import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -42,7 +42,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.profiling.ProfilingNotifiable;
+import eu.stratosphere.nephele.profiling.ProfilingListener;
 import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
 
 /**
@@ -52,10 +52,10 @@ import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
  * 
  * @author warneke
  */
-public class EventCollector extends TimerTask implements ProfilingNotifiable {
+public class EventCollector extends TimerTask implements ProfilingListener {
 
 	/**
-	 * The execution notitifiable wrapper is an auxiliary class. It is required
+	 * The execution listener wrapper is an auxiliary class. It is required
 	 * because the job vertex ID and the management vertex ID cannot be accessed from
 	 * the data provided by the <code>executionStateChanged</code> callback method.
 	 * However, these IDs are needed to create the construct the {@link VertexEvent} and the
@@ -63,7 +63,7 @@ public class EventCollector extends TimerTask implements ProfilingNotifiable {
 	 * 
 	 * @author warneke
 	 */
-	private class ExecutionNotifiableWrapper implements ExecutionNotifiable {
+	private class ExecutionListenerWrapper implements ExecutionListener {
 
 		/**
 		 * The event collector to forward the created event to.
@@ -81,7 +81,7 @@ public class EventCollector extends TimerTask implements ProfilingNotifiable {
 		private final ManagementVertexID managementVertexID;
 
 		/**
-		 * Constructs a new execution notifiable object.
+		 * Constructs a new execution listener object.
 		 * 
 		 * @param eventCollector
 		 *        the event collector to forward the created event to
@@ -90,7 +90,7 @@ public class EventCollector extends TimerTask implements ProfilingNotifiable {
 		 * @param executionVertexID
 		 *        the ID of the execution vertex this wrapper object belongs to
 		 */
-		public ExecutionNotifiableWrapper(EventCollector eventCollector, JobVertexID jobVertexID,
+		public ExecutionListenerWrapper(EventCollector eventCollector, JobVertexID jobVertexID,
 				ExecutionVertexID executionVertexID) {
 			this.eventCollector = eventCollector;
 			this.jobVertexID = jobVertexID;
@@ -351,9 +351,9 @@ public class EventCollector extends TimerTask implements ProfilingNotifiable {
 
 			final ExecutionVertex vertex = it.next();
 
-			// Register the notifiable object which will pass state changes on to the collector
-			vertex.getEnvironment().registerExecutionNotifiable(
-				new ExecutionNotifiableWrapper(this, vertex.getGroupVertex().getJobVertexID(), vertex.getID()));
+			// Register the listener object which will pass state changes on to the collector
+			vertex.getEnvironment().registerExecutionListener(
+				new ExecutionListenerWrapper(this, vertex.getGroupVertex().getJobVertexID(), vertex.getID()));
 		}
 
 		// Register one job status listener wrapper for the entire job

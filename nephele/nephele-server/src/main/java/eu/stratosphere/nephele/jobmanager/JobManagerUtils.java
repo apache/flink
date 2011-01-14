@@ -27,16 +27,27 @@ import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 import eu.stratosphere.nephele.util.StringUtils;
 
+/**
+ * This class provides static utility methods for the {@link JobManager}.
+ * 
+ * @author warneke
+ */
 public class JobManagerUtils {
 
+	/**
+	 * The logging object used by the utility methods.
+	 */
 	private static final Log LOG = LogFactory.getLog(JobManagerUtils.class);
 
+	/**
+	 * Private constructor.
+	 */
 	private JobManagerUtils() {
 	}
 
 	/**
 	 * Tries to locate a class with given name and to
-	 * instantiate a scheduler from it.
+	 * instantiate a {@link Scheduler} object from it.
 	 * 
 	 * @param schedulerClassName
 	 *        the name of the class to instantiate the scheduler object from
@@ -127,6 +138,16 @@ public class JobManagerUtils {
 		return instanceManager;
 	}
 
+	/**
+	 * Tries to read the class name of the {@link Scheduler} implementation from the global configuration which is set
+	 * to be
+	 * used for the provided execution mode.
+	 * 
+	 * @param executionMode
+	 *        the name of the Nephele execution mode
+	 * @return the class name of the {@link Scheduler} implementation to be used or <code>null</code> if no
+	 *         implementation is configured for the given execution mode
+	 */
 	public static String getSchedulerClassName(String executionMode) {
 
 		final String instanceManagerClassNameKey = "jobmanager.scheduler." + executionMode + ".classname";

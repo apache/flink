@@ -258,6 +258,8 @@ public abstract class Server {
 		// two cleanup runs
 		private int backlogLength = 128;
 
+		private volatile boolean shutDown = false;
+
 		public Listener()
 							throws IOException {
 			address = new InetSocketAddress(bindAddress, port);
@@ -390,6 +392,12 @@ public abstract class Server {
 					closeConnection(connectionList.remove(0));
 				}
 			}
+
+			this.shutDown = true;
+		}
+
+		public boolean isShutDown() {
+			return this.shutDown;
 		}
 
 		private void closeCurrentConnection(SelectionKey key, Throwable e) {
@@ -483,6 +491,8 @@ public abstract class Server {
 
 		final static int PURGE_INTERVAL = 900000; // 15mins
 
+		private volatile boolean shutDown = false;
+
 		Responder()
 					throws IOException {
 			this.setName("IPC Server Responder");
@@ -561,6 +571,12 @@ public abstract class Server {
 				}
 			}
 			LOG.info("Stopping " + this.getName());
+
+			this.shutDown = true;
+		}
+
+		public boolean isShutDown() {
+			return this.shutDown;
 		}
 
 		private void doAsyncWrite(SelectionKey key) throws IOException {
@@ -928,6 +944,9 @@ public abstract class Server {
 
 	/** Handles queued calls . */
 	private class Handler extends Thread {
+
+		private volatile boolean shutDown = false;
+
 		public Handler(int instanceNumber) {
 			this.setDaemon(true);
 			this.setName("IPC Server handler " + instanceNumber + " on " + port);
@@ -966,8 +985,14 @@ public abstract class Server {
 				}
 			}
 			LOG.info(getName() + ": exiting");
+
+			this.shutDown = true;
 		}
 
+		public boolean isShutDown() {
+
+			return this.shutDown;
+		}
 	}
 
 	protected Server(String bindAddress, int port, Class<? extends IOReadableWritable> paramClass, int handlerCount)
@@ -978,7 +1003,7 @@ public abstract class Server {
 	/**
 	 * Constructs a server listening on the named port and address. Parameters passed must
 	 * be of the named class. The <code>handlerCount</handlerCount> determines
-   * the number of handler threads that will be used to process calls.
+	 * the number of handler threads that will be used to process calls.
 	 */
 	protected Server(String bindAddress, int port, Class<? extends IOReadableWritable> invocationClass,
 			int handlerCount, String serverName)
@@ -1090,6 +1115,53 @@ public abstract class Server {
 		if (this.rpcMetrics != null) {
 			this.rpcMetrics.shutdown();
 		}
+
+		// Wait until shut down of handlers is complete
+		if (this.handlers != null) {
+
+			while (true) {
+
+				int i = 0;
+				for (; i < this.handlerCount; i++) {
+					if (this.handlers[i] != null) {
+						if (!this.handlers[i].isShutDown()) {
+							break;
+						}
+					}
+				}
+
+				if (i < this.handlerCount) {
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException e) {
+						break;
+					}
+				} else {
+					// exit while loop
+					break;
+				}
+			}
+		}
+
+		// Wait until shut down of responder is complete
+		while (!this.responder.isShutDown()) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
+
+		// Wait until shut down of listener is complete
+		while (!this.listener.isShutDown()) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
+
+		LOG.debug("Shutdown of RPC server completed");
 	}
 
 	/**

@@ -189,7 +189,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 	 *        The node to clone.
 	 * @param globalProps
 	 *        The global properties of this copy.
-	 * @param globalProps
+	 * @param localProps
 	 *        The local properties of this copy.
 	 */
 	protected OptimizerNode(OptimizerNode toClone, GlobalProperties globalProps, LocalProperties localProps) {

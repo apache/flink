@@ -74,7 +74,6 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
@@ -134,11 +133,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 	private final static int SLEEPINTERVAL = 1000;
 
-	private long jobStartTime = 0;
-
-	private long jobFinishTime = 0;
-
 	private final static int FAILURERETURNCODE = -1;
+
+	private boolean isShutDown = false;
 
 	/**
 	 * Constructs a new job manager, starts its discovery service and its IPC service.
@@ -289,8 +286,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			try {
 				Thread.sleep(SLEEPINTERVAL);
 			} catch (InterruptedException e) {
-				e.printStackTrace();
-				continue;
+				break;
 			}
 
 			// Run ready vertices
@@ -298,7 +294,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		}
 	}
 
-	public void cleanUp() {
+	public synchronized void shutdown() {
+
+		if (this.isShutDown) {
+			return;
+		}
 
 		// Stop instance manager
 		if (this.instanceManager != null) {
@@ -327,6 +327,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		if (this.scheduler != null) {
 			this.scheduler.shutdown();
 		}
+
+		this.isShutDown = true;
+		LOG.debug("Shutdown of job manager completed");
 	}
 
 	/**
@@ -407,7 +410,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return result;
 		}
 
-		LOG.info("The graph of job " + job.getName() + " is acyclic");
+		LOG.debug("The graph of job " + job.getName() + " is acyclic");
 
 		// Check constrains on degree
 		jv = job.areVertexDegreesCorrect();
@@ -417,7 +420,16 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return result;
 		}
 
-		LOG.info("All vertices of job " + job.getName() + " have the correct degree");
+		LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
+
+		if (!job.isInstanceDependencyChainAcyclic()) {
+			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+				"The dependency chain for instance sharing contains a cycle");
+
+			return result;
+		}
+
+		LOG.debug("The dependency chain for instance sharing is acyclic");
 
 		// Try to create initial execution graph from job graph
 		LOG.info("Creating initial execution graph from job graph " + job.getName());
@@ -465,8 +477,6 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return result;
 		}
 
-		jobStartTime = System.currentTimeMillis();
-		System.out.println("Job started " + jobStartTime);
 		// Return on success
 		return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
 	}
@@ -798,5 +808,15 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 		// Unregister job for Nephele's monitoring and optimization components
 		unregisterJob(executionGraph);
+	}
+
+	/**
+	 * Tests whether the job manager has been shut down completely.
+	 * 
+	 * @return <code>true</code> if the job manager has been shut down completely, <code>false</code> otherwise
+	 */
+	public synchronized boolean isShutDown() {
+
+		return this.isShutDown;
 	}
 }

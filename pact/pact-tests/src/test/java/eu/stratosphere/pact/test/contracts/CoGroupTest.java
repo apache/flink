@@ -15,18 +15,11 @@
 
 package eu.stratosphere.pact.test.contracts;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
-
-import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -57,12 +50,10 @@ import eu.stratosphere.pact.test.util.TestBase;
  */
 @RunWith(Parameterized.class)
 public class CoGroupTest extends TestBase
-/*
- * TODO: - Allow multiple data sinks - Add strategy selection for CoGroup -
- * Implement CoGroupStub!!!
- */
 
 {
+	private static final Log LOG = LogFactory.getLog(CoGroupTest.class);
+
 	public CoGroupTest(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
@@ -87,32 +78,24 @@ public class CoGroupTest extends TestBase
 
 	@Override
 	protected void preSubmit() throws Exception {
-		getHDFSProvider().createDir(getHDFSProvider().getHdfsHome() + "/cogroup_left");
+		String tempPath = getFilesystemProvider().getTempDirPath();
 
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_left/cogroupTest_1.txt",
-			COGROUP_LEFT_IN_1);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_left/cogroupTest_2.txt",
-			COGROUP_LEFT_IN_2);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_left/cogroupTest_3.txt",
-			COGROUP_LEFT_IN_3);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_left/cogroupTest_4.txt",
-			COGROUP_LEFT_IN_4);
+		getFilesystemProvider().createDir(tempPath + "/cogroup_left");
 
-		getHDFSProvider().createDir(getHDFSProvider().getHdfsHome() + "/cogroup_right");
+		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_1.txt", COGROUP_LEFT_IN_1);
+		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_2.txt", COGROUP_LEFT_IN_2);
+		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_3.txt", COGROUP_LEFT_IN_3);
+		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_4.txt", COGROUP_LEFT_IN_4);
 
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_right/cogroupTest_1.txt",
-			COGROUP_RIGHT_IN_1);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_right/cogroupTest_2.txt",
-			COGROUP_RIGHT_IN_2);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_right/cogroupTest_3.txt",
-			COGROUP_RIGHT_IN_3);
-		getHDFSProvider().writeFileToHDFS(getHDFSProvider().getHdfsHome() + "/cogroup_right/cogroupTest_4.txt",
-			COGROUP_RIGHT_IN_4);
+		getFilesystemProvider().createDir(tempPath + "/cogroup_right");
+
+		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_1.txt", COGROUP_RIGHT_IN_1);
+		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_2.txt", COGROUP_RIGHT_IN_2);
+		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_3.txt", COGROUP_RIGHT_IN_3);
+		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_4.txt", COGROUP_RIGHT_IN_4);
 	}
 
 	public static class CoGroupTestInFormat extends TextInputFormat<PactString, PactString> {
-
-		private static final Log LOG = LogFactory.getLog(CoGroupTestInFormat.class);
 
 		@Override
 		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
@@ -120,36 +103,19 @@ public class CoGroupTest extends TestBase
 			pair.setKey(new PactString(new String((char) line[0] + "")));
 			pair.setValue(new PactString(new String((char) line[2] + "")));
 
-			LOG.info("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
 
 			return true;
 		}
 
-		// @Override
-		// public byte[] writeLine(KeyValuePair<N_String, N_String> pair)
-		// {
-		// return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
-		// }
 	}
 
 	public static class CoGroupOutFormat extends TextOutputFormat<PactString, PactInteger> {
 
-		private static final Log LOG = LogFactory.getLog(CoGroupOutFormat.class);
-
-		// @Override
-		// public void readLine(KeyValuePair<N_String, N_Integer> pair, byte[] line)
-		// {
-		//
-		// String[] tokens = line.toString().split(" ");
-		//
-		// pair.setKey(new N_String(tokens[0]));
-		// pair.setValue(new N_Integer(Integer.parseInt(tokens[1])));
-		//
-		// }
-
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-			LOG.info("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+
+			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
 
 			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
 		}
@@ -157,57 +123,55 @@ public class CoGroupTest extends TestBase
 
 	public static class TestCoGrouper extends CoGroupStub<PactString, PactString, PactString, PactString, PactInteger> {
 
-		private static final Log LOG = LogFactory.getLog(TestCoGrouper.class);
-
 		@Override
 		public void coGroup(PactString key, Iterator<PactString> values1, Iterator<PactString> values2,
 				Collector<PactString, PactInteger> out) {
 			int sum = 0;
-			LOG.info("Start iterating over input1");
+			LOG.debug("Start iterating over input1");
 			while (values1.hasNext()) {
 				PactString value = values1.next();
 				sum += Integer.parseInt(value.toString());
 
-				LOG.info("Processed: [" + key + "," + value + "]");
+				LOG.debug("Processed: [" + key + "," + value + "]");
 			}
-			LOG.info("Start iterating over input2");
+			LOG.debug("Start iterating over input2");
 			while (values2.hasNext()) {
 				PactString value = values2.next();
 				sum -= Integer.parseInt(value.toString());
 
-				LOG.info("Processed: [" + key + "," + value + "]");
+				LOG.debug("Processed: [" + key + "," + value + "]");
 			}
 			out.collect(key, new PactInteger(sum));
-			LOG.info("Finished");
+			LOG.debug("Finished");
 		}
 
 	}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
+
+		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
+
 		DataSourceContract<PactString, PactString> input_left = new DataSourceContract<PactString, PactString>(
-			CoGroupTestInFormat.class, getHDFSProvider().getHdfsHome() + "/cogroup_left");
+				CoGroupTestInFormat.class, pathPrefix + "/cogroup_left");
 		input_left.setFormatParameter("delimiter", "\n");
-		input_left
-			.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
+		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		DataSourceContract<PactString, PactString> input_right = new DataSourceContract<PactString, PactString>(
-			CoGroupTestInFormat.class, getHDFSProvider().getHdfsHome() + "/cogroup_right");
+				CoGroupTestInFormat.class, pathPrefix + "/cogroup_right");
 		input_right.setFormatParameter("delimiter", "\n");
-		input_right.setDegreeOfParallelism(config
-			.getInteger("CoGroupTest#NoSubtasks", 1));
+		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		CoGroupContract<PactString, PactString, PactString, PactString, PactInteger> testCoGrouper = new CoGroupContract<PactString, PactString, PactString, PactString, PactInteger>(
-			TestCoGrouper.class);
-		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks",
-			1));
+				TestCoGrouper.class);
+		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 		testCoGrouper.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
-			config.getString("CoGroupTest#LocalStrategy", ""));
+				config.getString("CoGroupTest#LocalStrategy", ""));
 		testCoGrouper.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
-			config.getString("CoGroupTest#ShipStrategy", ""));
+				config.getString("CoGroupTest#ShipStrategy", ""));
 
 		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
-			CoGroupOutFormat.class, getHDFSProvider().getHdfsHome() + "/result.txt");
+				CoGroupOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testCoGrouper);
@@ -226,39 +190,13 @@ public class CoGroupTest extends TestBase
 	@Override
 	protected void postSubmit() throws Exception {
 
-		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
+		String tempPath = getFilesystemProvider().getTempDirPath();
 
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(COGROUP_RESULT, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
+		compareResultsByLinesInMemory(COGROUP_RESULT, tempPath + "/result.txt");
+				
+		getFilesystemProvider().delete(tempPath + "/result.txt", true);
+		getFilesystemProvider().delete(tempPath + "/cogroup_left", true);
+		getFilesystemProvider().delete(tempPath + "/cogroup_right", true);
 	}
 
 	@Parameters

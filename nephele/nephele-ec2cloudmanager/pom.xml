@@ -16,6 +16,39 @@
     <packaging>jar</packaging>
 
     <version>0.1</version>
+    
+    <dependencies>
+      <dependency>
+        <artifactId>nephele-server</artifactId>
+        <groupId>eu.stratosphere</groupId>
+        <version>${version}</version>
+      </dependency>
+        
+	  <dependency>
+        <groupId>commons-codec</groupId>
+        <artifactId>commons-codec</artifactId>
+        <version>1.3</version>
+      </dependency>
+        
+	  <dependency>
+         <groupId>commons-httpclient</groupId>
+         <artifactId>commons-httpclient</artifactId>
+         <version>3.0</version>
+      </dependency>
+        
+      <dependency>
+        <groupId>com.google.code.typica</groupId>
+        <artifactId>typica</artifactId>
+        <version>1.6</version>
+      </dependency>
+        
+      <dependency>
+    	<groupId>com.google.collections</groupId>
+    	<artifactId>google-collections</artifactId>
+      </dependency>
+    	
+    </dependencies>
+    
     <build>
   	    <plugins>
   	        <plugin>
@@ -27,37 +60,8 @@
                 </configuration>  	  	
   	        </plugin>
   	    </plugins>
+  	    
     </build>
     
-    <dependencies>
-        <dependency>
-            <artifactId>nephele-server</artifactId>
-            <groupId>eu.stratosphere</groupId>
-            <version>${version}</version>
-        </dependency>
-		<dependency>
-            <groupId>commons-codec</groupId>
-
-            <artifactId>commons-codec</artifactId>
-            <version>1.3</version>
-        </dependency>
-		<dependency>
-            <groupId>commons-httpclient</groupId>
-            <artifactId>commons-httpclient</artifactId>
-            <version>3.0</version>
-
-        </dependency>
-		<dependency>
-
-            <groupId>com.google.code.typica</groupId>
-            <artifactId>typica</artifactId>
-            <version>1.6</version>
-        </dependency>
-        <dependency>
-    		<groupId>com.google.collections</groupId>
-    		<artifactId>google-collections</artifactId>
-
-    	</dependency>
-    </dependencies>
 </project>
 

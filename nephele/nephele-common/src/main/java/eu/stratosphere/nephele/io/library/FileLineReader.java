@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.io.library;
 
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -38,9 +37,6 @@ public class FileLineReader extends AbstractFileInputTask {
 
 		FileInputSplit[] splits = getFileInputSplits();
 
-		int j = 0;
-
-		System.out.println("+++ Number of splits: " + splits.length);
 		for (int i = 0; i < splits.length; i++) {
 
 			FileInputSplit split = splits[i];

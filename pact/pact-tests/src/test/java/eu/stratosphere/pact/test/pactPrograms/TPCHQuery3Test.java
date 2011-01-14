@@ -13,18 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.jobs;
+package eu.stratosphere.pact.test.pactPrograms;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
 
-import junit.framework.Assert;
-
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -41,11 +36,13 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class TPCHQuery3Test extends TestBase {
 
-	String ordersPath = null;
+	private static final Log LOG = LogFactory.getLog(TPCHQuery3Test.class);
+	
+	private String ordersPath = null;
+	private String lineitemsPath = null;
+	private String resultPath = null;
 
-	String lineitemsPath = null;
-
-	String orders = "1|36901|O|173665.47|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
+	private final String ORDERS = "1|36901|O|173665.47|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
 		+ "2|78002|O|46929.18|1996-12-01|1-URGENT|Clerk#000000880|0| foxes. pending accounts at the pending, silent asymptot|\n"
 		+ "3|123314|F|193846.25|1993-10-14|5-LOW|Clerk#000000955|0|sly final accounts boost. carefully regular ideas cajole carefully. depos|\n"
 		+ "4|136777|O|32151.78|1995-10-11|5-LOW|Clerk#000000124|0|sits. slyly regular warthogs cajole. regular, regular theodolites acro|\n"
@@ -64,7 +61,7 @@ public class TPCHQuery3Test extends TestBase {
 		+ "65|16252|P|110643.60|1995-03-18|1-URGENT|Clerk#000000632|0|ular requests are blithely pending orbits-- even requests against the deposit|\n"
 		+ "66|129200|F|103740.67|1994-01-20|5-LOW|Clerk#000000743|0|y pending requests integrate|\n";
 
-	String lineitems = "1|155190|7706|1|17|21168.23|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
+	String LINEITEMS = "1|155190|7706|1|17|21168.23|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
 		+ "1|67310|7311|2|36|45983.16|0.09|0.06|N|O|1996-04-12|1996-02-28|1996-04-20|TAKE BACK RETURN|MAIL|ly final dependencies: slyly bold |\n"
 		+ "1|63700|3701|3|8|13309.60|0.10|0.02|N|O|1996-01-29|1996-03-05|1996-01-31|TAKE BACK RETURN|REG AIR|riously. regular, express dep|\n"
 		+ "1|2132|4633|4|28|28955.64|0.09|0.06|N|O|1996-04-21|1996-03-30|1996-05-16|NONE|AIR|lites. fluffily even de|\n"
@@ -132,34 +129,31 @@ public class TPCHQuery3Test extends TestBase {
 		+ "67|40613|8126|5|23|35733.03|0.05|0.07|N|O|1997-04-19|1997-02-14|1997-05-06|DELIVER IN PERSON|REG AIR|ly regular deposit|\n"
 		+ "67|178306|824|6|29|40144.70|0.02|0.05|N|O|1997-01-25|1997-01-27|1997-01-27|DELIVER IN PERSON|FOB|ultipliers |\n";
 
-	String expectedResult = "5|0|147827|\n" + "66|0|99187|\n";
+	String EXPECTED_RESULT = "5|0|147827|\n" + "66|0|99187|\n";
 
 	public TPCHQuery3Test(Configuration config) {
 		super(config);
 	}
 
 	@Override
-	protected String getJarFilePath() {
-		return null;
-	}
-
-	@Override
 	protected void preSubmit() throws Exception {
-		ordersPath = getHDFSProvider().getHdfsHome() + "/orders";
-		lineitemsPath = getHDFSProvider().getHdfsHome() + "/lineitems";
+		
+		ordersPath = getFilesystemProvider().getTempDirPath() + "/orders";
+		lineitemsPath = getFilesystemProvider().getTempDirPath() + "/lineitems";
+		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
 
-		String[] splits = splitInputString(orders, '\n', 4);
-		getHDFSProvider().createDir(ordersPath);
+		String[] splits = splitInputString(ORDERS, '\n', 4);
+		getFilesystemProvider().createDir(ordersPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(ordersPath + "/part_" + i + ".txt", splits[i]);
-			System.out.println("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
+			getFilesystemProvider().createFile(ordersPath + "/part_" + i + ".txt", splits[i]);
+			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
-		splits = splitInputString(lineitems, '\n', 4);
-		getHDFSProvider().createDir(lineitemsPath);
+		splits = splitInputString(LINEITEMS, '\n', 4);
+		getFilesystemProvider().createDir(lineitemsPath);
 		for (int i = 0; i < splits.length; i++) {
-			getHDFSProvider().writeFileToHDFS(lineitemsPath + "/part_" + i + ".txt", splits[i]);
-			System.out.println("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
+			getFilesystemProvider().createFile(lineitemsPath + "/part_" + i + ".txt", splits[i]);
+			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
 		}
 
 	}
@@ -169,7 +163,10 @@ public class TPCHQuery3Test extends TestBase {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		Plan plan = tpch3.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), ordersPath, lineitemsPath, (getHDFSProvider().getHdfsHome() + "/result.txt"));
+				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
+				getFilesystemProvider().getURIPrefix()+ordersPath, 
+				getFilesystemProvider().getURIPrefix()+lineitemsPath, 
+				getFilesystemProvider().getURIPrefix()+resultPath);
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -182,45 +179,12 @@ public class TPCHQuery3Test extends TestBase {
 	protected void postSubmit() throws Exception {
 
 		// Test results
-
-		// read result
-		InputStream is = getHDFSProvider().getHdfsInputStream(getHDFSProvider().getHdfsHome() + "/result.txt");
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-		String line = reader.readLine();
-		Assert.assertNotNull("No output computed", line);
-
-		// collect out lines
-		PriorityQueue<String> computedResult = new PriorityQueue<String>();
-		while (line != null) {
-			computedResult.add(line);
-			line = reader.readLine();
-		}
-		reader.close();
-
-		PriorityQueue<String> expectedResult = new PriorityQueue<String>();
-		StringTokenizer st = new StringTokenizer(this.expectedResult, "\n");
-		while (st.hasMoreElements()) {
-			expectedResult.add(st.nextToken());
-		}
-
-		// print expected and computed results
-		System.out.println("Expected: " + expectedResult);
-		System.out.println("Computed: " + computedResult);
-
-		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult
-			.size());
-
-		while (!expectedResult.isEmpty()) {
-			String expectedLine = expectedResult.poll();
-			String computedLine = computedResult.poll();
-			System.out.println("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
-		}
+		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 
 		// clean up hdfs
-		getHDFSProvider().delete(ordersPath, true);
-		getHDFSProvider().delete(lineitemsPath, true);
-		getHDFSProvider().delete(getHDFSProvider().getHdfsHome() + "/result.txt", true);
+		getFilesystemProvider().delete(ordersPath, true);
+		getFilesystemProvider().delete(lineitemsPath, true);
+		getFilesystemProvider().delete(resultPath, true);
 
 	}
 

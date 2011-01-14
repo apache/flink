@@ -68,8 +68,8 @@ public class DataSourceContract<KT extends Key, VT extends Value> extends Contra
 	 * @param file
 	 *        input location
 	 */
-	public DataSourceContract(Class<? extends InputFormat<KT, VT>> c, String file) {
-		this(c, file, defaultName + (nextID++));
+	public DataSourceContract(Class<? extends InputFormat<KT, VT>> clazz, String file) {
+		this(clazz, file, defaultName + (nextID++));
 	}
 
 	/**
@@ -113,7 +113,7 @@ public class DataSourceContract<KT extends Key, VT extends Value> extends Contra
 	/**
 	 * Returns the file path from which the input is read.
 	 * 
-	 * @return
+	 * @return The path from which the input shall be read.
 	 */
 	public String getFilePath() {
 		return filePath;
@@ -122,8 +122,8 @@ public class DataSourceContract<KT extends Key, VT extends Value> extends Contra
 	/**
 	 * Configure the settings for the output format.
 	 * 
-	 * @param key
-	 * @param value
+	 * @param key The key of the format parameter.
+	 * @param value The value of the format parameter.
 	 */
 	public void setFormatParameter(String key, String value) {
 		formatParameters.setString(key, value);
@@ -132,7 +132,7 @@ public class DataSourceContract<KT extends Key, VT extends Value> extends Contra
 	/**
 	 * Returns the parameters set for the OutputFormat
 	 * 
-	 * @return
+	 * @return The configuration holding all format parameters.
 	 */
 	public Configuration getFormatParameters() {
 		return formatParameters;

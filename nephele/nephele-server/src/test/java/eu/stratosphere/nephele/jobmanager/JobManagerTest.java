@@ -16,24 +16,20 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
-import java.io.DataInputStream;
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -43,208 +39,227 @@ import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
+import eu.stratosphere.nephele.util.TestUtils;
 
+/**
+ * This test is intended to cover the basic functionality of the {@link JobManager}.
+ * 
+ * @author wenjun
+ * @author warneke
+ */
 public class JobManagerTest {
 
-	private static final String PATHNAME = "/tmp/";
+	private static JobManagerThread jobManagerThread = null;
 
-	private static final String INPUTCONTENT = "aa\r\nbb\r\ncc\r\ndd\r\nee\r\nff\r\ngg\r\n";
+	/**
+	 * This is an auxiliary class to run the job manager thread.
+	 * 
+	 * @author warneke
+	 */
+	private static final class JobManagerThread extends Thread {
 
-	private static final int SLEEPINTERVAL = 5000;
+		/**
+		 * The job manager instance.
+		 */
+		private final JobManager jobManager;
 
-	private void createInputFile(String inputFilename) {
+		/**
+		 * Constructs a new job manager thread.
+		 * 
+		 * @param jobManager
+		 *        the job manager to run in this thread.
+		 */
+		private JobManagerThread(JobManager jobManager) {
 
-		File inputFile = new File(PATHNAME + inputFilename);
-
-		if (inputFile.exists()) {
-			inputFile.delete();
+			this.jobManager = jobManager;
 		}
 
-		try {
-			inputFile.createNewFile();
-			FileWriter fw = new FileWriter(inputFile);
-			fw.write(INPUTCONTENT);
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void run() {
+
+			// Run task loop
+			this.jobManager.runTaskLoop();
+
+			// Shut down
+			this.jobManager.shutdown();
+		}
+
+		/**
+		 * Checks whether the encapsulated job manager is completely shut down.
+		 * 
+		 * @return <code>true</code> if the encapsulated job manager is completely shut down, <code>false</code>
+		 *         otherwise
+		 */
+		public boolean isShutDown() {
+
+			return this.jobManager.isShutDown();
 		}
 	}
 
-	private String getRandomFilename() {
+	/**
+	 * Sets up Nephele in local mode.
+	 */
+	@BeforeClass
+	public static void startNephele() {
 
-		final char[] alphabeth = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+		if (jobManagerThread == null) {
 
-		String filename = "";
-		for (int i = 0; i < 16; i++) {
-			filename += alphabeth[(int) Math.random() * alphabeth.length];
-		}
+			// create the job manager
+			JobManager jobManager = null;
 
-		return filename + ".dat";
-	}
+			try {
 
-	private void createJarFile(String className) {
+				Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
+					String.class });
+				c.setAccessible(true);
+				jobManager = c.newInstance(new Object[] { new String(System.getProperty("user.dir") + "/correct-conf"),
+					new String("local") });
 
-		String jarPath = PATHNAME + className + ".jar";
-		File jarFile = new File(jarPath);
-
-		if (jarFile.exists()) {
-			jarFile.delete();
-		}
-
-		try {
-			JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath), new Manifest());
-			String classPath = JobManagerTest.class.getResource("").getPath() + className + ".class";
-			File classFile = new File(classPath);
-
-			String packageName = JobManagerTest.class.getPackage().getName();
-			packageName = packageName.replaceAll("\\.", "\\/");
-			jos.putNextEntry(new JarEntry("/" + packageName + "/" + className + ".class"));
-
-			FileInputStream fis = new FileInputStream(classFile);
-			byte[] buffer = new byte[1024];
-			int num = fis.read(buffer);
-
-			while (num != -1) {
-				jos.write(buffer, 0, num);
-				num = fis.read(buffer);
+			} catch (SecurityException e) {
+				fail(e.getMessage());
+			} catch (NoSuchMethodException e) {
+				fail(e.getMessage());
+			} catch (IllegalArgumentException e) {
+				fail(e.getMessage());
+			} catch (InstantiationException e) {
+				fail(e.getMessage());
+			} catch (IllegalAccessException e) {
+				fail(e.getMessage());
+			} catch (InvocationTargetException e) {
+				fail(e.getMessage());
 			}
 
-			fis.close();
-			jos.close();
-
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+			// Start job manager thread
+			if (jobManager != null) {
+				jobManagerThread = new JobManagerThread(jobManager);
+				jobManagerThread.start();
+			}
 		}
 	}
 
+	/**
+	 * Shuts Nephele down.
+	 */
+	@AfterClass
+	public static void stopNephele() {
+
+		if (jobManagerThread != null) {
+			jobManagerThread.interrupt();
+
+			while (!jobManagerThread.isShutDown()) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException i) {
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Tests of the Nephele channels with a large (> 1 MB) file.
+	 */
 	@Test
-	public void test() {
+	public void largeFileTest() {
 
-		// create the job manager
-		JobManager jobManager = null;
+		test(1000000);
+	}
 
-		try {
+	/**
+	 * Tests of the Nephele channels with a file of zero bytes size.
+	 */
+	@Test
+	public void zeroSizeFileTest() {
 
-			Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
-				String.class });
-			c.setAccessible(true);
-			jobManager = c.newInstance(new Object[] { new String(System.getProperty("user.dir") + "/correct-conf"),
-				new String("local") });
+		test(0);
+	}
 
-		} catch (SecurityException e) {
-			e.printStackTrace();
-		} catch (NoSuchMethodException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (InvocationTargetException e) {
-			e.printStackTrace();
-		}
+	/**
+	 * Creates a file with a sequence of 0 to <code>limit</code> integer numbers
+	 * and triggers a sample job. The sample reads all the numbers from the input file and pushes them through a
+	 * network, a file, and an in-memory channel. Eventually, the numbers are written back to an output file. The test
+	 * is considered successful if the input file equals the output file.
+	 * 
+	 * @param limit
+	 *        the upper bound for the sequence of numbers to be generated
+	 */
+	private void test(int limit) {
 
 		try {
-			Thread.sleep(SLEEPINTERVAL);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
 
-		// create input and jar files
-		final String inputFilename = getRandomFilename();
-		createInputFile(inputFilename);
-		createJarFile("GrepTask");
+			// Get name of the forward class
+			final String forwardClassName = ForwardTask.class.getSimpleName();
 
-		// create job graph
-		JobGraph jg = new JobGraph("Job Graph 1");
-		JobID jobID = jg.getJobID();
+			// Create input and jar files
+			final File inputFile = TestUtils.createInputFile(limit);
+			final File outputFile = new File(TestUtils.getTempDir() + File.separator + TestUtils.getRandomFilename());
+			final File jarFile = TestUtils.createJarFile(forwardClassName);
 
-		// input vertex
-		JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-		i1.setFileInputClass(FileLineReader.class);
-		i1.setFilePath(new Path("file://" + PATHNAME + inputFilename));
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph 1");
 
-		// task vertex
-		JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
-		t1.setTaskClass(GrepTask.class);
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
 
-		// output vertex
-		final String outputFilename = getRandomFilename();
-		JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-		o1.setFileOutputClass(FileLineWriter.class);
-		o1.setFilePath(new Path("file://" + PATHNAME + outputFilename));
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
+			t1.setTaskClass(ForwardTask.class);
 
-		// connect vertices
-		try {
-			i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-			t1.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		} catch (JobGraphDefinitionException e) {
-			e.printStackTrace();
-		}
+			// task vertex 2
+			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
+			t2.setTaskClass(ForwardTask.class);
 
-		// add jar
-		jg.addJar(new Path("file://" + PATHNAME + "GrepTask.jar"));
-		Path[] paths = { new Path("file://" + PATHNAME + "GrepTask.jar") };
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
 
-		try {
-			LibraryCacheManager.addLibrary(jobID, new Path("file://" + PATHNAME + "GrepTask.jar"), new File(PATHNAME
-				+ "GrepTask.jar").length(), new DataInputStream(
-				new FileInputStream(new File(PATHNAME + "GrepTask.jar"))));
-			LibraryCacheManager.register(jobID, paths);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+			// connect vertices
+			try {
+				i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+				t1.connectTo(t2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+				t2.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			} catch (JobGraphDefinitionException e) {
+				e.printStackTrace();
+			}
 
-		// submit the job
-		try {
-			jobManager.submitJob(jg);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+			// add jar
+			jg.addJar(new Path("file://" + TestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
-		// in the test, we trigger the
-		jobManager.runVerticesReadyForExecution();
+			// Create job client and launch job
+			JobClient jobClient = new JobClient(jg);
+			if (!jobClient.submitJobAndWait()) {
+				fail("Job execution failed");
+			}
 
-		try {
-			Thread.sleep(SLEEPINTERVAL);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+			// Finally, compare output file to initial number sequence
+			final BufferedReader bufferedReader = new BufferedReader(new FileReader(outputFile));
+			for (int i = 0; i < limit; i++) {
+				final String number = bufferedReader.readLine();
+				try {
+					assertEquals(i, Integer.parseInt(number));
+				} catch (NumberFormatException e) {
+					fail(e.getMessage());
+				}
+			}
 
-		char[] buffer = new char[INPUTCONTENT.toCharArray().length];
+			bufferedReader.close();
 
-		// check whether the output file is the same as the input file
-		try {
-			FileReader fr = new FileReader(new File(PATHNAME + outputFilename));
-			fr.read(buffer);
-			fr.close();
+			// Remove temporary files
+			inputFile.delete();
+			outputFile.delete();
+			jarFile.delete();
 
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		assertEquals(INPUTCONTENT, new String(buffer));
-
-		// Remove temporary files
-		new File(PATHNAME + inputFilename).delete();
-		new File(PATHNAME + outputFilename).delete();
-
-		// Shutdown the job manager
-		jobManager.cleanUp();
-
-		// Wait for the job manager to be shut down
-		try {
-			Thread.sleep(SLEEPINTERVAL);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+			fail(ioe.getMessage());
 		}
 	}
 }
