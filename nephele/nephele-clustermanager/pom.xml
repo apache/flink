@@ -20,11 +20,6 @@
     	<artifactId>nephele-server</artifactId>
     	<version>${version}</version>
     </dependency>
-    
-    <dependency>
-    	<groupId>com.google.collections</groupId>
-    	<artifactId>google-collections</artifactId>
-    </dependency>
   </dependencies>
   
    <build>
