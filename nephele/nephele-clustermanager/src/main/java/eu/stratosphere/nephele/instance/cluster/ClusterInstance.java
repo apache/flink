@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -53,9 +52,6 @@ class ClusterInstance extends AbstractInstance {
 
 	/** Time when last heat beat has been received from the task manager running on this instance */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
-
-	/** Filenames associated with channels for {@link #getUniqueFilename(ChannelID)} */
-	private final Map<ChannelID, String> filenames = new HashMap<ChannelID, String>();
 
 	/**
 	 * Constructor.
@@ -161,34 +157,6 @@ class ClusterInstance extends AbstractInstance {
 		}
 
 		return slice;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String getUniqueFilename(ChannelID id) {
-
-		synchronized (this.filenames) {
-
-			if (this.filenames.containsKey(id))
-				return this.filenames.get(id);
-
-			// Simple implementation to generate a random filename
-			char[] alphabet = { 'a', 'b', 'c', 'd', 'e', 'f', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
-
-			String filename = "ne";
-
-			for (int i = 0; i < 16; i++) {
-				filename += alphabet[(int) (Math.random() * alphabet.length)];
-			}
-
-			filename += ".dat";
-			// Store filename with id
-			this.filenames.put(id, filename);
-
-			return filename;
-		}
 	}
 
 	/**

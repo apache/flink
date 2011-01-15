@@ -26,21 +26,9 @@ import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cloud.CloudInstance;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 public class CloudInstanceTest {
-
-	@Test
-	public void testGetUniqueFilename() {
-
-		final CloudInstance ci = constructSmallCloudInstance();
-
-		ChannelID id = new ChannelID();
-		String filename = ci.getUniqueFilename(id);
-
-		assertEquals(filename, ci.getUniqueFilename(id));
-	}
 
 	private CloudInstance constructSmallCloudInstance() {
 		

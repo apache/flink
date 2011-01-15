@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.channels.ChannelConfigurator;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
@@ -40,7 +39,7 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * 
  * @author warneke
  */
-public abstract class AbstractInstance extends NetworkNode implements ChannelConfigurator {
+public abstract class AbstractInstance extends NetworkNode {
 
 	/**
 	 * The type of the instance.
