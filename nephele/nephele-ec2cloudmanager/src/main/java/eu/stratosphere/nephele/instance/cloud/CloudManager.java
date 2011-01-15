@@ -609,7 +609,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		final CloudInstance cloudInstance = new CloudInstance(instance.getInstanceId(), type, owner,
 			instanceConnectionInfo, instance.getLaunchTime().getTimeInMillis(), this.networkTopology.getRootNode(),
-			this.networkTopology);
+			this.networkTopology, null); //TODO: Define hardware descriptions for cloud instance types
 		this.cloudInstances.add(cloudInstance);
 		return cloudInstance;
 	}

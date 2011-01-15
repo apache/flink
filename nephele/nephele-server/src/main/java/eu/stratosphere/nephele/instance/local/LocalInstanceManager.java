@@ -33,9 +33,11 @@ import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  *
@@ -49,11 +51,11 @@ public class LocalInstanceManager implements InstanceManager {
 
 	private AllocatedResource allocatedResource = null;
 
-	private HardwareDescription hardwareDescription;
-
 	private LocalTaskManagerThread localTaskManagerThread;
 
 	private final NetworkTopology networkTopology;
+
+	private final List<InstanceTypeDescription> instanceTypeDescriptionList;
 
 	public LocalInstanceManager(String configDir) {
 		Configuration config = GlobalConfiguration.getConfiguration();
@@ -72,6 +74,8 @@ public class LocalInstanceManager implements InstanceManager {
 
 		this.defaultInstanceType = type != null ? type : createDefaultInstanceType();
 		this.networkTopology = NetworkTopology.createEmptyTopology();
+
+		this.instanceTypeDescriptionList = new SerializableArrayList<InstanceTypeDescription>();
 
 		this.localTaskManagerThread = new LocalTaskManagerThread(configDir);
 		this.localTaskManagerThread.start();
@@ -131,10 +135,12 @@ public class LocalInstanceManager implements InstanceManager {
 		synchronized (this.synchronizationObject) {
 			if (this.allocatedResource == null) {
 				this.allocatedResource = new AllocatedResource(new LocalInstance(this.defaultInstanceType,
-					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology),
+					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology,
+					hardwareDescription),
 					new AllocationID());
-				
-				this.hardwareDescription = hardwareDescription;
+
+				this.instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(this.defaultInstanceType,
+					hardwareDescription, 1));
 			}
 		}
 	}
@@ -157,6 +163,9 @@ public class LocalInstanceManager implements InstanceManager {
 					break;
 				}
 			}
+
+			// Clear the instance type description list
+			this.instanceTypeDescriptionList.clear();
 		}
 
 	}
@@ -206,6 +215,9 @@ public class LocalInstanceManager implements InstanceManager {
 			hardwareDescription.getNumberOfCPUCores(), physicalMemory, diskCapacityInGB, 0);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
 		// TODO Auto-generated method stub

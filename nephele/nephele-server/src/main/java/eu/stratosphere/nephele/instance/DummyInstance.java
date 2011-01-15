@@ -44,7 +44,7 @@ public class DummyInstance extends AbstractInstance {
 	 *        the ID of the dummy instance
 	 */
 	private DummyInstance(InstanceType type, int id) {
-		super(type, null, null, null);
+		super(type, null, null, null, null);
 
 		this.name = "DummyInstance_" + Integer.toString(id);
 	}
@@ -58,9 +58,21 @@ public class DummyInstance extends AbstractInstance {
 		throw new RuntimeException("getUniqueFilename is called on a DummyInstance");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String toString() {
 
 		return this.name;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public HardwareDescription getHardwareDescription() {
+
+		throw new RuntimeException("getHardwareDescription is called on a DummyInstance");
 	}
 }

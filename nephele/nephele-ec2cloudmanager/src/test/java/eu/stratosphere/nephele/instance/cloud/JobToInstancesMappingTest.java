@@ -22,6 +22,8 @@ import java.util.ArrayList;
 
 import org.junit.Test;
 
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cloud.CloudInstance;
@@ -34,11 +36,12 @@ public class JobToInstancesMappingTest {
 	public void testAssignedInstances() {
 
 		final NetworkTopology networkTopology = NetworkTopology.createEmptyTopology();
-
+		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(1, 2048L*1024L*1024L, 2048L*1024L*1024L);
+		
 		JobToInstancesMapping map = new JobToInstancesMapping("wenjun", "1234567", "abcdefg");
 		CloudInstance ci = new CloudInstance("i-1234ABCD", InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"), "wenjun",
 			new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121), 1234567890,
-			networkTopology.getRootNode(), networkTopology);
+			networkTopology.getRootNode(), networkTopology, hardwareDescription);
 
 		assertEquals(0, map.getNumberOfAssignedInstances());
 		assertEquals(new ArrayList<CloudInstance>(), map.getAssignedInstances());

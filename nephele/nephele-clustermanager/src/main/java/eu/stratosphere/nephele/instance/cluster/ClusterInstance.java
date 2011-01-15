@@ -23,6 +23,7 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocationID;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
@@ -67,10 +68,12 @@ class ClusterInstance extends AbstractInstance {
 	 *        the parent node of this node in the network topology
 	 * @param networkTopology
 	 *        the network topology this node is part of
+	 * @param hardwareDescription
+	 *        the hardware description reported by the instance itself
 	 */
 	public ClusterInstance(InstanceConnectionInfo instanceConnectionInfo, InstanceType capacity,
-			NetworkNode parentNode, NetworkTopology networkTopology) {
-		super(capacity, instanceConnectionInfo, parentNode, networkTopology);
+			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+		super(capacity, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
 		this.remainingCapacity = capacity;
 	}
@@ -148,12 +151,13 @@ class ClusterInstance extends AbstractInstance {
 		final AllocatedSlice slice = this.allocatedSlices.remove(allocationID);
 		if (slice != null) {
 
-			this.remainingCapacity = InstanceTypeFactory.construct(this.remainingCapacity.getIdentifier(), this.remainingCapacity
-				.getNumberOfComputeUnits()
-				+ slice.getType().getNumberOfComputeUnits(), this.remainingCapacity.getNumberOfCores()
-				+ slice.getType().getNumberOfCores(), this.remainingCapacity.getMemorySize()
-				+ slice.getType().getMemorySize(), this.remainingCapacity.getDiskCapacity()
-				+ slice.getType().getDiskCapacity(), this.remainingCapacity.getPricePerHour());
+			this.remainingCapacity = InstanceTypeFactory.construct(this.remainingCapacity.getIdentifier(),
+				this.remainingCapacity
+					.getNumberOfComputeUnits()
+					+ slice.getType().getNumberOfComputeUnits(), this.remainingCapacity.getNumberOfCores()
+					+ slice.getType().getNumberOfCores(), this.remainingCapacity.getMemorySize()
+					+ slice.getType().getMemorySize(), this.remainingCapacity.getDiskCapacity()
+					+ slice.getType().getDiskCapacity(), this.remainingCapacity.getPricePerHour());
 		}
 
 		return slice;

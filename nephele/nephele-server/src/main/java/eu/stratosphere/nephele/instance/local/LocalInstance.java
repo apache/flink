@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -30,8 +31,8 @@ public class LocalInstance extends AbstractInstance {
 	private final Map<ChannelID, String> filenames = new HashMap<ChannelID, String>();
 
 	public LocalInstance(InstanceType instanceType, InstanceConnectionInfo instanceConnectionInfo,
-			NetworkNode parentNode, NetworkTopology networkTopology) {
-		super(instanceType, instanceConnectionInfo, parentNode, networkTopology);
+			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+		super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 	}
 
 	/**

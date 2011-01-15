@@ -98,4 +98,12 @@ public class InstanceTypeDescription implements IOReadableWritable {
 		this.numberOfAvailableInstances = in.readInt();
 	}
 
+	/**
+	 * Returns the hardware description as created by the {@link InstanceManager}.
+	 * 
+	 * @return the instance's hardware description or <code>null</code> if no description is available
+	 */
+	public HardwareDescription getHardwareDescription() {
+		return this.hardwareDescription;
+	}
 }

@@ -24,6 +24,8 @@ import com.google.common.collect.Sets;
 
 import static org.junit.Assert.*;
 
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
@@ -36,23 +38,33 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * Tests for {@link ClusterInstance}.
  * 
  * @author Dominic Battre
+ * @author warneke
  */
 public class HostInClusterTest {
-	ClusterInstance createDefaultHost() {
+
+	private ClusterInstance createDefaultHost() {
+		
 		InetSocketAddress socket = new InetSocketAddress("localhost", 1234);
 		String identifier = "identifier";
-		int numComputeUnits = 8 * 2500;
-		int numCores = 8;
-		int memorySize = 32 * 1024;
-		int diskCapacity = 200;
-		int pricePerHour = 10;
+		final int numComputeUnits = 8 * 2500;
+		final int numCores = 8;
+		final int memorySize = 32 * 1024;
+		final int diskCapacity = 200;
+		final int pricePerHour = 10;
 		final InstanceType capacity = InstanceTypeFactory.construct(identifier, numComputeUnits, numCores, memorySize,
 			diskCapacity,
 			pricePerHour);
+
 		final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(socket.getAddress(), socket
 			.getPort(), 1235);
+
+		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(numCores,
+			memorySize * 1024L * 1024L, memorySize * 1024L * 1024L);
+
 		final NetworkTopology topology = NetworkTopology.createEmptyTopology();
-		ClusterInstance host = new ClusterInstance(instanceConnectionInfo, capacity, topology.getRootNode(), topology);
+		ClusterInstance host = new ClusterInstance(instanceConnectionInfo, capacity, topology.getRootNode(), topology,
+			hardwareDescription);
+		
 		return host;
 	}
 
@@ -82,7 +94,8 @@ public class HostInClusterTest {
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;
 		final int diskCapacity = 200 / 8;
-		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize, diskCapacity, -1);
+		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize,
+			diskCapacity, -1);
 
 		for (int run = 0; run < 2; ++run) {
 			// do this twice to check that everything is correctly freed
@@ -119,7 +132,8 @@ public class HostInClusterTest {
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;
 		final int diskCapacity = 200 / 8;
-		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize, diskCapacity, -1);
+		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize,
+			diskCapacity, -1);
 
 		for (int run = 0; run < 2; ++run) {
 			// do this twice to check that everything is correctly freed

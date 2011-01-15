@@ -21,6 +21,7 @@ import java.util.Map;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -71,11 +72,13 @@ public class CloudInstance extends AbstractInstance {
 	 *        the time the instance was allocated
 	 * @param parentNode
 	 *        the parent node in the network topology
+	 * @param hardwareDescription
+	 *        the hardware description reported by the instance itself
 	 */
 	public CloudInstance(String instanceID, InstanceType type, String instanceOwner,
 			InstanceConnectionInfo instanceConnectionInfo, long allocationTime, NetworkNode parentNode,
-			NetworkTopology networkTopology) {
-		super(type, instanceConnectionInfo, parentNode, networkTopology);
+			NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
 		this.allocatedResource = new AllocatedResource(this, new AllocationID());
 

@@ -15,44 +15,38 @@
 
 package eu.stratosphere.nephele.instance.cluster;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
-
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * Instance Manager for a static cluster.
@@ -138,17 +132,12 @@ public class ClusterManager implements InstanceManager {
 	 * Set of hosts known to run a task manager that are thus able to execute
 	 * tasks.
 	 */
-	private final Map<InstanceConnectionInfo, ClusterInstance> registeredHosts = Maps.newHashMap();
+	private final Map<InstanceConnectionInfo, ClusterInstance> registeredHosts;
 
 	/**
 	 * Map of a {@link JobID} to all {@link AllocatedSlice}s that belong to this job.
 	 */
-	private final Multimap<JobID, AllocatedSlice> slicesOfJob = HashMultimap.create();
-
-	/**
-	 * Map of IP addresses to instance types.
-	 */
-	private final Map<InetAddress, InstanceType> ipToInstanceTypeMapping = Maps.newHashMap();
+	private final Map<JobID, List<AllocatedSlice>> slicesOfJobs;
 
 	/**
 	 * List of instance types that can be executed on this cluster, sorted by
@@ -156,8 +145,10 @@ public class ClusterManager implements InstanceManager {
 	 */
 	private final InstanceType[] availableInstanceTypes;
 
+	private final List<InstanceTypeDescription> instanceTypeDescriptionList;
+
 	/**
-	 * 
+	 * The network topology of the cluster.
 	 */
 	private final NetworkTopology networkTopology;
 
@@ -165,6 +156,11 @@ public class ClusterManager implements InstanceManager {
 	 * Object that is notified if instances become available or vanish
 	 */
 	private InstanceListener instanceListener;
+
+	/**
+	 * Matrix storing how many instances of a particular type and be accommodated in another instance type.
+	 */
+	private final int[][] instanceAccommodationMatrix;
 
 	/**
 	 * Periodic task that checks whether hosts have not sent their heart-beat
@@ -177,12 +173,12 @@ public class ClusterManager implements InstanceManager {
 
 			synchronized (ClusterManager.this) {
 
-				List<Map.Entry<InstanceConnectionInfo, ClusterInstance>> hostsToRemove = Lists.newArrayList();
+				final List<Map.Entry<InstanceConnectionInfo, ClusterInstance>> hostsToRemove = new ArrayList<Map.Entry<InstanceConnectionInfo, ClusterInstance>>();
 
 				// check all hosts whether they did not send heat-beat messages.
 				for (Map.Entry<InstanceConnectionInfo, ClusterInstance> entry : registeredHosts.entrySet()) {
 
-					ClusterInstance host = entry.getValue();
+					final ClusterInstance host = entry.getValue();
 					if (!host.isStillAlive(cleanUpInterval)) {
 
 						// this host has not sent the heat-beat messages
@@ -190,7 +186,19 @@ public class ClusterManager implements InstanceManager {
 						final List<AllocatedSlice> removedSlices = host.removeAllAllocatedSlices();
 						for (AllocatedSlice removedSlice : removedSlices) {
 
-							slicesOfJob.remove(removedSlice.getJobID(), removedSlice);
+							final JobID jobID = removedSlice.getJobID();
+							final List<AllocatedSlice> slicesOfJob = slicesOfJobs.get(jobID);
+							if (slicesOfJob == null) {
+								LOG.error("Cannot find allocated slices for job with ID + " + jobID);
+								continue;
+							}
+
+							slicesOfJob.remove(removedSlice);
+
+							// Clean up
+							if (slicesOfJob.isEmpty()) {
+								slicesOfJobs.remove(jobID);
+							}
 
 							if (instanceListener != null) {
 								instanceListener.allocatedResourceDied(removedSlice.getJobID(), new AllocatedResource(
@@ -203,6 +211,8 @@ public class ClusterManager implements InstanceManager {
 				}
 
 				registeredHosts.entrySet().removeAll(hostsToRemove);
+				
+				updateInstaceTypeDescriptionList();
 			}
 		}
 	};
@@ -216,8 +226,16 @@ public class ClusterManager implements InstanceManager {
 	 */
 	public ClusterManager() {
 
+		this.registeredHosts = new HashMap<InstanceConnectionInfo, ClusterInstance>();
+
+		this.slicesOfJobs = new HashMap<JobID, List<AllocatedSlice>>();
+
 		// Load the instance type this cluster can offer
 		this.availableInstanceTypes = populateInstanceTypeArray();
+
+		this.instanceAccommodationMatrix = calculateInstanceAccommodationMatrix();
+
+		this.instanceTypeDescriptionList = new SerializableArrayList<InstanceTypeDescription>();
 
 		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(
 			ConfigConstants.INSTANCE_MANAGER_CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
@@ -381,6 +399,7 @@ public class ClusterManager implements InstanceManager {
 	 */
 	@Override
 	public InstanceType getInstanceTypeByName(String instanceTypeName) {
+
 		for (InstanceType it : availableInstanceTypes) {
 			if (it.getIdentifier().equals(instanceTypeName)) {
 				return it;
@@ -423,7 +442,18 @@ public class ClusterManager implements InstanceManager {
 		final AllocatedSlice removedSlice = clusterInstance.removeAllocatedSlice(allocatedResource.getAllocationID());
 
 		// remove the local association between instance and job
-		this.slicesOfJob.remove(jobID, removedSlice);
+		final List<AllocatedSlice> slicesOfJob = this.slicesOfJobs.get(jobID);
+		if (slicesOfJob == null) {
+			LOG.error("Cannot find allocated slice to release allocated slice for job " + jobID);
+			return;
+		}
+
+		slicesOfJob.remove(removedSlice);
+
+		// Clean up
+		if (slicesOfJob.isEmpty()) {
+			this.slicesOfJobs.remove(jobID);
+		}
 	}
 
 	/**
@@ -432,14 +462,17 @@ public class ClusterManager implements InstanceManager {
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the connection information for the instance
-	 * @return a new {@link ClusterInstance} object
+	 * @param hardwareDescription
+	 *        the hardware description provided by the new instance
+	 * @return a new {@link ClusterInstance} object or <code>null</code> if the cluster instance could not be created
 	 */
-	private ClusterInstance createNewHost(InstanceConnectionInfo instanceConnectionInfo) {
+	private ClusterInstance createNewHost(InstanceConnectionInfo instanceConnectionInfo,
+			HardwareDescription hardwareDescription) {
 
-		InstanceType instanceType = this.ipToInstanceTypeMapping.get(instanceConnectionInfo.getAddress());
+		final InstanceType instanceType = mactchHardwareDescriptionWithInstanceType(hardwareDescription);
 		if (instanceType == null) {
-			LOG.warn("Received heart beat from unexpected instance " + instanceConnectionInfo);
-			instanceType = getDefaultInstanceType();
+			LOG.error("No matching instance type, cannot create cluster instance");
+			return null;
 		}
 
 		// Try to match new host with a stub host from the existing topology
@@ -491,9 +524,43 @@ public class ClusterManager implements InstanceManager {
 		LOG.info("Creating instance of type " + instanceType + " for " + instanceConnectionInfo + ", parent is "
 			+ parentNode.getName());
 		final ClusterInstance host = new ClusterInstance(instanceConnectionInfo, instanceType, parentNode,
-			this.networkTopology);
+			this.networkTopology, hardwareDescription);
 
 		return host;
+	}
+
+	/**
+	 * Attempts to match the hardware characteristics provided by the {@link HardwareDescription} object with one
+	 * of the instance types set in the configuration. The matching is pessimistic, i.e. the hardware characteristics of
+	 * the chosen instance type never exceed the actually reported characteristics from the hardware description.
+	 * 
+	 * @param hardwareDescription
+	 *        the hardware description as reported by the instance
+	 * @return the best matching instance type or <code>null</code> if no matching instance type can be found
+	 */
+	private InstanceType mactchHardwareDescriptionWithInstanceType(HardwareDescription hardwareDescription) {
+
+		// Assumes that the available instance types are ordered by number of CPU cores in ascending order
+		for (int i = this.availableInstanceTypes.length - 1; i >= 0; i--) {
+
+			final InstanceType candidateInstanceType = this.availableInstanceTypes[i];
+			// Check if number of CPU cores match
+			if (candidateInstanceType.getNumberOfCores() > hardwareDescription.getNumberOfCPUCores()) {
+				continue;
+			}
+
+			// Check if size of physical memory matches
+			final int memoryInMB = (int) (hardwareDescription.getSizeOfPhysicalMemory() / (1024L * 1024L));
+			if (candidateInstanceType.getMemorySize() > memoryInMB) {
+				continue;
+			}
+		}
+
+		LOG.error("Cannot find matching instance type for hardware description ("
+			+ hardwareDescription.getNumberOfCPUCores() + " cores, " + hardwareDescription.getSizeOfPhysicalMemory()
+			+ " bytes of memory)");
+
+		return null;
 	}
 
 	/**
@@ -507,7 +574,7 @@ public class ClusterManager implements InstanceManager {
 
 		// check whether we have discovered a new host
 		if (host == null) {
-			host = createNewHost(instanceConnectionInfo);
+			host = createNewHost(instanceConnectionInfo, hardwareDescription);
 
 			if (host == null) {
 				LOG.error("Could not create a new host object for incoming heart-beat. "
@@ -517,6 +584,9 @@ public class ClusterManager implements InstanceManager {
 
 			this.registeredHosts.put(instanceConnectionInfo, host);
 			LOG.info("New number of registered hosts is " + this.registeredHosts.size());
+
+			// Update the list of instance type descriptions
+			updateInstaceTypeDescriptionList();
 		}
 
 		host.reportHeartBeat();
@@ -530,7 +600,13 @@ public class ClusterManager implements InstanceManager {
 		for (ClusterInstance host : registeredHosts.values()) {
 			final AllocatedSlice slice = host.createSlice(instanceType, jobID);
 			if (slice != null) {
-				this.slicesOfJob.put(jobID, slice);
+
+				List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.get(jobID);
+				if (allocatedSlices == null) {
+					allocatedSlices = new ArrayList<AllocatedSlice>();
+					this.slicesOfJobs.put(jobID, allocatedSlices);
+				}
+				allocatedSlices.add(slice);
 
 				if (this.instanceListener != null) {
 					ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
@@ -544,6 +620,9 @@ public class ClusterManager implements InstanceManager {
 		throw new InstanceException("Could not find a suitable instance");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public NetworkTopology getNetworkTopology(JobID jobID) {
 
@@ -559,9 +638,151 @@ public class ClusterManager implements InstanceManager {
 		this.instanceListener = instanceListener;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
-		// TODO Auto-generated method stub
-		return null;
+	public synchronized List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+		
+		return this.instanceTypeDescriptionList;
+	}
+
+	/**
+	 * Updates the list of instance type descriptions based on the currently registered hosts.
+	 */
+	private void updateInstaceTypeDescriptionList() {
+
+		// this.registeredHosts.values().iterator()
+		this.instanceTypeDescriptionList.clear();
+
+		// initialize array which stores the availability counter for each instance type
+		final int[] numberOfInstances = new int[this.availableInstanceTypes.length];
+		for (int i = 0; i < numberOfInstances.length; i++) {
+			numberOfInstances[i] = 0;
+		}
+
+		// Shuffle through instance types
+		for (int i = 0; i < this.availableInstanceTypes.length; i++) {
+
+			final InstanceType currentInstanceType = this.availableInstanceTypes[i];
+			int numberOfMatchingInstances = 0;
+			int minNumberOfCPUCores = Integer.MAX_VALUE;
+			long minSizeOfPhysicalMemory = Long.MAX_VALUE;
+			long minSizeOfFreeMemory = Long.MAX_VALUE;
+			final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
+			while (it.hasNext()) {
+				final ClusterInstance clusterInstance = it.next();
+				if (clusterInstance.getType().equals(currentInstanceType)) {
+					++numberOfMatchingInstances;
+					final HardwareDescription hardwareDescription = clusterInstance.getHardwareDescription();
+					minNumberOfCPUCores = Math.min(minNumberOfCPUCores, hardwareDescription.getNumberOfCPUCores());
+					minSizeOfPhysicalMemory = Math.min(minSizeOfPhysicalMemory,
+						hardwareDescription.getSizeOfPhysicalMemory());
+					minSizeOfFreeMemory = Math.min(minSizeOfFreeMemory, hardwareDescription.getSizeOfFreeMemory());
+				}
+			}
+
+			// Update number of instances
+			int highestAccommodationNumber = -1;
+			int highestAccomodationIndex = -1;
+			for (int j = 0; j < this.availableInstanceTypes.length; j++) {
+				final int accommodationNumber = canBeAccommodated(j, i);
+				if (accommodationNumber > 0) {
+					numberOfInstances[i] += numberOfMatchingInstances * accommodationNumber;
+					if (accommodationNumber > highestAccommodationNumber) {
+						highestAccommodationNumber = accommodationNumber;
+						highestAccomodationIndex = j;
+					}
+				}
+			}
+
+			// Calculate hardware description
+			HardwareDescription pessimisticHardwareDescription = null;
+			if (minNumberOfCPUCores < Integer.MAX_VALUE && minSizeOfPhysicalMemory < Long.MAX_VALUE
+				&& minSizeOfFreeMemory < Long.MAX_VALUE) {
+
+				pessimisticHardwareDescription = HardwareDescriptionFactory.construct(
+					minNumberOfCPUCores, minSizeOfPhysicalMemory, minSizeOfFreeMemory);
+
+			} else {
+
+				if (highestAccommodationNumber > 0) {
+					final HardwareDescription descriptionOfLargerInstance = this.instanceTypeDescriptionList.get(
+						highestAccomodationIndex).getHardwareDescription();
+
+					final int numCores = descriptionOfLargerInstance.getNumberOfCPUCores() / highestAccommodationNumber;
+					final long physMem = descriptionOfLargerInstance.getSizeOfPhysicalMemory()
+						/ highestAccommodationNumber;
+					final long freeMem = descriptionOfLargerInstance.getSizeOfFreeMemory();
+
+					pessimisticHardwareDescription = HardwareDescriptionFactory.construct(numCores, physMem, freeMem);
+				}
+			}
+
+			this.instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(currentInstanceType,
+				pessimisticHardwareDescription, numberOfInstances[i]));
+		}
+	}
+
+	/**
+	 * Calculates the instance accommodation matrix which stores how many times a particular instance type can be
+	 * accommodated inside another instance type based on the list of available instance types.
+	 * 
+	 * @return the instance accommodation matrix
+	 */
+	private int[][] calculateInstanceAccommodationMatrix() {
+
+		if (this.availableInstanceTypes == null) {
+			LOG.error("Cannot compute instance accommodation matrix: availableInstanceTypes is null");
+			return null;
+		}
+
+		final int matrixSize = this.availableInstanceTypes.length;
+		final int[][] am = new int[matrixSize][matrixSize];
+
+		// Populate matrix
+		for (int i = 0; i < matrixSize; i++) {
+			for (int j = 0; j < matrixSize; j++) {
+
+				if (i == j) {
+					am[i][j] = 1;
+				} else {
+
+					final InstanceType sourceType = this.availableInstanceTypes[i];
+					InstanceType targetType = this.availableInstanceTypes[j];
+
+					// How many times can we accommodate source type into target type?
+					final int cores = targetType.getNumberOfCores() / sourceType.getNumberOfCores();
+					final int cu = targetType.getNumberOfComputeUnits() / sourceType.getNumberOfComputeUnits();
+					final int mem = targetType.getMemorySize() / sourceType.getMemorySize();
+					final int disk = targetType.getDiskCapacity() / sourceType.getDiskCapacity();
+
+					am[i][j] = Math.min(cores, Math.min(cu, Math.min(mem, disk)));
+				}
+			}
+		}
+
+		return am;
+	}
+
+	/**
+	 * Returns how many times the instance type stored at index <code>sourceTypeIndex</code> can be accommodated inside
+	 * the instance type stored at index <code>targetTypeIndex</code> in the list of available instance types.
+	 * 
+	 * @param sourceTypeIndex
+	 *        the index of the source instance type in the list of available instance types
+	 * @param targetTypeIndex
+	 *        the index of the target instance type in the list of available instance types
+	 * @return the number of times the source type instance can be accommodated inside the target instance
+	 */
+	private int canBeAccommodated(int sourceTypeIndex, int targetTypeIndex) {
+
+		if (sourceTypeIndex >= this.availableInstanceTypes.length
+			|| targetTypeIndex >= this.availableInstanceTypes.length) {
+			LOG.error("Cannot determine number of instance accomodations: invalid index");
+			return 0;
+		}
+
+		return this.instanceAccommodationMatrix[sourceTypeIndex][targetTypeIndex];
 	}
 }
