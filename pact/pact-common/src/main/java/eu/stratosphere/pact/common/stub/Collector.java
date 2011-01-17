@@ -19,11 +19,27 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
- * @TODO
- * @author DIMA
+ * Collects the output of PACT first-order user function implemented as {@link eu.stratosphere.pact.common.stub.Stub}.
+ * The collected data is forwards to the next contract.
+ * 
+ * @author Erik Nijkamp
+ * @author Fabian Hueske
+ *
+ * @param <K>
+ * @param <V>
  */
 public interface Collector<K extends Key, V extends Value> {
+	
+	/**
+	 * An emitted key and an emitted value of a PACT first-order user function implemented as {@link eu.stratosphere.pact.common.stub.Stub}.
+	 * 
+	 * @param key The emitted key.
+	 * @param value The emitted value.
+	 */
 	void collect(K key, V value);
 
+	/**
+	 * Closes the collector.
+	 */
 	void close();
 }

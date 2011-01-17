@@ -26,16 +26,21 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
 /**
  * Contract for all tasks that have two inputs.
  * 
- * @author DIMA
+ * @author Erik Nijkamp
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 extends Key, IV2 extends Value, OK extends Key, OV extends Value>
 		extends Contract implements OutputContractConfigurable {
+	
+	// user implemented stub class
 	protected final Class<? extends DualInputStub<IK1, IV1, IK2, IV2, OK, OV>> clazz;
 
+	// first input contract of this contract 
 	protected Contract firstInput;
-
+	// second input contract of this contract
 	protected Contract secondInput;
 
+	// this contract's output contract
 	protected Class<? extends Annotation> outputContract;
 
 	/**
@@ -169,6 +174,9 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 		return this.outputContract;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {
 		visitor.preVisit(this);
