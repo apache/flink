@@ -138,7 +138,9 @@ public class HardwareDescriptionFactory {
 			if (bean.getName().equals(TENURED_POOL_NAME)) {
 				// found the tenured pool
 				final MemoryUsage usage = bean.getUsage();
-				return (usage.getMax() - usage.getUsed());
+				long tenuredSize =  usage.getMax() - usage.getUsed();
+				//TODO: make the constant configurable
+				return (long) (tenuredSize * 0.8f);
 			}
 		}
 		

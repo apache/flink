@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.compiler;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,10 +27,13 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeFactory;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.ipc.RPC;
+import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
@@ -70,8 +75,9 @@ import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class PactCompiler {
+	
 	// ------------------------------------------------------------------------
-	// Constants
+	//                             Constants
 	// ------------------------------------------------------------------------
 
 	/**
@@ -237,8 +243,9 @@ public class PactCompiler {
 	 */
 	public static final Log LOG = LogFactory.getLog(PactCompiler.class);
 
+	
 	// ------------------------------------------------------------------------
-	// Members
+	//                              Members
 	// ------------------------------------------------------------------------
 
 	/**
@@ -253,10 +260,10 @@ public class PactCompiler {
 	private final CostEstimator costEstimator;
 
 	/**
-	 * The type of instance that the PACT vertices are scheduled on.
+	 * The maximum number of machines (instances) to use, per the configuration.
 	 */
-	private final InstanceType pactInstanceType;
-
+	private final int maxMachines;
+	
 	/**
 	 * The default degree of parallelism for jobs compiled by this compiler.
 	 */
@@ -267,13 +274,9 @@ public class PactCompiler {
 	 */
 	private final int defaultIntraNodeParallelism;
 
-	/**
-	 * The amount of memory usable for PACT code per instance (in MB).
-	 */
-	private final int memoryPerInstance;
-
+	
 	// ------------------------------------------------------------------------
-	// Constructor & Setup
+	//                       Constructor & Setup
 	// ------------------------------------------------------------------------
 
 	/**
@@ -331,46 +334,28 @@ public class PactCompiler {
 
 		Configuration config = GlobalConfiguration.getConfiguration();
 		
-		// get the instance type to schedule pact tasks on		
-		String instanceDescr = config.getString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_KEY,
-			PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION);
-		InstanceType type = null;
-		try {
-			type = InstanceTypeFactory.constructFromDescription(instanceDescr);
-		}
-		catch (IllegalArgumentException iaex) {
-			LOG.error("Invalid description of standard instance type in PACT configuration: " + instanceDescr + 
-				". Using default instance type " + PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION + ".", iaex);
-			type = InstanceTypeFactory.constructFromDescription(PactConfigConstants.DEFAULT_INSTANCE_TYPE_DESCRIPTION);
-		}
-		this.pactInstanceType = type;
+		// determine the maximum number of instances to use
+		this.maxMachines = config.getInteger(PactConfigConstants.MAXIMUM_NUMBER_MACHINES_KEY,
+			PactConfigConstants.DEFAULT_MAX_NUMBER_MACHINES);
 
 		// determine the default parallelization degree
-		int defaultParallelizationDegree = config.getInteger(PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
+		this.defaultDegreeOfParallelism = config.getInteger(PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
 			PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
-		if (defaultParallelizationDegree < 1) {
-			LOG.error("Invalid default degree of parallelism: " + defaultParallelizationDegree + 
-				". Using default degree of " + PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE + ".");
-			defaultParallelizationDegree = PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE;
-		}
-		this.defaultDegreeOfParallelism = defaultParallelizationDegree;
+
 
 		// determine the default intra-node parallelism
 		int defaultInNodePar = config.getInteger(PactConfigConstants.DEFAULT_PARALLELIZATION_INTRA_NODE_DEGREE_KEY,
 			PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE);
 		if (defaultInNodePar < 1) {
-			LOG.error("Invalid default degree of intra-node parallelism: " + defaultParallelizationDegree + 
+			LOG.error("Invalid default degree of intra-node parallelism: " + defaultInNodePar + 
 				". Using default degree of " + PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE + ".");
 			defaultInNodePar = PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE;
 		}
 		this.defaultIntraNodeParallelism = defaultInNodePar;
-
-		// get the amount of memory usable per instance
-		this.memoryPerInstance = pactInstanceType.getMemorySize();
 	}
 
 	// ------------------------------------------------------------------------
-	// Compilation
+	//                             Compilation
 	// ------------------------------------------------------------------------
 
 	/**
@@ -390,36 +375,114 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
+	public OptimizedPlan compile(Plan pactPlan) throws CompilerException
+	{
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
-
+		
 		Configuration config = GlobalConfiguration.getConfiguration();
+		
+		// -------------------- try to get the connection to the job manager  ----------------------
+		// --------------------------to obtain instance information --------------------------------
+		
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Connecting compiler to JobManager.");
+		}
+		
+		List<InstanceTypeDescription> instances = null;
+		ExtendedManagementProtocol jobManagerConnection = null;
+		
+		try {
+			final String address = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+			if (address == null) {
+				throw new CompilerException("Cannot find address to job manager's RPC service in configuration");
+			}
+			
+			final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+			if (port < 0) {
+				throw new CompilerException("Cannot find port to job manager's RPC service in configuration");
+			}
 
-		// determine the number of machines to use
-		int maxMachinesConfig = config.getInteger(PactConfigConstants.MAXIMUM_NUMBER_MACHINES_KEY,
-			PactConfigConstants.DEFAULT_MAX_NUMBER_MACHINES);
-
-		int maxMachines = pactPlan.getMaxNumberMachines();
-
-		if (maxMachines < 1) {
-			maxMachines = maxMachinesConfig;
-		} else if (maxMachinesConfig >= 1) {
+			final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
+			
+			jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+				inetaddr, NetUtils.getSocketFactory());
+			
+			instances = jobManagerConnection.getListOfAvailableInstanceTypes();
+			if (instances == null) {
+				throw new IOException();
+			}
+		}
+		catch (IOException ioex) {
+			throw new CompilerException("Could not instantiate the connection to the job-manager", ioex);
+		}
+		finally {
+			if (jobManagerConnection != null) {
+				try {
+					RPC.stopProxy(jobManagerConnection); 
+				}
+				catch (Throwable t) {
+					LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
+				}
+			}
+			jobManagerConnection = null;
+		}
+		
+		// determine the maximum number of machines to use
+		int maxMachinesJob = pactPlan.getMaxNumberMachines();
+		
+		if (maxMachinesJob < 1) {
+			maxMachinesJob = this.maxMachines;
+		}
+		else if (this.maxMachines >= 1) {
 			// check if the program requested more than the global config allowed
-			if (maxMachines > maxMachinesConfig && LOG.isWarnEnabled()) {
-				LOG.warn("Maximal number of machines specified in PACT program (" + maxMachines
-					+ ") exceeds the maximum number in the global configuration (" + maxMachinesConfig
+			if (maxMachinesJob > this.maxMachines && LOG.isWarnEnabled()) {
+				LOG.warn("Maximal number of machines specified in PACT program (" + maxMachinesJob
+					+ ") exceeds the maximum number in the global configuration (" + this.maxMachines
 					+ "). Using the value given in the global configuration.");
 			}
 
-			maxMachines = Math.min(maxMachines, maxMachinesConfig);
+			maxMachinesJob = Math.min(maxMachinesJob, this.maxMachines);
 		}
-
+		
+		// determine which type to run on
+		InstanceTypeDescription type = getType(instances);
+		
+		String instanceName = type.getInstanceType().getIdentifier();
+		long memoryPerInstance = type.getHardwareDescription().getSizeOfFreeMemory();
+		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
+		int numInstances = type.getMaximumNumberOfAvailableInstances();
+		
+		// adjust the maximum number of machines the the number of available instances
+		if (maxMachinesJob < 1 || maxMachinesJob > numInstances) {
+			maxMachinesJob = numInstances;
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Maximal number of machines decreased to " + maxMachinesJob +
+					" because no more instances are available.");
+			}
+		}
+		
+		// set the default degree of parallelism
+		int defaultParallelism = this.defaultDegreeOfParallelism;
+		if (defaultParallelism < 1) {
+			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
+		}
+		else if (defaultParallelism > maxMachinesJob * defaultIntraNodeParallelism) {
+			int oldParallelism = defaultParallelism;
+			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
+			
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Decreasing default degree of parallelism from " + oldParallelism + 
+					" to " + defaultParallelism + " to fit a maximum number of " + maxMachinesJob + 
+					" instances with a intra-parallelism of " + defaultIntraNodeParallelism);
+			}
+		}
+		
 		// log the output
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Using a default degree of parallelism of " + this.defaultDegreeOfParallelism
-				+ ", a default intra-node parallelism of " + this.defaultIntraNodeParallelism + '.');
+			LOG.debug("Using a default degree of parallelism of " + defaultParallelism + 
+				", a default intra-node parallelism of " + this.defaultIntraNodeParallelism + '.');
 			if (maxMachines > 0) {
 				LOG.debug("The execution is limited to a maximum number of " + maxMachines + " machines.");
 			}
@@ -435,7 +498,7 @@ public class PactCompiler {
 		// 4) It makes estimates about the data volume of the data sources and
 		// propagates those estimates through the plan
 
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(maxMachines, true);
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(this.statistics, maxMachinesJob, defaultParallelism, true);
 		pactPlan.accept(graphCreator);
 		OptimizedPlan plan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks,
 			graphCreator.con2node.values(), pactPlan.getJobName());
@@ -447,7 +510,7 @@ public class PactCompiler {
 		// 1) propagate the interesting properties top-down through the graph
 		// 2) Track information about nodes with multiple outputs that are later on reconnected in a node with
 		// multiple inputs.
-		InterestingPropertyAndBranchesVisitor propsVisitor = new InterestingPropertyAndBranchesVisitor(costEstimator);
+		InterestingPropertyAndBranchesVisitor propsVisitor = new InterestingPropertyAndBranchesVisitor(this.costEstimator);
 		plan.accept(propsVisitor);
 
 		// the final step is not to generate the actual plan alternatives
@@ -456,14 +519,14 @@ public class PactCompiler {
 			throw new CompilerException("In the current version, plans must have exactly one data sink.");
 		}
 
-		List<DataSinkNode> bestPlan = plan.getDataSinks().iterator().next().getAlternativePlans(costEstimator);
+		List<DataSinkNode> bestPlan = plan.getDataSinks().iterator().next().getAlternativePlans(this.costEstimator);
 		if (bestPlan.size() != 1) {
 			throw new CompilerException("Error in compiler: more than one best plan was created!");
 		}
 
 		// finalize the plan
-		plan = new PlanFinalizer().createFinalPlan(bestPlan, pactPlan.getJobName(), memoryPerInstance);
-		plan.setInstanceTypeName(this.pactInstanceType.getIdentifier());
+		plan = new PlanFinalizer().createFinalPlan(bestPlan, pactPlan.getJobName(), memoryMegabytes);
+		plan.setInstanceTypeName(instanceName);
 
 		// insert temporary dams, as they may be necessary in non-tree graphs to prevent deadlocks
 		insertTempConnection(plan);
@@ -479,11 +542,12 @@ public class PactCompiler {
 	 *        The plan to generate the optimizer representation for.
 	 * @return The optimizer representation of the plan.
 	 */
-	public OptimizedPlan createPreOptimizedPlan(Plan pactPlan) {
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(-1, false);
+	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan)
+	{
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, -1, false);
 		pactPlan.accept(graphCreator);
-		return new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(), pactPlan
-			.getJobName());
+		return new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
+			pactPlan.getJobName());
 	}
 
 	/**
@@ -496,16 +560,20 @@ public class PactCompiler {
 	 * estimation and the awareness for optimizer hints, the sizes will be properly estimated and the translated plan
 	 * already respects all optimizer hints.
 	 */
-	private final class GraphCreatingVisitor implements Visitor<Contract> {
+	private static final class GraphCreatingVisitor implements Visitor<Contract>
+	{
 		private final Map<Contract, OptimizerNode> con2node; // map from the contract objects to their
-
-		// corresponding optimizer nodes
+		                                                     // corresponding optimizer nodes
 
 		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
 
 		private final List<DataSinkNode> sinks; // all data sink nodes in the optimizer plan
+		
+		private final DataStatistics statistics; // used to access basic file statistics
 
 		private final int maxMachines; // the maximum number of machines to use
+		
+		private final int defaultParallelism; // the default degree of parallelism
 
 		private int id; // the incrementing id for the nodes.
 
@@ -514,12 +582,17 @@ public class PactCompiler {
 		/**
 		 * Creates a new node creating visitor.
 		 */
-		private GraphCreatingVisitor(int maxMachines, boolean computeEstimates) {
+		private GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism,
+				boolean computeEstimates)
+		{
 			this.con2node = new HashMap<Contract, OptimizerNode>();
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
+			
+			this.statistics = statistics;
 
 			this.maxMachines = maxMachines;
+			this.defaultParallelism = defaultParallelism;
 
 			this.id = 1;
 
@@ -532,7 +605,8 @@ public class PactCompiler {
 		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
 		 */
 		@Override
-		public boolean preVisit(Contract c) {
+		public boolean preVisit(Contract c)
+		{
 			// check if we have been here before
 			if (con2node.containsKey(c)) {
 				return false;
@@ -567,7 +641,7 @@ public class PactCompiler {
 
 			// set the degree of parallelism
 			int par = c.getDegreeOfParallelism();
-			par = par >= 1 ? par : PactCompiler.this.defaultDegreeOfParallelism;
+			par = par >= 1 ? par : this.defaultParallelism;
 
 			// set the parallelism only if it has not been set before
 			if (n.getDegreeOfParallelism() < 1) {
@@ -582,7 +656,7 @@ public class PactCompiler {
 				int mpi = p / maxMachines;
 				mpi += p % maxMachines == 0 ? 0 : 1;
 
-				tasksPerInstance = Math.max(mpi, PactCompiler.this.defaultIntraNodeParallelism);
+				tasksPerInstance = Math.max(mpi, this.defaultParallelism);
 			}
 
 			// we group together n tasks per machine, depending on config and the above computed
@@ -607,7 +681,7 @@ public class PactCompiler {
 
 			// now compute the output estimates
 			if (computeEstimates) {
-				n.computeOutputEstimates(statistics);
+				n.computeOutputEstimates(this.statistics);
 			}
 		}
 
@@ -672,7 +746,8 @@ public class PactCompiler {
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
 	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
 	 */
-	private static final class PlanFinalizer implements Visitor<OptimizerNode> {
+	private static final class PlanFinalizer implements Visitor<OptimizerNode>
+	{
 		private final Set<OptimizerNode> allNodes; // a set of all nodes in the optimizer plan
 
 		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
@@ -751,7 +826,7 @@ public class PactCompiler {
 	}
 
 	// ------------------------------------------------------------------------
-	// Inserting dams to break pipeline deadlocks in non-tree graphs
+	//     Inserting dams to break pipeline deadlocks in non-tree graphs
 	// ------------------------------------------------------------------------
 
 	/**
@@ -967,5 +1042,39 @@ public class PactCompiler {
 			}
 		}
 	}
-
+	
+	// ------------------------------------------------------------------------
+	//                            Miscellaneous
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * This utility method picks the instance type to be used for scheduling PACT processor
+	 * instances.
+	 * 
+	 * @param types The available types.
+	 * @return The type to be used for scheduling.
+	 */
+	private InstanceTypeDescription getType(List<InstanceTypeDescription> types)
+	{
+		if (types == null || types.size() < 1) {
+			throw new IllegalArgumentException("No instance type found.");
+		}
+		
+		long minMemory = 0;
+		int minCPUCores = Integer.MAX_VALUE;
+		int index = 0;
+		
+		for (int i = 0; i < types.size(); i++) {
+			InstanceTypeDescription descr = types.get(i);
+			if (descr.getInstanceType().getNumberOfCores() < minCPUCores &&
+				descr.getHardwareDescription().getSizeOfFreeMemory() > minMemory)
+			{
+				minCPUCores = descr.getInstanceType().getNumberOfCores();
+				minMemory = descr.getHardwareDescription().getSizeOfFreeMemory();
+				index = i;
+			}
+		}
+		
+		return types.get(index);
+	}
 }

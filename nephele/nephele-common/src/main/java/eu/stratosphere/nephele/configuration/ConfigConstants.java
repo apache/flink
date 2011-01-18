@@ -75,10 +75,6 @@ public final class ConfigConstants {
 	
 	// ----------------------------- Instances --------------------------------
 
-	/**
-	 * The key for the config parameter defining the type of instance returned by the local instance manager.
-	 */
-	public static final String JOBMANAGER_LOCALINSTANCE_TYPE_KEY = "jobmanager.instancemanager.local.type";
 	
 	// ------------------------------------------------------------------------
 	//                             Default Values

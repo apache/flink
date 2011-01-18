@@ -200,12 +200,10 @@ public class PactProgram {
 		}
 	}
 
-	protected OptimizedPlan getPreOptimizedPlan(Plan plan) {
-		// TODO: Can this be instantiated statically?
-		PactCompiler compiler = new PactCompiler();
-
+	protected OptimizedPlan getPreOptimizedPlan(Plan plan)
+	{
 		// perform the actual compilation
-		OptimizedPlan optPlan = compiler.createPreOptimizedPlan(plan);
+		OptimizedPlan optPlan = PactCompiler.createPreOptimizedPlan(plan);
 		return optPlan;
 	}
 

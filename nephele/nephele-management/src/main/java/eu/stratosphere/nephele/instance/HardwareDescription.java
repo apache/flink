@@ -53,6 +53,16 @@ public class HardwareDescription implements IOReadableWritable {
 	 */
 	public HardwareDescription() {
 	}
+	
+	/**
+	 * Copy constructor that takes a given hardware description and replaces the memory size with 
+	 * the given value.
+	 */
+	public HardwareDescription(HardwareDescription template, long freeMemory) {
+		this.numberOfCPUCores = template.numberOfCPUCores;
+		this.sizeOfPhysicalMemory = template.sizeOfFreeMemory;
+		this.sizeOfFreeMemory = freeMemory;
+	}
 
 	/**
 	 * Constructs a new hardware description object.

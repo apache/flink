@@ -58,21 +58,9 @@ public class LocalInstanceManager implements InstanceManager {
 	private final List<InstanceTypeDescription> instanceTypeDescriptionList;
 
 	public LocalInstanceManager(String configDir) {
-		Configuration config = GlobalConfiguration.getConfiguration();
 
 		// get the default instance type
-		InstanceType type = null;
-		String descr = config.getString(ConfigConstants.JOBMANAGER_LOCALINSTANCE_TYPE_KEY, null);
-		try {
-			if (descr != null) {
-				type = InstanceTypeFactory.constructFromDescription(descr);
-			}
-		} catch (IllegalArgumentException iaex) {
-			LogFactory.getLog(LocalInstanceManager.class).error(
-				"Invalid description of default instance: " + descr + ". Using default instance type.", iaex);
-		}
-
-		this.defaultInstanceType = type != null ? type : createDefaultInstanceType();
+		this.defaultInstanceType = createDefaultInstanceType();
 		this.networkTopology = NetworkTopology.createEmptyTopology();
 
 		this.instanceTypeDescriptionList = new SerializableArrayList<InstanceTypeDescription>();

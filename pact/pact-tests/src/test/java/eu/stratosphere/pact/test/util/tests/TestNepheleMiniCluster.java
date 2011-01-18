@@ -62,10 +62,7 @@ public class TestNepheleMiniCluster extends TestCase {
 
 		String nepheleConfigDir = System.getProperty("user.dir") + "/tmp/nephele/config";
 		String hdfsConfigDir = hdfs.getConfigDir();
-		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, 1 /*
-																			 * task-
-																			 * tracker
-																			 */, 128 /* memory */);
+		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, 1 /*task-tracker*/);
 	}
 
 	@Test

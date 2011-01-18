@@ -95,7 +95,7 @@ public final class PactConfigConstants {
 	/**
 	 * The default degree of parallelism for PACT user functions.
 	 */
-	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
+	public static final int DEFAULT_PARALLELIZATION_DEGREE = -1;
 
 	/**
 	 * The default intra-node parallelism
