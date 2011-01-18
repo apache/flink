@@ -58,28 +58,25 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
  * Instance Manager for a static cluster.
  * <p>
  * The cluster manager can handle heterogeneous instances (compute nodes). Each instance type used in the cluster must
- * be described in the configuration. The configuration must include the number of different instance types as well as
- * description of the hardware profile of each instance type.
+ * be described in the configuration.
  * <p>
  * This is a sample configuration: <code>
- * # number of instance types defined in this cluster
- * clustermgr.nrtypes = 5 
- * 
  * # definition of instances in format
  * # instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour
- * clustermgr.instancetype.1 = m1.small,2,1,2048,10,10
- * clustermgr.instancetype.2 = c1.medium,2,1,2048,10,10
- * clustermgr.instancetype.3 = m1.large,4,2,2048,10,10
- * clustermgr.instancetype.4 = m1.xlarge,8,4,8192,20,20
- * clustermgr.instancetype.5 = c1.xlarge,8,4,16384,20,40
+ * instancemanager.cluster.type.1 = m1.small,2,1,2048,10,10
+ * instancemanager.cluster.type. = c1.medium,2,1,2048,10,10
+ * instancemanager.cluster.type. = m1.large,4,2,2048,10,10
+ * instancemanager.cluster.type. = m1.xlarge,8,4,8192,20,20
+ * instancemanager.cluster.type. = c1.xlarge,8,4,16384,20,40
  * 
  * # default instance type
- * clustermgr.instancetype.defaultInstance = m1.large
- * </code> Each instance is expected to run exactly one {@link TaskManager}. When the {@link TaskManager} registers with
- * the {@link JobManager} it sends a {@link HardwareDescription} which describes the actual hardware characteristics of
- * the instance (compute node). The cluster manage will attempt to match the report hardware characteristics with one of
- * the configured instance types. Moreover, the cluster manager is capable of partitioning larger instances (compute
- * nodes) into smaller, less powerful instances.
+ * instancemanager.cluster.defaulttype = 1 (pointing to m1.small)
+ * </code> Each instance is expected to run exactly one {@link eu.stratosphere.nephele.taskmanager.TaskManager}. When
+ * the {@link eu.stratosphere.nephele.taskmanager.TaskManager} registers with the
+ * {@link eu.stratosphere.nephele.jobmanager.JobManager} it sends a {@link HardwareDescription} which describes the
+ * actual hardware characteristics of the instance (compute node). The cluster manage will attempt to match the report
+ * hardware characteristics with one of the configured instance types. Moreover, the cluster manager is capable of
+ * partitioning larger instances (compute nodes) into smaller, less powerful instances.
  * <p>
  * This class is thread-safe.
  * 
@@ -352,7 +349,7 @@ public class ClusterManager implements InstanceManager {
 				InstanceType instanceType = null;
 				String instanceTypeName = m.group(2);
 				if (instanceTypeName != null && instanceTypeName.length() > 0) {
-					
+
 					instanceType = getInstanceTypeByName(instanceTypeName);
 					if (instanceType != null) {
 						this.ipToInstanceTypeMapping.put(address, instanceType);
@@ -426,13 +423,10 @@ public class ClusterManager implements InstanceManager {
 	}
 
 	/**
-	 * Reads the instance types configured in the config file.
-	 * The config file needs to contain a key <code>clustermgr.nrtypes</code> that indicates the number of instance
-	 * types that are supported by the
-	 * cluster. This is followed by entries <code>clustermgr.instancetype.X</code> where X is a number from 1 to
-	 * the specified number of entries. Each entry follows the format:
-	 * "instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour"
-	 * (see {@link InstanceType}).
+	 * Reads the instance types configured in the config file. Each instance type is defined by a key/value pair. The
+	 * format of the key is <code>instancemanager.cluster.type.X</code> where X is an ongoing integer number starting at
+	 * 1. The format of the value follows the pattern
+	 * "instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour" (see {@link InstanceType}).
 	 * 
 	 * @return list of available instance types sorted by price (cheapest to
 	 *         most expensive)
@@ -645,20 +639,20 @@ public class ClusterManager implements InstanceManager {
 	private InstanceType mactchHardwareDescriptionWithInstanceType(HardwareDescription hardwareDescription) {
 
 		// Assumes that the available instance types are ordered by number of CPU cores in descending order
-		for (int i = this.availableInstanceTypes.length - 1; i >= 0; i--) {
+		for (int i = 0; i < this.availableInstanceTypes.length; i++) {
 
 			final InstanceType candidateInstanceType = this.availableInstanceTypes[i];
 			// Check if number of CPU cores match
 			if (candidateInstanceType.getNumberOfCores() > hardwareDescription.getNumberOfCPUCores()) {
 				continue;
 			}
-			
+
 			// Check if size of physical memory matches
 			final int memoryInMB = (int) (hardwareDescription.getSizeOfPhysicalMemory() / (1024L * 1024L));
 			if (candidateInstanceType.getMemorySize() > memoryInMB) {
 				continue;
 			}
-			
+
 			return candidateInstanceType;
 		}
 
@@ -793,8 +787,8 @@ public class ClusterManager implements InstanceManager {
 			int highestAccommodationIndex = -1;
 			for (int j = 0; j < this.availableInstanceTypes.length; j++) {
 				final int accommodationNumber = canBeAccommodated(j, i);
-				//LOG.debug(this.availableInstanceTypes[j].getIdentifier() + " fits into "
-				//	+ this.availableInstanceTypes[i].getIdentifier() + " " + accommodationNumber + " times");
+				// LOG.debug(this.availableInstanceTypes[j].getIdentifier() + " fits into "
+				// + this.availableInstanceTypes[i].getIdentifier() + " " + accommodationNumber + " times");
 				if (accommodationNumber > 0) {
 					numberOfInstances[j] += numberOfMatchingInstances * accommodationNumber;
 					if (accommodationNumber > highestAccommodationNumber) {

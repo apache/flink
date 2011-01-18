@@ -70,11 +70,7 @@ public final class ConfigConstants {
 	/**
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
-	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
-
-	
-	// ----------------------------- Instances --------------------------------
-
+	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";	
 	
 	// ------------------------------------------------------------------------
 	//                             Default Values

@@ -455,7 +455,10 @@ public class PactCompiler {
 		int numInstances = type.getMaximumNumberOfAvailableInstances();
 		
 		// adjust the maximum number of machines the the number of available instances
-		if (maxMachinesJob < 1 || maxMachinesJob > numInstances) {
+		if (maxMachinesJob < 1) {
+			maxMachinesJob = numInstances;
+		}
+		else if (maxMachinesJob > numInstances) {
 			maxMachinesJob = numInstances;
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Maximal number of machines decreased to " + maxMachinesJob +

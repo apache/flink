@@ -332,7 +332,7 @@ public class ExecutionGraphTest {
 			// test all methods of ExecutionGraph
 			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
 			assertEquals(1, (int) eg.getInstanceTypesRequiredForCurrentStage()
-				.get(lim.getInstanceTypeByName("default")));
+				.get(lim.getInstanceTypeByName("test")));
 
 			assertEquals(jobID, eg.getJobID());
 			assertEquals(0, eg.getIndexOfCurrentExecutionStage());
@@ -427,7 +427,7 @@ public class ExecutionGraphTest {
 			assertEquals(1, egv1.getNumberOfSubtasksPerInstance());
 			assertEquals(0, egv1.getStageNumber());
 			assertEquals(-1, egv1.getUserDefinedNumberOfMembers());
-			assertEquals(lim.getInstanceTypeByName("default"), egv1.getInstanceType());
+			assertEquals(lim.getInstanceTypeByName("test"), egv1.getInstanceType());
 			assertEquals("Input 1", egv1.getVertexToShareInstancesWith().getName());
 
 			// egv2 (task1)
@@ -451,7 +451,7 @@ public class ExecutionGraphTest {
 			assertEquals(1, egv2.getNumberOfSubtasksPerInstance());
 			assertEquals(0, egv2.getStageNumber());
 			assertEquals(-1, egv2.getUserDefinedNumberOfMembers());
-			assertEquals(lim.getInstanceTypeByName("default"), egv2.getInstanceType());
+			assertEquals(lim.getInstanceTypeByName("test"), egv2.getInstanceType());
 			assertNull(egv2.getVertexToShareInstancesWith());
 
 			// test all methods of ExecutionVertex
@@ -464,21 +464,21 @@ public class ExecutionGraphTest {
 			assertEquals(egv0, ev0.getGroupVertex());
 			assertNotNull(ev0.getID());
 			assertEquals("Input 1", ev0.getName());
-			assertEquals(lim.getInstanceTypeByName("default"), ev0.getAllocatedResource().getInstance().getType());
+			assertEquals(lim.getInstanceTypeByName("test"), ev0.getAllocatedResource().getInstance().getType());
 
 			// ev1 (output1)
 			assertNotNull(ev1.getEnvironment());
 			assertEquals(egv1, ev1.getGroupVertex());
 			assertNotNull(ev1.getID());
 			assertEquals("Output 1", ev1.getName());
-			assertEquals(lim.getInstanceTypeByName("default"), ev1.getAllocatedResource().getInstance().getType());
+			assertEquals(lim.getInstanceTypeByName("test"), ev1.getAllocatedResource().getInstance().getType());
 
 			// ev2 (task1)
 			assertNotNull(ev2.getEnvironment());
 			assertEquals(egv2, ev2.getGroupVertex());
 			assertNotNull(ev2.getID());
 			assertEquals("Task 1", ev2.getName());
-			assertEquals(lim.getInstanceTypeByName("default"), ev2.getAllocatedResource().getInstance().getType());
+			assertEquals(lim.getInstanceTypeByName("test"), ev2.getAllocatedResource().getInstance().getType());
 
 			assertEquals(ev0.getAllocatedResource(), ev1.getAllocatedResource());
 			assertEquals(ev0.getAllocatedResource(), ev2.getAllocatedResource());
@@ -1027,7 +1027,7 @@ public class ExecutionGraphTest {
 			// test instance types in ExecutionGraph
 			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
 			assertEquals(4, (int) eg.getInstanceTypesRequiredForCurrentStage()
-				.get(lim.getInstanceTypeByName("default")));
+				.get(lim.getInstanceTypeByName("test")));
 
 			// Fake transition to next stage by triggering execution state changes manually
 			it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(), true, true);
@@ -1044,7 +1044,7 @@ public class ExecutionGraphTest {
 
 			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
 			assertEquals(8, (int) eg.getInstanceTypesRequiredForCurrentStage()
-				.get(lim.getInstanceTypeByName("default")));
+				.get(lim.getInstanceTypeByName("test")));
 
 		} catch (GraphConversionException e) {
 			e.printStackTrace();

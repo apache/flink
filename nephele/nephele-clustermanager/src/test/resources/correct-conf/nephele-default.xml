@@ -21,7 +21,7 @@
         </property>
         <property>
                 <key>instancemanager.cluster.cleanupinterval</key>
-                <value>120</value>
+                <value>5</value>
         </property>
 
 </configuration>
