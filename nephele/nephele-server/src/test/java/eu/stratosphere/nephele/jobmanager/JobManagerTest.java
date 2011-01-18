@@ -221,6 +221,10 @@ public class JobManagerTest {
 			o1.setFileOutputClass(FileLineWriter.class);
 			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
 
+			t1.setVertexToShareInstancesWith(i1);
+			t2.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+			
 			// connect vertices
 			try {
 				i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);

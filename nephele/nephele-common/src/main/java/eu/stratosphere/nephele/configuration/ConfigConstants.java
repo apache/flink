@@ -70,15 +70,7 @@ public final class ConfigConstants {
 	/**
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
-	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
-
-	
-	// ----------------------------- Instances --------------------------------
-
-	/**
-	 * The key for the config parameter defining the type of instance returned by the local instance manager.
-	 */
-	public static final String JOBMANAGER_LOCALINSTANCE_TYPE_KEY = "jobmanager.instancemanager.local.type";
+	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";	
 	
 	// ------------------------------------------------------------------------
 	//                             Default Values
