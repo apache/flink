@@ -41,11 +41,6 @@
         <artifactId>typica</artifactId>
         <version>1.6</version>
       </dependency>
-        
-      <dependency>
-    	<groupId>com.google.collections</groupId>
-    	<artifactId>google-collections</artifactId>
-      </dependency>
     	
     </dependencies>
     

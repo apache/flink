@@ -36,8 +36,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -434,7 +432,6 @@ public class DiscoveryService implements Runnable {
 	 *        the length (in bits) of network address prefix
 	 * @return bit vector representing the prefix of the network address
 	 */
-	@VisibleForTesting
 	static byte[] getNetworkPrefix(int addressLength, int networkPrefixLength) {
 
 		if (networkPrefixLength <= 0 || networkPrefixLength >= addressLength) {
@@ -478,7 +475,6 @@ public class DiscoveryService implements Runnable {
 	 *        number of bits in IP addresses belonging to network id
 	 * @return true if a and b belong to the same network.
 	 */
-	@VisibleForTesting
 	static boolean onSameNetwork(InetAddress a, InetAddress b, int networkPrefixLength) {
 
 		if ((a == null) || (b == null)) {

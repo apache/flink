@@ -24,15 +24,16 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import org.junit.Test;
-
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -77,15 +78,21 @@ public class ExecutionGraphTest {
 
 		int nrAvailable = 0;
 
-		final Multimap<JobID, AllocatedResource> instancesOfJobs = HashMultimap.create();
+		final Map<JobID, List<AllocatedResource>> resourcesOfJobs = new HashMap<JobID, List<AllocatedResource>>();
 
 		@Override
 		public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
 
 			--nrAvailable;
 			assertTrue(nrAvailable >= 0);
-			assertTrue(instancesOfJobs.containsEntry(jobID, allocatedResource));
-			instancesOfJobs.remove(jobID, allocatedResource);
+			
+			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
+			assertTrue(resourcesOfJob != null);
+			assertTrue(resourcesOfJob.contains(allocatedResource));
+			resourcesOfJob.remove(allocatedResource);
+			if(resourcesOfJob.isEmpty()) {
+				this.resourcesOfJobs.remove(jobID);
+			}
 		}
 
 		@Override
@@ -93,8 +100,13 @@ public class ExecutionGraphTest {
 
 			assertTrue(nrAvailable >= 0);
 			++nrAvailable;
-			assertFalse(instancesOfJobs.containsEntry(jobID, allocatedResource));
-			instancesOfJobs.put(jobID, allocatedResource);
+			List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
+			if(resourcesOfJob == null) {
+				resourcesOfJob = new ArrayList<AllocatedResource>();
+				this.resourcesOfJobs.put(jobID, resourcesOfJob);
+			}
+			assertFalse(resourcesOfJob.contains(allocatedResource));
+			resourcesOfJob.add(allocatedResource);
 		}
 	}
 

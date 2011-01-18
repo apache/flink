@@ -141,10 +141,16 @@ public class HardwareDescriptionFactory {
 				return (usage.getMax() - usage.getUsed());
 			}
 		}
+		
+		Runtime r = Runtime.getRuntime();
+		final long maximum = r.maxMemory();
+		
+		//TODO: Make 0.7f configurable
+		return (long) ( 0.7f * (maximum - r.totalMemory() + r.freeMemory()));
 
-		LOG.error("Cannot determine size of free memory: Unable to find tenured pool");
-
-		return -1;
+//		LOG.error("Cannot determine size of free memory: Unable to find tenured pool");
+//
+//		return -1;
 	}
 
 	/**

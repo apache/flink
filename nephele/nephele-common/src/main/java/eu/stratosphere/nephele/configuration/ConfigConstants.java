@@ -79,21 +79,6 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining the type of instance returned by the local instance manager.
 	 */
 	public static final String JOBMANAGER_LOCALINSTANCE_TYPE_KEY = "jobmanager.instancemanager.local.type";
-
-	/**
-	 * The key prefix for the config parameters that define the different available instance types.
-	 */
-	public static final String INSTANCE_MANAGER_INSTANCE_TYPE_PREFIX_KEY = "jobmanager.instancemanager.cluster.type.";
-
-	/**
-	 * The key to retrieve the index of the default instance type from the configuration.
-	 */
-	public static final String INSTANCE_MANAGER_DEFAULT_INSTANCE_TYPE_INDEX_KEY = "jobmanager.instancemanager.cluster.defaulttype";
-	
-	/**
-	 * The key to retrieve the clean up interval from the configuration.
-	 */
-	public static final String INSTANCE_MANAGER_CLEANUP_INTERVAL_KEY = "jobmanager.instancemanager.cluster.cleanupinterval";
 	
 	// ------------------------------------------------------------------------
 	//                             Default Values

@@ -31,8 +31,6 @@ import java.util.TimerTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.google.common.collect.Lists;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AbstractInstance;
@@ -159,7 +157,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	private InstanceType[] populateInstanceTypeArray() {
 
-		final List<InstanceType> instanceTypes = Lists.newArrayList();
+		final List<InstanceType> instanceTypes = new ArrayList<InstanceType>();
 
 		// read the number of instance types
 		final int num = GlobalConfiguration.getInteger("cloudmgr.nrtypes", -1);
