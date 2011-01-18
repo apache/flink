@@ -352,7 +352,7 @@ public class ClusterManager implements InstanceManager {
 				InstanceType instanceType = null;
 				String instanceTypeName = m.group(2);
 				if (instanceTypeName != null && instanceTypeName.length() > 0) {
-					
+
 					instanceType = getInstanceTypeByName(instanceTypeName);
 					if (instanceType != null) {
 						this.ipToInstanceTypeMapping.put(address, instanceType);
@@ -645,20 +645,20 @@ public class ClusterManager implements InstanceManager {
 	private InstanceType mactchHardwareDescriptionWithInstanceType(HardwareDescription hardwareDescription) {
 
 		// Assumes that the available instance types are ordered by number of CPU cores in descending order
-		for (int i = this.availableInstanceTypes.length - 1; i >= 0; i--) {
+		for (int i = 0; i < this.availableInstanceTypes.length; i++) {
 
 			final InstanceType candidateInstanceType = this.availableInstanceTypes[i];
 			// Check if number of CPU cores match
 			if (candidateInstanceType.getNumberOfCores() > hardwareDescription.getNumberOfCPUCores()) {
 				continue;
 			}
-			
+
 			// Check if size of physical memory matches
 			final int memoryInMB = (int) (hardwareDescription.getSizeOfPhysicalMemory() / (1024L * 1024L));
 			if (candidateInstanceType.getMemorySize() > memoryInMB) {
 				continue;
 			}
-			
+
 			return candidateInstanceType;
 		}
 
@@ -793,8 +793,8 @@ public class ClusterManager implements InstanceManager {
 			int highestAccommodationIndex = -1;
 			for (int j = 0; j < this.availableInstanceTypes.length; j++) {
 				final int accommodationNumber = canBeAccommodated(j, i);
-				//LOG.debug(this.availableInstanceTypes[j].getIdentifier() + " fits into "
-				//	+ this.availableInstanceTypes[i].getIdentifier() + " " + accommodationNumber + " times");
+				// LOG.debug(this.availableInstanceTypes[j].getIdentifier() + " fits into "
+				// + this.availableInstanceTypes[i].getIdentifier() + " " + accommodationNumber + " times");
 				if (accommodationNumber > 0) {
 					numberOfInstances[j] += numberOfMatchingInstances * accommodationNumber;
 					if (accommodationNumber > highestAccommodationNumber) {
