@@ -278,7 +278,8 @@ public class TaskManager implements TaskOperationProtocol {
 
 		if (memorySize > 0) {
 			// manually configured memory size. override the value in the hardware config
-			hardware = new HardwareDescription(hardware, memorySize * 1024L * 1024L);
+			hardware = HardwareDescriptionFactory.construct(hardware.getNumberOfCPUCores(),
+				hardware.getSizeOfPhysicalMemory(), memorySize * 1024L * 1024L);
 		}
 		this.hardwareDescription = hardware;
 

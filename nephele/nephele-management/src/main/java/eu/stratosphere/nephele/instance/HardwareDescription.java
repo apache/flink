@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * 
  * @author warneke
  */
-public class HardwareDescription implements IOReadableWritable {
+public final class HardwareDescription implements IOReadableWritable {
 
 	/**
 	 * The number of CPU cores available to the JVM on the compute node.
@@ -53,16 +53,6 @@ public class HardwareDescription implements IOReadableWritable {
 	 */
 	public HardwareDescription() {
 	}
-	
-	/**
-	 * Copy constructor that takes a given hardware description and replaces the memory size with 
-	 * the given value.
-	 */
-	public HardwareDescription(HardwareDescription template, long freeMemory) {
-		this.numberOfCPUCores = template.numberOfCPUCores;
-		this.sizeOfPhysicalMemory = template.sizeOfFreeMemory;
-		this.sizeOfFreeMemory = freeMemory;
-	}
 
 	/**
 	 * Constructs a new hardware description object.
@@ -74,7 +64,7 @@ public class HardwareDescription implements IOReadableWritable {
 	 * @param sizeOfFreeMemory
 	 *        the size of free memory in bytes available to the JVM on the compute node
 	 */
-	HardwareDescription(int numberOfCPUCores, long sizeOfPhysicalMemory, long sizeOfFreeMemory) {
+	HardwareDescription(final int numberOfCPUCores, final long sizeOfPhysicalMemory, final long sizeOfFreeMemory) {
 		this.numberOfCPUCores = numberOfCPUCores;
 		this.sizeOfPhysicalMemory = sizeOfPhysicalMemory;
 		this.sizeOfFreeMemory = sizeOfFreeMemory;
@@ -84,7 +74,7 @@ public class HardwareDescription implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		out.writeInt(this.numberOfCPUCores);
 		out.writeLong(this.sizeOfPhysicalMemory);
@@ -95,7 +85,7 @@ public class HardwareDescription implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		this.numberOfCPUCores = in.readInt();
 		this.sizeOfPhysicalMemory = in.readLong();

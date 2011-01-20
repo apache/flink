@@ -19,19 +19,44 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.StringRecord;
 
+/**
+ * An {@link NewJobEvent} can be used to notify other objects about the arrival of a new Nephele job.
+ * 
+ * @author warneke
+ */
 public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 
+	/**
+	 * The ID of the new job.
+	 */
 	private JobID jobID;
 
+	/**
+	 * The name of the new job.
+	 */
 	private String jobName;
 
+	/**
+	 * <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise.
+	 */
 	private boolean isProfilingEnabled;
 
-	public NewJobEvent(JobID jobID, String jobName, boolean isProfilingEnabled, long timestamp) {
+	/**
+	 * Constructs a new event.
+	 * 
+	 * @param jobID
+	 *        the ID of the new job
+	 * @param jobName
+	 *        the name of the new job
+	 * @param isProfilingEnabled
+	 *        <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise
+	 * @param timestamp
+	 *        the time stamp of the event
+	 */
+	public NewJobEvent(final JobID jobID, final String jobName, final boolean isProfilingEnabled, final long timestamp) {
 		super(timestamp);
 
 		this.jobID = jobID;
@@ -39,19 +64,37 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 		this.isProfilingEnabled = isProfilingEnabled;
 	}
 
+	/**
+	 * Constructor for serialization/deserialization. Should not be called on other occasions.
+	 */
 	public NewJobEvent() {
 		super();
 	}
 
-	public JobID getJobID() {
+	/**
+	 * Returns the ID of the new job.
+	 * 
+	 * @return the ID of the new job
+	 */
+	public final JobID getJobID() {
 		return this.jobID;
 	}
 
-	public String getJobName() {
+	/**
+	 * Returns the name of the new job.
+	 * 
+	 * @return the name of the new job or <code>null</code> if the job has no name
+	 */
+	public final String getJobName() {
 		return this.jobName;
 	}
 
-	public boolean isProfilingAvailable() {
+	/**
+	 * Checks if profiling is enabled for the new job.
+	 * 
+	 * @return <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise
+	 */
+	public final boolean isProfilingAvailable() {
 		return this.isProfilingEnabled;
 	}
 
@@ -59,7 +102,7 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 
 		// Read the job ID
@@ -77,7 +120,7 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		// Write the job ID
@@ -94,7 +137,7 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!super.equals(obj)) {
 			return false;
@@ -120,21 +163,21 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 
 		return true;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public int hashCode() {
-		
-		if(this.jobID != null) {
+
+		if (this.jobID != null) {
 			return this.jobID.hashCode();
 		}
-		
-		if(this.jobName != null) {
+
+		if (this.jobName != null) {
 			return this.jobName.hashCode();
 		}
-		
+
 		return super.hashCode();
 	}
 }

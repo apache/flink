@@ -13,7 +13,7 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * 
  * @author warneke
  */
-public class InstanceTypeDescription implements IOReadableWritable {
+public final class InstanceTypeDescription implements IOReadableWritable {
 
 	/**
 	 * The instance type.
@@ -37,7 +37,7 @@ public class InstanceTypeDescription implements IOReadableWritable {
 	}
 
 	/**
-	 * Constructs a new instance type description
+	 * Constructs a new instance type description.
 	 * 
 	 * @param instanceType
 	 *        the instance type
@@ -46,8 +46,8 @@ public class InstanceTypeDescription implements IOReadableWritable {
 	 * @param maximumNumberOfAvailableInstances
 	 *        the maximum number of available instances of this type
 	 */
-	InstanceTypeDescription(InstanceType instanceType, HardwareDescription hardwareDescription,
-			int maximumNumberOfAvailableInstances) {
+	InstanceTypeDescription(final InstanceType instanceType, final HardwareDescription hardwareDescription,
+			final int maximumNumberOfAvailableInstances) {
 
 		this.instanceType = instanceType;
 		this.hardwareDescription = hardwareDescription;
@@ -58,7 +58,7 @@ public class InstanceTypeDescription implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		if (this.instanceType == null) {
 			out.writeBoolean(false);
@@ -81,7 +81,7 @@ public class InstanceTypeDescription implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		if (in.readBoolean()) {
 			this.instanceType = new InstanceType();

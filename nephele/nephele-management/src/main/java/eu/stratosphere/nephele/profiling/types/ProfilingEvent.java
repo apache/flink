@@ -23,25 +23,46 @@ import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ManagementEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
+/**
+ * A profiling event is a special type of event. It is intended to transport profiling data of a Nephele job to external
+ * components.
+ * <p>
+ * This class is thread-safe.
+ * 
+ * @author warneke
+ */
 public abstract class ProfilingEvent extends AbstractEvent implements ManagementEvent {
 
 	/**
-	 * The ID of the job the profiling data belongs to
+	 * The ID of the job the profiling data belongs to.
 	 */
 	private JobID jobID;
 
 	/**
-	 * The profiling timestamp.
+	 * The profiling time stamp.
 	 */
 	private long profilingTimestamp;
 
-	public ProfilingEvent(JobID jobID, long timestamp, long profilingTimestamp) {
+	/**
+	 * Constructs a new profiling event.
+	 * 
+	 * @param jobID
+	 *        the ID of the job this profiling events belongs to
+	 * @param timestamp
+	 *        the time stamp of the event
+	 * @param profilingTimestamp
+	 *        the time stamp of the profiling data
+	 */
+	public ProfilingEvent(final JobID jobID, final long timestamp, final long profilingTimestamp) {
 		super(timestamp);
 
 		this.jobID = jobID;
 		this.profilingTimestamp = profilingTimestamp;
 	}
 
+	/**
+	 * Default constructor for serialization/deserialization.
+	 */
 	public ProfilingEvent() {
 		super();
 	}
@@ -70,7 +91,7 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 
 		this.jobID = new JobID();
@@ -83,7 +104,7 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		this.jobID.write(out);
@@ -94,7 +115,7 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!super.equals(obj)) {
 			return false;
@@ -115,5 +136,18 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		if (this.jobID != null) {
+			return this.jobID.hashCode();
+		}
+
+		return super.hashCode();
 	}
 }
