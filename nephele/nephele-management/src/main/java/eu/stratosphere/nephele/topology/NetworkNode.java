@@ -191,15 +191,17 @@ public class NetworkNode implements IOReadableWritable {
 		if (this.childNodes.isEmpty()) {
 			str = this.name;
 		} else {
-			str = "[";
 			final Iterator<NetworkNode> it = this.childNodes.iterator();
+			final StringBuffer buf = new StringBuffer("[");
 			while (it.hasNext()) {
-				str += it.next().toString();
+				buf.append(it.next().toString());
 				if (it.hasNext()) {
-					str += ", ";
+					buf.append(", ");
 				}
 			}
-			str += "]";
+			
+			buf.append("]");
+			str = buf.toString();
 		}
 
 		return str;

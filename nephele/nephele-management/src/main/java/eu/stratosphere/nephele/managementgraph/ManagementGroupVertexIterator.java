@@ -68,7 +68,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	 * 
 	 * @author warneke
 	 */
-	private class TraversalEntry {
+	private static class TraversalEntry {
 
 		/**
 		 * The group vertex this entry is created for.

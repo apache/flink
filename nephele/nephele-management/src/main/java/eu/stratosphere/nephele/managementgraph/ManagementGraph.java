@@ -213,7 +213,7 @@ public class ManagementGraph implements IOReadableWritable {
 		final Iterator<ManagementGroupVertex> it = new ManagementGroupVertexIterator(this, true, -1);
 		while (it.hasNext()) {
 			final ManagementGroupVertex groupVertex = it.next();
-			indegrees.put(groupVertex, new Integer(groupVertex.getNumberOfBackwardEdges()));
+			indegrees.put(groupVertex, Integer.valueOf(groupVertex.getNumberOfBackwardEdges()));
 			if (groupVertex.getNumberOfBackwardEdges() == 0) {
 				noIncomingEdges.add(groupVertex);
 			}
@@ -227,7 +227,7 @@ public class ManagementGraph implements IOReadableWritable {
 			for (int i = 0; i < groupVertex.getNumberOfForwardEdges(); i++) {
 				final ManagementGroupVertex targetVertex = groupVertex.getForwardEdge(i).getTarget();
 				Integer indegree = indegrees.get(targetVertex);
-				indegree = new Integer(indegree.intValue() - 1);
+				indegree = Integer.valueOf(indegree.intValue() - 1);
 				indegrees.put(targetVertex, indegree);
 				if (indegree.intValue() == 0) {
 					noIncomingEdges.add(targetVertex);
@@ -248,7 +248,7 @@ public class ManagementGraph implements IOReadableWritable {
 		final Iterator<ManagementGroupVertex> it = new ManagementGroupVertexIterator(this, false, -1);
 		while (it.hasNext()) {
 			final ManagementGroupVertex groupVertex = it.next();
-			outdegrees.put(groupVertex, new Integer(groupVertex.getNumberOfForwardEdges()));
+			outdegrees.put(groupVertex, Integer.valueOf(groupVertex.getNumberOfForwardEdges()));
 			if (groupVertex.getNumberOfForwardEdges() == 0) {
 				noOutgoingEdges.add(groupVertex);
 			}
@@ -262,7 +262,7 @@ public class ManagementGraph implements IOReadableWritable {
 			for (int i = 0; i < groupVertex.getNumberOfBackwardEdges(); i++) {
 				final ManagementGroupVertex sourceVertex = groupVertex.getBackwardEdge(i).getSource();
 				Integer outdegree = outdegrees.get(sourceVertex);
-				outdegree = new Integer(outdegree.intValue() - 1);
+				outdegree = Integer.valueOf(outdegree.intValue() - 1);
 				outdegrees.put(sourceVertex, outdegree);
 				if (outdegree.intValue() == 0) {
 					noOutgoingEdges.add(sourceVertex);

@@ -122,4 +122,21 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 
 		return true;
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+		
+		if(this.newExecutionState != null) {
+			return this.newExecutionState.hashCode();
+		}
+		
+		if(this.managementVertexID != null) {
+			return this.managementVertexID.hashCode();
+		}
+		
+		return super.hashCode();
+	}
 }

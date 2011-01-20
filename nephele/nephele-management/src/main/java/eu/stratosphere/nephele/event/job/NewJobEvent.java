@@ -120,4 +120,21 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 
 		return true;
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+		
+		if(this.jobID != null) {
+			return this.jobID.hashCode();
+		}
+		
+		if(this.jobName != null) {
+			return this.jobName.hashCode();
+		}
+		
+		return super.hashCode();
+	}
 }

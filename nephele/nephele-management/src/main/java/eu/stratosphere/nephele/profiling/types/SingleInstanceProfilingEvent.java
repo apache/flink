@@ -92,4 +92,13 @@ public class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 
 		return true;
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return super.hashCode();
+	}
 }

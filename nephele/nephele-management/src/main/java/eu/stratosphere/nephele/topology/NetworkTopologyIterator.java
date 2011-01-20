@@ -20,7 +20,7 @@ import java.util.Stack;
 
 public class NetworkTopologyIterator implements Iterator<NetworkNode> {
 
-	private class TraversalEntry {
+	private static class TraversalEntry {
 
 		private NetworkNode networkNode;
 

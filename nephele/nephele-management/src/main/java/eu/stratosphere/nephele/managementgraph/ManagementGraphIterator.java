@@ -79,7 +79,7 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 	 * 
 	 * @author warneke
 	 */
-	private class TraversalEntry {
+	private static class TraversalEntry {
 
 		/**
 		 * Management vertex this entry has been created for.

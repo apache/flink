@@ -152,4 +152,13 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 
 		return true;
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return super.hashCode();
+	}
 }
