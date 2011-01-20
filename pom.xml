@@ -244,9 +244,9 @@
 				<!-- style checker -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.3</version>
+				<version>2.6</version>
 				<configuration>
-					<configLocation>nephele/checkstyle.xml</configLocation>
+					<configLocation>stratosphere/checkstyle.xml</configLocation>
 				</configuration>
 			</plugin>
 			
@@ -377,14 +377,12 @@
 				</executions>
 			</plugin>
 			-->
-			<!-- 
 			<plugin>
 			
-					plugin that tests whether the code style is appropriate
-					
+				<!-- plugin that tests whether the code style is appropriate -->	
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.3</version>
+				<version>2.6</version>
 				<dependencies>
 					<dependency>
 						<groupId>eu.stratosphere</groupId>
@@ -393,7 +391,6 @@
 					</dependency>
 				</dependencies>
 			</plugin>
-			 -->
 		</plugins>
 	</build>
 
