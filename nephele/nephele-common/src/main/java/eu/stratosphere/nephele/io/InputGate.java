@@ -405,6 +405,11 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
+			
+			if(c == null) {
+				throw new IOException("Class is null!");
+			}
+			
 			AbstractInputChannel<T> eic = null;
 			try {
 				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c

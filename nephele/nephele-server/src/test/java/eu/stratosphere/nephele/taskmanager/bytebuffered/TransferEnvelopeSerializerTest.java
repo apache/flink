@@ -283,12 +283,9 @@ public class TransferEnvelopeSerializerTest {
 
 		byte[] temp = new byte[SIZE_OF_INTEGER];
 		fileInputStream.read(temp);
-		final int sizeOfDataBlock = bufferToInteger(temp);
 
-		assertEquals(sizeOfDataBlock, SIZE_OF_CHANNEL_ID + SIZE_OF_INTEGER);
-
-		fileInputStream.read(temp);
-		final int sizeOfChannelID = bufferToInteger(temp);
+		final int sizeOfChannelID = bufferToInteger(temp); // Channel ID has fixed size and therefore does not announce
+															// its size
 
 		assertEquals(sizeOfChannelID, SIZE_OF_CHANNEL_ID);
 
