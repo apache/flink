@@ -45,7 +45,10 @@ public class TestMergeIterator {
 
 		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(MergeIterator.class.getPackage().getName());
 		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
+		String levelString = System.getProperty("log.level");
+		Level level = Level.toLevel(levelString);
+		pkgLogger.setLevel(level);
+
 	}
 
 	@AfterClass

@@ -46,8 +46,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Erik Nijkamp
  */
-public class TestUnilateralSortMerger {
-	private static final Log LOG = LogFactory.getLog(TestUnilateralSortMerger.class);
+public class UnilateralSortMergerIT {
+	private static final Log LOG = LogFactory.getLog(UnilateralSortMergerIT.class);
 
 	private static final long SEED = 649180756312423613L;
 
@@ -78,7 +78,10 @@ public class TestUnilateralSortMerger {
 		Logger pkgLogger = rootLogger.getLoggerRepository()
 			.getLogger(UnilateralSortMerger.class.getPackage().getName());
 		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
+		
+		String levelString = System.getProperty("log.level");
+		Level level = Level.toLevel(levelString);
+		pkgLogger.setLevel(level);
 
 		ioManager = new IOManager();
 	}

@@ -50,7 +50,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Erik Nijkamp
  */
-public class TestSortMergeMatchIterator {
+public class SortMergeMatchIteratorIT {
 	// total memory
 	public static final int MEMORY_SIZE = 1024 * 1024 * 64;
 
@@ -103,7 +103,10 @@ public class TestSortMergeMatchIterator {
 		Logger pkgLogger = rootLogger.getLoggerRepository()
 			.getLogger(UnilateralSortMerger.class.getPackage().getName());
 		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
+		String levelString = System.getProperty("log.level");
+		Level level = Level.toLevel(levelString);
+		pkgLogger.setLevel(level);
+
 
 		ioManager = new IOManager();
 	}

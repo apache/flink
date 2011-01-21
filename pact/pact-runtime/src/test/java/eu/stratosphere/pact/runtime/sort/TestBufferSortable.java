@@ -77,7 +77,10 @@ public class TestBufferSortable {
 
 		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(BufferSortable.class.getPackage().getName());
 		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
+		String levelString = System.getProperty("log.level");
+		Level level = Level.toLevel(levelString);
+		pkgLogger.setLevel(level);
+
 	}
 
 	@AfterClass
