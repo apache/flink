@@ -42,10 +42,16 @@ import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
+/**
+ * Simple copy of {@link TPCHQuery3} to check the different behaviour of this 
+ * plan without output contracts.
+ * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
+ *
+ */
+public class TPCHQuery3WithoutOCs implements PlanAssembler, PlanAssemblerDescription {
 
-	private static Logger LOGGER = Logger.getLogger(TPCHQuery3.class);
-
+private static Logger LOGGER = Logger.getLogger(TPCHQuery3.class);
+	
 	/**
 	 * Implements a modified query 3 of the TPC-H benchmark.
 	 * SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
@@ -62,7 +68,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			super();
 		}
 
-		public N_IntStringPair(final PactInteger first, final PactString second) {
+		public N_IntStringPair(PactInteger first, PactString second) {
 			super(first, second);
 		}
 	}
@@ -75,27 +81,28 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		private final String PRIO_FILTER = "5";
 
 		@Override
-		public void map(final PactInteger oKey, final Tuple value, final Collector<PactInteger, Tuple> out) {
+		public void map(PactInteger oKey, Tuple value, Collector<PactInteger, Tuple> out) {
 
-			try {
-				if (Integer.parseInt(value.getStringValueAt(4).substring(0, 4)) > this.YEAR_FILTER
-					&& value.getStringValueAt(2).equals("F") && value.getStringValueAt(5).startsWith(this.PRIO_FILTER)) {
-
+			try{
+				if ((Integer.parseInt(value.getStringValueAt(4).substring(0, 4)) > YEAR_FILTER)
+					&& (value.getStringValueAt(2).equals("F")) && (value.getStringValueAt(5).startsWith(PRIO_FILTER))) {
+	
 					// project
 					value.project(129);
-
+	
 					out.collect(oKey, value);
-
+	
 					// Output Schema:
 					// KEY: ORDERKEY
 					// VALUE: 0:ORDERKEY, 1:SHIPPRIORITY
-
+	
 				}
-			} catch (final StringIndexOutOfBoundsException e) {
+			}catch (StringIndexOutOfBoundsException e) {
 				LOGGER.error(e);
-			} catch (final Exception ex) {
-				LOGGER.error(ex);
-			}
+			}catch(Exception ex)
+{
+	LOGGER.error(ex);
+}
 		}
 	}
 
@@ -183,23 +190,26 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	@Override
-	public Plan getPlan(final String... args) {
+	public Plan getPlan(String... args) {
 
+		// check for the correct number of job parameters
+		
 		int degreeOfParallelism = 1;
 		String ordersPath = "";
 		String lineitemsPath = "";
 		String resultPath = "";
 
-		if (args.length != 4)
+		
+		if (args.length != 4) {
 			LOGGER.warn("number of arguments do not match!");
-		else {
+		}else{
 			degreeOfParallelism = Integer.parseInt(args[0]);
 			ordersPath = args[1];
 			lineitemsPath = args[2];
 			resultPath = args[3];
 		}
 
-		final DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
+		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, ordersPath, "Orders");
 		orders.setFormatParameter("delimiter", "\n");
 		orders.setDegreeOfParallelism(degreeOfParallelism);
