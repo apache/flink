@@ -15,14 +15,36 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import eu.stratosphere.nephele.io.ID;
-
 /**
- * A management vertex ID uniquely identifies a {@link ManagementVertex}.
+ * This class allows to attach an arbitrary {@link Object} to a part of a {@link ManagementGraph}.
  * <p>
  * This class is not thread-safe.
  * 
  * @author warneke
  */
-public final class ManagementVertexID extends ID {
+public abstract class ManagementAttachment {
+
+	/**
+	 * The attachment to this part of the {@link ManagementGraph}.
+	 */
+	private Object attachment;
+
+	/**
+	 * Sets an attachment for this part of the {@link ManagementGraph}.
+	 * 
+	 * @param attachment
+	 *        the attachment for this part of the {@link ManagementGraph}
+	 */
+	public final void setAttachment(final Object attachment) {
+		this.attachment = attachment;
+	}
+
+	/**
+	 * Returns the attachment for this part of the {@link ManagementGraph}.
+	 * 
+	 * @return the attachment for this part of the {@link ManagementGraph} or <code>null</code> if no attachment is set
+	 */
+	public final Object getAttachment() {
+		return this.attachment;
+	}
 }

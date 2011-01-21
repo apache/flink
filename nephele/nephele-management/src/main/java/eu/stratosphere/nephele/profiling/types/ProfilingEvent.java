@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * A profiling event is a special type of event. It is intended to transport profiling data of a Nephele job to external
  * components.
  * <p>
- * This class is thread-safe.
+ * This class is not thread-safe.
  * 
  * @author warneke
  */

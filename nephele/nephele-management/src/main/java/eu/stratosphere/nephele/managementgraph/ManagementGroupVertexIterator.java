@@ -150,7 +150,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 
 		if (this.entryVertices.size() > 0) {
 			final TraversalEntry te = new TraversalEntry(this.entryVertices.get(0), 0);
-			traversalStack.push(te);
+			this.traversalStack.push(te);
 		}
 	}
 
@@ -281,7 +281,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 	 *        reverse order
 	 * @return a candidate group vertex which could potentially be visited next
 	 */
-	private ManagementGroupVertex getCandidateVertex(TraversalEntry te, boolean forward) {
+	private ManagementGroupVertex getCandidateVertex(final TraversalEntry te, final boolean forward) {
 
 		while (true) {
 
@@ -308,13 +308,13 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 			te.increaseCurrentEdge();
 
 			// If stage >= 0, tmp must be in the same stage as te.getGroupVertex()
-			if (stage >= 0) {
-				if (tmp.getStageNumber() != stage) {
+			if (this.stage >= 0) {
+				if (tmp.getStageNumber() != this.stage) {
 					continue;
 				}
 			}
 
-			if (!alreadyVisited.contains(tmp)) {
+			if (!this.alreadyVisited.contains(tmp)) {
 				return tmp;
 			}
 		}

@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
  * This class implements a directed edge of a {@link ManagementGraph}. The edge is derived from a channel of the actual
  * execution graph.
  * <p>
- * This class is thread-safe.
+ * This class is not thread-safe.
  * 
  * @author warneke
  */
@@ -57,11 +57,6 @@ public final class ManagementEdge {
 	 * The compression level of the channel this edge refers to.
 	 */
 	private final CompressionLevel compressionLevel;
-
-	/**
-	 * A possible attachment to this object.
-	 */
-	private volatile Object attachment = null;
 
 	/**
 	 * Constructs a new edge object.
@@ -145,24 +140,5 @@ public final class ManagementEdge {
 	 */
 	public int getTargetIndex() {
 		return this.targetIndex;
-	}
-
-	/**
-	 * Sets an attachment for this edge.
-	 * 
-	 * @param attachment
-	 *        the attachment for this edge
-	 */
-	public void setAttachment(final Object attachment) {
-		this.attachment = attachment;
-	}
-
-	/**
-	 * Returns the attachment of this edge.
-	 * 
-	 * @return the attachment of this edge or <code>null</code> if this edge has no attachment
-	 */
-	public Object getAttachment() {
-		return this.attachment;
 	}
 }

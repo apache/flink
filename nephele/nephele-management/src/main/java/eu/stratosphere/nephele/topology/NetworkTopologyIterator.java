@@ -26,7 +26,7 @@ public class NetworkTopologyIterator implements Iterator<NetworkNode> {
 
 		private int childrenVisited = 0;
 
-		public TraversalEntry(NetworkNode networkNode) {
+		public TraversalEntry(final NetworkNode networkNode) {
 			this.networkNode = networkNode;
 		}
 
@@ -45,7 +45,7 @@ public class NetworkTopologyIterator implements Iterator<NetworkNode> {
 
 	private Stack<TraversalEntry> traversalStack = new Stack<TraversalEntry>();
 
-	NetworkTopologyIterator(NetworkTopology networkTopology) {
+	NetworkTopologyIterator(final NetworkTopology networkTopology) {
 
 		traversalStack.add(new TraversalEntry(networkTopology.getRootNode()));
 		refillStack();

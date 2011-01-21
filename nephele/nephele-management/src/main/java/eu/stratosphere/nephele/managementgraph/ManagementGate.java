@@ -22,11 +22,11 @@ import java.util.List;
  * This class implements an input or output gate of a {@link ManagementVertex}. The gate is derived an input or output
  * gate of the actual execution vertex.
  * <p>
- * This class is thread-safe.
+ * This class is not thread-safe.
  * 
  * @author warneke
  */
-public final class ManagementGate {
+public final class ManagementGate extends ManagementAttachment {
 
 	/**
 	 * The management vertex this gate belongs to.
@@ -48,11 +48,6 @@ public final class ManagementGate {
 	 * The index of this gate.
 	 */
 	private final int index;
-
-	/**
-	 * A possible attachment to this gate.
-	 */
-	private volatile Object attachment = null;
 
 	/**
 	 * A list of edges originating from this gate.
@@ -105,7 +100,7 @@ public final class ManagementGate {
 	 * @param index
 	 *        the index at which the edge shall be added
 	 */
-	synchronized void insertForwardEdge(final ManagementEdge managementEdge, final int index) {
+	void insertForwardEdge(final ManagementEdge managementEdge, final int index) {
 
 		while (index >= this.forwardEdges.size()) {
 			this.forwardEdges.add(null);
@@ -122,7 +117,7 @@ public final class ManagementGate {
 	 * @param index
 	 *        the index at which the edge shall be added
 	 */
-	synchronized void insertBackwardEdge(final ManagementEdge managementEdge, final int index) {
+	void insertBackwardEdge(final ManagementEdge managementEdge, final int index) {
 
 		while (index >= this.backwardEdges.size()) {
 			this.backwardEdges.add(null);
@@ -154,7 +149,8 @@ public final class ManagementGate {
 	 * 
 	 * @return the number of edges originating at this gate
 	 */
-	public synchronized int getNumberOfForwardEdges() {
+	public int getNumberOfForwardEdges() {
+
 		return this.forwardEdges.size();
 	}
 
@@ -163,7 +159,8 @@ public final class ManagementGate {
 	 * 
 	 * @return the number of edges arriving at this gate
 	 */
-	public synchronized int getNumberOfBackwardEdges() {
+	public int getNumberOfBackwardEdges() {
+
 		return this.backwardEdges.size();
 	}
 
@@ -183,7 +180,7 @@ public final class ManagementGate {
 	 *        the index of the edge to be returned
 	 * @return the edge at the given index or <code>null</code> if no such edge exists
 	 */
-	public synchronized ManagementEdge getForwardEdge(final int index) {
+	public ManagementEdge getForwardEdge(final int index) {
 
 		if (index < this.forwardEdges.size()) {
 			return this.forwardEdges.get(index);
@@ -199,7 +196,7 @@ public final class ManagementGate {
 	 *        the index of the edge to be returned
 	 * @return the edge at the given index or <code>null</code> if no such edge exists
 	 */
-	public synchronized ManagementEdge getBackwardEdge(final int index) {
+	public ManagementEdge getBackwardEdge(final int index) {
 
 		if (index < this.backwardEdges.size()) {
 			return this.backwardEdges.get(index);
@@ -215,24 +212,5 @@ public final class ManagementGate {
 	 */
 	public ManagementVertex getVertex() {
 		return this.managementVertex;
-	}
-
-	/**
-	 * Sets an attachment for this gate.
-	 * 
-	 * @param attachment
-	 *        the attachment for this gate
-	 */
-	public void setAttachment(final Object attachment) {
-		this.attachment = attachment;
-	}
-
-	/**
-	 * Returns the attachment of this gate.
-	 * 
-	 * @return the attachment of this gate or <code>null</code> if this gate has no attachment
-	 */
-	public Object getAttachment() {
-		return this.attachment;
 	}
 }
