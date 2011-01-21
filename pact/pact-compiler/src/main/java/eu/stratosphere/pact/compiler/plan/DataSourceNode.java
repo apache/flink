@@ -138,7 +138,6 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		// TODO: A exception should be thrown here?
 		// no inputs, so do nothing.
 	}
 

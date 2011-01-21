@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.fs.Path;
  */
 public class DataStatistics {
 	// ------------------------------------------------------------------------
-	// Constants
+	//                             Constants
 	// ------------------------------------------------------------------------
 
 	/**
@@ -58,7 +58,7 @@ public class DataStatistics {
 	private static final int DEFAULT_NUM_SAMPLES = 10;
 
 	// ------------------------------------------------------------------------
-	// Members
+	//                            Members
 	// ------------------------------------------------------------------------
 
 	private final Map<String, BasicFileStatistics> fileStatisticsCache;
@@ -66,7 +66,7 @@ public class DataStatistics {
 	private int numLineSamples;
 
 	// ------------------------------------------------------------------------
-	// Constructor / Setup
+	//                      Constructor / Setup
 	// ------------------------------------------------------------------------
 
 	/**
@@ -218,7 +218,7 @@ public class DataStatistics {
 	}
 
 	// ------------------------------------------------------------------------
-	// Internal classes
+	//                           Internal classes
 	// ------------------------------------------------------------------------
 
 	/**
@@ -227,7 +227,8 @@ public class DataStatistics {
 	 * have a time-stamp that records the modification time of the file and indicates as such
 	 * for which time the statistics were valid.
 	 */
-	public static final class BasicFileStatistics {
+	public static final class BasicFileStatistics
+	{
 		private long fileModTime; // timestamp of the last modification
 
 		private long fileSize; // size of the file(s) in bytes
@@ -244,7 +245,7 @@ public class DataStatistics {
 		 * @param avgBytesPerRecord
 		 *        The average number of byte in a record, or <code>-1.0f</code>, if unknown.
 		 */
-		private BasicFileStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
+		public BasicFileStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
 			this.fileModTime = fileModTime;
 			this.fileSize = fileSize;
 			this.avgBytesPerRecord = avgBytesPerRecord;

@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +59,7 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
+import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -503,8 +505,28 @@ public class PactCompiler {
 
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(this.statistics, maxMachinesJob, defaultParallelism, true);
 		pactPlan.accept(graphCreator);
-		OptimizedPlan plan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks,
-			graphCreator.con2node.values(), pactPlan.getJobName());
+		
+		// if we have a plan with multiple data sinks, add logical optimizer nodes that have two data-sinks as children
+		// each until we have only a single root node. This allows to transparently deal with the nodes with
+		// multiple outputs
+		OptimizerNode rootNode = null;
+		
+		if (graphCreator.sinks.size() == 1) {
+			rootNode = graphCreator.sinks.get(0);
+		}
+		else if (graphCreator.sinks.size() > 1) {
+			Iterator<DataSinkNode> iter = graphCreator.sinks.iterator();
+			rootNode = iter.next();
+			int id = graphCreator.getId();
+			
+			while (iter.hasNext()) {
+				rootNode = new SinkJoiner(rootNode, iter.next());
+				rootNode.SetId(id++);
+			}
+		}
+		else {
+			throw new CompilerException("The plan encountered when generating alternatives has no sinks.");
+		}
 
 		// Now that the previous step is done, the next step is to traverse the graph again for the two
 		// steps that cannot directly be performed during the plan enumeration, because we are dealing with DAGs
@@ -514,21 +536,29 @@ public class PactCompiler {
 		// 2) Track information about nodes with multiple outputs that are later on reconnected in a node with
 		// multiple inputs.
 		InterestingPropertyAndBranchesVisitor propsVisitor = new InterestingPropertyAndBranchesVisitor(this.costEstimator);
-		plan.accept(propsVisitor);
+		rootNode.accept(propsVisitor);
 
 		// the final step is not to generate the actual plan alternatives
-		// currently, we support only one data sink
-		if (plan.getDataSinks().size() != 1) {
-			throw new CompilerException("In the current version, plans must have exactly one data sink.");
-		}
-
-		List<DataSinkNode> bestPlan = plan.getDataSinks().iterator().next().getAlternativePlans(this.costEstimator);
+		List<? extends OptimizerNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
+		
 		if (bestPlan.size() != 1) {
 			throw new CompilerException("Error in compiler: more than one best plan was created!");
 		}
+		
+		// check if the best plan's root is a data sink (single sink plan)
+		// if so, directly take it. if it is a sink joiner node, get its contained sinks
+		OptimizerNode bestPlanRoot = bestPlan.get(0);
+		List<DataSinkNode> bestPlanSinks = new ArrayList<DataSinkNode>(4);
+		
+		if (bestPlanRoot instanceof DataSinkNode) {
+			bestPlanSinks.add((DataSinkNode) bestPlanRoot);
+		}
+		else if (bestPlanRoot instanceof SinkJoiner) {
+			((SinkJoiner) bestPlanRoot).getDataSinks(bestPlanSinks);
+		}
 
 		// finalize the plan
-		plan = new PlanFinalizer().createFinalPlan(bestPlan, pactPlan.getJobName(), memoryMegabytes);
+		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
 		plan.setInstanceTypeName(instanceName);
 
 		// insert temporary dams, as they may be necessary in non-tree graphs to prevent deadlocks
@@ -677,6 +707,12 @@ public class PactCompiler {
 		@Override
 		public void postVisit(Contract c) {
 			OptimizerNode n = con2node.get(c);
+			
+			// check if we have been here before
+			if (n.getId() > 0) {
+				return;
+			}
+			
 			n.SetId(id++);
 
 			// first connect to the predecessors
@@ -686,6 +722,11 @@ public class PactCompiler {
 			if (computeEstimates) {
 				n.computeOutputEstimates(this.statistics);
 			}
+		}
+		
+		public int getId()
+		{
+			return id;
 		}
 
 	};

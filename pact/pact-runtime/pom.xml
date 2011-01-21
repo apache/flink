@@ -48,6 +48,7 @@
         <configuration>
           <excludes>
             <exclude>**/TestData.java</exclude>
+            <exclude>**/TestUnilateralSortMerger.java</exclude>
           </excludes>
         </configuration>
       </plugin>
