@@ -488,8 +488,8 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 
 		// Write number of group vertices and their corresponding IDs
 		out.writeInt(this.groupVertices.size());
-
-		Iterator<ManagementGroupVertex> it = groupVertices.values().iterator();
+		Iterator<ManagementGroupVertex> it = new ManagementGroupVertexIterator(this, true, -1);
+		
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
@@ -498,7 +498,7 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 			StringRecord.writeString(out, groupVertex.getName());
 		}
 
-		it = groupVertices.values().iterator();
+		it = new ManagementGroupVertexIterator(this, true, -1);
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
@@ -508,7 +508,7 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 
 		// Write out the management vertices and their corresponding IDs
 		out.writeInt(this.vertices.size());
-		Iterator<ManagementVertex> it2 = vertices.values().iterator();
+		Iterator<ManagementVertex> it2 = new ManagementGraphIterator(this, true);
 		while (it2.hasNext()) {
 
 			final ManagementVertex managementVertex = it2.next();
