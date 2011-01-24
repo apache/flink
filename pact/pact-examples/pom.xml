@@ -91,7 +91,30 @@
               </includes>
             </configuration>
           </execution>
+		<!-- 
+		<execution>
+            <id>TPCHQuery1</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery1</classifier>
 
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery1</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery1.class</include>
+                <include>**/relational/contracts/tpch1/*</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+		 -->
       <!-- TPCHQuery3 -->
           <execution>
             <id>TPCHQuery3</id>
@@ -115,7 +138,30 @@
               </includes>
             </configuration>
           </execution>
+		<!--
+		<execution>
+            <id>TPCHQuery4</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery4</classifier>
 
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery4</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery4.class</include>
+                <include>**/relational/contracts/tpch4/*</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+        -->
       <!-- WebLogAnalysis -->
           <execution>
             <id>WebLogAnalysis</id>
