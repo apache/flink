@@ -374,7 +374,13 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 
 			while (true) {
 
-				// No more outgoing edges to consider
+				if (this.confinedToStage && te.getCurrentChannel() == 0) {
+					while (currentGateLeadsToOtherStage(te, this.forward)) {
+						te.increaseCurrentGate();
+					}
+				}
+
+				// No more incoming edges to consider
 				if (te.getCurrentGate() >= te.getManagementVertex().getNumberOfInputGates()) {
 					break;
 				}
@@ -427,6 +433,7 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 			}
 
 		} else {
+
 			if (te.getCurrentGate() >= groupVertex.getNumberOfBackwardEdges()) {
 				return false;
 			}
