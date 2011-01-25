@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.util.ManagementTestUtils;
  * 
  * @author warneke
  */
-public class JobEventsTest {
+public class ManagementEventTest {
 
 	/**
 	 * The time stamp used during the tests.
