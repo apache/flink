@@ -16,7 +16,8 @@
 package eu.stratosphere.nephele.managementgraph;
 
 /**
- * This class allows to attach an arbitrary {@link Object} to a part of a {@link ManagementGraph}.
+ * This class allows to attach an arbitrary {@link Object} to a part of a {@link ManagementGraph}. However, the
+ * attachment is not included in a possible serialization/deserialization of the graph or its components.
  * <p>
  * This class is not thread-safe.
  * 
