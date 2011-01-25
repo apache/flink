@@ -60,7 +60,6 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.EventList;
 import eu.stratosphere.nephele.event.job.NewJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -102,6 +101,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -664,7 +664,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				null);
 		}
 
-		final EventList<AbstractEvent> eventList = new EventList<AbstractEvent>();
+		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
 		this.eventCollector.getEventsForJob(jobID, eventList, false);
 
 		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
@@ -742,9 +742,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public EventList<NewJobEvent> getNewJobs() throws IOException {
+	public SerializableArrayList<NewJobEvent> getNewJobs() throws IOException {
 
-		final EventList<NewJobEvent> eventList = new EventList<NewJobEvent>();
+		final SerializableArrayList<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
@@ -759,9 +759,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public EventList<AbstractEvent> getEvents(JobID jobID) throws IOException {
+	public SerializableArrayList<AbstractEvent> getEvents(JobID jobID) throws IOException {
 
-		final EventList<AbstractEvent> eventList = new EventList<AbstractEvent>();
+		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
