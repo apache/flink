@@ -91,9 +91,7 @@ public class NepheleMiniCluster {
 
 		// submit
 		JobClient jobClient = new JobClient(jobGraph, configuration);
-		if (!jobClient.submitJobAndWait()) {
-			throw new Exception("The job did not finish correctly.");
-		}
+		jobClient.submitJobAndWait();
 	}
 
 	// ------------------------------------------------------------------------

@@ -18,6 +18,7 @@ package eu.stratosphere.pact.example.datamining;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
@@ -87,6 +88,8 @@ public class KMeansLauncher {
 				jobClient = new JobClient(jobGraph, configuration);
 				jobClient.submitJobAndWait();
 			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (JobExecutionException e) {
 				e.printStackTrace();
 			}
 

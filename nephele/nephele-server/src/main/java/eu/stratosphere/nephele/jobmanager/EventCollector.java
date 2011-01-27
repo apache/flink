@@ -178,7 +178,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus) {
+		public void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus, String optionalMessage) {
 
 			if (newJobStatus == JobStatus.SCHEDULED) {
 				this.eventCollector.createRunningJobEvent(jobID, this.jobName, this.isProfilingAvailable);
@@ -189,7 +189,8 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 				this.eventCollector.removeRunningJobEvent(jobID);
 			}
 
-			this.eventCollector.addEvent(jobID, new JobEvent(System.currentTimeMillis(), newJobStatus));
+			this.eventCollector
+				.addEvent(jobID, new JobEvent(System.currentTimeMillis(), newJobStatus, optionalMessage));
 		}
 
 	}

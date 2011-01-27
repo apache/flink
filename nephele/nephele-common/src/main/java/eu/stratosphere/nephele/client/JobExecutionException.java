@@ -13,28 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.executiongraph;
-
-import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
+package eu.stratosphere.nephele.client;
 
 /**
- * This interface allows objects to receive notifications
- * when the status of an observed job has changed.
+ * This exception is thrown by the {@link JobClient} if a Nephele job has been aborted either as a result of a user
+ * request or an error which occured during the execution.
  * 
  * @author warneke
  */
-public interface JobStatusListener {
+public class JobExecutionException extends Exception {
 
 	/**
-	 * Called when the status of the job with the given {@link JobID} has changed.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the notification refers to
-	 * @param newJobStatus
-	 *        the new job status
-	 * @param optionalMessage
-	 *        an optional message (possibly <code>null</code>) that can be attached to the state change
+	 * The generated serial UID.
 	 */
-	void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus, String optionalMessage);
+	private static final long serialVersionUID = 2818087325120827525L;
+
+	/**
+	 * Constructs a new job execution exception.
+	 * 
+	 * @param msg
+	 *        the message that shall be encapsulated by this exception
+	 */
+	public JobExecutionException(String msg) {
+		super(msg);
+	}
 }

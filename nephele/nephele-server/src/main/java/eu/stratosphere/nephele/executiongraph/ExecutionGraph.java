@@ -1525,7 +1525,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 			final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
 			while (it.hasNext()) {
-				it.next().jobStatusHasChanged(this.jobID, this.jobStatus);
+				it.next().jobStatusHasChanged(this.jobID, this.jobStatus, optionalMessage);
 			}
 		}
 	}

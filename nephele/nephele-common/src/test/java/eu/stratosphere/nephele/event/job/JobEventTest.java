@@ -44,7 +44,7 @@ public class JobEventTest {
 
 		try {
 
-			final JobEvent orig = new JobEvent(1234567L, JobStatus.FINISHED);
+			final JobEvent orig = new JobEvent(1234567L, JobStatus.FINISHED, null);
 			final JobEvent copy = (JobEvent) CommonTestUtils.createCopy(orig);
 
 			assertEquals(orig.getTimestamp(), copy.getTimestamp());

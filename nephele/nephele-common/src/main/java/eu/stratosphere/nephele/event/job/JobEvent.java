@@ -36,17 +36,25 @@ public class JobEvent extends AbstractEvent {
 	private JobStatus currentJobStatus;
 
 	/**
+	 * An optional message attached to the event, possibly <code>null</code>.
+	 */
+	private String optionalMessage = null;
+
+	/**
 	 * Constructs a new job event object.
 	 * 
 	 * @param timestamp
 	 *        the timestamp of the event
 	 * @param currentJobStatus
 	 *        the current status of the job
+	 * @param optionalMessage
+	 *        an optional message that shall be attached to this event, possibly <code>null</code>
 	 */
-	public JobEvent(long timestamp, JobStatus currentJobStatus) {
+	public JobEvent(long timestamp, JobStatus currentJobStatus, String optionalMessage) {
 		super(timestamp);
 
 		this.currentJobStatus = currentJobStatus;
+		this.optionalMessage = optionalMessage;
 	}
 
 	/**
@@ -92,6 +100,16 @@ public class JobEvent extends AbstractEvent {
 	}
 
 	/**
+	 * Returns the optional message that is possibly attached to this event.
+	 * 
+	 * @return the optional message, possibly <code>null</code>.
+	 */
+	public String getOptionalMessage() {
+
+		return this.optionalMessage;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	public String toString() {
@@ -119,7 +137,16 @@ public class JobEvent extends AbstractEvent {
 			return false;
 		}
 
-		return true;
+		if (this.optionalMessage == null) {
+
+			if (jobEvent.getOptionalMessage() == null) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		return this.optionalMessage.equals(jobEvent.getOptionalMessage());
 	}
 
 	/**
