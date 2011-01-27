@@ -59,7 +59,8 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<project.reporting.outputEncoding>UTF-8
+		</project.reporting.outputEncoding>
 	</properties>
 
 	<pluginRepositories>
@@ -164,11 +165,7 @@
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
-					<!--
-						High optimization, no debugging <compilerArgument>-g:none
-						-O</compilerArgument>
-					-->
-					<compilerArgument></compilerArgument>
+					<compilerArgument>-g:none -O</compilerArgument>
 				</configuration>
 			</plugin>
 
@@ -282,12 +279,7 @@
 				<artifactId>maven-surefire-report-plugin</artifactId>
 				<version>2.7</version>
 			</plugin>
-			<plugin>
-				<!-- execution of Unit Tests -->
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-report-plugin</artifactId>
-				<version>2.7</version>
-			</plugin>
+
 			<plugin>
 				<!-- check coverage of tests -->
 				<groupId>org.codehaus.mojo</groupId>
@@ -335,6 +327,35 @@
 			</plugin>
 
 			<plugin>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>2.6</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+			
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>2.7</version>
@@ -360,10 +381,11 @@
 					<classpathContainers>
 						<classpathContainer>
 							org.eclipse.jdt.launching.JRE_CONTAINER
-            			</classpathContainer>
+						</classpathContainer>
 					</classpathContainers>
 				</configuration>
 			</plugin>
+
 
 			<!--
 				<plugin> check whether license information is included in files, can
@@ -396,37 +418,6 @@
 				<artifactId>build-tools</artifactId> <version>0.1</version>
 				</dependency> </dependencies> </plugin>
 			-->
-			<plugin>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.6</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>integration-test</goal>
-							<goal>verify</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<systemPropertyVariables>
-						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
-					</systemPropertyVariables>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.7</version>
-				<configuration>
-					<systemPropertyVariables>
-						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
-					</systemPropertyVariables>
-					<excludes>
-						<exclude>**/*TestBase*.class</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-
 		</plugins>
 	</build>
 

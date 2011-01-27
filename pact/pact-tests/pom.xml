@@ -125,26 +125,32 @@
   <build>
     <plugins>
             
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.7</version>
-        <configuration>
-          <systemPropertyVariables>
-            <java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
-          </systemPropertyVariables>
-        
-          <includes>
-            <!--
-            <include>**/TestNepheleMiniCluster.java</include>
-            -->
-            
-            <include>**/ContractTests.java</include>    
-            <include>**/PactProgramTests.java</include>
-            
-          </includes>
-        </configuration>
-      </plugin>
+     		 <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*TestBase*.class</exclude>
+						<exclude>**/*TestNepheleMiniCluster.class</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			
+			<plugin>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>2.6</version>
+				<configuration>
+					<excludes>
+						<exclude>**/*All2AllSPITCase.class</exclude>
+						<exclude>**/*EnumTrianglesITCase.class</exclude>
+						<exclude>**/*WebLogAnalysisITCase.class</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
       
     </plugins>
   </build>

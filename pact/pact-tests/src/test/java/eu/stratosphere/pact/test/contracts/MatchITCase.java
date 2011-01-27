@@ -48,12 +48,12 @@ import eu.stratosphere.pact.test.util.TestBase;
  * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
-public class MatchTest extends TestBase
+public class MatchITCase extends TestBase
 
 {
-	private static final Log LOG = LogFactory.getLog(MatchTest.class);
+	private static final Log LOG = LogFactory.getLog(MatchITCase.class);
 
-	public MatchTest(String clusterConfig, Configuration testConfig) {
+	public MatchITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
 
@@ -73,9 +73,13 @@ public class MatchTest extends TestBase
 
 	private static final String MATCH_RIGHT_IN_4 = "1 1\n2 2\n2 2\n8 1\n";
 
-	private static final String MATCH_RESULT = "1 0\n1 0\n1 0\n1 0\n1 1\n1 1\n1 1\n1 1\n1 2\n1 2\n1 2\n1 2\n1 3\n1 3\n1 3\n1 3\n"
-			+ "3 0\n3 0\n3 1\n3 1\n3 2\n3 2\n3 3\n3 3\n"
-			+ "2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n";
+//	private static final String MATCH_RESULT = "1 0\n1 0\n1 0\n1 0\n1 1\n1 1\n1 1\n1 1\n1 2\n1 2\n1 2\n1 2\n1 3\n1 3\n1 3\n1 3\n"
+//			+ "3 0\n3 0\n3 1\n3 1\n3 2\n3 2\n3 3\n3 3\n"
+//			+ "2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n";
+	
+	private static final String MATCH_RESULT = "2 1\n2 1\n2 1\n2 1\n2 2\n2 2\n2 2\n2 2\n2 3\n2 3\n2 3\n2 3\n2 4\n2 4\n2 4\n2 4\n"
+		+ "4 1\n4 1\n4 2\n4 2\n4 3\n4 3\n4 4\n4 4\n"
+		+ "3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -125,11 +129,17 @@ public class MatchTest extends TestBase
 
 		@Override
 		public void match(PactString key, PactString value1, PactString value2, Collector<PactString, PactInteger> out) {
+			
+			key.setValue(""+(Integer.parseInt(key.getValue())+1));
+			value1.setValue(""+(Integer.parseInt(value1.getValue())+2));
+			value2.setValue(""+(Integer.parseInt(value2.getValue())+1));
+			
 			out
 					.collect(key, new PactInteger(Integer.parseInt(value1.toString())
 							- Integer.parseInt(value2.toString())));
 
 			LOG.debug("Processed: [" + key + "," + value1 + "] + [" + key + "," + value2 + "]");
+			
 		}
 
 	}
@@ -221,7 +231,7 @@ public class MatchTest extends TestBase
 			}
 		}
 
-		return toParameterList(MatchTest.class, tConfigs);
+		return toParameterList(MatchITCase.class, tConfigs);
 	}
 
 }

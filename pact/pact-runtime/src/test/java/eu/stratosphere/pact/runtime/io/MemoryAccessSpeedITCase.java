@@ -23,7 +23,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class MemoryAccessSpeedTest {
+public class MemoryAccessSpeedITCase {
 	private static final int ARRAY_LENGTH = 1024 * 1024 * 164;
 
 	private static final int SEGMENT_OFFSET = 1024 * 1024 * 16;

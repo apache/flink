@@ -20,7 +20,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -28,36 +27,19 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.runtime.sort.MergeIterator;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 
 /**
  * @author Erik Nijkamp
  */
-public class TestMergeIterator {
-	private static Level rootLevel, pkqLevel;
+public class MergeIteratorTest {
 
 	@BeforeClass
 	public static void beforeClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLevel = rootLogger.getLevel();
-		rootLogger.setLevel(Level.INFO);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(MergeIterator.class.getPackage().getName());
-		pkqLevel = pkgLogger.getLevel();
-		String levelString = System.getProperty("log.level");
-		Level level = Level.toLevel(levelString);
-		pkgLogger.setLevel(level);
-
 	}
 
 	@AfterClass
 	public static void afterClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLogger.setLevel(rootLevel);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(MergeIterator.class.getPackage().getName());
-		pkgLogger.setLevel(pkqLevel);
 	}
 
 	private Iterator<KeyValuePair<TestData.Key, TestData.Value>> newIterator(final int[] keys, final String[] values) {

@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -39,8 +37,6 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
-import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
@@ -50,7 +46,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Erik Nijkamp
  */
-public class SortMergeMatchIteratorIT {
+public class SortMergeMatchIteratorITCase {
 	// total memory
 	public static final int MEMORY_SIZE = 1024 * 1024 * 64;
 
@@ -91,34 +87,14 @@ public class SortMergeMatchIteratorIT {
 
 	private MemoryManager memoryManager;
 
-	// logging
-	private static Level rootLevel, pkqLevel;
 
 	@BeforeClass
 	public static void beforeClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLevel = rootLogger.getLevel();
-		rootLogger.setLevel(Level.INFO);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository()
-			.getLogger(UnilateralSortMerger.class.getPackage().getName());
-		pkqLevel = pkgLogger.getLevel();
-		String levelString = System.getProperty("log.level");
-		Level level = Level.toLevel(levelString);
-		pkgLogger.setLevel(level);
-
-
 		ioManager = new IOManager();
 	}
 
 	@AfterClass
 	public static void afterClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLogger.setLevel(rootLevel);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository()
-			.getLogger(UnilateralSortMerger.class.getPackage().getName());
-		pkgLogger.setLevel(pkqLevel);
 	}
 
 	@Before
