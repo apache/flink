@@ -22,8 +22,6 @@ import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -42,9 +40,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.sort.BufferSortable;
-import eu.stratosphere.pact.runtime.sort.DeserializerComparator;
-import eu.stratosphere.pact.runtime.sort.QuickSort;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
@@ -52,8 +47,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Erik Nijkamp
  */
-public class TestBufferSortable {
-	private static final Log LOG = LogFactory.getLog(TestBufferSortable.class);
+public class BufferSortableTest {
+	private static final Log LOG = LogFactory.getLog(BufferSortableTest.class);
 
 	private static final long SEED = 649180756312423613L;
 
@@ -67,26 +62,12 @@ public class TestBufferSortable {
 
 	private MemoryManager memoryManager;
 
-	private static Level rootLevel, pkqLevel;
-
 	@BeforeClass
 	public static void beforeClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLevel = rootLogger.getLevel();
-		rootLogger.setLevel(Level.INFO);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(BufferSortable.class.getPackage().getName());
-		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
 	}
 
 	@AfterClass
 	public static void afterClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLogger.setLevel(rootLevel);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(BufferSortable.class.getPackage().getName());
-		pkgLogger.setLevel(pkqLevel);
 	}
 
 	@Before
@@ -132,7 +113,7 @@ public class TestBufferSortable {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 			memory = buffer.unbind();
 		}
@@ -146,7 +127,7 @@ public class TestBufferSortable {
 			while (buffer.read(pair)) {
 				readPairs++;
 			}
-			LOG.info("Read " + readPairs + " pairs from buffer.");
+			LOG.debug("Read " + readPairs + " pairs from buffer.");
 			memory = buffer.unbind();
 		}
 
@@ -177,7 +158,7 @@ public class TestBufferSortable {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
 				+ " bytes.");
 			limit = buffer.getPosition();
 			memory = buffer.unbind();
@@ -194,7 +175,7 @@ public class TestBufferSortable {
 				LOG.debug("-> " + pair);
 				readPairs++;
 			}
-			LOG.info("Read " + readPairs + " pairs from buffer.");
+			LOG.debug("Read " + readPairs + " pairs from buffer.");
 			memory = buffer.unbind();
 		}
 
@@ -221,7 +202,7 @@ public class TestBufferSortable {
 				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
 				pair = generator.next();
 			}
-			LOG.info("Occupied " + writtenBytes + " of " + MEMORY_SIZE + " bytes.");
+			LOG.debug("Occupied " + writtenBytes + " of " + MEMORY_SIZE + " bytes.");
 			memory = buffer.unbind();
 		}
 
@@ -245,7 +226,7 @@ public class TestBufferSortable {
 			while (unsortedBuffer.write(generator.next())) {
 				writtenPairs++;
 			}
-			LOG.info("Written " + writtenPairs + " pairs.");
+			LOG.debug("Written " + writtenPairs + " pairs.");
 
 		}
 
@@ -335,7 +316,7 @@ public class TestBufferSortable {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
 			it = buffer.getIterator();

@@ -48,12 +48,12 @@ import eu.stratosphere.pact.test.util.TestBase;
  * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
-public class CrossTest extends TestBase
+public class CrossITCase extends TestBase
 
 {
-	private static final Log LOG = LogFactory.getLog(CrossTest.class);
+	private static final Log LOG = LogFactory.getLog(CrossITCase.class);
 
-	public CrossTest(String clusterConfig, Configuration testConfig) {
+	public CrossITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
 
@@ -236,6 +236,6 @@ public class CrossTest extends TestBase
 			}
 		}
 
-		return toParameterList(CrossTest.class, tConfigs);
+		return toParameterList(CrossITCase.class, tConfigs);
 	}
 }

@@ -49,12 +49,12 @@ import eu.stratosphere.pact.test.util.TestBase;
  * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
-public class CoGroupTest extends TestBase
+public class CoGroupITCase extends TestBase
 
 {
-	private static final Log LOG = LogFactory.getLog(CoGroupTest.class);
+	private static final Log LOG = LogFactory.getLog(CoGroupITCase.class);
 
-	public CoGroupTest(String clusterConfig, Configuration testConfig) {
+	public CoGroupITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
 
@@ -220,6 +220,6 @@ public class CoGroupTest extends TestBase
 			}
 		}
 
-		return toParameterList(CoGroupTest.class, tConfigs);
+		return toParameterList(CoGroupITCase.class, tConfigs);
 	}
 }

@@ -36,11 +36,11 @@ import eu.stratosphere.pact.example.datamining.KMeansIteration;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class KMeansIterationTest extends TestBase {
+public class KMeansIterationITCase extends TestBase {
 
 	// KMeanDataGenerator kmdg = new KMeanDataGenerator(500, 10, 2);
 
-	private static final Log LOG = LogFactory.getLog(KMeansIterationTest.class);
+	private static final Log LOG = LogFactory.getLog(KMeansIterationITCase.class);
 
 	private final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n"
 			+ "3|1.60|70.11|16.32|\n" + "4|2.43|19.81|89.56|\n" + "5|67.99|9.00|14.48|\n" + "6|87.80|84.49|55.83|\n"
@@ -87,7 +87,7 @@ public class KMeansIterationTest extends TestBase {
 	String clusterPath = null;
 	String resultPath = null;
 
-	public KMeansIterationTest(Configuration config) {
+	public KMeansIterationITCase(Configuration config) {
 		super(config);
 	}
 
