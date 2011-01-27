@@ -83,7 +83,7 @@ abstract public class Buffer extends MemoryBacked {
 	@Override
 	public final boolean bind(MemorySegment memory) {
 		if (super.bind(memory)) {
-			reset(memory.size);
+			reset(memory.size());
 			return true;
 		} else {
 			return false;
@@ -172,7 +172,7 @@ abstract public class Buffer extends MemoryBacked {
 			}
 
 			// read either the full buffer size or the remaining bytes from the channel
-			int limit = (int) Math.min(memory.size, channel.size() - channel.position());
+			int limit = (int) Math.min(memory.size(), channel.size() - channel.position());
 			channel.read(memory.wrap(0, limit));
 
 			// find the end of the last fully contained object in the buffer
@@ -249,7 +249,7 @@ abstract public class Buffer extends MemoryBacked {
 			}
 
 			channel.write(memory.wrap(0, position));
-			reset(memory.size);
+			reset(memory.size());
 		}
 	}
 

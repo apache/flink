@@ -61,7 +61,7 @@ public class TestBufferSortable {
 
 	private static final int VALUE_LENGTH = 118;
 
-	public static final int MEMORY_SIZE = 1024 * 1024 * 16;
+	public static final int MEMORY_SIZE = 1024 * 1024 * 1024;
 
 	public static final float OFFSETS_PERCENTAGE = 0.2f;
 
@@ -257,7 +257,13 @@ public class TestBufferSortable {
 		// write pairs in sorted fashion
 		{
 			// sort
+			long start = System.currentTimeMillis();
+			
 			new QuickSort().sort(unsortedBuffer);
+			
+			long elapsed = System.currentTimeMillis() - start;
+			
+			System.out.println("Took " + (((float) elapsed) / 1000f) + " secs");
 
 			// buffer to buffer mock writer
 			Writer writer = new Writer() {

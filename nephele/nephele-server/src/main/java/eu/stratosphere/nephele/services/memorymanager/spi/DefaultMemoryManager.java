@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.services.memorymanager.spi;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -194,7 +193,7 @@ public class DefaultMemoryManager implements MemoryManager {
 			return;
 		}
 
-		MemorySegmentDescriptor descriptor = ((DefaultMemorySegment) segment).descriptorReference.get();
+		MemorySegmentDescriptor descriptor = ((DefaultMemorySegment) segment).descriptor;
 		long start = descriptor.chunk * (chunkSize) + descriptor.start;
 		long end = descriptor.chunk * (chunkSize) + descriptor.end;
 
@@ -294,14 +293,11 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * @return
 	 */
 	private DefaultMemorySegment factory(MemorySegmentDescriptor descriptor) {
-		WeakReference<MemorySegmentDescriptor> descriptorReference = new WeakReference<MemorySegmentDescriptor>(
-			descriptor);
-
 		DefaultRandomAccessView randomAccessView = new DefaultRandomAccessView(descriptor);
 		DefaultDataInputView inputView = new DefaultDataInputView(descriptor);
 		DefaultDataOutputView outputView = new DefaultDataOutputView(descriptor);
 
-		return new DefaultMemorySegment(descriptorReference, randomAccessView, inputView, outputView);
+		return new DefaultMemorySegment(descriptor, randomAccessView, inputView, outputView);
 	}
 
 	/**

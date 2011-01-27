@@ -17,14 +17,15 @@ package eu.stratosphere.nephele.services.memorymanager;
 
 import java.nio.ByteBuffer;
 
-public abstract class MemorySegment {
+public abstract class MemorySegment
+{
 	public final RandomAccessView randomAccessView;
 
 	public final DataInputView inputView;
 
 	public final DataOutputView outputView;
 
-	public final int size;
+	protected final int size;
 
 	protected boolean isFreed;
 
@@ -32,33 +33,38 @@ public abstract class MemorySegment {
 	// Constructors
 	// -------------------------------------------------------------------------
 
-	public MemorySegment(int size, RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView) {
+	public MemorySegment(int size, RandomAccessView randomAccessView, 
+			DataInputView inputView, DataOutputView outputView)
+	{
 		this.randomAccessView = randomAccessView;
 		this.inputView = inputView;
 		this.outputView = outputView;
+		
 		this.size = size;
+		
 		this.isFreed = false;
 	}
 
 	// -------------------------------------------------------------------------
 	// MemorySegment
 	// -------------------------------------------------------------------------
-
-	public int size() {
+	
+	public final int size() {
 		return size;
 	}
 
-	// -------------------------------------------------------------------------
-	// Helper methods
-	// -------------------------------------------------------------------------
-
-	public void free() {
+	public final void free() {
 		isFreed = true;
 	}
 
-	public boolean isFree() {
+	public final boolean isFree() {
 		return isFreed;
 	}
+	
+	// -------------------------------------------------------------------------
+	// Helper methods
+	// -------------------------------------------------------------------------
+	
 
 	/**
 	 * Wraps the chunk of the underlying memory located between {@code offset} and {@code length} in a NIO ByteBuffer.

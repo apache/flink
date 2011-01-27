@@ -15,18 +15,24 @@
 
 package eu.stratosphere.nephele.services.memorymanager.spi;
 
-import java.lang.ref.WeakReference;
-
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultMemorySegmentView {
-	protected WeakReference<MemorySegmentDescriptor> descriptorReference;
+
+public class DefaultMemorySegmentView
+{
+	protected byte[] memory;
+	
+	protected int offset;
+	
+	protected int size;
 
 	// --------------------------------------------------------------------
 	// Constructors
 	// --------------------------------------------------------------------
 
 	public DefaultMemorySegmentView(MemorySegmentDescriptor descriptor) {
-		this.descriptorReference = new WeakReference<MemorySegmentDescriptor>(descriptor);
+		this.memory = descriptor.memory;
+		this.offset = descriptor.start;
+		this.size = descriptor.size;
 	}
 }

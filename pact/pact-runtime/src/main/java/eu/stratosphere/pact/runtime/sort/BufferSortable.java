@@ -138,7 +138,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	public boolean bind(MemorySegment memory) {
 		if (super.bind(memory)) {
 			// accounting
-			int segmentSize = memory.size;
+			int segmentSize = memory.size();
 
 			int recordCapacity = (int) (segmentSize * kvindicesperc);
 			recordCapacity -= recordCapacity % RECSIZE;
@@ -180,7 +180,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	// -------------------------------------------------------------------------
 
 	protected int getRemainingBytes() {
-		return memory.size - memory.outputView.getPosition();
+		return memory.size() - memory.outputView.getPosition();
 	}
 
 	protected boolean isEmpty() {
@@ -381,29 +381,21 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 	@Override
 	public int compare(int i, int j) {
+		final byte[] backingArray = memory.randomAccessView.getBackingArray();
+		
 		// index
 		final int ii = kvoffsets[i];
 		final int ij = kvoffsets[j];
 
 		// keys
-		int indexi = kvindices[ii + KEYSTART];
-		int lengthi = kvindices[ii + VALSTART] - kvindices[ii + KEYSTART];
-
-		byte[] keyi = new byte[lengthi];
-		memory.randomAccessView.get(indexi, keyi);
-
-		int indexj = kvindices[ij + KEYSTART];
-		int lengthj = kvindices[ij + VALSTART] - kvindices[ij + KEYSTART];
-
-		byte[] keyj = new byte[lengthj];
-		memory.randomAccessView.get(indexj, keyj);
-
-		// indexi = memory.randomAccessView.translateOffset(indexi);
-		// indexj = memory.randomAccessView.translateOffset(indexj);
-
-		// sort by key
-		// return comparator.compare(backingArray, backingArray, indexi, indexj, lengthi, lengthj);
-		return comparator.compare(keyi, keyj, 0, 0, keyi.length, keyj.length);
+		final int indexi = memory.randomAccessView.translateOffset(kvindices[ii + KEYSTART]);
+		final int indexj = memory.randomAccessView.translateOffset(kvindices[ij + KEYSTART]);
+		
+		final int lengthi = kvindices[ii + VALSTART] - kvindices[ii + KEYSTART];
+		final int lengthj = kvindices[ij + VALSTART] - kvindices[ij + KEYSTART];
+		
+		return comparator.compare(backingArray, backingArray, indexi, indexj, lengthi, lengthj);
+//		return comparator.compare(keyi, keyj, 0, 0, keyi.length, keyj.length);
 	}
 
 	@Override
