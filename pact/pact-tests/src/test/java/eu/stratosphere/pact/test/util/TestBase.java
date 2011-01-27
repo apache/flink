@@ -96,8 +96,6 @@ public abstract class TestBase extends TestCase {
 
 	@Test
 	public void testJob() throws Exception {
-		System.out.println("Start Test");
-		
 		// pre-submit
 		preSubmit();
 

@@ -107,10 +107,13 @@ public class MapTest extends TestBase
 	public static class TestMapper extends MapStub<PactString, PactString, PactString, PactInteger> {
 
 		public void map(PactString key, PactString value, Collector<PactString, PactInteger> out) {
+			
+			LOG.debug("Processed: [" + key + "," + value + "]");
+			
 			if (Integer.parseInt(key.toString()) + Integer.parseInt(value.toString()) < 10) {
-				out.collect(value, new PactInteger(Integer.parseInt(key.toString()) + 10));
 
-				LOG.debug("Processed: [" + key + "," + value + "]");
+				out.collect(value, new PactInteger(Integer.parseInt(key.toString()) + 10));
+				
 			}
 		}
 	}
