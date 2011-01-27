@@ -37,12 +37,13 @@ import eu.stratosphere.pact.common.type.Value;
 
 /**
  * @author Erik Nijkamp
- * @param <K>
- *        The type of the key.
- * @param <V>
- *        The type of the value.
+ * @author Stephan Ewen
+ * 
+ * @param <K> The type of the key.
+ * @param <V> The type of the value.
  */
-public final class BufferSortable<K extends Key, V extends Value> extends MemoryBacked implements IndexedSortable {
+public final class BufferSortable<K extends Key, V extends Value> extends MemoryBacked implements IndexedSortable
+{
 	/**
 	 * Logging.
 	 */
@@ -60,7 +61,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	protected int position;
 
 	// ------------------------------------------------------------------------
-	// Serialization / Deserialization
+	//                     Serialization / Deserialization
 	// ------------------------------------------------------------------------
 
 	private final MemoryIOWrapper memoryWrapper;
@@ -80,7 +81,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	private final Deserializer<V> valDeserializer;
 
 	// ------------------------------------------------------------------------
-	// Key/Value accounting
+	//                      Key/Value accounting
 	// ------------------------------------------------------------------------
 
 	private static final int KEYSTART = 0; // key offset in acct
@@ -100,7 +101,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	private int kvlast; // last key position in kvindices
 
 	// -------------------------------------------------------------------------
-	// Constructors / Destructors
+	//                     Constructors / Destructors
 	// -------------------------------------------------------------------------
 
 	public BufferSortable(MemorySegment memory, RawComparator comparator, SerializationFactory<K> keySerialization,
@@ -125,7 +126,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	}
 
 	// -------------------------------------------------------------------------
-	// Memory Segment
+	//                         Memory Segment
 	// -------------------------------------------------------------------------
 
 	/*
@@ -176,7 +177,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	}
 
 	// -------------------------------------------------------------------------
-	// Buffering
+	//                                 Buffering
 	// -------------------------------------------------------------------------
 
 	protected int getRemainingBytes() {
@@ -192,7 +193,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	}
 
 	// -------------------------------------------------------------------------
-	// Retrieving and Writing
+	//                             Retrieving and Writing
 	// -------------------------------------------------------------------------
 
 	/**
@@ -395,7 +396,6 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 		final int lengthj = kvindices[ij + VALSTART] - kvindices[ij + KEYSTART];
 		
 		return comparator.compare(backingArray, backingArray, indexi, indexj, lengthi, lengthj);
-//		return comparator.compare(keyi, keyj, 0, 0, keyi.length, keyj.length);
 	}
 
 	@Override
