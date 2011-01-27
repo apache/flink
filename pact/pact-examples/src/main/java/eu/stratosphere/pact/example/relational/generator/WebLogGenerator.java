@@ -218,7 +218,7 @@ public class WebLogGenerator {
 
 			for (int i = 0; i < noVisits; i++) {
 
-				int year = yearFilter - 3 + rand.nextInt(6); // yearFilter ± 3
+				int year = yearFilter - 3 + rand.nextInt(6); // yearFilter 3
 				int month = rand.nextInt(12) + 1; // month between 1 and 12
 				int day = rand.nextInt(27) + 1; // day between 1 and 28
 

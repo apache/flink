@@ -48,12 +48,12 @@ import eu.stratosphere.pact.test.util.TestBase;
  * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
-public class MatchTest extends TestBase
+public class MatchITCase extends TestBase
 
 {
-	private static final Log LOG = LogFactory.getLog(MatchTest.class);
+	private static final Log LOG = LogFactory.getLog(MatchITCase.class);
 
-	public MatchTest(String clusterConfig, Configuration testConfig) {
+	public MatchITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
 
@@ -231,7 +231,7 @@ public class MatchTest extends TestBase
 			}
 		}
 
-		return toParameterList(MatchTest.class, tConfigs);
+		return toParameterList(MatchITCase.class, tConfigs);
 	}
 
 }

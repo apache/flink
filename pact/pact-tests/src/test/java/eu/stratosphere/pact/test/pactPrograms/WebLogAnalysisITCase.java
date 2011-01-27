@@ -39,7 +39,7 @@ import eu.stratosphere.pact.example.relational.WebLogAnalysis;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class WebLogAnalysisTest extends TestBase {
+public class WebLogAnalysisITCase extends TestBase {
 
 	String docsPath = getFilesystemProvider().getTempDirPath() + "/docs";
 
@@ -97,7 +97,7 @@ public class WebLogAnalysisTest extends TestBase {
 
 	String expectedResult = "aaaaf|68|832|\n" + "aaaak|99|783|\n";
 
-	public WebLogAnalysisTest(Configuration config) {
+	public WebLogAnalysisITCase(Configuration config) {
 		super(config);
 	}
 

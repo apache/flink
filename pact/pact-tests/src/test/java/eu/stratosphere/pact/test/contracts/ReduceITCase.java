@@ -50,12 +50,12 @@ import eu.stratosphere.pact.test.util.TestBase;
  * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
-public class ReduceTest extends TestBase
+public class ReduceITCase extends TestBase
 
 {
-	private static final Log LOG = LogFactory.getLog(ReduceTest.class);
+	private static final Log LOG = LogFactory.getLog(ReduceITCase.class);
 
-	public ReduceTest(String clusterConfig, Configuration testConfig) {
+	public ReduceITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
 
@@ -200,6 +200,6 @@ public class ReduceTest extends TestBase
 			}
 		}
 
-		return toParameterList(ReduceTest.class, tConfigs);
+		return toParameterList(ReduceITCase.class, tConfigs);
 	}
 }

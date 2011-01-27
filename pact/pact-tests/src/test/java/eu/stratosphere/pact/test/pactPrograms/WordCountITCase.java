@@ -34,9 +34,9 @@ import eu.stratosphere.pact.example.wordcount.WordCount;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class WordCountTest extends TestBase {
+public class WordCountITCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(WordCountTest.class);
+	private static final Log LOG = LogFactory.getLog(WordCountITCase.class);
 
 	private final String TEXT = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
 			+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
@@ -177,7 +177,7 @@ public class WordCountTest extends TestBase {
 	private String textPath = null;
 	private String resultPath = null;
 
-	public WordCountTest(Configuration config) {
+	public WordCountITCase(Configuration config) {
 		super(config);
 	}
 

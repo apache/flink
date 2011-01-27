@@ -34,9 +34,9 @@ import eu.stratosphere.pact.example.relational.TPCHQuery3;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class TPCHQuery3Test extends TestBase {
+public class TPCHQuery3ITCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(TPCHQuery3Test.class);
+	private static final Log LOG = LogFactory.getLog(TPCHQuery3ITCase.class);
 	
 	private String ordersPath = null;
 	private String lineitemsPath = null;
@@ -131,7 +131,7 @@ public class TPCHQuery3Test extends TestBase {
 
 	String EXPECTED_RESULT = "5|0|147827|\n" + "66|0|99187|\n";
 
-	public TPCHQuery3Test(Configuration config) {
+	public TPCHQuery3ITCase(Configuration config) {
 		super(config);
 	}
 

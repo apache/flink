@@ -33,7 +33,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 /**
  * @author Erik Nijkamp
  */
-public class TestDeserializerComparator {
+public class DeserializerComparatorTest {
 
 	@Test
 	public void testCompare() throws Exception {

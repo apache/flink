@@ -23,8 +23,6 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -40,8 +38,6 @@ import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
-import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
@@ -51,8 +47,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Fabian Hueske
  */
-public class TestCombiningUnilateralSortMerger {
-	private static final Log LOG = LogFactory.getLog(TestCombiningUnilateralSortMerger.class);
+public class CombiningUnilateralSortMergerITCase {
+	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMergerITCase.class);
 
 	private static final long SEED = 649180756312423613L;
 
@@ -72,30 +68,13 @@ public class TestCombiningUnilateralSortMerger {
 
 	private MemoryManager memoryManager;
 
-	private static Level rootLevel, pkqLevel;
-
 	@BeforeClass
 	public static void beforeClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLevel = rootLogger.getLevel();
-		rootLogger.setLevel(Level.INFO);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(
-			CombiningUnilateralSortMerger.class.getPackage().getName());
-		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
-
 		ioManager = new IOManager();
 	}
 
 	@AfterClass
 	public static void afterClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLogger.setLevel(rootLevel);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(
-			CombiningUnilateralSortMerger.class.getPackage().getName());
-		pkgLogger.setLevel(pkqLevel);
 	}
 
 	@Before
@@ -126,7 +105,7 @@ public class TestCombiningUnilateralSortMerger {
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 		MockRecordReader<KeyValuePair<TestData.Key, PactInteger>> reader = new MockRecordReader<KeyValuePair<TestData.Key, PactInteger>>();
 
-		LOG.info("initializing sortmerger");
+		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, PactInteger> merger = new CombiningUnilateralSortMerger<TestData.Key, PactInteger>(
 			new TestCountCombiner(), memoryManager, ioManager, 6, 1024 * 1024 * 8, 1024 * 1024 * 64, 128,
 			keySerialization, valSerialization, keyComparator, reader, OFFSETS_PERCENTAGE, null, true);
@@ -167,14 +146,14 @@ public class TestCombiningUnilateralSortMerger {
 		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
 
 		// merge iterator
-		LOG.info("initializing sortmerger");
+		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new CombiningUnilateralSortMerger<TestData.Key, TestData.Value>(
 			new TestCountCombiner2(), memoryManager, ioManager, 1, 1024 * 1024 * 4, 1024 * 1024 * 12, 2,
 			keySerialization, valSerialization, keyComparator, reader, OFFSETS_PERCENTAGE, null, true);
 		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
 
 		// emit data
-		LOG.info("emitting data");
+		LOG.debug("emitting data");
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
 		for (int i = 0; i < NUM_PAIRS; i++) {
@@ -186,7 +165,7 @@ public class TestCombiningUnilateralSortMerger {
 		reader.close();
 
 		// check order
-		LOG.info("checking results");
+		LOG.debug("checking results");
 		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
 		while (iterator.hasNext()) {
 			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
@@ -223,13 +202,13 @@ public class TestCombiningUnilateralSortMerger {
 	 * MockRecordReader<KeyValuePair<TestData.Key, N_Integer>> reader = new MockRecordReader<KeyValuePair<TestData.Key,
 	 * N_Integer>>();
 	 * // merge iterator
-	 * LOG.info("initializing sortmerger");
+	 * LOG.debug("initializing sortmerger");
 	 * SortMerger<TestData.Key, N_Integer> merger = new CombiningUnilateralSortMerger<TestData.Key, N_Integer>(new
 	 * TestCountCombiner(), memoryManager, ioManager, 10, 1024*16, 1024*1024*12, 2, keySerialization, valSerialization,
 	 * keyComparator, reader, 0.5f);
 	 * Iterator<KeyValuePair<TestData.Key, N_Integer>> iterator = merger.getIterator();
 	 * // emit data
-	 * LOG.info("emitting data");
+	 * LOG.debug("emitting data");
 	 * TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 	 * ValueMode.FIX_LENGTH);
 	 * for (int i = 0; i < NUM_PAIRS; i++)
@@ -240,7 +219,7 @@ public class TestCombiningUnilateralSortMerger {
 	 * }
 	 * reader.close();
 	 * // check order
-	 * LOG.info("checking results");
+	 * LOG.debug("checking results");
 	 * int pairsEmitted = 0;
 	 * KeyValuePair<TestData.Key, N_Integer> pair1 = null;
 	 * while (iterator.hasNext())
@@ -279,14 +258,14 @@ public class TestCombiningUnilateralSortMerger {
 	 * MockRecordReader<KeyValuePair<TestData.Key, N_Integer>> reader = new MockRecordReader<KeyValuePair<TestData.Key,
 	 * N_Integer>>();
 	 * // merge iterator
-	 * LOG.info("initializing sortmerger");
+	 * LOG.debug("initializing sortmerger");
 	 * SortMerger<TestData.Key, N_Integer> merger = new CombiningUnilateralSortMerger<TestData.Key, N_Integer>(new
 	 * TestCountCombiner(), memoryManager, ioManager, 3, 1024*1024*64, 1024*1024*64, 256, keySerialization,
 	 * valSerialization, keyComparator, reader, 0.2f);
 	 * Iterator<KeyValuePair<TestData.Key, N_Integer>> iterator = merger.getIterator();
 	 * // emit data
 	 * long start = System.currentTimeMillis();
-	 * LOG.info("emitting data");
+	 * LOG.debug("emitting data");
 	 * TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 	 * ValueMode.RANDOM_LENGTH, CreationMode.MUTABLE);
 	 * long bytesWritten = 0;
@@ -295,7 +274,7 @@ public class TestCombiningUnilateralSortMerger {
 	 * if(i % (PAIRS / 20) == 0 || i == PAIRS)
 	 * {
 	 * long mb = bytesWritten / 1024 / 1024;
-	 * LOG.info("emitted "+(int)(100.0 * i / PAIRS)+"% (" + i + " pairs, "+mb+" mb)");
+	 * LOG.debug("emitted "+(int)(100.0 * i / PAIRS)+"% (" + i + " pairs, "+mb+" mb)");
 	 * }
 	 * KeyValuePair<TestData.Key, N_Integer> pair = null; // generator.next();
 	 * // bytesWritten += generator.sizeOf(pair);
@@ -303,7 +282,7 @@ public class TestCombiningUnilateralSortMerger {
 	 * }
 	 * reader.close();
 	 * // check order
-	 * LOG.info("checking results");
+	 * LOG.debug("checking results");
 	 * int pairsEmitted = 0;
 	 * KeyValuePair<TestData.Key, N_Integer> pair1 = null;
 	 * while (iterator.hasNext())
@@ -319,7 +298,7 @@ public class TestCombiningUnilateralSortMerger {
 	 * // log
 	 * if(pairsEmitted % (PAIRS / 20) == 0 || pairsEmitted == PAIRS-1)
 	 * {
-	 * LOG.info("checked "+(int)(100.0 * pairsEmitted / PAIRS)+"% (" + pairsEmitted + " pairs)");
+	 * LOG.debug("checked "+(int)(100.0 * pairsEmitted / PAIRS)+"% (" + pairsEmitted + " pairs)");
 	 * }
 	 * }
 	 * Assert.assertTrue(PAIRS == pairsEmitted);
@@ -328,7 +307,7 @@ public class TestCombiningUnilateralSortMerger {
 	 * long diff = end - start;
 	 * long secs = diff / 1000;
 	 * long mb = bytesWritten / 1024 / 1024;
-	 * LOG.info("sorting a workload of " + PAIRS + " pairs ("+mb+"mb)  took "+secs+" seconds -> " + (1.0*mb)/secs +
+	 * LOG.debug("sorting a workload of " + PAIRS + " pairs ("+mb+"mb)  took "+secs+" seconds -> " + (1.0*mb)/secs +
 	 * "mb/s");
 	 * }
 	 */
@@ -348,13 +327,13 @@ public class TestCombiningUnilateralSortMerger {
 	 * MockRecordReader<KeyValuePair<TestData.Key, N_Integer>> reader = new MockRecordReader<KeyValuePair<TestData.Key,
 	 * N_Integer>>();
 	 * // merge iterator
-	 * LOG.info("initializing sortmerger");
+	 * LOG.debug("initializing sortmerger");
 	 * SortMerger<TestData.Key, N_Integer> merger = new CombiningUnilateralSortMerger<TestData.Key, N_Integer>(new
 	 * TestCountCombiner(), memoryManager, ioManager, 1, 1024*1024*4, 1024*1024*12, 2, keySerialization,
 	 * valSerialization, keyComparator, reader, LOW_OFFSETS_PERCENTAGE);
 	 * Iterator<KeyValuePair<TestData.Key, N_Integer>> iterator = merger.getIterator();
 	 * // emit data
-	 * LOG.info("emitting data");
+	 * LOG.debug("emitting data");
 	 * TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 	 * ValueMode.FIX_LENGTH);
 	 * for (int i = 0; i < NUM_PAIRS; i++)
@@ -363,7 +342,7 @@ public class TestCombiningUnilateralSortMerger {
 	 * }
 	 * reader.close();
 	 * // check order
-	 * LOG.info("checking results");
+	 * LOG.debug("checking results");
 	 * int pairsEmitted = 0;
 	 * KeyValuePair<TestData.Key, N_Integer> pair1 = null;
 	 * while (iterator.hasNext())

@@ -48,12 +48,12 @@ import eu.stratosphere.pact.test.util.TestBase;
  * @author Fabian Hueske
  */
 @RunWith(Parameterized.class)
-public class MapTest extends TestBase
+public class MapITCase extends TestBase
 
 {
-	private static final Log LOG = LogFactory.getLog(MapTest.class);
+	private static final Log LOG = LogFactory.getLog(MapITCase.class);
 	
-	public MapTest(String clusterConfig, Configuration testConfig) {
+	public MapITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig, clusterConfig);
 	}
 
@@ -166,6 +166,6 @@ public class MapTest extends TestBase
 		config.setInteger("MapTest#NoSubtasks", 4);
 		testConfigs.add(config);
 
-		return toParameterList(MapTest.class, testConfigs);
+		return toParameterList(MapITCase.class, testConfigs);
 	}
 }
