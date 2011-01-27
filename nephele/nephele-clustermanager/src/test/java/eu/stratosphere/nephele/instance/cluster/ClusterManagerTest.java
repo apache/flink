@@ -39,8 +39,6 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.cluster.ClusterManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.util.InstanceManagerTestUtils;
-import eu.stratosphere.nephele.util.TestInstanceListener;
 
 /**
  * Tests for {@link ClusterManager}.
@@ -225,7 +223,7 @@ public class ClusterManagerTest {
 				fail(ie.getMessage());
 			}
 
-			InstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 3, MAX_WAIT_TIME);
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 3, MAX_WAIT_TIME);
 
 			final List<AllocatedResource> allocatedResources = testInstanceListener.getAllocatedResourcesForJob(jobID);
 			assertEquals(3, allocatedResources.size());
@@ -314,7 +312,7 @@ public class ClusterManagerTest {
 				fail(ie.getMessage());
 			}
 
-			InstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 1, MAX_WAIT_TIME);
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 1, MAX_WAIT_TIME);
 			assertEquals(1, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
 
 			try {
@@ -323,7 +321,7 @@ public class ClusterManagerTest {
 				fail(ie.getMessage());
 			}
 
-			InstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 0, MAX_WAIT_TIME);
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 0, MAX_WAIT_TIME);
 			assertEquals(0, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
 
 		} catch (UnknownHostException e) {

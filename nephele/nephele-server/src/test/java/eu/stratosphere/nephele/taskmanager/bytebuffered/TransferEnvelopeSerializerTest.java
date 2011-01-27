@@ -33,7 +33,7 @@ import eu.stratosphere.nephele.io.ID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.util.TestUtils;
+import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
  * This class contains tests covering the serialization of transfer envelopes to a byte stream.
@@ -126,7 +126,7 @@ public class TransferEnvelopeSerializerTest {
 	 */
 	private File generateDataStream() throws IOException {
 
-		final File outputFile = new File(TestUtils.getTempDir() + File.separator + TestUtils.getRandomFilename());
+		final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 		final FileOutputStream outputStream = new FileOutputStream(outputFile);
 		final FileChannel fileChannel = outputStream.getChannel();
 		final Deque<ByteBuffer> recycleQueue = new ArrayDeque<ByteBuffer>();

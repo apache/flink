@@ -41,7 +41,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
-import eu.stratosphere.nephele.util.TestUtils;
+import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
@@ -196,9 +196,9 @@ public class JobManagerTest {
 			final String forwardClassName = ForwardTask.class.getSimpleName();
 
 			// Create input and jar files
-			final File inputFile = TestUtils.createInputFile(limit);
-			final File outputFile = new File(TestUtils.getTempDir() + File.separator + TestUtils.getRandomFilename());
-			final File jarFile = TestUtils.createJarFile(forwardClassName);
+			final File inputFile = ServerTestUtils.createInputFile(limit);
+			final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
+			final File jarFile = ServerTestUtils.createJarFile(forwardClassName);
 
 			// Create job graph
 			final JobGraph jg = new JobGraph("Job Graph 1");
@@ -235,7 +235,7 @@ public class JobManagerTest {
 			}
 
 			// add jar
-			jg.addJar(new Path("file://" + TestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
+			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
 			JobClient jobClient = new JobClient(jg);
