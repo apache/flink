@@ -15,7 +15,9 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
+
 import eu.stratosphere.nephele.services.ServiceException;
+
 
 /**
  * An exception to be thrown when a memory backed object identifies that the

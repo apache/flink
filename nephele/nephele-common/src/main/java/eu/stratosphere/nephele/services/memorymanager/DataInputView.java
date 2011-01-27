@@ -15,18 +15,30 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
+
 import java.io.DataInput;
 
-public interface DataInputView extends DataInput {
+
+/**
+ * This interface defines a view over a {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment} that
+ * can be used to sequentially read the contents of the memory.
+ *
+ * @author Alexander Alexandrov
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ */
+public interface DataInputView extends DataInput
+{
 	/**
 	 * Gets the current write position.
 	 * 
-	 * @return The current write size.
+	 * @return The current write position.
 	 */
 	public int getPosition();
 
 	/**
 	 * Sets the current write position.
+	 * 
+	 * @param position The current write position.
 	 */
 	public DataInputView setPosition(int position);
 
