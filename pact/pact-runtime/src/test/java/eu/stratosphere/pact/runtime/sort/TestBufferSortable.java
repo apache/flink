@@ -257,8 +257,14 @@ public class TestBufferSortable {
 		// write pairs in sorted fashion
 		{
 			// sort
+			
+			long start = System.currentTimeMillis();
+			
 			new QuickSort().sort(unsortedBuffer);
 
+			long elapsed = System.currentTimeMillis() - start;
+			LOG.info("Sorting took " + (((float) elapsed) / 1000f) + " secs.");
+			
 			// buffer to buffer mock writer
 			Writer writer = new Writer() {
 				@Override
