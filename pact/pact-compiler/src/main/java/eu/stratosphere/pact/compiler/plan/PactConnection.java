@@ -163,11 +163,12 @@ public class PactConnection {
 	 *        The shipping strategy to be applied to this connection.
 	 */
 	public void setShipStrategy(ShipStrategy strategy) {
-		// this check is for debugging purposes: it checks, that a ship strategy (other than none)
-		// is not changed by the compiler
-		if (this.shipStrategy != ShipStrategy.NONE && this.shipStrategy != strategy) {
-			throw new CompilerException("Internal error: Compiler attempts to change a fixed shipping strategy.");
-		}
+		// TODO: Arvid: this should be checked within the compiler
+		// // this check is for debugging purposes: it checks, that a ship strategy (other than none)
+		// // is not changed by the compiler
+		// if (this.shipStrategy != ShipStrategy.NONE && this.shipStrategy != strategy) {
+		// throw new CompilerException("Internal error: Compiler attempts to change a fixed shipping strategy.");
+		// }
 
 		this.shipStrategy = strategy;
 	}

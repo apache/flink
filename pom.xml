@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-  <modelVersion>4.0.0</modelVersion>
+	<modelVersion>4.0.0</modelVersion>
 
-  <groupId>eu.stratosphere</groupId>
-  <artifactId>stratosphere</artifactId>
-  <version>0.1</version>
+	<groupId>eu.stratosphere</groupId>
+	<artifactId>stratosphere</artifactId>
+	<version>0.1</version>
 
-  <name>stratosphere</name>
-  <packaging>pom</packaging>
-  <url>http://www.stratosphere.eu</url>
-  <inceptionYear>2009</inceptionYear>
+	<name>stratosphere</name>
+	<packaging>pom</packaging>
+	<url>http://www.stratosphere.eu</url>
+	<inceptionYear>2009</inceptionYear>
 
-  <licenses>
-    <license>
+	<licenses>
+		<license>
 			<name>The Apache Software License, Version 2.0</name>
 			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
 			<distribution>stratosphere</distribution>
@@ -59,7 +59,8 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<project.reporting.outputEncoding>UTF-8
+		</project.reporting.outputEncoding>
 	</properties>
 
 	<pluginRepositories>
@@ -92,7 +93,6 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>commons-logging</groupId>
 			<artifactId>commons-logging</artifactId>
@@ -100,7 +100,6 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
@@ -330,36 +329,22 @@
 					<target>1.6</target>
 				</configuration>
 			</plugin>
-
-     		<plugin>
-          	  <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <version>2.7</version>
-              <executions>
-                <execution>
-                  <id>javadoc:aggregate-jar</id>
-                  <goals>
-                    <goal>aggregate-jar</goal>
-                  </goals>
-                  <phase>site</phase>
-                  <configuration>
-                    <quiet>true</quiet>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-	
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.9-SNAPSHOT</version>
-				<configuration>
-					<classpathContainers>
-						<classpathContainer>
-							org.eclipse.jdt.launching.JRE_CONTAINER
-            			</classpathContainer>
-					</classpathContainers>
-				</configuration>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.7</version>
+				<executions>
+					<execution>
+						<id>javadoc:aggregate-jar</id>
+						<goals>
+							<goal>aggregate-jar</goal>
+						</goals>
+						<phase>site</phase>
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
@@ -372,6 +357,21 @@
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 			<plugin>
 				<!-- plugin that tests whether the code style is appropriate -->	
@@ -386,6 +386,50 @@
 					</dependency>
 				</dependencies>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-eclipse-plugin</artifactId>
+				<version>2.9-SNAPSHOT</version>
+				<configuration>
+					<classpathContainers>
+						<classpathContainer>
+							org.eclipse.jdt.launching.JRE_CONTAINER
+						</classpathContainer>
+					</classpathContainers>
+				</configuration>
+			</plugin>
+
+			<!--
+				<plugin> check whether license information is included in files, can
+				be used to insert headers as well
+
+				<groupId>com.google.code.maven-license-plugin</groupId>
+				<artifactId>maven-license-plugin</artifactId>
+				<version>1.4.0</version> <configuration>
+				<header>src/main/etc/header.txt</header> </configuration> </plugin>
+			-->
+			<!--
+				<plugin> plugin that tests which fraction of the source code is
+				covered by JUnit tests <groupId>org.codehaus.mojo</groupId>
+				<artifactId>cobertura-maven-plugin</artifactId> <configuration>
+				<instrumentation> <ignores>
+				<ignore>com.example.boringcode.*</ignore> </ignores> <excludes>
+				<exclude>com/example/dullcode/**/*.class</exclude>
+				<exclude>com/example/**/*Test.class</exclude> </excludes>
+				</instrumentation> </configuration> <version>2.4</version>
+				<executions> <execution> <goals> <goal>clean</goal> </goals>
+				</execution> </executions> </plugin>
+			-->
+			<!--
+				<plugin> plugin that tests whether the code style is appropriate
+
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.3</version> <dependencies> <dependency>
+				<groupId>eu.stratosphere</groupId>
+				<artifactId>build-tools</artifactId> <version>0.1</version>
+				</dependency> </dependencies> </plugin>
+			-->
 		</plugins>
 	</build>
 
