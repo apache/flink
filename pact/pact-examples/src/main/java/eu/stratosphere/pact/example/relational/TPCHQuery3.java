@@ -275,11 +275,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			resultPath = args[3];
 		}
 
-		int degreeOfParallelism = Integer.parseInt(args[0]);
-		String ordersPath = args[1];
-		String lineitemsPath = args[2];
-		String resultPath = args[3];
-
 		// create DataSourceContract for Orders input
 		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, ordersPath, "Orders");
