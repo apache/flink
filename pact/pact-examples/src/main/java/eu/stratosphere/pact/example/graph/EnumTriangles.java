@@ -17,6 +17,7 @@ package eu.stratosphere.pact.example.graph;
 
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -39,184 +40,259 @@ import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactList;
+import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.compiler.PactCompiler;
 
+/**
+ * Implementation of the triangle enumeration example Pact program.
+ * The program expects a file with RDF triples (in XML serialization) as input. Triples must be separated by linebrakes.
+ * 
+ * The program filters for foaf:knows predicates to identify relationships between two entities (typically persons).
+ * Relationships are interpreted as edges in a social graph. Then the program enumerates all triangles which are build 
+ * by edges in that graph. 
+ * 
+ * Usually, triangle enumeration is used as a pre-processing step to identify highly connected subgraphs.
+ * The algorithm was published as MapReduce job by J. Cohen in "Graph Twiddling in a MapReduce World".
+ * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011). 
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ */
 public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 
-	public static class N_StringPair extends PactPair<PactString, PactString> {
-		public N_StringPair() {
+	/**
+	 * Simple extension of PactPair to hold an edge defined by the connected nodes represented as PactStrings.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class Edge extends PactPair<PactString, PactString> {
+
+		public Edge() {
 			super();
 		}
 
-		public N_StringPair(PactString s1, PactString s2) {
+		public Edge(PactString s1, PactString s2) {
 			super(s1, s2);
 		}
 
 		public String toString() {
-			return "<" + getFirst().toString() + "|" + getSecond() + ">";
-		}
-	}
-
-	public static class N_List_StringPair extends PactList<N_StringPair> {
-		public String toString() {
-			Iterator<N_StringPair> it = this.iterator();
-			StringBuilder sb = new StringBuilder("[");
-			while (it.hasNext()) {
-				sb.append(it.next().toString() + " , ");
-			}
-			sb.append("]");
-			return sb.toString();
+			return getFirst().toString() + " " + getSecond();
 		}
 	}
 
 	/**
-	 * Reads and writes lists of edges data in the following format:
-	 * <string:fromVertice1>|<string:toVertice1>|<string:fromVertice2>|<string:toVertice2>|...|
-	 * The list is completeley hold in the value. Each edge is represented as a pair of strings.
-	 * Within the pair the lexiographic smaller vertice is the first pair element.
-	 * The key holds the pair vertices of the first edge.
+	 * Simple extension of PactList to hold multiple edges.
+	 * If the list holds one edge it is just an edge.
+	 * If it holds two edges it is a triad (an one-side open triangle).
+	 * If it holds three edges it is a closed triangle.
 	 * 
-	 * @author fhueske
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 */
-	public static class EdgeListInFormat extends TextInputFormat<N_StringPair, N_List_StringPair> {
+	public static class EdgeList extends PactList<Edge> {
+
+		public String toString() {
+			Iterator<Edge> it = this.iterator();
+			StringBuilder sb = new StringBuilder("[ ");
+			while (it.hasNext()) {
+				sb.append("( " + it.next().toString() + " ), ");
+			}
+			sb.append(" ]");
+			return sb.toString();
+		}
+
+	}
+
+	/**
+	 * Reads RDF triples and filters on the foaf:knows RDF predicate.
+	 * The foaf:knows RDF predicate indicates that the RDF subject and object (typically of type foaf:person) know each
+	 * other.
+	 * Therefore, knowing connections between people are extracted and handles as graph edges.
+	 * The EdgeListInFormat filters all rdf triples with foaf:knows predicates. The subjects and objects URL are
+	 * compared.
+	 * The lexicographically smaller URL becomes the first part (node) of the edge, the greater one the second part
+	 * (node).
+	 * Finally, the format emits the edge as key. The value is not required, so its set to NULL.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class EdgeListInFormat extends TextInputFormat<Edge, PactNull> {
 
 		private static final Log LOG = LogFactory.getLog(EdgeListInFormat.class);
 
 		@Override
-		public boolean readLine(KeyValuePair<N_StringPair, N_List_StringPair> pair, byte[] line) {
+		public boolean readLine(KeyValuePair<Edge, PactNull> pair, byte[] line) {
 
-			int start = 0;
+			String lineStr = new String(line);
+			// replace reduce whitespaces and trim
+			lineStr = lineStr.replaceAll("\\s+", " ").trim();
+			// build whitespace tokenizer
+			StringTokenizer st = new StringTokenizer(lineStr, " ");
 
-			PactString firstVertice = null;
-			N_List_StringPair values = new N_List_StringPair();
-			for (int pos = 0; pos < line.length; pos++) {
-				if (line[pos] == '|') {
-					if (firstVertice == null) {
-						// first vertice
-						firstVertice = new PactString(new String(line, start, pos - start));
-					} else {
-						// second vertice -> add pair
-						PactString secondVertice = new PactString(new String(line, start, pos - start));
-						// decide which vertice is first element of pair
-						N_StringPair edge;
-						if (firstVertice.compareTo(secondVertice) <= 0) {
-							edge = new N_StringPair(firstVertice, secondVertice);
-						} else {
-							edge = new N_StringPair(secondVertice, firstVertice);
-						}
-						values.add(edge);
-						// reset value counter
-						firstVertice = null;
-					}
-					start = pos + 1;
-				}
+			// line must have at least three elements
+			if (st.countTokens() < 3)
+				return false;
+
+			String rdfSubj = st.nextToken();
+			String rdfPred = st.nextToken();
+			String rdfObj = st.nextToken();
+
+			// we only want foaf:knows predicates
+			if (!rdfPred.equals("<http://xmlns.com/foaf/0.1/knows>"))
+				return false;
+
+			Edge edge;
+
+			if (rdfSubj.compareTo(rdfObj) <= 0) {
+				edge = new Edge(new PactString(rdfSubj), new PactString(rdfObj));
+			} else {
+				edge = new Edge(new PactString(rdfObj), new PactString(rdfSubj));
 			}
-			pair.setKey(values.get(0));
-			pair.setValue(values);
 
-			LOG.info("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
+			EdgeList edgeList = new EdgeList();
+			edgeList.add(edge);
+
+			pair.setKey(edge);
+			pair.setValue(new PactNull());
+
+			LOG.debug("Read in: " + pair.getKey() + " :: " + pair.getValue());
 			return true;
 		}
 	}
 
-	public static class EdgeListOutFormat extends TextOutputFormat<N_StringPair, N_List_StringPair> {
+	/**
+	 * Used to write an EdgeList to text file.
+	 * All edges of the list are concatenated and serialized to byte string.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class EdgeListOutFormat extends TextOutputFormat<PactNull, EdgeList> {
 		private static final Log LOG = LogFactory.getLog(EdgeListOutFormat.class);
 
 		@Override
-		public byte[] writeLine(KeyValuePair<N_StringPair, N_List_StringPair> pair) {
+		public byte[] writeLine(KeyValuePair<PactNull, EdgeList> pair) {
 			StringBuilder line = new StringBuilder();
 
-			Iterator<N_StringPair> valueIt = pair.getValue().iterator();
+			Iterator<Edge> valueIt = pair.getValue().iterator();
 			while (valueIt.hasNext()) {
 				PactPair<PactString, PactString> edge = valueIt.next();
-				line.append(edge.getFirst().toString() + "|" + edge.getSecond().toString() + "|");
+				line.append(edge.getFirst().toString() + " " + edge.getSecond().toString());
+				if (valueIt.hasNext()) {
+					line.append(" ");
+				}
 			}
 			line.append('\n');
 
-			LOG.info("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Writing out: " + pair.getKey() + " :: " + pair.getValue());
 
 			return line.toString().getBytes();
 		}
-
 	}
 
-	public static class AssignKeys extends MapStub<N_StringPair, N_List_StringPair, PactString, N_List_StringPair> {
+	/**
+	 * Transforms key-value pairs of the form (Edge,Null) to (PactString,Edge) where the key becomes the
+	 * first node of the input key and the value becomes the input key.
+	 * Due to the input format, the first node of the input edge is the lexicographically smaller of both nodes.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class AssignKeys extends MapStub<Edge, PactNull, PactString, Edge> {
 
 		private static final Log LOG = LogFactory.getLog(AssignKeys.class);
 
 		@Override
-		public void map(N_StringPair edge, N_List_StringPair edgeList, Collector<PactString, N_List_StringPair> out) {
-			out.collect(edge.getFirst(), edgeList);
-			LOG.info("Processed: [" + edge.getFirst() + "," + edgeList + "]");
+		public void map(Edge edge, PactNull empty, Collector<PactString, Edge> out) {
+			LOG.debug("Emit: " + edge.getFirst() + " :: " + edge);
+			out.collect(edge.getFirst(), edge);
 		}
 
 	}
 
-	public static class BuildTriads extends ReduceStub<PactString, N_List_StringPair, N_StringPair, N_List_StringPair> {
+	/**
+	 * Groups all edges whose smaller node is identical.
+	 * All edges are collected and pair-wise combined to triads (open triangles).
+	 * A triad is represented as an EdgeList with two elements.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class BuildTriads extends ReduceStub<PactString, Edge, Edge, EdgeList> {
 
 		private static final Log LOG = LogFactory.getLog(BuildTriads.class);
 
 		@Override
-		public void reduce(PactString vertice, Iterator<N_List_StringPair> edgeListsList,
-				Collector<N_StringPair, N_List_StringPair> out) {
-			// collect all edges
-			LinkedList<N_StringPair> edges = new LinkedList<N_StringPair>();
-			while (edgeListsList.hasNext()) {
-				// each edge list contains only one edge
-				N_StringPair value = edgeListsList.next().get(0);
-				edges.add(value);
+		public void reduce(PactString node, Iterator<Edge> edges, Collector<Edge, EdgeList> out) {
 
-				LOG.info("Processed: [" + vertice + "," + value + "]");
+			// collect all edges
+			LinkedList<Edge> edgesList = new LinkedList<Edge>();
+			while (edges.hasNext()) {
+				edgesList.add(edges.next());
+				LOG.debug("Read: " + node + " :: " + edgesList.getLast());
 			}
 
-			// enumerate all binary edge combinations and build triangles
-			for (int i = 0; i < edges.size(); i++) {
-				for (int j = i + 1; j < edges.size(); j++) {
-					// find missing edge
-					PactString v_i = edges.get(i).getSecond();
-					PactString v_j = edges.get(j).getSecond();
+			// we need at least 2 edges to build a triad
+			if (edgesList.size() <= 1) {
+				return;
+			}
 
-					N_StringPair missingEdge;
-					N_List_StringPair triad = new N_List_StringPair();
+			// enumerate all binary edge combinations, build triads and identify missing edges
+			for (int i = 0; i < edgesList.size(); i++) {
+				for (int j = i + 1; j < edgesList.size(); j++) {
 
-					if (v_i.compareTo(v_j) <= 0) {
-						missingEdge = new N_StringPair(v_i, v_j);
-						triad.add(edges.get(i));
-						triad.add(edges.get(j));
+					// identify nodes for missing edge
+					PactString e_i = edgesList.get(i).getSecond();
+					PactString e_j = edgesList.get(j).getSecond();
+
+					Edge missingEdge;
+					EdgeList triad = new EdgeList();
+
+					// build missing edges. Smaller node goes first, greater second.
+					if (e_i.compareTo(e_j) <= 0) {
+						missingEdge = new Edge(e_i, e_j);
+						triad.add(edgesList.get(i));
+						triad.add(edgesList.get(j));
 					} else {
-						missingEdge = new N_StringPair(v_j, v_i);
-						triad.add(edges.get(j));
-						triad.add(edges.get(i));
+						missingEdge = new Edge(e_j, e_i);
+						triad.add(edgesList.get(j));
+						triad.add(edgesList.get(i));
 					}
 
-					LOG.info("Emitted: [" + missingEdge + "," + triad + "]");
+					LOG.debug("Emit: " + missingEdge + " :: " + triad);
 
+					// emit missing edge and triad
 					out.collect(missingEdge, triad);
 				}
 			}
 		}
 	}
 
+	/**
+	 * Matches all missing edges with existing edges from input.
+	 * If the missing edge for a triad is found, the triad is transformed to a triangle by adding the missing edge.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
 	@OutputContract.SameKey
-	public static class CloseTriads extends
-			MatchStub<N_StringPair, N_List_StringPair, N_List_StringPair, N_StringPair, N_List_StringPair> {
+	public static class CloseTriads extends MatchStub<Edge, EdgeList, PactNull, PactNull, EdgeList> {
 
 		private static final Log LOG = LogFactory.getLog(CloseTriads.class);
 
 		@Override
-		public void match(N_StringPair missingEdge, N_List_StringPair triad, N_List_StringPair mev,
-				Collector<N_StringPair, N_List_StringPair> out) {
+		public void match(Edge missingEdge, EdgeList triad, PactNull empty, Collector<PactNull, EdgeList> out) {
 			// close triad with missing edge
 			triad.add(missingEdge);
+			
+			LOG.debug("Emit: " + missingEdge + " :: " + triad);
+			
 			// emit triangle
-			out.collect(missingEdge, triad);
-
-			LOG.info("Processed: [" + missingEdge + "," + triad + "] + [" + missingEdge + "," + mev + "]");
+			out.collect(new PactNull(), triad);
 		}
 
 	}
 
+	/**
+	 * Assembles the Plan of the triangle enumeration example Pact program.
+	 */
 	@Override
 	public Plan getPlan(String... args) {
 
@@ -229,25 +305,28 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		String edgeInput = args[1];
 		String output = args[2];
 
-		DataSourceContract<N_StringPair, N_List_StringPair> edges = new DataSourceContract<N_StringPair, N_List_StringPair>(
-			EdgeListInFormat.class, edgeInput);
+		DataSourceContract<Edge, PactNull> edges = new DataSourceContract<Edge, PactNull>(EdgeListInFormat.class,
+			edgeInput);
 		edges.setFormatParameter("delimiter", "\n");
 		edges.setDegreeOfParallelism(noSubTasks);
 		edges.setOutputContract(UniqueKey.class);
 
-		MapContract<N_StringPair, N_List_StringPair, PactString, N_List_StringPair> assignKeys = new MapContract<N_StringPair, N_List_StringPair, PactString, N_List_StringPair>(
+		MapContract<Edge, PactNull, PactString, Edge> assignKeys = new MapContract<Edge, PactNull, PactString, Edge>(
 			AssignKeys.class, "Assign Keys");
 		assignKeys.setDegreeOfParallelism(noSubTasks);
 
-		ReduceContract<PactString, N_List_StringPair, N_StringPair, N_List_StringPair> buildTriads = new ReduceContract<PactString, N_List_StringPair, N_StringPair, N_List_StringPair>(
+		ReduceContract<PactString, Edge, Edge, EdgeList> buildTriads = new ReduceContract<PactString, Edge, Edge, EdgeList>(
 			BuildTriads.class, "Build Triads");
 		buildTriads.setDegreeOfParallelism(noSubTasks);
 
-		MatchContract<N_StringPair, N_List_StringPair, N_List_StringPair, N_StringPair, N_List_StringPair> closeTriads = new MatchContract<N_StringPair, N_List_StringPair, N_List_StringPair, N_StringPair, N_List_StringPair>(
+		MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList> closeTriads = new MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList>(
 			CloseTriads.class, "Close Triads");
 		closeTriads.setDegreeOfParallelism(noSubTasks);
+		// TODO: remove enforced sort-merge strategy
+		closeTriads.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+			PactCompiler.HINT_LOCAL_STRATEGY_SORT);
 
-		DataSinkContract<N_StringPair, N_List_StringPair> triangles = new DataSinkContract<N_StringPair, N_List_StringPair>(
+		DataSinkContract<PactNull, EdgeList> triangles = new DataSinkContract<PactNull, EdgeList>(
 			EdgeListOutFormat.class, output);
 		triangles.setDegreeOfParallelism(noSubTasks);
 
@@ -261,9 +340,12 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 
 	}
 
+	/**
+	 * Returns the parameter description of the program. 
+	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, input-edges, result-triangles";
+		return "Parameters: dop, in-rdf-triples, out-triangles";
 	}
 
 }

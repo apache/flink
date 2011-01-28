@@ -40,22 +40,16 @@ public class EnumTrianglesITCase extends TestBase {
 	
 	String edgesPath = null; 
 
-//	private String edges = "A|B|\n" + "A|C|\n" + "B|C|\n" + "B|D|\n" + "B|E|\n" + "B|F|\n" + "B|I|\n" + "C|D|\n"
-//		+ "E|F|\n" + "F|G|\n" + "F|I|\n" + "G|H|\n" + "G|J|\n" + "H|I|\n" + "H|J|\n" + "H|K|\n" + "I|K|\n";
-//
-//	private String expected = "A|B|A|C|B|C|\n" + // A,B,C
-//		"B|C|B|D|C|D|\n" + // B,C,D
-//		"B|E|B|F|E|F|\n" + // B,E,F
-//		"B|F|B|I|F|I|\n" + // B,F,I
-//		"H|I|H|K|I|K|\n" + // H,I,K
-//		"G|H|G|J|H|J|\n"; // G,H,J
-	
-	private String edges = "<a> <foaf:knows> <b>\n" + "<a> <foaf:knows> <c>\n" + "<a> <foaf:knows> <d>\n" + 
-						   "<b> <foaf:knows> <c>\n" + "<b> <foaf:knows> <e>\n" + "<b> <foaf:knows> <f>\n" + 
-						   "<c> <foaf:knows> <d>\n" + "<d> <foaf:knows> <b>\n" + "<f> <foaf:knows> <g>\n" + 
-						   "<f> <foaf:knows> <h>\n" + "<f> <foaf:knows> <i>\n" + "<g> <foaf:knows> <i>\n";
+	private String edges = "<a> <http://xmlns.com/foaf/0.1/knows> <b>\n" + "<a> <http://xmlns.com/foaf/0.1/knows> <c>\n" + 
+						   "<a> <http://xmlns.com/foaf/0.1/knows> <d>\n" + "<b> <http://xmlns.com/foaf/0.1/knows> <c>\n" + 
+						   "<b> <http://xmlns.com/foaf/0.1/knows> <e>\n" + "<b> <http://xmlns.com/foaf/0.1/knows> <f>\n" + 
+						   "<c> <http://xmlns.com/foaf/0.1/knows> <d>\n" + "<d> <http://xmlns.com/foaf/0.1/knows> <b>\n" + 
+						   "<f> <http://xmlns.com/foaf/0.1/knows> <g>\n" + "<f> <http://xmlns.com/foaf/0.1/knows> <h>\n" + 
+						   "<f> <http://xmlns.com/foaf/0.1/knows> <i>\n" + "<g> <http://xmlns.com/foaf/0.1/knows> <i>\n" +
+						   "<g> <http://willNotWork> <h>\n";
 
-	private String expected = "";
+	private String expected = "<a> <b> <a> <c> <b> <c>\n" + "<a> <b> <a> <d> <b> <d>\n" + "<a> <c> <a> <d> <c> <d>\n" + 
+	                          "<b> <c> <b> <d> <c> <d>\n" + "<f> <g> <f> <i> <g> <i>\n";
 	
 	public EnumTrianglesITCase(Configuration config) {
 		super(config);
@@ -99,7 +93,7 @@ public class EnumTrianglesITCase extends TestBase {
 
 		// clean up hdfs
 		getFilesystemProvider().delete(edgesPath, true);
-		getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/triangles.txt", false);
+		// getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/triangles.txt", false);
 
 	}
 
@@ -109,7 +103,7 @@ public class EnumTrianglesITCase extends TestBase {
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		Configuration config = new Configuration();
-		config.setInteger("EnumTrianglesTest#NoSubtasks", 1);
+		config.setInteger("EnumTrianglesTest#NoSubtasks", 4);
 		tConfigs.add(config);
 
 		return toParameterList(tConfigs);
