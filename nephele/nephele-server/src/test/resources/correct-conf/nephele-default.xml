@@ -17,7 +17,7 @@
         <value>12300</value>
     </property>
     <property>
-        <key>jobmanager.instancemanager.local.classname</key>
+        <key>instancemanager.local.classname</key>
         <value>eu.stratosphere.nephele.instance.local.LocalInstanceManager</value>
     </property>
     <property>
@@ -43,5 +43,9 @@
     <property>
         <key>taskmanager.memory.size</key>
         <value>8</value>
+    </property>
+    <property>
+        <key>instancemanager.local.type</key>
+        <value>test,4,4,1024,160,0</value>
     </property>
 </configuration>

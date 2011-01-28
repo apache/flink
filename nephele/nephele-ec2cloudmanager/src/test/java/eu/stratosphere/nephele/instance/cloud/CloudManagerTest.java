@@ -24,6 +24,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -39,9 +41,6 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -65,15 +64,18 @@ public class CloudManagerTest {
 
 		int nrAvailable = 0;
 
-		final Multimap<JobID, AllocatedResource> resourcesOfJobs = HashMultimap.create();
+		final Map<JobID, List<AllocatedResource>> resourcesOfJobs = new HashMap<JobID, List<AllocatedResource>>();
 
 		@Override
 		public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
 
-			--nrAvailable;
-			assertTrue(nrAvailable >= 0);
-			assertTrue(resourcesOfJobs.containsEntry(jobID, allocatedResource));
-			resourcesOfJobs.remove(jobID, allocatedResource);
+			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
+			assertTrue(resourcesOfJob != null);
+			assertTrue(resourcesOfJob.contains(allocatedResource));
+			resourcesOfJob.remove(allocatedResource);
+			if(resourcesOfJob.isEmpty()) {
+				this.resourcesOfJobs.remove(jobID);
+			}
 		}
 
 		@Override
@@ -81,8 +83,13 @@ public class CloudManagerTest {
 
 			assertTrue(nrAvailable >= 0);
 			++nrAvailable;
-			assertFalse(resourcesOfJobs.containsEntry(jobID, allocatedResource));
-			resourcesOfJobs.put(jobID, allocatedResource);
+			List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
+			if(resourcesOfJob == null) {
+				resourcesOfJob = new ArrayList<AllocatedResource>();
+				this.resourcesOfJobs.put(jobID, resourcesOfJob);
+			}
+			assertFalse(resourcesOfJob.contains(allocatedResource));
+			resourcesOfJob.add(allocatedResource);
 		}
 	};
 

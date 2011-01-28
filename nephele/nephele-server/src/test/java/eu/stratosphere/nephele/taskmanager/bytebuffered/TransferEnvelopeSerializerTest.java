@@ -33,7 +33,7 @@ import eu.stratosphere.nephele.io.ID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.util.TestUtils;
+import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
  * This class contains tests covering the serialization of transfer envelopes to a byte stream.
@@ -126,7 +126,7 @@ public class TransferEnvelopeSerializerTest {
 	 */
 	private File generateDataStream() throws IOException {
 
-		final File outputFile = new File(TestUtils.getTempDir() + File.separator + TestUtils.getRandomFilename());
+		final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 		final FileOutputStream outputStream = new FileOutputStream(outputFile);
 		final FileChannel fileChannel = outputStream.getChannel();
 		final Deque<ByteBuffer> recycleQueue = new ArrayDeque<ByteBuffer>();
@@ -283,12 +283,9 @@ public class TransferEnvelopeSerializerTest {
 
 		byte[] temp = new byte[SIZE_OF_INTEGER];
 		fileInputStream.read(temp);
-		final int sizeOfDataBlock = bufferToInteger(temp);
 
-		assertEquals(sizeOfDataBlock, SIZE_OF_CHANNEL_ID + SIZE_OF_INTEGER);
-
-		fileInputStream.read(temp);
-		final int sizeOfChannelID = bufferToInteger(temp);
+		final int sizeOfChannelID = bufferToInteger(temp); // Channel ID has fixed size and therefore does not announce
+															// its size
 
 		assertEquals(sizeOfChannelID, SIZE_OF_CHANNEL_ID);
 

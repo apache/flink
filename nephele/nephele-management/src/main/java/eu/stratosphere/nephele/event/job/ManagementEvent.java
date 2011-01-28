@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
-
 /**
  * This is a marker interface only. It marks events which
  * should only be accessible via the {@link ExtendedManagementProtocol}.

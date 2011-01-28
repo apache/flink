@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.instance.local;
 import java.io.File;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -40,39 +41,96 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
- *
+ * The local instance manager is designed to manage instance allocation/deallocation for a single-node setup. It spans a
+ * task manager which is executed within the same process as the job manager. Moreover, it determines the hardware
+ * characteristics of the machine it runs on and generates a default instance type with the identifier "default". If
+ * desired this default instance type can also be overwritten.
+ * <p>
+ * This class is thread-safe.
+ * 
+ * @author warneke
  */
 public class LocalInstanceManager implements InstanceManager {
+
+	/**
+	 * The log object used to report events and errors.
+	 */
+	private static final Log LOG = LogFactory.getLog(LocalInstanceManager.class);
+
+	/**
+	 * The key for the configuration parameter defining the instance type to be used by the local instance manager. If
+	 * the parameter is not set, a default instance type with the identifier "default" is generated from the machine's
+	 * hardware characteristics.
+	 */
+
+	private static final String LOCALINSTANCE_TYPE_KEY = "instancemanager.local.type";
+
+	/**
+	 * The instance listener registered with this instance manager.
+	 */
 	private InstanceListener instanceListener;
 
+	/**
+	 * The default instance type which is either generated from the hardware characteristics of the machine the local
+	 * instance manager runs on or read from the configuration.
+	 */
 	private final InstanceType defaultInstanceType;
 
+	/**
+	 * A synchronization object to protect critical sections.
+	 */
 	private final Object synchronizationObject = new Object();
 
+	/**
+	 * Stores if the local task manager is currently by a job.
+	 */
 	private AllocatedResource allocatedResource = null;
 
-	private LocalTaskManagerThread localTaskManagerThread;
+	/**
+	 * The local instance encapsulating the task manager
+	 */
+	private LocalInstance localInstance = null;
 
+	/**
+	 * The thread running the local task manager.
+	 */
+	private final LocalTaskManagerThread localTaskManagerThread;
+
+	/**
+	 * The network topology the local instance is part of.
+	 */
 	private final NetworkTopology networkTopology;
 
+	/**
+	 * The list of instance type descriptions.
+	 */
 	private final List<InstanceTypeDescription> instanceTypeDescriptionList;
 
+	/**
+	 * Constructs a new local instance manager.
+	 * 
+	 * @param configDir
+	 *        the path to the configuration directory
+	 */
 	public LocalInstanceManager(String configDir) {
-		Configuration config = GlobalConfiguration.getConfiguration();
+
+		final Configuration config = GlobalConfiguration.getConfiguration();
 
 		// get the default instance type
 		InstanceType type = null;
-		String descr = config.getString(ConfigConstants.JOBMANAGER_LOCALINSTANCE_TYPE_KEY, null);
-		try {
-			if (descr != null) {
-				type = InstanceTypeFactory.constructFromDescription(descr);
+		final String descr = config.getString(LOCALINSTANCE_TYPE_KEY, null);
+		if (descr != null) {
+			LOG.info("Attempting to parse default instance type from string " + descr);
+			type = InstanceTypeFactory.constructFromDescription(descr);
+			if (type == null) {
+				LOG.warn("Unable to parse default instance type from configuration, using hardware profile instead");
 			}
-		} catch (IllegalArgumentException iaex) {
-			LogFactory.getLog(LocalInstanceManager.class).error(
-				"Invalid description of default instance: " + descr + ". Using default instance type.", iaex);
 		}
 
-		this.defaultInstanceType = type != null ? type : createDefaultInstanceType();
+		this.defaultInstanceType = (type != null) ? type : createDefaultInstanceType();
+
+		LOG.info("Default instance type is " + this.defaultInstanceType.getIdentifier());
+
 		this.networkTopology = NetworkTopology.createEmptyTopology();
 
 		this.instanceTypeDescriptionList = new SerializableArrayList<InstanceTypeDescription>();
@@ -81,30 +139,79 @@ public class LocalInstanceManager implements InstanceManager {
 		this.localTaskManagerThread.start();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public InstanceType getDefaultInstanceType() {
 
 		return this.defaultInstanceType;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public InstanceType getInstanceTypeByName(String instanceTypeName) {
-		// Ignore instanceTypeName, just return the default instance type
-		return this.defaultInstanceType;
+
+		if (this.defaultInstanceType.getIdentifier().equals(instanceTypeName)) {
+			return this.defaultInstanceType;
+		}
+
+		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public InstanceType getSuitableInstanceType(int minNumComputeUnits, int minNumCPUCores, int minMemorySize,
 			int minDiskCapacity, int maxPricePerHour) {
-		// Ignore requirements, always return the default instance type
+
+		if (minNumComputeUnits > this.defaultInstanceType.getNumberOfComputeUnits()) {
+			return null;
+		}
+
+		if (minNumCPUCores > this.defaultInstanceType.getNumberOfCores()) {
+			return null;
+		}
+
+		if (minMemorySize > this.defaultInstanceType.getMemorySize()) {
+			return null;
+		}
+
+		if (minDiskCapacity > this.defaultInstanceType.getDiskCapacity()) {
+			return null;
+		}
+
+		if (maxPricePerHour > this.defaultInstanceType.getPricePerHour()) {
+			return null;
+		}
+
 		return this.defaultInstanceType;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void releaseAllocatedResource(JobID jobID, Configuration conf, AllocatedResource allocatedResource)
 			throws InstanceException {
 
-		// Nothing to do here
+		synchronized (this.synchronizationObject) {
+
+			if (this.allocatedResource != null) {
+
+				if (this.allocatedResource.equals(allocatedResource)) {
+					this.allocatedResource = null;
+					return;
+				}
+			}
+
+			throw new InstanceException("Resource with allocation ID " + allocatedResource.getAllocationID()
+				+ " has not been allocated to job with ID " + jobID
+				+ " according to the local instance manager's internal bookkeeping");
+		}
 	}
 
 	/**
@@ -113,17 +220,25 @@ public class LocalInstanceManager implements InstanceManager {
 	@Override
 	public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType) throws InstanceException {
 
+		boolean assignmentSuccessful = false;
 		AllocatedResource allocatedResource = null;
 		synchronized (this.synchronizationObject) {
-			if (this.allocatedResource == null) {
-				throw new InstanceException("No instance of type " + instanceType + " available");
-			} else {
-				allocatedResource = this.allocatedResource;
+
+			if (this.localInstance != null) { // Instance is available
+				if (this.allocatedResource == null) { // Instance is not used by another job
+					allocatedResource = new AllocatedResource(this.localInstance, new AllocationID());
+					this.allocatedResource = allocatedResource;
+					assignmentSuccessful = true;
+				}
 			}
 		}
 
-		// Spawn a new thread to send the notification
-		new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResource).start();
+		if (assignmentSuccessful) {
+			// Spawn a new thread to send the notification
+			new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResource).start();
+		} else {
+			throw new InstanceException("No instance of type " + instanceType + " available");
+		}
 	}
 
 	/**
@@ -133,11 +248,10 @@ public class LocalInstanceManager implements InstanceManager {
 	public void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
 		synchronized (this.synchronizationObject) {
-			if (this.allocatedResource == null) {
-				this.allocatedResource = new AllocatedResource(new LocalInstance(this.defaultInstanceType,
+			if (this.localInstance == null) {
+				this.localInstance = new LocalInstance(this.defaultInstanceType,
 					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology,
-					hardwareDescription),
-					new AllocationID());
+					hardwareDescription);
 
 				this.instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(this.defaultInstanceType,
 					hardwareDescription, 1));
@@ -167,7 +281,6 @@ public class LocalInstanceManager implements InstanceManager {
 			// Clear the instance type description list
 			this.instanceTypeDescriptionList.clear();
 		}
-
 	}
 
 	/**
@@ -175,7 +288,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 */
 	@Override
 	public NetworkTopology getNetworkTopology(JobID jobID) {
-		// TODO: Make configuration job specific
+
 		return this.networkTopology;
 	}
 
@@ -187,8 +300,6 @@ public class LocalInstanceManager implements InstanceManager {
 
 		this.instanceListener = instanceListener;
 	}
-
-	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a default instance type based on the hardware characteristics of the machine that calls this method. The
@@ -220,7 +331,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 */
 	@Override
 	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
-		// TODO Auto-generated method stub
-		return null;
+
+		return this.instanceTypeDescriptionList;
 	}
 }

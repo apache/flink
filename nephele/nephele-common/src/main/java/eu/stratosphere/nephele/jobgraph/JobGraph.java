@@ -432,7 +432,7 @@ public class JobGraph implements IOReadableWritable {
 		final HashMap<AbstractJobVertex, Integer> indexMap = new HashMap<AbstractJobVertex, Integer>();
 		final HashMap<AbstractJobVertex, Integer> lowLinkMap = new HashMap<AbstractJobVertex, Integer>();
 		final Stack<AbstractJobVertex> stack = new Stack<AbstractJobVertex>();
-		final Integer index = new Integer(0);
+		final Integer index = Integer.valueOf(0);
 
 		for (int i = 0; i < reachable.length; i++) {
 			if (!indexMap.containsKey(reachable[i])) {
@@ -452,9 +452,9 @@ public class JobGraph implements IOReadableWritable {
 	private boolean tarjan(AbstractJobVertex jv, Integer index, HashMap<AbstractJobVertex, Integer> indexMap,
 			HashMap<AbstractJobVertex, Integer> lowLinkMap, Stack<AbstractJobVertex> stack) {
 
-		indexMap.put(jv, new Integer(index));
-		lowLinkMap.put(jv, new Integer(index));
-		index = new Integer(index.intValue() + 1);
+		indexMap.put(jv, Integer.valueOf(index));
+		lowLinkMap.put(jv, Integer.valueOf(index));
+		index = Integer.valueOf(index.intValue() + 1);
 		stack.push(jv);
 
 		for (int i = 0; i < jv.getNumberOfForwardConnections(); i++) {
@@ -467,7 +467,7 @@ public class JobGraph implements IOReadableWritable {
 					}
 				}
 				if (lowLinkMap.get(jv) > lowLinkMap.get(jv2)) {
-					lowLinkMap.put(jv, new Integer(lowLinkMap.get(jv2)));
+					lowLinkMap.put(jv, Integer.valueOf(lowLinkMap.get(jv2)));
 				}
 			}
 		}

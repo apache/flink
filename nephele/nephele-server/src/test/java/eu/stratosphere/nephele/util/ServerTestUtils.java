@@ -33,12 +33,12 @@ import eu.stratosphere.nephele.jobmanager.JobManagerTest;
  * 
  * @author warneke
  */
-public class TestUtils {
+public class ServerTestUtils {
 
 	/**
 	 * Private constructor.
 	 */
-	private TestUtils() {
+	private ServerTestUtils() {
 	}
 
 	/**

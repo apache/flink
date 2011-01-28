@@ -24,15 +24,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 /**
- * This class provides an implementation of the {@link Iterator} interface which allows to
+ * This class provides an implementation of the {@link java.util.Iterator} interface which allows to
  * traverse a management graph and visit every reachable vertex exactly once. The order
  * in which the vertices are visited corresponds to the order of their discovery in a depth first
  * search.
+ * <p>
  * This class is not thread-safe.
  * 
  * @author warneke
  */
-public class ManagementGraphIterator implements Iterator<ManagementVertex> {
+public final class ManagementGraphIterator implements Iterator<ManagementVertex> {
 
 	/**
 	 * The log object used for debugging.
@@ -79,7 +80,7 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 	 * 
 	 * @author warneke
 	 */
-	private class TraversalEntry {
+	private static class TraversalEntry {
 
 		/**
 		 * Management vertex this entry has been created for.
@@ -106,7 +107,7 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 		 * @param currentChannel
 		 *        the channel index to use to visit the next vertex
 		 */
-		public TraversalEntry(ManagementVertex managementVertex, int currentGate, int currentChannel) {
+		public TraversalEntry(final ManagementVertex managementVertex, final int currentGate, final int currentChannel) {
 			this.managementVertex = managementVertex;
 			this.currentGate = currentGate;
 			this.currentChannel = currentChannel;
@@ -143,14 +144,14 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 		 * Increases the channel index by one.
 		 */
 		public void increaseCurrentChannel() {
-			this.currentChannel++;
+			++this.currentChannel;
 		}
 
 		/**
 		 * Increases the gate index by one.
 		 */
 		public void increaseCurrentGate() {
-			this.currentGate++;
+			++this.currentGate;
 		}
 
 		/**
@@ -171,7 +172,7 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 	 *        <code>true</code> if the graph should be traversed in correct order, <code>false</code> to traverse it in
 	 *        reverse order
 	 */
-	public ManagementGraphIterator(ManagementGraph managementGraph, boolean forward) {
+	public ManagementGraphIterator(final ManagementGraph managementGraph, final boolean forward) {
 		this(managementGraph, forward ? 0 : (managementGraph.getNumberOfStages() - 1), false, forward);
 	}
 
@@ -189,8 +190,8 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 	 *        <code>true</code> if the graph should be traversed in correct order, <code>false</code> to traverse it in
 	 *        reverse order
 	 */
-	public ManagementGraphIterator(ManagementGraph managementGraph, int startStage, boolean confinedToStage,
-			boolean forward) {
+	public ManagementGraphIterator(final ManagementGraph managementGraph, final int startStage,
+			final boolean confinedToStage, final boolean forward) {
 
 		this.managementGraph = managementGraph;
 		this.forward = forward;
@@ -232,7 +233,8 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 	 *        <code>true</code> if the graph should be traversed in correct order, <code>false</code> to reverse it in
 	 *        reverse order
 	 */
-	public ManagementGraphIterator(ManagementGraph managementGraph, ManagementVertex startVertex, boolean forward) {
+	public ManagementGraphIterator(final ManagementGraph managementGraph, final ManagementVertex startVertex,
+			final boolean forward) {
 
 		this.managementGraph = managementGraph;
 		this.forward = forward;
@@ -337,7 +339,7 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 	 *        reverse order
 	 * @return a candidate vertex which could potentially be visited next
 	 */
-	private ManagementVertex getCandidateVertex(TraversalEntry te, boolean forward) {
+	private ManagementVertex getCandidateVertex(final TraversalEntry te, final boolean forward) {
 
 		if (forward) {
 
@@ -372,7 +374,13 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 
 			while (true) {
 
-				// No more outgoing edges to consider
+				if (this.confinedToStage && te.getCurrentChannel() == 0) {
+					while (currentGateLeadsToOtherStage(te, this.forward)) {
+						te.increaseCurrentGate();
+					}
+				}
+
+				// No more incoming edges to consider
 				if (te.getCurrentGate() >= te.getManagementVertex().getNumberOfInputGates()) {
 					break;
 				}
@@ -399,7 +407,17 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 		return null;
 	}
 
-	private boolean currentGateLeadsToOtherStage(TraversalEntry te, boolean forward) {
+	/**
+	 * Checks if the current gate leads to another stage or not.
+	 * 
+	 * @param te
+	 *        the current traversal entry
+	 * @param forward
+	 *        <code>true</code> if the graph should be traversed in correct order, <code>false</code> to traverse it in
+	 *        reverse order
+	 * @return <code>true</code> if current gate leads to another stage, otherwise <code>false</code>
+	 */
+	private boolean currentGateLeadsToOtherStage(final TraversalEntry te, final boolean forward) {
 
 		final ManagementGroupVertex groupVertex = te.getManagementVertex().getGroupVertex();
 
@@ -415,6 +433,7 @@ public class ManagementGraphIterator implements Iterator<ManagementVertex> {
 			}
 
 		} else {
+
 			if (te.getCurrentGate() >= groupVertex.getNumberOfBackwardEdges()) {
 				return false;
 			}

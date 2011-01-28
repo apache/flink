@@ -138,13 +138,21 @@ public class HardwareDescriptionFactory {
 			if (bean.getName().equals(TENURED_POOL_NAME)) {
 				// found the tenured pool
 				final MemoryUsage usage = bean.getUsage();
-				return (usage.getMax() - usage.getUsed());
+				long tenuredSize =  usage.getMax() - usage.getUsed();
+				//TODO: make the constant configurable
+				return (long) (tenuredSize * 0.8f);
 			}
 		}
+		
+		Runtime r = Runtime.getRuntime();
+		final long maximum = r.maxMemory();
+		
+		//TODO: Make 0.7f configurable
+		return (long) ( 0.7f * (maximum - r.totalMemory() + r.freeMemory()));
 
-		LOG.error("Cannot determine size of free memory: Unable to find tenured pool");
-
-		return -1;
+//		LOG.error("Cannot determine size of free memory: Unable to find tenured pool");
+//
+//		return -1;
 	}
 
 	/**

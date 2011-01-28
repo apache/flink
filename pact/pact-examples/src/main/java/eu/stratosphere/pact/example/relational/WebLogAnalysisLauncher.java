@@ -18,6 +18,7 @@ package eu.stratosphere.pact.example.relational;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
@@ -72,6 +73,8 @@ public class WebLogAnalysisLauncher {
 			jobClient.submitJobAndWait();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JobExecutionException e) {
 			e.printStackTrace();
 		}
 
