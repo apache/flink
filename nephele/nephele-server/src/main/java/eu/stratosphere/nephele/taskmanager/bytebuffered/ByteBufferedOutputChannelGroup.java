@@ -52,7 +52,7 @@ public class ByteBufferedOutputChannelGroup {
 	/**
 	 * The common channel type of all of the task's output channels, possibly <code>null</code>.
 	 */
-	private final ChannelType channelType;
+	private final ChannelType commonChannelType;
 
 	/**
 	 * Constructs a new byte buffered output channel group object.
@@ -61,20 +61,20 @@ public class ByteBufferedOutputChannelGroup {
 	 *        the byte buffered channel manager this object is attached to
 	 * @param checkpointManager
 	 *        the checkpoint manager used to create ephemeral checkpoints
-	 * @param channelType
+	 * @param commonChannelType
 	 *        the channel type all of the channels attached to this group have in common, possibly <code>null</code>
 	 * @param executionVertexID
 	 *        the id of the execution vertex this channel group object belongs to
 	 */
 	public ByteBufferedOutputChannelGroup(ByteBufferedChannelManager byteBufferedChannelManager,
-			CheckpointManager checkpointManager, ChannelType channelType, ExecutionVertexID executionVertexID) {
+			CheckpointManager checkpointManager, ChannelType commonChannelType, ExecutionVertexID executionVertexID) {
 
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.channelType = channelType;
-		if (channelType == ChannelType.FILE) {
+		this.commonChannelType = commonChannelType;
+		if (commonChannelType == ChannelType.FILE) {
 			// For file channels, we always store data in the checkpoint
 			this.ephemeralCheckpoint = EphemeralCheckpoint.forFileChannel(checkpointManager, executionVertexID);
-		} else if (channelType == ChannelType.NETWORK) {
+		} else if (commonChannelType == ChannelType.NETWORK) {
 			// For network channels, we decide online whether to use checkpoints
 			this.ephemeralCheckpoint = EphemeralCheckpoint.forNetworkChannel(checkpointManager, executionVertexID);
 		} else {
@@ -110,7 +110,7 @@ public class ByteBufferedOutputChannelGroup {
 
 			// Look for a close event
 			final EventList eventList = outgoingTransferEnvelope.getEventList();
-			if (!eventList.isEmpty() && this.channelType == ChannelType.FILE) {
+			if (!eventList.isEmpty() && this.commonChannelType == ChannelType.FILE) {
 
 				final Iterator<AbstractEvent> it = eventList.iterator();
 				while (it.hasNext()) {
@@ -141,11 +141,13 @@ public class ByteBufferedOutputChannelGroup {
 	 * transfer envelope. The processing log determines whether the envelope
 	 * is later written to the checkpoint, sent via the network, or both.
 	 * 
+	 * @param individualChannelType
+	 *        the type of the individual channel asking for the processing log
 	 * @return the newly created processing log.
 	 */
-	public TransferEnvelopeProcessingLog getProcessingLog() {
+	public TransferEnvelopeProcessingLog getProcessingLog(final ChannelType individualChannelType) {
 
-		return new TransferEnvelopeProcessingLog((this.channelType == ChannelType.NETWORK),
+		return new TransferEnvelopeProcessingLog((individualChannelType == ChannelType.NETWORK),
 			(this.ephemeralCheckpoint != null));
 	}
 

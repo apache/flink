@@ -47,6 +47,7 @@ import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceListener;
+import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -85,12 +86,12 @@ public class ExecutionGraphTest {
 
 			--nrAvailable;
 			assertTrue(nrAvailable >= 0);
-			
+
 			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
 			assertTrue(resourcesOfJob != null);
 			assertTrue(resourcesOfJob.contains(allocatedResource));
 			resourcesOfJob.remove(allocatedResource);
-			if(resourcesOfJob.isEmpty()) {
+			if (resourcesOfJob.isEmpty()) {
 				this.resourcesOfJobs.remove(jobID);
 			}
 		}
@@ -101,7 +102,7 @@ public class ExecutionGraphTest {
 			assertTrue(nrAvailable >= 0);
 			++nrAvailable;
 			List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
-			if(resourcesOfJob == null) {
+			if (resourcesOfJob == null) {
 				resourcesOfJob = new ArrayList<AllocatedResource>();
 				this.resourcesOfJobs.put(jobID, resourcesOfJob);
 			}
@@ -330,9 +331,10 @@ public class ExecutionGraphTest {
 			}
 
 			// test all methods of ExecutionGraph
-			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
-			assertEquals(1, (int) eg.getInstanceTypesRequiredForCurrentStage()
-				.get(lim.getInstanceTypeByName("test")));
+			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			assertEquals(1, requiredInstances.size());
+			assertEquals(1, (int) requiredInstances.get(lim.getInstanceTypeByName("test")));
 
 			assertEquals(jobID, eg.getJobID());
 			assertEquals(0, eg.getIndexOfCurrentExecutionStage());
@@ -568,8 +570,10 @@ public class ExecutionGraphTest {
 			}
 
 			// test instance types in ExecutionGraph
-			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
-			assertEquals(1, (int) eg.getInstanceTypesRequiredForCurrentStage().get(lim.getDefaultInstanceType()));
+			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			assertEquals(1, requiredInstances.size());
+			assertEquals(1, (int) requiredInstances.get(lim.getDefaultInstanceType()));
 
 			// stage0
 			ExecutionStage es = eg.getStage(0);
@@ -733,8 +737,10 @@ public class ExecutionGraphTest {
 			}
 
 			// test instance types in ExecutionGraph
-			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
-			assertEquals(2, (int) eg.getInstanceTypesRequiredForCurrentStage().get(lim.getDefaultInstanceType()));
+			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			assertEquals(1, requiredInstances.size());
+			assertEquals(2, (int) requiredInstances.get(lim.getDefaultInstanceType()));
 
 			// stage0
 			ExecutionStage es = eg.getStage(0);
@@ -1025,9 +1031,10 @@ public class ExecutionGraphTest {
 			}
 
 			// test instance types in ExecutionGraph
-			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
-			assertEquals(4, (int) eg.getInstanceTypesRequiredForCurrentStage()
-				.get(lim.getInstanceTypeByName("test")));
+			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			assertEquals(1, requiredInstances.size());
+			assertEquals(4, (int) requiredInstances.get(lim.getInstanceTypeByName("test")));
 
 			// Fake transition to next stage by triggering execution state changes manually
 			it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(), true, true);
@@ -1042,9 +1049,10 @@ public class ExecutionGraphTest {
 				ev.setExecutionState(ExecutionState.FINISHED);
 			}
 
-			assertEquals(1, eg.getInstanceTypesRequiredForCurrentStage().size());
-			assertEquals(8, (int) eg.getInstanceTypesRequiredForCurrentStage()
-				.get(lim.getInstanceTypeByName("test")));
+			requiredInstances.clear();
+			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			assertEquals(1, requiredInstances.size());
+			assertEquals(8, (int) requiredInstances.get(lim.getInstanceTypeByName("test")));
 
 		} catch (GraphConversionException e) {
 			e.printStackTrace();
