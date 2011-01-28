@@ -125,6 +125,10 @@ public class LocalScheduler implements Scheduler {
 
 		executionGraph.collectInstanceTypesRequiredForCurrentStage(requiredInstanceTypes, ExecutionState.SCHEDULED);
 
+		if (requiredInstanceTypes.isEmpty()) {
+			return;
+		}
+
 		// Switch vertex state to assigning
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph
 			.getIndexOfCurrentExecutionStage(), true, true);
@@ -136,10 +140,6 @@ public class LocalScheduler implements Scheduler {
 			}
 		}
 
-		/*
-		 * In the current version we try to allocate one instance per WS call. In the future might
-		 * be preferable to allocate all instances at once.
-		 */
 		final Iterator<InstanceType> it = requiredInstanceTypes.keySet().iterator();
 		while (it.hasNext()) {
 
