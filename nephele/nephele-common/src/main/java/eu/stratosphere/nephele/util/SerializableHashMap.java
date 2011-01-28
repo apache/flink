@@ -111,6 +111,7 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 			} catch (Exception e) {
 				throw new IOException(StringUtils.stringifyException(e));
 			}
+			value.read(in);
 			
 			put(key, value);
 		}
