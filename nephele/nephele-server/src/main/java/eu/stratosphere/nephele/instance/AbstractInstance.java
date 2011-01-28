@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.channels.ChannelConfigurator;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
@@ -36,11 +35,11 @@ import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 /**
- * An abstract instance represents a resource a task manager runs on.
+ * An abstract instance represents a resource a {@link eu.stratosphere.nephele.taskmanager.TaskManager} runs on.
  * 
  * @author warneke
  */
-public abstract class AbstractInstance extends NetworkNode implements ChannelConfigurator {
+public abstract class AbstractInstance extends NetworkNode {
 
 	/**
 	 * The type of the instance.
@@ -51,6 +50,11 @@ public abstract class AbstractInstance extends NetworkNode implements ChannelCon
 	 * The connection info identifying the instance.
 	 */
 	private final InstanceConnectionInfo instanceConnectionInfo;
+
+	/**
+	 * The hardware description as reported by the instance itself.
+	 */
+	private final HardwareDescription hardwareDescription;
 
 	/**
 	 * Stores the RPC stub object for the instance's task manager.
@@ -68,12 +72,15 @@ public abstract class AbstractInstance extends NetworkNode implements ChannelCon
 	 *        the parent node in the network topology
 	 * @param networkTopology
 	 *        the network topology this node is a part of
+	 * @param hardwareDescription
+	 *        the hardware description provided by the instance itself
 	 */
 	public AbstractInstance(InstanceType instanceType, InstanceConnectionInfo instanceConnectionInfo,
-			NetworkNode parentNode, NetworkTopology networkTopology) {
+			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
 		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
 		this.instanceType = instanceType;
 		this.instanceConnectionInfo = instanceConnectionInfo;
+		this.hardwareDescription = hardwareDescription;
 	}
 
 	/**
@@ -114,6 +121,15 @@ public abstract class AbstractInstance extends NetworkNode implements ChannelCon
 	}
 
 	/**
+	 * Returns the instance's hardware description as reported by the instance itself.
+	 * 
+	 * @return the instance's hardware description
+	 */
+	public HardwareDescription getHardwareDescription() {
+		return this.hardwareDescription;
+	}
+
+	/**
 	 * Checks if all the libraries required to run the job with the given
 	 * job ID are available on this instance. Any libary that is missing
 	 * is transferred to the instance as a result of this call.
@@ -148,7 +164,8 @@ public abstract class AbstractInstance extends NetworkNode implements ChannelCon
 	}
 
 	/**
-	 * Submits the task represented by the given {@link Environment} object to the instance's {@link TaskManager}.
+	 * Submits the task represented by the given {@link Environment} object to the instance's
+	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
 	 * 
 	 * @param id
 	 *        the ID of the vertex to be submitted
@@ -167,7 +184,8 @@ public abstract class AbstractInstance extends NetworkNode implements ChannelCon
 	}
 
 	/**
-	 * Cancels the task identified by the given ID at the instance's {@link TaskManager}.
+	 * Cancels the task identified by the given ID at the instance's
+	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
 	 * 
 	 * @param id
 	 *        the ID identifying the task to be canceled

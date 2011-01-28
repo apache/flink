@@ -27,23 +27,22 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
-import com.google.common.collect.Lists;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -158,16 +157,13 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	private InstanceType[] populateInstanceTypeArray() {
 
-		final List<InstanceType> instanceTypes = Lists.newArrayList();
+		final List<InstanceType> instanceTypes = new ArrayList<InstanceType>();
 
 		// read the number of instance types
 		final int num = GlobalConfiguration.getInteger("cloudmgr.nrtypes", -1);
 		if (num <= 0) {
 			throw new RuntimeException("Illegal configuration, cloudmgr.nrtypes is not configured");
 		}
-
-		// read instance types
-		final Pattern pattern = Pattern.compile("^([^,]+),(\\d+),(\\d+),(\\d+),(\\d+),(\\d+)$");
 
 		for (int i = 0; i < num; ++i) {
 
@@ -177,27 +173,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 				throw new RuntimeException("Illegal configuration for " + key);
 			}
 
-			try {
-				final Matcher m = pattern.matcher(type);
-				if (!m.matches()) {
-					throw new Exception(key + " does not match pattern " + pattern.toString());
-				}
-
-				final String identifier = m.group(1);
-				final int numComputeUnits = Integer.parseInt(m.group(2));
-				final int numCores = Integer.parseInt(m.group(3));
-				final int memorySize = Integer.parseInt(m.group(4));
-				final int diskCapacity = Integer.parseInt(m.group(5));
-				final int pricePerHour = Integer.parseInt(m.group(6));
-
-				final InstanceType instanceType = new InstanceType(identifier, numComputeUnits, numCores, memorySize,
-					diskCapacity, pricePerHour);
-				instanceTypes.add(instanceType);
-
-			} catch (Exception e) {
-				LOG.error("Error parsing " + key + ":" + type, e);
-				throw new RuntimeException("Error parsing " + key + ":" + type, e);
-			}
+			instanceTypes.add(InstanceTypeFactory.constructFromDescription(type));
 		}
 
 		// sort by price
@@ -374,7 +350,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo) {
+	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
 		// Check if heart beat belongs to a floating instance
 		if (this.floatingInstances.containsKey(instanceConnectionInfo)) {
@@ -631,7 +607,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		final CloudInstance cloudInstance = new CloudInstance(instance.getInstanceId(), type, owner,
 			instanceConnectionInfo, instance.getLaunchTime().getTimeInMillis(), this.networkTopology.getRootNode(),
-			this.networkTopology);
+			this.networkTopology, null); //TODO: Define hardware descriptions for cloud instance types
 		this.cloudInstances.add(cloudInstance);
 		return cloudInstance;
 	}
@@ -943,7 +919,13 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	@Override
 	public void setInstanceListener(InstanceListener instanceListener) {
-		// TODO Auto-generated method stub
+		
 		this.instanceListener = instanceListener;
+	}
+
+	@Override
+	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

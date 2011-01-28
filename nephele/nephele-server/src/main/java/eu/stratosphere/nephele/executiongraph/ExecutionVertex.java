@@ -249,7 +249,7 @@ public class ExecutionVertex {
 	 * 
 	 * @return the allocation ID which identifies the resources used
 	 *         by this vertex within the assigned instance or <code>null</code> if the instance is still assigned to a
-	 *         {@link DummyInstance}.
+	 *         {@link eu.stratosphere.nephele.instance.DummyInstance}.
 	 */
 	public synchronized AllocationID getAllocationID() {
 		return this.allocationID;

@@ -27,28 +27,72 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
-public class ManagementVertex implements IOReadableWritable {
+/**
+ * This class implements a management vertex of a {@link ManagementGraph}. A management vertex is derived from the type
+ * of vertices Nephele uses in its internal scheduling structures.
+ * <p>
+ * This class is not thread-safe.
+ * 
+ * @author warneke
+ */
+public final class ManagementVertex extends ManagementAttachment implements IOReadableWritable {
 
+	/**
+	 * The management group vertex this vertex belongs to.
+	 */
 	private final ManagementGroupVertex groupVertex;
 
+	/**
+	 * The ID of this management group vertex.
+	 */
 	private final ManagementVertexID id;
 
+	/**
+	 * A list of input gates which belong to this vertex.
+	 */
 	private final List<ManagementGate> inputGates = new ArrayList<ManagementGate>();
 
+	/**
+	 * A list of output gates which belong to this vertex.
+	 */
 	private final List<ManagementGate> outputGates = new ArrayList<ManagementGate>();
 
+	/**
+	 * The current execution state of the vertex represented by this management vertex.
+	 */
 	private ExecutionState executionState = ExecutionState.CREATED;
 
+	/**
+	 * The name of the instance the vertex represented by this management vertex currently runs on.
+	 */
 	private final String instanceName;
 
+	/**
+	 * The type of the instance the vertex represented by this management vertex currently runs on.
+	 */
 	private final String instanceType;
 
+	/**
+	 * The index of this vertex in the management group vertex it belongs to.
+	 */
 	private final int indexInGroup;
 
-	private Object attachment;
-
-	public ManagementVertex(ManagementGroupVertex groupVertex, ManagementVertexID id, String instanceName,
-			String instanceType, int indexInGroup) {
+	/**
+	 * Constructs a new management vertex.
+	 * 
+	 * @param groupVertex
+	 *        the management group vertex the new vertex belongs to
+	 * @param id
+	 *        the ID of the new management vertex
+	 * @param instanceName
+	 *        the name of the instance the vertex represented by this new management vertex currently runs on
+	 * @param instanceType
+	 *        the type of the instance the vertex represented by this new management vertex currently runs on
+	 * @param indexInGroup
+	 *        the index of this vertex in the management group vertex it belongs to
+	 */
+	public ManagementVertex(final ManagementGroupVertex groupVertex, final ManagementVertexID id,
+			final String instanceName, final String instanceType, final int indexInGroup) {
 		this.groupVertex = groupVertex;
 		this.id = id;
 		this.instanceName = instanceName;
@@ -59,7 +103,13 @@ public class ManagementVertex implements IOReadableWritable {
 		groupVertex.addGroupMember(this);
 	}
 
-	void addGate(ManagementGate gate) {
+	/**
+	 * Adds a management gate to this vertex.
+	 * 
+	 * @param gate
+	 *        the management gate to be added
+	 */
+	void addGate(final ManagementGate gate) {
 
 		if (gate.isInputGate()) {
 			this.inputGates.add(gate);
@@ -68,23 +118,50 @@ public class ManagementVertex implements IOReadableWritable {
 		}
 	}
 
+	/**
+	 * Returns the name of the instance the vertex represented by this management vertex currently runs on.
+	 * 
+	 * @return the name of the instance the vertex represented by this management vertex currently runs on
+	 */
 	public String getInstanceName() {
 		return this.instanceName;
 	}
 
+	/**
+	 * Returns the type of the instance the vertex represented by this management vertex currently runs on.
+	 * 
+	 * @return the type of the instance the vertex represented by this management vertex currently runs on
+	 */
 	public String getInstanceType() {
 		return this.instanceType;
 	}
 
+	/**
+	 * Returns the number of input gates this management vertex contains.
+	 * 
+	 * @return the number of input gates this management vertex contains
+	 */
 	public int getNumberOfInputGates() {
 		return this.inputGates.size();
 	}
 
+	/**
+	 * Returns the number of output gates this management vertex contains.
+	 * 
+	 * @return the number of output gates this management vertex contains
+	 */
 	public int getNumberOfOutputGates() {
 		return this.outputGates.size();
 	}
 
-	public ManagementGate getInputGate(int index) {
+	/**
+	 * Returns the input gate at the given index.
+	 * 
+	 * @param index
+	 *        the index of the input gate to be returned
+	 * @return the input gate at the given index or <code>null</code> if no such input gate exists
+	 */
+	public ManagementGate getInputGate(final int index) {
 
 		if (index < this.inputGates.size()) {
 			return this.inputGates.get(index);
@@ -93,7 +170,14 @@ public class ManagementVertex implements IOReadableWritable {
 		return null;
 	}
 
-	public ManagementGate getOutputGate(int index) {
+	/**
+	 * Returns the output gate at the given index.
+	 * 
+	 * @param index
+	 *        the index of the output gate to be returned
+	 * @return the output gate at the given index or <code>null</code> if no such output gate exists
+	 */
+	public ManagementGate getOutputGate(final int index) {
 
 		if (index < this.outputGates.size()) {
 			return this.outputGates.get(index);
@@ -102,51 +186,87 @@ public class ManagementVertex implements IOReadableWritable {
 		return null;
 	}
 
+	/**
+	 * Returns the group vertex this management vertex belongs to.
+	 * 
+	 * @return the group vertex this management vertex belongs to
+	 */
 	public ManagementGroupVertex getGroupVertex() {
 		return this.groupVertex;
 	}
 
+	/**
+	 * The management graph this management vertex belongs to.
+	 * 
+	 * @return the management graph this management vertex belongs to
+	 */
 	public ManagementGraph getGraph() {
 		return this.groupVertex.getGraph();
 	}
 
+	/**
+	 * Returns the ID of this management vertex.
+	 * 
+	 * @return the ID of this management vertex
+	 */
 	public ManagementVertexID getID() {
 		return this.id;
 	}
 
+	/**
+	 * Returns the name of this management vertex.
+	 * 
+	 * @return the name of this management vertex, possibly <code>null</code>
+	 */
 	public String getName() {
 
 		return this.groupVertex.getName();
 	}
 
+	/**
+	 * Returns the number of vertices which belong to the same group vertex as this management vertex.
+	 * 
+	 * @return the number of vertices which belong to the same group vertex as this management vertex
+	 */
 	public int getNumberOfVerticesInGroup() {
 
 		return this.groupVertex.getNumberOfGroupMembers();
 	}
 
+	/**
+	 * Returns the index at which this vertex is stored inside its corresponding group vertex.
+	 * 
+	 * @return the index at which this vertex is stored inside its corresponding group vertex
+	 */
 	public int getIndexInGroup() {
 
 		return this.indexInGroup;
 	}
 
-	public void setAttachment(Object attachment) {
-		this.attachment = attachment;
-	}
-
-	public Object getAttachment() {
-		return this.attachment;
-	}
-
-	public void setExecutionState(ExecutionState executionState) {
+	/**
+	 * Sets the current execution state of this management vertex.
+	 * 
+	 * @param executionState
+	 *        the current execution state of this vertex
+	 */
+	public void setExecutionState(final ExecutionState executionState) {
 		this.executionState = executionState;
 	}
 
+	/**
+	 * Returns the current execution state of this management vertex.
+	 * 
+	 * @return the current execution state of this management vertex
+	 */
 	public ExecutionState getExecutionState() {
 		return this.executionState;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read the execution state
 		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
@@ -168,8 +288,11 @@ public class ManagementVertex implements IOReadableWritable {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write the execution state
 		EnumUtils.writeEnum(out, this.executionState);

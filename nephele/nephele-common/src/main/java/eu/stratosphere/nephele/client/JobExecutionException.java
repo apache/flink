@@ -13,22 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels;
+package eu.stratosphere.nephele.client;
 
 /**
- * Interface for configuring channels before the execution of the corresponding
- * task is executed at the task manager.
+ * This exception is thrown by the {@link JobClient} if a Nephele job has been aborted either as a result of a user
+ * request or an error which occured during the execution.
  * 
  * @author warneke
  */
-public interface ChannelConfigurator {
+public class JobExecutionException extends Exception {
 
 	/**
-	 * Returns a statistically unique filename for storing the intermediate data of a file channel.
-	 * 
-	 * @param id
-	 *        the ID of the channel requesting the filename
-	 * @return a statistically unique filename
+	 * The generated serial UID.
 	 */
-	String getUniqueFilename(ChannelID id);
+	private static final long serialVersionUID = 2818087325120827525L;
+
+	/**
+	 * Constructs a new job execution exception.
+	 * 
+	 * @param msg
+	 *        the message that shall be encapsulated by this exception
+	 */
+	public JobExecutionException(String msg) {
+		super(msg);
+	}
 }

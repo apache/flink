@@ -566,8 +566,7 @@ public class ExecutionGroupVertex {
 	 * Sets the input splits that should be assigned to this group vertex.
 	 * 
 	 * @param inputSplits
-	 * @param inputSplits
-	 *        the input splits that should be assigned to this group vertex
+	 *        the input splits that shall be assigned to this group vertex
 	 */
 	public synchronized void setInputSplits(InputSplit[] inputSplits) {
 		this.inputSplits = inputSplits;

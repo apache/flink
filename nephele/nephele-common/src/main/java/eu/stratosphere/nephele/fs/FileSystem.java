@@ -76,6 +76,9 @@ public abstract class FileSystem {
 			this.authority = authority;
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
 		public boolean equals(Object obj) {
 
@@ -103,6 +106,23 @@ public abstract class FileSystem {
 			}
 
 			return false;
+		}
+		
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public int hashCode() {
+			
+			if(this.scheme != null) {
+				return this.scheme.hashCode();
+			}
+			
+			if(this.authority != null) {
+				return this.authority.hashCode();
+			}
+			
+			return super.hashCode();
 		}
 	}
 

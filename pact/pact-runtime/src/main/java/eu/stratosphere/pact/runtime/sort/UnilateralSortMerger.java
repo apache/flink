@@ -226,8 +226,16 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 		// start the thread that handles spilling to secondary storage
 		spillThread = getSpillingThread(exceptionHandler, circularQueues, memoryManager, ioManager, ioMemorySize,
-			parentTask);
-
+			parentTask, numSortBuffers >= 3 ? numSortBuffers - 2 : 0);
+		
+		startThreads();
+	}
+	
+	/**
+	 * Starts all the threads that are used by this sort-merger.
+	 */
+	protected void startThreads()
+	{
 		// start threads
 		readThread.start();
 		sortThread.start();
@@ -355,14 +363,17 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param ioManager
 	 *        The I/O manager
 	 * @param ioMemorySize
-	 *        The amount of memory dedicatable to reading and writing.
+	 *        The amount of memory that is dedicated to reading and writing.
 	 * @param parentTask
 	 *        The task at which the thread registers itself (for profiling purposes).
 	 * @return The thread that does the spilling and pre-merging.
 	 */
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask) {
-		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, ioMemorySize, parentTask);
+			MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
+			int buffersToKeepBeforeSpilling)
+	{
+		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, ioMemorySize,
+			parentTask, buffersToKeepBeforeSpilling);
 	}
 
 	// ------------------------------------------------------------------------
@@ -885,15 +896,20 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		private final IOManager ioManager;
 
 		private final int ioMemorySize;
+		
+		private final int buffersToKeepBeforeSpilling;
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask) {
+				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
+				int buffersToKeepBeforeSpilling)
+		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 
 			// members
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
 			this.ioMemorySize = ioMemorySize;
+			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
 		}
 
 		/**
@@ -908,6 +924,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			freeSegmentsAtShutdown(outputSegments);
 
 			CircularElement element = null;
+			
+			// see whether we should keep some buffers
 
 			// loop as long as the thread is marked alive and we do not see the final
 			// element

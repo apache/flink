@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
@@ -35,10 +36,13 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the information the job manager requires to connect to the instance's task manager
+	 * @param hardwareDescription
+	 *        a hardware description with details on the instance's compute resources.
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo) throws IOException;
+	void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription)
+			throws IOException;
 
 	/**
 	 * Reports the result of a task execution to the job manager.

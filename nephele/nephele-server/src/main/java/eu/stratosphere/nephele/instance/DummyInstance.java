@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.instance;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
-
 /**
  * A DummyInstance is a stub implementation of the {@link AbstractInstance} interface.
  * Dummy instances are used to plan a job execution but must be replaced with
@@ -44,7 +42,7 @@ public class DummyInstance extends AbstractInstance {
 	 *        the ID of the dummy instance
 	 */
 	private DummyInstance(InstanceType type, int id) {
-		super(type, null, null, null);
+		super(type, null, null, null, null);
 
 		this.name = "DummyInstance_" + Integer.toString(id);
 	}
@@ -53,14 +51,17 @@ public class DummyInstance extends AbstractInstance {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String getUniqueFilename(ChannelID id) {
-
-		throw new RuntimeException("getUniqueFilename is called on a DummyInstance");
-	}
-
-	@Override
 	public String toString() {
 
 		return this.name;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public HardwareDescription getHardwareDescription() {
+
+		throw new RuntimeException("getHardwareDescription is called on a DummyInstance");
 	}
 }

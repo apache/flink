@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.EventList;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * A <code>JobProgressResult</code> is used to report the current progress
@@ -34,7 +34,7 @@ public class JobProgressResult extends AbstractJobResult {
 	/**
 	 * The list containing the events.
 	 */
-	private final EventList<AbstractEvent> events;
+	private final SerializableArrayList<AbstractEvent> events;
 
 	/**
 	 * Constructs a new job progress result object.
@@ -46,7 +46,7 @@ public class JobProgressResult extends AbstractJobResult {
 	 * @param events
 	 *        the job events to be transported within this object
 	 */
-	public JobProgressResult(ReturnCode returnCode, String description, EventList<AbstractEvent> events) {
+	public JobProgressResult(ReturnCode returnCode, String description, SerializableArrayList<AbstractEvent> events) {
 		super(returnCode, description);
 
 		this.events = events;
@@ -58,7 +58,7 @@ public class JobProgressResult extends AbstractJobResult {
 	public JobProgressResult() {
 		super();
 
-		this.events = new EventList<AbstractEvent>();
+		this.events = new SerializableArrayList<AbstractEvent>();
 	}
 
 	/**
@@ -82,13 +82,12 @@ public class JobProgressResult extends AbstractJobResult {
 	}
 
 	/**
-	 * Returns an iterator to the list of events transported within
-	 * this job progress result object.
+	 * Returns an iterator to the list of events transported within this job progress result object.
 	 * 
 	 * @return an iterator to the possibly empty list of events
 	 */
 	public Iterator<AbstractEvent> getEvents() {
 
-		return this.events.getEvents();
+		return this.events.iterator();
 	}
 }

@@ -86,10 +86,19 @@ public class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 
 		final SingleInstanceProfilingEvent singleInstanceProfilingEvent = (SingleInstanceProfilingEvent) obj;
 
-		if (this.instanceName.equals(singleInstanceProfilingEvent.getInstanceName())) {
+		if (!this.instanceName.equals(singleInstanceProfilingEvent.getInstanceName())) {
 			return false;
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return super.hashCode();
 	}
 }

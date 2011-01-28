@@ -44,7 +44,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * <li>automatic reintegration of released segments</li>
  * </ul>
  * This implementation uses internal byte arrays to allocate the required memory and allows allocation sizes greater
- * than 2GB. Due to the fact that the length of a single java byte array is bounded by {@link Integer.MAX_VALUE} (2GB),
+ * than 2GB. Due to the fact that the length of a single java byte array is bounded by {@link #java.lang.Integer.MAX_VALUE} (2GB),
  * the manager works 2 dimensional byte array (i.e. with memory chunks). Please be aware that in order to keep the array
  * access methods in the {@link DefaultMemorySegment} fast and simple, the actual allocated memory segments must not
  * exceed 2GB and must be contained in a single memory chunk.
@@ -57,6 +57,9 @@ public class DefaultMemoryManager implements MemoryManager {
 	 */
 	private static final Log LOG = LogFactory.getLog(DefaultMemoryManager.class);
 
+	/**
+	 * The minimal amount of memory that has to be dedicated to the memory manager.
+	 */
 	private static final long MIN_MEMORY_SIZE = 32 * 1024 * 1024;
 
 	/**

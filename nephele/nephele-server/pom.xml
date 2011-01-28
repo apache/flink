@@ -30,11 +30,6 @@
    </dependency>
 
     <dependency>
-      <groupId>com.google.collections</groupId>
-      <artifactId>google-collections</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>commons-cli</groupId>
       <artifactId>commons-cli</artifactId>
       <version>1.2</version>
@@ -56,11 +51,11 @@
             </property>
           </systemPropertyVariables>
           <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-	 <excludes>
-            <exclude>**/TestUtils.java</exclude>
+          <excludes>
+            <exclude>**/TestInstanceListener.java</exclude>
           </excludes>
         </configuration>  	  	
-  	  </plugin>
+      </plugin>
     </plugins>
   </build>
 </project>
