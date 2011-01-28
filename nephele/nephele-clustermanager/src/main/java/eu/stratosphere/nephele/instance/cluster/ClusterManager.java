@@ -52,7 +52,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableArrayList;
+import eu.stratosphere.nephele.util.SerializableHashMap;
 
 /**
  * Instance Manager for a static cluster.
@@ -163,9 +163,9 @@ public class ClusterManager implements InstanceManager {
 	private final InstanceType[] availableInstanceTypes;
 
 	/**
-	 * List of instance type descriptions which can be queried by the job manager.
+	 * Map of instance type descriptions which can be queried by the job manager.
 	 */
-	private final List<InstanceTypeDescription> instanceTypeDescriptionList;
+	private final Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptionMap;
 
 	/**
 	 * Map of IP addresses to instance types.
@@ -237,7 +237,7 @@ public class ClusterManager implements InstanceManager {
 
 				registeredHosts.entrySet().removeAll(hostsToRemove);
 
-				updateInstaceTypeDescriptionList();
+				updateInstaceTypeDescriptionMap();
 			}
 		}
 	};
@@ -260,7 +260,7 @@ public class ClusterManager implements InstanceManager {
 
 		this.instanceAccommodationMatrix = calculateInstanceAccommodationMatrix();
 
-		this.instanceTypeDescriptionList = new SerializableArrayList<InstanceTypeDescription>();
+		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
 		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(
 			CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
@@ -300,7 +300,7 @@ public class ClusterManager implements InstanceManager {
 		new Timer(runTimerAsDaemon).schedule(cleanupStaleMachines, 1000, 1000);
 
 		// Load available instance types into the instance description list
-		updateInstaceTypeDescriptionList();
+		updateInstaceTypeDescriptionMap();
 	}
 
 	/**
@@ -686,7 +686,7 @@ public class ClusterManager implements InstanceManager {
 			LOG.info("New number of registered hosts is " + this.registeredHosts.size());
 
 			// Update the list of instance type descriptions
-			updateInstaceTypeDescriptionList();
+			updateInstaceTypeDescriptionMap();
 		}
 
 		host.reportHeartBeat();
@@ -742,18 +742,20 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+	public synchronized Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
-		return this.instanceTypeDescriptionList;
+		return this.instanceTypeDescriptionMap;
 	}
 
 	/**
 	 * Updates the list of instance type descriptions based on the currently registered hosts.
 	 */
-	private void updateInstaceTypeDescriptionList() {
+	private void updateInstaceTypeDescriptionMap() {
 
 		// this.registeredHosts.values().iterator()
-		this.instanceTypeDescriptionList.clear();
+		this.instanceTypeDescriptionMap.clear();
+
+		final List<InstanceTypeDescription> instanceTypeDescriptionList = new ArrayList<InstanceTypeDescription>();
 
 		// initialize array which stores the availability counter for each instance type
 		final int[] numberOfInstances = new int[this.availableInstanceTypes.length];
@@ -811,7 +813,7 @@ public class ClusterManager implements InstanceManager {
 				if (highestAccommodationIndex < i) { // Since highestAccommodationIndex smaller than my index, the
 														// target instance must be more powerful
 
-					final InstanceTypeDescription descriptionOfLargerInstanceType = this.instanceTypeDescriptionList
+					final InstanceTypeDescription descriptionOfLargerInstanceType = instanceTypeDescriptionList
 						.get(highestAccommodationIndex);
 					if (descriptionOfLargerInstanceType.getHardwareDescription() != null) {
 						final HardwareDescription hardwareDescriptionOfLargerInstanceType = descriptionOfLargerInstanceType
@@ -830,8 +832,15 @@ public class ClusterManager implements InstanceManager {
 				}
 			}
 
-			this.instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(currentInstanceType,
+			instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(currentInstanceType,
 				pessimisticHardwareDescription, numberOfInstances[i]));
+		}
+
+		final Iterator<InstanceTypeDescription> it = instanceTypeDescriptionList.iterator();
+		while (it.hasNext()) {
+
+			final InstanceTypeDescription itd = it.next();
+			this.instanceTypeDescriptionMap.put(itd.getInstanceType(), itd);
 		}
 	}
 

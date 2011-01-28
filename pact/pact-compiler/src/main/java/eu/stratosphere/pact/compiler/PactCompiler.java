@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +31,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
@@ -390,7 +392,7 @@ public class PactCompiler {
 			LOG.debug("Connecting compiler to JobManager.");
 		}
 		
-		List<InstanceTypeDescription> instances = null;
+		Map<InstanceType, InstanceTypeDescription> instances = null;
 		ExtendedManagementProtocol jobManagerConnection = null;
 		
 		try {
@@ -409,7 +411,7 @@ public class PactCompiler {
 			jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
 				inetaddr, NetUtils.getSocketFactory());
 			
-			instances = jobManagerConnection.getListOfAvailableInstanceTypes();
+			instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
 			if (instances == null) {
 				throw new IOException();
 			}
@@ -1057,7 +1059,7 @@ public class PactCompiler {
 	 * @param types The available types.
 	 * @return The type to be used for scheduling.
 	 */
-	private InstanceTypeDescription getType(List<InstanceTypeDescription> types)
+	private InstanceTypeDescription getType(Map<InstanceType, InstanceTypeDescription> types)
 	{
 		if (types == null || types.size() < 1) {
 			throw new IllegalArgumentException("No instance type found.");
@@ -1065,19 +1067,22 @@ public class PactCompiler {
 		
 		long minMemory = 0;
 		int minCPUCores = Integer.MAX_VALUE;
-		int index = 0;
+		InstanceTypeDescription retValue = null;
 		
-		for (int i = 0; i < types.size(); i++) {
-			InstanceTypeDescription descr = types.get(i);
+		final Iterator<InstanceTypeDescription> it = types.values().iterator();
+		while(it.hasNext()) {
+			final InstanceTypeDescription descr = it.next();
+			if(retValue == null) {
+				retValue = descr;
+			}
 			if (descr.getInstanceType().getNumberOfCores() < minCPUCores &&
 				descr.getHardwareDescription().getSizeOfFreeMemory() > minMemory)
 			{
 				minCPUCores = descr.getInstanceType().getNumberOfCores();
 				minMemory = descr.getHardwareDescription().getSizeOfFreeMemory();
-				index = i;
 			}
 		}
 		
-		return types.get(index);
+		return retValue;
 	}
 }

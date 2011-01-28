@@ -37,7 +37,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
@@ -73,6 +73,7 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -826,9 +827,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	/**
 	 * {@inheritDoc}
 	 */
-	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		// Delegate call to the instance manager
-		return this.instanceManager.getListOfAvailableInstanceTypes();
+		return this.instanceManager.getMapOfAvailableInstanceTypes();
 	}
 }

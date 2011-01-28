@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -37,6 +38,7 @@ import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
@@ -138,22 +140,19 @@ public class QueueScheduler implements Scheduler {
 	 */
 	private void requestInstances(ExecutionGraph executionGraph) throws InstanceException {
 
-		final Map<InstanceType, Integer> requiredInstanceTypes = executionGraph
-			.getInstanceTypesRequiredForCurrentStage();
-
-		if (requiredInstanceTypes == null)
-			throw new InstanceException("Cannot acquire required instance types to run next stage");
+		final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+		executionGraph.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
 
 		/*
 		 * In the current version we try to allocate one instance per WS call. In the future might
 		 * be preferable to allocate all instances at once.
 		 */
-		final Iterator<InstanceType> it = requiredInstanceTypes.keySet().iterator();
+		final Iterator<InstanceType> it = requiredInstances.keySet().iterator();
 		while (it.hasNext()) {
 
 			final InstanceType type = it.next();
 
-			for (int i = 0; i < requiredInstanceTypes.get(type).intValue(); i++) {
+			for (int i = 0; i < requiredInstances.get(type).intValue(); i++) {
 				LOG.info("Trying to allocate instance of type " + type.getIdentifier());
 				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
 					type);
@@ -250,22 +249,35 @@ public class QueueScheduler implements Scheduler {
 	@Override
 	public void schedulJob(ExecutionGraph executionGraph) throws SchedulingException {
 		
-		synchronized (this.jobQueue) {
+		// First, check if there are enough resources to run this job
+		final Map<InstanceType, InstanceTypeDescription> availableInstances = this.instanceManager
+			.getMapOfAvailableInstanceTypes();
 
-			final ExecutionGraphIterator it = new ExecutionGraphIterator(executionGraph, true);
+		for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
+
+			final Map<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
+			executionGraph.collectInstanceTypesRequiredForStage(i, requiredInstanceTypes, ExecutionState.CREATED);
+
+			final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstanceTypes.entrySet().iterator();
 			while (it.hasNext()) {
 
-				final ExecutionVertex vertex = it.next();
-				if (vertex.getExecutionState() != ExecutionState.CREATED) {
-					LOG.error("Execution vertex " + vertex + " has state " + vertex.getExecutionState() + ", expected "
-						+ ExecutionState.CREATED);
+				final Map.Entry<InstanceType, Integer> entry = it.next();
+				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
+				if (descr == null) {
+					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
+						+ " available");
 				}
 
-				vertex.getEnvironment().registerExecutionListener(new QueueExecutionListener(this, vertex));
-				vertex.setExecutionState(ExecutionState.SCHEDULED);
-
+				if (descr.getMaximumNumberOfAvailableInstances() != -1
+					&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
+					throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
+						+ " instances of type " + entry.getKey() + " required, but only "
+						+ descr.getMaximumNumberOfAvailableInstances() + " are available");
+				}
 			}
-
+		}
+		
+		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
 		}
 	}
