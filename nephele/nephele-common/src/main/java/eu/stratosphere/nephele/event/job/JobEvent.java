@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.jobgraph.JobStatus;
+import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
@@ -77,6 +78,9 @@ public class JobEvent extends AbstractEvent {
 
 		// Read job status
 		this.currentJobStatus = EnumUtils.readEnum(in, JobStatus.class);
+
+		// Read optional message
+		this.optionalMessage = StringRecord.readString(in);
 	}
 
 	/**
@@ -88,6 +92,9 @@ public class JobEvent extends AbstractEvent {
 
 		// Write job status
 		EnumUtils.writeEnum(out, this.currentJobStatus);
+
+		// Write optional message
+		StringRecord.writeString(out, this.optionalMessage);
 	}
 
 	/**
