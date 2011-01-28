@@ -50,6 +50,7 @@ public class Client {
 	 * configuration.
 	 * 
 	 * @param nepheleConfig
+	 * 			create a new client based on this configuration
 	 */
 	public Client(Configuration nepheleConfig) {
 		this.nepheleConfig = nepheleConfig;
@@ -59,12 +60,13 @@ public class Client {
 	 * Submits the pact program to the cluster for execution.
 	 * 
 	 * @param prog
-	 *        the program to be submitted
+	 *        The program to be submitted
 	 * @throws ErrorInPlanAssemblerException
+	 * 			This error is thrown if there is a error during plan generation which may indicate
+	 * 			missing arguments for the plan or an error in the plan generation itself
 	 * @throws ProgramInvocationException
-	 * @throws IOException
-	 * @throws ProgramInvocationException
-	 * @throws ErrorInPlanAssemblerException
+	 * 			Indicates a error in the program configuration where the plan assembler can not be 
+	 * 			instantiated.
 	 */
 	public void run(PactProgram prog) throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		assert nepheleConfig != null;
@@ -81,13 +83,13 @@ public class Client {
 		try {
 			client = new JobClient(jobGraph, nepheleConfig);
 		} catch (IOException e) {
-			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage());
+			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage(), e);
 		}
 
 		try {
 			result = client.submitJob();
 		} catch (IOException e) {
-			throw new ProgramInvocationException("Could not submit job to job manager: " + e.getMessage());
+			throw new ProgramInvocationException("Could not submit job to job manager: " + e.getMessage(), e);
 		}
 
 		if (result.getReturnCode() != ReturnCode.SUCCESS) {
