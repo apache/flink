@@ -1080,6 +1080,7 @@ public class PactCompiler {
 			{
 				minCPUCores = descr.getInstanceType().getNumberOfCores();
 				minMemory = descr.getHardwareDescription().getSizeOfFreeMemory();
+				retValue = descr;
 			}
 		}
 		

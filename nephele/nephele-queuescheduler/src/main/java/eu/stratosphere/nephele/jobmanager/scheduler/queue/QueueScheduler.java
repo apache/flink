@@ -143,10 +143,10 @@ public class QueueScheduler implements Scheduler {
 		final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
 		executionGraph.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
 
-		/*
-		 * In the current version we try to allocate one instance per WS call. In the future might
-		 * be preferable to allocate all instances at once.
-		 */
+		if(requiredInstances.isEmpty()) {
+			return;
+		}
+		
 		final Iterator<InstanceType> it = requiredInstances.keySet().iterator();
 		while (it.hasNext()) {
 
