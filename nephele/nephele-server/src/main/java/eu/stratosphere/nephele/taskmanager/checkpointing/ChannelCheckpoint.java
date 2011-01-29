@@ -150,7 +150,11 @@ public class ChannelCheckpoint {
 
 		this.queuedEnvelopes.clear();
 
-		// TODO: Remove any files that may have been written
+		// Remove any files that may have been written
+		final File file = new File(getFilename());
+		if(file.exists()) {
+			file.delete();
+		}
 	}
 
 	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) {

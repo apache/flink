@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -849,6 +850,18 @@ public class TaskManager implements TaskOperationProtocol {
 					environment.changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
 				}
 			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+
+		final Iterator<ExecutionVertexID> it = listOfVertexIDs.iterator();
+		while (it.hasNext()) {
+			this.checkpointManager.removeCheckpoint(it.next());
 		}
 	}
 }

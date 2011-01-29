@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
@@ -27,7 +28,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * This protocol provides extended management capabilities beyond the
@@ -70,7 +70,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the job list
 	 */
-	SerializableArrayList<NewJobEvent> getNewJobs() throws IOException;
+	List<NewJobEvent> getNewJobs() throws IOException;
 
 	/**
 	 * Retrieves the collected events for the job with the given job ID.
@@ -82,7 +82,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the list of events
 	 */
-	SerializableArrayList<AbstractEvent> getEvents(JobID jobID) throws IOException;
+	List<AbstractEvent> getEvents(JobID jobID) throws IOException;
 
 	/**
 	 * Cancels the task with the given vertex ID.
