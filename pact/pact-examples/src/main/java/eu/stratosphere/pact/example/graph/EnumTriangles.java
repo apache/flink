@@ -340,8 +340,9 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 
 	}
 
-	/**
-	 * Returns the parameter description of the program. 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.plan.PlanAssemblerDescription#getDescription()
 	 */
 	@Override
 	public String getDescription() {

@@ -38,7 +38,8 @@ public class EnumTrianglesITCase extends TestBase {
 
 	private static final Log LOG = LogFactory.getLog(EnumTrianglesITCase.class);
 	
-	String edgesPath = null; 
+	String edgesPath = null;
+	String resultPath = null; 
 
 	private String edges = "<a> <http://xmlns.com/foaf/0.1/knows> <b>\n" + "<a> <http://xmlns.com/foaf/0.1/knows> <c>\n" + 
 						   "<a> <http://xmlns.com/foaf/0.1/knows> <d>\n" + "<b> <http://xmlns.com/foaf/0.1/knows> <c>\n" + 
@@ -59,6 +60,7 @@ public class EnumTrianglesITCase extends TestBase {
 	protected void preSubmit() throws Exception {
 
 		edgesPath = getFilesystemProvider().getTempDirPath() + "/triangleEdges";
+		resultPath = getFilesystemProvider().getTempDirPath() + "/triangles";
 		
 		String[] splits = splitInputString(edges, '\n', 4);
 		getFilesystemProvider().createDir(edgesPath);
@@ -76,7 +78,7 @@ public class EnumTrianglesITCase extends TestBase {
 		Plan plan = enumTriangles.getPlan(
 				config.getString("EnumTrianglesTest#NoSubtasks", "4"),
 				getFilesystemProvider().getURIPrefix() + edgesPath, 
-				getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath() + "/triangles.txt");
+				getFilesystemProvider().getURIPrefix() + resultPath);
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -89,11 +91,11 @@ public class EnumTrianglesITCase extends TestBase {
 	protected void postSubmit() throws Exception {
 
 		// Test results
-		compareResultsByLinesInMemory(expected, getFilesystemProvider().getTempDirPath() + "/triangles.txt");
+		compareResultsByLinesInMemory(expected, resultPath);
 
 		// clean up hdfs
 		getFilesystemProvider().delete(edgesPath, true);
-		// getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/triangles.txt", false);
+		getFilesystemProvider().delete(resultPath, false);
 
 	}
 
