@@ -15,35 +15,43 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.StringRecord;
 
-public class GrepTask1Input2Outputs extends AbstractTask {
+public class ForwardTask2Inputs1Output extends AbstractTask {
 
-	private RecordReader<StringRecord> input = null;
+	private RecordReader<StringRecord> input1 = null;
 
-	private RecordWriter<StringRecord> output1 = null;
+	private RecordReader<StringRecord> input2 = null;
 
-	private RecordWriter<StringRecord> output2 = null;
+	private RecordWriter<StringRecord> output = null;
 
 	@Override
 	public void invoke() throws Exception {
 
-		while (this.input.hasNext()) {
+		while (this.input1.hasNext()) {
 
-			StringRecord s = input.next();
-			this.output1.emit(s);
-			this.output2.emit(s);
+			StringRecord s = input1.next();
+			this.output.emit(s);
+		}
+
+		while (this.input2.hasNext()) {
+
+			try {
+				StringRecord s = input2.next();
+				this.output.emit(s);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
 	@Override
 	public void registerInputOutput() {
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
-		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
-		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.input1 = new RecordReader<StringRecord>(this, StringRecord.class, null);
+		this.input2 = new RecordReader<StringRecord>(this, StringRecord.class, null);
+		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 }
