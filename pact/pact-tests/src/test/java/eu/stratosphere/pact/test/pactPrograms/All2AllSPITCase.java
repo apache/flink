@@ -38,17 +38,31 @@ public class All2AllSPITCase extends TestBase {
 
 	private static final Log LOG = LogFactory.getLog(All2AllSPITCase.class);
 
-	String pathsPath = null;
+	String rdfDataPath = null;
+	String resultPath = null;
 
+	/*
 	private String paths = "A|C|7| |\n" + "A|D|6| |\n" + "B|A|1| |\n" + "B|D|2| |\n" + "C|B|3| |\n" + "C|E|10| |\n"
 			+ "C|F|12| |\n" + "C|G|9| |\n" + "D|F|5| |\n" + "E|H|2| |\n" + "F|E|3| |\n" + "G|F|1| |\n" + "H|D|2| |\n"
 			+ "H|E|4| |\n";
+	*/
+	
+	private String rdfData = "<A> <http://xmlns.com/foaf/0.1/knows> <C>\n" + "<A> <http://xmlns.com/foaf/0.1/knows> <D>\n" +
+	                         "<B> <http://xmlns.com/foaf/0.1/knows> <A>\n" + "<B> <http://xmlns.com/foaf/0.1/knows> <D>\n" +
+	                         "<C> <http://xmlns.com/foaf/0.1/knows> <B>\n" + "<C> <http://xmlns.com/foaf/0.1/knows> <E>\n" +
+	                         "<C> <http://xmlns.com/foaf/0.1/knows> <F>\n" + "<C> <http://xmlns.com/foaf/0.1/knows> <G>\n" +
+	                         "<D> <http://xmlns.com/foaf/0.1/knows> <F>\n" + "<E> <http://xmlns.com/foaf/0.1/knows> <H>\n" +
+	                         "<F> <http://xmlns.com/foaf/0.1/knows> <E>\n" + "<G> <http://xmlns.com/foaf/0.1/knows> <F>\n" +
+	                         "<H> <http://xmlns.com/foaf/0.1/knows> <D>\n" + "<H> <http://xmlns.com/foaf/0.1/knows> <E>\n";
 
-	private String expected = "A|C|7| |\n" + "A|B|10|C|\n" + "A|D|6| |\n" + "A|E|17|C|\n" + "A|F|11|D|\n"
-			+ "A|G|16|C|\n" + "B|A|1| |\n" + "B|C|8|A|\n" + "B|D|2| |\n" + "B|F|7|D|\n" + "C|A|4|B|\n" + "C|B|3| |\n"
-			+ "C|D|5|B|\n" + "C|E|10| |\n" + "C|F|10|G|\n" + "C|G|9| |\n" + "C|H|12|E|\n" + "D|E|8|F|\n" + "D|F|5| |\n"
-			+ "E|D|4|H|\n" + "E|H|2| |\n" + "F|E|3| |\n" + "F|H|5|E|\n" + "G|E|4|F|\n" + "G|F|1| |\n" + "H|D|2| |\n"
-			+ "H|E|4| |\n" + "H|F|7|D|\n";
+	private String expected = "<A>|<C>|1|0|\n"     + "<A>|<D>|1|0|\n"     + "<B>|<A>|1|0|\n"     + "<B>|<D>|1|0|\n"     +
+	 						  "<C>|<B>|1|0|\n"     + "<C>|<E>|1|0|\n"     + "<C>|<F>|1|0|\n"     + "<C>|<G>|1|0|\n"     +
+	 						  "<D>|<F>|1|0|\n"     + "<E>|<H>|1|0|\n"     + "<F>|<E>|1|0|\n"     + "<G>|<F>|1|0|\n"     +
+	 						  "<H>|<D>|1|0|\n"     + "<H>|<E>|1|0|\n"     + "<A>|<B>|2|1|<C>|\n" + "<A>|<E>|2|1|<C>|\n" +
+	 						  "<A>|<F>|2|1|<C>|\n" + "<A>|<G>|2|1|<C>|\n" + "<A>|<F>|2|1|<D>|\n" + "<B>|<C>|2|1|<A>|\n" + 
+	 						  "<B>|<F>|2|1|<D>|\n" + "<C>|<A>|2|1|<B>|\n" + "<C>|<D>|2|1|<B>|\n" + "<C>|<H>|2|1|<E>|\n" +
+				              "<D>|<E>|2|1|<F>|\n" + "<E>|<D>|2|1|<H>|\n" + "<F>|<H>|2|1|<E>|\n" + "<G>|<E>|2|1|<F>|\n" + 
+				              "<H>|<F>|2|1|<D>|\n";
 
 	public All2AllSPITCase(Configuration config) {
 		super(config);
@@ -57,10 +71,16 @@ public class All2AllSPITCase extends TestBase {
 	@Override
 	protected void preSubmit() throws Exception {
 
-		pathsPath = getFilesystemProvider().getTempDirPath() + "/paths";
+		rdfDataPath = getFilesystemProvider().getTempDirPath() + "/paths";
+		resultPath = getFilesystemProvider().getTempDirPath() + "/iter_1";
 
-		getFilesystemProvider().createFile(pathsPath, paths);
-		LOG.debug("Paths:\n>" + paths + "<");
+		String[] splits = splitInputString(rdfData, '\n', 4);
+		getFilesystemProvider().createDir(rdfDataPath);
+		for (int i = 0; i < splits.length; i++) {
+			getFilesystemProvider().createFile(rdfDataPath + "/part_" + i + ".txt", splits[i]);
+			LOG.debug("Part " + (i + 1) + ":\n>" + splits[i] + "<");
+		}
+		
 	}
 
 	@Override
@@ -68,8 +88,9 @@ public class All2AllSPITCase extends TestBase {
 
 		All2AllSP a2aSP = new All2AllSP();
 		Plan plan = a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", "4"), 
-				getFilesystemProvider().getURIPrefix() + pathsPath, 
-				getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
+				getFilesystemProvider().getURIPrefix() + rdfDataPath, 
+				getFilesystemProvider().getURIPrefix() + resultPath, 
+				"true");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -82,11 +103,11 @@ public class All2AllSPITCase extends TestBase {
 	protected void postSubmit() throws Exception {
 
 		// Test results
-		compareResultsByLinesInMemory(expected, getFilesystemProvider().getTempDirPath() + "/iter_1.txt");
+		compareResultsByLinesInMemory(expected, resultPath);
 
 		// clean up hdfs
-		getFilesystemProvider().delete(pathsPath, true);
-		getFilesystemProvider().delete(getFilesystemProvider().getTempDirPath() + "/iter_1.txt", false);
+//		getFilesystemProvider().delete(rdfDataPath, true);
+//		getFilesystemProvider().delete(resultPath, true);
 
 	}
 

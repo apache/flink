@@ -145,8 +145,6 @@
 				<version>2.6</version>
 				<configuration>
 					<excludes>
-						<exclude>**/*All2AllSPITCase.class</exclude>
-						<exclude>**/*EnumTrianglesITCase.class</exclude>
 						<exclude>**/*WebLogAnalysisITCase.class</exclude>
 					</excludes>
 				</configuration>
