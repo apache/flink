@@ -319,10 +319,12 @@ public class HardwareDescriptionFactory {
 	 */
 	private static long getSizeOfPhysicalMemoryForMac() {
 
+		BufferedReader bi = null;
+
 		try {
 			Process proc = Runtime.getRuntime().exec("sysctl hw");
 
-			BufferedReader bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
 			String line;
 
@@ -338,6 +340,13 @@ public class HardwareDescriptionFactory {
 		} catch (Exception e) {
 			LOG.error(e);
 			return -1;
+		} finally {
+			if (bi != null) {
+				try {
+					bi.close();
+				} catch (IOException ioe) {
+				}
+			}
 		}
 		return -1;
 	}

@@ -83,7 +83,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	 * 
 	 * @author warneke
 	 */
-	private class TraversalEntry {
+	private static class TraversalEntry {
 
 		/**
 		 * Execution vertex this entry has been created for.

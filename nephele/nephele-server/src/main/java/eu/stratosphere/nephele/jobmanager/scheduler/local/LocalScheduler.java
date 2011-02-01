@@ -140,12 +140,13 @@ public class LocalScheduler implements Scheduler {
 			}
 		}
 
-		final Iterator<InstanceType> it = requiredInstanceTypes.keySet().iterator();
+		final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstanceTypes.entrySet().iterator();
 		while (it.hasNext()) {
 
-			final InstanceType type = it.next();
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+			final InstanceType type = entry.getKey();
 
-			for (int i = 0; i < requiredInstanceTypes.get(type).intValue(); i++) {
+			for (int i = 0; i < entry.getValue().intValue(); i++) {
 				LOG.info("Trying to allocate instance of type " + type.getIdentifier());
 				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
 					type);
@@ -337,6 +338,7 @@ public class LocalScheduler implements Scheduler {
 				} catch (InstanceException e) {
 					LOG.error(e);
 				}
+				return;
 			}
 
 			AllocatedResource resourceToBeReplaced = null;

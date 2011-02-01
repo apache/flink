@@ -139,9 +139,9 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private final TaskManagerProfiler profiler;
 
-	private MemoryManager memoryManager;
+	private final MemoryManager memoryManager;
 
-	private IOManager ioManager;
+	private final IOManager ioManager;
 
 	private final HardwareDescription hardwareDescription;
 
@@ -808,12 +808,10 @@ public class TaskManager implements TaskOperationProtocol {
 		// Shut down the memory manager
 		if (this.ioManager != null) {
 			this.ioManager.shutdown();
-			this.ioManager = null;
 		}
 
 		if (this.memoryManager != null) {
 			this.memoryManager.shutdown();
-			this.memoryManager = null;
 		}
 
 		this.isShutDown = true;

@@ -167,14 +167,16 @@ public class ExecutionGraph implements ExecutionListener {
 		// <code>submitJob</code> method of the job manager
 
 		// If there is no cycle, apply the settings to the corresponding group vertices
-		Iterator<AbstractJobVertex> it = temporaryGroupVertexMap.keySet().iterator();
+		final Iterator<Map.Entry<AbstractJobVertex, ExecutionGroupVertex>> it = temporaryGroupVertexMap.entrySet()
+			.iterator();
 		while (it.hasNext()) {
 
-			final AbstractJobVertex jobVertex = it.next();
+			final Map.Entry<AbstractJobVertex, ExecutionGroupVertex> entry = it.next();
+			final AbstractJobVertex jobVertex = entry.getKey();
 			if (jobVertex.getVertexToShareInstancesWith() != null) {
 
 				final AbstractJobVertex vertexToShareInstancesWith = jobVertex.getVertexToShareInstancesWith();
-				final ExecutionGroupVertex groupVertex = temporaryGroupVertexMap.get(jobVertex);
+				final ExecutionGroupVertex groupVertex = entry.getValue();
 				final ExecutionGroupVertex groupVertexToShareInstancesWith = temporaryGroupVertexMap
 					.get(vertexToShareInstancesWith);
 				groupVertex.shareInstancesWith(groupVertexToShareInstancesWith);
@@ -1086,7 +1088,7 @@ public class ExecutionGraph implements ExecutionListener {
 			if (stageNumbers.containsKey(groupVertex)) {
 				precedingNumber = stageNumbers.get(groupVertex).intValue();
 			} else {
-				stageNumbers.put(groupVertex, new Integer(precedingNumber));
+				stageNumbers.put(groupVertex, Integer.valueOf(precedingNumber));
 			}
 
 			for (int i = 0; i < groupVertex.getNumberOfForwardLinks(); i++) {
@@ -1096,10 +1098,10 @@ public class ExecutionGraph implements ExecutionListener {
 					// Target vertex has not yet been discovered
 					if (edge.getChannelType() != ChannelType.FILE) {
 						// Same stage as preceding vertex
-						stageNumbers.put(edge.getTargetVertex(), new Integer(precedingNumber));
+						stageNumbers.put(edge.getTargetVertex(), Integer.valueOf(precedingNumber));
 					} else {
 						// File channel, increase stage of target vertex by one
-						stageNumbers.put(edge.getTargetVertex(), new Integer(precedingNumber + 1));
+						stageNumbers.put(edge.getTargetVertex(), Integer.valueOf(precedingNumber + 1));
 					}
 				} else {
 					final int stageNumber = stageNumbers.get(edge.getTargetVertex()).intValue();
@@ -1132,7 +1134,7 @@ public class ExecutionGraph implements ExecutionListener {
 				final int stageNumber = stageNumbers.get(edge.getSourceVertex());
 				if (edge.getChannelType() == ChannelType.FILE) {
 					if (stageNumber < (succeedingNumber - 1)) {
-						stageNumbers.put(edge.getSourceVertex(), new Integer(succeedingNumber - 1));
+						stageNumbers.put(edge.getSourceVertex(), Integer.valueOf(succeedingNumber - 1));
 					}
 				} else {
 					if (stageNumber != succeedingNumber) {
@@ -1145,11 +1147,12 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Finally, assign the new stage numbers
 		this.stages.clear();
-		final Iterator<ExecutionGroupVertex> it2 = stageNumbers.keySet().iterator();
+		final Iterator<Map.Entry<ExecutionGroupVertex, Integer>> it2 = stageNumbers.entrySet().iterator();
 		while (it2.hasNext()) {
 
-			final ExecutionGroupVertex groupVertex = it2.next();
-			final int stageNumber = stageNumbers.get(groupVertex).intValue();
+			final Map.Entry<ExecutionGroupVertex, Integer> entry = it2.next();
+			final ExecutionGroupVertex groupVertex = entry.getKey();
+			final int stageNumber = entry.getValue().intValue();
 			// Prevent out of bounds exceptions
 			while (this.stages.size() <= stageNumber) {
 				this.stages.add(null);

@@ -62,7 +62,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * 
 	 * @author warneke
 	 */
-	private class ExecutionListenerWrapper implements ExecutionListener {
+	private final class ExecutionListenerWrapper implements ExecutionListener {
 
 		/**
 		 * The event collector to forward the created event to.
@@ -141,7 +141,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * 
 	 * @author warneke
 	 */
-	private class JobStatusListenerWrapper implements JobStatusListener {
+	private final class JobStatusListenerWrapper implements JobStatusListener {
 
 		/**
 		 * The event collector to forward the created event to.

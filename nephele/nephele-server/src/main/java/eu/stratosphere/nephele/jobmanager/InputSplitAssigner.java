@@ -41,7 +41,7 @@ public class InputSplitAssigner {
 	 * 
 	 * @author fhueske
 	 */
-	private class QueueElem implements Comparable<QueueElem> {
+	private static class QueueElem implements Comparable<QueueElem> {
 		private long noAssignedSplits;
 
 		private long noLocalSplits;

@@ -68,7 +68,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	 * 
 	 * @author warneke
 	 */
-	private class TraversalEntry {
+	private static class TraversalEntry {
 
 		/**
 		 * The group vertex this entry is created for.
