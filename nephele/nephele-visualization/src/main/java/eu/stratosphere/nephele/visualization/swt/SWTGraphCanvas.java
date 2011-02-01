@@ -119,11 +119,12 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 		Map<ManagementGroupVertex, SWTGroupVertex> groupMap = new HashMap<ManagementGroupVertex, SWTGroupVertex>();
 
 		// First, create all vertices
-		Iterator<ManagementStage> iterator = stageMap.keySet().iterator();
+		Iterator<Map.Entry<ManagementStage, SWTStage>> iterator = stageMap.entrySet().iterator();
 		while (iterator.hasNext()) {
 
-			final ManagementStage managementStage = iterator.next();
-			final SWTStage parent = stageMap.get(managementStage);
+			final Map.Entry<ManagementStage, SWTStage> entry = iterator.next();
+			final ManagementStage managementStage = entry.getKey();
+			final SWTStage parent = entry.getValue();
 
 			for (int i = 0; i < managementStage.getNumberOfGroupVertices(); i++) {
 
@@ -135,10 +136,11 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 		}
 
 		// Second, make sure all edges are created and connected properly
-		iterator = stageMap.keySet().iterator();
+		iterator = stageMap.entrySet().iterator();
 		while (iterator.hasNext()) {
 
-			final ManagementStage executionStage = iterator.next();
+			final Map.Entry<ManagementStage, SWTStage> entry = iterator.next();
+			final ManagementStage executionStage = entry.getKey();
 			for (int i = 0; i < executionStage.getNumberOfGroupVertices(); i++) {
 
 				final ManagementGroupVertex sourceVertex = executionStage.getGroupVertex(i);
