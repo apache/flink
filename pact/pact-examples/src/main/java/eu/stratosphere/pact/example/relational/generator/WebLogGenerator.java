@@ -47,12 +47,7 @@ public class WebLogGenerator {
 			}
 		}
 
-		/*
-		 * String[] filterKWs = { "cloud", "atomic", "cosmic", "universe",
-		 * "chromospheres", "statistics", "resolution", "theory", "data",
-		 * "extraterrestrial", "atoms", "kinematics" };
-		 */
-		String[] filterKWs = { "editor", "oscillations", "convection" };
+		String[] filterKWs = { "editors", "oscillations", "convection" };
 
 		String[] words = { "Lorem", "ipsum", "dolor", "sit", "amet",
 				"consectetuer", "adipiscing", "elit", "sed", "diam", "nonummy",
