@@ -594,9 +594,11 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 
 		// check for the correct number of job parameters
 		if (args.length != 4) {
-			return null;
+			throw new IllegalArgumentException(
+				"Must provide four arguments: <parallelism> <paths_input> <result_directory> <rdf_input_flag>");
 		}
-
+		
+		// parse job parameters
 		int noSubTasks = Integer.parseInt(args[0]);
 		String paths = args[1];
 		String output = args[2];
