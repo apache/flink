@@ -19,63 +19,45 @@ import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
 import org.junit.Test;
 
+import eu.stratosphere.nephele.util.CommonTestUtils;
+
 /**
- * This class contains test for the configuraiton package. Tested will be serialization of Configuration Objects
+ * This class contains test for the configuration package. In particular, the serialization of {@link Configuration}
+ * objects is tested.
+ * 
  * @author casp
- *
  */
 public class ConfigurationTest {
 
 	/**
-	 * This test tests the serialization/deserialization of config information
+	 * This test checks the serialization/deserialization of configuration objects.
 	 */
 	@Test
-	public void testConfigurationSerialization(){
-		
-		//first, create inital configuration object with some parameters
-		Configuration conf = new Configuration();
-		conf.setString("mykey", "myvalue");
-		conf.setBoolean("shouldbetrue", true);
-		conf.setInteger("mynumber", 100);
-		conf.setClass("myclass", this.getClass());
-		
-		//now, create streams to serialize configuration to byte array
-		ByteArrayOutputStream bo = new ByteArrayOutputStream();
-		DataOutputStream dos = new DataOutputStream(bo);
-		
+	public void testConfigurationSerialization() {
+
+		// First, create initial configuration object with some parameters
+		final Configuration orig = new Configuration();
+		orig.setString("mykey", "myvalue");
+		orig.setBoolean("shouldbetrue", true);
+		orig.setInteger("mynumber", 100);
+		orig.setClass("myclass", this.getClass());
+
 		try {
-			//do serialize...
-			conf.write(dos);
-			dos.close();
-			byte[] bytes = bo.toByteArray();
-			bo.close();
-			
-			//create input streams, re-read byte array...
-			ByteArrayInputStream bi = new ByteArrayInputStream(bytes);
-			DataInputStream di = new DataInputStream(bi);
-			
-			Configuration conf2 = new Configuration();
-			//de-serialize
-			conf2.read(di);
-			
-			assertEquals(conf2.getString("mykey", "null"), "myvalue");
-			assertEquals(conf2.getBoolean("shouldbetrue", false), true);
-			assertEquals(conf2.getInteger("mynumber", 0) , 100);			
-			assertEquals(conf2.getClass("myclass", null).toString(), this.getClass().toString());
-			assertTrue(conf.equals(conf2));
-			assertTrue(conf.keySet().equals(conf2.keySet()));
-			
+			final Configuration copy = (Configuration) CommonTestUtils.createCopy(orig);
+
+			assertEquals(copy.getString("mykey", "null"), "myvalue");
+			assertEquals(copy.getBoolean("shouldbetrue", false), true);
+			assertEquals(copy.getInteger("mynumber", 0), 100);
+			assertEquals(copy.getClass("myclass", null).toString(), this.getClass().toString());
+			assertTrue(orig.equals(copy));
+			assertTrue(orig.keySet().equals(copy.keySet()));
+
 		} catch (IOException e) {
 			fail(e.getMessage());
 		}
-		
 	}
 }

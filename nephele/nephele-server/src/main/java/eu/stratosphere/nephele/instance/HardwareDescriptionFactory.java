@@ -23,7 +23,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryType;
 import java.lang.management.MemoryUsage;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -64,7 +63,7 @@ public class HardwareDescriptionFactory {
 	 * The expected prefix for Mac OS operating systems.
 	 */
 	private static final String MAC_OS_PREFIX = "Mac";
-	
+
 	/**
 	 * The path to the interface to extract memory information under Linux.
 	 */
@@ -78,18 +77,18 @@ public class HardwareDescriptionFactory {
 	/**
 	 * The names of the tenured memory pool
 	 */
-	private static final String[] TENURED_POOL_NAMES = {"Tenured Gen", "PS Old Gen", "CMS Old Gen"};
+	private static final String[] TENURED_POOL_NAMES = { "Tenured Gen", "PS Old Gen", "CMS Old Gen" };
 
 	/**
 	 * The operating system name.
 	 */
 	private static String os = null;
-	
+
 	/**
 	 * The memory threshold to be used when tenured pool can be determined
 	 */
 	private static float TENURED_POOL_THRESHOLD = 0.8f;
-	
+
 	/**
 	 * The memory threshold to be used when tenured pool can not be determined
 	 */
@@ -151,35 +150,36 @@ public class HardwareDescriptionFactory {
 		// in order to prevent allocations of arrays that are too big for the JVM's different memory pools,
 		// make sure that the maximum segment size is 70% of the currently free tenure heap
 		final MemoryPoolMXBean tenuredpool = findTenuredGenPool();
-		
-		if(tenuredpool != null){
+
+		if (tenuredpool != null) {
 			final MemoryUsage usage = tenuredpool.getUsage();
-			long tenuredSize =  usage.getMax() - usage.getUsed();
+			long tenuredSize = usage.getMax() - usage.getUsed();
 			LOG.info("found tenured gen pool. Max: " + tenuredSize + " used: " + usage.getUsed() + ".");
-			//TODO: make the constant configurable
+			// TODO: make the constant configurable
 			return (long) (tenuredSize * TENURED_POOL_THRESHOLD);
 		}
-		
+
 		LOG.info("could not determine tenured gen pool. Using JVM Runtime information instead.");
 		Runtime r = Runtime.getRuntime();
 		final long maximum = r.maxMemory();
-		
-		//TODO: Make 0.7f configurable
-		return (long) ( RUNTIME_MEMORY_THRESHOLD * (maximum - r.totalMemory() + r.freeMemory()));
+
+		// TODO: Make 0.7f configurable
+		return (long) (RUNTIME_MEMORY_THRESHOLD * (maximum - r.totalMemory() + r.freeMemory()));
 
 	}
 
 	/**
-	 * Returns the tenured gen pool
-	 * @return tenured gen pool, or <code>null</code>, if not detectable 
+	 * Returns the tenured gen pool.
+	 * 
+	 * @return the tenured gen pool or <code>null</code> if so such pool can be found
 	 */
 	private static MemoryPoolMXBean findTenuredGenPool() {
 		for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {
-			
-			for(String s: TENURED_POOL_NAMES){
-				if(pool.getName().equals(s)){
-					//seems that we found the tenured pool
-					//double check, if it MemoryType is HEAP and usageThreshold supported..
+
+			for (String s : TENURED_POOL_NAMES) {
+				if (pool.getName().equals(s)) {
+					// seems that we found the tenured pool
+					// double check, if it MemoryType is HEAP and usageThreshold supported..
 					if (pool.getType() == MemoryType.HEAP && pool.isUsageThresholdSupported()) {
 						return pool;
 					}
@@ -188,7 +188,7 @@ public class HardwareDescriptionFactory {
 		}
 		return null;
 	}
-	
+
 	/**
 	 * Returns the operating system this JVM runs on.
 	 * 
@@ -243,8 +243,8 @@ public class HardwareDescriptionFactory {
 		}
 
 		return false;
-	}	
-	
+	}
+
 	/**
 	 * Returns the size of the physical memory in bytes.
 	 * 
@@ -256,10 +256,9 @@ public class HardwareDescriptionFactory {
 			return getSizeOfPhysicalMemoryForLinux();
 		} else if (isWindows()) {
 			LOG.error("Cannot determine size of physical memory: Support for Windows is not yet implemented");
-		} else if (isMac()){
+		} else if (isMac()) {
 			return getSizeOfPhysicalMemoryForMac();
-		}
-		else {
+		} else {
 			LOG.error("Cannot determine size of physical memory: Unknown operating system");
 		}
 
@@ -312,7 +311,7 @@ public class HardwareDescriptionFactory {
 
 		return -1;
 	}
-	
+
 	/**
 	 * Returns the size of the physical memory in bytes on a Mac OS-based operating system
 	 * 
@@ -342,5 +341,5 @@ public class HardwareDescriptionFactory {
 		}
 		return -1;
 	}
-	
+
 }
