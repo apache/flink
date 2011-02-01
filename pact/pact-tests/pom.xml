@@ -145,7 +145,6 @@
 				<version>2.6</version>
 				<configuration>
 					<excludes>
-						<exclude>**/*WebLogAnalysisITCase.class</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

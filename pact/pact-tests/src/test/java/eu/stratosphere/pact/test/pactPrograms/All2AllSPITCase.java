@@ -106,8 +106,8 @@ public class All2AllSPITCase extends TestBase {
 		compareResultsByLinesInMemory(expected, resultPath);
 
 		// clean up hdfs
-//		getFilesystemProvider().delete(rdfDataPath, true);
-//		getFilesystemProvider().delete(resultPath, true);
+		getFilesystemProvider().delete(rdfDataPath, true);
+		getFilesystemProvider().delete(resultPath, true);
 
 	}
 

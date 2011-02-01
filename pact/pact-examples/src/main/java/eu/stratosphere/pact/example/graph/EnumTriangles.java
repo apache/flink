@@ -298,9 +298,11 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 
 		// check for the correct number of job parameters
 		if (args.length != 3) {
-			return null;
+			throw new IllegalArgumentException(
+				"Must provide three arguments: <parallelism> <edges_input> <result_directory>");
 		}
 
+		// parse job parameters
 		int noSubTasks = Integer.parseInt(args[0]);
 		String edgeInput = args[1];
 		String output = args[2];

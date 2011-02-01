@@ -95,7 +95,7 @@ public class EnumTrianglesITCase extends TestBase {
 
 		// clean up hdfs
 		getFilesystemProvider().delete(edgesPath, true);
-		getFilesystemProvider().delete(resultPath, false);
+		getFilesystemProvider().delete(resultPath, true);
 
 	}
 
