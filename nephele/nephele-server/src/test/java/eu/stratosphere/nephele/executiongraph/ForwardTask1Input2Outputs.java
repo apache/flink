@@ -21,11 +21,13 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.StringRecord;
 
-public class GrepTask1Input1Output extends AbstractTask {
+public class ForwardTask1Input2Outputs extends AbstractTask {
 
 	private RecordReader<StringRecord> input = null;
 
-	private RecordWriter<StringRecord> output = null;
+	private RecordWriter<StringRecord> output1 = null;
+
+	private RecordWriter<StringRecord> output2 = null;
 
 	@Override
 	public void invoke() throws Exception {
@@ -33,14 +35,15 @@ public class GrepTask1Input1Output extends AbstractTask {
 		while (this.input.hasNext()) {
 
 			StringRecord s = input.next();
-			this.output.emit(s);
+			this.output1.emit(s);
+			this.output2.emit(s);
 		}
 	}
 
 	@Override
 	public void registerInputOutput() {
 		this.input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
-
 }

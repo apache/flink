@@ -321,6 +321,19 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	}
 
 	/**
+	 * Removes a finished checkpoint. All files included in the checkpoint are deleted.
+	 */
+	public synchronized void remove() {
+
+		if(!this.isFinished()) {
+			LOG.error("Trying to remove an unfinished checkpoint. Request is ignored.");
+			return;
+		}
+		
+		discardCheckpoint();
+	}
+
+	/**
 	 * Transforms the ephemeral checkpoint into a permanent one. This means all checkpointing data
 	 * which is currently held in main memory is written to disk.
 	 */
