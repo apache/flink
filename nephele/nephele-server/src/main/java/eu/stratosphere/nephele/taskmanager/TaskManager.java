@@ -139,9 +139,9 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private final TaskManagerProfiler profiler;
 
-	private MemoryManager memoryManager;
+	private final MemoryManager memoryManager;
 
-	private IOManager ioManager;
+	private final IOManager ioManager;
 
 	private final HardwareDescription hardwareDescription;
 
@@ -676,7 +676,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the {@link Environment} of the task to be unregistered
 	 */
 	private void unregisterTask(ExecutionVertexID id, Environment environment) {
-
+		
 		// Unregister channels
 		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
 			unregisterOutputChannels(environment.getOutputGate(i));
@@ -696,6 +696,8 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.unregisterExecutionListener(id);
 		}
 
+		//TODO: Unregister from IO and memory manager here
+		
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
@@ -808,12 +810,10 @@ public class TaskManager implements TaskOperationProtocol {
 		// Shut down the memory manager
 		if (this.ioManager != null) {
 			this.ioManager.shutdown();
-			this.ioManager = null;
 		}
 
 		if (this.memoryManager != null) {
 			this.memoryManager.shutdown();
-			this.memoryManager = null;
 		}
 
 		this.isShutDown = true;

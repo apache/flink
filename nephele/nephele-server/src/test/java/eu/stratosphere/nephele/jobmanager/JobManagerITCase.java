@@ -50,7 +50,7 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
  * @author wenjun
  * @author warneke
  */
-public class JobManagerTest {
+public class JobManagerITCase {
 
 	private static JobManagerThread jobManagerThread = null;
 

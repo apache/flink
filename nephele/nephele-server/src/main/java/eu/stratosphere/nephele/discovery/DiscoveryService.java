@@ -136,7 +136,7 @@ public class DiscoveryService implements Runnable {
 	 *         thrown if the discovery service could not be started because
 	 *         of network difficulties
 	 */
-	public static void startDiscoveryService(int ipcPort) throws DiscoveryException {
+	public static synchronized void startDiscoveryService(int ipcPort) throws DiscoveryException {
 
 		if (discoveryService == null) {
 			discoveryService = new DiscoveryService(ipcPort);
@@ -147,7 +147,7 @@ public class DiscoveryService implements Runnable {
 	/**
 	 * Stops the discovery service.
 	 */
-	public static void stopDiscoveryService() {
+	public static synchronized void stopDiscoveryService() {
 
 		if (discoveryService != null) {
 			discoveryService.stopService();

@@ -23,6 +23,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 
 /**
@@ -32,6 +34,53 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  */
 public class CommonTestUtils {
 
+	/**
+	 * Constructs a random filename. The filename is a string of 16 hex characters followed by a <code>.dat</code>
+	 * prefix.
+	 * 
+	 * @return the random filename
+	 */
+	public static String getRandomFilename() {
+
+		final char[] alphabeth = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+		String filename = "";
+		for (int i = 0; i < 16; i++) {
+			filename += alphabeth[(int) (Math.random() * alphabeth.length)];
+		}
+
+		return filename + ".dat";
+	}
+	
+	/**
+	 * Constructs a random directory name. The directory is a string of 16 hex characters
+	 * prefix.
+	 * 
+	 * @return the random directory name
+	 */
+	public static String getRandomDirectoryName() {
+
+		final char[] alphabeth = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+		String filename = "";
+		for (int i = 0; i < 16; i++) {
+			filename += alphabeth[(int) (Math.random() * alphabeth.length)];
+		}
+
+		return filename;
+	}	
+
+	/**
+	 * Reads the path to the directory for temporary files from the configuration and returns it.
+	 * 
+	 * @return the path to the directory for temporary files
+	 */
+	public static String getTempDir() {
+
+		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+	}
+	
 	/**
 	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent
 	 * deserialization.
