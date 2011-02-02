@@ -676,7 +676,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the {@link Environment} of the task to be unregistered
 	 */
 	private void unregisterTask(ExecutionVertexID id, Environment environment) {
-
+		
 		// Unregister channels
 		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
 			unregisterOutputChannels(environment.getOutputGate(i));
@@ -696,6 +696,8 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.unregisterExecutionListener(id);
 		}
 
+		//TODO: Unregister from IO and memory manager here
+		
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
