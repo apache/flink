@@ -230,4 +230,10 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
+	public T lastReturned() {
+		// TODO implement
+		throw new UnsupportedOperationException();
+	}
+
 }

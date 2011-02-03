@@ -209,4 +209,10 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	}
 
+	@Override
+	public T lastReturned() {
+		// TODO implement
+		throw new UnsupportedOperationException();
+	}
+
 }
