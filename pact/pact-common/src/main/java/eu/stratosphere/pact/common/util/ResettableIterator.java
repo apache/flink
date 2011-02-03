@@ -24,11 +24,4 @@ public interface ResettableIterator<E> extends Iterator<E> {
 	 */
 	public void reset();
 	
-	/**
-	 * Return the last returned element again.
-	 * 
-	 * @return The last returned element.
-	 */
-	public E lastReturned();
-
 }

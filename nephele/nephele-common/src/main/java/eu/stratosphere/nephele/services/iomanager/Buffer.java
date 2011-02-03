@@ -38,6 +38,11 @@ abstract public class Buffer extends MemoryBacked {
 	 * Position in the underlying memory.
 	 */
 	protected int position;
+	
+	/**
+	 * Position in the underlying memory for repeated read.
+	 */
+	protected int repeatPosition;
 
 	/**
 	 * Limit of the underlying memory.
@@ -74,7 +79,7 @@ abstract public class Buffer extends MemoryBacked {
 	public final int getPosition() {
 		return position;
 	}
-
+	
 	/**
 	 * Binds the IO buffer to a {@link MemorySegment} and resets is with the
 	 * limit set to the memory segment's {@code size}. If the buffer is already
@@ -132,7 +137,7 @@ abstract public class Buffer extends MemoryBacked {
 		 * 
 		 * @param object
 		 *        to read in from the buffer
-		 * @return a boolean value indicating whether the read was successfull
+		 * @return a boolean value indicating whether the read was successful
 		 * @throws UnboundMemoryBackedException
 		 */
 		public boolean read(IOReadableWritable object) {
@@ -145,6 +150,38 @@ abstract public class Buffer extends MemoryBacked {
 					return false;
 				}
 
+				memory.inputView.skip(4); // skip serialized length
+				object.read(memory.inputView); // read object
+				repeatPosition = position; // update position for repeated read
+				position = memory.inputView.getPosition(); // update current read position
+				return position <= limit; // ok if read limit was not exceeded while reading
+			} catch (IOException e) {
+				return false;
+			}
+		}
+		
+		/**
+		 * Reads the most recently read {@code IOReadableWritable} from the underlying memory
+		 * segment again into the provided {@link IOReadableWritable} object by
+		 * calling it's {@link IOReadableWritable#read(DataInput)} operation 
+		 * with the backing memory's {@link DataInputView}.
+		 * 
+		 * @param object
+		 *          to read in from the buffer
+		 * @return a boolean value indicating whether the read was successful
+		 * @throws UnboundMemoryBackedException
+		 */
+		public boolean repeatRead(IOReadableWritable object) throws UnboundMemoryBackedException {
+			if (!isBound()) {
+				throw new UnboundMemoryBackedException();
+			}
+
+			try {
+				if (repeatPosition >= limit) {
+					return false;
+				}
+				memory.inputView.setPosition(repeatPosition);
+				
 				memory.inputView.skip(4); // skip serialized length
 				object.read(memory.inputView); // read object
 				position = memory.inputView.getPosition(); // update current read position

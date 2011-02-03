@@ -15,6 +15,10 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -40,6 +44,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.util.LastRepeatableIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
@@ -395,7 +400,7 @@ public class CrossTask extends AbstractTask {
 						stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(),
 							output);
 					}
-
+					innerPair = innerInput.repeatLast();
 				}
 				// reset the memory block iterator to the beginning of the
 				// current memory block (outer side)
@@ -447,8 +452,17 @@ public class CrossTask extends AbstractTask {
 
 		// obtain streaming iterator for outer side
 		// streaming is achieved by simply wrapping the input reader of the outer side
-		Iterator<KeyValuePair<Key, Value>> outerInput = new Iterator<KeyValuePair<Key, Value>>() {
+		LastRepeatableIterator<KeyValuePair<Key, Value>> outerInput = new LastRepeatableIterator<KeyValuePair<Key, Value>>() {
 
+			byte[] lastSerialized = new byte[1024];
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			DataOutputStream dos = new DataOutputStream(baos);
+			ByteArrayInputStream bais = new ByteArrayInputStream(lastSerialized);
+			DataInputStream dis = new DataInputStream(bais);
+			
+			KeyValuePairDeserializer<Key, Value> deserializer = 
+				new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), stub.getSecondInValueType());
+			
 			@Override
 			public boolean hasNext() {
 				return outerReader.hasNext();
@@ -457,7 +471,26 @@ public class CrossTask extends AbstractTask {
 			@Override
 			public KeyValuePair<Key, Value> next() {
 				try {
-					return outerReader.next();
+					KeyValuePair<Key,Value> pair = outerReader.next();
+					
+					// serialize pair
+					pair.write(dos);
+					dos.flush();
+					baos.flush();
+					if(baos.size() <= lastSerialized.length) {
+						// copy
+						System.arraycopy(baos.toByteArray(), 0, lastSerialized, 0, baos.size());
+					} else {
+						// allocate larger array
+						lastSerialized = new byte[baos.size()*2];
+						System.arraycopy(baos.toByteArray(), 0, lastSerialized, 0, baos.size());
+						// create new input streams
+						bais = new ByteArrayInputStream(lastSerialized);
+						dis = new DataInputStream(bais);
+					}
+					baos.reset();					
+					
+					return pair;
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				} catch (InterruptedException e) {
@@ -469,6 +502,21 @@ public class CrossTask extends AbstractTask {
 			public void remove() {
 				throw new UnsupportedOperationException();
 			}
+
+			@Override
+			public KeyValuePair<Key, Value> repeatLast() {
+				KeyValuePair<Key,Value> pair = deserializer.getInstance();
+				
+				try {
+					pair.read(dis);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				
+				bais.reset();
+				return pair;
+			}
+			
 		};
 
 		// obtain SpillingResettableIterator for inner side
@@ -520,6 +568,8 @@ public class CrossTask extends AbstractTask {
 					stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(),
 						output);
 				}
+				
+				outerPair = outerInput.repeatLast();
 			}
 			// reset spilling resettable iterator of inner side
 			innerInput.reset();

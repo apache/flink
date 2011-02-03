@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.util.LastRepeatableIterator;
 import eu.stratosphere.pact.common.util.ResettableIterator;
 
 /**
@@ -42,7 +43,7 @@ import eu.stratosphere.pact.common.util.ResettableIterator;
  * @author mheimel
  * @param <T>
  */
-public class SpillingResettableIterator<T extends Record> implements ResettableIterator<T> {
+public class SpillingResettableIterator<T extends Record> implements ResettableIterator<T>, LastRepeatableIterator<T> {
 
 	private static final Log LOG = LogFactory.getLog(SpillingResettableIterator.class);
 
@@ -63,9 +64,9 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	protected ChannelReader ioReader;
 
 	protected Channel.ID bufferID;
-
+	
 	protected T next;
-
+	
 	protected RecordDeserializer<T> deserializer;
 
 	protected int currentBuffer;
@@ -146,6 +147,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			writer.close();
 			// now open a reader on the channel
 			ioReader = ioManager.createChannelReader(bufferID, memorySegments);
+			
 			LOG.debug("Iterator opened, serialized " + count + " objects to disk.");
 		} else {
 			usedBuffers = currentBuffer + 1;
@@ -191,17 +193,21 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			if (fitsIntoMem) {
 				if (currentBuffer == usedBuffers)
 					return false;
+				
+				// try to read data
 				if (!inputBuffers.get(currentBuffer).read(next)) {
 					// switch to next buffer
 					inputBuffers.get(currentBuffer).reset(); // reset the old buffer
 					currentBuffer++;
 					if (currentBuffer == usedBuffers) // we are depleted
 						return false;
+					
 					// read the next element from the new buffer
 					inputBuffers.get(currentBuffer).read(next);
 				}
 				return true;
 			} else {
+				
 				return ioReader.read(next);
 			}
 		} else {
@@ -211,6 +217,11 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	@Override
 	public T next() {
+		if(next == null) {
+			if(!hasNext()) {
+				return null;
+			}
+		}
 		++count;
 		final T out = next;
 		next = null;
@@ -231,9 +242,18 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	}
 
 	@Override
-	public T lastReturned() {
-		// TODO implement
-		throw new UnsupportedOperationException();
+	public T repeatLast() {
+
+		T lastReturned = null;
+		lastReturned = deserializer.getInstance();
+		
+		if(fitsIntoMem) {
+			inputBuffers.get(currentBuffer).repeatRead(lastReturned);
+		} else {
+			ioReader.repeatRead(lastReturned);
+		}
+		
+		return lastReturned;
 	}
 
 }

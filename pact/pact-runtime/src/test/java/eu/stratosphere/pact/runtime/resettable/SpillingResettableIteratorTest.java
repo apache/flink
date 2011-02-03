@@ -259,10 +259,10 @@ public class SpillingResettableIteratorTest {
 	}
 	
 	/**
-	 * Tests whether lastReturned() returns the latest returned element. 
+	 * Tests whether lastReturned() returns the latest returned element read from spilled file. 
 	 */
 	@Test
-	public void testLastReturned() throws ServiceException, InterruptedException {
+	public void testRepeatLast() throws ServiceException, InterruptedException {
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
@@ -282,7 +282,45 @@ public class SpillingResettableIteratorTest {
 		while(iterator.hasNext()) {
 			
 			record1 = iterator.next();
-			record2 = iterator.lastReturned();
+			record2 = iterator.repeatLast();
+			compare = objects.get(cnt);
+			
+			Assert.assertTrue("Record read with next() does not equal expected value",record1.equals(compare));
+			Assert.assertTrue("Record read with next() does not equal record read with lastReturned()",record1.equals(record2));
+			Assert.assertTrue("Records read with next() and lastReturned have same reference",record1 != record2);
+			
+			cnt++;
+		}
+		
+		Assert.assertTrue(cnt+" elements read from iterator, but "+NUMTESTRECORDS+" expected",cnt == NUMTESTRECORDS);
+		
+	}
+	
+	/**
+	 * Tests whether lastReturned() returns the latest returned element read from memory. 
+	 */
+	@Test
+	public void testRepeatLastInMemory() throws ServiceException, InterruptedException {
+		// create the reader
+		reader = new CollectionReader<PactInteger>(objects);
+		// create the resettable Iterator
+		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
+			reader, 10000, deserializer);
+		// open the iterator
+		try {
+			iterator.open();
+		} catch (IOException e) {
+			Assert.fail("Could not open resettable iterator:" + e.getMessage());
+		}
+		
+		PactInteger record1;
+		PactInteger record2;
+		PactInteger compare;
+		int cnt = 0;
+		while(iterator.hasNext()) {
+			
+			record1 = iterator.next();
+			record2 = iterator.repeatLast();
 			compare = objects.get(cnt);
 			
 			Assert.assertTrue("Record read with next() does not equal expected value",record1.equals(compare));
