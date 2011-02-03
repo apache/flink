@@ -50,7 +50,7 @@ import eu.stratosphere.pact.test.util.minicluster.NepheleMiniCluster;
 /**
  * @author Erik Nijkamp
  */
-public class TestNepheleMiniCluster extends TestCase {
+public class NepheleMiniClusterITCase extends TestCase {
 	private HDFSProvider hdfs;
 
 	private NepheleMiniCluster nephele;
