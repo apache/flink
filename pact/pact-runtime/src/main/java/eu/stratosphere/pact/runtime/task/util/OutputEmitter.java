@@ -55,32 +55,44 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 		this.salt = salt;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int[] selectChannels(KeyValuePair<K, V> pair, int numberOfChannels) {
-		switch (strategy) {
+	public void selectChannels(KeyValuePair<K, V> record, boolean[] channelFlags) {
+		
+		switch(strategy) {
 		case BROADCAST:
-			return broadcast(numberOfChannels);
+			broadcast(channelFlags);
+			break;
 		case PARTITION_HASH:
-			return partition(pair, numberOfChannels);
+			partition(record, channelFlags);
+			break;
 		default:
-			return robin(numberOfChannels);
+			robin(channelFlags);
+			break;
+		}
+		
+	}
+	
+	private void robin(boolean[] channelFlags) {
+		
+		nextChannelToSendTo = (nextChannelToSendTo + 1) % channelFlags.length;
+		channelFlags[nextChannelToSendTo] = true;
+	}
+
+	private void broadcast(boolean[] channelFlags) {
+		
+		final int len = channelFlags.length;
+		for(int i = 0; i < len; ++i) {
+			channelFlags[i] = true;
 		}
 	}
 
-	private int[] robin(int numberOfChannels) {
-		nextChannelToSendTo = (nextChannelToSendTo + 1) % numberOfChannels;
-		return new int[] { nextChannelToSendTo };
-	}
-
-	private int[] broadcast(int numberOfChannels) {
-		int[] channels = new int[numberOfChannels];
-		for (int i = 0; i < numberOfChannels; i++)
-			channels[i] = i;
-		return channels;
-	}
-
-	private int[] partition(KeyValuePair<K, V> pair, int numberOfChannels) {
-		return new int[] { getPartition(pair.getKey(), numberOfChannels) };
+	private void partition(KeyValuePair<K, V> pair, boolean[] channelFlags) {
+		
+		final int partition = getPartition(pair.getKey(), channelFlags.length);
+		channelFlags[partition] = true;
 	}
 
 	private int getPartition(K key, int numberOfChannels) {
@@ -102,5 +114,4 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	public void write(DataOutput out) throws IOException {
 		out.writeUTF(strategy.name());
 	}
-
 }
