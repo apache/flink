@@ -35,8 +35,8 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
 /**
- * This class tests the functionality of the Local File System class. File/directory access, creation,
- * deletion, read, write.
+ * This class tests the functionality of the {@link LocalFileSystem} class in its components. In particular,
+ * file/directory access, creation, deletion, read, write is tested.
  * 
  * @author casp
  */
@@ -44,7 +44,7 @@ import eu.stratosphere.nephele.util.CommonTestUtils;
 public class LocalFileSystemTest {
 
 	/**
-	 * This test tests the functionality of the Local File System class.
+	 * This test checks the functionality of the {@link LocalFileSystem} class.
 	 */
 	@Test
 	public void testLocalFilesystem() {
@@ -69,9 +69,9 @@ public class LocalFileSystemTest {
 		final Path pathtotestfile2 = new Path(testfile2.toURI().getPath());
 
 		try {
-			LocalFileSystem lfs = new LocalFileSystem();
+			final LocalFileSystem lfs = new LocalFileSystem();
 
-			Path pathtotmpdir = new Path(tempdir.toURI().getPath());
+			final Path pathtotmpdir = new Path(tempdir.toURI().getPath());
 
 			/*
 			 * check that lfs can see/create/delete/read directories
@@ -83,13 +83,13 @@ public class LocalFileSystemTest {
 
 			// check that local file system recognizes file..
 			assertTrue(lfs.exists(pathtotmpdir));
-			FileStatus localstatus1 = lfs.getFileStatus(pathtotmpdir);
+			final FileStatus localstatus1 = lfs.getFileStatus(pathtotmpdir);
 
 			// check that lfs recognizes directory..
 			assertTrue(localstatus1.isDir());
 
 			// get status for files in this (empty) directory..
-			FileStatus[] statusforfiles = lfs.listStatus(pathtotmpdir);
+			final FileStatus[] statusforfiles = lfs.listStatus(pathtotmpdir);
 
 			// no files in there.. hence, must be zero
 			assertTrue(statusforfiles.length == 0);
@@ -112,7 +112,7 @@ public class LocalFileSystemTest {
 			 */
 
 			// create files.. one ""natively"", one using lfs
-			FSDataOutputStream lfsoutput1 = lfs.create(pathtotestfile1, false);
+			final FSDataOutputStream lfsoutput1 = lfs.create(pathtotestfile1, false);
 			testfile2.createNewFile();
 
 			// does lfs create files? does lfs recognize created files?
@@ -126,7 +126,7 @@ public class LocalFileSystemTest {
 
 			assertEquals(testfile1.length(), 5l);
 
-			FileInputStream fisfile1 = new FileInputStream(testfile1);
+			final FileInputStream fisfile1 = new FileInputStream(testfile1);
 			byte[] testbytestest = new byte[5];
 			fisfile1.read(testbytestest);
 			fisfile1.close();
@@ -142,12 +142,12 @@ public class LocalFileSystemTest {
 			assertEquals(lfs.listStatus(pathtotestfile1)[0].getLen(), testfile1.length());
 
 			// test that lfs can read files properly
-			FileOutputStream fosfile2 = new FileOutputStream(testfile2);
+			final FileOutputStream fosfile2 = new FileOutputStream(testfile2);
 			fosfile2.write(testbytes);
 			fosfile2.close();
 
 			testbytestest = new byte[5];
-			FSDataInputStream lfsinput2 = lfs.open(pathtotestfile2);
+			final FSDataInputStream lfsinput2 = lfs.open(pathtotestfile2);
 			assertEquals(lfsinput2.read(testbytestest), 5);
 			lfsinput2.close();
 			assertTrue(Arrays.equals(testbytes, testbytestest));
@@ -170,9 +170,7 @@ public class LocalFileSystemTest {
 			assertTrue(!tempdir.exists());
 
 		} catch (IOException e) {
-			e.printStackTrace();
-			fail(e.toString());
-
+			fail(e.getMessage());
 		} finally {
 			// clean up!
 
