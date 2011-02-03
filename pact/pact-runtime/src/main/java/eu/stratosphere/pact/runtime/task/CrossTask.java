@@ -15,12 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
@@ -50,6 +45,7 @@ import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -454,11 +450,7 @@ public class CrossTask extends AbstractTask {
 		// streaming is achieved by simply wrapping the input reader of the outer side
 		LastRepeatableIterator<KeyValuePair<Key, Value>> outerInput = new LastRepeatableIterator<KeyValuePair<Key, Value>>() {
 
-			byte[] lastSerialized = new byte[1024];
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			DataOutputStream dos = new DataOutputStream(baos);
-			ByteArrayInputStream bais = new ByteArrayInputStream(lastSerialized);
-			DataInputStream dis = new DataInputStream(bais);
+			SerializationCopier<KeyValuePair<Key, Value>> copier = new SerializationCopier<KeyValuePair<Key,Value>>();
 			
 			KeyValuePairDeserializer<Key, Value> deserializer = 
 				new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), stub.getSecondInValueType());
@@ -474,21 +466,7 @@ public class CrossTask extends AbstractTask {
 					KeyValuePair<Key,Value> pair = outerReader.next();
 					
 					// serialize pair
-					pair.write(dos);
-					dos.flush();
-					baos.flush();
-					if(baos.size() <= lastSerialized.length) {
-						// copy
-						System.arraycopy(baos.toByteArray(), 0, lastSerialized, 0, baos.size());
-					} else {
-						// allocate larger array
-						lastSerialized = new byte[baos.size()*2];
-						System.arraycopy(baos.toByteArray(), 0, lastSerialized, 0, baos.size());
-						// create new input streams
-						bais = new ByteArrayInputStream(lastSerialized);
-						dis = new DataInputStream(bais);
-					}
-					baos.reset();					
+					copier.setCopy(pair);
 					
 					return pair;
 				} catch (IOException e) {
@@ -506,14 +484,8 @@ public class CrossTask extends AbstractTask {
 			@Override
 			public KeyValuePair<Key, Value> repeatLast() {
 				KeyValuePair<Key,Value> pair = deserializer.getInstance();
+				copier.getCopy(pair);
 				
-				try {
-					pair.read(dis);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				
-				bais.reset();
 				return pair;
 			}
 			
