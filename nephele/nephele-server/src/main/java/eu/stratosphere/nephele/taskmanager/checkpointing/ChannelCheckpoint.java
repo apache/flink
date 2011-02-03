@@ -152,8 +152,12 @@ public class ChannelCheckpoint {
 
 		// Remove any files that may have been written
 		final File file = new File(getFilename());
-		if(file.exists()) {
-			file.delete();
+		if (file.exists()) {
+			try {
+				file.delete();
+			} catch (SecurityException e) {
+				LOG.error(e);
+			}
 		}
 	}
 

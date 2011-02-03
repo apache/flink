@@ -399,6 +399,7 @@
 				</configuration>
 			</plugin>
 
+
 			<!--
 				<plugin> check whether license information is included in files, can
 				be used to insert headers as well
@@ -432,13 +433,6 @@
 			-->
 		</plugins>
 	</build>
-
-	<modules>
-		<module>nephele</module>
-		<module>pact</module>
-		<module>build-tools</module>
-		<module>stratosphere-dist</module>
-	</modules>
 
 	<profiles>
 		<!--
@@ -486,4 +480,12 @@
 			</build>
 		</profile>
 	</profiles>
+
+
+	<modules>
+		<module>nephele</module>
+		<module>pact</module>
+		<module>build-tools</module>
+		<module>stratosphere-dist</module>
+	</modules>
 </project>

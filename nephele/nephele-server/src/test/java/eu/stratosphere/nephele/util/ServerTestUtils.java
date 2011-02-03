@@ -26,7 +26,7 @@ import java.util.jar.Manifest;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.jobmanager.JobManagerTest;
+import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
 
 /**
  * This class contains a selection of utility functions which are used for testing the nephele-server module.
@@ -123,10 +123,10 @@ public class ServerTestUtils {
 		}
 
 		final JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath), new Manifest());
-		final String classPath = JobManagerTest.class.getResource("").getPath() + className + ".class";
+		final String classPath = JobManagerITCase.class.getResource("").getPath() + className + ".class";
 		final File classFile = new File(classPath);
 
-		String packageName = JobManagerTest.class.getPackage().getName();
+		String packageName = JobManagerITCase.class.getPackage().getName();
 		packageName = packageName.replaceAll("\\.", "\\/");
 		jos.putNextEntry(new JarEntry("/" + packageName + "/" + className + ".class"));
 

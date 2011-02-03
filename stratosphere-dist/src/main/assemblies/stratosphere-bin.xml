@@ -23,7 +23,7 @@
             <useProjectAttachments>false</useProjectAttachments>
 
             <excludes>
-              <exclude>*:*examples</exclude>
+              <exclude>**/*examples*.jar</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>

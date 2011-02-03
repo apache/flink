@@ -355,6 +355,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			return;
 		}
 
-		this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
+		//TODO: Uncomment this when feature is full implemented
+		//this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 	}
 }

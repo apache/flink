@@ -17,6 +17,8 @@ package eu.stratosphere.pact.example.relational;
 
 import java.util.Iterator;
 
+import org.apache.log4j.Logger;
+
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -59,6 +61,7 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
+	private static Logger LOGGER = Logger.getLogger(TPCHQuery3.class);
 
 	/**
 	 * Concatenation of Integer and String. Used for concatenation of keys
@@ -109,16 +112,26 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 	 *  Value: 0:ORDERKEY, 1:SHIPPRIORITY
 		 */
 		@Override
-		public void map(PactInteger oKey, Tuple value, Collector<PactInteger, Tuple> out) {
+		public void map(final PactInteger oKey, final Tuple value, final Collector<PactInteger, Tuple> out) {
 
-			if ((Integer.parseInt(value.getStringValueAt(4).substring(0, 4)) > YEAR_FILTER)
-				&& (value.getStringValueAt(2).equals("F")) && (value.getStringValueAt(5).startsWith(PRIO_FILTER))) {
+			try {
+				if (Integer.parseInt(value.getStringValueAt(4).substring(0, 4)) > this.YEAR_FILTER
+					&& value.getStringValueAt(2).equals("F") && value.getStringValueAt(5).startsWith(this.PRIO_FILTER)) {
 
-				// project
-				value.project(129);
+					// project
+					value.project(129);
 
-				out.collect(oKey, value);
+					out.collect(oKey, value);
 
+					// Output Schema:
+					// KEY: ORDERKEY
+					// VALUE: 0:ORDERKEY, 1:SHIPPRIORITY
+
+				}
+			} catch (final StringIndexOutOfBoundsException e) {
+				LOGGER.error(e);
+			} catch (final Exception ex) {
+				LOGGER.error(ex);
 			}
 		}
 	}
@@ -246,18 +259,21 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) {
+	public Plan getPlan(final String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 4) {
-			throw new IllegalArgumentException(
-				"Must provide four arguments: <parallelism> <orders_input> <lineitem_input> <result_directory>");
+		int degreeOfParallelism = 1;
+		String ordersPath = "";
+		String lineitemsPath = "";
+		String resultPath = "";
+
+		if (args.length != 4)
+			LOGGER.warn("number of arguments do not match!");
+		else {
+			degreeOfParallelism = Integer.parseInt(args[0]);
+			ordersPath = args[1];
+			lineitemsPath = args[2];
+			resultPath = args[3];
 		}
-
-		int degreeOfParallelism = Integer.parseInt(args[0]);
-		String ordersPath = args[1];
-		String lineitemsPath = args[2];
-		String resultPath = args[3];
 
 		// create DataSourceContract for Orders input
 		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
