@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.types;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class FileRecord implements Record {
 
@@ -27,18 +28,14 @@ public class FileRecord implements Record {
 
 	private byte[] bytes;
 
-	private int length;
-
 	public FileRecord() {
-		bytes = EMPTY_BYTES;
+		this.bytes = EMPTY_BYTES;
 		fileName = "empty";
-		this.length = 0;
 	}
 
 	public FileRecord(String fileName) {
-		bytes = EMPTY_BYTES;
+		this.bytes = EMPTY_BYTES;
 		this.fileName = fileName;
-		this.length = 0;
 	}
 
 	public void setFileName(String fileName) {
@@ -54,7 +51,7 @@ public class FileRecord implements Record {
 	}
 
 	/**
-	 * Append a range of bytes to the end of the given data
+	 * Append a range of bytes to the end of the given data.
 	 * 
 	 * @param data
 	 *        the data to copy from
@@ -64,37 +61,68 @@ public class FileRecord implements Record {
 	 *        the number of bytes to append
 	 */
 	public void append(byte[] data, int start, int len) {
-		setCapacity(length + len, true);
-		System.arraycopy(data, start, bytes, length, len);
-		this.length += len;
+		final int oldLength = this.bytes.length;
+		setCapacity(this.bytes.length + len, true);
+		System.arraycopy(data, start, this.bytes, oldLength, len);
 	}
 
 	private void setCapacity(int len, boolean keepData) {
 		if (this.bytes == null || this.bytes.length < len) {
 			final byte[] newBytes = new byte[len];
 			if (this.bytes != null && keepData) {
-				System.arraycopy(this.bytes, 0, newBytes, 0, this.length);
+				System.arraycopy(this.bytes, 0, newBytes, 0, this.bytes.length);
 			}
 			this.bytes = newBytes;
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		this.fileName = StringRecord.readString(in);
 
 		final int newLength = in.readInt();
-		setCapacity(newLength, false);
+		this.bytes = new byte[newLength];
 		in.readFully(this.bytes, 0, newLength);
-		this.length = newLength;
-
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		StringRecord.writeString(out, fileName);
-		out.writeInt(this.length);
-		out.write(this.bytes, 0, this.length);
+		out.writeInt(this.bytes.length);
+		out.write(this.bytes, 0, this.bytes.length);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof FileRecord)) {
+			return false;
+		}
+
+		final FileRecord fr = (FileRecord) obj;
+
+		if (this.bytes.length != fr.bytes.length) {
+			return false;
+		}
+
+		return Arrays.equals(this.bytes, fr.bytes);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return (int) ((11L * this.bytes.length) % Integer.MAX_VALUE);
+	}
 }
