@@ -80,9 +80,9 @@ public class TestPlanTestCase {
 	@After
 	public void closeClosables() {
 		try {
-			System.err.println("before cleanup: " + MockTaskManager.INSTANCE.getMemoryManager().toString());
+//			System.err.println("before cleanup: " + MockTaskManager.INSTANCE.getMemoryManager().toString());
 			CLOSABLE_MANAGER.close();
-			System.err.println("after cleanup: " + MockTaskManager.INSTANCE.getMemoryManager().toString());
+//			System.err.println("after cleanup: " + MockTaskManager.INSTANCE.getMemoryManager().toString());
 		} catch (IOException e) {
 			Assert.fail(e.toString());
 		}
