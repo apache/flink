@@ -90,6 +90,7 @@ class ClusterInstance extends AbstractInstance {
 	 * @return true if the host has received a heat-beat before the <code>cleanUpInterval</code> duration has expired.
 	 */
 	synchronized boolean isStillAlive(long cleanUpInterval) {
+
 		if (this.lastReceivedHeartBeat + cleanUpInterval < System.currentTimeMillis()) {
 			return false;
 		}

@@ -23,25 +23,56 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
 /**
- * Through this interface it is possible to access profiling data about
- * the utilization of input gates.
+ * Input gate profiling events are a special subclass of vertex profiling events. They contain profiling information
+ * which refer to particular input gates of a task.
+ * <p>
+ * This class is not thread-safe.
  * 
  * @author stanik
  */
-public class InputGateProfilingEvent extends VertexProfilingEvent {
+public final class InputGateProfilingEvent extends VertexProfilingEvent {
 
+	/**
+	 * The index of the input gate at the corresponding management vertex.
+	 */
 	private int gateIndex;
 
+	/**
+	 * Stores how often the input gate had no records available during the last time period.
+	 */
 	private int noRecordsAvailableCounter;
 
-	public InputGateProfilingEvent(int gateIndex, int noRecordsAvailableCounter, ManagementVertexID vertexID,
-			int profilingInterval, JobID jobID, long timestamp, long profilingTimestamp) {
+	/**
+	 * Constructs a new input gate profiling event.
+	 * 
+	 * @param gateIndex
+	 *        the index of the input gate at the corresponding management vertex
+	 * @param noRecordsAvailableCounter
+	 *        indicates how often the input gate had no records available during the last time period
+	 * @param vertexID
+	 *        the ID of the management vertex this event refers to
+	 * @param profilingInterval
+	 *        the interval of time this profiling event covers
+	 * @param jobID
+	 *        the ID of the job this event refers to
+	 * @param timestamp
+	 *        the time stamp of the event
+	 * @param profilingTimestamp
+	 *        the time stamp of the profiling data
+	 */
+	public InputGateProfilingEvent(final int gateIndex, final int noRecordsAvailableCounter,
+			final ManagementVertexID vertexID, final int profilingInterval, final JobID jobID, final long timestamp,
+			final long profilingTimestamp) {
+
 		super(vertexID, profilingInterval, jobID, timestamp, profilingTimestamp);
 
 		this.gateIndex = gateIndex;
 		this.noRecordsAvailableCounter = noRecordsAvailableCounter;
 	}
 
+	/**
+	 * Default constructor for the serialization/deserialization process. Should not be called for other purposes.
+	 */
 	public InputGateProfilingEvent() {
 		super();
 	}
@@ -70,7 +101,7 @@ public class InputGateProfilingEvent extends VertexProfilingEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 
 		this.gateIndex = in.readInt();
@@ -81,7 +112,7 @@ public class InputGateProfilingEvent extends VertexProfilingEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		out.writeInt(this.gateIndex);
@@ -92,7 +123,7 @@ public class InputGateProfilingEvent extends VertexProfilingEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!super.equals(obj)) {
 			return false;
@@ -113,5 +144,14 @@ public class InputGateProfilingEvent extends VertexProfilingEvent {
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return super.hashCode();
 	}
 }

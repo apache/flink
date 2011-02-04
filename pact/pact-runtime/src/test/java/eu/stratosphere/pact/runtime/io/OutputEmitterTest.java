@@ -33,12 +33,23 @@ public class OutputEmitterTest extends TestCase {
 		OutputEmitter<PactInteger, PactInteger> oe = new OutputEmitter<PactInteger, PactInteger>(ShipStrategy.PARTITION_HASH);
 
 		int[] hit = new int[100];
+		boolean[] channelFlags = new boolean[100];
 
-		for (int i = 0; i < 1000000; i++) {
+		for(int i = 0; i < 100; ++i) {
+			hit[i] = 0;
+			channelFlags[i] = false;
+		}
+		
+		for (int i = 0; i < 1000000; ++i) {
 			PactInteger k = new PactInteger(i);
 
-			hit[oe.selectChannels(new KeyValuePair<PactInteger, PactInteger>(k, k), hit.length)[0]]++;
-
+			oe.selectChannels(new KeyValuePair<PactInteger, PactInteger>(k, k), channelFlags);
+			for(int j = 0; j < channelFlags.length; ++j) {
+				if(channelFlags[j]) {
+					hit[j]++;
+					channelFlags[j] = false;
+				}
+			}
 		}
 
 		for (int i = 0; i < hit.length; i++) {
@@ -48,12 +59,23 @@ public class OutputEmitterTest extends TestCase {
 		OutputEmitter<PactString, PactString> oes = new OutputEmitter<PactString, PactString>(ShipStrategy.PARTITION_HASH);
 
 		hit = new int[10];
+		channelFlags = new boolean[10];
 
+		for(int i = 0; i < 10; ++i) {
+			hit[i] = 0;
+			channelFlags[i] = false;
+		}
+		
 		for (int i = 0; i < 1000; i++) {
 			PactString k = new PactString(i + "");
 
-			hit[oes.selectChannels(new KeyValuePair<PactString, PactString>(k, k), hit.length)[0]]++;
-
+			oes.selectChannels(new KeyValuePair<PactString, PactString>(k, k), channelFlags);
+			for(int j = 0; j < channelFlags.length; ++j) {
+				if(channelFlags[j]) {
+					hit[j]++;
+					channelFlags[j] = false;
+				}
+			}
 		}
 
 		for (int i = 0; i < hit.length; i++) {

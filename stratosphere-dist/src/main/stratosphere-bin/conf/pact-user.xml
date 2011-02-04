@@ -25,7 +25,7 @@
 	      is explicitly specified. -->
 	<property>
 		<key>pact.parallelization.degree</key>
-		<value>2</value>
+		<value>-1</value>
 	</property>
 	
 	<!-- The default number of parallel instances of the user function that are assigned to
@@ -36,22 +36,15 @@
 	</property>
 
 	<!-- An optional hard limit in the number of machines to use. A program will never use
-	     more than the here specified number of machines. Set to '-1', if no such limit
-	     should be imposed.
+	     more than the here specified number of machines. If set to '-1', the limit is set
+	     by the maximal number of instances available in the cluster.
+	     
 	     If this value is set, the actual number of machines used for certain tasks may be
 	     even lower than this value, due to scheduling constraints. -->	
 	<property>
 		<key>pact.parallelization.maxmachines</key>
-		<value>1</value>
+		<value>-1</value>
 	</property>
-
-	<!-- The default instance type to be used to run a single parallel instance of the
-	     user function on. -->	
-	<property>
-		<key>pact.parallelization.default-instance-type</key>
-		<value>standard,2,1,300,10,0</value>
-	</property>
-	
 	
 	<!--  ========================================================================
 	                                    Web Frontend

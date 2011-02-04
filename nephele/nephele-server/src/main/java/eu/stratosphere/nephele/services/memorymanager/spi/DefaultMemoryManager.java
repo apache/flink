@@ -57,6 +57,9 @@ public class DefaultMemoryManager implements MemoryManager {
 	 */
 	private static final Log LOG = LogFactory.getLog(DefaultMemoryManager.class);
 
+	/**
+	 * The minimal amount of memory that has to be dedicated to the memory manager.
+	 */
 	private static final long MIN_MEMORY_SIZE = 32 * 1024 * 1024;
 
 	/**

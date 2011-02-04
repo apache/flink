@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.example.compression;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -79,6 +80,8 @@ public class CompressionTest {
 			jobClient.submitJobAndWait();
 
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (JobExecutionException e) {
 			e.printStackTrace();
 		}
 	}

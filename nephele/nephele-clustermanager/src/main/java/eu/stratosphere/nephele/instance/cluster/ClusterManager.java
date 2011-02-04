@@ -15,8 +15,12 @@
 
 package eu.stratosphere.nephele.instance.cluster;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,34 +52,31 @@ import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableArrayList;
+import eu.stratosphere.nephele.util.SerializableHashMap;
 
 /**
  * Instance Manager for a static cluster.
  * <p>
  * The cluster manager can handle heterogeneous instances (compute nodes). Each instance type used in the cluster must
- * be described in the configuration. The configuration must include the number of different instance types as well as
- * description of the hardware profile of each instance type.
+ * be described in the configuration.
  * <p>
  * This is a sample configuration: <code>
- * # number of instance types defined in this cluster
- * clustermgr.nrtypes = 5 
- * 
  * # definition of instances in format
  * # instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour
- * clustermgr.instancetype.1 = m1.small,2,1,2048,10,10
- * clustermgr.instancetype.2 = c1.medium,2,1,2048,10,10
- * clustermgr.instancetype.3 = m1.large,4,2,2048,10,10
- * clustermgr.instancetype.4 = m1.xlarge,8,4,8192,20,20
- * clustermgr.instancetype.5 = c1.xlarge,8,4,16384,20,40
+ * instancemanager.cluster.type.1 = m1.small,2,1,2048,10,10
+ * instancemanager.cluster.type. = c1.medium,2,1,2048,10,10
+ * instancemanager.cluster.type. = m1.large,4,2,2048,10,10
+ * instancemanager.cluster.type. = m1.xlarge,8,4,8192,20,20
+ * instancemanager.cluster.type. = c1.xlarge,8,4,16384,20,40
  * 
  * # default instance type
- * clustermgr.instancetype.defaultInstance = m1.large
- * </code> Each instance is expected to run exactly one {@link TaskManager}. When the {@link TaskManager} registers with
- * the {@link JobManager} it sends a {@link HardwareDescription} which describes the actual hardware characteristics of
- * the instance (compute node). The cluster manage will attempt to match the report hardware characteristics with one of
- * the configured instance types. Moreover, the cluster manager is capable of partitioning larger instances (compute
- * nodes) into smaller, less powerful instances.
+ * instancemanager.cluster.defaulttype = 1 (pointing to m1.small)
+ * </code> Each instance is expected to run exactly one {@link eu.stratosphere.nephele.taskmanager.TaskManager}. When
+ * the {@link eu.stratosphere.nephele.taskmanager.TaskManager} registers with the
+ * {@link eu.stratosphere.nephele.jobmanager.JobManager} it sends a {@link HardwareDescription} which describes the
+ * actual hardware characteristics of the instance (compute node). The cluster manage will attempt to match the report
+ * hardware characteristics with one of the configured instance types. Moreover, the cluster manager is capable of
+ * partitioning larger instances (compute nodes) into smaller, less powerful instances.
  * <p>
  * This class is thread-safe.
  * 
@@ -102,16 +105,30 @@ public class ClusterManager implements InstanceManager {
 	private final static String CONFIG_DIR_KEY = "config.dir";
 
 	/**
-	 * Period after which we check whether hosts did not send heart-beat
-	 * messages.
-	 */
-	private static final int BASE_INTERVAL = 10 * 1000; // 10 sec.
-
-	/**
 	 * Default duration after which a host is purged in case it did not send
 	 * a heart-beat message.
 	 */
 	private static final int DEFAULT_CLEANUP_INTERVAL = 2 * 60; // 2 min.
+
+	/**
+	 * The key prefix for the configuration parameters that define the different available instance types.
+	 */
+	private static final String INSTANCE_TYPE_PREFIX_KEY = "instancemanager.cluster.type.";
+
+	/**
+	 * The key to retrieve the index of the default instance type from the configuration.
+	 */
+	private static final String DEFAULT_INSTANCE_TYPE_INDEX_KEY = "instancemanager.cluster.defaulttype";
+
+	/**
+	 * The key to retrieve the clean up interval from the configuration.
+	 */
+	private static final String CLEANUP_INTERVAL_KEY = "instancemanager.cluster.cleanupinterval";
+
+	/**
+	 * Regular expression to extract the IP and the instance type of a cluster instance from the slave file.
+	 */
+	private static final Pattern IP_TO_INSTANCE_TYPE_PATTERN = Pattern.compile("^(\\S+)\\s*(\\S*)\\s*$");
 
 	// ------------------------------------------------------------------------
 	// Fields
@@ -145,7 +162,15 @@ public class ClusterManager implements InstanceManager {
 	 */
 	private final InstanceType[] availableInstanceTypes;
 
-	private final List<InstanceTypeDescription> instanceTypeDescriptionList;
+	/**
+	 * Map of instance type descriptions which can be queried by the job manager.
+	 */
+	private final Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptionMap;
+
+	/**
+	 * Map of IP addresses to instance types.
+	 */
+	private final Map<InetAddress, InstanceType> ipToInstanceTypeMapping = new HashMap<InetAddress, InstanceType>();
 
 	/**
 	 * The network topology of the cluster.
@@ -211,8 +236,8 @@ public class ClusterManager implements InstanceManager {
 				}
 
 				registeredHosts.entrySet().removeAll(hostsToRemove);
-				
-				updateInstaceTypeDescriptionList();
+
+				updateInstaceTypeDescriptionMap();
 			}
 		}
 	};
@@ -235,12 +260,12 @@ public class ClusterManager implements InstanceManager {
 
 		this.instanceAccommodationMatrix = calculateInstanceAccommodationMatrix();
 
-		this.instanceTypeDescriptionList = new SerializableArrayList<InstanceTypeDescription>();
+		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
 		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(
-			ConfigConstants.INSTANCE_MANAGER_CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
+			CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
 
-		if ((tmpCleanUpInterval % BASE_INTERVAL) != 0) {
+		if (tmpCleanUpInterval < 10) { // Clean up interval must be at least ten seconds
 			LOG.warn("Invalid clean up interval. Reverting to default cleanup interval of " +
 				DEFAULT_CLEANUP_INTERVAL + " secs.");
 			tmpCleanUpInterval = DEFAULT_CLEANUP_INTERVAL;
@@ -249,7 +274,7 @@ public class ClusterManager implements InstanceManager {
 		this.cleanUpInterval = tmpCleanUpInterval;
 
 		int tmpDefaultInstanceTypeIndex = GlobalConfiguration.getInteger(
-			ConfigConstants.INSTANCE_MANAGER_DEFAULT_INSTANCE_TYPE_INDEX_KEY,
+			DEFAULT_INSTANCE_TYPE_INDEX_KEY,
 			ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
 
 		if (tmpDefaultInstanceTypeIndex > this.availableInstanceTypes.length) {
@@ -267,13 +292,80 @@ public class ClusterManager implements InstanceManager {
 		// load the network topology from the slave file
 		this.networkTopology = loadNetworkTopology();
 
+		// load IP to instance type mapping from slave file
+		loadIPToInstanceTypeMapping();
+
 		// look every BASEINTERVAL milliseconds for crashed hosts
 		final boolean runTimerAsDaemon = true;
-		new Timer(runTimerAsDaemon).schedule(cleanupStaleMachines, BASE_INTERVAL, BASE_INTERVAL);
+		new Timer(runTimerAsDaemon).schedule(cleanupStaleMachines, 1000, 1000);
+
+		// Load available instance types into the instance description list
+		updateInstaceTypeDescriptionMap();
 	}
 
 	/**
-	 * Sorts the list of available instance types by the number of CPU cores in an ascending order.
+	 * Reads the IP to instance type mapping from the slave file.
+	 */
+	private void loadIPToInstanceTypeMapping() {
+
+		final String configDir = GlobalConfiguration.getString(CONFIG_DIR_KEY, null);
+		if (configDir == null) {
+			LOG.error("Cannot find configuration directory to read IP to instance type mapping");
+			return;
+		}
+
+		final File slaveFile = new File(configDir + File.separator + SLAVE_FILE_NAME);
+		if (!slaveFile.exists()) {
+			LOG.error("Cannot access slave file to read IP to instance type mapping");
+			return;
+		}
+
+		try {
+
+			final BufferedReader input = new BufferedReader(new FileReader(slaveFile));
+
+			String line = null;
+
+			while ((line = input.readLine()) != null) {
+
+				final Matcher m = IP_TO_INSTANCE_TYPE_PATTERN.matcher(line);
+				if (!m.matches()) {
+					LOG.error("Entry does not match format: " + line);
+					continue;
+				}
+				InetAddress address = null;
+				String host = m.group(1);
+				try {
+					final int pos = host.lastIndexOf('/');
+					if (pos != -1) {
+						host = host.substring(pos + 1);
+					}
+					address = InetAddress.getByName(host);
+				} catch (UnknownHostException e) {
+					LOG.error("Cannot resolve " + host + " to a hostname/IP address", e);
+					continue;
+				}
+
+				InstanceType instanceType = null;
+				String instanceTypeName = m.group(2);
+				if (instanceTypeName != null && instanceTypeName.length() > 0) {
+
+					instanceType = getInstanceTypeByName(instanceTypeName);
+					if (instanceType != null) {
+						this.ipToInstanceTypeMapping.put(address, instanceType);
+					}
+				}
+			}
+
+			input.close();
+
+		} catch (IOException e) {
+			LOG.error("Cannot load IP to instance type mapping from file " + e);
+		}
+	}
+
+	/**
+	 * Sorts the list of available instance types by the number of CPU cores in a descending order.
 	 */
 	private void sortAvailableInstancesByNumberOfCPUCores() {
 
@@ -284,10 +376,11 @@ public class ClusterManager implements InstanceManager {
 		for (int i = 1; i < this.availableInstanceTypes.length; i++) {
 			final InstanceType it = this.availableInstanceTypes[i];
 			int j = i;
-			while (j > 0 && this.availableInstanceTypes[j - 1].getNumberOfCores() > it.getNumberOfCores()) {
+			while (j > 0 && this.availableInstanceTypes[j - 1].getNumberOfCores() < it.getNumberOfCores()) {
 				this.availableInstanceTypes[j] = this.availableInstanceTypes[j - 1];
 				--j;
 			}
+			this.availableInstanceTypes[j] = it;
 		}
 	}
 
@@ -330,13 +423,10 @@ public class ClusterManager implements InstanceManager {
 	}
 
 	/**
-	 * Reads the instance types configured in the config file.
-	 * The config file needs to contain a key <code>clustermgr.nrtypes</code> that indicates the number of instance
-	 * types that are supported by the
-	 * cluster. This is followed by entries <code>clustermgr.instancetype.X</code> where X is a number from 1 to
-	 * the specified number of entries. Each entry follows the format:
-	 * "instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour"
-	 * (see {@link InstanceType}).
+	 * Reads the instance types configured in the config file. Each instance type is defined by a key/value pair. The
+	 * format of the key is <code>instancemanager.cluster.type.X</code> where X is an ongoing integer number starting at
+	 * 1. The format of the value follows the pattern
+	 * "instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour" (see {@link InstanceType}).
 	 * 
 	 * @return list of available instance types sorted by price (cheapest to
 	 *         most expensive)
@@ -349,7 +439,7 @@ public class ClusterManager implements InstanceManager {
 		int count = 1;
 		while (true) {
 
-			final String key = ConfigConstants.INSTANCE_MANAGER_INSTANCE_TYPE_PREFIX_KEY + Integer.toString(count);
+			final String key = INSTANCE_TYPE_PREFIX_KEY + Integer.toString(count);
 			String descr = GlobalConfiguration.getString(key, null);
 
 			if (descr == null) {
@@ -373,9 +463,7 @@ public class ClusterManager implements InstanceManager {
 				LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: " +
 					ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
 
-				// we need to add an instance type anyways, because otherwise a non-parsable instance description
-				// would cause the numbering to be wrong.
-				instanceTypes.add(InstanceTypeFactory.constructFromDescription(ConfigConstants.DEFAULT_INSTANCE_TYPE));
+				break;
 			}
 
 			// Increase key index
@@ -469,10 +557,20 @@ public class ClusterManager implements InstanceManager {
 	private ClusterInstance createNewHost(InstanceConnectionInfo instanceConnectionInfo,
 			HardwareDescription hardwareDescription) {
 
-		final InstanceType instanceType = mactchHardwareDescriptionWithInstanceType(hardwareDescription);
-		if (instanceType == null) {
-			LOG.error("No matching instance type, cannot create cluster instance");
-			return null;
+		// Check if there is a user-defined instance type for this IP address
+		InstanceType instanceType = this.ipToInstanceTypeMapping.get(instanceConnectionInfo.getAddress());
+		if (instanceType != null) {
+			LOG.info("Found user-defined instance type for cluster instance with IP "
+				+ instanceConnectionInfo.getAddress() + ": " + instanceType);
+		} else {
+			instanceType = mactchHardwareDescriptionWithInstanceType(hardwareDescription);
+			if (instanceType != null) {
+				LOG.info("Hardware profile of cluster instance with IP " + instanceConnectionInfo.getAddress()
+					+ " matches with instance type " + instanceType);
+			} else {
+				LOG.error("No matching instance type, cannot create cluster instance");
+				return null;
+			}
 		}
 
 		// Try to match new host with a stub host from the existing topology
@@ -540,8 +638,8 @@ public class ClusterManager implements InstanceManager {
 	 */
 	private InstanceType mactchHardwareDescriptionWithInstanceType(HardwareDescription hardwareDescription) {
 
-		// Assumes that the available instance types are ordered by number of CPU cores in ascending order
-		for (int i = this.availableInstanceTypes.length - 1; i >= 0; i--) {
+		// Assumes that the available instance types are ordered by number of CPU cores in descending order
+		for (int i = 0; i < this.availableInstanceTypes.length; i++) {
 
 			final InstanceType candidateInstanceType = this.availableInstanceTypes[i];
 			// Check if number of CPU cores match
@@ -554,6 +652,8 @@ public class ClusterManager implements InstanceManager {
 			if (candidateInstanceType.getMemorySize() > memoryInMB) {
 				continue;
 			}
+
+			return candidateInstanceType;
 		}
 
 		LOG.error("Cannot find matching instance type for hardware description ("
@@ -586,7 +686,7 @@ public class ClusterManager implements InstanceManager {
 			LOG.info("New number of registered hosts is " + this.registeredHosts.size());
 
 			// Update the list of instance type descriptions
-			updateInstaceTypeDescriptionList();
+			updateInstaceTypeDescriptionMap();
 		}
 
 		host.reportHeartBeat();
@@ -642,18 +742,20 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
-		
-		return this.instanceTypeDescriptionList;
+	public synchronized Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
+
+		return this.instanceTypeDescriptionMap;
 	}
 
 	/**
 	 * Updates the list of instance type descriptions based on the currently registered hosts.
 	 */
-	private void updateInstaceTypeDescriptionList() {
+	private void updateInstaceTypeDescriptionMap() {
 
 		// this.registeredHosts.values().iterator()
-		this.instanceTypeDescriptionList.clear();
+		this.instanceTypeDescriptionMap.clear();
+
+		final List<InstanceTypeDescription> instanceTypeDescriptionList = new ArrayList<InstanceTypeDescription>();
 
 		// initialize array which stores the availability counter for each instance type
 		final int[] numberOfInstances = new int[this.availableInstanceTypes.length];
@@ -684,14 +786,16 @@ public class ClusterManager implements InstanceManager {
 
 			// Update number of instances
 			int highestAccommodationNumber = -1;
-			int highestAccomodationIndex = -1;
+			int highestAccommodationIndex = -1;
 			for (int j = 0; j < this.availableInstanceTypes.length; j++) {
 				final int accommodationNumber = canBeAccommodated(j, i);
+				// LOG.debug(this.availableInstanceTypes[j].getIdentifier() + " fits into "
+				// + this.availableInstanceTypes[i].getIdentifier() + " " + accommodationNumber + " times");
 				if (accommodationNumber > 0) {
-					numberOfInstances[i] += numberOfMatchingInstances * accommodationNumber;
+					numberOfInstances[j] += numberOfMatchingInstances * accommodationNumber;
 					if (accommodationNumber > highestAccommodationNumber) {
 						highestAccommodationNumber = accommodationNumber;
-						highestAccomodationIndex = j;
+						highestAccommodationIndex = j;
 					}
 				}
 			}
@@ -706,21 +810,37 @@ public class ClusterManager implements InstanceManager {
 
 			} else {
 
-				if (highestAccommodationNumber > 0) {
-					final HardwareDescription descriptionOfLargerInstance = this.instanceTypeDescriptionList.get(
-						highestAccomodationIndex).getHardwareDescription();
+				if (highestAccommodationIndex < i) { // Since highestAccommodationIndex smaller than my index, the
+														// target instance must be more powerful
 
-					final int numCores = descriptionOfLargerInstance.getNumberOfCPUCores() / highestAccommodationNumber;
-					final long physMem = descriptionOfLargerInstance.getSizeOfPhysicalMemory()
-						/ highestAccommodationNumber;
-					final long freeMem = descriptionOfLargerInstance.getSizeOfFreeMemory();
+					final InstanceTypeDescription descriptionOfLargerInstanceType = instanceTypeDescriptionList
+						.get(highestAccommodationIndex);
+					if (descriptionOfLargerInstanceType.getHardwareDescription() != null) {
+						final HardwareDescription hardwareDescriptionOfLargerInstanceType = descriptionOfLargerInstanceType
+							.getHardwareDescription();
 
-					pessimisticHardwareDescription = HardwareDescriptionFactory.construct(numCores, physMem, freeMem);
+						final int numCores = hardwareDescriptionOfLargerInstanceType.getNumberOfCPUCores()
+							/ highestAccommodationNumber;
+						final long physMem = hardwareDescriptionOfLargerInstanceType.getSizeOfPhysicalMemory()
+							/ highestAccommodationNumber;
+						final long freeMem = hardwareDescriptionOfLargerInstanceType.getSizeOfFreeMemory()
+							/ highestAccommodationNumber;
+
+						pessimisticHardwareDescription = HardwareDescriptionFactory.construct(numCores, physMem,
+							freeMem);
+					}
 				}
 			}
 
-			this.instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(currentInstanceType,
+			instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(currentInstanceType,
 				pessimisticHardwareDescription, numberOfInstances[i]));
+		}
+
+		final Iterator<InstanceTypeDescription> it = instanceTypeDescriptionList.iterator();
+		while (it.hasNext()) {
+
+			final InstanceTypeDescription itd = it.next();
+			this.instanceTypeDescriptionMap.put(itd.getInstanceType(), itd);
 		}
 	}
 
@@ -783,6 +903,6 @@ public class ClusterManager implements InstanceManager {
 			return 0;
 		}
 
-		return this.instanceAccommodationMatrix[sourceTypeIndex][targetTypeIndex];
+		return this.instanceAccommodationMatrix[targetTypeIndex][sourceTypeIndex];
 	}
 }

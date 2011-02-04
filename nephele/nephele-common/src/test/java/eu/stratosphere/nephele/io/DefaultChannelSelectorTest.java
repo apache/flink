@@ -37,21 +37,19 @@ public class DefaultChannelSelectorTest {
 		StringRecord dummyRecord = new StringRecord("abc");
 		DefaultChannelSelector<StringRecord> selector = new DefaultChannelSelector<StringRecord>();
 		// Test with two channels
-		int numberOfChannels = 2;
-		int[] results = selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(1, results[0]);
-		results = selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(0, results[0]);
-		results = selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(1, results[0]);
-		// Test with negative number of channels
-		numberOfChannels = -1;
-		results = selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(0, results.length);
-		//Test with channel number 0
-		numberOfChannels = 0;
-		results = selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(0, results.length);
+		boolean[] numberOfChannels = { false, false };
+		selector.selectChannels(dummyRecord, numberOfChannels);
+		Assert.assertEquals(true, numberOfChannels[1]);
+		numberOfChannels[1] = false;
+		selector.selectChannels(dummyRecord, numberOfChannels);
+		Assert.assertEquals(true, numberOfChannels[0]);
+		numberOfChannels[0] = false;
+		selector.selectChannels(dummyRecord, numberOfChannels);
+		Assert.assertEquals(true, numberOfChannels[1]);
+		// Test with channel number 0
+		boolean[] noChannels = {};
+		selector.selectChannels(dummyRecord, noChannels);
+
 	}
 
 }

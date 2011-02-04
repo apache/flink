@@ -138,14 +138,19 @@ public class ExecutionGroupEdge {
 		final Iterator<ExecutionGroupEdge> it = edges.iterator();
 		while (it.hasNext()) {
 
-			final ExecutionGroupEdge edge = it.next();
+			final ExecutionGroupEdge edge = it.next();			
+			
+			// Update channel type
+			CompressionLevel cl = null;
+			synchronized(edge) {
+				edge.channelType = newChannelType;
+				cl = edge.compressionLevel;
+			}
+			
 			this.executionGraph.unwire(edge.sourceVertex, edge.indexOfOutputGate, edge.targetVertex,
 				edge.indexOfInputGate);
 			this.executionGraph.wire(edge.sourceVertex, edge.indexOfOutputGate, edge.targetVertex,
-				edge.indexOfInputGate, newChannelType, edge.compressionLevel);
-
-			// Update channel type
-			edge.channelType = newChannelType;
+				edge.indexOfInputGate, newChannelType, cl);
 		}
 
 		// Changing the channels may require to reassign the stages

@@ -47,12 +47,12 @@ public class GroupEdgeVisualizationData {
 				groupEdgeVisualizationData.updateIOBottleneckFlag(successorIOBottleneckMap);
 				if (groupEdgeVisualizationData.isIOBottleneck()
 					|| groupEdgeVisualizationData.isAnySuccessorIOBottleneck(successorIOBottleneckMap)) {
-					successorIOBottleneckMap.put(this.managementGroupEdge, new Boolean(true));
+					successorIOBottleneckMap.put(this.managementGroupEdge, Boolean.valueOf(true));
 					return true;
 				}
 			}
 
-			successorIOBottleneckMap.put(this.managementGroupEdge, new Boolean(false));
+			successorIOBottleneckMap.put(this.managementGroupEdge, Boolean.valueOf(false));
 			return false;
 		}
 

@@ -35,55 +35,96 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.types.StringRecord;
+
 /**
- * This class provides a simple Implementation of an event that holds a String
- * value.
+ * This class provides a simple implementation of an event that holds a string value.
  * 
  * @author casp
  */
 public class StringTaskEvent extends AbstractTaskEvent {
 
+	/**
+	 * The string encapsulated by this event.
+	 */
 	private String message = null;
 
+	/**
+	 * The default constructor implementation. It should only be used for deserialization.
+	 */
 	public StringTaskEvent() {
-		// default constructor implementation.
-		// should only be used for deserialization
 	}
 
-	public StringTaskEvent(String message) {
+	/**
+	 * Constructs a new string task event with the given string message.
+	 * 
+	 * @param message
+	 *        the string message that shall be stored in this event
+	 */
+	public StringTaskEvent(final String message) {
 		this.message = message;
 	}
 
 	/**
-	 * returns the stored String
+	 * Returns the stored string.
 	 * 
-	 * @return
+	 * @return the stored string or <code>null</code> if no string is set
 	 */
 	public String getString() {
 		return this.message;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		if (this.message == null) {
-			out.writeInt(0);
-		} else {
-			byte[] stringbytes = this.message.getBytes("UTF8");
-			out.writeInt(stringbytes.length);
-			out.write(stringbytes);
-		}
+	public void write(final DataOutput out) throws IOException {
+
+		StringRecord.writeString(out, this.message);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		final int length = in.readInt();
-		if (length > 0) {
-			byte[] stringbytes = new byte[length];
-			in.readFully(stringbytes, 0, length);
-			String message = new String(stringbytes, "UTF8");
-			this.message = message;
-		} else {
-			this.message = null;
+	public void read(final DataInput in) throws IOException {
+
+		this.message = StringRecord.readString(in);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		if (this.message == null) {
+			return 0;
 		}
+
+		return this.message.hashCode();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof StringTaskEvent)) {
+			return false;
+		}
+
+		final StringTaskEvent ste = (StringTaskEvent) obj;
+
+		if (this.message == null) {
+			if (ste.getString() == null) {
+				return true;
+			}
+
+			return false;
+		}
+
+		return this.message.equals(ste.getString());
 	}
 }

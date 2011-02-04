@@ -33,73 +33,174 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
-public class ManagementGraph implements IOReadableWritable {
+/**
+ * A management graph is structurally equal to the graph Nephele uses internally for scheduling jobs. Management graphs
+ * are intended to provide more fine-grained information about a job at runtime than available through the regular
+ * client interface, however, without exposing Nephele's internal scheduling data structures.
+ * <p>
+ * This class is not thread-safe.
+ * 
+ * @author warneke
+ */
+public final class ManagementGraph extends ManagementAttachment implements IOReadableWritable {
 
+	/**
+	 * List of stages the graph is divided into.
+	 */
 	private final List<ManagementStage> stages = new ArrayList<ManagementStage>();
 
+	/**
+	 * The ID of the job this graph describes.
+	 */
 	private final JobID jobID;
 
-	private Object attachment = null;
-
+	/**
+	 * A map of vertices this graph consists of.
+	 */
 	private final Map<ManagementVertexID, ManagementVertex> vertices = new HashMap<ManagementVertexID, ManagementVertex>();
 
+	/**
+	 * A map of group vertices this graph consists of.
+	 */
 	private final Map<ManagementGroupVertexID, ManagementGroupVertex> groupVertices = new HashMap<ManagementGroupVertexID, ManagementGroupVertex>();
 
-	public ManagementGraph(JobID jobID) {
+	/**
+	 * Constructs a new management graph with the given job ID.
+	 * 
+	 * @param jobID
+	 *        the job ID of the graph.
+	 */
+	public ManagementGraph(final JobID jobID) {
 		this.jobID = jobID;
 	}
 
+	/**
+	 * Constructs a new management graph with a random job ID.
+	 */
 	public ManagementGraph() {
 		this.jobID = new JobID();
 	}
 
-	void addStage(ManagementStage mangementStage) {
+	/**
+	 * Adds a new management stage to the graph.
+	 * 
+	 * @param mangementStage
+	 *        the management stage to be added.
+	 */
+	void addStage(final ManagementStage mangementStage) {
+
 		this.stages.add(mangementStage);
 	}
 
+	/**
+	 * Returns the ID of the job this graph describes.
+	 * 
+	 * @return the ID of the job this graph describes
+	 */
 	public JobID getJobID() {
 		return this.jobID;
 	}
 
-	void addVertex(ManagementVertexID id, ManagementVertex vertex) {
+	/**
+	 * Adds the given vertex to the graph's internal vertex map.
+	 * 
+	 * @param id
+	 *        the ID of the vertex to be added
+	 * @param vertex
+	 *        the vertex to be added
+	 */
+	void addVertex(final ManagementVertexID id, final ManagementVertex vertex) {
+
 		this.vertices.put(id, vertex);
 	}
 
-	public ManagementVertex getVertexByID(ManagementVertexID id) {
+	/**
+	 * Returns the vertex with the given ID from the graph's internal vertex map.
+	 * 
+	 * @param id
+	 *        the ID of the vertex to be returned
+	 * @return the vertex with the given ID or <code>null</code> if no such vertex exists
+	 */
+	public ManagementVertex getVertexByID(final ManagementVertexID id) {
+
 		return this.vertices.get(id);
 	}
 
-	public ManagementGroupVertex getGroupVertexByID(ManagementGroupVertexID id) {
+	/**
+	 * Returns the group vertex with the given ID from the graph's internal group vertex map.
+	 * 
+	 * @param id
+	 *        the ID of the group vertex to be returned
+	 * @return the group vertex with the given ID or <code>null</code> if no such group vertex exists
+	 */
+	public ManagementGroupVertex getGroupVertexByID(final ManagementGroupVertexID id) {
+
 		return this.groupVertices.get(id);
 	}
 
-	void addGroupVertex(ManagementGroupVertexID id, ManagementGroupVertex groupVertex) {
+	/**
+	 * Adds the given group vertex to the graph's internal group vertex map.
+	 * 
+	 * @param id
+	 *        the ID of the group vertex to be added
+	 * @param groupVertex
+	 *        the group vertex to be added
+	 */
+	void addGroupVertex(final ManagementGroupVertexID id, final ManagementGroupVertex groupVertex) {
+
 		this.groupVertices.put(id, groupVertex);
 	}
 
+	/**
+	 * Returns the number of stages in this management graph.
+	 * 
+	 * @return the number of stages in this management graph
+	 */
 	public int getNumberOfStages() {
+
 		return this.stages.size();
 	}
 
-	public ManagementStage getStage(int index) {
+	/**
+	 * Returns the management stage with the given index.
+	 * 
+	 * @param index
+	 *        the index of the management stage to be returned
+	 * @return the management stage with the given index or <code>null</code> if no such management stage exists
+	 */
+	public ManagementStage getStage(final int index) {
 
-		if (index < this.stages.size()) {
+		if (index >= 0 && index < this.stages.size()) {
 			return this.stages.get(index);
 		}
 
 		return null;
 	}
 
-	public int getNumberOfInputGroupVertices(int stage) {
+	/**
+	 * Returns the number of input group vertices in the management stage with the given index.
+	 * 
+	 * @param stage
+	 *        the index to the management stage
+	 * @return the number of input group vertices in this stage, possibly 0.
+	 */
+	public int getNumberOfInputGroupVertices(final int stage) {
 
-		if (stage >= this.stages.size()) {
+		if (stage < 0 || stage >= this.stages.size()) {
 			return 0;
 		}
 
 		return this.stages.get(stage).getNumberOfInputGroupVertices();
 	}
 
-	public int getNumberOfOutputGroupVertices(int stage) {
+	/**
+	 * Returns the number of output group vertices in the management stage with the given index.
+	 * 
+	 * @param stage
+	 *        the index to the management stage
+	 * @return the number of output group vertices in this stage, possibly 0.
+	 */
+	public int getNumberOfOutputGroupVertices(final int stage) {
 
 		if (stage >= this.stages.size()) {
 			return 0;
@@ -108,7 +209,17 @@ public class ManagementGraph implements IOReadableWritable {
 		return this.stages.get(stage).getNumberOfOutputGroupVertices();
 	}
 
-	public ManagementGroupVertex getInputGroupVertex(int stage, int index) {
+	/**
+	 * Returns the input group vertex at the given index in the given stage.
+	 * 
+	 * @param stage
+	 *        the index to the management stage
+	 * @param index
+	 *        the index to the input group vertex
+	 * @return the input group vertex at the given index in the given stage or <code>null</code> if either the stage
+	 *         does not exists or the given index is invalid in this stage
+	 */
+	public ManagementGroupVertex getInputGroupVertex(final int stage, final int index) {
 
 		if (stage >= this.stages.size()) {
 			return null;
@@ -117,7 +228,17 @@ public class ManagementGraph implements IOReadableWritable {
 		return this.stages.get(stage).getInputGroupVertex(index);
 	}
 
-	public ManagementGroupVertex getOutputGroupVertex(int stage, int index) {
+	/**
+	 * Returns the output group vertex at the given index in the given stage.
+	 * 
+	 * @param stage
+	 *        the index to the management stage
+	 * @param index
+	 *        the index to the output group vertex
+	 * @return the output group vertex at the given index in the given stage or <code>null</code> if either the stage
+	 *         does not exists or the given index is invalid in this stage
+	 */
+	public ManagementGroupVertex getOutputGroupVertex(final int stage, final int index) {
 
 		if (stage >= this.stages.size()) {
 			return null;
@@ -133,7 +254,7 @@ public class ManagementGraph implements IOReadableWritable {
 	 *        the index of the management stage
 	 * @return the number of input vertices for the given stage
 	 */
-	public int getNumberOfInputVertices(int stage) {
+	public int getNumberOfInputVertices(final int stage) {
 
 		if (stage >= this.stages.size()) {
 			return 0;
@@ -149,7 +270,7 @@ public class ManagementGraph implements IOReadableWritable {
 	 *        the index of the management stage
 	 * @return the number of input vertices for the given stage
 	 */
-	public int getNumberOfOutputVertices(int stage) {
+	public int getNumberOfOutputVertices(final int stage) {
 
 		if (stage >= this.stages.size()) {
 			return 0;
@@ -159,7 +280,7 @@ public class ManagementGraph implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns the input vertex with the specified index for the given stage
+	 * Returns the input vertex with the specified index for the given stage.
 	 * 
 	 * @param stage
 	 *        the index of the stage
@@ -168,7 +289,7 @@ public class ManagementGraph implements IOReadableWritable {
 	 * @return the input vertex with the specified index or <code>null</code> if no input vertex with such an index
 	 *         exists in that stage
 	 */
-	public ManagementVertex getInputVertex(int stage, int index) {
+	public ManagementVertex getInputVertex(final int stage, final int index) {
 
 		if (stage >= this.stages.size()) {
 			return null;
@@ -187,7 +308,7 @@ public class ManagementGraph implements IOReadableWritable {
 	 * @return the output vertex with the specified index or <code>null</code> if no output vertex with such an index
 	 *         exists in that stage
 	 */
-	public ManagementVertex getOutputVertex(int stage, int index) {
+	public ManagementVertex getOutputVertex(final int stage, final int index) {
 
 		if (stage >= this.stages.size()) {
 			return null;
@@ -196,14 +317,11 @@ public class ManagementGraph implements IOReadableWritable {
 		return this.stages.get(stage).getOutputManagementVertex(index);
 	}
 
-	public void setAttachment(Object attachment) {
-		this.attachment = attachment;
-	}
-
-	public Object getAttachment() {
-		return this.attachment;
-	}
-
+	/**
+	 * Returns a list of group vertices sorted in topological order.
+	 * 
+	 * @return a list of group vertices sorted in topological order
+	 */
 	public List<ManagementGroupVertex> getGroupVerticesInTopologicalOrder() {
 
 		final List<ManagementGroupVertex> topologicalSort = new ArrayList<ManagementGroupVertex>();
@@ -213,7 +331,7 @@ public class ManagementGraph implements IOReadableWritable {
 		final Iterator<ManagementGroupVertex> it = new ManagementGroupVertexIterator(this, true, -1);
 		while (it.hasNext()) {
 			final ManagementGroupVertex groupVertex = it.next();
-			indegrees.put(groupVertex, new Integer(groupVertex.getNumberOfBackwardEdges()));
+			indegrees.put(groupVertex, Integer.valueOf(groupVertex.getNumberOfBackwardEdges()));
 			if (groupVertex.getNumberOfBackwardEdges() == 0) {
 				noIncomingEdges.add(groupVertex);
 			}
@@ -227,7 +345,7 @@ public class ManagementGraph implements IOReadableWritable {
 			for (int i = 0; i < groupVertex.getNumberOfForwardEdges(); i++) {
 				final ManagementGroupVertex targetVertex = groupVertex.getForwardEdge(i).getTarget();
 				Integer indegree = indegrees.get(targetVertex);
-				indegree = new Integer(indegree.intValue() - 1);
+				indegree = Integer.valueOf(indegree.intValue() - 1);
 				indegrees.put(targetVertex, indegree);
 				if (indegree.intValue() == 0) {
 					noIncomingEdges.add(targetVertex);
@@ -239,6 +357,11 @@ public class ManagementGraph implements IOReadableWritable {
 		return topologicalSort;
 	}
 
+	/**
+	 * Returns a list of group vertices sorted in reverse topological order.
+	 * 
+	 * @return a list of group vertices sorted in reverse topological order
+	 */
 	public List<ManagementGroupVertex> getGroupVerticesInReverseTopologicalOrder() {
 
 		final List<ManagementGroupVertex> reverseTopologicalSort = new ArrayList<ManagementGroupVertex>();
@@ -248,7 +371,7 @@ public class ManagementGraph implements IOReadableWritable {
 		final Iterator<ManagementGroupVertex> it = new ManagementGroupVertexIterator(this, false, -1);
 		while (it.hasNext()) {
 			final ManagementGroupVertex groupVertex = it.next();
-			outdegrees.put(groupVertex, new Integer(groupVertex.getNumberOfForwardEdges()));
+			outdegrees.put(groupVertex, Integer.valueOf(groupVertex.getNumberOfForwardEdges()));
 			if (groupVertex.getNumberOfForwardEdges() == 0) {
 				noOutgoingEdges.add(groupVertex);
 			}
@@ -262,7 +385,7 @@ public class ManagementGraph implements IOReadableWritable {
 			for (int i = 0; i < groupVertex.getNumberOfBackwardEdges(); i++) {
 				final ManagementGroupVertex sourceVertex = groupVertex.getBackwardEdge(i).getSource();
 				Integer outdegree = outdegrees.get(sourceVertex);
-				outdegree = new Integer(outdegree.intValue() - 1);
+				outdegree = Integer.valueOf(outdegree.intValue() - 1);
 				outdegrees.put(sourceVertex, outdegree);
 				if (outdegree.intValue() == 0) {
 					noOutgoingEdges.add(sourceVertex);
@@ -274,8 +397,11 @@ public class ManagementGraph implements IOReadableWritable {
 		return reverseTopologicalSort;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read job ID
 		this.jobID.read(in);
@@ -348,8 +474,11 @@ public class ManagementGraph implements IOReadableWritable {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write job ID
 		this.jobID.write(out);
@@ -359,8 +488,8 @@ public class ManagementGraph implements IOReadableWritable {
 
 		// Write number of group vertices and their corresponding IDs
 		out.writeInt(this.groupVertices.size());
-
-		Iterator<ManagementGroupVertex> it = groupVertices.values().iterator();
+		Iterator<ManagementGroupVertex> it = new ManagementGroupVertexIterator(this, true, -1);
+		
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
@@ -369,7 +498,7 @@ public class ManagementGraph implements IOReadableWritable {
 			StringRecord.writeString(out, groupVertex.getName());
 		}
 
-		it = groupVertices.values().iterator();
+		it = new ManagementGroupVertexIterator(this, true, -1);
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
@@ -379,7 +508,7 @@ public class ManagementGraph implements IOReadableWritable {
 
 		// Write out the management vertices and their corresponding IDs
 		out.writeInt(this.vertices.size());
-		Iterator<ManagementVertex> it2 = vertices.values().iterator();
+		Iterator<ManagementVertex> it2 = new ManagementGraphIterator(this, true);
 		while (it2.hasNext()) {
 
 			final ManagementVertex managementVertex = it2.next();

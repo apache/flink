@@ -124,7 +124,7 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	@Override
 	public boolean equals(Object obj) {
 
-		if (super.equals(obj)) {
+		if (!super.equals(obj)) {
 			return false;
 		}
 
@@ -151,5 +151,14 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return super.hashCode();
 	}
 }

@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -138,9 +139,9 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private final TaskManagerProfiler profiler;
 
-	private MemoryManager memoryManager;
+	private final MemoryManager memoryManager;
 
-	private IOManager ioManager;
+	private final IOManager ioManager;
 
 	private final HardwareDescription hardwareDescription;
 
@@ -267,24 +268,25 @@ public class TaskManager implements TaskOperationProtocol {
 		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath);
 
 		// Determine hardware description
-		this.hardwareDescription = HardwareDescriptionFactory.extractFromSystem();
-		if (this.hardwareDescription == null) {
+		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
+		if (hardware == null) {
 			LOG.warn("Cannot determine hardware description");
 		}
 
-		// Initialize the memory manager
+		// Check whether the memory size has been explicitly configured. if so that overrides the default mechanism
+		// of taking as much as is mentioned in the hardware description
 		long memorySize = GlobalConfiguration.getInteger(ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY, -1);
 
-		if (memorySize < 1) {
-			memorySize = ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY;
-			LOG.warn("Memory manager size (" + ConfigConstants.MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY +
-				") undefined for this task manager. Using default memory size of " +
-				ConfigConstants.DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY + "MB.");
-
+		if (memorySize > 0) {
+			// manually configured memory size. override the value in the hardware config
+			hardware = HardwareDescriptionFactory.construct(hardware.getNumberOfCPUCores(),
+				hardware.getSizeOfPhysicalMemory(), memorySize * 1024L * 1024L);
 		}
+		this.hardwareDescription = hardware;
 
-		LOG.info("Initializing memory manager with " + memorySize + " megabytes of memory");
-		this.memoryManager = new DefaultMemoryManager(memorySize * 1024L * 1024L);
+		// Initialize the memory manager
+		LOG.info("Initializing memory manager with " + (hardware.getSizeOfFreeMemory() >>> 20) + " megabytes of memory");
+		this.memoryManager = new DefaultMemoryManager(hardware.getSizeOfFreeMemory());
 
 		// Initialize the I/O manager
 		this.ioManager = new IOManager(tmpDirPath);
@@ -674,7 +676,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the {@link Environment} of the task to be unregistered
 	 */
 	private void unregisterTask(ExecutionVertexID id, Environment environment) {
-
+		
 		// Unregister channels
 		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
 			unregisterOutputChannels(environment.getOutputGate(i));
@@ -694,6 +696,8 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.unregisterExecutionListener(id);
 		}
 
+		//TODO: Unregister from IO and memory manager here
+		
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
@@ -806,12 +810,10 @@ public class TaskManager implements TaskOperationProtocol {
 		// Shut down the memory manager
 		if (this.ioManager != null) {
 			this.ioManager.shutdown();
-			this.ioManager = null;
 		}
 
 		if (this.memoryManager != null) {
 			this.memoryManager.shutdown();
-			this.memoryManager = null;
 		}
 
 		this.isShutDown = true;
@@ -848,6 +850,18 @@ public class TaskManager implements TaskOperationProtocol {
 					environment.changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
 				}
 			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+
+		final Iterator<ExecutionVertexID> it = listOfVertexIDs.iterator();
+		while (it.hasNext()) {
+			this.checkpointManager.removeCheckpoint(it.next());
 		}
 	}
 }

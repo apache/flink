@@ -96,8 +96,6 @@ public abstract class TestBase extends TestCase {
 
 	@Test
 	public void testJob() throws Exception {
-		System.out.println("Start Test");
-		
 		// pre-submit
 		preSubmit();
 
@@ -144,7 +142,7 @@ public abstract class TestBase extends TestCase {
 				p.load(new FileInputStream(configFile));
 
 				for (String key : p.stringPropertyNames()) {
-					if (key.equals(testClassName)) {
+					if (key.endsWith(testClassName)) {
 						for (String config : p.getProperty(key).split(",")) {
 							clusterConfigs.add(config);
 						}

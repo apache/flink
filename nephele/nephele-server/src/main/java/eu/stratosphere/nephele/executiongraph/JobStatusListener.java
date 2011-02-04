@@ -33,6 +33,8 @@ public interface JobStatusListener {
 	 *        the ID of the job the notification refers to
 	 * @param newJobStatus
 	 *        the new job status
+	 * @param optionalMessage
+	 *        an optional message (possibly <code>null</code>) that can be attached to the state change
 	 */
-	void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus);
+	void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus, String optionalMessage);
 }

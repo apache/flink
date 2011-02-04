@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.instance;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
@@ -189,6 +190,8 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * 
 	 * @param id
 	 *        the ID identifying the task to be canceled
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request or receiving the response
 	 * @return the result of the cancel attempt
 	 */
 	public synchronized TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException {
@@ -196,4 +199,51 @@ public abstract class AbstractInstance extends NetworkNode {
 		return getTaskManager().cancelTask(id);
 	}
 
+	/**
+	 * Removes the checkpoints identified by the given list of vertex IDs at the instance's
+	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
+	 * 
+	 * @param listOfVertexIDs
+	 *        the list of vertex IDs which identify the checkpoints to be removed
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request
+	 */
+	public synchronized void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+
+		getTaskManager().removeCheckpoints(listOfVertexIDs);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		// Fall back since dummy instances do not have a instanceConnectionInfo
+		if (this.instanceConnectionInfo == null) {
+			return super.equals(obj);
+		}
+
+		if (!(obj instanceof AbstractInstance)) {
+			return false;
+		}
+
+		final AbstractInstance abstractInstance = (AbstractInstance) obj;
+
+		return this.instanceConnectionInfo.equals(abstractInstance.getInstanceConnectionInfo());
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		// Fall back since dummy instances do not have a instanceConnectionInfo
+		if (this.instanceConnectionInfo == null) {
+			return super.hashCode();
+		}
+
+		return this.instanceConnectionInfo.hashCode();
+	}
 }

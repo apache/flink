@@ -36,8 +36,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -138,7 +136,7 @@ public class DiscoveryService implements Runnable {
 	 *         thrown if the discovery service could not be started because
 	 *         of network difficulties
 	 */
-	public static void startDiscoveryService(int ipcPort) throws DiscoveryException {
+	public static synchronized void startDiscoveryService(int ipcPort) throws DiscoveryException {
 
 		if (discoveryService == null) {
 			discoveryService = new DiscoveryService(ipcPort);
@@ -149,7 +147,7 @@ public class DiscoveryService implements Runnable {
 	/**
 	 * Stops the discovery service.
 	 */
-	public static void stopDiscoveryService() {
+	public static synchronized void stopDiscoveryService() {
 
 		if (discoveryService != null) {
 			discoveryService.stopService();
@@ -434,7 +432,6 @@ public class DiscoveryService implements Runnable {
 	 *        the length (in bits) of network address prefix
 	 * @return bit vector representing the prefix of the network address
 	 */
-	@VisibleForTesting
 	static byte[] getNetworkPrefix(int addressLength, int networkPrefixLength) {
 
 		if (networkPrefixLength <= 0 || networkPrefixLength >= addressLength) {
@@ -478,7 +475,6 @@ public class DiscoveryService implements Runnable {
 	 *        number of bits in IP addresses belonging to network id
 	 * @return true if a and b belong to the same network.
 	 */
-	@VisibleForTesting
 	static boolean onSameNetwork(InetAddress a, InetAddress b, int networkPrefixLength) {
 
 		if ((a == null) || (b == null)) {

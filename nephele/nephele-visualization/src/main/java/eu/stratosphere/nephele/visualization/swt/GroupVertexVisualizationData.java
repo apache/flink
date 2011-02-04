@@ -44,12 +44,12 @@ public class GroupVertexVisualizationData {
 				groupVertexVisualizationData.updateCPUBottleneckFlag(successorCPUBottleneckMap);
 				if (groupVertexVisualizationData.isCPUBottleneck()
 					|| groupVertexVisualizationData.isAnySuccessorCPUBottleneck(successorCPUBottleneckMap)) {
-					successorCPUBottleneckMap.put(this.managementGroupVertex, new Boolean(true));
+					successorCPUBottleneckMap.put(this.managementGroupVertex, Boolean.valueOf(true));
 					return true;
 				}
 			}
 
-			successorCPUBottleneckMap.put(this.managementGroupVertex, new Boolean(false));
+			successorCPUBottleneckMap.put(this.managementGroupVertex, Boolean.valueOf(false));
 			return false;
 		}
 

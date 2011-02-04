@@ -47,7 +47,7 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testN_Integer() {
+	public void testPactInteger() {
 		PactInteger int0 = new PactInteger(10);
 		// test value retrieval
 		Assert.assertEquals(10, int0.getValue());
@@ -82,7 +82,7 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testN_Double() {
+	public void testPactDouble() {
 		PactDouble double0 = new PactDouble(10.2);
 		// test value retrieval
 		Assert.assertEquals(10.2, double0.getValue());
@@ -117,7 +117,7 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testN_String() {
+	public void testPactString() {
 		PactString string0 = new PactString("This is a test");
 		// test value retrieval
 		Assert.assertEquals("This is a test", string0.toString());

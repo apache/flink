@@ -177,7 +177,7 @@ public class QueueSchedulerTest {
 		
 		//one graph in list, but no instances: an error should be reported
 		this.queue.add(this.executionGraph);
-		when(this.executionGraph.getInstanceTypesRequiredForCurrentStage()).thenReturn(null);
+		//when(this.executionGraph.getInstanceTypesRequiredForCurrentStage()).thenReturn(null);
 		 toTest.getVerticesReadyToBeExecuted();
 		verify(this.loggerMock).error(Matchers.anyString());
 		
@@ -185,7 +185,7 @@ public class QueueSchedulerTest {
 		InstanceType instanceType = new InstanceType();
 		HashMap<InstanceType, Integer> map = new HashMap<InstanceType,Integer>();
 		map.put(instanceType, 3);
-		when(this.executionGraph.getInstanceTypesRequiredForCurrentStage()).thenReturn(map);
+		//when(this.executionGraph.getInstanceTypesRequiredForCurrentStage()).thenReturn(map);
 		this.queue.add(this.executionGraph);
 		toTest.getVerticesReadyToBeExecuted();
 		verify(set, times(4)).add(Matchers.any(ExecutionVertex.class));

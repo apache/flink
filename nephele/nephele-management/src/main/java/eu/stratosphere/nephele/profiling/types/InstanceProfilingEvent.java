@@ -22,9 +22,10 @@ import java.io.IOException;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
- * This interface allows to retrieve profiling data about
- * an instance which is currently used for a Nephele task
- * execution.
+ * Instance profiling events are a special subclass of profiling events. They contain profiling information about the
+ * utilization of a particular instance during a job execution.
+ * <p>
+ * This class is not thread-safe.
  * 
  * @author stanik
  */
