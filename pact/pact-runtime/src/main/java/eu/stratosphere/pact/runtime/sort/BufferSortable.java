@@ -89,7 +89,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 	private static final int ACCTSIZE = 2; // total #fields in acct
 
-	private static final int RECSIZE = (ACCTSIZE + 1) * 4; // acct bytes per record
+	private static final int RECSIZE = (ACCTSIZE + 1) * 4; // acct bytes per record // TODO why +1? (en)
 
 	private int[] kvoffsets; // indices into kvindices
 
@@ -320,6 +320,8 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 			// start and end within memory segment
 			int kvstart = kvindices[index + KEYSTART];
 			int kvend = kvindices[index + ACCTSIZE] - 4;
+			// -> kvend = kvstart of next pair
+			// -> 4 = kv-length -> see write(...)
 
 			// for the last written pair kvindices[index + ACCTSIZE] does not exist
 			if (kvstart == kvlast) {
