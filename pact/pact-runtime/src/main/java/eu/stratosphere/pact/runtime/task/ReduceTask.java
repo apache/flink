@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -43,6 +44,7 @@ import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -132,7 +134,7 @@ public class ReduceTask extends AbstractTask {
 		// open stub implementation
 		stub.open();
 		// run stub implementation
-		stub.run(groupedIterator, output);
+		this.callStubWithGroups(groupedIterator, output);
 		// close output collector
 		output.close();
 		// close stub implementation
@@ -361,5 +363,23 @@ public class ReduceTask extends AbstractTask {
 			throw new RuntimeException("Invalid local strategy provided for ReduceTask.");
 		}
 
+	}
+	
+	/**
+	 * This method goes over all keys and values that are to be processed by this ReduceTask and calls 
+	 * {@link ReduceStub#reduce(Key, Iterator, Collector)} for each key with the key and an iterator over all 
+	 * corresponding values. 
+	 * 
+	 * @param in
+	 *        An iterator over all key/value pairs processed by this instance of the reducing code.
+	 *        The pairs are grouped by key, such that equal keys are always in a contiguous sequence.
+	 * @param out
+	 *        The collector to write the results to.
+	 */
+	public final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
+		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
+		while (iter.nextKey()) {
+			this.stub.reduce(iter.getKey(), iter.getValues(), out);
+		}
 	}
 }

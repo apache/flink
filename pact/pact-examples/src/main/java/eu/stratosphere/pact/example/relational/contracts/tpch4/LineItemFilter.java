@@ -29,7 +29,7 @@ public class LineItemFilter extends
 	private static Logger LOGGER = Logger.getLogger(LineItemFilter.class);
 
 	@Override
-	protected void map(PactInteger key, Tuple value,
+	public void map(PactInteger key, Tuple value,
 			Collector<PactInteger, Tuple> out) {
 
 		String commitString = value.getStringValueAt(11);

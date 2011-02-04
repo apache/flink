@@ -33,8 +33,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.util.LastRepeatableIterator;
-import eu.stratosphere.pact.common.util.ResettableIterator;
+import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
+import eu.stratosphere.pact.runtime.task.util.ResettableIterator;
 
 /**
  * Imnplementation of a resettable iterator, that reads all data from a given

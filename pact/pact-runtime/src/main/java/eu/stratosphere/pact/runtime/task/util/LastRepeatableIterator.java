@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.common.util;
+package eu.stratosphere.pact.runtime.task.util;
 
 import java.util.Iterator;
 

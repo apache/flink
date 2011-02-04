@@ -12,44 +12,16 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.type.stub;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+package eu.stratosphere.pact.runtime.task.util;
 
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.Value;
+import java.util.Iterator;
 
-/**
- * Needed to use the mock implementations of {@link ReduceStub} and {@link MatchStub}.
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- *
- */
-class TupleMock implements Value
-{
-	private String name = "";
-	
-	public TupleMock()
-	{}
-	
-	public TupleMock(String name)
-	{
-		this.name = name;
-	}
-	
-	@Override
-	public void read(DataInput in) throws IOException {
-	}
+public interface ResettableIterator<E> extends Iterator<E> {
 
-	@Override
-	public void write(DataOutput out) throws IOException {
-	}
-	
-	@Override
-	public String toString() {
-		return this.name;
-	}
+	/**
+	 * Reset the iterator
+	 */
+	public void reset();
 	
 }

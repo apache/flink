@@ -93,7 +93,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		 * {@inheritDoc}
 		 */
 		@Override
-		protected void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
+		public void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
 
 			String line = key.toString();
 			line = line.replaceAll("\\W", " ");

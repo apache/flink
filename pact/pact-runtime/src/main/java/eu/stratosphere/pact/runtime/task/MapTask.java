@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -131,7 +132,7 @@ public class MapTask extends AbstractTask {
 		// open stub implementation
 		stub.open();
 		// run stub implementation
-		stub.run(input, output);
+		callStub(input, output);
 		// close output collector
 		output.close();
 		// close stub implementation
@@ -233,6 +234,22 @@ public class MapTask extends AbstractTask {
 			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
 			output.addWriter(writer, fwdCopyFlag);
 			fwdCopyFlag = true;
+		}
+	}
+	
+	/**
+	 * This method is called with an iterator over all k-v pairs that this MapTask processes.
+	 * It calls {@link MapStub#map(Key, Value, Collector)} for each pair. 
+	 * 
+	 * @param in
+	 *        Iterator over all key-value pairs that this MapTask processes
+	 * @param out
+	 *        A collector for the output of the map() function.
+	 */
+	protected void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) {
+		while (in.hasNext()) {
+			Pair<Key, Value> pair = in.next();
+			this.stub.map(pair.getKey(), pair.getValue(), out);
 		}
 	}
 }

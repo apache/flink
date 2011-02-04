@@ -440,7 +440,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(ProjectPathStart.class);
 
 		@Override
-		protected void map(NodePair key, Path value, Collector<PactString, Path> out) {
+		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
 
 			LOG.debug("Emit: [" + key.getFirst() + "," + value + "]");
 			
@@ -459,7 +459,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(ProjectPathEnd.class);
 
 		@Override
-		protected void map(NodePair key, Path value, Collector<PactString, Path> out) {
+		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
 			
 			LOG.debug("Emit: [" + key.getSecond() + "," + value + "]");
 			
