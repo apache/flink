@@ -67,11 +67,6 @@ public class DeepCopyTest
 			}
 			System.out.println("clone: " + count + " objects -> " + (System.currentTimeMillis()-start) + "ms");
 		}
-		{
-			long start = System.currentTimeMillis();
-			final int count = 10000;
-			System.out.println("clone: " + count + " objects -> " + (System.currentTimeMillis()-start) + "ms");
-		}
 	}
 	
 	
@@ -83,13 +78,13 @@ public class DeepCopyTest
 			return null;
 		}
 		else if (String.class.equals(toClone.getClass())) 
-		{ 
+		{
 			return (T) new java.lang.String((java.lang.String) toClone); 
 		}
 		else if (Integer.class.equals(toClone.getClass())) 
 		{ 
 			return (T) new java.lang.Integer((java.lang.Integer) toClone); 
-		}	
+		}
 		else if (toClone.getClass().isArray()) 
 		{ 
 			final int length = java.lang.reflect.Array.getLength(toClone); 
