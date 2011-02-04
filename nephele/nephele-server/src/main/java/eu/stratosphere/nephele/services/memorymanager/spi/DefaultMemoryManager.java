@@ -344,6 +344,37 @@ public class DefaultMemoryManager implements MemoryManager {
 			this.size = end - start;
 		}
 	}
+	
+	/**
+	 * MemorySegments wrapping a portion of the backing memory.
+	 * Use with caution - provides publib access to underyling backing array.
+	 * 
+	 * 
+	 * @author Erik Nijkamp
+	 */
+	public static final class MemorySegmentDescriptorProxy {
+		public final byte[] memory;
+
+		public final int chunk;
+
+		public final int start;
+
+		public final int end;
+
+		public final int size;
+		
+		public final WeakReference<MemorySegmentDescriptor> proxee;
+
+		public MemorySegmentDescriptorProxy(MemorySegmentDescriptor descriptor) {
+			this.proxee = new WeakReference<MemorySegmentDescriptor>(descriptor);
+			this.memory = descriptor.memory;
+			this.chunk = descriptor.chunk;
+			this.start = descriptor.start;
+			this.end = descriptor.end;
+			this.size = end - start;
+		}
+	}
+
 
 	// ------------------------------------------------------------------------
 

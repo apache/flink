@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
 public class DefaultMemorySegment extends MemorySegment {
-	protected final WeakReference<MemorySegmentDescriptor> descriptorReference;
+	public final WeakReference<MemorySegmentDescriptor> descriptorReference;
 
 	public DefaultMemorySegment(WeakReference<MemorySegmentDescriptor> descriptorReference,
 			RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView) {
