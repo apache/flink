@@ -10,14 +10,15 @@ import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
+ * Deserializer for {@link Value} objects. 
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  * @param <V>
  */
 public class ValueDeserializer<V extends Value> implements RecordDeserializer<Value> {
-	private ClassLoader classLoader;
 
+	private ClassLoader classLoader;
 	private Class<Value> valueClass;
 
 	public ValueDeserializer() {
@@ -27,12 +28,10 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<Va
 		this.valueClass = valueClass;
 	}
 
-	
-	private Class<Value> getValueClass()
-	{
-		return valueClass;
-	}
-
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.RecordDeserializer#deserialize(java.io.DataInput)
+	 */
 	@Override
 	public Value deserialize(DataInput in) {
 		try {
@@ -44,11 +43,19 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<Va
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.RecordDeserializer#getRecordType()
+	 */
 	@Override
 	public Class<Value> getRecordType() {
 		return valueClass;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public void read(DataInput in) throws IOException {
@@ -59,17 +66,29 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<Va
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
 		StringRecord.writeString(out, this.valueClass.getName());
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.RecordDeserializer#setClassLoader(java.lang.ClassLoader)
+	 */
 	@Override
 	public void setClassLoader(ClassLoader classLoader) {
 
 		this.classLoader = classLoader;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.RecordDeserializer#getInstance()
+	 */
 	@Override
 	public Value getInstance() {
 		try {

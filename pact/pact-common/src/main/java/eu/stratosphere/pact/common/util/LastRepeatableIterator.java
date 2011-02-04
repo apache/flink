@@ -2,6 +2,13 @@ package eu.stratosphere.pact.common.util;
 
 import java.util.Iterator;
 
+/**
+ * A LastRepeatableIterator allows to repeat the last emitted object again. 
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ * @param <E>
+ */
 public interface LastRepeatableIterator<E> extends Iterator<E> {
 
 	/**
