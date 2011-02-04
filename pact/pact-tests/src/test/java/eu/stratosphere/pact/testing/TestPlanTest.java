@@ -547,11 +547,7 @@ public class TestPlanTest extends TestPlanTestCase {
 		testPlan.getExpectedOutput().
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test3"));
-		try {
-			testPlan.run();
-			fail("Test plan should have failed");
-		} catch (AssertionError error) {
-		}
+		assertTestRunFails(testPlan);
 	}
 
 	/**
@@ -567,11 +563,7 @@ public class TestPlanTest extends TestPlanTestCase {
 			add(new PactInteger(2), new PactString("test2"));
 		testPlan.getExpectedOutput().
 			add(new PactInteger(1), new PactString("test1"));
-		try {
-			testPlan.run();
-			fail("Test plan should have failed");
-		} catch (AssertionError error) {
-		}
+		assertTestRunFails(testPlan);
 	}
 
 	/**
@@ -589,10 +581,45 @@ public class TestPlanTest extends TestPlanTestCase {
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2")).
 			add(new PactInteger(3), new PactString("test3"));
+		assertTestRunFails(testPlan);
+	}
+
+	private void assertTestRunFails(TestPlan testPlan) {
+		boolean failed = false;
 		try {
 			testPlan.run();
-			fail("Test plan should have failed");
 		} catch (AssertionError error) {
+			failed = true;
 		}
+		assertTrue("Test plan should have failed", failed);
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} succeeds with uninitialized expected values.
+	 */
+	@Test
+	public void shouldSuceedIfNoExpectedValues() {
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan.run();
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} fails if actual values appear but empty values are expected.
+	 */
+	@Test
+	public void shouldFailIfNonEmptyExpectedValues() {
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan.getExpectedOutput().setEmpty();
+		assertTestRunFails(testPlan);
 	}
 }
