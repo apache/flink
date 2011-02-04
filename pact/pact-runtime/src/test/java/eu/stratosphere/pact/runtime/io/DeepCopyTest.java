@@ -86,7 +86,7 @@ public class DeepCopyTest
 		{ 
 			return (T) new java.lang.String((java.lang.String) toClone); 
 		}
-		if (Integer.class.equals(toClone.getClass())) 
+		else if (Integer.class.equals(toClone.getClass())) 
 		{ 
 			return (T) new java.lang.Integer((java.lang.Integer) toClone); 
 		}	
