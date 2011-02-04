@@ -28,6 +28,9 @@ public class DefaultChannelSelector<T> implements ChannelSelector<T> {
 
 	@Override
 	public int[] selectChannels(T record, int numberOfChannels) {
+		if(numberOfChannels <= 0){
+			return new int[] {};
+		}
 		this.nextChannelToSendTo = (this.nextChannelToSendTo + 1) % numberOfChannels;
 		return new int[] { this.nextChannelToSendTo };
 	}
