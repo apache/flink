@@ -69,6 +69,29 @@
             </configuration>
           </execution>
 
+	  <!-- All2All Shortest Paths -->
+          <execution>
+            <id>All2AllSP</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>All2AllSP</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.graph.All2AllSP</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/graph/All2AllSP.class</include>
+                <include>**/graph/All2AllSP$*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
       <!-- EnumTriangles -->
           <execution>
             <id>EnumTriangles</id>

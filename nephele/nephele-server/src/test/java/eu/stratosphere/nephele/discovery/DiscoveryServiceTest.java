@@ -15,12 +15,7 @@
 
 package eu.stratosphere.nephele.discovery;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
-
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class DiscoveryServiceTest {
 

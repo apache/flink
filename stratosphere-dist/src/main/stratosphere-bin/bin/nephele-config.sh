@@ -38,6 +38,11 @@ if [ -z "${JAVA_HOME+x}" ]; then
         JAVA_HOME=/usr/lib/jvm/java-6-sun/
 fi
 
+# define HOSTNAME if it is not already set
+if [ -z "${HOSTNAME+x}" ]; then
+        HOSTNAME=`hostname`
+fi
+
 # define the main directory of the Nephele installation
 NEPHELE_ROOT_DIR=`dirname "$this"`/..
 NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR/conf
@@ -64,16 +69,16 @@ CLASSPATH=$( echo $NEPHELE_LIB_DIR/*.jar . | sed 's/ /:/g' )
 
 # auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the instance type
-function extractHostName() {
+extractHostName() {
 
         # extract first part of string (before any whitespace characters)
         SLAVE=$1
         # Remove types and possible comments
-        if [[ "$SLAVE" =~ ^([0-9a-zA-Z/.-]+).*$ ]]; then
+        if [[ "$SLAVE" =~ '^([0-9a-zA-Z/.-]+).*$' ]]; then
                 SLAVE=${BASH_REMATCH[1]}
         fi
         # Extract the hostname from the network hierarchy
-        if [[ "$SLAVE" =~ ^.*/([0-9a-zA-Z.-]+)$ ]]; then
+        if [[ "$SLAVE" =~ '^.*/([0-9a-zA-Z.-]+)$' ]]; then
                 SLAVE=${BASH_REMATCH[1]}
         fi
 

@@ -42,7 +42,7 @@ public class ChannelCheckpoint {
 	 * The log object used to report debug information and possible errors.
 	 */
 	private static final Log LOG = LogFactory.getLog(ChannelCheckpoint.class);
-	
+
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
 	private final ExecutionVertexID executionVertexID;
@@ -150,7 +150,15 @@ public class ChannelCheckpoint {
 
 		this.queuedEnvelopes.clear();
 
-		// TODO: Remove any files that may have been written
+		// Remove any files that may have been written
+		final File file = new File(getFilename());
+		if (file.exists()) {
+			try {
+				file.delete();
+			} catch (SecurityException e) {
+				LOG.error(e);
+			}
+		}
 	}
 
 	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) {
@@ -170,23 +178,24 @@ public class ChannelCheckpoint {
 		FileInputStream fis = null;
 		try {
 			fis = new FileInputStream(filename);
-		} catch(IOException ioe) {
+		} catch (IOException ioe) {
 			LOG.error(ioe);
 			return;
 		}
-		
+
 		// Register an external data source at the file buffer manager
 		try {
-			byteBufferedChannelManager.getFileBufferManager().registerExternalDataSourceForChannel(this.sourceChannelID,
+			byteBufferedChannelManager.getFileBufferManager().registerExternalDataSourceForChannel(
+				this.sourceChannelID,
 				filename);
-		} catch(IOException ioe) {
+		} catch (IOException ioe) {
 			LOG.error(ioe);
 		}
-		
+
 		this.fileChannel = fis.getChannel();
 
 		final IncomingConnectionID connectionID = new IncomingConnectionID(filename);
-		
+
 		// Start recovering
 		final IncomingConnection incomingConnection = byteBufferedChannelManager
 			.registerIncomingConnection(connectionID, this.fileChannel);
@@ -197,13 +206,13 @@ public class ChannelCheckpoint {
 			}
 		} catch (EOFException e) {
 			// EOF Exception is expected here
-		} catch(IOException e) {
+		} catch (IOException e) {
 			incomingConnection.reportTransmissionProblem(null, e);
-			//TODO: Unregister external data source
+			// TODO: Unregister external data source
 			return;
 		}
-		
-		//TODO: Unregister external data source
+
+		// TODO: Unregister external data source
 		incomingConnection.closeConnection(null);
 	}
 }

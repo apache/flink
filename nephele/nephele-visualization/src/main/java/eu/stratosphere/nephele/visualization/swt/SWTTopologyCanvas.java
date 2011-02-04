@@ -63,7 +63,7 @@ public class SWTTopologyCanvas extends Canvas implements PaintListener, Listener
 		final SWTNetworkTopology swtNetworkTopology = new SWTNetworkTopology(networkTopology);
 		final Map<NetworkNode, SWTNetworkNode> nodeMap = new HashMap<NetworkNode, SWTNetworkNode>();
 
-		Iterator<NetworkNode> it = networkTopology.iterator();
+		final Iterator<NetworkNode> it = networkTopology.iterator();
 		while (it.hasNext()) {
 
 			final NetworkNode networkNode = it.next();
@@ -75,13 +75,14 @@ public class SWTTopologyCanvas extends Canvas implements PaintListener, Listener
 			}
 		}
 
-		it = nodeMap.keySet().iterator();
-		while (it.hasNext()) {
+		final Iterator<Map.Entry<NetworkNode, SWTNetworkNode>> it2 = nodeMap.entrySet().iterator();
+		while (it2.hasNext()) {
 
-			final NetworkNode childNode = it.next();
+			final Map.Entry<NetworkNode, SWTNetworkNode> entry = it2.next();
+			final NetworkNode childNode = entry.getKey();
 			final NetworkNode parentNode = childNode.getParentNode();
 			if (parentNode != null) {
-				final SWTNetworkNode swtChildNode = nodeMap.get(childNode);
+				final SWTNetworkNode swtChildNode = entry.getValue();
 				final SWTNetworkNode swtParentNode = nodeMap.get(parentNode);
 				swtChildNode.setParentNode(swtParentNode);
 			}

@@ -18,23 +18,62 @@ package eu.stratosphere.nephele.managementgraph;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ManagementGate {
+/**
+ * This class implements an input or output gate of a {@link ManagementVertex}. The gate is derived an input or output
+ * gate of the actual execution vertex.
+ * <p>
+ * This class is not thread-safe.
+ * 
+ * @author warneke
+ */
+public final class ManagementGate extends ManagementAttachment {
 
+	/**
+	 * The management vertex this gate belongs to.
+	 */
 	private final ManagementVertex managementVertex;
 
+	/**
+	 * The name of the record type transported through this gate.
+	 */
 	private final String recordType;
 
+	/**
+	 * <code>true</code> if this gate represents an input gate in the actual execution graph, <code>false</code>
+	 * otherwise.
+	 */
 	private final boolean isInputGate;
 
+	/**
+	 * The index of this gate.
+	 */
 	private final int index;
 
-	private Object attachment = null;
-
+	/**
+	 * A list of edges originating from this gate.
+	 */
 	private final List<ManagementEdge> forwardEdges = new ArrayList<ManagementEdge>();
 
+	/**
+	 * A list of edges arriving at this gate.
+	 */
 	private final List<ManagementEdge> backwardEdges = new ArrayList<ManagementEdge>();
 
-	public ManagementGate(ManagementVertex managementVertex, int index, boolean isInputGate, String recordType) {
+	/**
+	 * Constructs a new management gate.
+	 * 
+	 * @param managementVertex
+	 *        the management vertex this gate belongs to
+	 * @param index
+	 *        the index of this gate
+	 * @param isInputGate
+	 *        <code>true</code> if this gate represents an input gate in the actual execution graph, <code>false</code>
+	 *        otherwise
+	 * @param recordType
+	 *        the name of the record type transported through this gate
+	 */
+	public ManagementGate(final ManagementVertex managementVertex, final int index, final boolean isInputGate,
+			final String recordType) {
 		this.isInputGate = isInputGate;
 		this.managementVertex = managementVertex;
 		this.recordType = recordType;
@@ -43,11 +82,25 @@ public class ManagementGate {
 		managementVertex.addGate(this);
 	}
 
+	/**
+	 * Checks if this gate represents an input gate.
+	 * 
+	 * @return <code>true</code> if this gate represents an input gate in the actual execution graph, <code>false</code>
+	 *         otherwise
+	 */
 	public boolean isInputGate() {
 		return this.isInputGate;
 	}
 
-	void insertForwardEdge(ManagementEdge managementEdge, int index) {
+	/**
+	 * Adds a new edge which originates at this gate.
+	 * 
+	 * @param managementEdge
+	 *        the edge to be added
+	 * @param index
+	 *        the index at which the edge shall be added
+	 */
+	void insertForwardEdge(final ManagementEdge managementEdge, final int index) {
 
 		while (index >= this.forwardEdges.size()) {
 			this.forwardEdges.add(null);
@@ -56,7 +109,15 @@ public class ManagementGate {
 		this.forwardEdges.set(index, managementEdge);
 	}
 
-	void insertBackwardEdge(ManagementEdge managementEdge, int index) {
+	/**
+	 * Adds a new edge which arrives at this gate.
+	 * 
+	 * @param managementEdge
+	 *        the edge to be added
+	 * @param index
+	 *        the index at which the edge shall be added
+	 */
+	void insertBackwardEdge(final ManagementEdge managementEdge, final int index) {
 
 		while (index >= this.backwardEdges.size()) {
 			this.backwardEdges.add(null);
@@ -65,27 +126,61 @@ public class ManagementGate {
 		this.backwardEdges.set(index, managementEdge);
 	}
 
+	/**
+	 * Returns the name of the record type transported through this gate.
+	 * 
+	 * @return the name of the record type transported through this gate
+	 */
 	public String getRecordType() {
 		return this.recordType;
 	}
 
+	/**
+	 * Returns the {@link ManagementGraph} this gate belongs to.
+	 * 
+	 * @return the management graph this gate belongs to
+	 */
 	public ManagementGraph getGraph() {
 		return this.managementVertex.getGraph();
 	}
 
+	/**
+	 * Returns the number of edges originating at this gate.
+	 * 
+	 * @return the number of edges originating at this gate
+	 */
 	public int getNumberOfForwardEdges() {
+
 		return this.forwardEdges.size();
 	}
 
+	/**
+	 * Returns the number of edges arriving at this gate.
+	 * 
+	 * @return the number of edges arriving at this gate
+	 */
 	public int getNumberOfBackwardEdges() {
+
 		return this.backwardEdges.size();
 	}
 
+	/**
+	 * Returns the index of this gate.
+	 * 
+	 * @return the index of this gate
+	 */
 	public int getIndex() {
 		return this.index;
 	}
 
-	public ManagementEdge getForwardEdge(int index) {
+	/**
+	 * Returns the edge originating at the given index.
+	 * 
+	 * @param index
+	 *        the index of the edge to be returned
+	 * @return the edge at the given index or <code>null</code> if no such edge exists
+	 */
+	public ManagementEdge getForwardEdge(final int index) {
 
 		if (index < this.forwardEdges.size()) {
 			return this.forwardEdges.get(index);
@@ -94,7 +189,14 @@ public class ManagementGate {
 		return null;
 	}
 
-	public ManagementEdge getBackwardEdge(int index) {
+	/**
+	 * Returns the edge arriving at the given index.
+	 * 
+	 * @param index
+	 *        the index of the edge to be returned
+	 * @return the edge at the given index or <code>null</code> if no such edge exists
+	 */
+	public ManagementEdge getBackwardEdge(final int index) {
 
 		if (index < this.backwardEdges.size()) {
 			return this.backwardEdges.get(index);
@@ -103,15 +205,12 @@ public class ManagementGate {
 		return null;
 	}
 
+	/**
+	 * Returns the vertex this gate belongs to.
+	 * 
+	 * @return the vertex this gate belongs to
+	 */
 	public ManagementVertex getVertex() {
 		return this.managementVertex;
-	}
-
-	public void setAttachment(Object attachment) {
-		this.attachment = attachment;
-	}
-
-	public Object getAttachment() {
-		return this.attachment;
 	}
 }

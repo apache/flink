@@ -35,8 +35,11 @@ package eu.stratosphere.nephele.jobmanager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
@@ -59,7 +62,6 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.EventList;
 import eu.stratosphere.nephele.event.job.NewJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -67,11 +69,16 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
@@ -99,6 +106,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -356,7 +364,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		try {
 			line = parser.parse(options, args);
 		} catch (ParseException e) {
-			System.err.println("CLI Parsing failed. Reason: " + e.getMessage());
+			LOG.error("CLI Parsing failed. Reason: " + e.getMessage());
 			System.exit(FAILURERETURNCODE);
 		}
 
@@ -506,10 +514,10 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo) {
+	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
 		// Delegate call to instance manager
-		this.instanceManager.reportHeartBeat(instanceConnectionInfo);
+		this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 	}
 
 	/**
@@ -661,7 +669,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				null);
 		}
 
-		final EventList<AbstractEvent> eventList = new EventList<AbstractEvent>();
+		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
 		this.eventCollector.getEventsForJob(jobID, eventList, false);
 
 		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
@@ -739,9 +747,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public EventList<NewJobEvent> getNewJobs() throws IOException {
+	public List<NewJobEvent> getNewJobs() throws IOException {
 
-		final EventList<NewJobEvent> eventList = new EventList<NewJobEvent>();
+		final List<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
@@ -756,9 +764,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public EventList<AbstractEvent> getEvents(JobID jobID) throws IOException {
+	public List<AbstractEvent> getEvents(JobID jobID) throws IOException {
 
-		final EventList<AbstractEvent> eventList = new EventList<AbstractEvent>();
+		final List<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
@@ -775,7 +783,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	@Override
 	public void cancelTask(JobID jobID, ManagementVertexID id) throws IOException {
 		// TODO Auto-generated method stub
-		System.out.println("Cancelling job " + jobID);
+		LOG.debug("Cancelling job " + jobID);
 	}
 
 	/**
@@ -784,7 +792,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	@Override
 	public void killInstance(StringRecord instanceName) throws IOException {
 		// TODO Auto-generated method stub
-		System.out.println("Killing instance " + instanceName);
+		LOG.debug("Killing instance " + instanceName);
 	}
 
 	/**
@@ -801,6 +809,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				+ jobStatus);
 		}
 
+		// Remove all checkpoints for a successfully finished job
+		if (jobStatus == JobStatus.FINISHED) {
+			removeAllCheckpoints(executionGraph);
+		}
+
 		if (jobStatus == JobStatus.FAILED) {
 			// Make sure all tasks are really removed
 			cancelJob(executionGraph);
@@ -811,6 +824,67 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	}
 
 	/**
+	 * Collects all vertices with checkpoints from the given execution graph and advices the corresponding task managers
+	 * to remove those checkpoints.
+	 * 
+	 * @param executionGraph
+	 *        the execution graph from which the checkpoints shall be removed
+	 */
+	private void removeAllCheckpoints(ExecutionGraph executionGraph) {
+
+		final JobStatus jobStatus = executionGraph.getJobStatus();
+		if (jobStatus != JobStatus.FINISHED) {
+			LOG.error("removeAllCheckpoints called for an unsuccesfull job, ignoring request");
+		}
+
+		final List<ExecutionVertex> verticesWithCheckpoints = executionGraph.getVerticesWithCheckpoints();
+		// Group vertex IDs by assigned instance
+		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap =
+			new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
+		final Iterator<ExecutionVertex> it = verticesWithCheckpoints.iterator();
+		while (it.hasNext()) {
+
+			final ExecutionVertex vertex = it.next();
+			final AllocatedResource allocatedResource = vertex.getAllocatedResource();
+			if (allocatedResource == null) {
+				continue;
+			}
+
+			final AbstractInstance abstractInstance = allocatedResource.getInstance();
+			if (abstractInstance == null) {
+				continue;
+			}
+
+			SerializableArrayList<ExecutionVertexID> vertexIDs = instanceMap.get(abstractInstance);
+			if (vertexIDs == null) {
+				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
+				instanceMap.put(abstractInstance, vertexIDs);
+			}
+			vertexIDs.add(vertex.getID());
+		}
+
+		// Finally, trigger the removal of the checkpoints at each instance
+		final Iterator<Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>>> it2 = instanceMap
+			.entrySet().iterator();
+		while (it2.hasNext()) {
+
+			final Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>> entry = it2.next();
+			final AbstractInstance abstractInstance = entry.getKey();
+			if (abstractInstance == null) {
+				LOG.error("Cannot remove checkpoint: abstractInstance is null");
+				continue;
+			}
+
+			try {
+				abstractInstance.removeCheckpoints(entry.getValue());
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+			}
+		}
+
+	}
+
+	/**
 	 * Tests whether the job manager has been shut down completely.
 	 * 
 	 * @return <code>true</code> if the job manager has been shut down completely, <code>false</code> otherwise
@@ -818,5 +892,14 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public synchronized boolean isShutDown() {
 
 		return this.isShutDown;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
+
+		// Delegate call to the instance manager
+		return this.instanceManager.getMapOfAvailableInstanceTypes();
 	}
 }

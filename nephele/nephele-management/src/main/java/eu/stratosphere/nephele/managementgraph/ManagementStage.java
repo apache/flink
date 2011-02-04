@@ -19,37 +19,82 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class ManagementStage {
+/**
+ * This class implements a management stage of a {@link ManagementGraph}. The stage is derived from an execution stage
+ * which is used in Nephele's internal scheduling structure.
+ * <p>
+ * This class is not thread-safe.
+ * 
+ * @author warneke
+ */
+public final class ManagementStage extends ManagementAttachment {
 
+	/**
+	 * The management graph this management stage belongs to.
+	 */
 	private final ManagementGraph managementGraph;
 
+	/**
+	 * The unique number of this management stage.
+	 */
 	private int stageNumber = -1;
 
-	private Object attachment = null;
-
+	/**
+	 * The list of management group vertices which are contained in this management stage.
+	 */
 	private final List<ManagementGroupVertex> groupVertices = new ArrayList<ManagementGroupVertex>();
 
-	public ManagementStage(ManagementGraph managementGraph, int stageNumber) {
+	/**
+	 * Constructs a new management stage.
+	 * 
+	 * @param managementGraph
+	 *        the management graph this management stage belongs to
+	 * @param stageNumber
+	 *        the number of the stage
+	 */
+	public ManagementStage(final ManagementGraph managementGraph, final int stageNumber) {
 		this.managementGraph = managementGraph;
 		this.stageNumber = stageNumber;
 
 		this.managementGraph.addStage(this);
 	}
 
+	/**
+	 * Returns the management graph this management stage is part of.
+	 * 
+	 * @return the management graph this management stage is part of
+	 */
 	public ManagementGraph getGraph() {
 		return this.managementGraph;
 	}
 
+	/**
+	 * Returns this management stage's number.
+	 * 
+	 * @return this management stage's number
+	 */
 	public int getStageNumber() {
 		return this.stageNumber;
 	}
 
+	/**
+	 * Returns the number of group vertices included in this management stage.
+	 * 
+	 * @return the number of group vertices included in this management stage
+	 */
 	public int getNumberOfGroupVertices() {
 
 		return this.groupVertices.size();
 	}
 
-	public ManagementGroupVertex getGroupVertex(int index) {
+	/**
+	 * Returns the management group vertex with the given index.
+	 * 
+	 * @param index
+	 *        the index of the group vertex to be returned
+	 * @return the group vertex with the given index or <code>null</code> if no such vertex exists
+	 */
+	public ManagementGroupVertex getGroupVertex(final int index) {
 
 		if (index < this.groupVertices.size()) {
 			return this.groupVertices.get(index);
@@ -58,14 +103,26 @@ public class ManagementStage {
 		return null;
 	}
 
-	void addGroupVertex(ManagementGroupVertex groupVertex) {
+	/**
+	 * Adds the given group vertex to this management stage.
+	 * 
+	 * @param groupVertex
+	 *        the group vertex to be added to this management stage
+	 */
+	void addGroupVertex(final ManagementGroupVertex groupVertex) {
 
 		this.groupVertices.add(groupVertex);
 
 		this.managementGraph.addGroupVertex(groupVertex.getID(), groupVertex);
 	}
 
-	void collectGroupVertices(List<ManagementGroupVertex> groupVertices) {
+	/**
+	 * Adds all management group vertices contained in this stage to the given list.
+	 * 
+	 * @param groupVertices
+	 *        the list to which the group vertices in this stage shall be added
+	 */
+	void collectGroupVertices(final List<ManagementGroupVertex> groupVertices) {
 
 		final Iterator<ManagementGroupVertex> it = this.groupVertices.iterator();
 
@@ -74,7 +131,13 @@ public class ManagementStage {
 		}
 	}
 
-	void collectVertices(List<ManagementVertex> vertices) {
+	/**
+	 * Adds all management vertices contained in this stage's group vertices to the given list.
+	 * 
+	 * @param vertices
+	 *        the list to which the vertices in this stage shall be added
+	 */
+	void collectVertices(final List<ManagementVertex> vertices) {
 
 		final Iterator<ManagementGroupVertex> it = this.groupVertices.iterator();
 
@@ -181,6 +244,12 @@ public class ManagementStage {
 		return null;
 	}
 
+	/**
+	 * Returns the number of input group vertices in this stage. Input group vertices are those vertices which have
+	 * incoming edges from group vertices of a lower stage.
+	 * 
+	 * @return the number of input group vertices in this stage
+	 */
 	public int getNumberOfInputGroupVertices() {
 
 		int retVal = 0;
@@ -195,6 +264,14 @@ public class ManagementStage {
 		return retVal;
 	}
 
+	/**
+	 * Returns the input group vertex in this stage with the given index. Input group vertices are those vertices which
+	 * have incoming edges from group vertices of a lower stage.
+	 * 
+	 * @param index
+	 *        the index of the input group vertex to return
+	 * @return the input group vertex with the given index or <code>null</code> if no such vertex exists
+	 */
 	public ManagementGroupVertex getInputGroupVertex(int index) {
 
 		final Iterator<ManagementGroupVertex> it = this.groupVertices.iterator();
@@ -213,6 +290,12 @@ public class ManagementStage {
 		return null;
 	}
 
+	/**
+	 * Returns the number of output group vertices in this stage. Output group vertices are those vertices which have
+	 * outgoing edges to group vertices of a higher stage.
+	 * 
+	 * @return the number of output group vertices in this stage
+	 */
 	public int getNumberOfOutputGroupVertices() {
 
 		int retVal = 0;
@@ -227,6 +310,14 @@ public class ManagementStage {
 		return retVal;
 	}
 
+	/**
+	 * Returns the output group vertex in this stage with the given index. Output group vertices are those vertices
+	 * which have outgoing edges to group vertices of a higher stage.
+	 * 
+	 * @param index
+	 *        the index of the output group vertex to return
+	 * @return the output group vertex with the given index or <code>null</code> if no such vertex exists
+	 */
 	public ManagementGroupVertex getOutputGroupVertex(int index) {
 
 		final Iterator<ManagementGroupVertex> it = this.groupVertices.iterator();
@@ -243,13 +334,5 @@ public class ManagementStage {
 		}
 
 		return null;
-	}
-
-	public void setAttachment(Object attachment) {
-		this.attachment = attachment;
-	}
-
-	public Object getAttachment() {
-		return this.attachment;
 	}
 }

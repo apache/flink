@@ -4,11 +4,8 @@
     <id>bin</id>
     <formats>
         <format>dir</format>
-
-		<!--
-        <format>tar.gz</format>
+		<format>tar.gz</format>
         <format>zip</format>
-        -->
     </formats>
 
     <includeBaseDirectory>true</includeBaseDirectory>
@@ -24,9 +21,9 @@
             <useProjectAttachments>false</useProjectAttachments>
 
             <excludes>
-              <exclude>*:*examples</exclude>
-              <exclude>*:javadoc</exclude>
-              <exclude>*:sources</exclude>
+              <exclude>**/*examples*.jar</exclude>
+              <exclude>**/*javadoc*</exclude>
+              <exclude>**/*sources*</exclude>
             </excludes>
         </dependencySet>
         

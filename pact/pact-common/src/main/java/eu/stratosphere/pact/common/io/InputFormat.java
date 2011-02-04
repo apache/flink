@@ -71,7 +71,7 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 	public abstract boolean nextPair(KeyValuePair<K, V> pair) throws IOException;
 
 	/**
-	 * Method used to check if the end of the input is reached
+	 * Method used to check if the end of the input is reached.
 	 * 
 	 * @return returns true if the end is reached, otherwise false
 	 * @throws IOException
@@ -80,7 +80,7 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 	public abstract boolean reachedEnd() throws IOException;
 
 	/**
-	 * Conncets the input stream to the input format
+	 * Conncets the input stream to the input format.
 	 * 
 	 * @param fdis
 	 * @param start
@@ -93,12 +93,5 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 		this.length = length;
 		this.bufferSize = bufferSize;
 	}
-
-	// IDEA: Implement filter interface so that records can directly be skipped
-	// if e.g. the key does not match and that way the values don't need
-	// to be read
-	// ... should probably done by a configuration parameter not by a
-	// setter method
-	// public void setFilter(InputFilter f);
 
 }

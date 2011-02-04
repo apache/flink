@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.instance;
 
+import java.util.Map;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -83,8 +85,10 @@ public interface InstanceManager {
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the {@link InstanceConnectionInfo} object attached to the heart beat message
+	 * @param hardwareDescription
+	 *        a hardware description with details on the instance's compute resources.
 	 */
-	void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo);
+	void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription);
 
 	/**
 	 * Translates the name of an instance type to the corresponding instance type object.
@@ -122,6 +126,17 @@ public interface InstanceManager {
 	 *        the instance listener to set for this instance manager
 	 */
 	void setInstanceListener(InstanceListener instanceListener);
+
+	/**
+	 * Returns a map of all instance types which are currently available to Nephele. The map contains a description of
+	 * the hardware characteristics for each instance type as provided in the configuration file. Moreover, it contains
+	 * the actual hardware description as reported by task managers running on the individual instances. If available,
+	 * the map also contains the maximum number instances Nephele can allocate of each instance type (i.e. if no other
+	 * job occupies instances).
+	 * 
+	 * @return a list of all instance types available to Nephele
+	 */
+	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes();
 
 	/**
 	 * Shuts the instance manager down and stops all its internal processes.

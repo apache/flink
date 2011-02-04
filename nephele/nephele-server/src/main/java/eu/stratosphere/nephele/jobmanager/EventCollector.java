@@ -24,7 +24,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.EventList;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.ManagementEvent;
@@ -63,7 +62,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * 
 	 * @author warneke
 	 */
-	private class ExecutionListenerWrapper implements ExecutionListener {
+	private final class ExecutionListenerWrapper implements ExecutionListener {
 
 		/**
 		 * The event collector to forward the created event to.
@@ -142,7 +141,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * 
 	 * @author warneke
 	 */
-	private class JobStatusListenerWrapper implements JobStatusListener {
+	private final class JobStatusListenerWrapper implements JobStatusListener {
 
 		/**
 		 * The event collector to forward the created event to.
@@ -179,7 +178,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus) {
+		public void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus, String optionalMessage) {
 
 			if (newJobStatus == JobStatus.SCHEDULED) {
 				this.eventCollector.createRunningJobEvent(jobID, this.jobName, this.isProfilingAvailable);
@@ -190,7 +189,8 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 				this.eventCollector.removeRunningJobEvent(jobID);
 			}
 
-			this.eventCollector.addEvent(jobID, new JobEvent(System.currentTimeMillis(), newJobStatus));
+			this.eventCollector
+				.addEvent(jobID, new JobEvent(System.currentTimeMillis(), newJobStatus, optionalMessage));
 		}
 
 	}
@@ -229,7 +229,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		timer.schedule(this, TIMERTASKINTERVAL, TIMERTASKINTERVAL);
 	}
 
-	public void getEventsForJob(JobID jobID, EventList<AbstractEvent> eventList, boolean includeManagementEvents) {
+	public void getEventsForJob(JobID jobID, List<AbstractEvent> eventList, boolean includeManagementEvents) {
 
 		synchronized (this.collectedEvents) {
 
@@ -242,20 +242,20 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 					final AbstractEvent event = it.next();
 					final boolean isManagementEvent = (event instanceof ManagementEvent);
 					if (!isManagementEvent || includeManagementEvents) {
-						eventList.addEvent(event);
+						eventList.add(event);
 					}
 				}
 			}
 		}
 	}
 
-	public void getNewJobs(EventList<NewJobEvent> eventList) {
+	public void getNewJobs(List<NewJobEvent> eventList) {
 
 		synchronized (this.runningJobs) {
 
 			final Iterator<NewJobEvent> it = this.runningJobs.values().iterator();
 			while (it.hasNext()) {
-				eventList.addEvent(it.next());
+				eventList.add(it.next());
 			}
 		}
 	}

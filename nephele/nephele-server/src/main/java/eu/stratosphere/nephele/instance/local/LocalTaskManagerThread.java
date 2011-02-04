@@ -36,8 +36,12 @@ public class LocalTaskManagerThread extends Thread {
 	 *        the configuration directory to pass on to the task manager instance
 	 */
 	public LocalTaskManagerThread(String configDir) {
-
-		this.taskManager = new TaskManager(configDir);
+		try {
+			this.taskManager = new TaskManager(configDir);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not start local TaskManager: " + e.getMessage(), e);
+		}
 	}
 
 	/**

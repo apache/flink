@@ -24,6 +24,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -40,16 +42,16 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cloud.CloudInstance;
 import eu.stratosphere.nephele.instance.cloud.CloudManager;
 import eu.stratosphere.nephele.instance.cloud.FloatingInstance;
@@ -62,15 +64,18 @@ public class CloudManagerTest {
 
 		int nrAvailable = 0;
 
-		final Multimap<JobID, AllocatedResource> resourcesOfJobs = HashMultimap.create();
+		final Map<JobID, List<AllocatedResource>> resourcesOfJobs = new HashMap<JobID, List<AllocatedResource>>();
 
 		@Override
 		public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
 
-			--nrAvailable;
-			assertTrue(nrAvailable >= 0);
-			assertTrue(resourcesOfJobs.containsEntry(jobID, allocatedResource));
-			resourcesOfJobs.remove(jobID, allocatedResource);
+			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
+			assertTrue(resourcesOfJob != null);
+			assertTrue(resourcesOfJob.contains(allocatedResource));
+			resourcesOfJob.remove(allocatedResource);
+			if(resourcesOfJob.isEmpty()) {
+				this.resourcesOfJobs.remove(jobID);
+			}
 		}
 
 		@Override
@@ -78,8 +83,13 @@ public class CloudManagerTest {
 
 			assertTrue(nrAvailable >= 0);
 			++nrAvailable;
-			assertFalse(resourcesOfJobs.containsEntry(jobID, allocatedResource));
-			resourcesOfJobs.put(jobID, allocatedResource);
+			List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
+			if(resourcesOfJob == null) {
+				resourcesOfJob = new ArrayList<AllocatedResource>();
+				this.resourcesOfJobs.put(jobID, resourcesOfJob);
+			}
+			assertFalse(resourcesOfJob.contains(allocatedResource));
+			resourcesOfJob.add(allocatedResource);
 		}
 	};
 
@@ -295,7 +305,7 @@ public class CloudManagerTest {
 
 		// request instance
 		try {
-			cm.requestInstance(jobID, conf, new InstanceType("m1.small", 1, 1, 2048, 40, 10));
+			cm.requestInstance(jobID, conf, InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"));
 		} catch (InstanceException e) {
 			e.printStackTrace();
 		}
@@ -323,7 +333,10 @@ public class CloudManagerTest {
 			instanceID = instance.getInstanceId();
 
 			// report heart beat
-			cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000, 20000));
+			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
+				32L * 1024L * 1024L * 1024L, 32L * 1024L * 1024L * 1024L);
+			cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000, 20000),
+				hardwareDescription);
 
 		} catch (SecurityException e) {
 			e.printStackTrace();

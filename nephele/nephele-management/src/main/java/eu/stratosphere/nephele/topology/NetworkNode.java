@@ -37,7 +37,7 @@ public class NetworkNode implements IOReadableWritable {
 
 	private Object attachment;
 
-	protected NetworkNode(String name, NetworkNode parentNode, NetworkTopology networkTopology) {
+	protected NetworkNode(final String name, final NetworkNode parentNode, final NetworkTopology networkTopology) {
 		this.name = name;
 		this.parentNode = parentNode;
 		this.networkTopology = networkTopology;
@@ -51,14 +51,14 @@ public class NetworkNode implements IOReadableWritable {
 		}
 	}
 
-	NetworkNode(NetworkNode parentNode, NetworkTopology networkTopology) {
+	NetworkNode(final NetworkNode parentNode, final NetworkTopology networkTopology) {
 		this.parentNode = parentNode;
 		this.networkTopology = networkTopology;
 
 		// The node will add itself when it is fully deserialized
 	}
 
-	private void addChild(NetworkNode child) {
+	private void addChild(final NetworkNode child) {
 
 		this.childNodes.add(child);
 	}
@@ -78,7 +78,7 @@ public class NetworkNode implements IOReadableWritable {
 		}
 	}
 
-	private void removeChild(NetworkNode child) {
+	private void removeChild(final NetworkNode child) {
 		this.childNodes.remove(child);
 	}
 
@@ -121,7 +121,7 @@ public class NetworkNode implements IOReadableWritable {
 		return this.childNodes.size();
 	}
 
-	public void setAttachment(Object attachment) {
+	public void setAttachment(final Object attachment) {
 		this.attachment = attachment;
 	}
 
@@ -129,7 +129,7 @@ public class NetworkNode implements IOReadableWritable {
 		return this.attachment;
 	}
 
-	public NetworkNode getChildNode(int index) {
+	public NetworkNode getChildNode(final int index) {
 
 		if (index < this.childNodes.size()) {
 			return this.childNodes.get(index);
@@ -150,7 +150,7 @@ public class NetworkNode implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		this.name = StringRecord.readString(in);
 
@@ -171,7 +171,7 @@ public class NetworkNode implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		StringRecord.writeString(out, this.name);
 		out.writeInt(this.childNodes.size());
@@ -191,15 +191,17 @@ public class NetworkNode implements IOReadableWritable {
 		if (this.childNodes.isEmpty()) {
 			str = this.name;
 		} else {
-			str = "[";
 			final Iterator<NetworkNode> it = this.childNodes.iterator();
+			final StringBuffer buf = new StringBuffer("[");
 			while (it.hasNext()) {
-				str += it.next().toString();
+				buf.append(it.next().toString());
 				if (it.hasNext()) {
-					str += ", ";
+					buf.append(", ");
 				}
 			}
-			str += "]";
+
+			buf.append("]");
+			str = buf.toString();
 		}
 
 		return str;

@@ -15,15 +15,12 @@
 
 package eu.stratosphere.nephele.instance.cloud;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -50,9 +47,6 @@ public class CloudInstance extends AbstractInstance {
 	/** The time the instance was allocated. */
 	private final long allocationTime;
 
-	/** Mapping channel IDs to filenames. */
-	private final Map<ChannelID, String> filenames = new HashMap<ChannelID, String>();
-
 	/** The last received heart beat. */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
 
@@ -71,11 +65,13 @@ public class CloudInstance extends AbstractInstance {
 	 *        the time the instance was allocated
 	 * @param parentNode
 	 *        the parent node in the network topology
+	 * @param hardwareDescription
+	 *        the hardware description reported by the instance itself
 	 */
 	public CloudInstance(String instanceID, InstanceType type, String instanceOwner,
 			InstanceConnectionInfo instanceConnectionInfo, long allocationTime, NetworkNode parentNode,
-			NetworkTopology networkTopology) {
-		super(type, instanceConnectionInfo, parentNode, networkTopology);
+			NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
 		this.allocatedResource = new AllocatedResource(this, new AllocationID());
 
@@ -91,37 +87,6 @@ public class CloudInstance extends AbstractInstance {
 	 */
 	public String getInstanceID() {
 		return this.instanceID;
-	}
-
-	/**
-	 * Returns the unique file name corresponding to the channel ID.
-	 * If the channel ID does not have a file name, a random file name is generated.
-	 * 
-	 * @param id
-	 *        the channel ID
-	 * @return the unique file name
-	 */
-	@Override
-	public String getUniqueFilename(ChannelID id) {
-
-		if (this.filenames.containsKey(id)) {
-			return this.filenames.get(id);
-		}
-
-		// Simple implementation to generate a random filename
-		final char[] alphabet = { 'a', 'b', 'c', 'd', 'e', 'f', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
-
-		String filename = "ne";
-
-		for (int i = 0; i < 16; i++) {
-			filename += alphabet[(int) (Math.random() * alphabet.length)];
-		}
-
-		filename += ".dat";
-		// Store filename with id
-		this.filenames.put(id, filename);
-
-		return filename;
 	}
 
 	/**

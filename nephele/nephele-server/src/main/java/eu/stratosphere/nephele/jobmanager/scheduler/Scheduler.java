@@ -24,11 +24,11 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
- * This scheduler interface must be implemented by a scheduler implementations
- * for Nephele. The interface defines the fundamental methods for scheduling and
- * removing jobs. While Nephele's {@link JobManager} is responsible for requesting
- * the required instances for the job at the {@link InstanceManager}, the scheduler
- * is in charge of assigning the individual tasks to the
+ * This scheduler interface must be implemented by a scheduler implementations for Nephele. The interface defines the
+ * fundamental methods for scheduling and removing jobs. While Nephele's
+ * {@link eu.stratosphere.nephele.jobmanager.JobManager} is responsible for requesting the required instances for the
+ * job at the {@link eu.stratosphere.nephele.instance.InstanceManager}, the scheduler is in charge of assigning the
+ * individual tasks to the instances.
  * 
  * @author warneke
  */

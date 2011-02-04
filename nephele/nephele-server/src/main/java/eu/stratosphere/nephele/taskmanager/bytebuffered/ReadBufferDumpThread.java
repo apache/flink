@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Deque;
 import java.util.Iterator;
@@ -25,11 +24,11 @@ public class ReadBufferDumpThread extends Thread {
 
 	private final Queue<TransferEnvelope> queueOfTransferEnvelopes;
 
-	private final Deque<ByteBuffer> emptyReadBuffers;
+	//private final Deque<ByteBuffer> emptyReadBuffers;
 
 	public ReadBufferDumpThread(Queue<TransferEnvelope> queueOfTransferEnvelopes, Deque<ByteBuffer> emptyReadBuffers) {
 		this.queueOfTransferEnvelopes = queueOfTransferEnvelopes;
-		this.emptyReadBuffers = emptyReadBuffers;
+		//this.emptyReadBuffers = emptyReadBuffers;
 	}
 
 	@Override
@@ -41,12 +40,13 @@ public class ReadBufferDumpThread extends Thread {
 				return;
 			}
 
-			final TransferEnvelope queueHead = this.queueOfTransferEnvelopes.peek();
+			//final TransferEnvelope queueHead = this.queueOfTransferEnvelopes.peek();
 			final Iterator<TransferEnvelope> it = this.queueOfTransferEnvelopes.iterator();
 
 			while (it.hasNext()) {
 
-				final TransferEnvelope transferEnvelope = it.next();
+				it.next();
+				//final TransferEnvelope transferEnvelope = it.next();
 
 				/*
 				 * Make sure not to touch the queue head as this envelope may already

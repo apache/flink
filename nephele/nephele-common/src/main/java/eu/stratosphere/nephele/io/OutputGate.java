@@ -385,6 +385,11 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
+			
+			if(c == null) {
+				throw new IOException("Class is null!");
+			}
+			
 			AbstractOutputChannel<T> eoc = null;
 			try {
 				final Constructor<AbstractOutputChannel<T>> constructor = (Constructor<AbstractOutputChannel<T>>) c

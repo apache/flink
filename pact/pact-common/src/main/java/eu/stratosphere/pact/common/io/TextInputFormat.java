@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @param <V>
  */
 public abstract class TextInputFormat<K extends Key, V extends Value> extends InputFormat<K, V> {
+
 	public static final String FORMAT_PAIR_DELIMITER = "delimiter";
 
 	private byte[] readBuffer;
@@ -45,7 +46,7 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 
 	private int limit;
 
-	private byte delimiter = '\n';
+	private byte[] delimiter = new byte[] { '\n' };
 
 	private boolean overLimit;
 
@@ -87,18 +88,21 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 	@Override
 	public void configure(Configuration parameters) {
 		String delimString = parameters.getString(FORMAT_PAIR_DELIMITER, "\n");
-		if (delimString != null && delimString.length() != 1) {
-			throw new IllegalArgumentException("The delimiter must currently be a single char string.");
+
+		if (delimString == null) {
+			throw new IllegalArgumentException("The delimiter not be null.");
 		}
 
-		delimiter = delimString != null ? (byte) delimString.charAt(0) : -1;
+		delimiter = delimString.getBytes();
 	}
 
 	/**
 	 * {@inheritDoc}
+	 * 
+	 * @throws IOException
 	 */
 	@Override
-	public void open() {
+	public void open() throws IOException {
 		readBuffer = new byte[bufferSize];
 		wrapBuffer = new byte[256];
 
@@ -106,18 +110,11 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 		this.overLimit = false;
 		this.end = false;
 
-		// TODO: Set delimiter
-		// this.delimiter = delimiter;
-
-		try {
-			if (start != 0) {
-				stream.seek(start);
-				readLine();
-			} else {
-				fillBuffer();
-			}
-		} catch (IOException ex) {
-			// TODO: Handle it!
+		if (start != 0) {
+			stream.seek(start);
+			readLine();
+		} else {
+			fillBuffer();
 		}
 	}
 
@@ -136,10 +133,6 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 	public void close() {
 		wrapBuffer = null;
 		readBuffer = null;
-
-		// if (stream != null) {
-		// stream.close();
-		// }
 	}
 
 	/**
@@ -170,8 +163,10 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 			return null;
 		}
 
-		int curr = 0;
 		int countInWrapBuffer = 0;
+
+		/* position of matching positions in the delimiter byte array */
+		int i = 0;
 
 		while (true) {
 			if (readPos >= limit) {
@@ -189,20 +184,32 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 			int startPos = readPos;
 			int count = 0;
 
-			while (readPos < limit && (curr = readBuffer[readPos++]) != delimiter)
-				;
+			while (readPos < limit && i < delimiter.length) {
+				if ((readBuffer[readPos++]) == delimiter[i]) {
+					i++;
+				} else {
+					i = 0;
+				}
+
+			}
 
 			// check why we dropped out
-			if (curr == delimiter) {
+			if (i == delimiter.length) {
 				// line end
-				count = readPos - startPos - 1;
+				count = readPos - startPos - delimiter.length;
 
 				// copy to byte array
 				if (countInWrapBuffer > 0) {
 					byte[] end = new byte[countInWrapBuffer + count];
-					System.arraycopy(wrapBuffer, 0, end, 0, countInWrapBuffer);
-					System.arraycopy(readBuffer, 0, end, countInWrapBuffer, count);
-					return end;
+					if (count >= 0) {
+						System.arraycopy(wrapBuffer, 0, end, 0, countInWrapBuffer);
+						System.arraycopy(readBuffer, 0, end, countInWrapBuffer, count);
+						return end;
+					} else {
+						// count < 0
+						System.arraycopy(wrapBuffer, 0, end, 0, countInWrapBuffer + count);
+						return end;
+					}
 				} else {
 					byte[] end = new byte[count];
 					System.arraycopy(readBuffer, startPos, end, 0, count);
@@ -245,5 +252,9 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 			return true;
 		}
 
+	}
+
+	public byte[] getDelimiter() {
+		return delimiter;
 	}
 }

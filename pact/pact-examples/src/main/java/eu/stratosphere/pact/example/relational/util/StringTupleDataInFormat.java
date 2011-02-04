@@ -15,16 +15,20 @@
 
 package eu.stratosphere.pact.example.relational.util;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class StringTupleDataInFormat extends TextInputFormat<PactString, Tuple> {
 
+	private static final Log LOG = LogFactory.getLog(StringTupleDataInFormat.class);
+	
 	private final int maxColumns = 20;
-
 	private final int delimiter = '|';
-
+	
 	@Override
 	public boolean readLine(KeyValuePair<PactString, Tuple> pair, byte[] line) {
 		int readPos = 0;
@@ -48,6 +52,8 @@ public class StringTupleDataInFormat extends TextInputFormat<PactString, Tuple> 
 
 		pair.setKey(key);
 		pair.setValue(value);
+		
+		LOG.debug("Emit: "+key+" , "+value);
 
 		return true;
 	}

@@ -37,8 +37,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * This class provides a simple Implementation of an event that holds a String
- * value.
+ * This class provides a simple implementation of an event that holds an integer value.
  * 
  * @author casp
  */
@@ -51,27 +50,61 @@ public class IntegerTaskEvent extends AbstractTaskEvent {
 		// should only be used for deserialization
 	}
 
-	public IntegerTaskEvent(int value) {
+	/**
+	 * Constructs a new integer task event.
+	 * 
+	 * @param value
+	 */
+	public IntegerTaskEvent(final int value) {
 		this.value = value;
 	}
 
 	/**
-	 * Returns the stored integer value. Unset is -1
+	 * Returns the stored integer value.
 	 * 
-	 * @return
+	 * @return the stored integer value or <code>-1</code> if no value has been set
 	 */
 	public int getInteger() {
 		return this.value;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeInt(value);
+	public void write(final DataOutput out) throws IOException {
+		out.writeInt(this.value);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		this.value = in.readInt();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return this.value;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof IntegerTaskEvent)) {
+			return false;
+		}
+
+		final IntegerTaskEvent taskEvent = (IntegerTaskEvent) obj;
+
+		return (this.value == taskEvent.getInteger());
+	}
 }

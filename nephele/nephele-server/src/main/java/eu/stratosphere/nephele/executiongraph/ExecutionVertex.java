@@ -186,10 +186,13 @@ public class ExecutionVertex {
 		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
 			this.executionGraph, this.groupVertex);
 
-		duplicatedVertex.environment = this.environment.duplicateEnvironment();
+		synchronized (duplicatedVertex) {
 
-		// TODO set new profiling record with new vertex id
-		duplicatedVertex.allocatedResource = this.allocatedResource;
+			duplicatedVertex.environment = this.environment.duplicateEnvironment();
+
+			// TODO set new profiling record with new vertex id
+			duplicatedVertex.allocatedResource = this.allocatedResource;
+		}
 
 		return duplicatedVertex;
 	}
@@ -249,7 +252,7 @@ public class ExecutionVertex {
 	 * 
 	 * @return the allocation ID which identifies the resources used
 	 *         by this vertex within the assigned instance or <code>null</code> if the instance is still assigned to a
-	 *         {@link DummyInstance}.
+	 *         {@link eu.stratosphere.nephele.instance.DummyInstance}.
 	 */
 	public synchronized AllocationID getAllocationID() {
 		return this.allocationID;
@@ -376,6 +379,7 @@ public class ExecutionVertex {
 	public TaskSubmissionResult startTask() {
 
 		AllocatedResource allocatedRes = null;
+		Environment env = null;
 		synchronized (this) {
 			if (this.allocatedResource == null) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
@@ -394,11 +398,11 @@ public class ExecutionVertex {
 				return result;
 			}
 			allocatedRes = this.allocatedResource;
+			env = this.environment;
 		}
 
 		try {
-			return allocatedRes.getInstance().submitTask(this.vertexID, this.executionGraph.getJobConfiguration(),
-				this.environment);
+			return allocatedRes.getInstance().submitTask(this.vertexID, this.executionGraph.getJobConfiguration(), env);
 		} catch (IOException e) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
 			result.setDescription(StringUtils.stringifyException(e));

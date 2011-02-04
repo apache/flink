@@ -59,7 +59,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 * @param description
 	 *        the optional error description
 	 */
-	public AbstractJobResult(ReturnCode returnCode, String description) {
+	public AbstractJobResult(final ReturnCode returnCode, final String description) {
 		this.returnCode = returnCode;
 		this.description = description;
 	}
@@ -75,7 +75,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read the return code
 		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
@@ -88,7 +88,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write the return code
 		EnumUtils.writeEnum(out, this.returnCode);
@@ -113,5 +113,66 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 */
 	public String getDescription() {
 		return this.description;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof AbstractJobResult)) {
+			return false;
+		}
+
+		final AbstractJobResult ajr = (AbstractJobResult) obj;
+
+		if (this.returnCode == null) {
+
+			if (ajr.getReturnCode() != null) {
+				return false;
+			}
+
+		} else {
+
+			if (!this.returnCode.equals(ajr.getReturnCode())) {
+				return false;
+			}
+		}
+
+		if (this.description == null) {
+
+			if (this.description != null) {
+				return false;
+			}
+
+		} else {
+
+			if (!this.description.equals(ajr.getDescription())) {
+				return false;
+			}
+
+		}
+
+		return true;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+		
+		long hashCode = 0;
+		
+		if(this.returnCode != null) {
+			hashCode += this.returnCode.hashCode();
+		}
+
+		if(this.description != null) {
+			hashCode += this.description.hashCode();
+		}
+		
+		return (int) (hashCode % Integer.MAX_VALUE);
 	}
 }
