@@ -19,11 +19,11 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
- * @author Arvid Heise
+ * Base class for {@link TestPlan} test cases.
  * 
+ * @author Arvid Heise
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ RPC.class, LibraryCacheManager.class })
@@ -35,7 +35,7 @@ public class TestPlanTestCase {
 	}
 
 	/**
-	 * 
+	 * Mocks RPC communications
 	 */
 	@Before
 	public final void setupMocking() {
@@ -74,6 +74,9 @@ public class TestPlanTestCase {
 		// replay(RPC.class);
 	}
 
+	/**
+	 * Closes all resources, especially file-based sort merger.
+	 */
 	@After
 	public void closeClosables() {
 		try {

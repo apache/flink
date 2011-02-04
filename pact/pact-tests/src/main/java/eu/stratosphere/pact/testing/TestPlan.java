@@ -77,13 +77,10 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  * The primary resource to test one or more implemented PACT stubs. It is
  * created in a unit tests and performs the following operations.
  * <ul>
- * <li>Adds {@link DataSourceContract}s and {@link DataSinkContract}s if not
- * explicitly specified,
+ * <li>Adds {@link DataSourceContract}s and {@link DataSinkContract}s if not explicitly specified,
  * <li>locally runs the PACT stubs,
- * <li>checks the results against the pairs as specified in
- * {@link #getExpectedOutput()}, and
- * <li>provides comfortable access to the results with
- * {@link #getActualOutput()}. <br>
+ * <li>checks the results against the pairs as specified in {@link #getExpectedOutput()}, and
+ * <li>provides comfortable access to the results with {@link #getActualOutput()}. <br>
  * </ul>
  * <br>
  * The typical usage is inside a unit test. And might look like one of the
@@ -187,13 +184,13 @@ public class TestPlan implements Closeable {
 	private final List<DataSourceContract<?, ?>> sources = new ArrayList<DataSourceContract<?, ?>>();
 
 	/**
-	 * Initializes TestPlan with the given {@link Contract}s. Like the original
-	 * {@link Plan}, the contracts may be {@link DataSinkContract}s. However, it
+	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
+	 * {@link DataSinkContract}s. However, it
 	 * is also possible to add arbitrary Contracts, to which DataSinkContracts
 	 * are automatically added.
 	 * 
 	 * @param contracts
-	 *            a list of Contracts with at least one element.
+	 *        a list of Contracts with at least one element.
 	 */
 	public TestPlan(final Contract... contracts) {
 		if (contracts.length == 0)
@@ -207,7 +204,7 @@ public class TestPlan implements Closeable {
 		this.contracts = new InputOutputAdder().process(contracts);
 
 		this.findSinksAndSources();
-		
+
 		TestPlanTestCase.addTestPlan(this);
 	}
 
@@ -280,8 +277,8 @@ public class TestPlan implements Closeable {
 
 	/**
 	 * Actually builds the plan but garantuees that the output can be read
-	 * without additional knowledge. Currently the
-	 * {@link SequentialOutputFormat} is used for a guaranteed deserializable
+	 * without additional knowledge. Currently the {@link SequentialOutputFormat} is used for a guaranteed
+	 * deserializable
 	 * output.<br>
 	 * If a data source is not {@link SequentialOutputFormat}, it is replaced by
 	 * a {@link SplittingOutputFormat}, with two outputs: the original one and
@@ -353,8 +350,7 @@ public class TestPlan implements Closeable {
 				int degree = TestPlan.this.getDegreeOfParallelism();
 				if (visitable instanceof DataSourceContract<?, ?>) {
 					degree = 1;
-				} else if (degree > 1
-						&& visitable instanceof DataSinkContract<?, ?>) {
+				} else if (degree > 1 && visitable instanceof DataSinkContract<?, ?>) {
 					try {
 						Path path = new Path(
 								((DataSinkContract<?, ?>) visitable)
@@ -380,8 +376,8 @@ public class TestPlan implements Closeable {
 
 	/**
 	 * Returns the first output {@link TestPairs} of the TestPlan. If multiple
-	 * contracts are tested in the TestPlan, it is recommended to use the
-	 * {@link #getActualOutput(DataSinkContract)} method to unambiguously get
+	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getActualOutput(DataSinkContract)}
+	 * method to unambiguously get
 	 * the values.<br>
 	 * The values are only meaningful after a {@link #run()}.
 	 * 
@@ -398,12 +394,12 @@ public class TestPlan implements Closeable {
 	 * The values are only meaningful after a {@link #run()}.
 	 * 
 	 * @param <K>
-	 *            the type of the key
+	 *        the type of the key
 	 * @param <V>
-	 *            the type of the value
+	 *        the type of the value
 	 * @param sink
-	 *            the sink of which the associated output TestPairs should be
-	 *            returned
+	 *        the sink of which the associated output TestPairs should be
+	 *        returned
 	 * @return the output {@link TestPairs} of the TestPlan associated with the
 	 *         given sink
 	 */
@@ -419,12 +415,11 @@ public class TestPlan implements Closeable {
 	/**
 	 * Returns the output {@link TestPairs} associated with the <i>i</i>th
 	 * output of the TestPlan. If multiple contracts are tested in the TestPlan,
-	 * it is recommended to use the {@link #getActualOutput(DataSinkContract)}
-	 * method to unambiguously get the values.<br>
+	 * it is recommended to use the {@link #getActualOutput(DataSinkContract)} method to unambiguously get the values.<br>
 	 * The values are only meaningful after a {@link #run()}.
 	 * 
 	 * @param number
-	 *            the number of the output.
+	 *        the number of the output.
 	 * @return the <i>i</i>th output of the TestPlan
 	 */
 	@SuppressWarnings("unchecked")
@@ -503,8 +498,8 @@ public class TestPlan implements Closeable {
 	 * data of the given contract.
 	 * 
 	 * @param contract
-	 *            the contract of which one preceding contracts should be
-	 *            returned
+	 *        the contract of which one preceding contracts should be
+	 *        returned
 	 * @return returns the first contract that process the data of the given
 	 *         contract
 	 */
@@ -517,7 +512,7 @@ public class TestPlan implements Closeable {
 	 * of the given contract.
 	 * 
 	 * @param contract
-	 *            the contract of which preceding contracts should be returned
+	 *        the contract of which preceding contracts should be returned
 	 * @return returns all contracts that process the data of the given contract
 	 */
 	public Contract[] getOutputsOfContract(final Contract contract) {
@@ -561,12 +556,12 @@ public class TestPlan implements Closeable {
 	 * output pairs for more complex TestPlans.
 	 * 
 	 * @param <K>
-	 *            the type of the key
+	 *        the type of the key
 	 * @param <V>
-	 *            the type of the value
+	 *        the type of the value
 	 * @param sink
-	 *            the sink of which the associated expected output TestPairs
-	 *            should be returned
+	 *        the sink of which the associated expected output TestPairs
+	 *        should be returned
 	 * @return the expected output {@link TestPairs} of the TestPlan associated
 	 *         with the given sink
 	 */
@@ -583,12 +578,12 @@ public class TestPlan implements Closeable {
 	/**
 	 * Returns the expected output {@link TestPairs} associated with the
 	 * <i>i</i>th expected output of the TestPlan. If multiple contracts are
-	 * tested in the TestPlan, it is recommended to use the
-	 * {@link #getExpectedOutput(DataSinkContract)} method to unambiguously set
+	 * tested in the TestPlan, it is recommended to use the {@link #getExpectedOutput(DataSinkContract)} method to
+	 * unambiguously set
 	 * the values.
 	 * 
 	 * @param number
-	 *            the number of the expected output.
+	 *        the number of the expected output.
 	 * @return the <i>i</i>th expected output of the TestPlan
 	 */
 	@SuppressWarnings("unchecked")
@@ -600,8 +595,8 @@ public class TestPlan implements Closeable {
 
 	/**
 	 * Returns the first input {@link TestPairs} of the TestPlan. If multiple
-	 * contracts are tested in the TestPlan, it is recommended to use the
-	 * {@link #getInput(DataSourceContract)} method to unambiguously set the
+	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getInput(DataSourceContract)} method
+	 * to unambiguously set the
 	 * values.
 	 * 
 	 * @return the first input of the TestPlan
@@ -616,12 +611,12 @@ public class TestPlan implements Closeable {
 	 * complex TestPlans.
 	 * 
 	 * @param <K>
-	 *            the type of the key
+	 *        the type of the key
 	 * @param <V>
-	 *            the type of the value
+	 *        the type of the value
 	 * @param source
-	 *            the source of which the associated input TestPairs should be
-	 *            returned
+	 *        the source of which the associated input TestPairs should be
+	 *        returned
 	 * @return the input {@link TestPairs} of the TestPlan associated with the
 	 *         given source
 	 */
@@ -641,7 +636,7 @@ public class TestPlan implements Closeable {
 	 * unambiguously set the values.
 	 * 
 	 * @param number
-	 *            the number of the input.
+	 *        the number of the input.
 	 * @return the <i>i</i>th input of the TestPlan
 	 */
 	@SuppressWarnings("unchecked")
@@ -677,7 +672,7 @@ public class TestPlan implements Closeable {
 	 * Sets the degreeOfParallelism to the specified value.
 	 * 
 	 * @param degreeOfParallelism
-	 *            the degreeOfParallelism to set
+	 *        the degreeOfParallelism to set
 	 */
 	public void setDegreeOfParallelism(final int degreeOfParallelism) {
 		this.degreeOfParallelism = degreeOfParallelism;
@@ -790,11 +785,11 @@ public class TestPlan implements Closeable {
 	public void close() throws IOException {
 		ClosableManager closableManager = new ClosableManager();
 
-		for (TestPairs<?, ?> pairs : inputs.values())
+		for (TestPairs<?, ?> pairs : this.inputs.values())
 			closableManager.add(pairs);
-		for (TestPairs<?, ?> pairs : actualOutputs.values())
+		for (TestPairs<?, ?> pairs : this.actualOutputs.values())
 			closableManager.add(pairs);
-		for (TestPairs<?, ?> pairs : expectedOutputs.values())
+		for (TestPairs<?, ?> pairs : this.expectedOutputs.values())
 			closableManager.add(pairs);
 
 		closableManager.close();

@@ -184,7 +184,8 @@ public class TestPlanTest extends TestPlanTestCase {
 	 */
 	@Test
 	public void completeTestPasses() {
-		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class, "TestPlan/test.json");
+		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
+			"TestPlan/test.json");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
@@ -235,7 +236,8 @@ public class TestPlanTest extends TestPlanTestCase {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class, "TestPlan/test.json");
+		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
+			"TestPlan/test.json");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
@@ -531,4 +533,66 @@ public class TestPlanTest extends TestPlanTestCase {
 		testPlan.run();
 	}
 
+	/**
+	 * Tests if a {@link TestPlan} fails if the actual values do not match the expected values.
+	 */
+	@Test
+	public void shouldFailIfExpectedAndActualValuesDiffer() {
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan.getExpectedOutput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test3"));
+		try {
+			testPlan.run();
+			fail("Test plan should have failed");
+		} catch (AssertionError error) {
+		}
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} fails there are too many values.
+	 */
+	@Test
+	public void shouldFailIfTooManyValues() {
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan.getExpectedOutput().
+			add(new PactInteger(1), new PactString("test1"));
+		try {
+			testPlan.run();
+			fail("Test plan should have failed");
+		} catch (AssertionError error) {
+		}
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} fails there are too few values.
+	 */
+	@Test
+	public void shouldFailIfTooFewValues() {
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan.getExpectedOutput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(3), new PactString("test3"));
+		try {
+			testPlan.run();
+			fail("Test plan should have failed");
+		} catch (AssertionError error) {
+		}
+	}
 }

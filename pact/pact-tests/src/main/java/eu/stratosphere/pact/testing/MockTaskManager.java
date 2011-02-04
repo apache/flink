@@ -11,8 +11,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
@@ -52,7 +50,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	private final MemoryManager memoryManager;
 
 	MockTaskManager() {
-		HardwareDescription hardware = MockInstance.DESCRIPTION;
+		// 256 mb
 		this.memoryManager = new DefaultMemoryManager(256 << 20);
 		// Initialize the io manager
 		final String tmpDirPath = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,

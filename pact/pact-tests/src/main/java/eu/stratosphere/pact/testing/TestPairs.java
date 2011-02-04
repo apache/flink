@@ -46,28 +46,25 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * <br>
  * There are two ways to specify the values:
  * <ol>
- * <li>From a file: with {@link #fromFile(Class, String)} and
- * {@link #fromFile(Class, String, Configuration)} the location, format, and
- * configuration of the data can be specified. The file is lazily loaded and
- * thus can be comparable large.
- * <li>Ad-hoc: key/value pairs can be added with {@link #add(Key, Value)},
- * {@link #add(KeyValuePair...)}, and {@link #add(Iterable)}. Please note that
- * the actual amount of pairs is quite for a test case as the TestPlan already
+ * <li>From a file: with {@link #fromFile(Class, String)} and {@link #fromFile(Class, String, Configuration)} the
+ * location, format, and configuration of the data can be specified. The file is lazily loaded and thus can be
+ * comparable large.
+ * <li>Ad-hoc: key/value pairs can be added with {@link #add(Key, Value)}, {@link #add(KeyValuePair...)}, and
+ * {@link #add(Iterable)}. Please note that the actual amount of pairs is quite for a test case as the TestPlan already
  * involves a certain degree of overhead.<br>
  * <br>
- * TestPairs are directly comparable with equals and hashCode based on its
- * content. Please note that in the case of large file-based TestPairs, the time
- * needed to compute the {@link #hashCode()} or to compare two instances with
- * {@link #equals(Object)} can become quite long. Currently, the comparison
- * result is order-dependent as TestPairs are interpreted as a list.<br>
+ * TestPairs are directly comparable with equals and hashCode based on its content. Please note that in the case of
+ * large file-based TestPairs, the time needed to compute the {@link #hashCode()} or to compare two instances with
+ * {@link #equals(Object)} can become quite long. Currently, the comparison result is order-dependent as TestPairs are
+ * interpreted as a list.<br>
  * <br>
  * Currently there is no notion of an empty set of pairs.
  * 
  * @author Arvid Heise
  * @param <K>
- *            the type of the keys
+ *        the type of the keys
  * @param <V>
- *            the type of the values
+ *        the type of the values
  */
 public class TestPairs<K extends Key, V extends Value> implements
 		Iterable<KeyValuePair<K, V>>, Closeable {
@@ -108,6 +105,9 @@ public class TestPairs<K extends Key, V extends Value> implements
 		}
 	}
 
+	private static final Iterator<KeyValuePair<Key, Value>> EMPTY_ITERATOR = new ArrayList<KeyValuePair<Key, Value>>()
+		.iterator();
+
 	private Configuration configuration;
 
 	private Class<? extends InputFormat<K, V>> inputFormatClass;
@@ -118,16 +118,36 @@ public class TestPairs<K extends Key, V extends Value> implements
 
 	private ClosableManager closableManager = new ClosableManager();
 
+	private boolean empty;
+
+	private boolean isEmpty() {
+		return this.empty;
+	}
+
+	private void setEmpty(boolean empty) {
+		this.empty = empty;
+	}
+
+	/**
+	 * Specifies that the set of key/value pairs is empty. This method is primarily used to distinguish between an empty
+	 * uninitialized set and a set deliberately left empty. Further calls to {@link #fromFile(Class, String)} or
+	 * {@link #add(Iterable)} will reset the effect of this method invocation and vice-versa.
+	 */
+	public void setEmpty() {
+		setEmpty(true);
+	}
+
 	/**
 	 * Adds several pairs at once.
 	 * 
 	 * @param pairs
-	 *            the pairs to add
+	 *        the pairs to add
 	 * @return this
 	 */
 	public TestPairs<K, V> add(final Iterable<KeyValuePair<K, V>> pairs) {
 		for (final KeyValuePair<K, V> pair : pairs)
 			this.pairs.add(pair);
+		setEmpty(false);
 		return this;
 	}
 
@@ -135,13 +155,14 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 * Adds a pair consisting of the given key and value.
 	 * 
 	 * @param key
-	 *            the key of the pair
+	 *        the key of the pair
 	 * @param value
-	 *            the value of the pair
+	 *        the value of the pair
 	 * @return this
 	 */
 	public TestPairs<K, V> add(final K key, final V value) {
 		this.pairs.add(new KeyValuePair<K, V>(key, value));
+		setEmpty(false);
 		return this;
 	}
 
@@ -149,12 +170,13 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 * Adds several pairs at once.
 	 * 
 	 * @param pairs
-	 *            the pairs to add
+	 *        the pairs to add
 	 * @return this
 	 */
 	public TestPairs<K, V> add(final KeyValuePair<K, V>... pairs) {
 		for (final KeyValuePair<K, V> pair : pairs)
 			this.pairs.add(pair);
+		setEmpty(false);
 		return this;
 	}
 
@@ -201,8 +223,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 	}
 
 	/**
-	 * Uses {@link UnilateralSortMerger} to sort the files of the
-	 * {@link InputFileIterator}.
+	 * Uses {@link UnilateralSortMerger} to sort the files of the {@link InputFileIterator}.
 	 */
 	@SuppressWarnings("unchecked")
 	private Iterator<KeyValuePair<K, V>> createSortedIterator(
@@ -245,7 +266,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 					new TestPairsReader(inputFileIterator, actualPair), 0.5f,
 					new ReduceTask());
 
-			closableManager.add(new Closeable() {
+			this.closableManager.add(new Closeable() {
 				@Override
 				public void close() throws IOException {
 					try {
@@ -269,12 +290,11 @@ public class TestPairs<K extends Key, V extends Value> implements
 
 	@Override
 	public void close() throws IOException {
-		closableManager.close();
+		this.closableManager.close();
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@SuppressWarnings("unchecked")
@@ -301,9 +321,9 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 * Initializes this {@link TestPairs} from the given file.
 	 * 
 	 * @param inputFormatClass
-	 *            the class of the {@link InputFormat}
+	 *        the class of the {@link InputFormat}
 	 * @param file
-	 *            the path to the file, can be relative
+	 *        the path to the file, can be relative
 	 * @return this
 	 */
 	@SuppressWarnings("rawtypes")
@@ -318,11 +338,11 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 * Initializes this {@link TestPairs} from the given file.
 	 * 
 	 * @param inputFormatClass
-	 *            the class of the {@link InputFormat}
+	 *        the class of the {@link InputFormat}
 	 * @param file
-	 *            the path to the file, can be relative
+	 *        the path to the file, can be relative
 	 * @param configuration
-	 *            the configuration for the {@link InputFormat}.
+	 *        the configuration for the {@link InputFormat}.
 	 * @return this
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -332,12 +352,12 @@ public class TestPairs<K extends Key, V extends Value> implements
 		this.path = file;
 		this.inputFormatClass = (Class<? extends InputFormat<K, V>>) inputFormatClass;
 		this.configuration = configuration;
+		setEmpty(false);
 		return this;
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
@@ -360,18 +380,20 @@ public class TestPairs<K extends Key, V extends Value> implements
 	}
 
 	/**
-	 * Returns true if either pairs were added manually or with
-	 * {@link #fromFile(Class, String, Configuration)}.
+	 * Returns true if either pairs were added manually or with {@link #fromFile(Class, String, Configuration)}.
 	 * 
-	 * @return true if either pairs were added manually or with
-	 *         {@link #fromFile(Class, String, Configuration)}.
+	 * @return true if either pairs were added manually or with {@link #fromFile(Class, String, Configuration)}.
 	 */
 	public boolean isInitialized() {
-		return !this.pairs.isEmpty() || this.inputFormatClass != null;
+		return this.isEmpty() || !this.pairs.isEmpty() || this.inputFormatClass != null;
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public Iterator<KeyValuePair<K, V>> iterator() {
+		if (isEmpty())
+			return (Iterator) EMPTY_ITERATOR;
+
 		if (!this.isAdhoc() && this.inputFormatClass != null) {
 
 			final InputFileIterator<K, V> inputFileIterator;
@@ -410,9 +432,9 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 * Saves the data to the given path in an internal format.
 	 * 
 	 * @param path
-	 *            the path to write to, may be relative
+	 *        the path to write to, may be relative
 	 * @throws IOException
-	 *             if an I/O error occurred
+	 *         if an I/O error occurred
 	 */
 	@SuppressWarnings("unchecked")
 	public void saveToFile(final String path) throws IOException {
