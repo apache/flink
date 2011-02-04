@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,7 +33,6 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -87,7 +85,7 @@ public class CombineTask extends AbstractTask {
 	private TaskConfig config;
 
 	// task config including stub parameters
-	private Collector output;
+	private OutputCollector output;
 
 	/**
 	 * {@inheritDoc}
@@ -215,18 +213,17 @@ public class CombineTask extends AbstractTask {
 			throw new RuntimeException("CombineTask has more than one output");
 		}
 
-		// create collection for output collector
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+		
 		// obtain OutputEmitter from output ship strategy
 		OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(0));
 		// create writer
 		RecordWriter<KeyValuePair<Key, Value>> writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 			(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-		// add writer to collection
-		writers.add(writer);
-
-		// create collector and register the output writer
-		output = new OutputCollector(writers);
+		
+		// add writer to output collector
+		output.addWriter(writer, false);
 	}
 
 	/**

@@ -17,7 +17,6 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -274,8 +273,12 @@ public class MatchTask extends AbstractTask {
 	 * forwards its input to all writers.
 	 */
 	private void initOutputCollector() {
-		// create collection for writers
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+				
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -284,12 +287,16 @@ public class MatchTask extends AbstractTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
+			
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
+			
 		}
-
-		// create collector and register all writers
-		output = new OutputCollector(writers);
+		
 	}
 
 	/**
@@ -417,8 +424,7 @@ public class MatchTask extends AbstractTask {
 		} else {
 
 			// both sides contain more than one value
-			// TODO: 1) decide which side to store
-			// 2) use spilling list
+			// TODO: Decide which side to store!
 			
 			Reader<Value> v1Reader = new Reader<Value>() {
 
