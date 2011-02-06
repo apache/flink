@@ -86,48 +86,48 @@ public class BufferTest {
 		SerializationBuffer<IntegerRecord> intSerializationBuffer = new SerializationBuffer<IntegerRecord>();
 		int i = 0;
 		IntegerRecord intRecord = new IntegerRecord(i);
-		//Serialize a record.
+		// Serialize a record.
 		try {
 			intSerializationBuffer.serialize(intRecord);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
 		}
-		//Last record is still in buffer, serializing another should throw IOException
+		// Last record is still in buffer, serializing another should throw IOException
 		try {
 			intSerializationBuffer.serialize(intRecord);
 			fail();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		//Read from buffer (written in file)
+		// Read from buffer (written in file)
 		try {
 			intSerializationBuffer.read(writeable);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
 		}
-		//Now a new Record can be serialized
+		// Now a new Record can be serialized
 		try {
 			intSerializationBuffer.serialize(intRecord);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
 		}
-		
+
 		DeserializationBuffer<IntegerRecord> intDeserialitionBuffer = new DeserializationBuffer<IntegerRecord>(
 			new DefaultRecordDeserializer<IntegerRecord>(IntegerRecord.class), true);
 		IntegerRecord record = new IntegerRecord();
-		//Deserialze a Record 
+		// Deserialze a Record
 		try {
 			record = intDeserialitionBuffer.readData(readable);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
 		}
-		//Check it contains the right value
+		// Check it contains the right value
 		assertEquals(i, record.getValue());
-		//File empty, another read should throw IOException
+		// File empty, another read should throw IOException
 		try {
 			record = intDeserialitionBuffer.readData(readable);
 			fail();
@@ -145,22 +145,22 @@ public class BufferTest {
 		SerializationBuffer<StringRecord> stringSerializationBuffer = new SerializationBuffer<StringRecord>();
 		String str = "abc";
 		StringRecord stringrecord = new StringRecord(str);
-		//Serialize a record.
+		// Serialize a record.
 		try {
 			stringSerializationBuffer.serialize(stringrecord);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
 		}
-		//Read from buffer (write in file)
+		// Read from buffer (write in file)
 		try {
 			stringSerializationBuffer.read(writeable);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
 		}
-		//Serialize next Record. 
-		//Read from buffer (write in file)
+		// Serialize next Record.
+		// Read from buffer (write in file)
 		String str2 = "abcdef";
 		stringrecord = new StringRecord(str2);
 		try {
@@ -174,7 +174,7 @@ public class BufferTest {
 		DeserializationBuffer<StringRecord> stringDeserialitionBuffer = new DeserializationBuffer<StringRecord>(
 			new DefaultRecordDeserializer<StringRecord>(StringRecord.class), true);
 		StringRecord record = new StringRecord();
-		//Deserialize and check record are correct
+		// Deserialize and check record are correct
 		try {
 			record = stringDeserialitionBuffer.readData(readable);
 		} catch (IOException e) {

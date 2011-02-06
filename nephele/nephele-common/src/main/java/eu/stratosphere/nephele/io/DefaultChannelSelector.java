@@ -39,7 +39,9 @@ public class DefaultChannelSelector<T extends Record> implements ChannelSelector
 	@Override
 
 	public void selectChannels(T record, boolean[] channelFlags) {
-
+		if(channelFlags.length == 0){
+			return;
+		}
 		this.nextChannelToSendTo = (this.nextChannelToSendTo + 1) % channelFlags.length;
 		channelFlags[this.nextChannelToSendTo] = true;
 

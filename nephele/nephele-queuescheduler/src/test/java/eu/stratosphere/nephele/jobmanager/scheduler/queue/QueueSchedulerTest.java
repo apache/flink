@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -27,6 +28,8 @@ import java.lang.reflect.Method;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.junit.Before;
@@ -49,10 +52,13 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.local.LocalInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
@@ -103,50 +109,57 @@ public class QueueSchedulerTest {
 	 */
 	@Test
 	public void testSchedulJob(){
+		InstanceType type = new InstanceType();
+		InstanceTypeDescription desc = InstanceTypeDescriptionFactory.construct(type, new HardwareDescription(), 4);
+		HashMap<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
+		requiredInstanceTypes.put(type , 3);
+		HashMap<InstanceType, InstanceTypeDescription> availableInstances = new HashMap<InstanceType, InstanceTypeDescription>();
+		availableInstances.put(type, desc );
 		
-
 		try {
-			whenNew(ExecutionGraphIterator.class).withArguments(Matchers.any(ExecutionGraph.class),Matchers.anyBoolean()).thenReturn(this.graphIterator);
+			whenNew( HashMap.class).withNoArguments().thenReturn(requiredInstanceTypes);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		
-		when(this.graphIterator.next()).thenReturn(this.vertex1);
-		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.CREATED);
-		
-		when(this.vertex1.getEnvironment()).thenReturn(this.environment);
-		
-		
+		when(this.executionGraph.getNumberOfStages()).thenReturn(1);
+		when( this.instanceManager.getMapOfAvailableInstanceTypes()).thenReturn(availableInstances);
+
+		//correct walk through method
 		QueueScheduler toTest = new QueueScheduler(this.schedulingListener, this.instanceManager);
 		try {
 			toTest.schedulJob(this.executionGraph);
 			Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
 			assertEquals("Job should be in list", true, jobQueue.contains(this.executionGraph));
-			verify(this.vertex1, times(4)).setExecutionState(ExecutionState.SCHEDULED);
 			jobQueue.remove(this.executionGraph);
 			
 		} catch (SchedulingException e) {
+			fail();
 			e.printStackTrace();
 		}
-		//toTest = new QueueScheduler(schedulingListener, instanceManager);
 		
-		when(this.graphIterator.next()).thenReturn(this.vertex2);
-		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.vertex2.getEnvironment()).thenReturn(this.environment);
-		when(this.vertex2.getExecutionState()).thenReturn(ExecutionState.CREATED)
-											.thenReturn(ExecutionState.CREATED)
-											.thenReturn(ExecutionState.CANCELLED)
-											.thenReturn(ExecutionState.CREATED);
+		//not enough available Instances
+		desc = InstanceTypeDescriptionFactory.construct(type, new HardwareDescription(), 2);
+		availableInstances.put(type, desc );
 		try {
 			toTest.schedulJob(this.executionGraph);
-			verify(this.loggerMock).error(Matchers.anyString());
-			Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
-			assertEquals("Job should be in list", true, jobQueue.contains(this.executionGraph));
-			verify(this.vertex2, times(4)).setExecutionState(ExecutionState.SCHEDULED);
+			fail();
 			
 		} catch (SchedulingException e) {
-			e.printStackTrace();
+			Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
+			assertEquals("Job should not be in list", false, jobQueue.contains(this.executionGraph));
+			
+		}
+		//Instance unknown
+		availableInstances.clear();
+		try {
+			toTest.schedulJob(this.executionGraph);
+			fail();
+			
+		} catch (SchedulingException e) {
+			Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
+			assertEquals("Job should not be in list", false, jobQueue.contains(this.executionGraph));
+			
 		}
 	}
 	
@@ -155,41 +168,39 @@ public class QueueSchedulerTest {
 	 */
 	@Test
 	public void testGetVerticesReadyToBeExecuted(){
+		
 		QueueScheduler toTest = new QueueScheduler(this.schedulingListener, this.instanceManager);
+		InstanceType type = new InstanceType();
+		HashMap<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
+		requiredInstanceTypes.put(type , 3);
 		//mock iterator
-		HashSet<ExecutionVertex> set = mock(HashSet.class);
+		HashSet<ExecutionVertex> set = new HashSet<ExecutionVertex>();
 		try {
 			whenNew(ExecutionGraphIterator.class)
 				.withArguments(Matchers.any(ExecutionGraph.class),Matchers.anyInt(),Matchers.anyBoolean(), Matchers.anyBoolean()).thenReturn(this.graphIterator);
 			whenNew(HashSet.class).withNoArguments().thenReturn(set);
+			whenNew( HashMap.class).withNoArguments().thenReturn(requiredInstanceTypes);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		when(this.graphIterator.next()).thenReturn(this.vertex1);
-		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
+		when(this.graphIterator.hasNext()).thenReturn(false, true, true, true, true, false);
 		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.ASSIGNED);
 		
 		//no graphs in List, empty list return
 		
-		toTest.getVerticesReadyToBeExecuted();
-		verify(set, times(0)).add(Matchers.any(ExecutionVertex.class));
+		Set<ExecutionVertex> output = toTest.getVerticesReadyToBeExecuted();
+		assertEquals(true, output.isEmpty());
+		
+		
+		//graph in list
 		this.queue = Whitebox.getInternalState(toTest, "jobQueue");
-		
-		//one graph in list, but no instances: an error should be reported
 		this.queue.add(this.executionGraph);
-		//when(this.executionGraph.getInstanceTypesRequiredForCurrentStage()).thenReturn(null);
-		 toTest.getVerticesReadyToBeExecuted();
-		verify(this.loggerMock).error(Matchers.anyString());
-		
-		//put some instances in list, the method should work correct 
-		InstanceType instanceType = new InstanceType();
-		HashMap<InstanceType, Integer> map = new HashMap<InstanceType,Integer>();
-		map.put(instanceType, 3);
-		//when(this.executionGraph.getInstanceTypesRequiredForCurrentStage()).thenReturn(map);
-		this.queue.add(this.executionGraph);
-		toTest.getVerticesReadyToBeExecuted();
-		verify(set, times(4)).add(Matchers.any(ExecutionVertex.class));
+		output =toTest.getVerticesReadyToBeExecuted();
 		verify(this.vertex1, times(4)).setExecutionState(ExecutionState.READY);
+		assertEquals(true, output.contains(this.vertex1));
+	
+		
 	}
 	
 	
