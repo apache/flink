@@ -52,11 +52,11 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * aggregation.
  * 
  * SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
- * FROM orders, lineitem
- * WHERE l_orderkey = o_orderkey
- * AND o_orderstatus = "X" 
- * AND YEAR(o_orderdate) > Y
- * AND o_orderpriority LIKE "Z%"
+ *   FROM orders, lineitem
+ *   WHERE l_orderkey = o_orderkey
+ *     AND o_orderstatus = "X" 
+ *     AND YEAR(o_orderdate) > Y
+ *     AND o_orderpriority LIKE "Z%"
  * GROUP BY l_orderkey, o_shippriority;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
@@ -266,14 +266,15 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		String lineitemsPath = "";
 		String resultPath = "";
 
-		if (args.length != 4)
-			LOGGER.warn("number of arguments do not match!");
-		else {
-			degreeOfParallelism = Integer.parseInt(args[0]);
-			ordersPath = args[1];
-			lineitemsPath = args[2];
-			resultPath = args[3];
+		if (args.length != 4) {
+			throw new IllegalArgumentException(
+			"Must provide three arguments: [noSubStasks], [orders], [lineitem], [output]");
 		}
+		
+		degreeOfParallelism = Integer.parseInt(args[0]);
+		ordersPath = args[1];
+		lineitemsPath = args[2];
+		resultPath = args[3];
 
 		// create DataSourceContract for Orders input
 		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
@@ -344,7 +345,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, orders-input, lineitem-input, result";
+		return "Parameters: [noSubStasks], [orders], [lineitem], [output]";
 	}
 
 }

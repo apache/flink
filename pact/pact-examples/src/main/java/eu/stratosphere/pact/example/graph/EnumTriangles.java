@@ -272,7 +272,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 */
-	@OutputContract.SameKey
 	public static class CloseTriads extends MatchStub<Edge, EdgeList, PactNull, PactNull, EdgeList> {
 
 		private static final Log LOG = LogFactory.getLog(CloseTriads.class);
@@ -299,7 +298,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		// check for the correct number of job parameters
 		if (args.length != 3) {
 			throw new IllegalArgumentException(
-				"Must provide three arguments: <parallelism> <edges_input> <result_directory>");
+				"Must provide three arguments: [noSubStasks] [inputRDFTriples] [outputTriangles]");
 		}
 
 		// parse job parameters
@@ -348,7 +347,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, in-rdf-triples, out-triangles";
+		return "Parameters: [noSubStasks] [inputRDFTriples] [outputTriangles]";
 	}
 
 }

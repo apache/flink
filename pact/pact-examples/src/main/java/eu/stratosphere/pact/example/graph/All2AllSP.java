@@ -595,7 +595,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 		// check for the correct number of job parameters
 		if (args.length != 4) {
 			throw new IllegalArgumentException(
-				"Must provide four arguments: <parallelism> <paths_input> <result_directory> <rdf_input_flag>");
+				"Must provide four arguments: [noSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]");
 		}
 		
 		// parse job parameters
@@ -652,7 +652,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, input-paths, output-paths, rdf-input-flag";
+		return "Parameters: [noSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]";
 	}
 
 }

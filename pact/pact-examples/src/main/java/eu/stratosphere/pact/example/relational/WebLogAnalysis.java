@@ -243,7 +243,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		// check for the correct number of job parameters
 		if (args.length != 5) {
 			throw new IllegalArgumentException(
-				"Must provide five arguments: <parallelism> <docs_input> <ranks_input> <visits_input> <result_directory>");
+				"Must provide five arguments: [noSubTasks], [docs], [ranks], [visits], [output]");
 		}
 
 		// parse job parameters
@@ -330,7 +330,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubTasks], [docsInput], [ranksInput], [visitsInput], [output]";
+		return "Parameters: [noSubTasks], [docs], [ranks], [visits], [output]";
 	}
 
 }
