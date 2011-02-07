@@ -28,6 +28,16 @@ import eu.stratosphere.nephele.util.StringUtils;
 
 public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // TODO: Fix me
 
+	static final String VAR_LOG_DMESG = "/var/log/dmesg";
+
+	static final String PROC_MEMINFO = "/proc/meminfo";
+
+	static final String PROC_STAT = "/proc/stat";
+
+	static final String ETC_NETWORK_INTERFACES = "/etc/network/interfaces";
+
+	static final String PROC_NET_DEV = "/proc/net/dev";
+
 	private static final Pattern CPU_PATTERN = Pattern
 		.compile("^cpu\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+).+$");
 
@@ -81,8 +91,8 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 		this.instanceConnectionInfo = instanceConnectionInfo;
 
 		gatherNetworkInformation();
-		System.out.println("Networkinterface is " + interfaceName + " Speed: " + networkSpeedPerSecondInBytes
-			+ "B/s = " + networkSpeedPerSecondInBytes / 125000 + "Mbps");
+//		System.out.println("Networkinterface is " + interfaceName + " Speed: " + networkSpeedPerSecondInBytes
+//			+ "B/s = " + networkSpeedPerSecondInBytes / 125000 + "Mbps");
 		// Initialize counters by calling generateProfilingData once and ignore the return value
 		// generateProfilingDataCompression(System.currentTimeMillis()); //TODO: Fix me
 	}
@@ -108,7 +118,8 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader("/proc/meminfo"));
+			FileReader memReader = new FileReader(PROC_MEMINFO);
+			final BufferedReader in = new BufferedReader(memReader);
 
 			long freeMemory = 0;
 			long totalMemory = 0;
@@ -170,7 +181,7 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader("/proc/net/dev"));
+			final BufferedReader in = new BufferedReader(new FileReader(PROC_NET_DEV));
 
 			long receivedSum = 0;
 			long transmittedSum = 0;
@@ -212,7 +223,7 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader("/proc/stat"));
+			final BufferedReader in = new BufferedReader(new FileReader(PROC_STAT));
 			final String output = in.readLine();
 			if (output == null) {
 				throw new ProfilingException("Cannot read CPU utilization, return value is null");
@@ -431,7 +442,8 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		try {
 			// first check /etc/network/interfaces to find out which eth fits our IP
-			BufferedReader in = new BufferedReader(new FileReader("/etc/network/interfaces"));
+			FileReader fileReader = new FileReader(ETC_NETWORK_INTERFACES);
+			BufferedReader in = new BufferedReader(fileReader);
 			String instanceAdress = this.instanceConnectionInfo.getAddress().getHostAddress();
 
 			String output;
@@ -462,7 +474,7 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 			if (found) {
 				// now try to figure out the interface speed
-				in = new BufferedReader(new FileReader("/var/log/dmesg"));
+				in = new BufferedReader(new FileReader(VAR_LOG_DMESG));
 
 				while ((output = in.readLine()) != null) {
 					int ethIndex = output.indexOf(eth);
@@ -472,7 +484,7 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 							int speedIndex2 = output.indexOf('1', speedIndex - 6);
 							if (speedIndex2 != -1) {
 								String speed = output.substring(speedIndex2, speedIndex);
-								int ethspeed = Integer.parseInt(speed);
+								int ethspeed = Integer.parseInt(speed.trim());
 								this.networkSpeedPerSecondInBytes = ethspeed * 125000;
 							}
 
