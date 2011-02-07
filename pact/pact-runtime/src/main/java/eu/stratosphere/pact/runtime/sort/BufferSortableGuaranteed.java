@@ -73,9 +73,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	 * For reasons of efficiency (avoiding another layer of invocations) this code is
 	 * mostly equivalent to {@link DefaultDataOutputView}
 	 */
-	private final class HeapStackDataOutputView extends DefaultMemorySegmentView implements DataOutputView {
-		
-		final DefaultMemoryManager.MemorySegmentDescriptorProxy descriptor;
+	private static final class HeapStackDataOutputView extends DefaultMemorySegmentView implements DataOutputView {
 		
 		/**
 		 * The current write size.
@@ -90,6 +88,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		// -------------------------------------------------------------------------
 		// Offsets
 		// -------------------------------------------------------------------------
+		
 		public void growStack(int bytes)
 		{
 			stackEndAbs -= bytes;
@@ -97,28 +96,27 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		
 		public int getStackEndRel()
 		{
-			return stackEndAbs - descriptor.start;
+			return stackEndAbs - this.offset;
 		}
 		
 		public int getHeapEndRel()
 		{
-			return position - descriptor.start;
+			return position - this.offset;
 		}
 
 		// -------------------------------------------------------------------------
 		// Constructors
 		// -------------------------------------------------------------------------
 
-		public HeapStackDataOutputView(DefaultMemoryManager.MemorySegmentDescriptorProxy descriptor) {
-			super(descriptor.proxee.get());
-			this.descriptor = descriptor;
+		public HeapStackDataOutputView(DefaultMemoryManager.MemorySegmentDescriptor descriptor) {
+			super(descriptor);
 			resetStackHeap();
 		}
 		
 		public void resetStackHeap()
 		{
-			position = this.descriptor.start;
-			stackEndAbs = this.descriptor.end;
+			position = this.offset;
+			stackEndAbs = this.offset + this.size;
 		}
 
 		// -------------------------------------------------------------------------
@@ -127,12 +125,12 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public int getPosition() {
-			return position - descriptor.start;
+			return position - this.offset;
 		}
 
 		@Override
 		public DataOutputView setPosition(int position) {
-			this.position = position + descriptor.start;
+			this.position = position + this.offset;
 			return this;
 		}
 
@@ -144,7 +142,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public DataOutputView reset() {
-			position = descriptor.start;
+			position = this.offset;
 			return this;
 		}
 
@@ -154,13 +152,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void write(int b) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
-
 			if (position < stackEndAbs) {
-				descriptor.memory[position++] = (byte) (b & 0xff);
+				this.memory[position++] = (byte) (b & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -173,13 +166,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
-
 			if (position < stackEndAbs && position + len <= stackEndAbs && off + len <= b.length) {
-				System.arraycopy(b, off, descriptor.memory, position, len);
+				System.arraycopy(b, off, this.memory, position, len);
 				position += len;
 			} else {
 				throw new EOFException();
@@ -188,13 +176,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeBoolean(boolean v) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
-
 			if (position < stackEndAbs) {
-				descriptor.memory[position++] = (byte) (v ? 1 : 0);
+				this.memory[position++] = (byte) (v ? 1 : 0);
 			} else {
 				throw new EOFException();
 			}
@@ -207,11 +190,6 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeBytes(String s) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
-
 			if (position + s.length() < stackEndAbs) {
 				int length = s.length();
 				for (int i = 0; i < length; i++) {
@@ -225,14 +203,10 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeChar(int v) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
 
 			if (position + 1 < stackEndAbs) {
-				descriptor.memory[position++] = (byte) ((v >> 8) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 0) & 0xff);
+				this.memory[position++] = (byte) ((v >> 8) & 0xff);
+				this.memory[position++] = (byte) ((v >> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -240,10 +214,6 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeChars(String s) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
 
 			if (position + 2 * s.length() < stackEndAbs) {
 				int length = s.length();
@@ -268,16 +238,11 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeInt(int v) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
-
 			if (position + 3 < stackEndAbs) {
-				descriptor.memory[position++] = (byte) ((v >> 24) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 16) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 8) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 0) & 0xff);
+				this.memory[position++] = (byte) ((v >> 24) & 0xff);
+				this.memory[position++] = (byte) ((v >> 16) & 0xff);
+				this.memory[position++] = (byte) ((v >> 8) & 0xff);
+				this.memory[position++] = (byte) ((v >> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -285,20 +250,15 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeLong(long v) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
-
 			if (position + 7 < stackEndAbs) {
-				descriptor.memory[position++] = (byte) ((v >> 56) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 48) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 40) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 32) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 24) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 16) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 8) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >> 0) & 0xff);
+				this.memory[position++] = (byte) ((v >> 56) & 0xff);
+				this.memory[position++] = (byte) ((v >> 48) & 0xff);
+				this.memory[position++] = (byte) ((v >> 40) & 0xff);
+				this.memory[position++] = (byte) ((v >> 32) & 0xff);
+				this.memory[position++] = (byte) ((v >> 24) & 0xff);
+				this.memory[position++] = (byte) ((v >> 16) & 0xff);
+				this.memory[position++] = (byte) ((v >> 8) & 0xff);
+				this.memory[position++] = (byte) ((v >> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -306,14 +266,9 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeShort(int v) throws IOException {
-			if(descriptorReference.get() == null)
-			{
-				throw new NullPointerException();
-			}
-
 			if (position + 1 < stackEndAbs) {
-				descriptor.memory[position++] = (byte) ((v >>> 8) & 0xff);
-				descriptor.memory[position++] = (byte) ((v >>> 0) & 0xff);
+				this.memory[position++] = (byte) ((v >>> 8) & 0xff);
+				this.memory[position++] = (byte) ((v >>> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -463,8 +418,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 				throw new UnsupportedOperationException();
 			}
 			DefaultMemorySegment segment = (DefaultMemorySegment) memory;
-			DefaultMemoryManager.MemorySegmentDescriptorProxy descriptor = new DefaultMemoryManager.MemorySegmentDescriptorProxy(segment.descriptorReference.get());
-			outputView = new HeapStackDataOutputView(descriptor);
+			outputView = new HeapStackDataOutputView(segment.getSegmentDescriptor());
 
 			// reset counters
 			reset();
@@ -629,14 +583,14 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	private final void writeOffset(int position, int offset)
 	{
 		final int stackoffset = position * (INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE) + INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE;
-		final int memoryoffset = outputView.descriptor.size - stackoffset;
+		final int memoryoffset = outputView.getSize() - stackoffset;
 		memory.randomAccessView.putInt(memoryoffset, offset);
 	}
 	
 	private final int readOffset(int position)
 	{
 		final int stackoffset = position * (INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE) + INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE;
-		final int memoryoffset = outputView.descriptor.size - stackoffset;
+		final int memoryoffset = outputView.getSize() - stackoffset;
 		return memory.randomAccessView.getInt(memoryoffset);
 	}
 

@@ -23,7 +23,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultMemorySegment extends MemorySegment
+public final class DefaultMemorySegment extends MemorySegment
 {
 	protected final MemorySegmentDescriptor descriptor;
 
@@ -33,7 +33,7 @@ public class DefaultMemorySegment extends MemorySegment
 		super(descriptor.size, randomAccessView, inputView, outputView);
 		this.descriptor = descriptor;
 	}
-
+	
 	@Override
 	public ByteBuffer wrap(int offset, int length) {
 		if (offset > size || offset + length > size) {
@@ -41,5 +41,10 @@ public class DefaultMemorySegment extends MemorySegment
 		}
 
 		return ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
+	}
+	
+	public MemorySegmentDescriptor getSegmentDescriptor()
+	{
+		return this.descriptor;
 	}
 }

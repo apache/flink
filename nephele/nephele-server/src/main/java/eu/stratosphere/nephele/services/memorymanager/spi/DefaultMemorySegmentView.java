@@ -20,11 +20,11 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.M
 
 public class DefaultMemorySegmentView
 {
-	protected byte[] memory;
+	protected final byte[] memory;
 	
-	protected int offset;
+	protected final int offset;
 	
-	protected int size;
+	protected final int size;
 
 	// --------------------------------------------------------------------
 	// Constructors
@@ -34,5 +34,15 @@ public class DefaultMemorySegmentView
 		this.memory = descriptor.memory;
 		this.offset = descriptor.start;
 		this.size = descriptor.size;
+	}
+	
+	public final int getSize()
+	{
+		return this.size;
+	}
+	
+	public final int getStart()
+	{
+		return this.offset;
 	}
 }

@@ -224,9 +224,8 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 	@Override
 	public void close() {
-		// TODO (en)
-		// merger1.close()
-		// merger2.close()
+//		sortMerger1.close();
+//		sortMerger2.close();
 	}
 
 	@Override

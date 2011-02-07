@@ -45,8 +45,10 @@ import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -117,7 +119,8 @@ public class ReduceTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception {
+	public void invoke() throws Exception
+	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -125,24 +128,37 @@ public class ReduceTask extends AbstractTask {
 		LOG.debug("Start obtaining iterator: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		
 		// obtain grouped iterator
-		final Iterator<KeyValuePair<Key, Value>> groupedIterator = obtainGroupedIterator();
-		LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		// open stub implementation
-		stub.open();
-		// run stub implementation
-		stub.run(groupedIterator, output);
-		// close output collector
-		output.close();
-		// close stub implementation
-		stub.close();
-
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
+		try {
+			sortedInputProvider = obtainInput();
+			
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	
+			// open stub implementation
+			stub.open();
+			
+			// run stub implementation
+			stub.run(sortedInputProvider.getIterator(), output);
+			
+			// close output collector
+			output.close();
+			
+			// close stub implementation
+			stub.close();
+	
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+		finally {
+			if (sortedInputProvider != null) {
+				sortedInputProvider.close();
+			}
+		}
 	}
 
 	/**
@@ -247,7 +263,8 @@ public class ReduceTask extends AbstractTask {
 	 *         Throws RuntimeException if it is not possible to obtain a
 	 *         grouped iterator.
 	 */
-	private Iterator<KeyValuePair<Key, Value>> obtainGroupedIterator() throws RuntimeException {
+	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() throws RuntimeException {
+		
 		// obtain the MemoryManager of the TaskManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain the IOManager of the TaskManager
@@ -271,7 +288,7 @@ public class ReduceTask extends AbstractTask {
 		// created and returned
 		case NONE: {
 			// iterator wraps input reader
-			return new Iterator<KeyValuePair<Key, Value>>() {
+			Iterator<KeyValuePair<Key, Value>> iter = new Iterator<KeyValuePair<Key, Value>>() {
 
 				@Override
 				public boolean hasNext() {
@@ -292,6 +309,8 @@ public class ReduceTask extends AbstractTask {
 				}
 
 			};
+			
+			return new SimpleCloseableInputProvider<KeyValuePair<Key,Value>>(iter);
 		}
 
 			// local strategy is SORT
@@ -312,7 +331,7 @@ public class ReduceTask extends AbstractTask {
 					NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
 					valSerialization, keyComparator, reader, 0.5f, this);
 				// obtain and return a grouped iterator from the sort-merger
-				return sortMerger.getIterator();
+				return sortMerger;
 			} catch (MemoryAllocationException mae) {
 				throw new RuntimeException(
 					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
@@ -345,7 +364,7 @@ public class ReduceTask extends AbstractTask {
 					valSerialization, keyComparator, reader, 0.1f, this, false);
 				// obtain and return a grouped iterator from the combining
 				// sort-merger
-				return sortMerger.getIterator();
+				return sortMerger;
 			} catch (MemoryAllocationException mae) {
 				throw new RuntimeException(
 					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);

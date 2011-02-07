@@ -46,6 +46,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 
+
 /**
  * The {@link CombiningUnilateralSortMerger} is part of a merge-sort implementation.
  * The {@link ReduceTask} requires a grouping of the incoming key-value pairs by key. Typically grouping is achieved by
@@ -71,6 +72,7 @@ import eu.stratosphere.pact.runtime.task.ReduceTask;
  *        The value class
  */
 public class CombiningUnilateralSortMerger<K extends Key, V extends Value> extends UnilateralSortMerger<K, V> {
+	
 	// ------------------------------------------------------------------------
 	// Constants & Fields
 	// ------------------------------------------------------------------------
@@ -216,7 +218,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 		private final int ioMemorySize;
 		
-		private final int buffersToKeepBeforeSpilling;
+//		private final int buffersToKeepBeforeSpilling;
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
@@ -228,7 +230,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
 			this.ioMemorySize = ioMemorySize;
-			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
+//			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
 		}
 
 		/**
@@ -476,9 +478,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 		/*
 		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.pact.common.stub.Collector#collect(eu.stratosphere.pact.common.type.Key,
-		 * eu.stratosphere.pact.common.type.Value)
+		 * @see eu.stratosphere.pact.common.stub.Collector#collect(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value)
 		 */
 		@Override
 		public void collect(K key, V value) {

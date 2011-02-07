@@ -212,10 +212,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				// forward exception
 				lazyIterator.setException(exception);
 
-				try {
-					shutdown();
-				} catch (InterruptedException iex) {
-				}
+				close();
 			}
 		};
 
@@ -246,8 +243,16 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * Shuts down all the threads initiated by this sort/merger. Also releases all previously allocated
 	 * memory, if it has not yet been released by the threads.
+	 * <p>
+	 * The threads are set to exit directly, but depending on their operation, it may take a while to actually happen.
+	 * The sorting thread will for example not finish before the current batch is sorted. This method attempts to wait
+	 * for the working thread to exit. If it is however interrupted, the method exits immediately and is not guaranteed
+	 * how long the threads continue to exist and occupy resources afterwards.
+	 *
+	 * @see java.io.Closeable#close()
 	 */
-	public void shutdown() throws InterruptedException {
+	@Override
+	public void close() {
 		try {
 			if (readThread != null) {
 				try {
@@ -271,14 +276,22 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				}
 			}
 
-			if (readThread != null) {
-				readThread.join();
+			try {
+				if (readThread != null) {
+					readThread.join();
+				}
+				
+				if (sortThread != null) {
+					sortThread.join();
+				}
+				
+				if (spillThread != null) {
+					spillThread.join();
+				}
 			}
-			if (sortThread != null) {
-				sortThread.join();
-			}
-			if (spillThread != null) {
-				spillThread.join();
+			catch (InterruptedException iex) {
+				LOG.debug("Closing of sort/merger was interrupted. " +
+						"The reading/sorting/spilling threads may still be working.", iex);
 			}
 		} finally {
 			// release all memory
@@ -625,7 +638,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 *        The queues used to pass buffers between the threads.
 		 */
 		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues queues,
-				AbstractTask parentTask) {
+				AbstractTask parentTask)
+		{
 			// thread setup
 			super(name);
 			this.setDaemon(true);
@@ -715,7 +729,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The thread that consumes the input data and puts it into a buffer that will be sorted.
 	 */
-	private class ReadingThread extends ThreadBase {
+	private class ReadingThread extends ThreadBase
+	{
 		/**
 		 * The input channels to read from.
 		 */
@@ -898,7 +913,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 		private final int ioMemorySize;
 		
-		private final int buffersToKeepBeforeSpilling;
+//		private final int buffersToKeepBeforeSpilling;
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
@@ -910,7 +925,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
 			this.ioMemorySize = ioMemorySize;
-			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
+//			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
 		}
 
 		/**
@@ -1105,4 +1120,5 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			throw new UnsupportedOperationException();
 		}
 	}
+
 }
