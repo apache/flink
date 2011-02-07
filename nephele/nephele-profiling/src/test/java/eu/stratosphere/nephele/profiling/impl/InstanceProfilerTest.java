@@ -39,6 +39,8 @@ public class InstanceProfilerTest {
 	@Mock
 	private BufferedReader bufferMock;
 	
+	private FileReader fileReaderMock;
+	
 	//object under test
 	InstanceProfiler out; 
 	
@@ -144,9 +146,9 @@ public class InstanceProfilerTest {
 	}
 	
 	private void createBufferMock(BufferedReader mock, String fileString) throws FileNotFoundException, Exception {
-		FileReader reader = new FileReader(fileString);
-		whenNew(FileReader.class).withArguments(fileString).thenReturn(reader);
-		whenNew(BufferedReader.class).withArguments(reader).thenReturn(mock);
+		
+		whenNew(FileReader.class).withArguments(fileString).thenReturn(this.fileReaderMock);
+		whenNew(BufferedReader.class).withArguments(this.fileReaderMock).thenReturn(mock);
 	}
 	
 }
