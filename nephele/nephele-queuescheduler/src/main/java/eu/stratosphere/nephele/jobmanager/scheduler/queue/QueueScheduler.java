@@ -339,6 +339,7 @@ public class QueueScheduler implements Scheduler {
 				} catch (InstanceException e) {
 					LOG.error(e);
 				}
+				return;
 			}
 
 			AllocatedResource resourceToBeReplaced = null;
