@@ -220,8 +220,8 @@ public class WordCountITCase extends TestBase {
 		compareResultsByLinesInMemory(COUNTS, resultPath);
 
 		// clean up hdfs
-		// getFilesystemProvider().delete(textPath, true);
-		// getFilesystemProvider().delete(resultPath, true);
+		getFilesystemProvider().delete(textPath, true);
+		getFilesystemProvider().delete(resultPath, true);
 	}
 
 	@Parameters

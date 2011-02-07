@@ -27,7 +27,7 @@
       <artifactId>maven-surefire-plugin</artifactId>
       <configuration>
         <!-- we need to execute tests in target/test-classes so that the config files are found -->
-        <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
+        <!-- <workingDirectory>${project.build.testOutputDirectory}</workingDirectory> -->
       </configuration>  	  	
   	  </plugin>
   	</plugins>

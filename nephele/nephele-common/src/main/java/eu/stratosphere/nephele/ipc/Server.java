@@ -805,10 +805,6 @@ public abstract class Server {
 			this.lastContact = lastContact;
 		}
 
-		public long getLastContact() {
-			return lastContact;
-		}
-
 		/* Return true if the connection has no outstanding rpc */
 		private boolean isIdle() {
 			return rpcCount == 0;
@@ -1132,7 +1128,7 @@ public abstract class Server {
 
 				if (i < this.handlerCount) {
 					try {
-						Thread.sleep(100);
+						wait(100);
 					} catch (InterruptedException e) {
 						break;
 					}
@@ -1146,7 +1142,7 @@ public abstract class Server {
 		// Wait until shut down of responder is complete
 		while (!this.responder.isShutDown()) {
 			try {
-				Thread.sleep(100);
+				wait(100);
 			} catch (InterruptedException e) {
 				break;
 			}
@@ -1155,7 +1151,7 @@ public abstract class Server {
 		// Wait until shut down of listener is complete
 		while (!this.listener.isShutDown()) {
 			try {
-				Thread.sleep(100);
+				wait(100);
 			} catch (InterruptedException e) {
 				break;
 			}

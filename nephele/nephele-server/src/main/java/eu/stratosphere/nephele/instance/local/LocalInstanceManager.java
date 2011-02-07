@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
-import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableArrayList;
+import eu.stratosphere.nephele.util.SerializableHashMap;
 
 /**
  * The local instance manager is designed to manage instance allocation/deallocation for a single-node setup. It spans a
@@ -102,9 +102,9 @@ public class LocalInstanceManager implements InstanceManager {
 	private final NetworkTopology networkTopology;
 
 	/**
-	 * The list of instance type descriptions.
+	 * The map of instance type descriptions.
 	 */
-	private final List<InstanceTypeDescription> instanceTypeDescriptionList;
+	private final Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptionMap;
 
 	/**
 	 * Constructs a new local instance manager.
@@ -133,7 +133,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 		this.networkTopology = NetworkTopology.createEmptyTopology();
 
-		this.instanceTypeDescriptionList = new SerializableArrayList<InstanceTypeDescription>();
+		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
 		this.localTaskManagerThread = new LocalTaskManagerThread(configDir);
 		this.localTaskManagerThread.start();
@@ -253,8 +253,8 @@ public class LocalInstanceManager implements InstanceManager {
 					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology,
 					hardwareDescription);
 
-				this.instanceTypeDescriptionList.add(InstanceTypeDescriptionFactory.construct(this.defaultInstanceType,
-					hardwareDescription, 1));
+				this.instanceTypeDescriptionMap.put(this.defaultInstanceType,
+					InstanceTypeDescriptionFactory.construct(this.defaultInstanceType, hardwareDescription, 1));
 			}
 		}
 	}
@@ -279,7 +279,7 @@ public class LocalInstanceManager implements InstanceManager {
 			}
 
 			// Clear the instance type description list
-			this.instanceTypeDescriptionList.clear();
+			this.instanceTypeDescriptionMap.clear();
 		}
 	}
 
@@ -330,8 +330,8 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
-		return this.instanceTypeDescriptionList;
+		return this.instanceTypeDescriptionMap;
 	}
 }

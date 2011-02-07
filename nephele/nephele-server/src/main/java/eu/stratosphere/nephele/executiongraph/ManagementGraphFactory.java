@@ -71,11 +71,12 @@ public class ManagementGraphFactory {
 		final Map<ExecutionGroupVertex, ManagementGroupVertex> groupMap = new HashMap<ExecutionGroupVertex, ManagementGroupVertex>();
 
 		// First, create all vertices
-		Iterator<ExecutionStage> iterator = stageMap.keySet().iterator();
+		Iterator<Map.Entry<ExecutionStage, ManagementStage>> iterator = stageMap.entrySet().iterator();
 		while (iterator.hasNext()) {
 
-			final ExecutionStage executionStage = iterator.next();
-			ManagementStage parent = stageMap.get(executionStage);
+			final Map.Entry<ExecutionStage, ManagementStage> entry = iterator.next();
+			final ExecutionStage executionStage = entry.getKey();
+			final ManagementStage parent = entry.getValue();
 
 			for (int i = 0; i < executionStage.getNumberOfStageMembers(); i++) {
 
@@ -88,10 +89,11 @@ public class ManagementGraphFactory {
 		}
 
 		// Second, make sure all edges are created and connected properly
-		iterator = stageMap.keySet().iterator();
+		iterator = stageMap.entrySet().iterator();
 		while (iterator.hasNext()) {
 
-			final ExecutionStage executionStage = iterator.next();
+			final Map.Entry<ExecutionStage, ManagementStage> entry = iterator.next();
+			final ExecutionStage executionStage = entry.getKey();
 			for (int i = 0; i < executionStage.getNumberOfStageMembers(); i++) {
 
 				final ExecutionGroupVertex sourceVertex = executionStage.getStageMember(i);

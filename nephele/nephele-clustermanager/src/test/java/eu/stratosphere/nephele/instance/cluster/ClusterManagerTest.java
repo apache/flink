@@ -20,6 +20,7 @@ import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
@@ -39,8 +40,6 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.cluster.ClusterManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.util.InstanceManagerTestUtils;
-import eu.stratosphere.nephele.util.TestInstanceListener;
 
 /**
  * Tests for {@link ClusterManager}.
@@ -108,7 +107,8 @@ public class ClusterManagerTest {
 			assertEquals(10, defaultIT.getPricePerHour());
 
 			// Check number of different instance types available to cluster manager
-			final List<InstanceTypeDescription> instanceTypeDescriptions = cm.getListOfAvailableInstanceTypes();
+			final Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = cm
+				.getMapOfAvailableInstanceTypes();
 			assertEquals(3, instanceTypeDescriptions.size());
 
 		} finally {
@@ -131,7 +131,7 @@ public class ClusterManagerTest {
 		final ClusterManager cm = new ClusterManager();
 		cm.setInstanceListener(testInstanceListener);
 
-		List<InstanceTypeDescription> instanceTypeDescriptions = null;
+		Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = null;
 
 		try {
 
@@ -149,18 +149,26 @@ public class ClusterManagerTest {
 			// to take the user-defined instance type "high"
 			cm.reportHeartBeat(ici, hardwareDescription);
 
-			instanceTypeDescriptions = cm.getListOfAvailableInstanceTypes();
+			instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
 			assertEquals(3, instanceTypeDescriptions.size());
-			assertTrue(LARGE_INSTANCE_TYPE_NAME.equals(instanceTypeDescriptions.get(0).getInstanceType()
-				.getIdentifier()));
-			assertTrue(MEDIUM_INSTANCE_TYPE_NAME.equals(instanceTypeDescriptions.get(1).getInstanceType()
-				.getIdentifier()));
-			assertTrue(SMALL_INSTANCE_TYPE_NAME.equals(instanceTypeDescriptions.get(2).getInstanceType()
-				.getIdentifier()));
 
-			assertEquals(1, instanceTypeDescriptions.get(0).getMaximumNumberOfAvailableInstances());
-			assertEquals(2, instanceTypeDescriptions.get(1).getMaximumNumberOfAvailableInstances());
-			assertEquals(4, instanceTypeDescriptions.get(2).getMaximumNumberOfAvailableInstances());
+			Iterator<Map.Entry<InstanceType, InstanceTypeDescription>> it = instanceTypeDescriptions.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<InstanceType, InstanceTypeDescription> entry = it.next();
+
+				if (LARGE_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
+					assertEquals(1, entry.getValue().getMaximumNumberOfAvailableInstances());
+				} else if (MEDIUM_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
+					assertEquals(2, entry.getValue().getMaximumNumberOfAvailableInstances());
+				} else if (SMALL_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
+					assertEquals(4, entry.getValue().getMaximumNumberOfAvailableInstances());
+				} else {
+					fail("Unexpected instance type: " + entry.getKey());
+				}
+			}
 
 			// Now we add a second cluster instance which is expected to identified as of type "small" as a result of
 			// its hardware description
@@ -169,19 +177,27 @@ public class ClusterManagerTest {
 			ici = new InstanceConnectionInfo(InetAddress.getByName("192.168.198.3"), ipcPort, dataPort);
 			cm.reportHeartBeat(ici, hardwareDescription);
 
-			instanceTypeDescriptions = cm.getListOfAvailableInstanceTypes();
+			instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
 
 			assertEquals(3, instanceTypeDescriptions.size());
-			assertTrue(LARGE_INSTANCE_TYPE_NAME.equals(instanceTypeDescriptions.get(0).getInstanceType()
-				.getIdentifier()));
-			assertTrue(MEDIUM_INSTANCE_TYPE_NAME.equals(instanceTypeDescriptions.get(1).getInstanceType()
-				.getIdentifier()));
-			assertTrue(SMALL_INSTANCE_TYPE_NAME.equals(instanceTypeDescriptions.get(2).getInstanceType()
-				.getIdentifier()));
 
-			assertEquals(1, instanceTypeDescriptions.get(0).getMaximumNumberOfAvailableInstances());
-			assertEquals(2, instanceTypeDescriptions.get(1).getMaximumNumberOfAvailableInstances());
-			assertEquals(5, instanceTypeDescriptions.get(2).getMaximumNumberOfAvailableInstances());
+			it = instanceTypeDescriptions.entrySet().iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<InstanceType, InstanceTypeDescription> entry = it.next();
+
+				if (LARGE_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
+					assertEquals(1, entry.getValue().getMaximumNumberOfAvailableInstances());
+				} else if (MEDIUM_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
+					assertEquals(2, entry.getValue().getMaximumNumberOfAvailableInstances());
+				} else if (SMALL_INSTANCE_TYPE_NAME.equals(entry.getKey().getIdentifier())) {
+					assertEquals(5, entry.getValue().getMaximumNumberOfAvailableInstances());
+				} else {
+					fail("Unexpected instance type: " + entry.getKey());
+				}
+
+			}
 
 		} catch (UnknownHostException e) {
 			fail(e.getMessage());
@@ -225,7 +241,7 @@ public class ClusterManagerTest {
 				fail(ie.getMessage());
 			}
 
-			InstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 3, MAX_WAIT_TIME);
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 3, MAX_WAIT_TIME);
 
 			final List<AllocatedResource> allocatedResources = testInstanceListener.getAllocatedResourcesForJob(jobID);
 			assertEquals(3, allocatedResources.size());
@@ -314,7 +330,7 @@ public class ClusterManagerTest {
 				fail(ie.getMessage());
 			}
 
-			InstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 1, MAX_WAIT_TIME);
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 1, MAX_WAIT_TIME);
 			assertEquals(1, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
 
 			try {
@@ -323,7 +339,7 @@ public class ClusterManagerTest {
 				fail(ie.getMessage());
 			}
 
-			InstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 0, MAX_WAIT_TIME);
+			ClusterManagerTestUtils.waitForInstances(jobID, testInstanceListener, 0, MAX_WAIT_TIME);
 			assertEquals(0, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
 
 		} catch (UnknownHostException e) {

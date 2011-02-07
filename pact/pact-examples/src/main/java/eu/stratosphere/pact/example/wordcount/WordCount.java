@@ -148,13 +148,16 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		if (args == null) {
-			args = new String[0];
+		// check for the correct number of job parameters
+		if (args.length != 3) {
+			throw new IllegalArgumentException(
+				"Must provide three arguments: <parallelism> <text_input> <result_directory>");
 		}
-
-		int noSubTasks = (args.length > 0 && args[0] != null ? Integer.parseInt(args[0]) : 3);
-		String dataInput = (args.length > 1 && args[1] != null ? args[1] : "hdfs://localhost:9000/countwords/data");
-		String output = (args.length > 2 && args[2] != null ? args[2] : "hdfs://localhost:9000/countwords/result");
+		
+		// parse job parameters
+		int noSubTasks = Integer.parseInt(args[0]);
+		String dataInput = args[1];
+		String output = args[2];
 
 		DataSourceContract<PactString, PactInteger> data = new DataSourceContract<PactString, PactInteger>(
 				LineInFormat.class, dataInput, "Input Lines");

@@ -21,7 +21,6 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.util.TestInstanceListener;
 
 /**
  * Tests for the {@link LocalInstanceManager}.

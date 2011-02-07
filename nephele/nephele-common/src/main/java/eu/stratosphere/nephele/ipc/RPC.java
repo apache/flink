@@ -114,14 +114,17 @@ public class RPC {
 				}
 
 				// See if parameter is null
-				boolean isNonNull = in.readBoolean();
-				if (isNonNull) {
+				if (in.readBoolean()) {
 					try {
-						parameters[i] = parameterClasses[i].newInstance();
+						final String parameterClassName = StringRecord.readString(in);
+						final Class<? extends IOReadableWritable>  parameterClass = ClassUtils.getRecordByName(parameterClassName);
+						parameters[i] = parameterClass.newInstance();
 					} catch (IllegalAccessException iae) {
 						throw new IOException(iae.toString());
 					} catch (InstantiationException ie) {
 						throw new IOException(ie.toString());
+					} catch(ClassNotFoundException cnfe) {
+						throw new IOException(cnfe.toString());
 					}
 					// Object will do everything else on its own
 					parameters[i].read(in);
@@ -136,10 +139,11 @@ public class RPC {
 			out.writeInt(parameterClasses.length);
 			for (int i = 0; i < parameterClasses.length; i++) {
 				StringRecord.writeString(out, parameterClasses[i].getName());
-				if (parameters[i] == null) {
+				if(parameters[i] == null) {
 					out.writeBoolean(false);
 				} else {
 					out.writeBoolean(true);
+					StringRecord.writeString(out, parameters[i].getClass().getName());
 					parameters[i].write(out);
 				}
 			}

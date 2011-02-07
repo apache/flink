@@ -416,7 +416,7 @@ public class ExecutionGroupVertex {
 
 		ExecutionStage executionStage = null;
 
-		synchronized (this.executionStage) {
+		synchronized (this) {
 			executionStage = this.executionStage;
 		}
 

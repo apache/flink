@@ -243,18 +243,19 @@ public class JobClient {
 	 * Submits the job assigned to this job client to the job manager and queries the job manager
 	 * about the progress of the job until it is either finished or aborted.
 	 * 
-	 * @return <code>true</code> if the job finished successfully, <code>false</code>otherwise
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws JobExecutionException
+	 *         thrown if the job has been aborted either by the user or as a result of an error
 	 */
-	public boolean submitJobAndWait() throws IOException {
+	public void submitJobAndWait() throws IOException, JobExecutionException {
 
 		synchronized (this.jobSubmitClient) {
 
 			final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
 			if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
 				LOG.error("ERROR: " + submissionResult.getDescription());
-				return false;
+				throw new JobExecutionException(submissionResult.getDescription());
 			} else {
 				// Make sure the job is properly terminated when the user shut's down the client
 				Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
@@ -266,34 +267,29 @@ public class JobClient {
 			final IntegerRecord interval = this.jobSubmitClient.getRecommendedPollingInterval();
 			sleep = interval.getValue() * 1000;
 		} catch (IOException ioe) {
-			LOG.error("ERROR" + StringUtils.stringifyException(ioe));
-			return false;
+			logErrorAndRethrow(StringUtils.stringifyException(ioe));
 		}
 
 		try {
 			Thread.sleep(sleep / 2);
 		} catch (InterruptedException e) {
-			LOG.debug(StringUtils.stringifyException(e));
-			return false;
+			logErrorAndRethrow(StringUtils.stringifyException(e));
 		}
 
 		while (true) {
 
 			if (Thread.interrupted()) {
-				LOG.debug("Job client has been interrupted");
-				return false;
+				logErrorAndRethrow("Job client has been interrupted");
 			}
 
 			final JobProgressResult jobProgressResult = getJobProgress();
 
 			if (jobProgressResult == null) {
-				LOG.error("Returned job progress is unexpectedly null!");
-				return false;
+				logErrorAndRethrow("Returned job progress is unexpectedly null!");
 			}
 
 			if (jobProgressResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
-				LOG.error("Could not retrieve job progress: " + jobProgressResult.getDescription());
-				return false;
+				logErrorAndRethrow("Could not retrieve job progress: " + jobProgressResult.getDescription());
 			}
 
 			final Iterator<AbstractEvent> it = jobProgressResult.getEvents();
@@ -313,10 +309,11 @@ public class JobClient {
 					final JobStatus jobStatus = jobEvent.getCurrentJobStatus();
 					if (jobStatus == JobStatus.FINISHED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
-						return true;
+						return;
 					} else if (jobStatus == JobStatus.CANCELLED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
-						return false;
+						LOG.info(jobEvent.getOptionalMessage());
+						throw new JobExecutionException(jobEvent.getOptionalMessage());
 					}
 				}
 			}
@@ -327,10 +324,23 @@ public class JobClient {
 			try {
 				Thread.sleep(sleep);
 			} catch (InterruptedException e) {
-				LOG.debug(StringUtils.stringifyException(e));
-				return false;
+				logErrorAndRethrow(StringUtils.stringifyException(e));
 			}
 		}
+	}
+
+	/**
+	 * Writes the given error message to the log and throws it in an {@link IOException}.
+	 * 
+	 * @param errorMessage
+	 *        the error message to write to the log
+	 * @throws IOException
+	 *         thrown after the error message is written to the log
+	 */
+	private void logErrorAndRethrow(String errorMessage) throws IOException {
+
+		LOG.error(errorMessage);
+		throw new IOException(errorMessage);
 	}
 
 	/**

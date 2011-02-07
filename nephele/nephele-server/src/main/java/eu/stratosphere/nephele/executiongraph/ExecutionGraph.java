@@ -167,14 +167,16 @@ public class ExecutionGraph implements ExecutionListener {
 		// <code>submitJob</code> method of the job manager
 
 		// If there is no cycle, apply the settings to the corresponding group vertices
-		Iterator<AbstractJobVertex> it = temporaryGroupVertexMap.keySet().iterator();
+		final Iterator<Map.Entry<AbstractJobVertex, ExecutionGroupVertex>> it = temporaryGroupVertexMap.entrySet()
+			.iterator();
 		while (it.hasNext()) {
 
-			final AbstractJobVertex jobVertex = it.next();
+			final Map.Entry<AbstractJobVertex, ExecutionGroupVertex> entry = it.next();
+			final AbstractJobVertex jobVertex = entry.getKey();
 			if (jobVertex.getVertexToShareInstancesWith() != null) {
 
 				final AbstractJobVertex vertexToShareInstancesWith = jobVertex.getVertexToShareInstancesWith();
-				final ExecutionGroupVertex groupVertex = temporaryGroupVertexMap.get(jobVertex);
+				final ExecutionGroupVertex groupVertex = entry.getValue();
 				final ExecutionGroupVertex groupVertexToShareInstancesWith = temporaryGroupVertexMap
 					.get(vertexToShareInstancesWith);
 				groupVertex.shareInstancesWith(groupVertexToShareInstancesWith);
@@ -980,144 +982,6 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * Creates an exact (deep) copy of this execution graph.
-	 * 
-	 * @return an exact (deep) copy of this execution graph
-	 */
-	/*
-	 * public ExecutionGraph duplicateExecutionGraph() {
-	 * //First we copy the easy data structures
-	 * final ExecutionGraph duplicateGraph = new ExecutionGraph(this.jobID);
-	 * duplicateGraph.nextStageToExecute = this.nextStageToExecute;
-	 * //Copy execution stages
-	 * final Map<ExecutionGroupVertex, ExecutionGroupVertex> groupVertexMap = new HashMap<ExecutionGroupVertex,
-	 * ExecutionGroupVertex>();
-	 * final Map<ExecutionVertex, ExecutionVertex> executionVertexMap = new HashMap<ExecutionVertex, ExecutionVertex>();
-	 * for(int i = 0; i < this.stages.size(); i++) {
-	 * final ExecutionStage sourceStage = this.stages.get(i);
-	 * final ExecutionStage duplicateStage = new ExecutionStage(sourceStage.getStageNumber());
-	 * for(int j = 0; j < sourceStage.getNumberOfStageMembers(); j++) {
-	 * final ExecutionGroupVertex sourceGroupVertex = sourceStage.getStageMember(j);
-	 * final ExecutionGroupVertex duplicateGroupVertex = new ExecutionGroupVertex(sourceGroupVertex.getName(),
-	 * duplicateGraph,
-	 * sourceGroupVertex.getUserDefinedNumberOfMembers(),
-	 * sourceGroupVertex.getInstanceType(),
-	 * sourceGroupVertex.isInstanceTypeUserDefined(),
-	 * sourceGroupVertex.getNumberOfSubtasksPerInstance(),
-	 * sourceGroupVertex.isVertexToShareInstanceWithUserDefined(),
-	 * sourceGroupVertex.getConfiguration());
-	 * duplicateGroupVertex.setMinMemberSize(sourceGroupVertex.getMinimumNumberOfGroupMember());
-	 * duplicateGroupVertex.setMaxMemberSize(sourceGroupVertex.getMaximumNumberOfGroupMembers());
-	 * duplicateGroupVertex.setExecutionStage(duplicateStage);
-	 * duplicateGroupVertex.setInputSplits(sourceGroupVertex.getInputSplits());
-	 * groupVertexMap.put(sourceGroupVertex, duplicateGroupVertex);
-	 * for(int k = 0; k < sourceGroupVertex.getCurrentNumberOfGroupMembers(); k++) {
-	 * final ExecutionVertex sourceExecutionVertex = sourceGroupVertex.getGroupMember(k);
-	 * final ExecutionVertex duplicatedExecutionVertex = sourceExecutionVertex.duplicateVertex(true, false,
-	 * duplicateGroupVertex);
-	 * executionVertexMap.put(sourceExecutionVertex, duplicatedExecutionVertex);
-	 * }
-	 * duplicateStage.addStageMember(duplicateGroupVertex);
-	 * }
-	 * duplicateGraph.stages.add(duplicateStage);
-	 * }
-	 * //Recreate link structure between group vertices
-	 * final ExecutionGroupVertexIterator groupVertexIterator = new ExecutionGroupVertexIterator(this, true, -1);
-	 * while(groupVertexIterator.hasNext()) {
-	 * final ExecutionGroupVertex sourceGroupVertex = groupVertexIterator.next();
-	 * final ExecutionGroupVertex duplicateGroupVertex = groupVertexMap.get(sourceGroupVertex);
-	 * for(int i = 0; i < sourceGroupVertex.getNumberOfForwardLinks(); i++) {
-	 * final ExecutionGroupEdge edge = sourceGroupVertex.getForwardEdge(i);
-	 * final ExecutionGroupVertex sourceTargetGroupVertex = edge.getTargetVertex();
-	 * final ExecutionGroupVertex duplicateTargetGroupVertex = groupVertexMap.get(sourceTargetGroupVertex);
-	 * duplicateGroupVertex.wireTo(duplicateTargetGroupVertex, edge.getChannelType(), edge.isChannelTypeUserDefined(),
-	 * edge.getCompressionLevel(), edge.isCompressionLevelUserDefined());
-	 * }
-	 * }
-	 * //TODO: Copy vertices to share instances with
-	 * //TODO: Add deep copy of job configuration
-	 * //Copy input and output vertices
-	 * for(int i = 0; i < this.inputVertices.size(); i++) {
-	 * duplicateGraph.inputVertices.add(executionVertexMap.get(this.inputVertices.get(i)));
-	 * }
-	 * for(int i = 0; i < this.outputVertices.size(); i++) {
-	 * duplicateGraph.outputVertices.add(executionVertexMap.get(this.outputVertices.get(i)));
-	 * }
-	 * //Copy instanceMap
-	 * final Iterator<InstanceID> instanceIterator = this.instanceMap.keySet().iterator();
-	 * while(instanceIterator.hasNext()) {
-	 * final InstanceID instanceID = instanceIterator.next();
-	 * duplicateGraph.instanceMap.put(instanceID, this.instanceMap.get(instanceID));
-	 * }
-	 * //Now this is the messy part: Recreating the channels and their relationships
-	 * final ExecutionGraphIterator graphIterator = new ExecutionGraphIterator(this, true);
-	 * final Map<InputChannel<? extends Record>, InputChannel<? extends Record>> inputChannelMap = new
-	 * HashMap<InputChannel<? extends Record>, InputChannel<? extends Record>>();
-	 * final Map<OutputChannel<? extends Record>, OutputChannel<? extends Record>> outputChannelMap = new
-	 * HashMap<OutputChannel<? extends Record>, OutputChannel<? extends Record>>();
-	 * //Duplicate all the channels from the original graph
-	 * while(graphIterator.hasNext()) {
-	 * final ExecutionVertex sourceVertex = graphIterator.next();
-	 * final ExecutionVertex duplicatedVertex = executionVertexMap.get(sourceVertex);
-	 * for(int i = 0; i < sourceVertex.getEnvironment().getNumberOfInputGates(); i++) {
-	 * final InputGate<? extends Record> sourceInputGate = sourceVertex.getEnvironment().getInputGate(i);
-	 * final InputGate<? extends Record> duplicatedInputGate = duplicatedVertex.getEnvironment().getInputGate(i);
-	 * for(int j = 0; j < sourceInputGate.getNumberOfInputChannels(); j++) {
-	 * final InputChannel<? extends Record> sourceInputChannel = sourceInputGate.getInputChannel(j);
-	 * InputChannel<? extends Record> duplicatedInputChannel = null;
-	 * if(sourceInputChannel.getType() == ChannelType.FILE) {
-	 * duplicatedInputChannel = duplicatedInputGate.createFileInputChannel(sourceInputChannel.getID(),
-	 * sourceInputChannel.getCompressionLevel());
-	 * } else if(sourceInputChannel.getType() == ChannelType.NETWORK) {
-	 * duplicatedInputChannel = duplicatedInputGate.createNetworkInputChannel(sourceInputChannel.getID(),
-	 * sourceInputChannel.getCompressionLevel());
-	 * } else if(sourceInputChannel.getType() == ChannelType.INMEMORY) {
-	 * duplicatedInputChannel = duplicatedInputGate.createInMemoryInputChannel(sourceInputChannel.getID(),
-	 * sourceInputChannel.getCompressionLevel());
-	 * }
-	 * inputChannelMap.put(sourceInputChannel, duplicatedInputChannel);
-	 * duplicateGraph.inputChannelMap.put(duplicatedInputChannel.getID(), duplicatedInputChannel);
-	 * duplicateGraph.channelToVertexMap.put(duplicatedInputChannel.getID(), duplicatedVertex);
-	 * }
-	 * }
-	 * for(int i = 0; i < sourceVertex.getEnvironment().getNumberOfOutputGates(); i++) {
-	 * final OutputGate<? extends Record> sourceOutputGate = sourceVertex.getEnvironment().getOutputGate(i);
-	 * final OutputGate<? extends Record> duplicatedOutputGate = duplicatedVertex.getEnvironment().getOutputGate(i);
-	 * for(int j = 0; j < sourceOutputGate.getNumberOfOutputChannels(); j++) {
-	 * final OutputChannel<? extends Record> sourceOutputChannel = sourceOutputGate.getOutputChannel(j);
-	 * OutputChannel<? extends Record> duplicatedOutputChannel = null;
-	 * if(sourceOutputChannel.getType() == ChannelType.FILE) {
-	 * duplicatedOutputChannel = duplicatedOutputGate.createFileOutputChannel(sourceOutputChannel.getID(),
-	 * sourceOutputChannel.getCompressionLevel());
-	 * } else if(sourceOutputChannel.getType() == ChannelType.NETWORK) {
-	 * duplicatedOutputChannel = duplicatedOutputGate.createNetworkOutputChannel(sourceOutputChannel.getID(),
-	 * sourceOutputChannel.getCompressionLevel());
-	 * } else if(sourceOutputChannel.getType() == ChannelType.INMEMORY) {
-	 * duplicatedOutputChannel = duplicatedOutputGate.createInMemoryOutputChannel(sourceOutputChannel.getID(),
-	 * sourceOutputChannel.getCompressionLevel());
-	 * }
-	 * outputChannelMap.put(sourceOutputChannel, duplicatedOutputChannel);
-	 * duplicateGraph.outputChannelMap.put(duplicatedOutputChannel.getID(), duplicatedOutputChannel);
-	 * duplicateGraph.channelToVertexMap.put(duplicatedOutputChannel.getID(), duplicatedVertex);
-	 * }
-	 * }
-	 * }
-	 * //Now, finally connect all the channels
-	 * final Iterator<InputChannel<? extends Record>> channelIterator = inputChannelMap.keySet().iterator();
-	 * while(channelIterator.hasNext()) {
-	 * final InputChannel<? extends Record> sourceInputChannel = channelIterator.next();
-	 * final ChannelID sourceOutputChannelID = sourceInputChannel.getOutputChannelID();
-	 * final OutputChannel<? extends Record> sourceOutputChannel = this.outputChannelMap.get(sourceOutputChannelID);
-	 * final InputChannel<? extends Record> duplicatedInputChannel = inputChannelMap.get(sourceInputChannel);
-	 * final OutputChannel<? extends Record> duplicatedOutputChannel = outputChannelMap.get(sourceOutputChannel);
-	 * duplicatedInputChannel.setOutputChannelID(duplicatedOutputChannel.getID());
-	 * duplicatedOutputChannel.setInputChannelID(duplicatedInputChannel.getID());
-	 * }
-	 * return duplicateGraph;
-	 * }
-	 */
-
-	/**
 	 * Returns the index of the current execution stage.
 	 * 
 	 * @return the index of the current execution stage
@@ -1126,6 +990,11 @@ public class ExecutionGraph implements ExecutionListener {
 		return this.indexToCurrentExecutionStage;
 	}
 
+	/**
+	 * Returns the stage which is currently executed.
+	 * 
+	 * @return the currently executed stage or <code>null</code> if the job execution is already completed
+	 */
 	public ExecutionStage getCurrentExecutionStage() {
 
 		if (this.indexToCurrentExecutionStage >= this.stages.size()) {
@@ -1136,23 +1005,45 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * Returns the types and numbers of instances which are required for the
-	 * current execution stage to complete.
+	 * Checks which instance types and how many instances of these types are required to execute the current stage
+	 * of this job graph. The required instance types and the number of instances are collected in the given map. Note
+	 * that this method does not clear the map before collecting the instances.
 	 * 
-	 * @return a map containing the types and respective numbers of instances required
-	 *         for the current execution stage to complete.
+	 * @param instanceTypeMap
+	 *        the map containing the instances types and the required number of instances of the respective type
+	 * @param executionState
+	 *        the execution state the considered vertices must be in
 	 */
-	public Map<InstanceType, Integer> getInstanceTypesRequiredForCurrentStage() {
+	public void collectInstanceTypesRequiredForCurrentStage(final Map<InstanceType, Integer> instanceTypeMap,
+			final ExecutionState executionState) {
 
-		final Map<InstanceType, Integer> instanceTypeMap = new HashMap<InstanceType, Integer>();
+		collectInstanceTypesRequiredForStage(this.indexToCurrentExecutionStage, instanceTypeMap, executionState);
+	}
 
-		if (this.indexToCurrentExecutionStage >= this.stages.size()) {
-			return instanceTypeMap;
+	/**
+	 * Checks which instance types and how many instances of these types are required to execute the given stage
+	 * of this job graph. The required instance types and the number of instances are collected in the given map. Note
+	 * that this method does not clear the map before collecting the instances.
+	 * 
+	 * @param stage
+	 *        the stage in which the required instance types are collected.
+	 * @param instanceTypeMap
+	 *        the map containing the instances types and the required number of instances of the respective type
+	 * @param executionState
+	 *        the execution state the considered vertices must be in
+	 */
+	public void collectInstanceTypesRequiredForStage(final int stage, final Map<InstanceType, Integer> instanceTypeMap,
+			final ExecutionState executionState) {
+
+		if (stage >= this.stages.size()) {
+			LOG.error("Illegal stage  " + stage + " requested");
+			return;
 		}
 
 		final ExecutionStage nextStage = this.stages.get(this.indexToCurrentExecutionStage);
 		if (nextStage == null) {
-			LOG.warn("Stage " + this.indexToCurrentExecutionStage + " is not a valid execution stage");
+			LOG.error("Stage " + stage + " is not a valid execution stage");
+			return;
 		}
 
 		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
@@ -1163,7 +1054,7 @@ public class ExecutionGraph implements ExecutionListener {
 			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
 				// Get the instance type from the execution vertex if it
 				final ExecutionVertex vertex = groupVertex.getGroupMember(j);
-				if (vertex.getExecutionState() == ExecutionState.SCHEDULED) {
+				if (vertex.getExecutionState() == executionState) {
 					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
 					if (collectedInstances.contains(instance)) {
@@ -1174,7 +1065,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 					if (instance instanceof DummyInstance) {
 						Integer num = instanceTypeMap.get(instance.getType());
-						num = (num == null) ? new Integer(1) : new Integer(num.intValue() + 1);
+						num = (num == null) ? Integer.valueOf(1) : Integer.valueOf(num.intValue() + 1);
 						instanceTypeMap.put(instance.getType(), num);
 					} else {
 						LOG.debug("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
@@ -1183,8 +1074,6 @@ public class ExecutionGraph implements ExecutionListener {
 				}
 			}
 		}
-
-		return instanceTypeMap;
 	}
 
 	public void repairStages() {
@@ -1199,7 +1088,7 @@ public class ExecutionGraph implements ExecutionListener {
 			if (stageNumbers.containsKey(groupVertex)) {
 				precedingNumber = stageNumbers.get(groupVertex).intValue();
 			} else {
-				stageNumbers.put(groupVertex, new Integer(precedingNumber));
+				stageNumbers.put(groupVertex, Integer.valueOf(precedingNumber));
 			}
 
 			for (int i = 0; i < groupVertex.getNumberOfForwardLinks(); i++) {
@@ -1209,10 +1098,10 @@ public class ExecutionGraph implements ExecutionListener {
 					// Target vertex has not yet been discovered
 					if (edge.getChannelType() != ChannelType.FILE) {
 						// Same stage as preceding vertex
-						stageNumbers.put(edge.getTargetVertex(), new Integer(precedingNumber));
+						stageNumbers.put(edge.getTargetVertex(), Integer.valueOf(precedingNumber));
 					} else {
 						// File channel, increase stage of target vertex by one
-						stageNumbers.put(edge.getTargetVertex(), new Integer(precedingNumber + 1));
+						stageNumbers.put(edge.getTargetVertex(), Integer.valueOf(precedingNumber + 1));
 					}
 				} else {
 					final int stageNumber = stageNumbers.get(edge.getTargetVertex()).intValue();
@@ -1245,7 +1134,7 @@ public class ExecutionGraph implements ExecutionListener {
 				final int stageNumber = stageNumbers.get(edge.getSourceVertex());
 				if (edge.getChannelType() == ChannelType.FILE) {
 					if (stageNumber < (succeedingNumber - 1)) {
-						stageNumbers.put(edge.getSourceVertex(), new Integer(succeedingNumber - 1));
+						stageNumbers.put(edge.getSourceVertex(), Integer.valueOf(succeedingNumber - 1));
 					}
 				} else {
 					if (stageNumber != succeedingNumber) {
@@ -1258,11 +1147,12 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Finally, assign the new stage numbers
 		this.stages.clear();
-		final Iterator<ExecutionGroupVertex> it2 = stageNumbers.keySet().iterator();
+		final Iterator<Map.Entry<ExecutionGroupVertex, Integer>> it2 = stageNumbers.entrySet().iterator();
 		while (it2.hasNext()) {
 
-			final ExecutionGroupVertex groupVertex = it2.next();
-			final int stageNumber = stageNumbers.get(groupVertex).intValue();
+			final Map.Entry<ExecutionGroupVertex, Integer> entry = it2.next();
+			final ExecutionGroupVertex groupVertex = entry.getKey();
+			final int stageNumber = entry.getValue().intValue();
 			// Prevent out of bounds exceptions
 			while (this.stages.size() <= stageNumber) {
 				this.stages.add(null);
@@ -1525,7 +1415,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 			final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
 			while (it.hasNext()) {
-				it.next().jobStatusHasChanged(this.jobID, this.jobStatus);
+				it.next().jobStatusHasChanged(this.jobID, this.jobStatus, optionalMessage);
 			}
 		}
 	}
@@ -1590,5 +1480,35 @@ public class ExecutionGraph implements ExecutionListener {
 	@Override
 	public void userThreadStarted(Environment ee, Thread userThread) {
 		// Nothing to do here
+	}
+
+	/**
+	 * Returns a list of vertices which are contained in this execution graph and have a finished checkpoint.
+	 * 
+	 * @return list of vertices which are contained in this execution graph and have a finished checkpoint
+	 */
+	public List<ExecutionVertex> getVerticesWithCheckpoints() {
+
+		final List<ExecutionVertex> list = new ArrayList<ExecutionVertex>();
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
+
+		// In the current implementation we just look for vertices which have outgoing file channels
+		while (it.hasNext()) {
+
+			final ExecutionGroupVertex groupVertex = it.next();
+			for (int i = 0; i < groupVertex.getNumberOfForwardLinks(); i++) {
+
+				if (groupVertex.getForwardEdge(i).getChannelType() == ChannelType.FILE) {
+
+					for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
+						list.add(groupVertex.getGroupMember(j));
+					}
+
+					break;
+				}
+			}
+		}
+
+		return list;
 	}
 }

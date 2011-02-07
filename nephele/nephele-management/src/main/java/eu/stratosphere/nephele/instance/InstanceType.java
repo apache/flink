@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.types.StringRecord;
  * 
  * @author warneke
  */
-public class InstanceType implements IOReadableWritable {
+public final class InstanceType implements IOReadableWritable {
 
 	/**
 	 * The identifier for this instance type.
@@ -88,8 +88,9 @@ public class InstanceType implements IOReadableWritable {
 	 * @param pricePerHour
 	 *        price per hour that is charged for running instances of this type
 	 */
-	InstanceType(String identifier, int numberOfComputeUnits, int numberOfCores, int memorySize,
-			int diskCapacity, int pricePerHour) {
+	InstanceType(final String identifier, final int numberOfComputeUnits, final int numberOfCores,
+			final int memorySize,
+			final int diskCapacity, final int pricePerHour) {
 
 		this.identifier = identifier;
 		this.numberOfComputeUnits = numberOfComputeUnits;
@@ -168,7 +169,8 @@ public class InstanceType implements IOReadableWritable {
 	 * @return A String representation of this instance type.
 	 */
 	public String toStringRepresentation() {
-		StringBuilder bld = new StringBuilder(32);
+		
+		final StringBuilder bld = new StringBuilder(32);
 		bld.append(this.identifier);
 		bld.append(',');
 		bld.append(this.numberOfComputeUnits);
@@ -188,7 +190,7 @@ public class InstanceType implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		StringRecord.writeString(out, this.identifier);
 		out.writeInt(this.numberOfComputeUnits);
@@ -202,7 +204,7 @@ public class InstanceType implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		this.identifier = StringRecord.readString(in);
 		this.numberOfComputeUnits = in.readInt();

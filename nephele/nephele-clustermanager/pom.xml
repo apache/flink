@@ -20,13 +20,6 @@
       <artifactId>nephele-server</artifactId>
       <version>${version}</version>
     </dependency>
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>nephele-server</artifactId>
-      <version>${version}</version>
-      <type>test-jar</type>
-      <scope>test</scope> 
-    </dependency>
   </dependencies>
   
    <build>
@@ -37,7 +30,10 @@
       <configuration>
         <!-- we need to execute tests in target/test-classes so that the config files are found -->
         <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-      </configuration>  	  	
+        <excludes>
+          <exclude>**/TestInstanceListener.java</exclude>
+        </excludes>
+      </configuration>
   	  </plugin>
   	</plugins>
   </build>

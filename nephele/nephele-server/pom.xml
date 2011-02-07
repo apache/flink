@@ -51,24 +51,27 @@
             </property>
           </systemPropertyVariables>
           <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-	  <excludes>
-            <exclude>**/TestUtils.java</exclude>
+          <excludes>
             <exclude>**/TestInstanceListener.java</exclude>
-            <exclude>**/InstanceManagerTestUtils.java</exclude>
           </excludes>
         </configuration>  	  	
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>2.2</version>
-        <executions>
-           <execution>
-             <goals>
-               <goal>test-jar</goal>
-             </goals>
-           </execution>
-         </executions>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!-- we need to execute tests in target/test-classes so that the config files are found -->
+	 <systemPropertyVariables>
+            <property>
+              <name>java.net.preferIPv4Stack</name>
+              <value>true</value>
+            </property>
+          </systemPropertyVariables>
+          <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
+          <excludes>
+            <exclude>**/TestInstanceListener.java</exclude>
+          </excludes>
+        </configuration>  	  	
       </plugin>
     </plugins>
   </build>

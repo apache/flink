@@ -265,9 +265,9 @@ abstract public class Buffer extends MemoryBacked {
 	 *        the buffer class identified by the {@code Type} instance
 	 */
 	public static final class Type<T extends Buffer> {
-		public static Type<Input> INPUT = new Type<Input>(Input.class);
+		public static final Type<Input> INPUT = new Type<Input>(Input.class);
 
-		public static Type<Output> OUTPUT = new Type<Output>(Output.class);
+		public static final Type<Output> OUTPUT = new Type<Output>(Output.class);
 
 		public final Class<T> clazz;
 

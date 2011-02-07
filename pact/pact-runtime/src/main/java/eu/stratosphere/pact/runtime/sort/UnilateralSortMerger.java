@@ -61,6 +61,7 @@ import eu.stratosphere.pact.runtime.task.ReduceTask;
  * 
  * @author Erik Nijkamp
  * @author Stephan Ewen
+ * 
  * @param <K>
  *        The key class
  * @param <V>
