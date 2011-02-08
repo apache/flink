@@ -16,7 +16,8 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,10 +26,13 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
@@ -39,11 +43,15 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.hash.HybridHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.InMemoryHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.HybridHashMatchIterator.InputRoles;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.serialization.ValueDeserializer;
+import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -70,6 +78,9 @@ public class MatchTask extends AbstractTask {
 
 	// maximum number of file handles
 	private int MAX_NUM_FILEHANLDES;
+	
+	// share ratio for resettable iterator
+	private double MEMORY_SHARE_RATIO = 0.15;
 
 	// obtain MatchTask logger
 	private static final Log LOG = LogFactory.getLog(MatchTask.class);
@@ -84,7 +95,7 @@ public class MatchTask extends AbstractTask {
 	private OutputCollector output;
 
 	// match stub implementation instance
-	private MatchStub match;
+	private MatchStub matchStub;
 
 	// task config including stub parameters
 	private TaskConfig config;
@@ -129,7 +140,7 @@ public class MatchTask extends AbstractTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// open match stub instance
-		match.open();
+		matchStub.open();
 
 		try {
 			// open MatchTaskIterator
@@ -138,7 +149,7 @@ public class MatchTask extends AbstractTask {
 			// for each distinct key that is contained in both inputs
 			while (matchIterator.next()) {
 				// call run() method of match stub implementation
-				match.run(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2(), output);
+				crossValues(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2());
 			}
 
 		} catch (IOException ioe) {
@@ -148,7 +159,7 @@ public class MatchTask extends AbstractTask {
 		} finally {
 
 			// close match stub instance
-			match.close();
+			matchStub.close();
 
 			// close MatchTaskIterator
 			matchIterator.close();
@@ -185,9 +196,9 @@ public class MatchTask extends AbstractTask {
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			Class<? extends MatchStub> matchClass = config.getStubClass(MatchStub.class, cl);
 			// obtain stub implementation instance
-			match = matchClass.newInstance();
+			matchStub = matchClass.newInstance();
 			// configure stub instance
-			match.configure(config.getStubParameters());
+			matchStub.configure(config.getStubParameters());
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -208,10 +219,10 @@ public class MatchTask extends AbstractTask {
 	private void initInputReaders() {
 
 		// create RecordDeserializers
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer1 = new KeyValuePairDeserializer(match
-			.getFirstInKeyType(), match.getFirstInValueType());
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer2 = new KeyValuePairDeserializer(match
-			.getSecondInKeyType(), match.getSecondInValueType());
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer1 = new KeyValuePairDeserializer(matchStub
+			.getFirstInKeyType(), matchStub.getFirstInValueType());
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer2 = new KeyValuePairDeserializer(matchStub
+			.getSecondInKeyType(), matchStub.getSecondInValueType());
 
 		// determine distribution pattern for first reader from input ship strategy
 		DistributionPattern dp1 = null;
@@ -262,8 +273,12 @@ public class MatchTask extends AbstractTask {
 	 * forwards its input to all writers.
 	 */
 	private void initOutputCollector() {
-		// create collection for writers
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+				
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -272,12 +287,16 @@ public class MatchTask extends AbstractTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
+			
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
+			
 		}
-
-		// create collector and register all writers
-		output = new OutputCollector(writers);
+		
 	}
 
 	/**
@@ -300,21 +319,185 @@ public class MatchTask extends AbstractTask {
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (config.getLocalStrategy()) {
 		case SORTMERGE:
-			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, match.getFirstInKeyType(),
-				match.getFirstInValueType(), match.getSecondInValueType(), NUM_SORT_BUFFERS, SIZE_SORT_BUFFER,
-				MEMORY_IO, MAX_NUM_FILEHANLDES, this);
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), NUM_SORT_BUFFERS, SIZE_SORT_BUFFER,
+				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), MAX_NUM_FILEHANLDES, this);
 		case HYBRIDHASH_FIRST:
-			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, match.getFirstInKeyType(),
-				match.getFirstInValueType(), match.getSecondInValueType(), InputRoles.BUILD_PROBE, MEMORY_IO);
+			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, ((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))));
 		case HYBRIDHASH_SECOND:
-			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, match.getFirstInKeyType(),
-				match.getFirstInValueType(), match.getSecondInValueType(), InputRoles.PROBE_BUILD, MEMORY_IO);
+			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.PROBE_BUILD, ((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))));
 		case MMHASH_FIRST:
 			return new InMemoryHashMatchIterator(reader1, reader2);
 		case MMHASH_SECOND:
 			return new InMemoryHashMatchIterator(reader2, reader1);
 		default:
 			throw new RuntimeException("Unknown local strategy for MatchTask");
+		}
+	}
+	
+	
+	/**
+	 * <p>
+	 * Calls the <code>MatchStub#match()</code> method for all two
+	 * key-value pairs that share the same key and come from different inputs. The output of the <code>match()</code>
+	 * method is forwarded.
+	 * <p>
+	 * This method is called with a key and two iterator (one for each input) over all values that share this key.
+	 * <p>
+	 * 
+	 * @param key
+	 *        A key.
+	 * @param values1
+	 *        An iterator on values of the first input that were paired with the key.
+	 * @param values2
+	 *        An iterator on values of the second input that were paired with the key.
+	 * @param out
+	 *        A collector that collects all output pairs.
+	 */
+	private void crossValues(Key key, final Iterator<Value> values1, final Iterator<Value> values2) throws RuntimeException {
+
+		// get first value of each side
+		final Value firstV1 = values1.next();
+		final Value firstV2 = values2.next();
+		
+		if (firstV1 == null || firstV2 == null) {
+			return;
+		}
+
+		boolean v1HasNext = values1.hasNext();
+		boolean v2HasNext = values2.hasNext();
+
+		// check if one side is already empty
+		// this check could be omitted if we put this in MatchTask.
+		// then we can derive the local strategy (with build side).
+		if (!v1HasNext && !v2HasNext) {
+			// both sides contain only one value
+			matchStub.match(key, firstV1, firstV2, output);
+			return;
+		}
+		
+		Value v1;
+		Value v2;
+		
+		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(matchStub.getFirstInKeyType());
+		final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
+		keyCopier.setCopy(key);
+		
+		if (!v1HasNext) {
+			// only values1 contains only one value
+			final SerializationFactory<Value> v1Serialization = new WritableSerializationFactory<Value>(matchStub.getFirstInValueType());
+			final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
+			v1Copier.setCopy(firstV1);
+			
+			matchStub.match(key, firstV1, firstV2, output);
+			while (v2HasNext) {
+				key = keySerialization.newInstance();
+				keyCopier.getCopy(key);
+				v1 = v1Serialization.newInstance();
+				v1Copier.getCopy(v1);
+				
+				v2 = values2.next();
+				v2HasNext = values2.hasNext();
+				matchStub.match(key, v1, v2, output);
+			}
+
+		} else if (!v2HasNext) {
+			// only values2 contains only one value
+			final SerializationFactory<Value> v2Serialization = new WritableSerializationFactory<Value>(matchStub.getSecondInValueType());
+			final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
+			v2Copier.setCopy(firstV2);
+			
+			matchStub.match(key, firstV1, firstV2, output);
+			while (v1HasNext) {
+				key = keySerialization.newInstance();
+				keyCopier.getCopy(key);
+				v2 = v2Serialization.newInstance();
+				v2Copier.getCopy(v2);
+				
+				v1 = values1.next();
+				v1HasNext = values1.hasNext();
+				matchStub.match(key, v1, v2, output);
+			}
+
+		} else {
+
+			// both sides contain more than one value
+			// TODO: Decide which side to store!
+			
+			Reader<Value> v1Reader = new Reader<Value>() {
+
+				boolean firstValue = true;
+				
+				@Override
+				public List<AbstractInputChannel<Value>> getInputChannels() {
+					throw new UnsupportedOperationException();
+				}
+
+				@Override
+				public boolean hasNext() {
+					if(firstValue) return true;
+					return values1.hasNext();
+				}
+
+				@Override
+				public Value next() throws IOException, InterruptedException {
+					if(firstValue) {
+						firstValue = false;
+						return firstV1;
+					}
+					return values1.next();
+				}
+				
+			};
+			
+			final SpillingResettableIterator<Value> v1ResettableIterator;
+			try {
+				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
+				v1ResettableIterator = 
+						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
+								v1Reader, ((int)(MEMORY_IO*MEMORY_SHARE_RATIO)), v1Deserializer);
+				v1ResettableIterator.open();
+				
+				final SerializationFactory<Value> v2Serialization = new WritableSerializationFactory<Value>(matchStub.getSecondInValueType());
+				final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
+				v2Copier.setCopy(firstV2);
+				
+				// run through resettable iterator with firstV2
+				while (v1ResettableIterator.hasNext()) {
+					key = keySerialization.newInstance();
+					keyCopier.getCopy(key);
+					v2 = v2Serialization.newInstance();
+					v2Copier.getCopy(v2);
+					
+					v1 = v1ResettableIterator.next();
+					matchStub.match(key, v1, v2, output);
+				}
+				v1ResettableIterator.reset();
+				
+				// run through resettable iterator for each v2
+				while(values2.hasNext()) {
+					
+					v2 = values2.next();
+					v2Copier.setCopy(v2);
+					
+					while (v1ResettableIterator.hasNext()) {
+						key = keySerialization.newInstance();
+						keyCopier.getCopy(key);
+						v2 = v2Serialization.newInstance();
+						v2Copier.getCopy(v2);
+						
+						v1 = v1ResettableIterator.next();
+						matchStub.match(key, v1, v2, output);
+					}
+					v1ResettableIterator.reset();
+				}
+				
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+					
 		}
 	}
 

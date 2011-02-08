@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,6 +45,7 @@ import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
@@ -84,7 +84,7 @@ public class ReduceTask extends AbstractTask {
 	private RecordReader<KeyValuePair<Key, Value>> reader;
 
 	// output collector
-	private Collector output;
+	private OutputCollector output;
 
 	// reduce stub implementation instance
 	private ReduceStub stub;
@@ -142,7 +142,7 @@ public class ReduceTask extends AbstractTask {
 			stub.open();
 			
 			// run stub implementation
-			stub.run(sortedInputProvider.getIterator(), output);
+			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
 			
 			// close output collector
 			output.close();
@@ -236,8 +236,11 @@ public class ReduceTask extends AbstractTask {
 	 */
 	private void initOutputCollector() {
 
-		// create collection for writers
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+		
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -246,12 +249,15 @@ public class ReduceTask extends AbstractTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
+			
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
+			
 		}
-
-		// create collector and register all writers
-		output = new OutputCollector(writers);
 	}
 
 	/**
@@ -376,5 +382,23 @@ public class ReduceTask extends AbstractTask {
 			throw new RuntimeException("Invalid local strategy provided for ReduceTask.");
 		}
 
+	}
+	
+	/**
+	 * This method goes over all keys and values that are to be processed by this ReduceTask and calls 
+	 * {@link ReduceStub#reduce(Key, Iterator, Collector)} for each key with the key and an iterator over all 
+	 * corresponding values. 
+	 * 
+	 * @param in
+	 *        An iterator over all key/value pairs processed by this instance of the reducing code.
+	 *        The pairs are grouped by key, such that equal keys are always in a contiguous sequence.
+	 * @param out
+	 *        The collector to write the results to.
+	 */
+	public final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
+		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
+		while (iter.nextKey()) {
+			this.stub.reduce(iter.getKey(), iter.getValues(), out);
+		}
 	}
 }

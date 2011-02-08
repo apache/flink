@@ -106,6 +106,7 @@ public class MapITCase extends TestBase
 
 	public static class TestMapper extends MapStub<PactString, PactString, PactString, PactInteger> {
 
+		@Override
 		public void map(PactString key, PactString value, Collector<PactString, PactInteger> out) {
 			
 			LOG.debug("Processed: [" + key + "," + value + "]");

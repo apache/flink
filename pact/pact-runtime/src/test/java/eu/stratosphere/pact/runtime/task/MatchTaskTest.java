@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.common.type.stub;
+package eu.stratosphere.pact.runtime.task;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -24,9 +24,9 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  *
  */
-public class MatchStubTest {
+public class MatchTaskTest {
 
-	private class MockMatcher extends MatchStub<PactInteger, TupleMock, TupleMock, PactInteger, TupleMock>
+	private class MockMatchStub extends MatchStub<PactInteger, TupleMock, TupleMock, PactInteger, TupleMock>
 	{
 		private int matchCount = 0;
 		
@@ -65,15 +65,15 @@ public class MatchStubTest {
 	private TupleMock rightValue4;
 	
 	
-	private MockMatcher matcher;
+	private MockMatchStub matcher;
 	
-	
+	private MatchTask matchTask;
 	
 	@Before
 	public void setUp()
 	{
 		initMocks(this);
-		this.matcher = new MockMatcher();
+		this.matcher = new MockMatchStub();
 		this.leftValue = new TupleMock("l1");
 		this.leftValue2 = new TupleMock("l2");
 		this.leftValue3 = new TupleMock("l3");
@@ -82,8 +82,12 @@ public class MatchStubTest {
 		this.rightValue2 = new TupleMock("r2");
 		this.rightValue3 = new TupleMock("r3");
 		this.rightValue4 = new TupleMock("r4");
+		
+		matchTask = new MatchTask();
+		
 	}
 
+	/*
 	@Test
 	public void shouldNotRunMatch()
 	{
@@ -248,7 +252,7 @@ public class MatchStubTest {
 		assertThat(sixteenthPair.get(0), is(equalTo(leftValue4)));
 		assertThat(sixteenthPair.get(1), is(equalTo(rightValue4)));
 	}
-	
+	*/
 	
 	
 }

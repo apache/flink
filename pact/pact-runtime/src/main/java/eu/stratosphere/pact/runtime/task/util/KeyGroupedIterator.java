@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.util;
+package eu.stratosphere.pact.runtime.task.util;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;

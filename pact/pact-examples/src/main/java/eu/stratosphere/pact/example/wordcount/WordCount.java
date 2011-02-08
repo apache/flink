@@ -34,6 +34,7 @@ import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
@@ -48,15 +49,15 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	 * Converts a input string (a line) into a KeyValuePair with the string
 	 * being the key and the value being a zero Integer.
 	 */
-	public static class LineInFormat extends TextInputFormat<PactString, PactInteger> {
+	public static class LineInFormat extends TextInputFormat<PactNull, PactString> {
 
 		/**
 		 * {@inheritDoc}
 		 */
 		@Override
-		public boolean readLine(KeyValuePair<PactString, PactInteger> pair, byte[] line) {
-			pair.setKey(new PactString(new String(line)));
-			pair.setValue(new PactInteger(0));
+		public boolean readLine(KeyValuePair<PactNull, PactString> pair, byte[] line) {
+			pair.setKey(new PactNull());
+			pair.setValue(new PactString(new String(line)));
 			return true;
 		}
 
@@ -87,15 +88,15 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 	 * (String,Integer)-KeyValuePair is emitted where the Token is the key and
 	 * an Integer(1) is the value.
 	 */
-	public static class TokenizeLine extends MapStub<PactString, PactInteger, PactString, PactInteger> {
+	public static class TokenizeLine extends MapStub<PactNull, PactString, PactString, PactInteger> {
 
 		/**
 		 * {@inheritDoc}
 		 */
 		@Override
-		protected void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
+		public void map(PactNull key, PactString value, Collector<PactString, PactInteger> out) {
 
-			String line = key.toString();
+			String line = value.toString();
 			line = line.replaceAll("\\W", " ");
 			line = line.toLowerCase();
 			
@@ -151,7 +152,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		// check for the correct number of job parameters
 		if (args.length != 3) {
 			throw new IllegalArgumentException(
-				"Must provide three arguments: <parallelism> <text_input> <result_directory>");
+				"Must provide three arguments: [noSubStasks] [input] [output]");
 		}
 		
 		// parse job parameters
@@ -159,11 +160,11 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		String dataInput = args[1];
 		String output = args[2];
 
-		DataSourceContract<PactString, PactInteger> data = new DataSourceContract<PactString, PactInteger>(
+		DataSourceContract<PactNull, PactString> data = new DataSourceContract<PactNull, PactString>(
 				LineInFormat.class, dataInput, "Input Lines");
 		data.setDegreeOfParallelism(noSubTasks);
 
-		MapContract<PactString, PactInteger, PactString, PactInteger> mapper = new MapContract<PactString, PactInteger, PactString, PactInteger>(
+		MapContract<PactNull, PactString, PactString, PactInteger> mapper = new MapContract<PactNull, PactString, PactString, PactInteger>(
 				TokenizeLine.class, "Tokenize Lines");
 		mapper.setDegreeOfParallelism(noSubTasks);
 

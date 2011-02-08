@@ -278,6 +278,7 @@ public class CoGroupTask extends AbstractTask {
 	 *        The class of the output value.
 	 */
 	private <OK extends Key, OV extends Value> void typedInitOutputCollector(Class<OK> okClass, Class<OV> ovClass) {
+		
 		// create collection for writers
 		List<RecordWriter<KeyValuePair<OK, OV>>> writers = new ArrayList<RecordWriter<KeyValuePair<OK, OV>>>();
 
@@ -294,9 +295,12 @@ public class CoGroupTask extends AbstractTask {
 
 			// add writer to collection
 			writers.add(writer);
+			
 		}
 		// create collector and register all writers
-		output = new OutputCollector<OK, OV>(writers);
+		// all writers forward copies, except the first one
+		// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+		output = new OutputCollector<OK, OV>(writers, (int)(Math.pow(2, writers.size())-1));
 	}
 
 	/**

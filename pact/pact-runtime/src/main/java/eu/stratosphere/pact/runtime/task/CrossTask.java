@@ -16,8 +16,6 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,7 +32,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -43,8 +40,10 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -75,7 +74,7 @@ public class CrossTask extends AbstractTask {
 	private RecordReader<KeyValuePair<Key, Value>> reader2;
 
 	// output collector
-	private Collector<Key, Value> output;
+	private OutputCollector<Key, Value> output;
 
 	// cross stub implementation instance
 	private CrossStub stub;
@@ -262,8 +261,11 @@ public class CrossTask extends AbstractTask {
 	 */
 	private void initOutputCollector() {
 
-		// create collection for writers
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+		
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -272,12 +274,15 @@ public class CrossTask extends AbstractTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
-		}
+			
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision are possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
 
-		// create collector and register all writers
-		output = new OutputCollector(writers);
+		}
 	}
 
 	/**
@@ -395,7 +400,7 @@ public class CrossTask extends AbstractTask {
 						stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(),
 							output);
 					}
-
+					innerPair = innerInput.repeatLast();
 				}
 				// reset the memory block iterator to the beginning of the
 				// current memory block (outer side)
@@ -447,8 +452,13 @@ public class CrossTask extends AbstractTask {
 
 		// obtain streaming iterator for outer side
 		// streaming is achieved by simply wrapping the input reader of the outer side
-		Iterator<KeyValuePair<Key, Value>> outerInput = new Iterator<KeyValuePair<Key, Value>>() {
+		LastRepeatableIterator<KeyValuePair<Key, Value>> outerInput = new LastRepeatableIterator<KeyValuePair<Key, Value>>() {
 
+			SerializationCopier<KeyValuePair<Key, Value>> copier = new SerializationCopier<KeyValuePair<Key,Value>>();
+			
+			KeyValuePairDeserializer<Key, Value> deserializer = 
+				new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), stub.getSecondInValueType());
+			
 			@Override
 			public boolean hasNext() {
 				return outerReader.hasNext();
@@ -457,7 +467,12 @@ public class CrossTask extends AbstractTask {
 			@Override
 			public KeyValuePair<Key, Value> next() {
 				try {
-					return outerReader.next();
+					KeyValuePair<Key,Value> pair = outerReader.next();
+					
+					// serialize pair
+					copier.setCopy(pair);
+					
+					return pair;
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				} catch (InterruptedException e) {
@@ -469,6 +484,15 @@ public class CrossTask extends AbstractTask {
 			public void remove() {
 				throw new UnsupportedOperationException();
 			}
+
+			@Override
+			public KeyValuePair<Key, Value> repeatLast() {
+				KeyValuePair<Key,Value> pair = deserializer.getInstance();
+				copier.getCopy(pair);
+				
+				return pair;
+			}
+			
 		};
 
 		// obtain SpillingResettableIterator for inner side
@@ -520,6 +544,8 @@ public class CrossTask extends AbstractTask {
 					stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(),
 						output);
 				}
+				
+				outerPair = outerInput.repeatLast();
 			}
 			// reset spilling resettable iterator of inner side
 			innerInput.reset();
