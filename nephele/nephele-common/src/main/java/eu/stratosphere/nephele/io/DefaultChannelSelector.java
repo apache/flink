@@ -31,22 +31,26 @@ import eu.stratosphere.nephele.types.Record;
  */
 public class DefaultChannelSelector<T extends Record> implements ChannelSelector<T> {
 
-	private int nextChannelToSendTo = 0;
+	private final int[] nextChannelToSendTo = new int[1];
 
+	/**
+	 * Constructs a new default channel selector.
+	 */
+	public DefaultChannelSelector() {
+		this.nextChannelToSendTo[0] = 0;
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-
-	public void selectChannels(T record, boolean[] channelFlags) {
-		if(channelFlags.length == 0){
-			return;
-		}
-		this.nextChannelToSendTo = (this.nextChannelToSendTo + 1) % channelFlags.length;
-		channelFlags[this.nextChannelToSendTo] = true;
-
+	public int[] selectChannels(T record, int numberOfOutpuChannels) {
+	
+		this.nextChannelToSendTo[0] = (this.nextChannelToSendTo[0] + 1) % numberOfOutpuChannels;
+		
+		return this.nextChannelToSendTo;
 	}
-
+	
 	/**
 	 * {@inheritDoc}
 	 */

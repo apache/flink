@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.io;
 
-import junit.framework.Assert;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
@@ -34,22 +34,16 @@ public class DefaultChannelSelectorTest {
 	@Test
 	public void channelSelect() {
 
-		StringRecord dummyRecord = new StringRecord("abc");
-		DefaultChannelSelector<StringRecord> selector = new DefaultChannelSelector<StringRecord>();
+		final StringRecord dummyRecord = new StringRecord("abc");
+		final DefaultChannelSelector<StringRecord> selector = new DefaultChannelSelector<StringRecord>();
 		// Test with two channels
-		boolean[] numberOfChannels = { false, false };
-		selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(true, numberOfChannels[1]);
-		numberOfChannels[1] = false;
-		selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(true, numberOfChannels[0]);
-		numberOfChannels[0] = false;
-		selector.selectChannels(dummyRecord, numberOfChannels);
-		Assert.assertEquals(true, numberOfChannels[1]);
-		// Test with channel number 0
-		boolean[] noChannels = {};
-		selector.selectChannels(dummyRecord, noChannels);
-
+		final int numberOfOutputChannels = 2;
+		int[] selectedChannels = selector.selectChannels(dummyRecord, numberOfOutputChannels);
+		assertEquals(1, selectedChannels.length);
+		assertEquals(1, selectedChannels[0]);
+		selectedChannels = selector.selectChannels(dummyRecord, numberOfOutputChannels);
+		assertEquals(1, selectedChannels.length);
+		assertEquals(0, selectedChannels[0]);
 	}
 
 }

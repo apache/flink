@@ -68,11 +68,6 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	private ChannelSelector<T> channelSelector = null;
 
 	/**
-	 * The channel flags used for the channel selector.
-	 */
-	private boolean[] channelFlags = null;
-
-	/**
 	 * The listener objects registered for this output gate.
 	 */
 	private OutputGateListener[] outputGateListeners = null;
@@ -350,23 +345,18 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			throw new InterruptedException();
 		}
 
-		// Lazy initialization of channel flags
-		if (this.channelFlags == null) {
-			this.channelFlags = new boolean[this.outputChannels.size()];
-			for (int i = 0; i < this.channelFlags.length; ++i) {
-				this.channelFlags[i] = false;
-			}
+		final int numberOfOutputChannels = this.outputChannels.size();
+		final int[] selectedOutputChannels = this.channelSelector.selectChannels(record, numberOfOutputChannels);
+
+		if (selectedOutputChannels == null) {
+			return;
 		}
 
-		this.channelSelector.selectChannels(record, this.channelFlags);
+		for (int i = 0; i < selectedOutputChannels.length; ++i) {
 
-		for (int i = 0; i < this.channelFlags.length; ++i) {
-
-			if (this.channelFlags[i]) {
-
-				final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(i);
+			if (selectedOutputChannels[i] < numberOfOutputChannels) {
+				final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(selectedOutputChannels[i]);
 				outputChannel.writeRecord(record);
-				this.channelFlags[i] = false; // Clear flag for next record
 			}
 		}
 	}

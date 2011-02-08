@@ -30,17 +30,14 @@ import eu.stratosphere.nephele.types.Record;
 public interface ChannelSelector<T extends Record> extends IOReadableWritable {
 
 	/**
-	 * This method is called to determine to which attached {@link AbstractOutputChannel} objects the given record shall
-	 * be forwarded. The second parameter of this method is a boolean array. The length of the array corresponds to the
-	 * number of output channels attached to the output gate. When this method is called, all fields of the array are
-	 * set to <code>false</code>. To indicate that the given record shall be forwarded to the i-th channel of the output
-	 * gate, set the i-th field of the array to <code>true</code>. It is possible to set multiple array fields to
-	 * <code>true</code>.
+	 * Called to determine to which attached {@link AbstractOutputChannel} objects the given record shall be forwarded.
 	 * 
 	 * @param record
-	 *        the record for which the output channels shall be determined
-	 * @param channelFlags
-	 *        an array of booleans indicating what output shall be used for the record
+	 *        the record to the determine the output channels for
+	 * @param numberOfOutputChannels
+	 *        the total number of output channels which are attached to respective output gate
+	 * @return a (possibly empty) array of integer numbers which indicate the indices of the output channels through
+	 *         which the record shall be forwarded
 	 */
-	void selectChannels(T record, boolean[] channelFlags);
+	int[] selectChannels(T record, int numberOfOutpuChannels);
 }
