@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,17 +32,17 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
- * @param <K>
- * @param <V>
+ * @param <K> The type of the key.
+ * @param <V> The type of the value.
  */
 public class OutputCollector<K extends Key, V extends Value> implements Collector<K, V> {
 	
+	// serialization copier to create deep-copies
+	private final SerializationCopier<KeyValuePair<K,V>> copier;
 	// list of writers
 	protected final List<RecordWriter<KeyValuePair<K, V>>> writers;
 	// bit mask for copy flags
 	protected int fwdCopyFlags;
-	// serialization copier to create deep-copies
-	private final SerializationCopier<KeyValuePair<K,V>> copier;
 
 	/**
 	 * Initializes the output collector with no writers.
@@ -76,7 +77,9 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	 */
 	public void addWriter(RecordWriter<KeyValuePair<K,V>> writer, boolean fwdCopy) {
 		this.writers.add(writer);
-		if(fwdCopy) this.fwdCopyFlags += Math.pow(2, this.writers.size()-1);
+		if (fwdCopy) {
+			this.fwdCopyFlags |= 0x1 << (this.writers.size() - 1);
+		}
 	}
 
 	/**
@@ -87,23 +90,25 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	public void collect(K key, V value) {
 		try {
 			
-			KeyValuePair<K,V> emitPair = new KeyValuePair<K, V>(key, value);
+			final KeyValuePair<K,V> emitPair = new KeyValuePair<K, V>(key, value);
 			
-			if(fwdCopyFlags != 0) {
-				copier.setCopy(emitPair);
-			}
-			
-			for (int i=0;i<writers.size();i++) {
-				RecordWriter<KeyValuePair<K, V>> writer = writers.get(i);
-				
-				if((fwdCopyFlags >> i)%2 == 1) {
-					copier.getCopy(emitPair);
+			if (fwdCopyFlags == 0) {
+				for (int i = 0; i < writers.size(); i++) {
+					writers.get(i).emit(emitPair);
 				}
-
-				writer.emit(emitPair);
+			}
+			else {
+				copier.setCopy(emitPair);
+				
+				for (int i = 0; i < writers.size(); i++) {
+					if (((fwdCopyFlags >> i) & 0x1) != 0) {
+						copier.getCopy(emitPair);
+					}
+					writers.get(i).emit(emitPair);
+				}
 			}
 				
-		} catch (java.io.IOException e) {
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
@@ -116,6 +121,5 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	 */
 	@Override
 	public void close() {
-
 	}
 }

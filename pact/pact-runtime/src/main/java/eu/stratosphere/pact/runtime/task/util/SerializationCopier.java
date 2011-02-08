@@ -18,13 +18,13 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  */
 public class SerializationCopier<T extends IOReadableWritable> {
 
-	byte[] serializedCopy;
+	private byte[] serializedCopy;
 	
 	// streams for reading and writing to byte array
-	ByteArrayOutputStream baos;
-	DataOutputStream dos;
-	ByteArrayInputStream bais;
-	DataInputStream dis;
+	private ByteArrayOutputStream baos;
+	private DataOutputStream dos;
+	private ByteArrayInputStream bais;
+	private DataInputStream dis;
 	
 	/**
 	 * Creates a SerializationCopier with an byte array of initial size 1024 byte.

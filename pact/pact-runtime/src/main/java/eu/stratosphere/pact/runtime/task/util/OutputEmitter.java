@@ -30,10 +30,11 @@ import eu.stratosphere.pact.common.type.Value;
  * @param <K>
  * @param <V>
  */
-public class OutputEmitter<K extends Key, V extends Value> implements ChannelSelector<KeyValuePair<K, V>> {
+public class OutputEmitter<K extends Key, V extends Value> implements ChannelSelector<KeyValuePair<K, V>>
+{
 	private ShipStrategy strategy;
 
-	private byte[] salt;
+	private final byte[] salt;
 
 	private int nextChannelToSendTo = 0;
 
@@ -41,9 +42,8 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 		FORWARD, BROADCAST, PARTITION_HASH, PARTITION_RANGE, SFR, NONE
 	}
 
-	// TODO required by IOReadableWritable (en)
 	public OutputEmitter() {
-		this.salt = new byte[] { 17, 31, 47, 51, 83, 1 };
+		this(ShipStrategy.NONE);
 	}
 
 	public OutputEmitter(ShipStrategy strategy) {

@@ -80,7 +80,7 @@ public class MatchTask extends AbstractTask {
 	private int MAX_NUM_FILEHANLDES;
 	
 	// share ratio for resettable iterator
-	private double MEMORY_SHARE_RATIO = 0.15;
+	private double MEMORY_SHARE_RATIO = 0.05;
 
 	// obtain MatchTask logger
 	private static final Log LOG = LogFactory.getLog(MatchTask.class);
@@ -134,35 +134,50 @@ public class MatchTask extends AbstractTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// obtain MatchTaskIterator
-		final MatchTaskIterator matchIterator = getIterator(reader1, reader2);
-		LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		// open match stub instance
-		matchStub.open();
-
+		MatchTaskIterator matchIterator = null;
 		try {
+			matchIterator = getIterator(reader1, reader2);
+			
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			
 			// open MatchTaskIterator
 			matchIterator.open();
 
+			// open match stub instance
+			matchStub.open();
+			
 			// for each distinct key that is contained in both inputs
 			while (matchIterator.next()) {
 				// call run() method of match stub implementation
 				crossValues(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2());
 			}
-
-		} catch (IOException ioe) {
+			
+			// close stub implementation.
+			// when the stub is closed, anything will have been written, so any error will be logged but has no 
+			// effect on the successful completion of the task
+			try {
+				matchStub.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error while closing the Match user function " 
+					+ this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
+			}
+		}
+		catch (IOException ioe) {
 			throw new RuntimeException("Error occured during processing MatchTask", ioe);
-		} catch (InterruptedException ie) {
+		}
+		catch (InterruptedException ie) {
 			throw new RuntimeException("Error occured during processing MatchTask", ie);
-		} finally {
-
-			// close match stub instance
-			matchStub.close();
-
+		}
+		finally {
 			// close MatchTaskIterator
-			matchIterator.close();
+			if (matchIterator != null) {
+				matchIterator.close();
+			}
 
 			// close output collector
 			output.close();

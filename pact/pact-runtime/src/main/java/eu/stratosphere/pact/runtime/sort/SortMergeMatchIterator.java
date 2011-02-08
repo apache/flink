@@ -18,6 +18,9 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.Comparator;
 import java.util.Iterator;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
@@ -33,7 +36,11 @@ import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
  * @author Erik Nijkamp
  */
 public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends Value> implements
-		MatchTaskIterator<K, V1, V2> {
+		MatchTaskIterator<K, V1, V2>
+{
+	private static final Log LOG = LogFactory.getLog(SortMergeMatchIterator.class);
+	
+	
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
@@ -224,8 +231,24 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 	@Override
 	public void close() {
-//		sortMerger1.close();
-//		sortMerger2.close();
+		// close the two sort/merger to release the memory segments
+		if (sortMerger1 != null) {
+			try {
+				sortMerger1.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error closing sort/merger for first input: " + t.getMessage(), t);
+			}
+		}
+		
+		if (sortMerger2 != null) {
+			try {
+				sortMerger2.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error closing sort/merger for second input: " + t.getMessage(), t);
+			}
+		}
 	}
 
 	@Override

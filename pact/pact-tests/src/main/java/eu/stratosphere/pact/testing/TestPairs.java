@@ -266,15 +266,8 @@ public class TestPairs<K extends Key, V extends Value> implements
 					new TestPairsReader(inputFileIterator, actualPair), 0.5f,
 					new ReduceTask());
 
-			this.closableManager.add(new Closeable() {
-				@Override
-				public void close() throws IOException {
-					try {
-						sortMerger.shutdown();
-					} catch (InterruptedException e) {
-					}
-				}
-			});
+			this.closableManager.add(sortMerger);
+
 			// obtain and return a grouped iterator from the sort-merger
 			return sortMerger.getIterator();
 		} catch (final MemoryAllocationException mae) {

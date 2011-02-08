@@ -467,7 +467,7 @@ public class TestPlanTest extends TestPlanTestCase {
 		private static Pattern WORD_PATTERN = Pattern.compile("\\w+");
 
 		@Override
-		protected void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
+		public void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
 			Matcher matcher = WORD_PATTERN.matcher(key.getValue());
 			while (matcher.find())
 				out.collect(new PactString(matcher.group().toLowerCase()), new PactInteger(1));

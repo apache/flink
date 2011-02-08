@@ -144,11 +144,18 @@ public class ReduceTask extends AbstractTask {
 			// run stub implementation
 			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
 			
-			// close output collector
-			output.close();
-			
-			// close stub implementation
-			stub.close();
+			// close stub implementation.
+			// when the stub is closed, anything will have been written, so any error will be logged but has no 
+			// effect on the successful completion of the task
+			try {
+				stub.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error while closing the Reduce user function " 
+					+ this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
+			}
 	
 			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -158,6 +165,9 @@ public class ReduceTask extends AbstractTask {
 			if (sortedInputProvider != null) {
 				sortedInputProvider.close();
 			}
+			
+			// close output collector
+			output.close();
 		}
 	}
 
@@ -269,7 +279,7 @@ public class ReduceTask extends AbstractTask {
 	 *         Throws RuntimeException if it is not possible to obtain a
 	 *         grouped iterator.
 	 */
-	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() throws RuntimeException {
+	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
 		
 		// obtain the MemoryManager of the TaskManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
