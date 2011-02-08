@@ -19,9 +19,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -151,7 +154,19 @@ public class DataSourceNode extends OptimizerNode {
 
 		// see, if we have a statistics object that can tell us a bit about the file
 		if (statistics != null) {
-			DataStatistics.BasicFileStatistics bfs = statistics.getFileStatistics(getFilePath());
+			// instantiate the input format, as this is needed by the statistics 
+			InputFormat<?, ?> format = null;
+			try {
+				Class<? extends InputFormat<?, ?>> formatClass = getPactContract().getStubClass();
+				format = formatClass.newInstance();
+				format.configure(getPactContract().getFormatParameters());
+			}
+			catch (Throwable t) {
+				LogFactory.getLog(PactCompiler.class).warn("Could not instantiate input format for statistics sampling."
+						+ " Limited statistics will be available.", t);
+			}
+			
+			DataStatistics.BasicFileStatistics bfs = statistics.getFileStatistics(getFilePath(), format);
 
 			long len = bfs.getFileSize();
 			if (len == DataStatistics.UNKNOWN) {
