@@ -15,10 +15,29 @@
 
 package eu.stratosphere.nephele.io;
 
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.types.Record;
+
 /**
- * @author Erik Nijkamp
+ * Objects implementing this interface are passed to an {@link OutputGate}. When a record is sent through the output
+ * gate, the channel selector object is called to determine to which {@link AbstractOutputChannel} objects the record
+ * shall be passed on.
+ * 
+ * @author warneke
  * @param <T>
+ *        the type of record which is sent through the attached output gate
  */
-public interface ChannelSelector<T> extends IOReadableWritable {
-	int[] selectChannels(T record, int numberOfChannels);
+public interface ChannelSelector<T extends Record> extends IOReadableWritable {
+
+	/**
+	 * Called to determine to which attached {@link AbstractOutputChannel} objects the given record shall be forwarded.
+	 * 
+	 * @param record
+	 *        the record to the determine the output channels for
+	 * @param numberOfOutputChannels
+	 *        the total number of output channels which are attached to respective output gate
+	 * @return a (possibly empty) array of integer numbers which indicate the indices of the output channels through
+	 *         which the record shall be forwarded
+	 */
+	int[] selectChannels(T record, int numberOfOutpuChannels);
 }

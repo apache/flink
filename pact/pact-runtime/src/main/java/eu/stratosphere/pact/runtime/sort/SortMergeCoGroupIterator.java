@@ -19,6 +19,9 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 
+import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.Log;
+
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
@@ -29,13 +32,18 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.EmptyIterator;
 
 /**
  * @author Fabian Hueske
  * @author Erik Nijkamp
  */
 public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extends Value> implements
-		CoGroupTaskIterator<K, V1, V2> {
+		CoGroupTaskIterator<K, V1, V2>
+{
+	private static final Log LOG = LogFactory.getLog(SortMergeCoGroupIterator.class);
+	
+	
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
@@ -239,9 +247,24 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 
 	@Override
 	public void close() {
-		// TODO (en)
-		// merger1.close()
-		// merger2.close()
+		// close the two sort/merger to release the memory segments
+		if (sortMerger1 != null) {
+			try {
+				sortMerger1.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error closing sort/merger for first input: " + t.getMessage(), t);
+			}
+		}
+		
+		if (sortMerger2 != null) {
+			try {
+				sortMerger2.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error closing sort/merger for second input: " + t.getMessage(), t);
+			}
+		}
 	}
 
 	@Override
@@ -252,22 +275,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	@Override
 	public Iterator<V1> getValues1() {
 		if (returnStatus == ReturnStatus.RETURN_SECOND) {
-			return new Iterator<V1>() {
-
-				@Override
-				public boolean hasNext() {
-					return false;
-				}
-
-				@Override
-				public V1 next() {
-					return null;
-				}
-
-				@Override
-				public void remove() {
-				}
-			};
+			return EmptyIterator.get();
 		} else {
 			return iterator1.getValues();
 		}
@@ -276,22 +284,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	@Override
 	public Iterator<V2> getValues2() {
 		if (returnStatus == ReturnStatus.RETURN_FIRST) {
-			return new Iterator<V2>() {
-
-				@Override
-				public boolean hasNext() {
-					return false;
-				}
-
-				@Override
-				public V2 next() {
-					return null;
-				}
-
-				@Override
-				public void remove() {
-				}
-			};
+			return EmptyIterator.get();
 		} else {
 			return iterator2.getValues();
 		}

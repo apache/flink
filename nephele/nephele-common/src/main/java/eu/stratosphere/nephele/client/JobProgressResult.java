@@ -90,4 +90,36 @@ public class JobProgressResult extends AbstractJobResult {
 
 		return this.events.iterator();
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		
+		if(!super.equals(obj)) {
+			return false;
+		}
+		
+		if(!(obj instanceof JobProgressResult)) {
+			return false;
+		}
+		
+		final JobProgressResult jpr = (JobProgressResult) obj;
+		
+		if(!this.events.equals(jpr.events)) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+		
+		return super.hashCode();
+	}
 }

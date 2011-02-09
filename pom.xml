@@ -112,7 +112,7 @@
 			<artifactId>mockito-all</artifactId>
 			<version>1.8.5</version>
 			<type>jar</type>
-			<scope>compile</scope>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>

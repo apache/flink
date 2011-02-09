@@ -32,7 +32,7 @@ public class OrdersFilter extends MapStub<PactInteger, Tuple, PactInteger, Tuple
 	 * @see eu.stratosphere.pact.common.stub.MapStub#map(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value, eu.stratosphere.pact.common.stub.Collector)
 	 */
 	@Override
-	protected void map(PactInteger key, Tuple value,
+	public void map(PactInteger key, Tuple value,
 			Collector<PactInteger, Tuple> out) {
 		
 		String orderStringDate = value.getStringValueAt(4);

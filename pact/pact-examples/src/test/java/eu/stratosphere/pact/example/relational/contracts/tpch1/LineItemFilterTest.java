@@ -48,7 +48,7 @@ public class LineItemFilterTest {
 		Tuple input = createInputTuple(shipDate);
 		
 		PactInteger inputKey = new PactInteger();
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList);
+		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		PactString returnFlag = new PactString(RETURN_FLAG);
 		
@@ -67,7 +67,7 @@ public class LineItemFilterTest {
 		
 		Tuple input = createInputTuple(shipDate);
 		PactInteger inputKey = new PactInteger();
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList);
+		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -80,7 +80,7 @@ public class LineItemFilterTest {
 		
 		Tuple input = null;
 		PactInteger inputKey = new PactInteger();
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList);
+		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -95,7 +95,7 @@ public class LineItemFilterTest {
 		
 		Tuple input = createInputTuple(shipDate);
 		PactInteger inputKey = new PactInteger();
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList);
+		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -120,7 +120,7 @@ public class LineItemFilterTest {
 		//the relevant column is missing now
 		
 		PactInteger inputKey = new PactInteger();
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList);
+		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
 		verifyNoMoreInteractions(recordWriterMock);

@@ -66,6 +66,46 @@ public class CheckpointManager {
 		}
 	}
 
+	/**
+	 * Removes the checkpoint of the vertex with the given ID. All files contained in the checkpoint are deleted.
+	 * 
+	 * @param vertexID
+	 *        the vertex whose checkpoint shall be removed
+	 */
+	public void removeCheckpoint(ExecutionVertexID vertexID) {
+
+		EphemeralCheckpoint checkpoint = null;
+		
+		// Remove checkpoint from list of available checkpoints
+		synchronized(this.checkpoints) {
+			
+			checkpoint = this.checkpoints.remove(vertexID);
+		}
+		
+		if(checkpoint == null) {
+			LOG.error("Cannot find checkpoint for vertex " + vertexID);
+			return;
+		}
+		
+		// Clean up channel ID to vertex ID map
+		ChannelID[] checkpointedChannels = checkpoint.getIDsOfCheckpointedOutputChannels();
+		
+		if(checkpointedChannels == null) {
+			LOG.error("Cannot remove checkpoint for vertex " + vertexID + ": list of checkpointed channels is null");
+			return;
+		}
+		
+		synchronized(this.channelIDToVertexIDMap) {
+			
+			for(int i = 0; i < checkpointedChannels.length; i++) {
+				this.channelIDToVertexIDMap.remove(checkpointedChannels[i]);
+			}
+		}
+		
+		// Finally, trigger deletion of files
+		checkpoint.remove();
+	}
+
 	public String getTmpDir() {
 
 		return this.tmpDir;

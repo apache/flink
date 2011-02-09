@@ -17,16 +17,17 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * This protocol provides extended management capabilities beyond the
@@ -69,7 +70,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the job list
 	 */
-	SerializableArrayList<NewJobEvent> getNewJobs() throws IOException;
+	List<NewJobEvent> getNewJobs() throws IOException;
 
 	/**
 	 * Retrieves the collected events for the job with the given job ID.
@@ -81,7 +82,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the list of events
 	 */
-	SerializableArrayList<AbstractEvent> getEvents(JobID jobID) throws IOException;
+	List<AbstractEvent> getEvents(JobID jobID) throws IOException;
 
 	/**
 	 * Cancels the task with the given vertex ID.
@@ -106,15 +107,15 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	void killInstance(StringRecord instanceName) throws IOException;
 
 	/**
-	 * Returns a list of all instance types which are currently available to Nephele. The list contains a description of
+	 * Returns a map of all instance types which are currently available to Nephele. The map contains a description of
 	 * the hardware characteristics for each instance type as provided in the configuration file. Moreover, it contains
 	 * the actual hardware description as reported by task managers running on the individual instances. If available,
-	 * the list also contains the maximum number instances Nephele can allocate of each instance type (i.e. if no other
+	 * the map also contains the maximum number instances Nephele can allocate of each instance type (i.e. if no other
 	 * job occupies instances).
 	 * 
 	 * @return a list of all instance types available to Nephele
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the list
 	 */
-	List<InstanceTypeDescription> getListOfAvailableInstanceTypes() throws IOException;
+	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() throws IOException;
 }

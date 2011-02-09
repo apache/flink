@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.instance;
 
-import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -128,16 +128,16 @@ public interface InstanceManager {
 	void setInstanceListener(InstanceListener instanceListener);
 
 	/**
-	 * Returns a list of all instance types which are currently available to Nephele. The list contains a description of
+	 * Returns a map of all instance types which are currently available to Nephele. The map contains a description of
 	 * the hardware characteristics for each instance type as provided in the configuration file. Moreover, it contains
 	 * the actual hardware description as reported by task managers running on the individual instances. If available,
-	 * the list also contains the maximum number instances Nephele can allocate of each instance type (i.e. if no other
+	 * the map also contains the maximum number instances Nephele can allocate of each instance type (i.e. if no other
 	 * job occupies instances).
 	 * 
 	 * @return a list of all instance types available to Nephele
 	 */
-	List<InstanceTypeDescription> getListOfAvailableInstanceTypes();
-	
+	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes();
+
 	/**
 	 * Shuts the instance manager down and stops all its internal processes.
 	 */

@@ -25,6 +25,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 
 /**
  * A reader from an underlying {@link ScatteringByteChannel}.
@@ -35,7 +36,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	protected final BlockingQueue<Buffer.Input> fullBufferQueue;
 
 	protected final int fullBufferQueueSize;
-
+	
 	// -------------------------------------------------------------------------
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
@@ -102,7 +103,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * Read the contents of the {@code readable} from the current input buffer.
 	 * If the buffer is exhausted while reading, transparently swaps the buffers
 	 * and retries reading from the next buffer. Returns {@code true} if the
-	 * read operation was successfull or {@code false} if the underlying channel
+	 * read operation was successful or {@code false} if the underlying channel
 	 * is exhausted.
 	 * 
 	 * @param readable
@@ -115,11 +116,38 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			// object was read from the current buffer without a problem
 			return true;
 		} else {
+			
 			// current buffer is exhausted, swap buffers...
 			requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
 			currentBuffer = this.nextBuffer();
 			// ...and then retry reading from the next full buffer
 			return currentBuffer.read(readable);
+		}
+	}
+	
+	/**
+	 * Reads the most recently read {@code IOReadableWritable} from the current input buffer.
+	 * If the buffer is exhausted while reading, transparently swaps the buffers
+	 * and retries reading from the next buffer. Returns {@code true} if the
+	 * read operation was successful or {@code false} if the underlying channel
+	 * is exhausted.
+	 * 
+	 * @param object
+	 *          to read in from the buffer
+	 * @return a boolean value indicating whether the read was successful
+	 * @throws UnboundMemoryBackedException
+	 */
+	public boolean repeatRead(IOReadableWritable readable) {
+		if (currentBuffer.repeatRead(readable)) // try to read from current buffer
+		{
+			// object was read from the current buffer without a problem
+			return true;
+		} else {
+			// current buffer is exhausted, swap buffers...
+			requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
+			currentBuffer = this.nextBuffer();
+			// ...and then retry reading from the next full buffer
+			return currentBuffer.repeatRead(readable);
 		}
 	}
 

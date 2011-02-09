@@ -183,7 +183,7 @@ public class InstanceConnectionInfo implements IOReadableWritable {
 			iaString = iaString.replace("/", "");
 		}
 
-		return new String(iaString);
+		return iaString;
 	}
 
 	/**

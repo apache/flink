@@ -22,11 +22,17 @@ import java.io.UTFDataFormatException;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultDataOutputView extends DefaultMemorySegmentView implements DataOutputView {
+public final class DefaultDataOutputView extends DefaultMemorySegmentView implements DataOutputView
+{
 	/**
 	 * The current write size.
 	 */
 	private int position;
+	
+	/**
+	 * The end of the segment in the backing array corresponding to this view.
+	 */
+	private int end;
 
 	// -------------------------------------------------------------------------
 	// Constructors
@@ -34,7 +40,8 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	public DefaultDataOutputView(MemorySegmentDescriptor descriptor) {
 		super(descriptor);
-		position = descriptor.start;
+		this.position = this.offset;
+		this.end = descriptor.end;
 	}
 
 	// -------------------------------------------------------------------------
@@ -43,12 +50,12 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public int getPosition() {
-		return position - descriptorReference.get().start;
+		return position - this.offset;
 	}
 
 	@Override
 	public DataOutputView setPosition(int position) {
-		this.position = position + descriptorReference.get().start;
+		this.position = position + this.offset;
 		return this;
 	}
 
@@ -60,7 +67,7 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public DataOutputView reset() {
-		position = descriptorReference.get().start;
+		position = this.offset;
 		return this;
 	}
 
@@ -70,10 +77,8 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void write(int b) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end) {
-			descriptor.memory[position++] = (byte) (b & 0xff);
+		if (position < this.end) {
+			this.memory[position++] = (byte) (b & 0xff);
 		} else {
 			throw new EOFException();
 		}
@@ -86,10 +91,8 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void write(byte[] b, int off, int len) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end && position + len <= descriptor.end && off + len <= b.length) {
-			System.arraycopy(b, off, descriptor.memory, position, len);
+		if (position < this.end && position + len <= this.end && off + len <= b.length) {
+			System.arraycopy(b, off, this.memory, position, len);
 			position += len;
 		} else {
 			throw new EOFException();
@@ -98,10 +101,8 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void writeBoolean(boolean v) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end) {
-			descriptor.memory[position++] = (byte) (v ? 1 : 0);
+		if (position < this.end) {
+			this.memory[position++] = (byte) (v ? 1 : 0);
 		} else {
 			throw new EOFException();
 		}
@@ -114,9 +115,7 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void writeBytes(String s) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + s.length() < descriptor.end) {
+		if (position + s.length() < this.end) {
 			int length = s.length();
 			for (int i = 0; i < length; i++) {
 				writeByte(s.charAt(i));
@@ -129,11 +128,9 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void writeChar(int v) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + 1 < descriptor.end) {
-			descriptor.memory[position++] = (byte) ((v >> 8) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 0) & 0xff);
+		if (position + 1 < this.end) {
+			this.memory[position++] = (byte) ((v >> 8) & 0xff);
+			this.memory[position++] = (byte) ((v >> 0) & 0xff);
 		} else {
 			throw new EOFException();
 		}
@@ -141,9 +138,7 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void writeChars(String s) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + 2 * s.length() < descriptor.end) {
+		if (position + 2 * s.length() < this.end) {
 			int length = s.length();
 			for (int i = 0; i < length; i++) {
 				writeChar(s.charAt(i));
@@ -166,13 +161,11 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void writeInt(int v) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + 3 < descriptor.end) {
-			descriptor.memory[position++] = (byte) ((v >> 24) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 16) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 8) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 0) & 0xff);
+		if (position + 3 < this.end) {
+			this.memory[position++] = (byte) ((v >> 24) & 0xff);
+			this.memory[position++] = (byte) ((v >> 16) & 0xff);
+			this.memory[position++] = (byte) ((v >> 8) & 0xff);
+			this.memory[position++] = (byte) ((v >> 0) & 0xff);
 		} else {
 			throw new EOFException();
 		}
@@ -180,17 +173,15 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void writeLong(long v) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + 7 < descriptor.end) {
-			descriptor.memory[position++] = (byte) ((v >> 56) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 48) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 40) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 32) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 24) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 16) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 8) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >> 0) & 0xff);
+		if (position + 7 < this.end) {
+			this.memory[position++] = (byte) ((v >> 56) & 0xff);
+			this.memory[position++] = (byte) ((v >> 48) & 0xff);
+			this.memory[position++] = (byte) ((v >> 40) & 0xff);
+			this.memory[position++] = (byte) ((v >> 32) & 0xff);
+			this.memory[position++] = (byte) ((v >> 24) & 0xff);
+			this.memory[position++] = (byte) ((v >> 16) & 0xff);
+			this.memory[position++] = (byte) ((v >> 8) & 0xff);
+			this.memory[position++] = (byte) ((v >> 0) & 0xff);
 		} else {
 			throw new EOFException();
 		}
@@ -198,11 +189,9 @@ public class DefaultDataOutputView extends DefaultMemorySegmentView implements D
 
 	@Override
 	public void writeShort(int v) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + 1 < descriptor.end) {
-			descriptor.memory[position++] = (byte) ((v >>> 8) & 0xff);
-			descriptor.memory[position++] = (byte) ((v >>> 0) & 0xff);
+		if (position + 1 < this.end) {
+			this.memory[position++] = (byte) ((v >>> 8) & 0xff);
+			this.memory[position++] = (byte) ((v >>> 0) & 0xff);
 		} else {
 			throw new EOFException();
 		}

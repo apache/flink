@@ -19,26 +19,51 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.types.Record;
+
 /**
- * @author erik
+ * This is the default implementation of the {@link ChannelSelector} interface. It represents a simple round-robin
+ * strategy, i.e. regardless of the record every attached exactly one output channel is selected at a time.
+ * 
+ * @author warneke
  * @param <T>
+ *        the type of record which is sent through the attached output gate
  */
-public class DefaultChannelSelector<T> implements ChannelSelector<T> {
-	private int nextChannelToSendTo = 0;
+public class DefaultChannelSelector<T extends Record> implements ChannelSelector<T> {
 
+	private final int[] nextChannelToSendTo = new int[1];
+
+	/**
+	 * Constructs a new default channel selector.
+	 */
+	public DefaultChannelSelector() {
+		this.nextChannelToSendTo[0] = 0;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int[] selectChannels(T record, int numberOfChannels) {
-		this.nextChannelToSendTo = (this.nextChannelToSendTo + 1) % numberOfChannels;
-		return new int[] { this.nextChannelToSendTo };
+	public int[] selectChannels(T record, int numberOfOutpuChannels) {
+	
+		this.nextChannelToSendTo[0] = (this.nextChannelToSendTo[0] + 1) % numberOfOutpuChannels;
+		
+		return this.nextChannelToSendTo;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void read(final DataInput in) throws IOException {
+
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 	}
 }

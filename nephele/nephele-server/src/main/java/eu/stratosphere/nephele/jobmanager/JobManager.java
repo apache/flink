@@ -35,9 +35,11 @@ package eu.stratosphere.nephele.jobmanager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
@@ -67,12 +69,15 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -359,7 +364,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		try {
 			line = parser.parse(options, args);
 		} catch (ParseException e) {
-			System.err.println("CLI Parsing failed. Reason: " + e.getMessage());
+			LOG.error("CLI Parsing failed. Reason: " + e.getMessage());
 			System.exit(FAILURERETURNCODE);
 		}
 
@@ -512,7 +517,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
 		// Delegate call to instance manager
-		this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+		if (this.instanceManager != null) {
+			this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+		}
 	}
 
 	/**
@@ -726,7 +733,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	@Override
 	public NetworkTopology getNetworkTopology(JobID jobID) throws IOException {
 
-		return this.instanceManager.getNetworkTopology(jobID);
+		if (this.instanceManager != null) {
+			return this.instanceManager.getNetworkTopology(jobID);
+		}
+
+		return null;
 	}
 
 	/**
@@ -742,9 +753,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public SerializableArrayList<NewJobEvent> getNewJobs() throws IOException {
+	public List<NewJobEvent> getNewJobs() throws IOException {
 
-		final SerializableArrayList<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
+		final List<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
@@ -759,9 +770,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public SerializableArrayList<AbstractEvent> getEvents(JobID jobID) throws IOException {
+	public List<AbstractEvent> getEvents(JobID jobID) throws IOException {
 
-		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
+		final List<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
@@ -778,7 +789,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	@Override
 	public void cancelTask(JobID jobID, ManagementVertexID id) throws IOException {
 		// TODO Auto-generated method stub
-		System.out.println("Cancelling job " + jobID);
+		LOG.debug("Cancelling job " + jobID);
 	}
 
 	/**
@@ -787,7 +798,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	@Override
 	public void killInstance(StringRecord instanceName) throws IOException {
 		// TODO Auto-generated method stub
-		System.out.println("Killing instance " + instanceName);
+		LOG.debug("Killing instance " + instanceName);
 	}
 
 	/**
@@ -804,6 +815,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				+ jobStatus);
 		}
 
+		// Remove all checkpoints for a successfully finished job
+		if (jobStatus == JobStatus.FINISHED) {
+			removeAllCheckpoints(executionGraph);
+		}
+
 		if (jobStatus == JobStatus.FAILED) {
 			// Make sure all tasks are really removed
 			cancelJob(executionGraph);
@@ -811,6 +827,67 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 		// Unregister job for Nephele's monitoring and optimization components
 		unregisterJob(executionGraph);
+	}
+
+	/**
+	 * Collects all vertices with checkpoints from the given execution graph and advices the corresponding task managers
+	 * to remove those checkpoints.
+	 * 
+	 * @param executionGraph
+	 *        the execution graph from which the checkpoints shall be removed
+	 */
+	private void removeAllCheckpoints(ExecutionGraph executionGraph) {
+
+		final JobStatus jobStatus = executionGraph.getJobStatus();
+		if (jobStatus != JobStatus.FINISHED) {
+			LOG.error("removeAllCheckpoints called for an unsuccesfull job, ignoring request");
+		}
+
+		final List<ExecutionVertex> verticesWithCheckpoints = executionGraph.getVerticesWithCheckpoints();
+		// Group vertex IDs by assigned instance
+		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap =
+			new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
+		final Iterator<ExecutionVertex> it = verticesWithCheckpoints.iterator();
+		while (it.hasNext()) {
+
+			final ExecutionVertex vertex = it.next();
+			final AllocatedResource allocatedResource = vertex.getAllocatedResource();
+			if (allocatedResource == null) {
+				continue;
+			}
+
+			final AbstractInstance abstractInstance = allocatedResource.getInstance();
+			if (abstractInstance == null) {
+				continue;
+			}
+
+			SerializableArrayList<ExecutionVertexID> vertexIDs = instanceMap.get(abstractInstance);
+			if (vertexIDs == null) {
+				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
+				instanceMap.put(abstractInstance, vertexIDs);
+			}
+			vertexIDs.add(vertex.getID());
+		}
+
+		// Finally, trigger the removal of the checkpoints at each instance
+		final Iterator<Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>>> it2 = instanceMap
+			.entrySet().iterator();
+		while (it2.hasNext()) {
+
+			final Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>> entry = it2.next();
+			final AbstractInstance abstractInstance = entry.getKey();
+			if (abstractInstance == null) {
+				LOG.error("Cannot remove checkpoint: abstractInstance is null");
+				continue;
+			}
+
+			try {
+				abstractInstance.removeCheckpoints(entry.getValue());
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+			}
+		}
+
 	}
 
 	/**
@@ -826,9 +903,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	/**
 	 * {@inheritDoc}
 	 */
-	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		// Delegate call to the instance manager
-		return this.instanceManager.getListOfAvailableInstanceTypes();
+		return this.instanceManager.getMapOfAvailableInstanceTypes();
 	}
 }

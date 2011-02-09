@@ -72,6 +72,9 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 */
 	private OutputGateListener[] outputGateListeners = null;
 
+	/**
+	 * The event notification manager used to dispatch events.
+	 */
 	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
 
 	/**
@@ -111,9 +114,10 @@ public class OutputGate<T extends Record> extends Gate<T> {
 
 		this.index = index;
 		this.channelSelector = channelSelector;
-		// TODO (en)
-		if (channelSelector == null)
+
+		if (channelSelector == null) {
 			this.channelSelector = new DefaultChannelSelector<T>();
+		}
 	}
 
 	/**
@@ -341,11 +345,19 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			throw new InterruptedException();
 		}
 
-		// TODO (en)
-		final int[] numChannels = this.channelSelector.selectChannels(record, this.getNumberOfOutputChannels());
-		for (int numChannel : numChannels) {
-			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(numChannel);
-			outputChannel.writeRecord(record);
+		final int numberOfOutputChannels = this.outputChannels.size();
+		final int[] selectedOutputChannels = this.channelSelector.selectChannels(record, numberOfOutputChannels);
+
+		if (selectedOutputChannels == null) {
+			return;
+		}
+
+		for (int i = 0; i < selectedOutputChannels.length; ++i) {
+
+			if (selectedOutputChannels[i] < numberOfOutputChannels) {
+				final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(selectedOutputChannels[i]);
+				outputChannel.writeRecord(record);
+			}
 		}
 	}
 
@@ -385,11 +397,11 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
-			
-			if(c == null) {
+
+			if (c == null) {
 				throw new IOException("Class is null!");
 			}
-			
+
 			AbstractOutputChannel<T> eoc = null;
 			try {
 				final Constructor<AbstractOutputChannel<T>> constructor = (Constructor<AbstractOutputChannel<T>>) c
@@ -422,9 +434,8 @@ public class OutputGate<T extends Record> extends Gate<T> {
 
 		super.write(out);
 
-		// TODO (en)
-		StringRecord.writeString(out, channelSelector.getClass().getName());
-		channelSelector.write(out);
+		StringRecord.writeString(out, this.channelSelector.getClass().getName());
+		this.channelSelector.write(out);
 
 		// Output channels
 		out.writeInt(this.getNumberOfOutputChannels());
@@ -444,7 +455,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 * @return the list of OutputChannels connected to this RecordWriter
 	 */
 	public ArrayList<AbstractOutputChannel<T>> getOutputChannels() {
-		return outputChannels;
+		return this.outputChannels;
 	}
 
 	/**
@@ -511,7 +522,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	public void publishEvent(AbstractTaskEvent event) throws IOException {
 
 		// Copy event to all connected channels
-		Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
+		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
 		while (it.hasNext()) {
 			it.next().transferEvent(event);
 		}
@@ -530,7 +541,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 
 	public void flush() throws IOException {
 		// Flush all connected channels
-		Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
+		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
 		while (it.hasNext()) {
 			it.next().flush();
 		}

@@ -41,22 +41,22 @@ public class ProfilingUtils {
 	/**
 	 * The key to check the job manager's profiling component should be enabled.
 	 */
-	public static String ENABLE_PROFILING_KEY = "jobmanager.profiling.enable";
+	public static final String ENABLE_PROFILING_KEY = "jobmanager.profiling.enable";
 
 	/**
 	 * The class name of the the job manager's profiling component to load if progiling is enabled.
 	 */
-	public static String JOBMANAGER_CLASSNAME_KEY = "jobmanager.profiling.classname";
+	public static final String JOBMANAGER_CLASSNAME_KEY = "jobmanager.profiling.classname";
 
 	/**
 	 * The class name of the task manager's profiling component to load if profiling is enabled.
 	 */
-	public static String TASKMANAGER_CLASSNAME_KEY = "taskmanager.profiling.classname";
+	public static final String TASKMANAGER_CLASSNAME_KEY = "taskmanager.profiling.classname";
 
 	/**
 	 * The key to check whether job profiling should be enabled for a specific job.
 	 */
-	public static String PROFILE_JOB_KEY = "job.profiling.enable";
+	public static final String PROFILE_JOB_KEY = "job.profiling.enable";
 
 	/**
 	 * The key to check the port of the job manager's profiling RPC server.

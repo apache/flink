@@ -641,19 +641,17 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	@Override
 	public Plan getPlan(String... args) {
 
-		int noSubTasks = 1;
-		String dataPointInput = "";
-		String clusterInput = "";
-		String output = "";
-
 		// check for the correct number of job parameters
-		if (args.length == 4) {
-			// parse job parameters
-			noSubTasks = Integer.parseInt(args[0]);
-			dataPointInput = args[1];
-			clusterInput = args[2];
-			output = args[3];
+		if (args.length != 4) {
+			throw new IllegalArgumentException(
+				"Must provide four arguments: [noSubStasks] [dataPoints] [clusterCenters] [output]");
 		}
+		
+		// parse job parameters
+		int noSubTasks = Integer.parseInt(args[0]);
+		String dataPointInput = args[1];
+		String clusterInput = args[2];
+		String output = args[3];
 
 		// create DataSourceContract for data point input
 		DataSourceContract<PactInteger, CoordVector> dataPoints = new DataSourceContract<PactInteger, CoordVector>(
@@ -706,7 +704,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 
 	@Override
 	public String getDescription() {
-		return "Parameters: [dop] [data-points] [cluster-centers] [output]";
+		return "Parameters: [noSubStasks] [dataPoints] [clusterCenters] [output]";
 	}
 
 }

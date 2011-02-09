@@ -192,7 +192,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 
 		final TransferEnvelope transferEnvelope = new TransferEnvelope(this.byteBufferedOutputChannel.getID(),
 			this.byteBufferedOutputChannel.getConnectedChannelID(), this.byteBufferedOutputChannelGroup
-				.getProcessingLog());
+				.getProcessingLog(this.byteBufferedOutputChannel.getType()));
 
 		transferEnvelope.setSequenceNumber(this.sequenceNumber++);
 

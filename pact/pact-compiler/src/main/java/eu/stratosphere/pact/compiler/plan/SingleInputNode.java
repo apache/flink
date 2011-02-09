@@ -73,7 +73,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		// copy the child's branch-plan map
 		if (this.branchPlan == null) {
 			this.branchPlan = pred.branchPlan;
-		} else {
+		} else if (pred.branchPlan != null) {
 			this.branchPlan.putAll(pred.branchPlan);
 		}
 	}

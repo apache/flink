@@ -42,11 +42,19 @@ public class SWTNetworkNode extends AbstractSWTComponent {
 
 	private static Image LEAFNODEIMAGE;
 
+	private final Image leafNodeImage;
+
+	private final Rectangle leafNodeImageRect;
+
 	private static Rectangle LEAFNODEIMAGERECT;
 
 	private static Image NODEIMAGE;
 
 	private static Rectangle NODEIMAGERECT;
+
+	private final Image nodeImage;
+
+	private final Rectangle nodeImageRect;
 
 	private final NetworkNode networkNode;
 
@@ -63,27 +71,37 @@ public class SWTNetworkNode extends AbstractSWTComponent {
 
 		this.networkNode = networkNode;
 
-		if (LEAFNODEIMAGE == null) {
+		synchronized (SWTNetworkNode.class) {
 
-			// Try to load the images
-			InputStream in = getClass().getResourceAsStream("/eu/stratosphere/nephele/visualization/swt/leafnode.png");
-			try {
-				LEAFNODEIMAGE = new Image(display, in);
-				LEAFNODEIMAGERECT = LEAFNODEIMAGE.getBounds();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
+			if (LEAFNODEIMAGE == null) {
 
-		if (NODEIMAGE == null) {
-			// Try to load the images
-			InputStream in = getClass().getResourceAsStream("/eu/stratosphere/nephele/visualization/swt/node.png");
-			try {
-				NODEIMAGE = new Image(display, in);
-				NODEIMAGERECT = NODEIMAGE.getBounds();
-			} catch (Exception e) {
-				e.printStackTrace();
+				// Try to load the images
+				InputStream in = getClass().getResourceAsStream(
+					"/eu/stratosphere/nephele/visualization/swt/leafnode.png");
+				try {
+					LEAFNODEIMAGE = new Image(display, in);
+					LEAFNODEIMAGERECT = LEAFNODEIMAGE.getBounds();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
+
+			this.leafNodeImage = LEAFNODEIMAGE;
+			this.leafNodeImageRect = LEAFNODEIMAGERECT;
+
+			if (NODEIMAGE == null) {
+				// Try to load the images
+				InputStream in = getClass().getResourceAsStream("/eu/stratosphere/nephele/visualization/swt/node.png");
+				try {
+					NODEIMAGE = new Image(display, in);
+					NODEIMAGERECT = NODEIMAGE.getBounds();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+
+			this.nodeImage = NODEIMAGE;
+			this.nodeImageRect = NODEIMAGERECT;
 		}
 	}
 
@@ -140,12 +158,13 @@ public class SWTNetworkNode extends AbstractSWTComponent {
 
 		// Adapt scale factor
 		if (this.networkNode.isLeafNode()) {
-			if (LEAFNODEIMAGE != null) {
-				this.imageScaleFactor = (float) (this.rect.height - TEXTBOXHEIGHT) / (float) LEAFNODEIMAGERECT.height;
+			if (this.leafNodeImage != null) {
+				this.imageScaleFactor = (float) (this.rect.height - TEXTBOXHEIGHT)
+					/ (float) this.leafNodeImageRect.height;
 			}
 		} else {
-			if (NODEIMAGE != null) {
-				this.imageScaleFactor = (float) (this.rect.height - TEXTBOXHEIGHT) / (float) NODEIMAGERECT.height;
+			if (this.nodeImage != null) {
+				this.imageScaleFactor = (float) (this.rect.height - TEXTBOXHEIGHT) / (float) this.nodeImageRect.height;
 			}
 		}
 	}
@@ -161,26 +180,26 @@ public class SWTNetworkNode extends AbstractSWTComponent {
 		}
 
 		if (this.networkNode.isLeafNode()) {
-			if (LEAFNODEIMAGE != null) {
+			if (this.leafNodeImage != null) {
 
-				final int destHeight = (int) ((float) LEAFNODEIMAGERECT.height * imageScaleFactor);
-				final int destWidth = (int) ((float) LEAFNODEIMAGERECT.width * imageScaleFactor);
+				final int destHeight = (int) ((float) this.leafNodeImageRect.height * imageScaleFactor);
+				final int destWidth = (int) ((float) this.leafNodeImageRect.width * imageScaleFactor);
 				final int destX = this.rect.x + (this.rect.width - destWidth) / 2;
 				final int destY = this.rect.y + ((this.rect.height - TEXTBOXHEIGHT) - destHeight) / 2;
 
-				gc.drawImage(LEAFNODEIMAGE, LEAFNODEIMAGERECT.x, LEAFNODEIMAGERECT.y, LEAFNODEIMAGERECT.width,
-					LEAFNODEIMAGERECT.height, destX, destY, destWidth, destHeight);
+				gc.drawImage(this.leafNodeImage, this.leafNodeImageRect.x, this.leafNodeImageRect.y,
+					this.leafNodeImageRect.width, this.leafNodeImageRect.height, destX, destY, destWidth, destHeight);
 
 			}
 		} else {
-			if (NODEIMAGE != null) {
-				final int destHeight = (int) ((float) NODEIMAGERECT.height * imageScaleFactor);
-				final int destWidth = (int) ((float) NODEIMAGERECT.width * imageScaleFactor);
+			if (this.nodeImage != null) {
+				final int destHeight = (int) ((float) this.nodeImageRect.height * imageScaleFactor);
+				final int destWidth = (int) ((float) this.nodeImageRect.width * imageScaleFactor);
 				final int destX = this.rect.x + (this.rect.width - destWidth) / 2;
 				final int destY = this.rect.y + ((this.rect.height - TEXTBOXHEIGHT) - destHeight) / 2;
 
-				gc.drawImage(NODEIMAGE, NODEIMAGERECT.x, NODEIMAGERECT.y, NODEIMAGERECT.width, NODEIMAGERECT.height,
-					destX, destY, destWidth, destHeight);
+				gc.drawImage(this.nodeImage, this.nodeImageRect.x, this.nodeImageRect.y, this.nodeImageRect.width,
+					this.nodeImageRect.height, destX, destY, destWidth, destHeight);
 			}
 		}
 

@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
+import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
@@ -85,4 +86,14 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
+
+	/**
+	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
+	 * 
+	 * @param listOfVertexIDs
+	 *        the list of vertex IDs which identify the checkpoints to be removed
+	 * @throws IOException
+	 *         if an error occurs during this remote procedure call
+	 */
+	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
 }

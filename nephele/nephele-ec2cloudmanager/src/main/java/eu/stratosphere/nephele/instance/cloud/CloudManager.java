@@ -350,7 +350,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
+	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo,
+			HardwareDescription hardwareDescription) {
 
 		// Check if heart beat belongs to a floating instance
 		if (this.floatingInstances.containsKey(instanceConnectionInfo)) {
@@ -607,7 +608,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		final CloudInstance cloudInstance = new CloudInstance(instance.getInstanceId(), type, owner,
 			instanceConnectionInfo, instance.getLaunchTime().getTimeInMillis(), this.networkTopology.getRootNode(),
-			this.networkTopology, null); //TODO: Define hardware descriptions for cloud instance types
+			this.networkTopology, null); // TODO: Define hardware descriptions for cloud instance types
 		this.cloudInstances.add(cloudInstance);
 		return cloudInstance;
 	}
@@ -919,12 +920,12 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	@Override
 	public void setInstanceListener(InstanceListener instanceListener) {
-		
+
 		this.instanceListener = instanceListener;
 	}
 
 	@Override
-	public List<InstanceTypeDescription> getListOfAvailableInstanceTypes() {
+	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 		// TODO Auto-generated method stub
 		return null;
 	}

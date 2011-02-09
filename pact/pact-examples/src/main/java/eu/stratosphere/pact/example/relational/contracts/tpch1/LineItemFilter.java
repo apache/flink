@@ -46,7 +46,7 @@ public class LineItemFilter extends MapStub<PactInteger, Tuple, PactString, Tupl
 	private static final String DATE_CONSTANT = "1998-09-03";
 
 	@Override
-	protected void map(PactInteger key, Tuple value, Collector<PactString, Tuple> out) {
+	public void map(PactInteger key, Tuple value, Collector<PactString, Tuple> out) {
 		if (value != null && value.getNumberOfColumns() >= 11) {
 			String shipDateString = value.getStringValueAt(10);
 			DateFormat format = new SimpleDateFormat("yyyy-MM-dd");

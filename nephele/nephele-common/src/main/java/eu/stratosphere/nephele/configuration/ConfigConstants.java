@@ -24,11 +24,11 @@ package eu.stratosphere.nephele.configuration;
 public final class ConfigConstants {
 
 	// ------------------------------------------------------------------------
-	//                         Configuration Keys
+	// Configuration Keys
 	// ------------------------------------------------------------------------
 
 	// -------------------------- Addresses and Ports -------------------------
-	
+
 	/**
 	 * The key for the config parameter defining the network address to connect to
 	 * for communication with the job manager.
@@ -70,10 +70,10 @@ public final class ConfigConstants {
 	/**
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
-	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";	
-	
+	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
+
 	// ------------------------------------------------------------------------
-	//                             Default Values
+	// Default Values
 	// ------------------------------------------------------------------------
 
 	/**
@@ -116,19 +116,23 @@ public final class ConfigConstants {
 	 */
 	public static final boolean DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB = true;
 
+	/**
+	 * The default scheduler to be used when Nephele is started in local mode.
+	 */
+	public static final String DEFAULT_LOCAL_MODE_SCHEDULER = "eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler";
+
 	// ----------------------------- Instances --------------------------------
 
 	/**
 	 * The default definition for an instance type, if no other configuration is provided.
 	 */
 	public static final String DEFAULT_INSTANCE_TYPE = "default,2,1,1024,10,10";
-	
+
 	/**
-	 * The default index for the default instance type. 
+	 * The default index for the default instance type.
 	 */
 	public static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
-	
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
