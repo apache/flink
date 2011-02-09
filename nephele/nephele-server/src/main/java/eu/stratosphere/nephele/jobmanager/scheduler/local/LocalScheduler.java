@@ -157,7 +157,7 @@ public class LocalScheduler implements Scheduler {
 	void removeJobFromSchedule(ExecutionGraph executionGraphToRemove) {
 
 		boolean removedFromQueue = false;
-		;
+		
 		synchronized (this.jobQueue) {
 
 			final Iterator<ExecutionGraph> it = this.jobQueue.iterator();

@@ -517,7 +517,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
 
 		// Delegate call to instance manager
-		this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+		if (this.instanceManager != null) {
+			this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+		}
 	}
 
 	/**
@@ -731,7 +733,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	@Override
 	public NetworkTopology getNetworkTopology(JobID jobID) throws IOException {
 
-		return this.instanceManager.getNetworkTopology(jobID);
+		if (this.instanceManager != null) {
+			return this.instanceManager.getNetworkTopology(jobID);
+		}
+
+		return null;
 	}
 
 	/**
