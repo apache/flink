@@ -85,7 +85,7 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	 */
 	public OutputEmitter(ShipStrategy strategy, byte[] salt) {
 		if (strategy != ShipStrategy.BROADCAST && strategy != ShipStrategy.PARTITION_HASH
-				&& strategy != ShipStrategy.NONE)
+				&& strategy != ShipStrategy.FORWARD)
 		{
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
@@ -108,7 +108,7 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 			return broadcast(numberOfChannels);
 		case PARTITION_HASH:
 			return partition(pair, numberOfChannels);
-		case NONE:
+		case FORWARD:
 			return robin(numberOfChannels);
 		default:
 			throw new UnsupportedOperationException();
