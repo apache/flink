@@ -343,7 +343,7 @@ public class HardwareDescriptionFactory {
 		BufferedReader bi = null;
 
 		try {
-			Process proc = Runtime.getRuntime().exec("sysctl hw");
+			Process proc = Runtime.getRuntime().exec("sysctl hw.memsize");
 
 			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
