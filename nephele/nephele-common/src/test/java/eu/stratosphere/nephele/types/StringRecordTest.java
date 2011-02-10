@@ -64,6 +64,7 @@ public class StringRecordTest {
 		when(inputMock.readBoolean()).thenReturn(true);
 		when(inputMock.readInt()).thenReturn(10);
 		
+		
 		String readString = StringRecord.readString(inputMock);
 		assertThat(readString, is(not(nullValue())));
 		
