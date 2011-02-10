@@ -13,15 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.util;
+package eu.stratosphere.pact.runtime.task.util;
 
-import java.util.Iterator;
-
-public interface ResettableIterator<E> extends Iterator<E> {
+public interface MemoryBlockIterator<E> extends ResettableIterator<E> {
 
 	/**
-	 * Reset the iterator
+	 * Move the iterator to the next memory block
+	 * 
+	 * @return true if a new memory block was loaded, false if there were no further records
 	 */
-	public void reset();
+	public boolean nextBlock();
 
 }

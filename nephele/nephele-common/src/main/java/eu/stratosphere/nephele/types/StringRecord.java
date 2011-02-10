@@ -28,6 +28,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.MalformedInputException;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
+import java.util.Arrays;
 
 /**
  * This class stores text using standard UTF8 encoding. It provides methods to
@@ -307,17 +308,44 @@ public class StringRecord implements Record {
 		out.write(this.bytes, 0, this.length);
 	}
 
-	/** Returns <code>true</code> if <code>o</code> is a StringRecord with the same contents. */
-	public boolean equals(Object o) {
-		if (o instanceof StringRecord) {
-			return super.equals(o);
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof StringRecord)) {
+			return false;
 		}
 
-		return false;
+		final StringRecord sr = (StringRecord) obj;
+		if (this.length != sr.getLength()) {
+			return false;
+		}
+
+		if (this.bytes.length == this.length && sr.bytes.length == sr.length) {
+
+			return Arrays.equals(this.bytes, sr.bytes);
+
+		} else {
+
+			for (int i = 0; i < this.length; ++i) {
+				if (this.bytes[i] != sr.bytes[i]) {
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public int hashCode() {
-		return super.hashCode();
+
+		return (int) ((17L * this.length) % Integer.MAX_VALUE);
 	}
 
 	// / STATIC UTILITIES FROM HERE DOWN
@@ -400,14 +428,18 @@ public class StringRecord implements Record {
 
 		final boolean b = in.readBoolean();
 
-		if (!b) {
-			return null;
+		if(b)
+		{
+			final int length = in.readInt();
+			if(length >= 0)
+			{
+				final byte[] bytes = new byte[length];
+				in.readFully(bytes, 0, length);
+				return decode(bytes);
+			}
 		}
-
-		final int length = in.readInt();
-		final byte[] bytes = new byte[length];
-		in.readFully(bytes, 0, length);
-		return decode(bytes);
+		
+		return null;
 	}
 
 	/**

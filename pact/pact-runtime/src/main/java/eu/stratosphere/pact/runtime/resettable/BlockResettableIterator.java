@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.util.MemoryBlockIterator;
+import eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator;
 
 /**
  * Implementation of an iterator that fetches a block of data into main memory and offers a resettable

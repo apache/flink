@@ -15,9 +15,19 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
+
 import java.io.DataOutput;
 
-public interface DataOutputView extends DataOutput {
+
+/**
+ * This interface defines a view over a {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment} that
+ * can be used to sequentially write to the memory.
+ *
+ * @author Alexander Alexandrov
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ */
+public interface DataOutputView extends DataOutput
+{
 	/**
 	 * Gets the current read position.
 	 * 

@@ -75,7 +75,7 @@ public abstract class ID implements IOReadableWritable {
 			return;
 		}
 		
-		System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
+		System.arraycopy(src, 0, this.bytes, 0, SIZE);
 	}
 
 	/**

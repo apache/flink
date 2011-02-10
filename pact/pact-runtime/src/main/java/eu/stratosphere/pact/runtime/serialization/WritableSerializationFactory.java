@@ -114,17 +114,17 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 
 	// ------------------------------------------------------------------------
 
-	private static final Map<Class<? extends IOReadableWritable>, RawComparator> rawComparators = new HashMap<Class<? extends IOReadableWritable>, RawComparator>(
-		10);
+	private static final Map<Class<? extends IOReadableWritable>, RawComparator> rawComparators = 
+		new HashMap<Class<? extends IOReadableWritable>, RawComparator>(10);
 
 	static {
-		rawComparators.put(PactInteger.class, new IntergerBigEndianComparator());
-		rawComparators.put(PactLong.class, new LongBigEndianComparator());
-		rawComparators.put(PactDouble.class, new DoubleBigEndianComparator());
-		rawComparators.put(PactString.class, new N_StringComparator());
+		rawComparators.put(PactInteger.class, new PactIntergerBigEndianComparator());
+		rawComparators.put(PactLong.class, new PactLongBigEndianComparator());
+		rawComparators.put(PactDouble.class, new PactDoubleBigEndianComparator());
+		rawComparators.put(PactString.class, new PactStringComparator());
 	}
 
-	private static final class IntergerBigEndianComparator implements RawComparator {
+	private static final class PactIntergerBigEndianComparator implements RawComparator {
 		/*
 		 * (non-Javadoc)
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)
@@ -146,7 +146,7 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 		}
 	}
 
-	private static final class LongBigEndianComparator implements RawComparator {
+	private static final class PactLongBigEndianComparator implements RawComparator {
 		/*
 		 * (non-Javadoc)
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)
@@ -168,7 +168,7 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 		}
 	}
 
-	private static final class DoubleBigEndianComparator implements RawComparator {
+	private static final class PactDoubleBigEndianComparator implements RawComparator {
 		/*
 		 * (non-Javadoc)
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)
@@ -192,7 +192,7 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 		}
 	}
 
-	private static final class N_StringComparator implements RawComparator {
+	private static final class PactStringComparator implements RawComparator {
 		/*
 		 * (non-Javadoc)
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)

@@ -12,16 +12,44 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.pact.runtime.task;
 
-package eu.stratosphere.pact.common.util;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-public interface MemoryBlockIterator<E> extends ResettableIterator<E> {
+import eu.stratosphere.pact.common.stub.MatchStub;
+import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.type.Value;
 
-	/**
-	 * Move the iterator to the next memory block
-	 * 
-	 * @return true if a new memory block was loaded, false if there were no further records
-	 */
-	public boolean nextBlock();
+/**
+ * Needed to use the mock implementations of {@link ReduceStub} and {@link MatchStub}.
+ * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
+ *
+ */
+class TupleMock implements Value
+{
+	private String name = "";
+	
+	public TupleMock()
+	{}
+	
+	public TupleMock(String name)
+	{
+		this.name = name;
+	}
+	
+	@Override
+	public void read(DataInput in) throws IOException {
+	}
 
+	@Override
+	public void write(DataOutput out) throws IOException {
+	}
+	
+	@Override
+	public String toString() {
+		return this.name;
+	}
+	
 }

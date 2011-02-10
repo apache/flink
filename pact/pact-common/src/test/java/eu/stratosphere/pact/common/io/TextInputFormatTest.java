@@ -89,7 +89,6 @@ public class TextInputFormatTest {
 
 	}
 
-	@SuppressWarnings("deprecation")
 	MyStringBufferIS is = new MyStringBufferIS(myString);
 
 	@Mock

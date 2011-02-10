@@ -143,10 +143,10 @@ public class QueueScheduler implements Scheduler {
 		final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
 		executionGraph.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
 
-		if(requiredInstances.isEmpty()) {
+		if (requiredInstances.isEmpty()) {
 			return;
 		}
-		
+
 		final Iterator<InstanceType> it = requiredInstances.keySet().iterator();
 		while (it.hasNext()) {
 
@@ -174,7 +174,7 @@ public class QueueScheduler implements Scheduler {
 	void removeJobFromSchedule(ExecutionGraph executionGraphToRemove) {
 
 		boolean removedFromQueue = false;
-		;
+
 		synchronized (this.jobQueue) {
 
 			final Iterator<ExecutionGraph> it = this.jobQueue.iterator();
@@ -248,7 +248,7 @@ public class QueueScheduler implements Scheduler {
 	 */
 	@Override
 	public void schedulJob(ExecutionGraph executionGraph) throws SchedulingException {
-		
+
 		// First, check if there are enough resources to run this job
 		final Map<InstanceType, InstanceTypeDescription> availableInstances = this.instanceManager
 			.getMapOfAvailableInstanceTypes();
@@ -276,7 +276,21 @@ public class QueueScheduler implements Scheduler {
 				}
 			}
 		}
-		
+
+		// Set state of each vertex for scheduled
+		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
+		while (it2.hasNext()) {
+
+			final ExecutionVertex vertex = it2.next();
+			if (vertex.getExecutionState() != ExecutionState.CREATED) {
+				LOG.error("Execution vertex " + vertex + " has state " + vertex.getExecutionState() + ", expected "
+					+ ExecutionState.CREATED);
+			}
+
+			vertex.getEnvironment().registerExecutionListener(new QueueExecutionListener(this, vertex));
+			vertex.setExecutionState(ExecutionState.SCHEDULED);
+		}
+
 		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
 		}
@@ -339,6 +353,7 @@ public class QueueScheduler implements Scheduler {
 				} catch (InstanceException e) {
 					LOG.error(e);
 				}
+				return;
 			}
 
 			AllocatedResource resourceToBeReplaced = null;

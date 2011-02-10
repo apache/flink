@@ -21,6 +21,7 @@ import java.lang.reflect.InvocationTargetException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
@@ -151,7 +152,13 @@ public class JobManagerUtils {
 	public static String getSchedulerClassName(String executionMode) {
 
 		final String instanceManagerClassNameKey = "jobmanager.scheduler." + executionMode + ".classname";
-		return GlobalConfiguration.getString(instanceManagerClassNameKey, null);
+		String schedulerClassName = GlobalConfiguration.getString(instanceManagerClassNameKey, null);
+		
+		if("local".equals(executionMode) && schedulerClassName == null) {
+			schedulerClassName = ConfigConstants.DEFAULT_LOCAL_MODE_SCHEDULER;
+		}
+		
+		return schedulerClassName;
 	}
 
 	public static String getInstanceManagerClassName(String executionMode) {

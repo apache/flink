@@ -16,8 +16,6 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -201,8 +199,11 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 */
 	private void initOutputCollector() {
 
-		// create collection for writers
-		List<RecordWriter<KeyValuePair<Key, Value>>> writers = new ArrayList<RecordWriter<KeyValuePair<Key, Value>>>();
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+		
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -211,12 +212,15 @@ public class DataSourceTask extends AbstractFileInputTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
-		}
+			
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision are possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
 
-		// create collector and register all writers
-		output = new OutputCollector(writers);
+		}
 	}
 
 	/**

@@ -18,9 +18,7 @@ package eu.stratosphere.pact.common.stub;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.KeyGroupedIterator;
 
 /**
  * The ReduceStub must be extended to provide a reducer implementation which is
@@ -36,31 +34,6 @@ import eu.stratosphere.pact.common.util.KeyGroupedIterator;
  */
 public abstract class ReduceStub<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
 		SingleInputStub<IK, IV, OK, OV> {
-
-	/**
-	 * This method is currently final. We might make it available for overwriting in the future.
-	 * The top entry point into the reducing functions. By default, this method goes over all keys and values
-	 * that are to be processed by its instance of the reducing code and calls the <code>reduce()</code> function
-	 * for each key separately. In most cases, this function will not be changed by the programmer that implements
-	 * a reducer. It may however be overridden, if the programmer wishes to have a view over to data with a
-	 * scope that stretches across a single key. This function sees all data that is processed in its instance
-	 * of the reducing code in one function call.
-	 * <p>
-	 * Which keys and values are processed by this function depends on the distribution of the keys across the
-	 * instances.
-	 * 
-	 * @param in
-	 *        An iterator over all key/value pairs processed by this instance of the reducing code.
-	 *        The pairs are grouped by key, such that equal keys are always in a contiguous sequence.
-	 * @param out
-	 *        The collector to write the results to.
-	 */
-	public final void run(Iterator<Pair<IK, IV>> in, Collector<OK, OV> out) {
-		KeyGroupedIterator<IK, IV> iter = new KeyGroupedIterator<IK, IV>(in);
-		while (iter.nextKey()) {
-			reduce(iter.getKey(), iter.getValues(), out);
-		}
-	}
 
 	/**
 	 * The central function to be implemented for a reducer. The function receives per call one

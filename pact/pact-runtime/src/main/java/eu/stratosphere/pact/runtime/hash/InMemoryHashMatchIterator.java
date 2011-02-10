@@ -44,7 +44,6 @@ public class InMemoryHashMatchIterator implements MatchTaskIterator {
 	private HashMap<Key, Collection<Value>> build;
 
 	public InMemoryHashMatchIterator(Reader<? extends KeyValuePair> reader1, Reader<? extends KeyValuePair> reader2) {
-		// TODO: use configuration parameter to determine build and probe side
 		readerProbe = reader1;
 		readerBuild = reader2;
 	}

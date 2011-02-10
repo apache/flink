@@ -26,6 +26,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -37,16 +38,16 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public abstract class TwoInputNode extends OptimizerNode {
+public abstract class TwoInputNode extends OptimizerNode
+{
 	protected PactConnection input1; // The first input edge
 
 	protected PactConnection input2; // The second input edge
 
 	private List<PactConnection> inputs; // the cached list of inputs
 
-	private OptimizerNode lastOpenBranchNode; // the node with latest branch (node with multiple outputs)
-
-	// that both children share and that is not re-joined
+	private OptimizerNode lastJoinedBranchNode; // the node with latest branch (node with multiple outputs)
+	                                          // that both children share and that is at least partially joined
 
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
@@ -80,7 +81,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected TwoInputNode(OptimizerNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
+	protected TwoInputNode(TwoInputNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
 			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
@@ -91,8 +92,12 @@ public abstract class TwoInputNode extends OptimizerNode {
 		this.inputs.add(input1);
 		this.inputs.add(input2);
 
+		// remember the highest node in our sub-plan that branched.
+		this.lastJoinedBranchNode = template.lastJoinedBranchNode;
+		
 		// merge the branchPlan maps according the the template's uncloseBranchesStack
-		if (template.openBranches != null) {
+		if (template.openBranches != null)
+		{
 			if (this.branchPlan == null) {
 				this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(8);
 			}
@@ -279,9 +284,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 			int index1 = child1open.size() - 1;
 			int index2 = child2open.size() - 1;
 
-			while (index1 >= 0 && index2 >= 0) {
+			while (index1 >= 0 || index2 >= 0) {
 				int id1 = -1;
-				int id2 = child2open.get(index2).getBranchingNode().getId();
+				int id2 = index2 >= 0 ? child2open.get(index2).getBranchingNode().getId() : -1;
 
 				while (index1 >= 0 && (id1 = child1open.get(index1).getBranchingNode().getId()) > id2) {
 					this.openBranches.add(child1open.get(index1));
@@ -297,8 +302,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 					// if this is the latest common child, remember it
 					OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
 
-					if (this.lastOpenBranchNode == null) {
-						this.lastOpenBranchNode = currBanchingNode;
+					if (this.lastJoinedBranchNode == null) {
+						this.lastJoinedBranchNode = currBanchingNode;
 					}
 
 					// see, if this node closes the branch
@@ -355,17 +360,58 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 
 	// ------------------------------------------------------------------------
-	// Handling of branches
+	//                       Handling of branches
 	// ------------------------------------------------------------------------
 
-	protected boolean areBranchCompatible(OptimizerNode child1Candidate, OptimizerNode child2Candidate) {
+	/**
+	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
+	 * alternative plans are comparable, if
+	 * a) There is no branch in the sub-plan of this node
+	 * b) Both candidates have the same candidate as the child at the last open branch. 
+	 * 
+	 * @param child1Candidate
+	 * @param child2Candidate
+	 * @return
+	 */
+	protected boolean areBranchCompatible(OptimizerNode child1Candidate, OptimizerNode child2Candidate)
+	{
 		// if there is no open branch, the children are always compatible.
 		// in most plans, that will be the dominant case
-		if (lastOpenBranchNode == null) {
+		if (lastJoinedBranchNode == null) {
 			return true;
 		} else {
-			return child1Candidate.branchPlan.get(lastOpenBranchNode) == child2Candidate.branchPlan
-				.get(lastOpenBranchNode);
+			return child1Candidate.branchPlan.get(lastJoinedBranchNode) == 
+				child2Candidate.branchPlan.get(lastJoinedBranchNode);
 		}
+	}
+
+	/**
+	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.OptimizerNode}.
+	 * Since nodes with multiple inputs may join branched plans, care must be taken not to double-count the costs of the subtree rooted
+	 * at the last unjoined branch.
+	 * 
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setCosts(eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void setCosts(Costs nodeCosts) {
+		super.setCosts(nodeCosts);
+		
+		// check, if this node has no branch beneath it, no double-counted cost then
+		if (this.lastJoinedBranchNode == null) {
+			return;
+		}
+		
+		// get the children and check their existence
+		OptimizerNode child1 = (input1 == null ? null : input1.getSourcePact());
+		OptimizerNode child2 = (input2 == null ? null : input2.getSourcePact());
+		
+		if (child1 == null || child2 == null) {
+			return;
+		}
+		
+		// get the cumulative costs of the last joined branching node
+		OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
+		Costs douleCounted = lastCommonChild.getCumulativeCosts();
+		getCumulativeCosts().subtractCosts(douleCounted);
 	}
 }

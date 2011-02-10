@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.RecordWriter;
@@ -23,29 +25,101 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 
+/**
+ * The OutputCollector collects {@link Key} and {@link Value}, creates a {@link KeyValuePair}, and 
+ * emits the pair to a set of Nephele {@link RecordWriter}.
+ * The OutputCollector tracks to which writers a deep-copy must be given and which not.
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ * @param <K> The type of the key.
+ * @param <V> The type of the value.
+ */
 public class OutputCollector<K extends Key, V extends Value> implements Collector<K, V> {
-	private final List<RecordWriter<KeyValuePair<K, V>>> writers;
+	
+	// serialization copier to create deep-copies
+	private final SerializationCopier<KeyValuePair<K,V>> copier;
+	// list of writers
+	protected final List<RecordWriter<KeyValuePair<K, V>>> writers;
+	// bit mask for copy flags
+	protected int fwdCopyFlags;
 
-	public OutputCollector(List<RecordWriter<KeyValuePair<K, V>>> writers) {
+	/**
+	 * Initializes the output collector with no writers.
+	 */
+	public OutputCollector() {
+		this.writers = new ArrayList<RecordWriter<KeyValuePair<K, V>>>();
+		this.fwdCopyFlags = 0;
+		this.copier = new SerializationCopier<KeyValuePair<K,V>>();
+	}
+	
+	/**
+	 * Initializes the output collector with a set of writers. 
+	 * To specify for a writer that it must be fed with a deep-copy, set the bit in the copy flag bit mask to 1 that 
+	 * corresponds to the position of the writer within the {@link List}.
+	 * 
+	 * @param writers List of all writers.
+	 * @param fwdCopyFlags Bit mask that specifies which writer is fed with deep-copies.
+	 */
+	public OutputCollector(List<RecordWriter<KeyValuePair<K, V>>> writers, int fwdCopyFlags) {
+		
 		this.writers = writers;
+		this.fwdCopyFlags = fwdCopyFlags;
+		this.copier = new SerializationCopier<KeyValuePair<K,V>>();
+		
+	}
+	
+	/**
+	 * Adds a writer to the OutputCollector.
+	 * 
+	 * @param writer The writer to add.
+	 * @param fwdCopy Set true if writer requires a deep-copy. Set to false otherwise.
+	 */
+	public void addWriter(RecordWriter<KeyValuePair<K,V>> writer, boolean fwdCopy) {
+		this.writers.add(writer);
+		if (fwdCopy) {
+			this.fwdCopyFlags |= 0x1 << (this.writers.size() - 1);
+		}
 	}
 
+	/**
+	 * Collects a {@link Key} and {@link Value}, wraps them in a KeyValuePair, and emit them to all writers.
+	 * Writers which require a deep-copy are fed with a copy obtained through de/serialization.
+	 */
 	@Override
 	public void collect(K key, V value) {
 		try {
-			for (RecordWriter<KeyValuePair<K, V>> writer : writers) {
-				// TODO: is new KeyValuePair necessary?
-				writer.emit(new KeyValuePair<K, V>(key, value));
+			
+			final KeyValuePair<K,V> emitPair = new KeyValuePair<K, V>(key, value);
+			
+			if (fwdCopyFlags == 0) {
+				for (int i = 0; i < writers.size(); i++) {
+					writers.get(i).emit(emitPair);
+				}
 			}
-		} catch (java.io.IOException e) {
+			else {
+				copier.setCopy(emitPair);
+				
+				for (int i = 0; i < writers.size(); i++) {
+					if (((fwdCopyFlags >> i) & 0x1) != 0) {
+						copier.getCopy(emitPair);
+					}
+					writers.get(i).emit(emitPair);
+				}
+			}
+				
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stub.Collector#close()
+	 */
 	@Override
 	public void close() {
-
 	}
 }

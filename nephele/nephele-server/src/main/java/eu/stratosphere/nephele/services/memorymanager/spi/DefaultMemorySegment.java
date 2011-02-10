@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.services.memorymanager.spi;
 
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
@@ -24,22 +23,28 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultMemorySegment extends MemorySegment {
-	protected final WeakReference<MemorySegmentDescriptor> descriptorReference;
+public final class DefaultMemorySegment extends MemorySegment
+{
+	protected final MemorySegmentDescriptor descriptor;
 
-	public DefaultMemorySegment(WeakReference<MemorySegmentDescriptor> descriptorReference,
-			RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView) {
-		super(descriptorReference.get().size, randomAccessView, inputView, outputView);
-		this.descriptorReference = descriptorReference;
+	public DefaultMemorySegment(MemorySegmentDescriptor descriptor,
+			RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView)
+	{
+		super(descriptor.size, randomAccessView, inputView, outputView);
+		this.descriptor = descriptor;
 	}
-
+	
 	@Override
 	public ByteBuffer wrap(int offset, int length) {
 		if (offset > size || offset + length > size) {
 			throw new IndexOutOfBoundsException();
 		}
 
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
 		return ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
+	}
+	
+	public MemorySegmentDescriptor getSegmentDescriptor()
+	{
+		return this.descriptor;
 	}
 }

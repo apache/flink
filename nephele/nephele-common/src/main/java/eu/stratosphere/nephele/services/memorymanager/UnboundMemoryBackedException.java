@@ -15,6 +15,15 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
-public class UnboundMemoryBackedException extends RuntimeException {
+
+/**
+ * This interface defines a view over a {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment} that
+ * can be used to write elements to the memory at random positions.
+ *
+ * @author Alexander Alexandrov
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ */
+public class UnboundMemoryBackedException extends RuntimeException
+{
 	private static final long serialVersionUID = -7774130280595556095L;
 }
