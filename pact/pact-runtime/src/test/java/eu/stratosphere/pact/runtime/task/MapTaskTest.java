@@ -1,5 +1,8 @@
 package eu.stratosphere.pact.runtime.task;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import junit.framework.Assert;
 
 import org.junit.After;
@@ -8,9 +11,8 @@ import org.junit.Test;
 
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 public class MapTaskTest extends TaskTestBase {
 
@@ -19,18 +21,20 @@ public class MapTaskTest extends TaskTestBase {
 	int[] inKeys = {1,2,3,4,5,6,7,8,9};
 	int[] inVals = {1,2,3,4,5,6,7,8,9};
 	
+	List<KeyValuePair<PactInteger,PactInteger>> outList;
+	
 	@Before
 	public void prepare() {
 		
-		super.setupEnvironment();
-		super.addInput(super.createInputIterator(inKeys, inVals));
+		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
-		TaskConfig taskConfig = super.getTaskConfig();
-		taskConfig.setStubClass(MockMapStub.class);
-		taskConfig.addInputShipStrategy(ShipStrategy.FORWARD);
-
+		super.initEnvironment(1);
+		super.addInput(super.createInputIterator(inKeys, inVals));
+		super.addOutput(outList);
+		
 		testTask = new MapTask();
-		super.registerTask(testTask);
+		
+		super.registerTask(testTask, MockMapStub.class);
 		
 	}
 	
@@ -43,7 +47,7 @@ public class MapTaskTest extends TaskTestBase {
 			e.printStackTrace();
 		}
 		
-		Assert.assertTrue(MockMapStub.cnt == 9);
+		Assert.assertTrue(outList.size() == 9);
 		
 	}
 	
@@ -54,11 +58,9 @@ public class MapTaskTest extends TaskTestBase {
 	
 	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
-		public static int cnt = 0;
-		
 		@Override
 		public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
-			cnt++;
+			out.collect(key, value);
 		}
 		
 	}

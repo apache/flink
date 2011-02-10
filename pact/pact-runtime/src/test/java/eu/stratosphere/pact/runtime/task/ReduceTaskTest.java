@@ -1,104 +1,303 @@
-/***********************************************************************************************************************
- *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- *
- **********************************************************************************************************************/
 package eu.stratosphere.pact.runtime.task;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.*;
-import static org.mockito.MockitoAnnotations.initMocks;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
-
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
-import org.junit.Before;
+import junit.framework.Assert;
+
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.Pair;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.task.TupleMock;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
-/**
- * Some small stuüid test to get into testing the stubs.
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- *
- */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ReduceStub.class)
-public class ReduceTaskTest {
+public class ReduceTaskTest extends TaskTestBase {
 
-	private class MockReducer extends ReduceStub<PactInteger, TupleMock, PactInteger, TupleMock>
-	{
-		int reduceCount = 0;
+	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+
+	@Test
+	public void testReduceTask() {
+
+		int[] inKeys = {5,4,5,5,2,3,3,2,5,4,1,4,5,3,4};
+		int[] inVals = {4,1,2,5,1,2,1,2,3,3,1,2,1,3,4};
 		
-		public int getReduceCount() {
-			return reduceCount;
+		super.initEnvironment(3*1024*1024);
+		super.addInput(super.createInputIterator(inKeys, inVals));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 5.", outList.size() == 5);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", computeSum(pair.getKey().getValue()) == pair.getValue().getValue());
+		}
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(3*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+		
+	}
+	
+	@Test
+	public void testExternalReduceTask() {
+
+		final int NUMKEYS = 16384;
+		final int NUMVALS = 4;
+		
+		Iterator<KeyValuePair<PactInteger, PactInteger>> inIt = new Iterator<KeyValuePair<PactInteger, PactInteger>>() {
+
+			int keyCnt = 0;
+			int valCnt = 0;
+			
+			@Override
+			public boolean hasNext() {
+				if(valCnt < NUMVALS) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+
+			@Override
+			public KeyValuePair<PactInteger, PactInteger> next() {
+				PactInteger key = new PactInteger(keyCnt++);
+				PactInteger val = new PactInteger(valCnt);
+				
+				if(keyCnt == NUMKEYS) {
+					keyCnt = 0;
+					valCnt++;
+				}
+				
+				return new KeyValuePair<PactInteger, PactInteger>(key,val);
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+			
+		};
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(inIt);
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+NUMKEYS, outList.size() == NUMKEYS);
+		
+		final int expVal = computeSum(NUMVALS-1);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expVal);
+		}
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(3*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+		
+	}
+	
+	@Test
+	public void testCombiningReduceTask() {
+
+		int[] inKeys = {5,4,5,5,2,3,3,2,5,4,1,4,5,3,4};
+		int[] inVals = {4,1,2,5,1,2,1,2,3,3,1,2,1,3,4};
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(super.createInputIterator(inKeys, inVals));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockCombiningReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 5.", outList.size() == 5);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result " + (computeSum(pair.getKey().getValue())%pair.getKey().getValue()) + " != " + pair.getValue().getValue(), (computeSum(pair.getKey().getValue())%pair.getKey().getValue()) == pair.getValue().getValue());
+		}
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(3*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+		
+	}
+	
+	@Test
+	public void testExternalCombiningReduceTask() {
+
+		final int NUMKEYS = 12288;
+		final int NUMVALS = 4;
+		
+		Iterator<KeyValuePair<PactInteger, PactInteger>> inIt = new Iterator<KeyValuePair<PactInteger, PactInteger>>() {
+
+			int keyCnt = 1;
+			int valCnt = 1;
+			
+			@Override
+			public boolean hasNext() {
+				if(valCnt <= NUMVALS) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+
+			@Override
+			public KeyValuePair<PactInteger, PactInteger> next() {
+				PactInteger key = new PactInteger(keyCnt++);
+				PactInteger val = new PactInteger(valCnt);
+				
+				if(keyCnt == NUMKEYS+1) {
+					keyCnt = 1;
+					valCnt++;
+				}
+				
+				return new KeyValuePair<PactInteger, PactInteger>(key,val);
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+			
+		};
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(inIt);
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockCombiningReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+NUMKEYS, outList.size() == NUMKEYS);
+		
+		final int expVal = computeSum(NUMVALS);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", (expVal%pair.getKey().getValue()) == pair.getValue().getValue());
+		}
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(3*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+		
+	}
+	
+	private int computeSum(int x) {
+		
+		int sum = 0;
+		for(int i=1;i<=x;i++) {
+			sum+=i;
+		}
+		return sum;
+	}
+	
+	public static class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
-		public void reduce(PactInteger key, Iterator<TupleMock> values, Collector<PactInteger, TupleMock> out) {
-			this.reduceCount++;
+		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int sum = 0;
+			while(values.hasNext()) {
+				sum+=values.next().getValue();
+			}
+			out.collect(key, new PactInteger(sum));
 		}
 	}
 	
-	private MockReducer reducer;
-	@Mock
-	private Iterator<Pair<PactInteger, TupleMock>> iteratorMock;
-	@Mock
-	private Collector<PactInteger, TupleMock> collectorMock;
-	@Mock
-	private KeyGroupedIterator<PactInteger, TupleMock> groupedIteratorMock;
-	
-	@Before
-	public void setUp()
-	{
-		initMocks(this);
-		this.reducer = new MockReducer();
+	@Combinable
+	public static class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+
+		@Override
+		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int sum = 0;
+			while(values.hasNext()) {
+				sum+=values.next().getValue();
+			}
+			out.collect(key, new PactInteger(sum%key.getValue()));			
+		}
+		
+		@Override
+		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int sum = 0;
+			while(values.hasNext()) {
+				sum+=values.next().getValue();
+			}
+			out.collect(key, new PactInteger(sum));
+		}
+		
 	}
-	
-	/*
-	@Test
-	public void shouldNotIterateInRunWithEmptyIterator()
-	{
-		this.reducer.run(this.iteratorMock, collectorMock);
-		assertThat(this.reducer.getReduceCount(), is(equalTo(0)));
-	}
-	
-	@Test
-	public void shouldIterateWithNullCollector()
-	{
-		this.reducer.run(this.iteratorMock, null);
-		assertThat(this.reducer.getReduceCount(), is(equalTo(0)));
-	}
-	
-	@Test
-	public void shouldCallReduceOnes() throws Exception
-	{
-		whenNew(KeyGroupedIterator.class).withArguments(any()).thenReturn(this.groupedIteratorMock);
-		when(groupedIteratorMock.nextKey()).thenReturn(true, false);
-		this.reducer.run(this.iteratorMock, this.collectorMock);
-		assertThat(this.reducer.reduceCount, is(equalTo(1)));
-	}
-	*/
 	
 }

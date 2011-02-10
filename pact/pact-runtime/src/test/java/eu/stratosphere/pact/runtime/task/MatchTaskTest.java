@@ -1,258 +1,433 @@
 package eu.stratosphere.pact.runtime.task;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
+import junit.framework.Assert;
 
+import org.junit.Test;
+
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.Pair;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
-/**
- * 
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- *
- */
-public class MatchTaskTest {
+public class MatchTaskTest extends TaskTestBase {
 
-	private class MockMatchStub extends MatchStub<PactInteger, TupleMock, TupleMock, PactInteger, TupleMock>
-	{
-		private int matchCount = 0;
+	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+
+	@Test
+	public void testSort1MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(20, 1);
+		InputIterator inIt2 = new InputIterator(10, 2);
 		
-		//this could be done a lot more elegant with a true Pair type
-		private List<List<TupleMock>> matchPairs = new ArrayList<List<TupleMock>>();
+		super.initEnvironment(5*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
 		
-		/**
-		 * Just count the number of calls and the tuple combinations
-		 */
-		@Override
-		public void match(PactInteger key, TupleMock value1, TupleMock value2, Collector<PactInteger, TupleMock> out) {
-			this.matchCount++;
-			List<TupleMock> pair = new ArrayList<TupleMock>();
-			pair.add(value1);
-			pair.add(value2);
-			this.matchPairs.add(pair);
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 20.", outList.size() == 20);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(5*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
 		}
 	}
 	
-	@Mock
-	private Iterator<TupleMock> valueIteratorMock1;
-	@Mock
-	private Iterator<TupleMock> valueIteratorMock2;
-	@Mock
-	private Collector<PactInteger, TupleMock> collectorMock;
-	
-	private TupleMock leftValue;
-	private TupleMock leftValue2;
-	private TupleMock leftValue3;
-	private TupleMock leftValue4;
-	
-	
-	private TupleMock rightValue;
-	private TupleMock rightValue2;
-	private TupleMock rightValue3;
-	private TupleMock rightValue4;
-	
-	
-	private MockMatchStub matcher;
-	
-	private MatchTask matchTask;
-	
-	@Before
-	public void setUp()
-	{
-		initMocks(this);
-		this.matcher = new MockMatchStub();
-		this.leftValue = new TupleMock("l1");
-		this.leftValue2 = new TupleMock("l2");
-		this.leftValue3 = new TupleMock("l3");
-		this.leftValue4 = new TupleMock("l4");
-		this.rightValue = new TupleMock("r1");
-		this.rightValue2 = new TupleMock("r2");
-		this.rightValue3 = new TupleMock("r3");
-		this.rightValue4 = new TupleMock("r4");
-		
-		matchTask = new MatchTask();
-		
-	}
+	@Test
+	public void testSort2MatchTask() {
 
-	/*
-	@Test
-	public void shouldNotRunMatch()
-	{
-		this.matcher.run(null, valueIteratorMock1, valueIteratorMock2, collectorMock);
-		assertThat(this.matcher.matchCount, is(equalTo(0)));
+		InputIterator inIt1 = new InputIterator(20, 1);
+		InputIterator inIt2 = new InputIterator(20, 1);
 		
-		when(valueIteratorMock1.next()).thenReturn(leftValue);
-		when(valueIteratorMock2.next()).thenReturn(null);
-		this.matcher.run(null, valueIteratorMock1, valueIteratorMock2, collectorMock);
-		assertThat(this.matcher.matchCount, is(equalTo(0)));
+		super.initEnvironment(5*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
 		
-		when(valueIteratorMock1.next()).thenReturn(null);
-		when(valueIteratorMock2.next()).thenReturn(rightValue);
-		this.matcher.run(null, valueIteratorMock1, valueIteratorMock2, collectorMock);
-		assertThat(this.matcher.matchCount, is(equalTo(0)));
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 20.", outList.size() == 20);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(5*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
 	}
 	
 	@Test
-	public void shouldRunMatchOnce()
-	{
-		when(valueIteratorMock1.next()).thenReturn(leftValue);
-		when(valueIteratorMock2.next()).thenReturn(rightValue);
-		this.matcher.run(null, valueIteratorMock1, valueIteratorMock2, collectorMock);
-		assertThat(this.matcher.matchCount, is(equalTo(1)));
-		assertThat(this.matcher.matchPairs.size(), is(equalTo(1)));
+	public void testSort3MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(20, 1);
+		InputIterator inIt2 = new InputIterator(20, 20);
 		
-		List<TupleMock> onlyPair = this.matcher.matchPairs.get(0);
-		assertThat(onlyPair.get(0), is(equalTo(leftValue)));
-		assertThat(onlyPair.get(1), is(equalTo(rightValue)));
+		super.initEnvironment(5*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 400.", outList.size() == 400);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(5*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
 	}
 	
 	@Test
-	public void shouldMatchOneLeftValueWithMultipleRightValues()
-	{
-		when(valueIteratorMock1.next()).thenReturn(leftValue);
-		when(valueIteratorMock2.next()).thenReturn(rightValue, rightValue2, rightValue3, rightValue4);
-		when(valueIteratorMock2.hasNext()).thenReturn(true, true, true, false);
-		this.matcher.run(null, valueIteratorMock1, valueIteratorMock2, collectorMock);
-		assertThat(this.matcher.matchCount, is(equalTo(4)));
-		assertThat(this.matcher.matchPairs.size(), is(equalTo(4)));
+	public void testSort4MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(20, 20);
+		InputIterator inIt2 = new InputIterator(20, 1);
 		
-		List<TupleMock> firstPair = this.matcher.matchPairs.get(0);
-		assertThat(firstPair.get(0), is(equalTo(leftValue)));
-		assertThat(firstPair.get(1), is(equalTo(rightValue)));
+		super.initEnvironment(5*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
 		
-		List<TupleMock> secondPair = this.matcher.matchPairs.get(1);
-		assertThat(secondPair.get(0), is(equalTo(leftValue)));
-		assertThat(secondPair.get(1), is(equalTo(rightValue2)));
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
 		
-		List<TupleMock> thirdPair = this.matcher.matchPairs.get(2);
-		assertThat(thirdPair.get(0), is(equalTo(leftValue)));
-		assertThat(thirdPair.get(1), is(equalTo(rightValue3)));
+		super.registerTask(testTask, MockMatchStub.class);
 		
-		List<TupleMock> fourthPair = this.matcher.matchPairs.get(3);
-		assertThat(fourthPair.get(0), is(equalTo(leftValue)));
-		assertThat(fourthPair.get(1), is(equalTo(rightValue4)));
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 400.", outList.size() == 400);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(5*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
 	}
 	
 	@Test
-	public void shouldMatchOneRighValueWithMultipleLeftValues()
-	{
-		when(valueIteratorMock1.hasNext()).thenReturn(true, true, true, false);
-		when(valueIteratorMock1.next()).thenReturn(leftValue, leftValue2, leftValue3, leftValue4);
-		when(valueIteratorMock2.next()).thenReturn(rightValue);
+	public void testSort5MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(20, 20);
+		InputIterator inIt2 = new InputIterator(20, 20);
 		
-		this.matcher.run(null, valueIteratorMock1, valueIteratorMock2, collectorMock);
-		assertThat(this.matcher.matchCount, is(equalTo(4)));
-		assertThat(this.matcher.matchPairs.size(), is(equalTo(4)));
+		super.initEnvironment(5*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
 		
-		List<TupleMock> firstPair = this.matcher.matchPairs.get(0);
-		assertThat(firstPair.get(0), is(equalTo(leftValue)));
-		assertThat(firstPair.get(1), is(equalTo(rightValue)));
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
 		
-		List<TupleMock> secondPair = this.matcher.matchPairs.get(1);
-		assertThat(secondPair.get(0), is(equalTo(leftValue2)));
-		assertThat(secondPair.get(1), is(equalTo(rightValue)));
+		super.registerTask(testTask, MockMatchStub.class);
 		
-		List<TupleMock> thirdPair = this.matcher.matchPairs.get(2);
-		assertThat(thirdPair.get(0), is(equalTo(leftValue3)));
-		assertThat(thirdPair.get(1), is(equalTo(rightValue)));
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		
-		List<TupleMock> fourthPair = this.matcher.matchPairs.get(3);
-		assertThat(fourthPair.get(0), is(equalTo(leftValue4)));
-		assertThat(fourthPair.get(1), is(equalTo(rightValue)));
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 8000.", outList.size() == 8000);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(5*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
 	}
-	
 	
 	@Test
-	public void shouldMatchMultipleRighValuesWithMultipleLeftValues()
-	{
-		when(valueIteratorMock1.hasNext()).thenReturn(true, true, true, true, false);
-		when(valueIteratorMock1.next()).thenReturn(leftValue, leftValue2, leftValue3, leftValue4);
-		when(valueIteratorMock2.hasNext()).thenReturn(true, true, true, true, false);
-		when(valueIteratorMock2.next()).thenReturn(rightValue, rightValue2, rightValue3, rightValue4);
+	public void testExternalSort1MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(16384, 4);
+		InputIterator inIt2 = new InputIterator(65536, 1);
 		
-		this.matcher.run(null, valueIteratorMock1, valueIteratorMock2, collectorMock);
-		assertThat(this.matcher.matchCount, is(equalTo(16)));
-		assertThat(this.matcher.matchPairs.size(), is(equalTo(16)));
+		super.initEnvironment(5*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
 		
-		List<TupleMock> firstPair = this.matcher.matchPairs.get(0);
-		assertThat(firstPair.get(0), is(equalTo(leftValue)));
-		assertThat(firstPair.get(1), is(equalTo(rightValue)));
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
 		
-		List<TupleMock> secondPair = this.matcher.matchPairs.get(1);
-		assertThat(secondPair.get(0), is(equalTo(leftValue2)));
-		assertThat(secondPair.get(1), is(equalTo(rightValue)));
+		super.registerTask(testTask, MockMatchStub.class);
 		
-		List<TupleMock> thirdPair = this.matcher.matchPairs.get(2);
-		assertThat(thirdPair.get(0), is(equalTo(leftValue3)));
-		assertThat(thirdPair.get(1), is(equalTo(rightValue)));
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		
-		List<TupleMock> fourthPair = this.matcher.matchPairs.get(3);
-		assertThat(fourthPair.get(0), is(equalTo(leftValue4)));
-		assertThat(fourthPair.get(1), is(equalTo(rightValue)));
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 65536.", outList.size() == 65536);
 		
-		List<TupleMock> fifthPair = this.matcher.matchPairs.get(4);
-		assertThat(fifthPair.get(0), is(equalTo(leftValue)));
-		assertThat(fifthPair.get(1), is(equalTo(rightValue2)));
+		outList.clear();
 		
-		List<TupleMock> sixthPair = this.matcher.matchPairs.get(5);
-		assertThat(sixthPair.get(0), is(equalTo(leftValue2)));
-		assertThat(sixthPair.get(1), is(equalTo(rightValue2)));
-		
-		List<TupleMock> seventhPair = this.matcher.matchPairs.get(6);
-		assertThat(seventhPair.get(0), is(equalTo(leftValue3)));
-		assertThat(seventhPair.get(1), is(equalTo(rightValue2)));
-		
-		List<TupleMock> eighthPair = this.matcher.matchPairs.get(7);
-		assertThat(eighthPair.get(0), is(equalTo(leftValue4)));
-		assertThat(eighthPair.get(1), is(equalTo(rightValue2)));
-		
-		List<TupleMock> ninethPair = this.matcher.matchPairs.get(8);
-		assertThat(ninethPair.get(0), is(equalTo(leftValue)));
-		assertThat(ninethPair.get(1), is(equalTo(rightValue3)));
-		
-		List<TupleMock> tenthPair = this.matcher.matchPairs.get(9);
-		assertThat(tenthPair.get(0), is(equalTo(leftValue2)));
-		assertThat(tenthPair.get(1), is(equalTo(rightValue3)));
-		
-		List<TupleMock> eleventhPair = this.matcher.matchPairs.get(10);
-		assertThat(eleventhPair.get(0), is(equalTo(leftValue3)));
-		assertThat(eleventhPair.get(1), is(equalTo(rightValue3)));
-		
-		List<TupleMock> twelvethPair = this.matcher.matchPairs.get(11);
-		assertThat(twelvethPair.get(0), is(equalTo(leftValue4)));
-		assertThat(twelvethPair.get(1), is(equalTo(rightValue3)));
-		
-		List<TupleMock> thirteenthPair = this.matcher.matchPairs.get(12);
-		assertThat(thirteenthPair.get(0), is(equalTo(leftValue)));
-		assertThat(thirteenthPair.get(1), is(equalTo(rightValue4)));
-		
-		List<TupleMock> fourteenthPair = this.matcher.matchPairs.get(13);
-		assertThat(fourteenthPair.get(0), is(equalTo(leftValue2)));
-		assertThat(fourteenthPair.get(1), is(equalTo(rightValue4)));
-		
-		List<TupleMock> fifteenthPair = this.matcher.matchPairs.get(14);
-		assertThat(fifteenthPair.get(0), is(equalTo(leftValue3)));
-		assertThat(fifteenthPair.get(1), is(equalTo(rightValue4)));
-		
-		List<TupleMock> sixteenthPair = this.matcher.matchPairs.get(15);
-		assertThat(sixteenthPair.get(0), is(equalTo(leftValue4)));
-		assertThat(sixteenthPair.get(1), is(equalTo(rightValue4)));
+		try {
+			super.getMemoryManager().allocate(5*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
 	}
-	*/
 	
+	@Test
+	public void testHash1MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(20, 20);
+		InputIterator inIt2 = new InputIterator(20, 20);
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 8000.", outList.size() == 8000);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(1*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+	}
 	
+	@Test
+	public void testHash2MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(20, 20);
+		InputIterator inIt2 = new InputIterator(20, 20);
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 8000.", outList.size() == 8000);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(1*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+	}
+	
+	@Test
+	public void testExternalHash1MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(32768, 4);
+		InputIterator inIt2 = new InputIterator(65536, 1);
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 131072.", outList.size() == 131072);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(1*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+	}
+	
+	@Test
+	public void testExternalHash2MatchTask() {
+
+		InputIterator inIt1 = new InputIterator(32768, 4);
+		InputIterator inIt2 = new InputIterator(65536, 1);
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(inIt1);
+		super.addInput(inIt2);
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was 131072.", outList.size() == 131072);
+		
+		outList.clear();
+		
+		try {
+			super.getMemoryManager().allocate(1*1024*1024);
+		} catch (MemoryAllocationException e) {
+			Assert.fail("MemoryManager not reset");
+		}
+	}
+	
+	public static class MockMatchStub extends MatchStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+
+		@Override
+		public void match(PactInteger key, PactInteger value1, PactInteger value2,
+				Collector<PactInteger, PactInteger> out) {
+			out.collect(key, value2);
+			
+		}
+
+		
+	}
+	
+	private static class InputIterator implements Iterator<KeyValuePair<PactInteger, PactInteger>> {
+
+		int numKeys;
+		int numVals;
+		
+		int keyCnt = 0;
+		int valCnt = 0;
+		
+		public InputIterator(int numKeys, int numVals) {
+			this.numKeys = numKeys;
+			this.numVals = numVals;
+		}
+		
+		@Override
+		public boolean hasNext() {
+			if(valCnt < numVals) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		@Override
+		public KeyValuePair<PactInteger, PactInteger> next() {
+			PactInteger key = new PactInteger(keyCnt++);
+			PactInteger val = new PactInteger(valCnt);
+			
+			if(keyCnt == numKeys) {
+				keyCnt = 0;
+				valCnt++;
+			}
+			
+			return new KeyValuePair<PactInteger, PactInteger>(key,val);
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+		
+	};
 }
