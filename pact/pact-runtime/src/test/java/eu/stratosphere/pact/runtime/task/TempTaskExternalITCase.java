@@ -27,8 +27,6 @@ public class TempTaskExternalITCase extends TaskTestBase {
 	@Test
 	public void testTempTask() {
 
-		Logger.getRootLogger().setLevel(Level.DEBUG);
-		
 		int keyCnt = 16384;
 		int valCnt = 16;
 		

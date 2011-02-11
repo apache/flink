@@ -65,7 +65,7 @@ public class DeepCopyTest
 			{
 				clone(toClone);
 			}
-			System.out.println("clone: " + count + " objects -> " + (System.currentTimeMillis()-start) + "ms");
+			// System.out.println("clone: " + count + " objects -> " + (System.currentTimeMillis()-start) + "ms");
 		}
 	}
 	
