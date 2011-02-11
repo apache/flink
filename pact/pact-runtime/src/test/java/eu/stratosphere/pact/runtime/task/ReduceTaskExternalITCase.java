@@ -17,15 +17,15 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-public class ReduceTaskTest extends TaskTestBase {
+public class ReduceTaskExternalITCase extends TaskTestBase {
 
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
-	public void testReduceTask() {
+	public void testSingleLevelMergeReduceTask() {
 
-		int keyCnt = 100;
-		int valCnt = 20;
+		int keyCnt = 8192;
+		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
@@ -35,7 +35,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setNumSortBuffer(2);
 		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setMergeFactor(2);
 		super.getTaskConfig().setIOBufferSize(1);
 		
 		super.registerTask(testTask, MockReduceStub.class);
@@ -57,10 +57,45 @@ public class ReduceTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testCombiningReduceTask() {
+	public void testMultiLevelMergeReduceTask() {
 
-		int keyCnt = 100;
-		int valCnt = 20;
+		int keyCnt = 32768;
+		int valCnt = 8;
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(2);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
+		}
+		
+		outList.clear();
+				
+	}
+	
+	@Test
+	public void testSingleLevelMergeCombiningReduceTask() {
+
+		int keyCnt = 8192;
+		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
@@ -70,7 +105,48 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setNumSortBuffer(2);
 		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setMergeFactor(2);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockCombiningReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		int expSum = 0;
+		for(int i=1;i<valCnt;i++) {
+			expSum+=i;
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum-pair.getKey().getValue());
+		}
+		
+		outList.clear();
+		
+	}
+	
+	
+	@Test
+	public void testMultiLevelMergeCombiningReduceTask() {
+
+		int keyCnt = 32768;
+		int valCnt = 8;
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(2);
 		super.getTaskConfig().setIOBufferSize(1);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
