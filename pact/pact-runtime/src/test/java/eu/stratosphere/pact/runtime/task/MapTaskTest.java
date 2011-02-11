@@ -5,54 +5,42 @@ import java.util.List;
 
 import junit.framework.Assert;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class MapTaskTest extends TaskTestBase {
 
-	MapTask testTask;
-	
-	int[] inKeys = {1,2,3,4,5,6,7,8,9};
-	int[] inVals = {1,2,3,4,5,6,7,8,9};
-	
 	List<KeyValuePair<PactInteger,PactInteger>> outList;
-	
-	@Before
-	public void prepare() {
+		
+	@Test
+	public void testMapTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
 		
 		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1);
-		super.addInput(super.createInputIterator(inKeys, inVals));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
 		super.addOutput(outList);
 		
-		testTask = new MapTask();
+		MapTask testTask = new MapTask();
 		
 		super.registerTask(testTask, MockMapStub.class);
 		
-	}
-	
-	@Test
-	public void testMapTask() {
-
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
-		Assert.assertTrue(outList.size() == 9);
-		
-	}
-	
-	@After
-	public void cleanUp() {
+		Assert.assertTrue(outList.size() == keyCnt*valCnt);
 		
 	}
 	

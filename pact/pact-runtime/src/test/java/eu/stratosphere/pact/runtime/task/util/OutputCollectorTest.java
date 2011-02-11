@@ -1,20 +1,11 @@
 package eu.stratosphere.pact.runtime.task.util;
 
-import java.util.ArrayList;
-
 import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 
 public class OutputCollectorTest {
 
