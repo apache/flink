@@ -80,25 +80,5 @@ public class TypeTest {
 
 	}
 
-	/**
-	 * Tests the serialization/deserialization of the {@link StringRecord} class.
-	 */
-	@Test
-	public void testStringRecord() {
-
-		final StringRecord orig = new StringRecord("Test Record");
-
-		try {
-
-			final StringRecord copy = (StringRecord) CommonTestUtils.createCopy(orig);
-
-			assertEquals(orig.getLength(), copy.getLength());
-			assertEquals(orig.toString(), copy.toString());
-			assertEquals(orig, copy);
-			assertEquals(orig.hashCode(), copy.hashCode());
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
-	}
+	
 }

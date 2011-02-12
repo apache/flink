@@ -9,6 +9,8 @@ import java.util.List;
 
 import junit.framework.Assert;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.Test;
@@ -22,11 +24,15 @@ import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class TempTaskExternalITCase extends TaskTestBase {
 
+	private static final Log LOG = LogFactory.getLog(TempTaskExternalITCase.class);
+	
 	List<KeyValuePair<PactInteger,PactInteger>> outList;
 		
 	@Test
 	public void testTempTask() {
 
+		Logger.getRootLogger().setLevel(Level.DEBUG);
+		
 		int keyCnt = 16384;
 		int valCnt = 16;
 		
@@ -44,7 +50,7 @@ public class TempTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		Assert.assertTrue(outList.size() == keyCnt*valCnt);

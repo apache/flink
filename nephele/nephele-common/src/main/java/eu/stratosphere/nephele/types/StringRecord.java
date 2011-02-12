@@ -428,14 +428,18 @@ public class StringRecord implements Record {
 
 		final boolean b = in.readBoolean();
 
-		if (!b) {
-			return null;
+		if(b)
+		{
+			final int length = in.readInt();
+			if(length >= 0)
+			{
+				final byte[] bytes = new byte[length];
+				in.readFully(bytes, 0, length);
+				return decode(bytes);
+			}
 		}
-
-		final int length = in.readInt();
-		final byte[] bytes = new byte[length];
-		in.readFully(bytes, 0, length);
-		return decode(bytes);
+		
+		return null;
 	}
 
 	/**

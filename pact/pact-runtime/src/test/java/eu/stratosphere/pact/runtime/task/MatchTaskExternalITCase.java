@@ -6,6 +6,8 @@ import java.util.List;
 
 import junit.framework.Assert;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stub.Collector;
@@ -18,6 +20,8 @@ import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class MatchTaskExternalITCase extends TaskTestBase {
 
+	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
+	
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
@@ -46,7 +50,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -80,7 +84,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -114,7 +118,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
