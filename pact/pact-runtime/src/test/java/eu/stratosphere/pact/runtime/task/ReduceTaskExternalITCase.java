@@ -6,6 +6,8 @@ import java.util.List;
 
 import junit.framework.Assert;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
@@ -19,6 +21,8 @@ import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class ReduceTaskExternalITCase extends TaskTestBase {
 
+	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
+	
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
@@ -43,7 +47,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
@@ -78,7 +82,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
@@ -113,7 +117,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		int expSum = 0;
@@ -154,7 +158,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		int expSum = 0;

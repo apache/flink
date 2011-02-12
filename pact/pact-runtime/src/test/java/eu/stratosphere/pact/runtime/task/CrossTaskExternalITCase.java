@@ -6,6 +6,8 @@ import java.util.List;
 
 import junit.framework.Assert;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stub.Collector;
@@ -18,6 +20,8 @@ import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class CrossTaskExternalITCase extends TaskTestBase {
 
+	private static final Log LOG = LogFactory.getLog(CrossTaskExternalITCase.class);
+	
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
@@ -44,7 +48,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
@@ -79,7 +83,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.debug(e);
 		}
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
