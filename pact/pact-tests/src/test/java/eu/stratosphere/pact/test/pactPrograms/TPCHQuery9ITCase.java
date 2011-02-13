@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
-import eu.stratosphere.pact.example.relational.TPCHQuery3;
+import eu.stratosphere.pact.example.relational.TPCHQuery9;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
@@ -375,8 +375,8 @@ public class TPCHQuery9ITCase extends TestBase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 
-		TPCHQuery3 tpch3 = new TPCHQuery3();
-		Plan plan = tpch3.getPlan(
+		TPCHQuery9 tpch9 = new TPCHQuery9();
+		Plan plan = tpch9.getPlan(
 				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+partInputPath,
 				getFilesystemProvider().getURIPrefix()+partSuppInputPath,
