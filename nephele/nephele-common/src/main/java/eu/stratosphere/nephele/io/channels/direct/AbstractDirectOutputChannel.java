@@ -193,7 +193,11 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 	}
 
 	@Override
-	public void flush() {
-		// TODO: Implement me
+	public void flush() throws IOException{
+		if (this.connectedDirectInputChannel == null) {
+			this.connectedDirectInputChannel = getConnectedInputChannel();
+		}
+
+		this.connectedDirectInputChannel.requestFlush();
 	}
 }
