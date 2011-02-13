@@ -76,6 +76,8 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * Match "filtered_parts" and "suppliers" on" suppkey" -> "partlist" with (nation, o_year) as key
  * Group "partlist" by (nation, o_year), calculate sum(amount)
  * 
+ * TODO: implement the "order by nation, o_year desc"
+ * 
  * @author Dennis Schneider <dschneid@informatik.hu-berlin.de>
  */
 
