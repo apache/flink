@@ -46,6 +46,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
+ * This class contains tests related to the JobGraph
  * @author casp
  */
 public class JobGraphTest {
@@ -70,6 +71,9 @@ public class JobGraphTest {
 	}
 
 	@Test
+	/**
+	 * This test ensures that the JobGraph edges are correctly set (forward/backward edges)
+	 */
 	public void testJobGraph() {
 		// check if the backward edge really points to the preceding vertex
 		final JobGraph jg = new JobGraph();
@@ -121,11 +125,5 @@ public class JobGraphTest {
 
 		assertEquals(jg.isInstanceDependencyChainAcyclic(), false);
 	}
-
-	// TODO add test methods here.
-	// The methods must be annotated with annotation @Test. For example:
-	//
-	// @Test
-	// public void hello() {}
 
 }
