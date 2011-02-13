@@ -246,7 +246,7 @@ public class MapTask extends AbstractTask {
 	 * @param out
 	 *        A collector for the output of the map() function.
 	 */
-	protected void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) {
+	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) {
 		while (in.hasNext()) {
 			Pair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);

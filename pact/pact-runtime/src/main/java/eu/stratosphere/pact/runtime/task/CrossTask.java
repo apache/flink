@@ -499,7 +499,7 @@ public class CrossTask extends AbstractTask {
 		SpillingResettableIterator<KeyValuePair<Key, Value>> innerInput = null;
 		try {
 			innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-				innerReader, MEMORY_IO / 2, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
+				innerReader, MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 					.getFirstInValueType()));
 		} catch (MemoryAllocationException mae) {
 			throw new RuntimeException("Unable to obtain SpillingResettable iterator for inner side.", mae);
