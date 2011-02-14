@@ -261,6 +261,11 @@ public class PactCompiler {
 	 * The cost estimator used by the compiler.
 	 */
 	private final CostEstimator costEstimator;
+	
+	/**
+	 * The connection used to connect to the job-manager.
+	 */
+	private final InetSocketAddress jobManagerAddress;
 
 	/**
 	 * The maximum number of machines (instances) to use, per the configuration.
@@ -288,6 +293,8 @@ public class PactCompiler {
 	 * unknown sizes and default to the most robust strategy to fulfill the PACTs. The
 	 * compiler also uses conservative default estimates for the operator costs, since
 	 * it has no access to another cost estimator.
+	 * <p>
+	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration. 
 	 */
 	public PactCompiler() {
 		this(null, new FallbackCostEstimator());
@@ -298,6 +305,8 @@ public class PactCompiler {
 	 * Given those statistics, the compiler can make better choices for the execution strategies.
 	 * as if no filesystem was given. The compiler uses conservative default estimates for the operator costs, since
 	 * it has no access to another cost estimator.
+	 * <p>
+	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
 	 * 
 	 * @param stats
 	 *        The statistics to be used to determine the input properties.
@@ -311,6 +320,8 @@ public class PactCompiler {
 	 * inputs and can hence not determine any properties. It will perform all optimization with
 	 * unknown sizes and default to the most robust strategy to fulfill the PACTs. It uses
 	 * however the given cost estimator to compute the costs of the individual operations.
+	 * <p>
+	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
 	 * 
 	 * @param estimator
 	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
@@ -324,14 +335,32 @@ public class PactCompiler {
 	 * Given those statistics, the compiler can make better choices for the execution strategies.
 	 * as if no filesystem was given. It uses the given cost estimator to compute the costs of the individual
 	 * operations.
+	 * <p>
+	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
 	 * 
 	 * @param stats
 	 *        The statistics to be used to determine the input properties.
 	 * @param estimator
 	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
 	 */
-	public PactCompiler(DataStatistics stats, CostEstimator estimator)
-	{
+	public PactCompiler(DataStatistics stats, CostEstimator estimator) {
+		this(stats, estimator, null);
+	}
+	
+	/**
+	 * Creates a new compiler instance that uses the statistics object to determine properties about the input.
+	 * Given those statistics, the compiler can make better choices for the execution strategies.
+	 * as if no filesystem was given. It uses the given cost estimator to compute the costs of the individual
+	 * operations.
+	 * <p>
+	 * The given socket-address is used to connect to the job manager to obtain system characteristics, like
+	 * available memory. If that parameter is null, then the address is obtained from the global configuration.
+	 * 
+	 * @param stats The statistics to be used to determine the input properties.
+	 * @param estimator The <tt>CostEstimator</tt> to use to cost the individual operations.
+	 * @param jobManagerConnection The address of the job manager that is queried for system characteristics.
+	 */
+	public PactCompiler(DataStatistics stats, CostEstimator estimator, InetSocketAddress jobManagerConnection) {
 		this.statistics = stats;
 		this.costEstimator = estimator;
 
@@ -355,6 +384,24 @@ public class PactCompiler {
 			defaultInNodePar = PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE;
 		}
 		this.defaultIntraNodeParallelism = defaultInNodePar;
+		
+		// assign the connection to the job-manager
+		if (jobManagerConnection != null) {
+			this.jobManagerAddress = jobManagerConnection;
+		}
+		else {
+			final String address = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+			if (address == null) {
+				throw new CompilerException("Cannot find address to job manager's RPC service in the global configuration.");
+			}
+			
+			final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+			if (port < 0) {
+				throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
+			}
+
+			this.jobManagerAddress = new InetSocketAddress(address, port);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -384,8 +431,6 @@ public class PactCompiler {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
 		
-		Configuration config = GlobalConfiguration.getConfiguration();
-		
 		// -------------------- try to get the connection to the job manager  ----------------------
 		// --------------------------to obtain instance information --------------------------------
 		
@@ -397,20 +442,8 @@ public class PactCompiler {
 		ExtendedManagementProtocol jobManagerConnection = null;
 		
 		try {
-			final String address = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-			if (address == null) {
-				throw new CompilerException("Cannot find address to job manager's RPC service in configuration");
-			}
-			
-			final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-			if (port < 0) {
-				throw new CompilerException("Cannot find port to job manager's RPC service in configuration");
-			}
-
-			final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-			
 			jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
-				inetaddr, NetUtils.getSocketFactory());
+				jobManagerAddress, NetUtils.getSocketFactory());
 			
 			instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
 			if (instances == null) {
