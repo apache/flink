@@ -592,17 +592,11 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 4) {
-			throw new IllegalArgumentException(
-				"Must provide four arguments: [noSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]");
-		}
-		
 		// parse job parameters
-		int noSubTasks = Integer.parseInt(args[0]);
-		String paths = args[1];
-		String output = args[2];
-		boolean rdfInput = Boolean.parseBoolean(args[3]);
+		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String paths     = (args.length > 1 ? args[1] : "");
+		String output    = (args.length > 2 ? args[2] : "");
+		boolean rdfInput = (args.length > 3 ? Boolean.parseBoolean(args[3]) : false);
 
 		DataSourceContract<NodePair, Path> pathsInput;
 		

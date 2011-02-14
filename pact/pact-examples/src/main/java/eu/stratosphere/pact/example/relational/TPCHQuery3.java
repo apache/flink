@@ -261,26 +261,17 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(final String... args) {
 
-		int degreeOfParallelism = 1;
-		String ordersPath = "";
-		String lineitemsPath = "";
-		String resultPath = "";
-
-		if (args.length != 4) {
-			throw new IllegalArgumentException(
-			"Must provide three arguments: [noSubStasks], [orders], [lineitem], [output]");
-		}
-		
-		degreeOfParallelism = Integer.parseInt(args[0]);
-		ordersPath = args[1];
-		lineitemsPath = args[2];
-		resultPath = args[3];
+		// parse program parameters
+		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String ordersPath    = (args.length > 1 ? args[1] : "");
+		String lineitemsPath = (args.length > 2 ? args[2] : "");
+		String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
 		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, ordersPath, "Orders");
 		orders.setFormatParameter("delimiter", "\n");
-		orders.setDegreeOfParallelism(degreeOfParallelism);
+		orders.setDegreeOfParallelism(noSubtasks);
 		orders.setOutputContract(UniqueKey.class);
 		orders.getCompilerHints().setAvgNumValuesPerKey(1);
 
@@ -288,13 +279,13 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		DataSourceContract<PactInteger, Tuple> lineitems = new DataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, lineitemsPath, "LineItems");
 		lineitems.setFormatParameter("delimiter", "\n");
-		lineitems.setDegreeOfParallelism(degreeOfParallelism);
+		lineitems.setDegreeOfParallelism(noSubtasks);
 		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		// create MapContract for filtering Orders tuples
 		MapContract<PactInteger, Tuple, PactInteger, Tuple> filterO = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
 			FilterO.class, "FilterO");
-		filterO.setDegreeOfParallelism(degreeOfParallelism);
+		filterO.setDegreeOfParallelism(noSubtasks);
 		filterO.getCompilerHints().setAvgBytesPerRecord(32);
 		filterO.getCompilerHints().setSelectivity(0.05f);
 		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
@@ -302,7 +293,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// create MapContract for projecting LineItems tuples
 		MapContract<PactInteger, Tuple, PactInteger, Tuple> projectLi = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
 			ProjectLi.class, "ProjectLi");
-		projectLi.setDegreeOfParallelism(degreeOfParallelism);
+		projectLi.setDegreeOfParallelism(noSubtasks);
 		projectLi.getCompilerHints().setAvgBytesPerRecord(48);
 		projectLi.getCompilerHints().setSelectivity(1.0f);
 		projectLi.getCompilerHints().setAvgNumValuesPerKey(4);
@@ -310,7 +301,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// create MatchContract for joining Orders and LineItems
 		MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> joinLiO = new MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple>(
 			JoinLiO.class, "JoinLiO");
-		joinLiO.setDegreeOfParallelism(degreeOfParallelism);
+		joinLiO.setDegreeOfParallelism(noSubtasks);
 		joinLiO.getCompilerHints().setSelectivity(0.05f);
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(64);
 		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
@@ -318,15 +309,15 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// create ReduceContract for aggregating the result
 		ReduceContract<N_IntStringPair, Tuple, PactInteger, Tuple> aggLiO = new ReduceContract<N_IntStringPair, Tuple, PactInteger, Tuple>(
 			AggLiO.class, "AggLio");
-		aggLiO.setDegreeOfParallelism(degreeOfParallelism);
+		aggLiO.setDegreeOfParallelism(noSubtasks);
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(64);
 		aggLiO.getCompilerHints().setSelectivity(0.25f);
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result
 		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
-			StringTupleDataOutFormat.class, resultPath, "Output");
-		result.setDegreeOfParallelism(degreeOfParallelism);
+			StringTupleDataOutFormat.class, output, "Output");
+		result.setDegreeOfParallelism(noSubtasks);
 
 		// assemble the PACT plan
 		result.setInput(aggLiO);
