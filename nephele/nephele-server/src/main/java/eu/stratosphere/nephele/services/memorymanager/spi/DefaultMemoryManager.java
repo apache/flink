@@ -40,7 +40,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * <li>{@code allocate()} and {@code release()} calls in arbitrary order are supported</li>
  * <li>allocation data is stored as an array list in a dedicated structure</li>
  * <li>first-fit selection strategy</li>
- * <li>automatic reintegration of released segments</li>
+ * <li>automatic re-integration of released segments</li>
  * </ul>
  * This implementation uses internal byte arrays to allocate the required memory and allows allocation sizes greater
  * than 2GB. Due to the fact that the length of a single java byte array is bounded by {@link #java.lang.Integer.MAX_VALUE} (2GB),
@@ -128,19 +128,17 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 	}
 
-	@Override
-	public void finalize() {
-		shutdown();
-	}
 
 	@Override
 	public void shutdown() {
-		if (!isShutDown) {
-			LOG.debug("Shutting down MemoryManager instance " + toString());
-
-			isShutDown = true;
-			memory = null; // release the memory
-			chunkSize = 0L;
+		synchronized (this) {
+			if (!isShutDown) {
+				LOG.debug("Shutting down MemoryManager instance " + toString());
+	
+				isShutDown = true;
+				memory = null; // release the memory
+				chunkSize = 0L;
+			}
 		}
 	}
 
@@ -149,123 +147,150 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 
 	@Override
-	synchronized public MemorySegment allocate(int segmentSize) throws MemoryAllocationException {
+	public synchronized MemorySegment allocate(int segmentSize) throws MemoryAllocationException {
 		if (segmentSize < 1) {
 			throw new IllegalArgumentException();
 		}
+		
+		MemorySegmentDescriptor descriptor = null;
+		
+		// -------------------- BEGIN CRITICAL SECTION -------------------
+		synchronized (this)
+		{
+			if (isShutDown) {
+				throw new IllegalStateException("Memory Manager has been shut down.");
+			}
 
-		// traverse the free list to find first fitting segment
-		for (int i = 0; i < freeSegments.size(); i++) {
-			FreeSegmentEntry entry = freeSegments.get(i);
-
-			if (segmentSize <= entry.end - entry.start) {
-				// construct a descriptor for the new segment
-				int chunk = (int) (entry.start / chunkSize);
-				int start = (int) (entry.start % chunkSize);
-				MemorySegmentDescriptor descriptor = new MemorySegmentDescriptor(memory[chunk], chunk, start, start
-					+ segmentSize);
-				allocatedSegments.add(descriptor);
-
-				// construct the new memory segment
-				MemorySegment segment = factory(descriptor);
-
-				// adapt the free segment entry
-				entry.start += segmentSize;
-
-				// remove the free segment entry from the list if the remaining
-				// size is zero
-				if (entry.start == entry.end) {
-					freeSegments.remove(i);
+			// traverse the free list to find first fitting segment
+			Iterator<FreeSegmentEntry> freeSegs = freeSegments.iterator();
+			
+			while(freeSegs.hasNext()) {
+				FreeSegmentEntry entry = freeSegs.next();
+	
+				if (segmentSize <= entry.end - entry.start) {
+					// construct a descriptor for the new segment
+					int chunk = (int) (entry.start / chunkSize);
+					int start = (int) (entry.start % chunkSize);
+					descriptor = new MemorySegmentDescriptor(memory[chunk], chunk, start, start + segmentSize);
+					allocatedSegments.add(descriptor);
+	
+					// adapt the free segment entry
+					entry.start += segmentSize;
+	
+					// remove the free segment entry from the list if the remaining
+					// size is zero
+					if (entry.start == entry.end) {
+						freeSegs.remove();
+					}
+					
+					break;
 				}
-
-				// return the new segment
-				return segment;
 			}
 		}
+		// -------------------- END CRITICAL SECTION -------------------
+		
+		if (descriptor == null) {
+			throw new MemoryAllocationException("Not enough memory available.");
+		}
+		
+		// construct the new memory segment
+		MemorySegment segment = factory(descriptor);
+		return segment;
 
-		throw new MemoryAllocationException();
+
 	}
 
 	@Override
-	synchronized public void release(MemorySegment segment) {
+	public void release(MemorySegment segment) {
 		// check if segment is null or has already been freed
 		if (segment == null || segment.isFree()) {
 			return;
 		}
-
-		MemorySegmentDescriptor descriptor = ((DefaultMemorySegment) segment).descriptor;
-		long start = descriptor.chunk * (chunkSize) + descriptor.start;
-		long end = descriptor.chunk * (chunkSize) + descriptor.end;
-
-		// adapt the free list:
-		// case 1: free list is empty
-		if (freeSegments.size() == 0) {
-			freeSegments.add(new FreeSegmentEntry(descriptor.chunk, start, end));
-		}
-		// case 2: segment ends before the first free segment entry
-		else if (end <= freeSegments.get(0).start) {
-			FreeSegmentEntry firstEntry = freeSegments.get(0);
-			if (end == firstEntry.start && descriptor.chunk == firstEntry.chunk) {
-				firstEntry.start = start;
-			} else {
-				freeSegments.addFirst(new FreeSegmentEntry(descriptor.chunk, start, end));
-			}
-		}
-		// case 3: segment starts after the last free segment entry
-		else if (start >= freeSegments.get(freeSegments.size() - 1).end) {
-			FreeSegmentEntry lastEntry = freeSegments.get(freeSegments.size() - 1);
-			if (start == lastEntry.end && descriptor.chunk == lastEntry.chunk) {
-				lastEntry.end = end;
-			} else {
-				freeSegments.addLast(new FreeSegmentEntry(descriptor.chunk, start, end));
-			}
-		}
-		// case 4: segment is between two free segment entries (general case, at
-		// least two freeSegments entries is ensured)
-		else {
-			// search for the pair of free segment entries bounding the segment
-			// to be freed
-			Iterator<FreeSegmentEntry> it = freeSegments.iterator();
-			FreeSegmentEntry left = it.next(), right = it.next();
-			int i = 1;
-			while (!(start >= left.end && end <= right.start)) {
-				left = right;
-				right = it.next();
-				i++;
+		
+		// -------------------- BEGIN CRITICAL SECTION -------------------
+		synchronized (this)
+		{
+			if (isShutDown) {
+				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
-			if (start == left.end && end == right.start && left.chunk == right.chunk) {
-				// extends left entry up to the end of right entry and remove
-				// the right entry
-				left.end = right.end;
-				freeSegments.remove(i);
-			} else if (start == left.end && descriptor.chunk == left.chunk) {
-				// extend left entry up to the end of the segment
-				left.end = end;
-			} else if (end == right.start && descriptor.chunk == right.chunk) {
-				// extend right entry up to the start of the segment
-				right.start = start;
-			} else {
-				// add an extra entry between left and right
-				freeSegments.add(i, new FreeSegmentEntry(descriptor.chunk, start, end));
+			MemorySegmentDescriptor descriptor = ((DefaultMemorySegment) segment).descriptor;
+			long start = descriptor.chunk * (chunkSize) + descriptor.start;
+			long end = descriptor.chunk * (chunkSize) + descriptor.end;
+
+			// adapt the free list:
+			// case 1: free list is empty
+			if (freeSegments.size() == 0) {
+				freeSegments.add(new FreeSegmentEntry(descriptor.chunk, start, end));
 			}
+			// case 2: segment ends before the first free segment entry
+			else if (end <= freeSegments.get(0).start) {
+				FreeSegmentEntry firstEntry = freeSegments.get(0);
+				if (end == firstEntry.start && descriptor.chunk == firstEntry.chunk) {
+					firstEntry.start = start;
+				} else {
+					freeSegments.addFirst(new FreeSegmentEntry(descriptor.chunk, start, end));
+				}
+			}
+			// case 3: segment starts after the last free segment entry
+			else if (start >= freeSegments.get(freeSegments.size() - 1).end) {
+				FreeSegmentEntry lastEntry = freeSegments.get(freeSegments.size() - 1);
+				if (start == lastEntry.end && descriptor.chunk == lastEntry.chunk) {
+					lastEntry.end = end;
+				} else {
+					freeSegments.addLast(new FreeSegmentEntry(descriptor.chunk, start, end));
+				}
+			}
+			// case 4: segment is between two free segment entries (general case, at
+			// least two freeSegments entries is ensured)
+			else {
+				// search for the pair of free segment entries bounding the segment
+				// to be freed
+				Iterator<FreeSegmentEntry> it = freeSegments.iterator();
+				FreeSegmentEntry left = it.next(), right = it.next();
+				int i = 1;
+				while (!(start >= left.end && end <= right.start)) {
+					left = right;
+					right = it.next();
+					i++;
+				}
+	
+				if (start == left.end && end == right.start && left.chunk == right.chunk) {
+					// extends left entry up to the end of right entry and remove
+					// the right entry
+					left.end = right.end;
+					freeSegments.remove(i);
+				} else if (start == left.end && descriptor.chunk == left.chunk) {
+					// extend left entry up to the end of the segment
+					left.end = end;
+				} else if (end == right.start && descriptor.chunk == right.chunk) {
+					// extend right entry up to the start of the segment
+					right.start = start;
+				} else {
+					// add an extra entry between left and right
+					freeSegments.add(i, new FreeSegmentEntry(descriptor.chunk, start, end));
+				}
+			}
+
+			// mark the segment as freed
+			segment.free();
+	
+			// remove the descriptor from the allocated segments set
+			allocatedSegments.remove(descriptor);
 		}
-
-		// mark the segment as freed
-		segment.free();
-
-		// remove the descriptor from the allocated segments set
-		allocatedSegments.remove(descriptor);
+		// -------------------- END CRITICAL SECTION -------------------
 	}
 
 	@Override
-	public Collection<MemorySegment> allocate(int numberOfSegments, int segmentSize) throws MemoryAllocationException {
+	public Collection<MemorySegment> allocate(int numberOfSegments, int segmentSize) throws MemoryAllocationException
+	{
 		Collection<MemorySegment> segments = new ArrayList<MemorySegment>(numberOfSegments);
 
 		for (int i = 0; i < numberOfSegments; i++) {
 			try {
 				segments.add(allocate(segmentSize));
-			} catch (MemoryAllocationException e) {
+			}
+			catch (MemoryAllocationException e) {
 				// cleanup initialized segments
 				release(segments);
 
@@ -292,7 +317,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * @param descriptor
 	 * @return
 	 */
-	private DefaultMemorySegment factory(MemorySegmentDescriptor descriptor) {
+	private static DefaultMemorySegment factory(MemorySegmentDescriptor descriptor) {
 		DefaultRandomAccessView randomAccessView = new DefaultRandomAccessView(descriptor);
 		DefaultDataInputView inputView = new DefaultDataInputView(descriptor);
 		DefaultDataOutputView outputView = new DefaultDataOutputView(descriptor);
