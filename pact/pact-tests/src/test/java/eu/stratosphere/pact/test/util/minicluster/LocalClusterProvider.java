@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
+import java.io.File;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
@@ -65,7 +67,7 @@ public class LocalClusterProvider extends ClusterProvider {
 			return;
 		}
 
-		String nepheleConfigDir = System.getProperty("user.dir") + "/tmp/nephele/config";
+		String nepheleConfigDir = System.getProperty("java.io.tmpdir") + "/minicluster/nephele/config";
 		if (filesystemProvider == null) {
 			startFS();
 		}
@@ -95,6 +97,9 @@ public class LocalClusterProvider extends ClusterProvider {
 
 		nephele.stop();
 		nepheleRunning = false;
+		
+		File f = new File(System.getProperty("java.io.tmpdir") + "/minicluster");
+		f.delete();
 	}
 
 	@Override
