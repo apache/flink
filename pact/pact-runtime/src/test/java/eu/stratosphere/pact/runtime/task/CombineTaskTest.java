@@ -19,14 +19,14 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-public class ReduceTaskTest extends TaskTestBase {
-
-	private static final Log LOG = LogFactory.getLog(ReduceTaskTest.class);
+public class CombineTaskTest extends TaskTestBase {
+	
+	private static final Log LOG = LogFactory.getLog(CombineTaskTest.class);
 	
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
-	public void testReduceTask() {
+	public void testCombineTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
@@ -35,46 +35,11 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
 		super.addOutput(outList);
 		
-		ReduceTask testTask = new ReduceTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
-		
-		super.registerTask(testTask, MockReduceStub.class);
-		
-		try {
-			testTask.invoke();
-		} catch (Exception e) {
-			LOG.debug(e);
-		}
-		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
-		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
-		}
-		
-		outList.clear();
-				
-	}
-	
-	@Test
-	public void testCombiningReduceTask() {
-
-		int keyCnt = 100;
-		int valCnt = 20;
-		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
-		super.addOutput(outList);
-		
-		ReduceTask testTask = new ReduceTask();
+		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setNumSortBuffer(2);
 		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setMergeFactor(2);
 		super.getTaskConfig().setIOBufferSize(1);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
@@ -93,7 +58,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
 		
 		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum-pair.getKey().getValue());
+			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum);
 		}
 		
 		outList.clear();
@@ -101,7 +66,7 @@ public class ReduceTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testFailingReduceTask() {
+	public void testFailingCombineTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
@@ -110,14 +75,14 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
 		super.addOutput(outList);
 		
-		ReduceTask testTask = new ReduceTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		CombineTask testTask = new CombineTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setNumSortBuffer(2);
 		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setMergeFactor(2);
 		super.getTaskConfig().setIOBufferSize(1);
 		
-		super.registerTask(testTask, MockFailingReduceStub.class);
+		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
 		
 		boolean stubFailed = false;
 		
@@ -128,23 +93,11 @@ public class ReduceTaskTest extends TaskTestBase {
 		}
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
-		outList.clear();
 				
+		outList.clear();
+		
 	}
 	
-	public static class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
-
-		@Override
-		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
-			int cnt = 0;
-			while(values.hasNext()) {
-				values.next();
-				cnt++;
-			}
-			out.collect(key, new PactInteger(cnt-key.getValue()));
-		}
-	}
 	
 	@Combinable
 	public static class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
@@ -169,24 +122,34 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 	}
 	
-	public static class MockFailingReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	@Combinable
+	public static class MockFailingCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		int cnt = 0;
 		
 		@Override
 		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
-			int valCnt = 0;
+			int sum = 0;
 			while(values.hasNext()) {
-				values.next();
-				valCnt++;
+				sum+=values.next().getValue();
+			}
+			out.collect(key, new PactInteger(sum-key.getValue()));			
+		}
+		
+		@Override
+		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int sum = 0;
+			while(values.hasNext()) {
+				sum+=values.next().getValue();
 			}
 			
 			if(++cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			
-			out.collect(key, new PactInteger(valCnt-key.getValue()));
+			out.collect(key, new PactInteger(sum));
 		}
+		
 	}
 	
 	

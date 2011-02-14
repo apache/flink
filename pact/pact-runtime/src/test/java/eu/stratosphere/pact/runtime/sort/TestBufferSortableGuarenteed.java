@@ -23,7 +23,6 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -67,22 +66,12 @@ public class TestBufferSortableGuarenteed {
 
 	@BeforeClass
 	public static void beforeClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLevel = rootLogger.getLevel();
-		rootLogger.setLevel(Level.INFO);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(BufferSortable.class.getPackage().getName());
-		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
+		
 	}
 
 	@AfterClass
 	public static void afterClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLogger.setLevel(rootLevel);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(BufferSortable.class.getPackage().getName());
-		pkgLogger.setLevel(pkqLevel);
+		
 	}
 
 	@Before
@@ -127,7 +116,7 @@ public class TestBufferSortableGuarenteed {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 			position = buffer.position;
 			memory = buffer.unbind();
@@ -142,7 +131,7 @@ public class TestBufferSortableGuarenteed {
 			while (buffer.read(pair) && buffer.getPosition() <= position) {
 				readPairs++;
 			}
-			LOG.info("Read " + readPairs + " pairs from buffer.");
+			LOG.debug("Read " + readPairs + " pairs from buffer.");
 			memory = buffer.unbind();
 		}
 
@@ -173,7 +162,7 @@ public class TestBufferSortableGuarenteed {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
 				+ " bytes.");
 			limit = buffer.getPosition();
 			position = buffer.position;
@@ -191,7 +180,7 @@ public class TestBufferSortableGuarenteed {
 				LOG.debug("-> " + pair);
 				readPairs++;
 			}
-			LOG.info("Read " + readPairs + " pairs from buffer.");
+			LOG.debug("Read " + readPairs + " pairs from buffer.");
 			memory = buffer.unbind();
 		}
 
@@ -217,7 +206,7 @@ public class TestBufferSortableGuarenteed {
 			while (unsortedBuffer.write(generator.next())) {
 				writtenPairs++;
 			}
-			LOG.info("Written " + writtenPairs + " pairs.");
+			LOG.debug("Written " + writtenPairs + " pairs.");
 
 		}
 
@@ -344,10 +333,12 @@ public class TestBufferSortableGuarenteed {
 					Buffer.Input buffer2 = new Buffer.Input();
 					buffer2.bind(memory2);				
 					KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(), new TestData.Value());
+					/*
 					while (buffer2.read(pair) && buffer2.getPosition() <= position) 
 					{
 						System.out.println(pair);
 					}
+					*/
 					memory2 = buffer2.unbind();
 				}
 				
@@ -438,7 +429,7 @@ public class TestBufferSortableGuarenteed {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
 			Iterator<KeyValuePair<TestData.Key, TestData.Value>> iter = buffer.getIterator();

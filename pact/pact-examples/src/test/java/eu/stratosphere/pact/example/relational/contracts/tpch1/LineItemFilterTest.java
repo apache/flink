@@ -54,6 +54,7 @@ public class LineItemFilterTest {
 		
 		out.map(inputKey, input, collector);
 		verify(recordStringWriterMock).emit(new KeyValuePair<PactString, Tuple>(returnFlag, input));
+		
 	}
 	
 	
