@@ -24,6 +24,8 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.serialization.KeyValuePairSerializationFactory;
+import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 
 /**
  * The OutputCollector collects {@link Key} and {@link Value}, creates a {@link KeyValuePair}, and 
@@ -38,7 +40,9 @@ import eu.stratosphere.pact.common.type.Value;
 public class OutputCollector<K extends Key, V extends Value> implements Collector<K, V> {
 	
 	// serialization copier to create deep-copies
-	private final SerializationCopier<KeyValuePair<K,V>> copier;
+	private final SerializationCopier<KeyValuePair<K, V>> kvpCopier;
+	// serialization factories
+	private KeyValuePairSerializationFactory<K,V> kvpSerialization;
 	// list of writers
 	protected final List<RecordWriter<KeyValuePair<K, V>>> writers;
 	// bit mask for copy flags
@@ -50,7 +54,7 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	public OutputCollector() {
 		this.writers = new ArrayList<RecordWriter<KeyValuePair<K, V>>>();
 		this.fwdCopyFlags = 0;
-		this.copier = new SerializationCopier<KeyValuePair<K,V>>();
+		this.kvpCopier = new SerializationCopier<KeyValuePair<K, V>>();
 	}
 	
 	/**
@@ -65,8 +69,7 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 		
 		this.writers = writers;
 		this.fwdCopyFlags = fwdCopyFlags;
-		this.copier = new SerializationCopier<KeyValuePair<K,V>>();
-		
+		this.kvpCopier = new SerializationCopier<KeyValuePair<K, V>>();		
 	}
 	
 	/**
@@ -90,7 +93,7 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	public void collect(K key, V value) {
 		try {
 			
-			final KeyValuePair<K,V> emitPair = new KeyValuePair<K, V>(key, value);
+			KeyValuePair<K,V> emitPair = new KeyValuePair<K, V>(key,value);
 			
 			if (fwdCopyFlags == 0) {
 				for (int i = 0; i < writers.size(); i++) {
@@ -98,11 +101,19 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 				}
 			}
 			else {
-				copier.setCopy(emitPair);
+				if(kvpSerialization == null) {
+					// TODO: can we do this nicer?
+					this.kvpSerialization = new KeyValuePairSerializationFactory<K, V>(
+							new WritableSerializationFactory<K>((Class<K>)key.getClass()),
+							new WritableSerializationFactory<V>((Class<V>)value.getClass())); 
+				}
+				
+				kvpCopier.setCopy(emitPair);
 				
 				for (int i = 0; i < writers.size(); i++) {
 					if (((fwdCopyFlags >> i) & 0x1) != 0) {
-						copier.getCopy(emitPair);
+						emitPair = kvpSerialization.newInstance();
+						kvpCopier.getCopy(emitPair);
 					}
 					writers.get(i).emit(emitPair);
 				}
