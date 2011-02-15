@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * An ExecutionGroupVertex is created for every JobVertex of the initial job graph. It represents a number of execution
@@ -489,9 +490,13 @@ public class ExecutionGroupVertex {
 			while (this.getCurrentNumberOfGroupMembers() < newNumberOfMembers) {
 
 				synchronized (this.groupMembers) {
-					final ExecutionVertex vertex = this.groupMembers.get(0).splitVertex();
-					// vertex.setInstance(new DummyInstance(vertex.getInstance().getType()));
-					this.groupMembers.add(vertex);
+					try {
+						final ExecutionVertex vertex = this.groupMembers.get(0).splitVertex();
+						// vertex.setInstance(new DummyInstance(vertex.getInstance().getType()));
+						this.groupMembers.add(vertex);
+					} catch (Exception e) {
+						throw new GraphConversionException(StringUtils.stringifyException(e));
+					}
 				}
 			}
 		}

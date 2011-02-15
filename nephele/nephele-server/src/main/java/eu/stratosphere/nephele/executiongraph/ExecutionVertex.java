@@ -100,9 +100,12 @@ public class ExecutionVertex {
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
 	public ExecutionVertex(JobID jobID, Class<? extends AbstractInvokable> invokableClass,
-			ExecutionGraph executionGraph, ExecutionGroupVertex groupVertex) {
+			ExecutionGraph executionGraph, ExecutionGroupVertex groupVertex) throws Exception {
 		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex);
 
 		this.groupVertex.addInitialSubtask(this);
@@ -173,8 +176,11 @@ public class ExecutionVertex {
 	 * @param preserveVertexID
 	 *        <code>true</code> to copy the vertex's ID to the duplicated vertex, <code>false</code> to create a new ID
 	 * @return a duplicate of this execution vertex
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public synchronized ExecutionVertex duplicateVertex(boolean preserveVertexID) {
+	public synchronized ExecutionVertex duplicateVertex(boolean preserveVertexID) throws Exception {
 
 		ExecutionVertexID newVertexID;
 		if (preserveVertexID) {
@@ -202,8 +208,11 @@ public class ExecutionVertex {
 	 * a new vertex ID.
 	 * 
 	 * @return a duplicate of this execution vertex.
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public ExecutionVertex splitVertex() {
+	public ExecutionVertex splitVertex() throws Exception {
 
 		return duplicateVertex(false);
 	}

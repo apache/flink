@@ -531,8 +531,13 @@ public class ExecutionGraph implements ExecutionListener {
 		// Add group vertex to initial execution stage
 		initialExecutionStage.addStageMember(groupVertex);
 
-		final ExecutionVertex ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
-			groupVertex);
+		ExecutionVertex ev = null;
+		try {
+			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
+				groupVertex);
+		} catch (Exception e) {
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
 
 		// Run the configuration check the user has provided for the vertex
 		try {
