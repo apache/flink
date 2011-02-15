@@ -44,22 +44,37 @@ public class LineItemFilter extends MapStub<PactInteger, Tuple, PactString, Tupl
 
 	private static final Logger LOGGER = Logger.getLogger(LineItemFilter.class);
 	private static final String DATE_CONSTANT = "1998-09-03";
+	
+	private static final DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+	
+	
+	private final Date constantDate;
+	
+
+	public LineItemFilter() {
+		try {
+			this.constantDate = format.parse(DATE_CONSTANT);
+		}
+		catch (ParseException e) {
+			LOGGER.error("Date constant could not be parsed.", e);
+			throw new RuntimeException("Date constant could not be parsed.");
+		}
+	}
 
 	@Override
 	public void map(PactInteger key, Tuple value, Collector<PactString, Tuple> out) {
 		if (value != null && value.getNumberOfColumns() >= 11) {
 			String shipDateString = value.getStringValueAt(10);
-			DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+			
 			try {
-				Date constantDate = format.parse(DATE_CONSTANT);
 				Date shipDate = format.parse(shipDateString);
 
-				if (shipDate.before(constantDate)) {
-					
+				if (shipDate.before(constantDate)) {	
 					String returnFlag = value.getStringValueAt(8);
 					out.collect(new PactString(returnFlag), value);
 				}
-			} catch (ParseException e) {
+			}
+			catch (ParseException e) {
 				LOGGER.error(e);
 			}
 
