@@ -20,7 +20,7 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.M
 
 public class DefaultMemorySegmentView
 {
-	protected final byte[] memory;
+	protected byte[] memory;
 	
 	protected final int offset;
 	
@@ -36,11 +36,21 @@ public class DefaultMemorySegmentView
 		this.size = descriptor.size;
 	}
 	
+	/**
+	 * Gets the size of this memory segment.
+	 * 
+	 * @return The size of the memory segment.
+	 */
 	public final int getSize()
 	{
 		return this.size;
 	}
 	
+	/**
+	 * Gets the start (= offset) of the memory segment in the byte array.
+	 * 
+	 * @return The offset of the memory segment in the array.
+	 */
 	public final int getStart()
 	{
 		return this.offset;

@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -99,6 +100,8 @@ public class HybridHashMatchIterator<K extends Key, V1 extends Value, V2 extends
 	private final IOManager ioManager;
 
 	private final MemoryManager memoryManager;
+	
+	private final AbstractInvokable parentTask;
 
 	private final int ioBuffersMemorySize;
 
@@ -116,11 +119,14 @@ public class HybridHashMatchIterator<K extends Key, V1 extends Value, V2 extends
 
 	public HybridHashMatchIterator(MemoryManager memoryManager, IOManager ioManager,
 			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2, Class<K> keyClass,
-			Class<V1> value1Class, Class<V2> value2Class, InputRoles inputRoles, int availableMemorySize) {
+			Class<V1> value1Class, Class<V2> value2Class, InputRoles inputRoles, int availableMemorySize,
+			AbstractInvokable parentTask)
+	{
 		// set generic type classes
 		this.keyClass = keyClass;
 		this.value1Class = value1Class;
 		this.value2Class = value2Class;
+		this.parentTask = parentTask;
 
 		// set serialization factories
 		this.keySerialization = new WritableSerializationFactory<K>(keyClass);
@@ -149,8 +155,8 @@ public class HybridHashMatchIterator<K extends Key, V1 extends Value, V2 extends
 	@Override
 	public void open() throws IOException, InterruptedException {
 		try {
-			hashMapSegment = memoryManager.allocate(hashMapMemorySize);
-			bufferSegments = memoryManager.allocate(numberOfIOBuffers, ioBufferSize);
+			hashMapSegment = memoryManager.allocate(this.parentTask, hashMapMemorySize);
+			bufferSegments = memoryManager.allocate(this.parentTask, numberOfIOBuffers, ioBufferSize);
 
 			if (inputRoles == InputRoles.BUILD_PROBE) {
 				SerializingHashMap<K, V1> hashMap = new SerializingHashMap<K, V1>(keyClass, value1Class, hashMapSegment);

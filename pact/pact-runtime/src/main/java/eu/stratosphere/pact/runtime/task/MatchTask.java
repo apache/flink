@@ -355,10 +355,12 @@ public class MatchTask extends AbstractTask {
 				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), MAX_NUM_FILEHANLDES, this);
 		case HYBRIDHASH_FIRST:
 			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
-				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, ((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))));
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, 
+				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
 		case HYBRIDHASH_SECOND:
 			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
-				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.PROBE_BUILD, ((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))));
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.PROBE_BUILD,
+				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
 		case MMHASH_FIRST:
 			return new InMemoryHashMatchIterator(reader1, reader2);
 		case MMHASH_SECOND:
@@ -481,7 +483,7 @@ public class MatchTask extends AbstractTask {
 				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
 				v1ResettableIterator = 
 						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
-								v1Reader, ((int)(MEMORY_IO*MEMORY_SHARE_RATIO)), v1Deserializer);
+								v1Reader, ((int)(MEMORY_IO*MEMORY_SHARE_RATIO)), v1Deserializer, this);
 				v1ResettableIterator.open();
 				
 				this.v2Copier.setCopy(firstV2);

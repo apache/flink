@@ -23,10 +23,15 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
+
 public final class DefaultMemorySegment extends MemorySegment
 {
-	protected final MemorySegmentDescriptor descriptor;
+	/**
+	 * The descriptor to the portion of the memory that was allocated.
+	 */
+	private MemorySegmentDescriptor descriptor;
 
+	
 	public DefaultMemorySegment(MemorySegmentDescriptor descriptor,
 			RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView)
 	{
@@ -34,6 +39,10 @@ public final class DefaultMemorySegment extends MemorySegment
 		this.descriptor = descriptor;
 	}
 	
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemorySegment#wrap(int, int)
+	 */
 	@Override
 	public ByteBuffer wrap(int offset, int length) {
 		if (offset > size || offset + length > size) {
@@ -43,8 +52,24 @@ public final class DefaultMemorySegment extends MemorySegment
 		return ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
 	}
 	
-	public MemorySegmentDescriptor getSegmentDescriptor()
+	/**
+	 * @return
+	 */
+	MemorySegmentDescriptor getSegmentDescriptor()
 	{
 		return this.descriptor;
+	}
+	
+	/**
+	 * Clears all memory references in the views over this memory segment. This way, code trying to access this
+	 * memory segment through the views will fail.
+	 */
+	void clearMemoryReferences()
+	{
+		this.descriptor = null;
+		
+		((DefaultRandomAccessView) this.randomAccessView).memory = null;
+		((DefaultDataInputView) this.inputView).memory = null;
+		((DefaultDataOutputView) this.outputView).memory = null;
 	}
 }

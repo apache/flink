@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -14,6 +16,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -73,15 +76,30 @@ public abstract class TaskTestBase {
 	
 	@After
 	public void checkMemoryManager() {
-		if(this.memorySize > 0) {
+		if (this.memorySize > 0) {
+			
+			AbstractInvokable memOwner = new DummyInvokable();
+			long memAvailable = this.memorySize;
+			
+			// get the memory above 2 GB
+			while (memAvailable > Integer.MAX_VALUE) {
+				try {
+					this.getMemoryManager().allocate(memOwner, Integer.MAX_VALUE);
+					memAvailable -= Integer.MAX_VALUE;
+				}
+				catch (MemoryAllocationException e) {
+					Assert.fail("MemoryManager-organized memory was not freed.");
+				}
+			}
+			
+			// get the remaining memory
 			try {
-				this.getMemoryManager().allocate((int)this.memorySize);
-			} catch (MemoryAllocationException e) {
-				// Assert.fail("MemoryManager-organizes memory was not freed.");
+				this.getMemoryManager().allocate(memOwner, (int) memAvailable);
+			}
+			catch (MemoryAllocationException e) {
+				Assert.fail("MemoryManager-organizes memory was not freed.");
 			}
 		}
 	}
-	
-	
 	
 }
