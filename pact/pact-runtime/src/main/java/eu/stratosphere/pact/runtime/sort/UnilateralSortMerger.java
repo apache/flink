@@ -122,6 +122,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * Factory used to deserialize the values.
 	 */
 	protected final SerializationFactory<V> valueSerialization;
+	
+	/**
+	 * The parent task that owns this sorter.
+	 */
+	protected final AbstractTask parent;
 
 	// ------------------------------------------------------------------------
 	// Threads
@@ -173,6 +178,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		this.keyComparator = keyComparator;
 		this.keySerialization = keySerialization;
 		this.valueSerialization = valueSerialization;
+		this.parent = parentTask;
 
 		this.allocatedMemory = new ArrayList<MemorySegment>();
 
@@ -191,7 +197,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			RawComparator comparator = new DeserializerComparator<K>(keyDeserializer, keyComparator);
 
 			// get memory for sorting
-			MemorySegment seg = memoryManager.allocate(sizeSortBuffer);
+			MemorySegment seg = memoryManager.allocate(/*parentTask, */sizeSortBuffer);
 			freeSegmentAtShutdown(seg);
 
 			// sort-buffer
@@ -434,7 +440,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		final int ioMemoryPerChannel = ioMemorySize / channelIDs.size();
 
 		for (Channel.ID id : channelIDs) {
-			final Collection<MemorySegment> inputSegments = memoryManager.allocate(1, ioMemoryPerChannel);
+			final Collection<MemorySegment> inputSegments = memoryManager.allocate(/*this.parent, */1, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(inputSegments);
 
 			ChannelReader reader = null;
@@ -494,7 +500,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			Collection<MemorySegment> inputSegments;
 			final ChannelReader reader;
 			try {
-				inputSegments = memoryManager.allocate(1, ioMemoryPerChannel);
+				inputSegments = memoryManager.allocate(/*this.parent, */1, ioMemoryPerChannel);
 				freeSegmentsAtShutdown(inputSegments);
 
 				reader = ioManager.createChannelReader(id, inputSegments);
@@ -519,7 +525,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		Collection<MemorySegment> outputSegments;
 		ChannelWriter writer;
 		try {
-			outputSegments = memoryManager.allocate(2, ioMemoryPerChannel);
+			outputSegments = memoryManager.allocate(/*this.parent, */2, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(outputSegments);
 
 			writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
@@ -936,7 +942,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
 
 			// allocate memory segments for channel writer
-			Collection<MemorySegment> outputSegments = memoryManager.allocate(2, ioMemorySize / 2);
+			Collection<MemorySegment> outputSegments = memoryManager.allocate(/*UnilateralSortMerger.this.parent, */2, ioMemorySize / 2);
 			freeSegmentsAtShutdown(outputSegments);
 
 			CircularElement element = null;

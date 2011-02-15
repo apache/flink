@@ -150,7 +150,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			Collection<MemorySegment> inputSegments;
 			final ChannelReader reader;
 			try {
-				inputSegments = memoryManager.allocate(1, ioMemoryPerChannel);
+				inputSegments = memoryManager.allocate(/*this.parent, */1, ioMemoryPerChannel);
 				freeSegmentsAtShutdown(inputSegments);
 
 				reader = ioManager.createChannelReader(id, inputSegments);
@@ -176,7 +176,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		Collection<MemorySegment> outputSegments;
 		ChannelWriter writer;
 		try {
-			outputSegments = memoryManager.allocate(2, ioMemoryPerChannel);
+			outputSegments = memoryManager.allocate(/*this.parent, */2, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(outputSegments);
 
 			writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
@@ -241,7 +241,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
 
 			// allocate memory segments for channel writer
-			Collection<MemorySegment> outputSegments = memoryManager.allocate(2, ioMemorySize / 2);
+			Collection<MemorySegment> outputSegments = memoryManager.allocate(/*CombiningUnilateralSortMerger.this.parent, */2, ioMemorySize / 2);
 
 			CircularElement element = null;
 
