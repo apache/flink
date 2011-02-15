@@ -226,8 +226,11 @@ public class ClusterManager implements InstanceManager {
 							}
 
 							if (instanceListener != null) {
-								instanceListener.allocatedResourceDied(removedSlice.getJobID(), new AllocatedResource(
-									removedSlice.getHostingInstance(), removedSlice.getAllocationID()));
+								instanceListener.allocatedResourceDied(
+									removedSlice.getJobID(),
+									new AllocatedResource(
+										removedSlice.getHostingInstance(), removedSlice.getType(), removedSlice
+											.getAllocationID()));
 							}
 						}
 
@@ -692,6 +695,9 @@ public class ClusterManager implements InstanceManager {
 		host.reportHeartBeat();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public synchronized void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType)
 			throws InstanceException {

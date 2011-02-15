@@ -788,7 +788,7 @@ public class ExecutionGroupVertex {
 		// Check if the number of available instances is sufficiently large, if not generate new instances
 		while (availableInstances.size() < numberOfRequiredInstances) {
 			final AllocatedResource newAllocatedResource = new AllocatedResource(DummyInstance
-				.createDummyInstance(this.instanceType), null);
+				.createDummyInstance(this.instanceType), this.instanceType, null);
 			availableInstances.add(newAllocatedResource);
 		}
 

@@ -578,7 +578,8 @@ public class ExecutionGraph implements ExecutionListener {
 		groupVertex.setMaxMemberSize(maximumNumberOfSubtasks);
 
 		// Assign initial instance to vertex (may be overwritten later on when user settings are applied)
-		ev.setAllocatedResource(new AllocatedResource(DummyInstance.createDummyInstance(instanceType), null));
+		ev.setAllocatedResource(new AllocatedResource(DummyInstance.createDummyInstance(instanceType), instanceType,
+			null));
 
 		// Register input and output vertices separately
 		if (jobVertex instanceof JobInputVertex) {

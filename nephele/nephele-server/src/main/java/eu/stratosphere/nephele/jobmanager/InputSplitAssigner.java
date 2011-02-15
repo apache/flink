@@ -21,6 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ExecutionFailureException;
+import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.fs.FileInputSplit;
@@ -85,8 +86,10 @@ public class InputSplitAssigner {
 		}
 
 		public boolean hostsSplit(String[] splitLocations) {
+
 			String hostName = this.vertex.getAllocatedResource().getInstance().getInstanceConnectionInfo()
 				.getHostName();
+
 			for (int i = 0; i < splitLocations.length; i++) {
 				if (hostName.toLowerCase().equals(splitLocations[i].toLowerCase())) {
 					return true;
@@ -116,16 +119,18 @@ public class InputSplitAssigner {
 
 	private PriorityQueue<QueueElem> vertexPrioQueue = new PriorityQueue<QueueElem>();
 
-	private Log LOG = LogFactory.getLog(InputSplitAssigner.class);
+	private final Log LOG = LogFactory.getLog(InputSplitAssigner.class);
 
 	/**
 	 * Assigns input splits to all tasks of an ExecutionVertex
 	 * 
 	 * @param vertex
 	 *        ExecutionVertex for which InputSplits will be assigned
+	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not been
+	 *         in state <code>READY</code>, <code>true/code> otherwise
 	 * @throws ExecutionFailureException
 	 */
-	public static void assignInputSplits(ExecutionVertex vertex) throws ExecutionFailureException {
+	public static boolean assignInputSplits(ExecutionVertex vertex) throws ExecutionFailureException {
 
 		if (!vertex.isInputVertex()) {
 			throw new ExecutionFailureException("Trying to assign splits to a NOT-InputSplit");
@@ -135,7 +140,7 @@ public class InputSplitAssigner {
 			instance = new InputSplitAssigner();
 		}
 
-		instance.assignInputSplits(vertex.getGroupVertex());
+		return instance.assignInputSplits(vertex.getGroupVertex());
 	}
 
 	/*
@@ -207,7 +212,7 @@ public class InputSplitAssigner {
 	private void addFileSplit(InputSplit inputSplit) throws ExecutionFailureException {
 
 		// get locations of the split
-		String[] splitLocations = inputSplit.getHostNames();
+		final String[] splitLocations = inputSplit.getHostNames();
 
 		// check that the split has at least one location
 		if (splitLocations.length == 0)
@@ -215,7 +220,7 @@ public class InputSplitAssigner {
 
 		boolean added = false;
 		// temp PriorityQueue
-		PriorityQueue<QueueElem> newVertexPrioQueue = new PriorityQueue<QueueElem>();
+		final PriorityQueue<QueueElem> newVertexPrioQueue = new PriorityQueue<QueueElem>();
 
 		// for each Vertex in the PrioQueue
 		while (this.vertexPrioQueue.size() > 0) {
@@ -242,7 +247,7 @@ public class InputSplitAssigner {
 			// priority queue was fully read but split was not assigned
 			// -> split cannot be locally read by any vertex
 			// assign split to the top element of the queue (vertex with least assigned splits)
-			QueueElem topElem = newVertexPrioQueue.poll();
+			final QueueElem topElem = newVertexPrioQueue.poll();
 			topElem.assignInputSplit(inputSplit);
 			newVertexPrioQueue.add(topElem);
 		}
@@ -257,12 +262,20 @@ public class InputSplitAssigner {
 	 *        ExecutionGraph the ExecutionGroupVertex belongs to
 	 * @param groupVertex
 	 *        ExecutionGroupVertex who's InputSplits will be assigned
+	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not been
+	 *         in state <code>READY</code>, <code>true/code> otherwise
 	 * @throws ExecutionFailureException
 	 */
-	private void assignInputSplits(ExecutionGroupVertex groupVertex) throws ExecutionFailureException {
+	private boolean assignInputSplits(ExecutionGroupVertex groupVertex) throws ExecutionFailureException {
+
+		for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
+			if (!groupVertex.getGroupMember(i).getExecutionState().equals(ExecutionState.READY)) {
+				return false;
+			}
+		}
 
 		// get all InputSplits
-		InputSplit[] inputSplits = groupVertex.getInputSplits();
+		final InputSplit[] inputSplits = groupVertex.getInputSplits();
 		// check that there are InputSplits
 		if (inputSplits == null) {
 			throw new ExecutionFailureException("Group vertex" + groupVertex.getName()
@@ -286,6 +299,8 @@ public class InputSplitAssigner {
 
 		// empty prio queue for next assignment
 		vertexPrioQueue.clear();
+
+		return true;
 	}
 
 }
