@@ -25,6 +25,8 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.template.InputSplit;
 
 //TODO: Make this pluggable
@@ -126,8 +128,8 @@ public class InputSplitAssigner {
 	 * 
 	 * @param vertex
 	 *        ExecutionVertex for which InputSplits will be assigned
-	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not been
-	 *         in state <code>READY</code>, <code>true/code> otherwise
+	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not yet
+	 *         been assigned to a real instance, <code>true/code> otherwise
 	 * @throws ExecutionFailureException
 	 */
 	public static boolean assignInputSplits(ExecutionVertex vertex) throws ExecutionFailureException {
@@ -179,14 +181,18 @@ public class InputSplitAssigner {
 
 		// for each ExecutionVertex
 		while (this.vertexPrioQueue.size() > 0) {
-			QueueElem topElem = this.vertexPrioQueue.poll();
+
+			final QueueElem topElem = this.vertexPrioQueue.poll();
 			// check if vertex has an input split assigned
 			if (topElem.getNoAssignedSplits() == 0) {
-				throw new ExecutionFailureException("Execution vertex "
-					+ topElem.getVertex().getName()
-					+ " on "
-					+ topElem.getVertex().getAllocatedResource().getInstance().getInstanceConnectionInfo()
-						.getHostName() + " (" + topElem.getVertex().getID() + ") has no input split assigned");
+				/*
+				 * throw new ExecutionFailureException("Execution vertex "
+				 * + topElem.getVertex().getName()
+				 * + " on "
+				 * + topElem.getVertex().getAllocatedResource().getInstance().getInstanceConnectionInfo()
+				 * .getHostName() + " (" + topElem.getVertex().getID() + ") has no input split assigned");
+				 */
+				continue;
 			}
 			LOG.info(topElem.getNoAssignedSplits() + ": "
 				+ topElem.getVertex().getAllocatedResource().getInstance().getInstanceConnectionInfo().getHostName());
@@ -262,14 +268,16 @@ public class InputSplitAssigner {
 	 *        ExecutionGraph the ExecutionGroupVertex belongs to
 	 * @param groupVertex
 	 *        ExecutionGroupVertex who's InputSplits will be assigned
-	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not been
-	 *         in state <code>READY</code>, <code>true/code> otherwise
+	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not yet
+	 *         been assigned to a real instance, <code>true/code> otherwise
 	 * @throws ExecutionFailureException
 	 */
 	private boolean assignInputSplits(ExecutionGroupVertex groupVertex) throws ExecutionFailureException {
 
 		for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
-			if (!groupVertex.getGroupMember(i).getExecutionState().equals(ExecutionState.READY)) {
+
+			final AllocatedResource ar = groupVertex.getGroupMember(i).getAllocatedResource();
+			if (ar.getInstance() instanceof DummyInstance) {
 				return false;
 			}
 		}
