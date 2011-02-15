@@ -100,6 +100,16 @@ public class MatchTask extends AbstractTask {
 	// task config including stub parameters
 	private TaskConfig config;
 
+	// copier for key and values
+	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
+	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
+	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
+	
+	// serialization factories for key and values
+	private SerializationFactory<Key> keySerialization;
+	private SerializationFactory<Value> v1Serialization;
+	private SerializationFactory<Value> v2Serialization;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -214,6 +224,12 @@ public class MatchTask extends AbstractTask {
 			matchStub = matchClass.newInstance();
 			// configure stub instance
 			matchStub.configure(config.getStubParameters());
+			
+			// initialize 
+			this.keySerialization = new WritableSerializationFactory<Key>(matchStub.getFirstInKeyType());
+			this.v1Serialization  = new WritableSerializationFactory<Value>(matchStub.getFirstInValueType());
+			this.v2Serialization  = new WritableSerializationFactory<Value>(matchStub.getSecondInValueType());
+			
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -396,22 +412,18 @@ public class MatchTask extends AbstractTask {
 		Value v1;
 		Value v2;
 		
-		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(matchStub.getFirstInKeyType());
-		final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
 		keyCopier.setCopy(key);
 		
 		if (!v1HasNext) {
 			// only values1 contains only one value
-			final SerializationFactory<Value> v1Serialization = new WritableSerializationFactory<Value>(matchStub.getFirstInValueType());
-			final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
-			v1Copier.setCopy(firstV1);
+			this.v1Copier.setCopy(firstV1);
 			
 			matchStub.match(key, firstV1, firstV2, output);
 			while (v2HasNext) {
-				key = keySerialization.newInstance();
-				keyCopier.getCopy(key);
-				v1 = v1Serialization.newInstance();
-				v1Copier.getCopy(v1);
+				key = this.keySerialization.newInstance();
+				this.keyCopier.getCopy(key);
+				v1 = this.v1Serialization.newInstance();
+				this.v1Copier.getCopy(v1);
 				
 				v2 = values2.next();
 				v2HasNext = values2.hasNext();
@@ -420,16 +432,14 @@ public class MatchTask extends AbstractTask {
 
 		} else if (!v2HasNext) {
 			// only values2 contains only one value
-			final SerializationFactory<Value> v2Serialization = new WritableSerializationFactory<Value>(matchStub.getSecondInValueType());
-			final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
-			v2Copier.setCopy(firstV2);
+			this.v2Copier.setCopy(firstV2);
 			
 			matchStub.match(key, firstV1, firstV2, output);
 			while (v1HasNext) {
-				key = keySerialization.newInstance();
-				keyCopier.getCopy(key);
-				v2 = v2Serialization.newInstance();
-				v2Copier.getCopy(v2);
+				key = this.keySerialization.newInstance();
+				this.keyCopier.getCopy(key);
+				v2 = this.v2Serialization.newInstance();
+				this.v2Copier.getCopy(v2);
 				
 				v1 = values1.next();
 				v1HasNext = values1.hasNext();
@@ -437,7 +447,6 @@ public class MatchTask extends AbstractTask {
 			}
 
 		} else {
-
 			// both sides contain more than one value
 			// TODO: Decide which side to store!
 			
@@ -475,16 +484,14 @@ public class MatchTask extends AbstractTask {
 								v1Reader, ((int)(MEMORY_IO*MEMORY_SHARE_RATIO)), v1Deserializer);
 				v1ResettableIterator.open();
 				
-				final SerializationFactory<Value> v2Serialization = new WritableSerializationFactory<Value>(matchStub.getSecondInValueType());
-				final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
-				v2Copier.setCopy(firstV2);
+				this.v2Copier.setCopy(firstV2);
 				
 				// run through resettable iterator with firstV2
 				while (v1ResettableIterator.hasNext()) {
-					key = keySerialization.newInstance();
-					keyCopier.getCopy(key);
-					v2 = v2Serialization.newInstance();
-					v2Copier.getCopy(v2);
+					key = this.keySerialization.newInstance();
+					this.keyCopier.getCopy(key);
+					v2 = this.v2Serialization.newInstance();
+					this.v2Copier.getCopy(v2);
 					
 					v1 = v1ResettableIterator.next();
 					matchStub.match(key, v1, v2, output);
@@ -495,19 +502,22 @@ public class MatchTask extends AbstractTask {
 				while(values2.hasNext()) {
 					
 					v2 = values2.next();
-					v2Copier.setCopy(v2);
+					this.v2Copier.setCopy(v2);
 					
 					while (v1ResettableIterator.hasNext()) {
-						key = keySerialization.newInstance();
-						keyCopier.getCopy(key);
-						v2 = v2Serialization.newInstance();
-						v2Copier.getCopy(v2);
+						key = this.keySerialization.newInstance();
+						this.keyCopier.getCopy(key);
+						v2 = this.v2Serialization.newInstance();
+						this.v2Copier.getCopy(v2);
 						
 						v1 = v1ResettableIterator.next();
 						matchStub.match(key, v1, v2, output);
 					}
 					v1ResettableIterator.reset();
 				}
+				
+				// close resettable iterator and release memory
+				v1ResettableIterator.close();
 				
 			} catch (Exception e) {
 				throw new RuntimeException(e);
