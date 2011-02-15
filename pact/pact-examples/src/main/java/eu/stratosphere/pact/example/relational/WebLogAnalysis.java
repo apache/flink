@@ -240,18 +240,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 5) {
-			throw new IllegalArgumentException(
-				"Must provide five arguments: [noSubTasks], [docs], [ranks], [visits], [output]");
-		}
-
 		// parse job parameters
-		int noSubTasks = Integer.parseInt(args[0]);
-		String docsInput = args[1];
-		String ranksInput = args[2];
-		String visitsInput = args[3];
-		String output = args[4];
+		int noSubTasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String docsInput   = (args.length > 1 ? args[1] : "");
+		String ranksInput  = (args.length > 2 ? args[2] : "");
+		String visitsInput = (args.length > 3 ? args[3] : "");
+		String output      = (args.length > 4 ? args[4] : "");
 
 		// Create DataSourceContract for documents relation
 		DataSourceContract<PactString, Tuple> docs = new DataSourceContract<PactString, Tuple>(
