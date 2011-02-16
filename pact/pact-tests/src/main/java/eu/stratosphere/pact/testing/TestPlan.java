@@ -125,7 +125,7 @@ public class TestPlan implements Closeable {
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
 		private CostEstimator() {
-			super(1);
+			super();
 		}
 		//
 		// @Override

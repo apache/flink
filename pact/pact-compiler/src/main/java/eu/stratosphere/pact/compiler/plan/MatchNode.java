@@ -608,7 +608,8 @@ public class MatchNode extends TwoInputNode {
 	 *        The cost estimator.
 	 */
 	private void createLocalAlternatives(List<MatchNode> target, OptimizerNode pred1, OptimizerNode pred2,
-			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator) {
+			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
+	{
 		// compute the given properties of the incoming data
 		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
 		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
@@ -651,13 +652,17 @@ public class MatchNode extends TwoInputNode {
 			outLp.setKeysGrouped(true);
 			createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORTMERGE, outGp, outLp, estimator);
 		} else {
-			// create the hybrid-hash strategy where the first input is the building side
-			createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
-				outLp.createCopy(), estimator);
-
-			// create the hybrid-hash strategy where the second input is the building side
-			createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, outGp.createCopy(),
-				outLp.createCopy(), estimator);
+			// create the hash strategies only, if we have estimates for the input sized
+			if (pred1.estimatedOutputSize > 0 && pred2.estimatedOutputSize > 0)
+			{
+				// create the hybrid-hash strategy where the first input is the building side
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
+					outLp.createCopy(), estimator);
+	
+				// create the hybrid-hash strategy where the second input is the building side
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, outGp.createCopy(),
+					outLp.createCopy(), estimator);
+			}
 
 			// create the first strategy, which is a sort-merge
 			outLp.setKeyOrder(Order.ASCENDING);

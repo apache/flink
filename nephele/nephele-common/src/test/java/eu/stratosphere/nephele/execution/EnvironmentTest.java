@@ -256,7 +256,11 @@ public class EnvironmentTest {
 
 		try {
 			final Environment orig = constructTestEnvironment();
-			orig.instantiateInvokable();
+			try {
+				orig.instantiateInvokable();
+			} catch (Exception e) {
+				fail(e.getMessage());
+			}
 
 			final Environment copy = (Environment) CommonTestUtils.createCopy(orig);
 
@@ -299,7 +303,11 @@ public class EnvironmentTest {
 		assertEquals(0, env.getNumberOfInputGates());
 		assertEquals(0, env.getNumberOfOutputGates());
 
-		env.instantiateInvokable();
+		try {
+			env.instantiateInvokable();
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
 
 		assertNotNull(env.getInvokable());
 		assertEquals(SampleTask.NUMBER_OF_RECORD_READER, env.getNumberOfInputGates());
@@ -314,7 +322,12 @@ public class EnvironmentTest {
 
 		final Environment env = constructTestEnvironment();
 
-		env.instantiateInvokable();
+		try {
+			env.instantiateInvokable();
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+
 		final TestExecutionListener executionListener = new TestExecutionListener(env, ExecutionScenario.REGULAR);
 		env.registerExecutionListener(executionListener);
 		env.startExecution();
@@ -333,7 +346,12 @@ public class EnvironmentTest {
 		final Environment env = constructTestEnvironment();
 		env.getRuntimeConfiguration().setBoolean(SampleTask.EXCEPTION_SCENARIO_KEY, true);
 
-		env.instantiateInvokable();
+		try {
+			env.instantiateInvokable();
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+
 		final TestExecutionListener executionListener = new TestExecutionListener(env, ExecutionScenario.EXCEPTION);
 		env.registerExecutionListener(executionListener);
 		env.startExecution();
@@ -352,7 +370,12 @@ public class EnvironmentTest {
 		final Environment env = constructTestEnvironment();
 		env.getRuntimeConfiguration().setBoolean(SampleTask.USER_ABORT_SCENARIO_KEY, true);
 
-		env.instantiateInvokable();
+		try {
+			env.instantiateInvokable();
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+
 		final TestExecutionListener executionListener = new TestExecutionListener(env, ExecutionScenario.USER_ABORT);
 		env.registerExecutionListener(executionListener);
 		env.startExecution();

@@ -551,7 +551,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				if (vertex.isInputVertex() && vertex.getEnvironment().getInputSplits().length == 0
 					&& vertex.getGroupVertex().getStageNumber() == 0) {
 					try {
-						InputSplitAssigner.assignInputSplits(vertex);
+						if (!InputSplitAssigner.assignInputSplits(vertex)) {
+							continue;
+						}
 					} catch (ExecutionFailureException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
