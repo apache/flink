@@ -28,6 +28,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.mortbay.log.Log;
 
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.Path;
@@ -60,7 +61,7 @@ public class NepheleMiniClusterITCase extends TestCase {
 		hdfs = new MiniDFSProvider();
 		hdfs.start();
 
-		String nepheleConfigDir = System.getProperty("user.dir") + "/tmp/nephele/config";
+		String nepheleConfigDir = System.getProperty("java.io.tmpdir") + "/minicluster/nephele/config";
 		String hdfsConfigDir = hdfs.getConfigDir();
 		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, 1 /*task-tracker*/);
 	}
@@ -108,7 +109,6 @@ public class NepheleMiniClusterITCase extends TestCase {
 		Assert.assertNotNull("no output", line);
 		while (line != null) {
 			Assert.assertTrue(line.contains("hello") || line.contains("foo") || line.contains("bar"));
-			System.out.println("### >>> out = " + line);
 			line = reader.readLine();
 		}
 		reader.close();
@@ -155,10 +155,8 @@ public class NepheleMiniClusterITCase extends TestCase {
 
 		@Override
 		public void invoke() throws Exception {
-			System.out.println("## GrepTask.invoke()");
 			while (this.input.hasNext()) {
 				StringRecord string = this.input.next();
-				System.out.println("## GrepTask.invoke() -> line -> " + string.toString());
 				this.output.emit(string);
 			}
 		}
