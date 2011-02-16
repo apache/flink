@@ -90,6 +90,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * A flag indicating whether the last merge also combines the values.
 	 */
 	private final boolean combineLastMerge;
+	
+	/*
+	 * 
+	 */
+	private Collection<MemorySegment> inputSegments;
+	private Collection<MemorySegment> outputSegments;
 
 	// ------------------------------------------------------------------------
 	// Constructor
@@ -146,7 +152,6 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 		for (Channel.ID id : channelIDs) {
 
-			Collection<MemorySegment> inputSegments;
 			final ChannelReader reader;
 			try {
 				inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
@@ -172,7 +177,6 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		final Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
 		final Channel.ID mergedChannelID = enumerator.next();
 
-		Collection<MemorySegment> outputSegments;
 		ChannelWriter writer;
 		try {
 			outputSegments = memoryManager.allocate(this.parent, 2, ioMemoryPerChannel);
@@ -202,6 +206,13 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 		return mergedChannelID;
 	}
+	
+	@Override
+	public void close() {
+		super.close();
+		super.memoryManager.release(inputSegments);
+		super.memoryManager.release(outputSegments);
+	};
 
 	// ------------------------------------------------------------------------
 	// Threads
@@ -216,6 +227,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		private final IOManager ioManager;
 
 		private final int ioMemorySize;
+		
+		private Collection<MemorySegment> outputSegments;
 		
 //		private final int buffersToKeepBeforeSpilling;
 
@@ -240,7 +253,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
 
 			// allocate memory segments for channel writer
-			Collection<MemorySegment> outputSegments = memoryManager.allocate(CombiningUnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
+			outputSegments = memoryManager.allocate(CombiningUnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
 
 			CircularElement element = null;
 
@@ -330,6 +343,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			}
 
 			LOG.debug("Spilling thread done.");
+		}
+		
+		@Override
+		public void shutdown() {
+			this.memoryManager.release(outputSegments);
+			super.shutdown();
 		}
 
 	} // end spilling/merging thread

@@ -920,6 +920,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 		private final int ioMemorySize;
 		
+		private Collection<MemorySegment> outputSegments;
+		
 //		private final int buffersToKeepBeforeSpilling;
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
@@ -943,7 +945,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
 
 			// allocate memory segments for channel writer
-			Collection<MemorySegment> outputSegments = memoryManager.allocate(UnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
+			outputSegments = memoryManager.allocate(UnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
 			freeSegmentsAtShutdown(outputSegments);
 
 			CircularElement element = null;
@@ -997,6 +999,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			// done
 
 			LOG.debug("Spilling thread done.");
+		}
+		
+		@Override
+		public void shutdown() {
+			this.memoryManager.release(outputSegments);
+			super.shutdown();
 		}
 	}
 
