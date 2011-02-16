@@ -60,7 +60,7 @@ public class NepheleMiniClusterITCase extends TestCase {
 		hdfs = new MiniDFSProvider();
 		hdfs.start();
 
-		String nepheleConfigDir = System.getProperty("user.dir") + "/tmp/nephele/config";
+		String nepheleConfigDir = System.getProperty("java.io.tmpdir") + "/minicluster/nephele/config";
 		String hdfsConfigDir = hdfs.getConfigDir();
 		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, 1 /*task-tracker*/);
 	}
@@ -73,7 +73,7 @@ public class NepheleMiniClusterITCase extends TestCase {
 	}
 
 	protected void preSubmit() throws Exception {
-		OutputStream os = hdfs.getOutputStream("input.txt");
+		OutputStream os = hdfs.getOutputStream(hdfs.getTempDirPath() + "/input.txt");
 		Writer wr = new OutputStreamWriter(os);
 		wr.write("hello\n");
 		wr.write("foo\n");
@@ -86,14 +86,14 @@ public class NepheleMiniClusterITCase extends TestCase {
 
 		JobFileInputVertex input = new JobFileInputVertex("Output 1", jobGraph);
 		input.setFileInputClass(FileLineReader.class);
-		input.setFilePath(new Path(hdfs.getTempDirPath() + "/input.txt"));
+		input.setFilePath(new Path(hdfs.getURIPrefix() + hdfs.getTempDirPath() + "/input.txt"));
 
 		JobTaskVertex task = new JobTaskVertex("Task 1", jobGraph);
 		task.setTaskClass(GrepTask.class);
 
 		JobFileOutputVertex output = new JobFileOutputVertex("Output 1", jobGraph);
 		output.setFileOutputClass(FileLineWriter.class);
-		output.setFilePath(new Path(hdfs.getTempDirPath() + "/output.txt"));
+		output.setFilePath(new Path(hdfs.getURIPrefix() + hdfs.getTempDirPath() + "/output.txt"));
 
 		input.connectTo(task, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 		task.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
@@ -108,7 +108,6 @@ public class NepheleMiniClusterITCase extends TestCase {
 		Assert.assertNotNull("no output", line);
 		while (line != null) {
 			Assert.assertTrue(line.contains("hello") || line.contains("foo") || line.contains("bar"));
-			System.out.println("### >>> out = " + line);
 			line = reader.readLine();
 		}
 		reader.close();
@@ -155,10 +154,8 @@ public class NepheleMiniClusterITCase extends TestCase {
 
 		@Override
 		public void invoke() throws Exception {
-			System.out.println("## GrepTask.invoke()");
 			while (this.input.hasNext()) {
 				StringRecord string = this.input.next();
-				System.out.println("## GrepTask.invoke() -> line -> " + string.toString());
 				this.output.emit(string);
 			}
 		}

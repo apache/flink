@@ -287,8 +287,12 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Creates a new instance of the Nephele task and registers it with its
 	 * environment.
+	 * 
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public void instantiateInvokable() {
+	public void instantiateInvokable() throws Exception {
 
 		if (this.invokableClass == null) {
 			LOG.fatal("InvokableClass is null");
@@ -583,7 +587,11 @@ public class Environment implements Runnable, IOReadableWritable {
 		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
 
 		// Finally, instantiate the invokable object
-		instantiateInvokable();
+		try {
+			instantiateInvokable();
+		} catch (Exception e) {
+			throw new IOException(StringUtils.stringifyException(e));
+		}
 	}
 
 	/**
@@ -774,8 +782,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * does not cover the gates arrays. They must be manually reconstructed.
 	 * 
 	 * @return a duplicate (deep copy) of this environment object
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public Environment duplicateEnvironment() {
+	public Environment duplicateEnvironment() throws Exception {
 
 		final Environment duplicatedEnvironment = new Environment();
 		duplicatedEnvironment.invokableClass = this.invokableClass;

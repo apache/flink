@@ -73,7 +73,7 @@ public class CloudInstance extends AbstractInstance {
 			NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
 		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
-		this.allocatedResource = new AllocatedResource(this, new AllocationID());
+		this.allocatedResource = new AllocatedResource(this, type, new AllocationID());
 
 		this.instanceID = instanceID;
 		this.instanceOwner = instanceOwner;

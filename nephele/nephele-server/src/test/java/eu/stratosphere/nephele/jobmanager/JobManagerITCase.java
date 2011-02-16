@@ -271,6 +271,92 @@ public class JobManagerITCase {
 	}
 
 	/**
+	 * Tests the Nephele execution when a runtime exception during the registration of the input/output gates occurs.
+	 */
+	@Test
+	public void testExecutionWithRuntimeException() {
+
+		final String runtimeExceptionClassName = RuntimeExceptionTask.class.getSimpleName();
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = null;
+
+		try {
+
+			inputFile = ServerTestUtils.createInputFile(0);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+				+ ServerTestUtils.getRandomFilename());
+			jarFile = ServerTestUtils.createJarFile(runtimeExceptionClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
+			t1.setTaskClass(RuntimeExceptionTask.class);
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			t1.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// add jar
+			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
+				+ ".jar"));
+
+			// Create job client and launch job
+			final JobClient jobClient = new JobClient(jg);
+
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+
+				// Check if the correct error message is encapsulated in the exception
+				if (e.getMessage() == null) {
+					fail("JobExecutionException does not contain an error message");
+				}
+				if (!e.getMessage().contains(RuntimeExceptionTask.RUNTIME_EXCEPTION_MESSAGE)) {
+					fail("JobExecutionException does not contain the expected error message");
+				}
+
+				// Check if the correct error message is encapsulated in the exception
+				return;
+			}
+
+			fail("Expected exception but did not receive it");
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+		}
+	}
+
+	/**
 	 * Creates a file with a sequence of 0 to <code>limit</code> integer numbers
 	 * and triggers a sample job. The sample reads all the numbers from the input file and pushes them through a
 	 * network, a file, and an in-memory channel. Eventually, the numbers are written back to an output file. The test

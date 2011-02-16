@@ -60,8 +60,11 @@ public class ClusterInstanceNotifier extends Thread {
 	@Override
 	public void run() {
 
-		this.instanceListener.resourceAllocated(this.allocatedSlice.getJobID(), new AllocatedResource(
-			this.allocatedSlice.getHostingInstance(), this.allocatedSlice.getAllocationID()));
+		this.instanceListener.resourceAllocated(
+			this.allocatedSlice.getJobID(),
+			new AllocatedResource(
+				this.allocatedSlice.getHostingInstance(), this.allocatedSlice.getType(), this.allocatedSlice
+					.getAllocationID()));
 
 	}
 }
