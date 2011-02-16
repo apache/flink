@@ -39,9 +39,11 @@ import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
@@ -100,7 +102,8 @@ public class TestBufferSortableGuarenteed {
 	@Test
 	public void testWrite() throws Exception {
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(MEMORY_SIZE);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, MEMORY_SIZE);
 
 		int writtenPairs = 0, readPairs = 0, position;
 		
@@ -145,7 +148,8 @@ public class TestBufferSortableGuarenteed {
 	@Test
 	public void testWriteRandom() throws Exception {
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(1024);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, 1024);
 
 		int writtenPairs = 0, readPairs = 0, position, limit;
 
@@ -193,10 +197,11 @@ public class TestBufferSortableGuarenteed {
 
 	@Test
 	public void testSort() throws Exception {
+		AbstractInvokable memOwner = new DummyInvokable();
 		int writtenPairs = 0, readPairs = 0;
 
 		// allocate buffer for unsorted pairs
-		MemorySegment unsortedMemory = memoryManager.allocate(MEMORY_SIZE >> 1);
+		MemorySegment unsortedMemory = memoryManager.allocate(memOwner, MEMORY_SIZE >> 1);
 		final BufferSortableGuaranteed<TestData.Key, TestData.Value> unsortedBuffer = newSortBuffer(unsortedMemory);
 
 		// write pairs to buffer
@@ -211,7 +216,7 @@ public class TestBufferSortableGuarenteed {
 		}
 
 		// allocate buffer for sorted pairs
-		MemorySegment sortedMemory = memoryManager.allocate(MEMORY_SIZE >> 1);
+		MemorySegment sortedMemory = memoryManager.allocate(memOwner, MEMORY_SIZE >> 1);
 		final Buffer.Output sortedBuffer = new Buffer.Output();
 		sortedBuffer.bind(sortedMemory);
 
@@ -278,7 +283,8 @@ public class TestBufferSortableGuarenteed {
 	public void testSwap() throws Exception {
 
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(256);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, 256);
 
 		// write pairs to buffer
 		{
@@ -309,7 +315,7 @@ public class TestBufferSortableGuarenteed {
 			}
 			
 			{
-				MemorySegment memory2 = memoryManager.allocate(256);
+				MemorySegment memory2 = memoryManager.allocate(memOwner, 256);
 				
 				{
 					final Buffer.Output buffer2 = new Buffer.Output();
@@ -357,7 +363,8 @@ public class TestBufferSortableGuarenteed {
 	public void testSimple() throws Exception {
 
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(256);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, 256);
 
 		// write pairs to buffer
 		{
@@ -381,7 +388,7 @@ public class TestBufferSortableGuarenteed {
 			}
 			
 			{
-				MemorySegment memory2 = memoryManager.allocate(256);
+				MemorySegment memory2 = memoryManager.allocate(memOwner, 256);
 				final Buffer.Output buffer2 = new Buffer.Output();
 				buffer2.bind(memory2);
 				Writer writer = new Writer() {
@@ -413,7 +420,8 @@ public class TestBufferSortableGuarenteed {
 	public void testIterator() throws Exception {
 
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(MEMORY_SIZE);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, MEMORY_SIZE);
 
 		int writtenPairs = 0, readPairs = 0;
 

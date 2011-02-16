@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
@@ -97,7 +98,7 @@ public class BufferSortableTest {
 	@Test
 	public void testWrite() throws Exception {
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(MEMORY_SIZE);
+		MemorySegment memory = memoryManager.allocate(new DummyInvokable(), MEMORY_SIZE);
 
 		int writtenPairs = 0, readPairs = 0;
 
@@ -141,7 +142,7 @@ public class BufferSortableTest {
 	@Test
 	public void testWriteRandom() throws Exception {
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(1024);
+		MemorySegment memory = memoryManager.allocate(new DummyInvokable(), 1024);
 
 		int writtenPairs = 0, readPairs = 0, limit;
 
@@ -189,7 +190,7 @@ public class BufferSortableTest {
 	@Test
 	public void testAccoutingSpace() throws Exception {
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(MEMORY_SIZE);
+		MemorySegment memory = memoryManager.allocate(new DummyInvokable(), MEMORY_SIZE);
 
 		// write pairs to buffer
 		{
@@ -215,7 +216,7 @@ public class BufferSortableTest {
 		int writtenPairs = 0, readPairs = 0;
 
 		// allocate buffer for unsorted pairs
-		MemorySegment unsortedMemory = memoryManager.allocate(MEMORY_SIZE >> 1);
+		MemorySegment unsortedMemory = memoryManager.allocate(new DummyInvokable(), MEMORY_SIZE >> 1);
 		final BufferSortable<TestData.Key, TestData.Value> unsortedBuffer = newSortBuffer(unsortedMemory,
 			OFFSETS_PERCENTAGE);
 
@@ -231,7 +232,7 @@ public class BufferSortableTest {
 		}
 
 		// allocate buffer for sorted pairs
-		MemorySegment sortedMemory = memoryManager.allocate(MEMORY_SIZE >> 1);
+		MemorySegment sortedMemory = memoryManager.allocate(new DummyInvokable(), MEMORY_SIZE >> 1);
 		final Buffer.Output sortedBuffer = new Buffer.Output();
 		sortedBuffer.bind(sortedMemory);
 
@@ -304,7 +305,7 @@ public class BufferSortableTest {
 	public void testIterator() throws Exception {
 
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(MEMORY_SIZE);
+		MemorySegment memory = memoryManager.allocate(new DummyInvokable(), MEMORY_SIZE);
 
 		int writtenPairs = 0, readPairs = 0;
 

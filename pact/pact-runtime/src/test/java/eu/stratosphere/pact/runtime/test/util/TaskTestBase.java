@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -12,7 +14,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Stub;
@@ -72,16 +73,13 @@ public abstract class TaskTestBase {
 	}
 	
 	@After
-	public void checkMemoryManager() {
-		if(this.memorySize > 0) {
-			try {
-				this.getMemoryManager().allocate((int)this.memorySize);
-			} catch (MemoryAllocationException e) {
-				// Assert.fail("MemoryManager-organizes memory was not freed.");
+	public void checkMemoryManager() throws Exception {
+		if (this.memorySize > 0) {
+			MemoryManager memMan = getMemoryManager();
+			if (!memMan.verifyEmpty()) {
+				Assert.fail("Memory Manager managed memory was not completely freed.");
 			}
 		}
 	}
-	
-	
 	
 }

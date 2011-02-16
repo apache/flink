@@ -46,7 +46,7 @@ public interface MemoryManager {
 	 * @throws MemoryAllocationException Thrown, if not enough memory is available.
 	 * @throws IllegalArgumentException Thrown, if the size parameter is not a positive integer.
 	 */
-	MemorySegment allocate(/*AbstractInvokable task, */int segmentSize) throws MemoryAllocationException;
+	MemorySegment allocate(AbstractInvokable task, int segmentSize) throws MemoryAllocationException;
 
 	/**
 	 * Tries to allocate a collection of <code>numberOfBuffers</code> memory
@@ -59,7 +59,7 @@ public interface MemoryManager {
 	 * 
 	 * @throws MemoryAllocationException Thrown, if the memory segments could not be allocated.
 	 */
-	Collection<MemorySegment> allocate(/*AbstractInvokable task, */int numberOfSegments, int segmentSize) throws MemoryAllocationException;
+	List<MemorySegment> allocate(AbstractInvokable task, int numberOfSegments, int segmentSize) throws MemoryAllocationException;
 	
 	/**
 	 * Tries to release the memory for the specified segment. If the <code>segment</code> has already been released or
@@ -81,13 +81,13 @@ public interface MemoryManager {
 	 */
 	<T extends MemorySegment> void release(Collection<T> segments);
 	
-//	/**
-//	 * Releases all memory segments for the given task. 
-//	 * 
-//	 * @param <T> The type of memory segment.
-//	 * @param task The task whose memory segments are to be released.
-//	 */
-//	<T extends MemorySegment> void releaseAll(AbstractInvokable task);
+	/**
+	 * Releases all memory segments for the given task. 
+	 * 
+	 * @param <T> The type of memory segment.
+	 * @param task The task whose memory segments are to be released.
+	 */
+	<T extends MemorySegment> void releaseAll(AbstractInvokable task);
 
 	/**
 	 * Shuts the memory manager down, trying to release all the memory it managed. Depending
@@ -96,4 +96,12 @@ public interface MemoryManager {
 	 * code that allocated them from the memory manager.
 	 */
 	void shutdown();
+	
+	/**
+	 * Checks if the memory manager all memory available and the descriptors of the free segments
+	 * describe a contiguous memory layout.
+	 * 
+	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
+	 */
+	boolean verifyEmpty();
 }
