@@ -19,16 +19,16 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.util.EnumUtils;
+import eu.stratosphere.nephele.types.StringRecord;
 
 /**
- * An {@link ExecutionStateChangeEvent} can be used to notify other objects about an execution state change of a vertex.
+ * A {@link VertexAssignmentEvent} can be used to notify other objects about changes in the assignment of vertices to
+ * instances.
  * 
  * @author warneke
  */
-public final class ExecutionStateChangeEvent extends AbstractEvent implements ManagementEvent {
+public final class VertexAssignmentEvent extends AbstractEvent implements ManagementEvent {
 
 	/**
 	 * The ID identifies the vertex this events refers to.
@@ -36,37 +36,43 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	private ManagementVertexID managementVertexID;
 
 	/**
-	 * The new execution state of the vertex this event refers to.
+	 * The name of the instance the vertex is now assigned to.
 	 */
-	private ExecutionState newExecutionState;
+	private String instanceName;
 
 	/**
-	 * Constructs a new vertex event object.
+	 * The type of the instance the vertex is now assigned to.
+	 */
+	private String instanceType;
+
+	/**
+	 * Constructs a new event.
 	 * 
 	 * @param timestamp
 	 *        the timestamp of the event
 	 * @param managementVertexID
 	 *        identifies the vertex this event refers to
-	 * @param newExecutionState
-	 *        the new execution state of the vertex this event refers to
+	 * @param instanceName
+	 *        the name of the instance the vertex is now assigned to
+	 * @param instanceType
+	 *        the type of the instance the vertex is now assigned to
 	 */
-	public ExecutionStateChangeEvent(final long timestamp, final ManagementVertexID managementVertexID,
-			final ExecutionState newExecutionState) {
+	public VertexAssignmentEvent(final long timestamp, final ManagementVertexID managementVertexID,
+			final String instanceName, final String instanceType) {
 		super(timestamp);
+
 		this.managementVertexID = managementVertexID;
-		this.newExecutionState = newExecutionState;
+		this.instanceName = instanceName;
+		this.instanceType = instanceType;
 	}
 
 	/**
-	 * Constructs a new execution state change event object. This constructor is
-	 * required for the deserialization process and is not supposed
-	 * to be called directly.
+	 * Constructor for serialization/deserialization. Should not be called on other occasions.
 	 */
-	public ExecutionStateChangeEvent() {
+	public VertexAssignmentEvent() {
 		super();
 
 		this.managementVertexID = new ManagementVertexID();
-		this.newExecutionState = ExecutionState.CREATED;
 	}
 
 	/**
@@ -79,12 +85,21 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	}
 
 	/**
-	 * Returns the new execution state of the vertex this event refers to.
+	 * Returns the name of the instance the vertex is now assigned to.
 	 * 
-	 * @return the new execution state of the vertex this event refers to
+	 * @return the name of the instance the vertex is now assigned to
 	 */
-	public ExecutionState getNewExecutionState() {
-		return this.newExecutionState;
+	public String getInstanceName() {
+		return this.instanceName;
+	}
+
+	/**
+	 * Returns the type of the instance the vertex is now assigned to.
+	 * 
+	 * @return the type of the instance the vertex is now assigned to
+	 */
+	public String getInstanceType() {
+		return this.instanceType;
 	}
 
 	/**
@@ -96,7 +111,8 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		super.read(in);
 
 		this.managementVertexID.read(in);
-		this.newExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
+		this.instanceName = StringRecord.readString(in);
+		this.instanceType = StringRecord.readString(in);
 	}
 
 	/**
@@ -108,7 +124,8 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		super.write(out);
 
 		this.managementVertexID.write(out);
-		EnumUtils.writeEnum(out, this.newExecutionState);
+		StringRecord.writeString(out, this.instanceName);
+		StringRecord.writeString(out, this.instanceType);
 	}
 
 	/**
@@ -121,17 +138,34 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 			return false;
 		}
 
-		if (!(obj instanceof ExecutionStateChangeEvent)) {
+		if (!(obj instanceof VertexAssignmentEvent)) {
 			return false;
 		}
 
-		ExecutionStateChangeEvent stateChangeEvent = (ExecutionStateChangeEvent) obj;
-		if (!stateChangeEvent.getNewExecutionState().equals(this.newExecutionState)) {
+		final VertexAssignmentEvent vae = (VertexAssignmentEvent) obj;
+
+		if (!this.managementVertexID.equals(vae.getVertexID())) {
 			return false;
 		}
 
-		if (!stateChangeEvent.getVertexID().equals(this.managementVertexID)) {
-			return false;
+		if (this.instanceName == null) {
+			if (vae.getInstanceName() != null) {
+				return false;
+			}
+		} else {
+			if (!this.instanceName.equals(vae.getInstanceName())) {
+				return false;
+			}
+		}
+
+		if (this.instanceType == null) {
+			if (vae.getInstanceType() != null) {
+				return false;
+			}
+		} else {
+			if (!this.instanceType.equals(vae.getInstanceType())) {
+				return false;
+			}
 		}
 
 		return true;
@@ -142,10 +176,6 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 */
 	@Override
 	public int hashCode() {
-
-		if (this.newExecutionState != null) {
-			return this.newExecutionState.hashCode();
-		}
 
 		if (this.managementVertexID != null) {
 			return this.managementVertexID.hashCode();
