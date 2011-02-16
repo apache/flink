@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -476,7 +477,7 @@ public class MatchTask extends AbstractTask {
 				
 			};
 			
-			final SpillingResettableIterator<Value> v1ResettableIterator;
+			SpillingResettableIterator<Value> v1ResettableIterator = null;
 			try {
 				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
 				v1ResettableIterator = 
@@ -521,6 +522,14 @@ public class MatchTask extends AbstractTask {
 				
 			} catch (Exception e) {
 				throw new RuntimeException(e);
+			} finally {
+				if(v1ResettableIterator != null) {
+					try {
+						v1ResettableIterator.close();
+					} catch (ServiceException e) {
+						LOG.warn(e);
+					}
+				}
 			}
 					
 		}
