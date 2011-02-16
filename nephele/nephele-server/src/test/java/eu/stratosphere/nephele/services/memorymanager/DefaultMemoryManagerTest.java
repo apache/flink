@@ -22,6 +22,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
 
+import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,7 +55,7 @@ public class DefaultMemoryManagerTest {
 	@After
 	public void tearDown() throws Exception {
 		if (!memoryManager.verifyEmpty()) {
-			throw new Exception("Memory manager is not complete empty and valid at the end of the test.");
+			Assert.fail("Memory manager is not complete empty and valid at the end of the test.");
 		}
 		
 		memoryManager = null;
@@ -186,7 +188,7 @@ public class DefaultMemoryManagerTest {
 			memoryManager.release(segments.get(7));  // case 4 (extend lower bound)
 			
 			if (!memoryManager.verifyEmpty()) {
-				throw new Exception("Memory manager is not complete empty and valid at the end of the test.");
+				fail("Memory manager is not complete empty and valid at the end of the test.");
 			}
 
 			segments.add(memoryManager.allocate(memOwner, 1024 * 1024 * 12)); // 14 (00-12)

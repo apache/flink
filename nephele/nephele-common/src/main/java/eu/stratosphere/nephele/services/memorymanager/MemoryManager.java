@@ -96,4 +96,12 @@ public interface MemoryManager {
 	 * code that allocated them from the memory manager.
 	 */
 	void shutdown();
+	
+	/**
+	 * Checks if the memory manager all memory available and the descriptors of the free segments
+	 * describe a contiguous memory layout.
+	 * 
+	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
+	 */
+	boolean verifyEmpty();
 }

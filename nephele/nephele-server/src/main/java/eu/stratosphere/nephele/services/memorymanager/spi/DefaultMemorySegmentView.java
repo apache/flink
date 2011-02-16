@@ -18,7 +18,7 @@ package eu.stratosphere.nephele.services.memorymanager.spi;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
 
-public class DefaultMemorySegmentView
+public abstract class DefaultMemorySegmentView
 {
 	protected byte[] memory;
 	
@@ -30,10 +30,16 @@ public class DefaultMemorySegmentView
 	// Constructors
 	// --------------------------------------------------------------------
 
-	public DefaultMemorySegmentView(MemorySegmentDescriptor descriptor) {
+	protected DefaultMemorySegmentView(MemorySegmentDescriptor descriptor) {
 		this.memory = descriptor.memory;
 		this.offset = descriptor.start;
 		this.size = descriptor.size;
+	}
+	
+	protected DefaultMemorySegmentView(byte[] memory, int offset, int size) {
+		this.memory = memory;
+		this.offset = offset;
+		this.size = size;
 	}
 	
 	/**

@@ -14,9 +14,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -75,29 +73,11 @@ public abstract class TaskTestBase {
 	}
 	
 	@After
-	public void checkMemoryManager() {
+	public void checkMemoryManager() throws Exception {
 		if (this.memorySize > 0) {
-			
-			AbstractInvokable memOwner = new DummyInvokable();
-			long memAvailable = this.memorySize;
-			
-			// get the memory above 2 GB
-			while (memAvailable > Integer.MAX_VALUE) {
-				try {
-					this.getMemoryManager().allocate(memOwner, Integer.MAX_VALUE);
-					memAvailable -= Integer.MAX_VALUE;
-				}
-				catch (MemoryAllocationException e) {
-					Assert.fail("MemoryManager-organized memory was not freed.");
-				}
-			}
-			
-			// get the remaining memory
-			try {
-				this.getMemoryManager().allocate(memOwner, (int) memAvailable);
-			}
-			catch (MemoryAllocationException e) {
-				Assert.fail("MemoryManager-organizes memory was not freed.");
+			MemoryManager memMan = getMemoryManager();
+			if (!memMan.verifyEmpty()) {
+				Assert.fail("Memory Manager managed memory was not completely freed.");
 			}
 		}
 	}
