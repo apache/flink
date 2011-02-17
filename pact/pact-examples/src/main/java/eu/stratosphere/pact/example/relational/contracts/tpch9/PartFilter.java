@@ -15,7 +15,6 @@
 package eu.stratosphere.pact.example.relational.contracts.tpch9;
 
 import org.apache.log4j.Logger;
-
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.base.*;

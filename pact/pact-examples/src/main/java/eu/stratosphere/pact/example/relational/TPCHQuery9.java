@@ -37,12 +37,12 @@ import eu.stratosphere.pact.example.relational.contracts.tpch9.PartFilter;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.PartJoin;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.PartListJoin;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.PartsuppMap;
+import eu.stratosphere.pact.example.relational.contracts.tpch9.StringIntPairStringDataOutFormat;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.SupplierMap;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.SuppliersJoin;
 import eu.stratosphere.pact.example.relational.types.tpch9.IntPair;
 import eu.stratosphere.pact.example.relational.types.tpch9.StringIntPair;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
@@ -76,7 +76,7 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * Match "filtered_parts" and "suppliers" on" suppkey" -> "partlist" with (nation, o_year) as key
  * Group "partlist" by (nation, o_year), calculate sum(amount)
  * 
- * TODO: implement the "order by nation, o_year desc"
+ * <b>Attention:</b> The "order by" part is not implemented!
  * 
  * @author Dennis Schneider <dschneid@informatik.hu-berlin.de>
  */
@@ -234,20 +234,19 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		filteredPartsJoin.setFirstInput(partsJoin);
 		filteredPartsJoin.setSecondInput(orderedPartsJoin);
 		partListJoin.setFirstInput(filteredPartsJoin);
-		partListJoin.setSecondInput(mapSupplier);
+		partListJoin.setSecondInput(suppliersJoin);
 
 		/* Connect aggregate: */
 		sumAmountAggregate.setInput(partListJoin);
 
 		/* Connect sink: */
-		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
-				StringTupleDataOutFormat.class, this.outputPath, "Results sink");
+		DataSinkContract<StringIntPair, PactString> result = new DataSinkContract<StringIntPair, PactString>(
+				StringIntPairStringDataOutFormat.class, this.outputPath, "Results sink");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		result.setInput(sumAmountAggregate);
 
 		return new Plan(result, "TPC-H query 9");
 	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.plan.PlanAssemblerDescription#getDescription()

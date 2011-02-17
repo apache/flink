@@ -44,7 +44,7 @@ public class OrderedPartsJoin extends MatchStub<PactInteger, PactInteger, Tuple,
 			Tuple newValue = new Tuple();
 			newValue.addAttribute(year.toString()); // year
 			newValue.addAttribute(lineItem.getStringValueAt(2)); // quantity
-			newValue.addAttribute(lineItem.getStringValueAt(3)); // price		
+			newValue.addAttribute(lineItem.getStringValueAt(3)); // price
 			output.collect(newKey, newValue);
 		} catch (final Exception ex) {
 			LOGGER.error(ex);

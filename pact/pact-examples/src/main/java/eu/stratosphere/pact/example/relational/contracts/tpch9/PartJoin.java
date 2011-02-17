@@ -39,10 +39,8 @@ public class PartJoin extends MatchStub<PactInteger, PactNull, Tuple, IntPair, P
 			Collector<IntPair, PactString> output) {
 		
 		try {
-			IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(1))));
-			String supplyCost = partSuppValue.getStringValueAt(0);
-			LOGGER.info("new Parts key: (" +  partKey + ", " + partSuppValue.getLongValueAt(1) + ")");
-			LOGGER.info("Parts supplycost: " + supplyCost);
+			IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(0))));
+			String supplyCost = partSuppValue.getStringValueAt(1);
 		
 			output.collect(newKey, new PactString(supplyCost));
 		} catch(Exception e) {
