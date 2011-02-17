@@ -66,10 +66,9 @@ import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
  * 
  * @author Fabian Hueske
  * @author Stephan Ewen
- * @param <K>
- *        The key class
- * @param <V>
- *        The value class
+ * 
+ * @param <K> The key class
+ * @param <V> The value class
  */
 public class CombiningUnilateralSortMerger<K extends Key, V extends Value> extends UnilateralSortMerger<K, V> {
 	
@@ -91,6 +90,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * A flag indicating whether the last merge also combines the values.
 	 */
 	private final boolean combineLastMerge;
+	
+	/*
+	 * 
+	 */
+	private Collection<MemorySegment> inputSegments;
+	private Collection<MemorySegment> outputSegments;
 
 	// ------------------------------------------------------------------------
 	// Constructor
@@ -147,10 +152,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 		for (Channel.ID id : channelIDs) {
 
-			Collection<MemorySegment> inputSegments;
 			final ChannelReader reader;
 			try {
-				inputSegments = memoryManager.allocate(1, ioMemoryPerChannel);
+				inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
 				freeSegmentsAtShutdown(inputSegments);
 
 				reader = ioManager.createChannelReader(id, inputSegments);
@@ -173,10 +177,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		final Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
 		final Channel.ID mergedChannelID = enumerator.next();
 
-		Collection<MemorySegment> outputSegments;
 		ChannelWriter writer;
 		try {
-			outputSegments = memoryManager.allocate(2, ioMemoryPerChannel);
+			outputSegments = memoryManager.allocate(this.parent, 2, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(outputSegments);
 
 			writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
@@ -203,6 +206,13 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 		return mergedChannelID;
 	}
+	
+	@Override
+	public void close() {
+		super.close();
+		super.memoryManager.release(inputSegments);
+		super.memoryManager.release(outputSegments);
+	};
 
 	// ------------------------------------------------------------------------
 	// Threads
@@ -217,6 +227,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		private final IOManager ioManager;
 
 		private final int ioMemorySize;
+		
+		private Collection<MemorySegment> outputSegments;
 		
 //		private final int buffersToKeepBeforeSpilling;
 
@@ -241,7 +253,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
 
 			// allocate memory segments for channel writer
-			Collection<MemorySegment> outputSegments = memoryManager.allocate(2, ioMemorySize / 2);
+			outputSegments = memoryManager.allocate(CombiningUnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
 
 			CircularElement element = null;
 
@@ -331,6 +343,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			}
 
 			LOG.debug("Spilling thread done.");
+		}
+		
+		@Override
+		public void shutdown() {
+			this.memoryManager.release(outputSegments);
+			super.shutdown();
 		}
 
 	} // end spilling/merging thread

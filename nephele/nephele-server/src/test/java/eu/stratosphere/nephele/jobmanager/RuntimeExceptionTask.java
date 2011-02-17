@@ -13,24 +13,38 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.services;
+package eu.stratosphere.nephele.jobmanager;
 
-public class ServiceException extends Exception {
-	private static final long serialVersionUID = 8751768275700167972L;
+import eu.stratosphere.nephele.template.AbstractTask;
 
-	protected ServiceException() {
-		super();
-	}
-	
-	public ServiceException(String message) {
-		super(message);
+/**
+ * This task throws a {@link RuntimeException} when the method <code>registerInputOutput</code> is called.
+ * 
+ * @author warneke
+ */
+public class RuntimeExceptionTask extends AbstractTask {
+
+	/**
+	 * The message which is used for the test runtime exception.
+	 */
+	public static final String RUNTIME_EXCEPTION_MESSAGE = "This is a test runtime exception";
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerInputOutput() {
+
+		throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
 	}
 
-	public ServiceException(Throwable cause) {
-		super(cause);
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void invoke() throws Exception {
+
+		// Nothing to do here
 	}
-	
-	public ServiceException(String message, Throwable cause) {
-		super(message, cause);
-	}
+
 }

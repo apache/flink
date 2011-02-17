@@ -26,14 +26,10 @@ import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.contextcheck.ContextChecker;
 
@@ -120,33 +116,13 @@ public class PactProgram {
 	 * @throws ProgramInvocationException
 	 * @throws ErrorInPlanAssemblerException
 	 */
-	public OptimizedPlan getPreOptimizedPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
+	public OptimizedPlan getPreviewPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		Plan plan = getPlan();
 		if(plan != null) {
-			return getPreOptimizedPlan(plan);
+			return PactCompiler.createPreOptimizedPlan(plan);
 		} else {
 			return null;
 		}
-	}
-
-	/**
-	 * Returns the optimized plan, based on input file sizes and cluster
-	 * configuration.
-	 */
-	public OptimizedPlan getOptimizedPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		return getOptimizedPlan(getPlan());
-	}
-
-	/**
-	 * Returns the JobGraph corresponding to the generated optimized plan.
-	 * The JobGraph can be send to the nephele cluster for execution.
-	 * 
-	 * @return The optimized JobGraph of the PactProgram.
-	 * @throws ProgramInvocationException
-	 * @throws ErrorInPlanAssemblerException
-	 */
-	public JobGraph getCompiledPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		return getCompiledPlan(getOptimizedPlan());
 	}
 
 	/**
@@ -200,32 +176,6 @@ public class PactProgram {
 		}
 	}
 
-	protected OptimizedPlan getPreOptimizedPlan(Plan plan)
-	{
-		// perform the actual compilation
-		OptimizedPlan optPlan = PactCompiler.createPreOptimizedPlan(plan);
-		return optPlan;
-	}
-
-	protected OptimizedPlan getOptimizedPlan(Plan plan) {
-		// TODO: Can this be instantiated statically?
-		PactCompiler compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator());
-
-		// perform the actual compilation
-		OptimizedPlan optPlan = compiler.compile(plan);
-		return optPlan;
-	}
-
-	protected JobGraph getCompiledPlan(OptimizedPlan optPlan) {
-		JobGraph jobGraph = null;
-
-		// now run the code generator that creates the nephele schedule
-		JobGraphGenerator codeGen = new JobGraphGenerator();
-		jobGraph = codeGen.compileJobGraph(optPlan);
-
-		return jobGraph;
-	}
-
 	/**
 	 * Takes the jar described by the given file and invokes its pact assembler class to
 	 * assemble a plan. The assembler class name is either passed through a parameter,
@@ -276,24 +226,6 @@ public class PactProgram {
 		}
 
 		return assembler;
-	}
-
-	protected JobGraph compilePlan(Plan pactPlan) {
-		// TODO: Can this be instantiated statically?
-		PactCompiler compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator());
-
-		// perform the actual compilation
-		OptimizedPlan optPlan = null;
-		JobGraph jobGraph = null;
-
-		// first run the pact compiler and optimizer
-		optPlan = compiler.compile(pactPlan);
-
-		// now run the code generator that creates the nephele schedule
-		JobGraphGenerator codeGen = new JobGraphGenerator();
-		jobGraph = codeGen.compileJobGraph(optPlan);
-
-		return jobGraph;
 	}
 
 	private Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile) throws ProgramInvocationException {

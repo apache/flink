@@ -16,11 +16,13 @@
 package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Vector;
 
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
@@ -32,26 +34,30 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import junit.framework.Assert;
 
 public class SpillingResettableIteratorTest {
 
 	private static final int NUMTESTRECORDS = 1000;
+
+	private static final int memoryCapacity = 100000;
 	
-	protected static IOManager ioman;
+	private IOManager ioman;
 
-	protected static MemoryManager memman;
+	private MemoryManager memman;
 
-	protected static final int memoryCapacity = 100000;
+	private Reader<PactInteger> reader;
 
-	protected static Reader<PactInteger> reader;
+	private List<PactInteger> objects;
 
-	protected static Vector<PactInteger> objects;
-
-	protected static RecordDeserializer<PactInteger> deserializer;
+	private RecordDeserializer<PactInteger> deserializer;
+	
+	
 
 	protected class CollectionReader<T extends Record> implements Reader<T> {
 		private Vector<T> objects;
@@ -87,19 +93,33 @@ public class SpillingResettableIteratorTest {
 
 	}
 
-	@BeforeClass
-	public static void initialize() {
+	@Before
+	public void startup() {
 		// set up IO and memory manager
-		ioman = new IOManager();
-		memman = new DefaultMemoryManager(memoryCapacity);
+		this.memman  = new DefaultMemoryManager(memoryCapacity);
+		this.ioman = new IOManager();
+		
 		// create test objects
-		objects = new Vector<PactInteger>(NUMTESTRECORDS);
+		this.objects = new ArrayList<PactInteger>(NUMTESTRECORDS);
+		
 		for (int i = 0; i < NUMTESTRECORDS; ++i) {
 			PactInteger tmp = new PactInteger(i);
-			objects.add(tmp);
+			this.objects.add(tmp);
 		}
 		// create the deserializer
-		deserializer = new DefaultRecordDeserializer<PactInteger>(PactInteger.class);
+		this.deserializer = new DefaultRecordDeserializer<PactInteger>(PactInteger.class);
+	}
+	
+	@After
+	public void shutdown() {
+		this.deserializer = null;
+		this.objects = null;
+		
+		this.ioman.shutdown();
+		this.ioman = null;
+		
+		this.memman.shutdown();
+		this.memman = null;
 	}
 
 	/**
@@ -111,11 +131,13 @@ public class SpillingResettableIteratorTest {
 	 */
 	@Test
 	public void testResettableIterator() throws ServiceException, InterruptedException {
+		final AbstractInvokable memOwner = new DummyInvokable();
+		
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, 1000, deserializer);
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -140,12 +162,14 @@ public class SpillingResettableIteratorTest {
 		}
 		// close the iterator
 		iterator.close();
+		
 		// make sure there are no memory leaks
 		try {
-			MemorySegment test = memman.allocate(memoryCapacity);
+			MemorySegment test = memman.allocate(new DummyInvokable(), memoryCapacity);
 			memman.release(test);
-		} catch (Exception e) {
-			Assert.fail("Memory leak detected!");
+		}
+		catch (Exception e) {
+			Assert.fail("Memory leak detected. SpillingResettableIterator does not release all memory.");
 		}
 	}
 
@@ -158,11 +182,13 @@ public class SpillingResettableIteratorTest {
 	 */
 	@Test
 	public void testResettableIteratorInMemory() throws ServiceException, InterruptedException {
+		final AbstractInvokable memOwner = new DummyInvokable();
+		
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, 10000, deserializer);
+			reader, 10000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -189,10 +215,10 @@ public class SpillingResettableIteratorTest {
 		iterator.close();
 		// make sure there are no memory leaks
 		try {
-			MemorySegment test = memman.allocate(memoryCapacity);
+			MemorySegment test = memman.allocate(new DummyInvokable(), memoryCapacity);
 			memman.release(test);
 		} catch (Exception e) {
-			Assert.fail("Memory leak detected!");
+			Assert.fail("Memory leak detected. SpillingResettableIterator does not release all memory.");
 		}
 	}
 	
@@ -201,12 +227,13 @@ public class SpillingResettableIteratorTest {
 	 */
 	@Test
 	public void testHasNext() throws ServiceException, InterruptedException  {
+		final AbstractInvokable memOwner = new DummyInvokable();
 		
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, 1000, deserializer);
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -233,12 +260,13 @@ public class SpillingResettableIteratorTest {
 	 */
 	@Test
 	public void testNext() throws ServiceException, InterruptedException {
+		final AbstractInvokable memOwner = new DummyInvokable();
 		
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, 1000, deserializer);
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -263,11 +291,13 @@ public class SpillingResettableIteratorTest {
 	 */
 	@Test
 	public void testRepeatLast() throws ServiceException, InterruptedException {
+		final AbstractInvokable memOwner = new DummyInvokable();
+		
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, 1000, deserializer);
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -301,11 +331,13 @@ public class SpillingResettableIteratorTest {
 	 */
 	@Test
 	public void testRepeatLastInMemory() throws ServiceException, InterruptedException {
+		final AbstractInvokable memOwner = new DummyInvokable();
+		
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, 10000, deserializer);
+			reader, 10000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();

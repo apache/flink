@@ -26,7 +26,6 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.io.TextInputFormat;
@@ -295,16 +294,10 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 3) {
-			throw new IllegalArgumentException(
-				"Must provide three arguments: [noSubStasks] [inputRDFTriples] [outputTriangles]");
-		}
-
 		// parse job parameters
-		int noSubTasks = Integer.parseInt(args[0]);
-		String edgeInput = args[1];
-		String output = args[2];
+		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String edgeInput = (args.length > 1 ? args[1] : "");
+		String output    = (args.length > 2 ? args[2] : "");
 
 		DataSourceContract<Edge, PactNull> edges = new DataSourceContract<Edge, PactNull>(EdgeListInFormat.class,
 			edgeInput);

@@ -23,11 +23,11 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.StringRecord;
 
 /**
- * An {@link NewJobEvent} can be used to notify other objects about the arrival of a new Nephele job.
+ * A {@link NewJobEvent} can be used to notify other objects about the arrival of a new Nephele job.
  * 
  * @author warneke
  */
-public class NewJobEvent extends AbstractEvent implements ManagementEvent {
+public final class NewJobEvent extends AbstractEvent implements ManagementEvent {
 
 	/**
 	 * The ID of the new job.
@@ -76,7 +76,7 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 	 * 
 	 * @return the ID of the new job
 	 */
-	public final JobID getJobID() {
+	public JobID getJobID() {
 		return this.jobID;
 	}
 
@@ -85,7 +85,7 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 	 * 
 	 * @return the name of the new job or <code>null</code> if the job has no name
 	 */
-	public final String getJobName() {
+	public String getJobName() {
 		return this.jobName;
 	}
 
@@ -94,7 +94,7 @@ public class NewJobEvent extends AbstractEvent implements ManagementEvent {
 	 * 
 	 * @return <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise
 	 */
-	public final boolean isProfilingAvailable() {
+	public boolean isProfilingAvailable() {
 		return this.isProfilingEnabled;
 	}
 

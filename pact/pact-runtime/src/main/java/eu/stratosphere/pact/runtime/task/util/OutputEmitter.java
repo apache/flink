@@ -84,11 +84,6 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	 * @param salt The salt used to randomize hash values.
 	 */
 	public OutputEmitter(ShipStrategy strategy, byte[] salt) {
-		if (strategy != ShipStrategy.BROADCAST && strategy != ShipStrategy.PARTITION_HASH
-				&& strategy != ShipStrategy.FORWARD)
-		{
-			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
-		}
 		this.strategy = strategy;
 		this.salt = salt;
 	}
@@ -111,7 +106,7 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 		case FORWARD:
 			return robin(numberOfChannels);
 		default:
-			throw new UnsupportedOperationException();
+			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
 	}
 

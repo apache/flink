@@ -13,24 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.services;
+package eu.stratosphere.nephele.executiongraph;
 
-public class ServiceException extends Exception {
-	private static final long serialVersionUID = 8751768275700167972L;
+import eu.stratosphere.nephele.instance.AllocatedResource;
 
-	protected ServiceException() {
-		super();
-	}
-	
-	public ServiceException(String message) {
-		super(message);
-	}
+/**
+ * Classes implementing the {@link VertexAssignmentListener} interface can register for notifications about changes in
+ * the assignment of an {@link ExecutionVertex} to an {@link AllocatedResource}.
+ * 
+ * @author warneke
+ */
+public interface VertexAssignmentListener {
 
-	public ServiceException(Throwable cause) {
-		super(cause);
-	}
-	
-	public ServiceException(String message, Throwable cause) {
-		super(message, cause);
-	}
+	/**
+	 * Called when an {@link ExecutionVertex} has been assigned to an {@link AllocatedResource}.
+	 * 
+	 * @param id
+	 *        the ID of the vertex which has been reassigned
+	 * @param newAllocatedResource
+	 *        the allocated resource the vertex is now assigned to
+	 */
+	void vertexAssignmentChanged(ExecutionVertexID id, AllocatedResource newAllocatedResource);
 }
