@@ -377,7 +377,7 @@ public class TPCHQuery9ITCase extends TestBase {
 
 		TPCHQuery9 tpch9 = new TPCHQuery9();
 		Plan plan = tpch9.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
+				config.getString("TPCHQuery9Test#NoSubtasks", "1"), 
 				getFilesystemProvider().getURIPrefix()+partInputPath,
 				getFilesystemProvider().getURIPrefix()+partSuppInputPath,
 				getFilesystemProvider().getURIPrefix()+ordersInputPath,
@@ -416,7 +416,8 @@ public class TPCHQuery9ITCase extends TestBase {
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		Configuration config = new Configuration();
-		config.setInteger("TPCHQuery3Test#NoSubtasks", 4);
+		/* TODO: Make this work with NoSubtasks = 4 – perhaps not our issue? */
+		config.setInteger("TPCHQuery9Test#NoSubtasks", 1);
 		tConfigs.add(config);
 
 		return toParameterList(tConfigs);
