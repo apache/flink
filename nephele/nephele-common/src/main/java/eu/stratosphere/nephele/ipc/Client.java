@@ -416,10 +416,6 @@ public class Client {
 			}
 		}
 
-		public InetSocketAddress getRemoteAddress() {
-			return server;
-		}
-
 		/*
 		 * Send a ping to the server if the time elapsed
 		 * since last I/O activity is equal to or greater than the ping interval
@@ -622,11 +618,6 @@ public class Client {
 		private int size;
 
 		private int count;
-
-		public ParallelResults(int size) {
-			this.values = new IOReadableWritable[size];
-			this.size = size;
-		}
 
 		/** Collect a result. */
 		public synchronized void callComplete(ParallelCall call) {
