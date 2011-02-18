@@ -32,18 +32,18 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * Concrete implementation of the {@Link FileSystem} base class for the
- * Hadoop Distribution File System.
+ * Concrete implementation of the {@Link FileSystem} base class for the Hadoop Distribution File System. The
+ * class is essentially a wrapper class which encapsulated the original Hadoop HDFS API.
  * 
  * @author warneke
  */
 public final class DistributedFileSystem extends FileSystem {
 
-	private Configuration conf;
+	private final Configuration conf;
 
-	private org.apache.hadoop.fs.FileSystem fs = null;
+	private final org.apache.hadoop.fs.FileSystem fs;
 
-	private static final String hdfsImplKey = "fs.hdfs.impl";
+	private static final String HDFS_IMPLEMENTATION_KEY = "fs.hdfs.impl";
 
 	private static final Log LOG = LogFactory.getLog(DistributedFileSystem.class);
 
@@ -51,32 +51,35 @@ public final class DistributedFileSystem extends FileSystem {
 	 * Creates a new DistributedFileSystem object to access HDFS
 	 * 
 	 * @throws IOException
+	 *         throw if the required HDFS classes cannot be instantiated
 	 */
-	public DistributedFileSystem()
-									throws IOException {
+	public DistributedFileSystem() throws IOException {
 
 		// Create new Hadoop configuration object
-		conf = new Configuration();
+		this.conf = new Configuration();
 
 		// Try to load HDFS configuration from Hadoop's own configuration files
-		String hdfsDefaultPath = GlobalConfiguration.getString("fs.hdfs.hdfsdefault", null);
-		if (hdfsDefaultPath != null)
+		final String hdfsDefaultPath = GlobalConfiguration.getString("fs.hdfs.hdfsdefault", null);
+		if (hdfsDefaultPath != null) {
 			this.conf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
-		else
+		} else {
 			LOG.debug("Cannot find hdfs-default configuration file");
+		}
 
-		String hdfsSitePath = GlobalConfiguration.getString("fs.hdfs.hdfssite", null);
-		if (hdfsSitePath != null)
+		final String hdfsSitePath = GlobalConfiguration.getString("fs.hdfs.hdfssite", null);
+		if (hdfsSitePath != null) {
 			conf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
-		else
+		} else {
 			LOG.debug("Cannot find hdfs-site configuration file");
+		}
 
-		Class<?> clazz = conf.getClass(hdfsImplKey, null);
-		if (clazz == null)
-			throw new IOException("No FileSystem found for " + hdfsImplKey);
+		final Class<?> clazz = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
+		if (clazz == null) {
+			throw new IOException("No FileSystem found for " + HDFS_IMPLEMENTATION_KEY);
+		}
 
 		try {
-			fs = (org.apache.hadoop.fs.FileSystem) clazz.newInstance();
+			this.fs = (org.apache.hadoop.fs.FileSystem) clazz.newInstance();
 		} catch (InstantiationException e) {
 			throw new IOException("InstantiationException occured: " + StringUtils.stringifyException(e));
 		} catch (IllegalAccessException e) {
@@ -84,10 +87,13 @@ public final class DistributedFileSystem extends FileSystem {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Path getWorkingDirectory() {
 
-		return new Path(fs.getWorkingDirectory().toUri());
+		return new Path(this.fs.getWorkingDirectory().toUri());
 	}
 
 	@Override
@@ -96,91 +102,125 @@ public final class DistributedFileSystem extends FileSystem {
 		return fs.getUri();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void initialize(URI name) throws IOException {
 
 		// For HDFS we have to have an authority
 		if (name.getAuthority() == null) {
-			name = URI.create(conf.get("fs.default.name"));
+			name = URI.create(this.conf.get("fs.default.name"));
 		}
 
 		// Initialize HDFS
-		fs.initialize(name, conf);
+		this.fs.initialize(name, this.conf);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FileStatus getFileStatus(Path f) throws IOException {
+	public FileStatus getFileStatus(final Path f) throws IOException {
 
-		org.apache.hadoop.fs.FileStatus status = fs.getFileStatus(new org.apache.hadoop.fs.Path(f.toString()));
+		org.apache.hadoop.fs.FileStatus status = this.fs.getFileStatus(new org.apache.hadoop.fs.Path(f.toString()));
 
 		return new DistributedFileStatus(status);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
+	public BlockLocation[] getFileBlockLocations(final FileStatus file, final long start, final long len)
+			throws IOException {
 
-		if (!(file instanceof DistributedFileStatus))
+		if (!(file instanceof DistributedFileStatus)) {
 			throw new IOException("file is not an instance of DistributedFileStatus");
+		}
 
-		DistributedFileStatus f = (DistributedFileStatus) file;
+		final DistributedFileStatus f = (DistributedFileStatus) file;
 
-		org.apache.hadoop.fs.BlockLocation[] blkLocations = fs.getFileBlockLocations(f.getInternalFileStatus(), start,
-			len);
+		final org.apache.hadoop.fs.BlockLocation[] blkLocations = fs.getFileBlockLocations(f.getInternalFileStatus(),
+			start, len);
 
 		// Wrap up HDFS specific block location objects
-		DistributedBlockLocation[] distBlkLocations = new DistributedBlockLocation[blkLocations.length];
-		for (int i = 0; i < distBlkLocations.length; i++)
+		final DistributedBlockLocation[] distBlkLocations = new DistributedBlockLocation[blkLocations.length];
+		for (int i = 0; i < distBlkLocations.length; i++) {
 			distBlkLocations[i] = new DistributedBlockLocation(blkLocations[i]);
+		}
 
 		return distBlkLocations;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 
-		org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(new org.apache.hadoop.fs.Path(f.toString()), bufferSize);
+		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(new org.apache.hadoop.fs.Path(f.toString()),
+			bufferSize);
 
 		return new DistributedDataInputStream(fdis);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FSDataInputStream open(Path f) throws IOException {
+	public FSDataInputStream open(final Path f) throws IOException {
 
-		org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(new org.apache.hadoop.fs.Path(f.toString()));
+		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(new org.apache.hadoop.fs.Path(f.toString()));
 
 		return new DistributedDataInputStream(fdis);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize)
+	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
+			final short replication, final long blockSize)
 			throws IOException {
 
-		org.apache.hadoop.fs.FSDataOutputStream fdos = fs.create(new org.apache.hadoop.fs.Path(f.toString()),
+		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs.create(
+			new org.apache.hadoop.fs.Path(f.toString()),
 			overwrite, bufferSize, replication, blockSize);
 
 		return new DistributedDataOutputStream(fdos);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
+	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
 
-		org.apache.hadoop.fs.FSDataOutputStream fdos = fs
+		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs
 			.create(new org.apache.hadoop.fs.Path(f.toString()), overwrite);
 
 		return new DistributedDataOutputStream(fdos);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public boolean delete(Path f, boolean recursive) throws IOException {
+	public boolean delete(final Path f, final boolean recursive) throws IOException {
 
-		return fs.delete(new org.apache.hadoop.fs.Path(f.toString()), recursive);
+		return this.fs.delete(new org.apache.hadoop.fs.Path(f.toString()), recursive);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FileStatus[] listStatus(Path f) throws IOException {
+	public FileStatus[] listStatus(final Path f) throws IOException {
 
-		org.apache.hadoop.fs.FileStatus[] hadoopFiles = fs.listStatus(new org.apache.hadoop.fs.Path(f.toString()));
-		FileStatus[] files = new FileStatus[hadoopFiles.length];
+		final org.apache.hadoop.fs.FileStatus[] hadoopFiles = this.fs.listStatus(new org.apache.hadoop.fs.Path(f
+			.toString()));
+		final FileStatus[] files = new FileStatus[hadoopFiles.length];
 
 		// Convert types
 		for (int i = 0; i < files.length; i++) {
@@ -190,10 +230,13 @@ public final class DistributedFileSystem extends FileSystem {
 		return files;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public boolean mkdirs(Path f) throws IOException {
+	public boolean mkdirs(final Path f) throws IOException {
 
-		return fs.mkdirs(new org.apache.hadoop.fs.Path(f.toString()));
+		return this.fs.mkdirs(new org.apache.hadoop.fs.Path(f.toString()));
 	}
 
 }

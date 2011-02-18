@@ -32,12 +32,13 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
 import eu.stratosphere.pact.runtime.task.util.ResettableIterator;
 
 /**
- * Imnplementation of a resettable iterator, that reads all data from a given
+ * Implementation of a resettable iterator, that reads all data from a given
  * channel into primary/secondary storage and allows resetting the iterator
  * 
  * @author mheimel
@@ -47,6 +48,9 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	private static final Log LOG = LogFactory.getLog(SpillingResettableIterator.class);
 
+	protected static final int nrOfBuffers = 2;
+	
+	
 	private int count = 0;
 
 	protected MemoryManager memoryManager;
@@ -55,7 +59,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	protected Reader<T> recordReader;
 
-	protected static int nrOfBuffers = 2;
+	
 
 	protected Vector<MemorySegment> memorySegments;
 
@@ -76,7 +80,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	protected boolean fitsIntoMem;
 
 	/**
-	 * Constructs a new Resettableiterator
+	 * Constructs a new <tt>ResettableIterator</tt>
 	 * 
 	 * @param memoryManager
 	 * @param ioManager
@@ -85,8 +89,9 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	 * @throws MemoryAllocationException
 	 */
 	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager, Reader<T> reader,
-			int availableMemory, RecordDeserializer<T> deserializer)
-																	throws MemoryAllocationException {
+			int availableMemory, RecordDeserializer<T> deserializer, AbstractInvokable parentTask)
+	throws MemoryAllocationException
+	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.recordReader = reader;
@@ -95,7 +100,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		// allocate memory segments and open IO Buffers on them
 		memorySegments = new Vector<MemorySegment>(nrOfBuffers);
 		for (int i = 0; i < nrOfBuffers; ++i)
-			memorySegments.add(this.memoryManager.allocate(availableMemory / nrOfBuffers));
+			memorySegments.add(this.memoryManager.allocate(parentTask, availableMemory / nrOfBuffers));
 		currentBuffer = 0;
 		LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
 	}

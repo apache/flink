@@ -35,9 +35,9 @@ import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest.DummyInvokable;
 
 public class IOManagerTest {
 	private static final long SEED = 649180756312423613L;
@@ -52,7 +52,7 @@ public class IOManagerTest {
 
 	private static IOManager ioManager;
 
-	private MemoryManager memoryManager;
+	private DefaultMemoryManager memoryManager;
 
 	private Generator generator;
 
@@ -73,7 +73,11 @@ public class IOManagerTest {
 	}
 
 	@After
-	public void afterTest() {
+	public void afterTest() throws Exception {
+		if (!memoryManager.verifyEmpty()) {
+			Assert.fail("Not all memory was returned to the memory manager in the test.");
+		}
+		
 		memoryManager.shutdown();
 		memoryManager = null;
 	}
@@ -102,7 +106,7 @@ public class IOManagerTest {
 
 	private int writeToChannel(Channel.ID channelID) throws ServiceException {
 		// create the free memory segments to be used in the internal reader buffer flow
-		Collection<MemorySegment> freeSegments = memoryManager.allocate(NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
+		Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
 
 		// create the channel writer
 		ChannelWriter channelWriter = ioManager.createChannelWriter(channelID, freeSegments);
@@ -126,7 +130,7 @@ public class IOManagerTest {
 
 	private int readFromChannel(Channel.ID channelID) throws ServiceException {
 		// create the free memory segments to be used in the internal reader buffer flow
-		Collection<MemorySegment> freeSegments = memoryManager.allocate(NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
+		Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
 
 		// create the channel reader
 		ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments);

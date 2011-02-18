@@ -15,7 +15,8 @@
 
 package eu.stratosphere.pact.runtime.resettable;
 
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
@@ -28,6 +29,7 @@ import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator;
 
@@ -44,7 +46,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	protected MemoryManager memoryManager;
 
-	protected Vector<MemorySegment> buffers;
+	protected List<MemorySegment> buffers;
 
 	protected T deserializationInstance = null;
 
@@ -66,18 +68,20 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	protected Thread blockFetcherThread;
 
+	
 	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader, int availableMemory, int nrOfBuffers,
-			RecordDeserializer<T> deserializer)
-												throws MemoryAllocationException {
+			RecordDeserializer<T> deserializer, AbstractInvokable ownerTask)
+	throws MemoryAllocationException
+	{
 		this.deserializer = deserializer;
 		this.memoryManager = memoryManager;
 		// allocate the queues
 		emptySegments = new LinkedBlockingQueue<MemorySegment>();
 		filledBuffers = new LinkedBlockingQueue<Buffer.Input>();
 		// allocate the memory buffers
-		buffers = new Vector<MemorySegment>(nrOfBuffers);
+		buffers = new ArrayList<MemorySegment>(nrOfBuffers);
 		for (int i = 0; i < nrOfBuffers; ++i)
-			buffers.add(memoryManager.allocate(availableMemory / nrOfBuffers));
+			buffers.add(memoryManager.allocate(ownerTask, availableMemory / nrOfBuffers));
 		// now append all memory segments to the workerQueue
 		emptySegments.addAll(buffers);
 		// create the writer thread
@@ -142,7 +146,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	@Override
 	public void remove() {
-		// do nothing
+		throw new UnsupportedOperationException();
 	}
 
 	protected class BlockFetcher<R extends Record> implements Runnable {

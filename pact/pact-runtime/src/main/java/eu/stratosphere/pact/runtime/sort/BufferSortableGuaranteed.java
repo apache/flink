@@ -31,8 +31,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryBacked;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
-import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -108,8 +106,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		// Constructors
 		// -------------------------------------------------------------------------
 
-		public HeapStackDataOutputView(DefaultMemoryManager.MemorySegmentDescriptor descriptor) {
-			super(descriptor);
+		public HeapStackDataOutputView(byte[] memory, int offset, int size) {
+			super(memory, offset, size);
 			resetStackHeap();
 		}
 		
@@ -412,13 +410,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	public boolean bind(MemorySegment memory) {
 		if (super.bind(memory)) {
 			
-			// inject proxy
-			if(memory instanceof DefaultMemorySegment == false)
-			{
-				throw new UnsupportedOperationException();
-			}
-			DefaultMemorySegment segment = (DefaultMemorySegment) memory;
-			outputView = new HeapStackDataOutputView(segment.getSegmentDescriptor());
+			outputView = new HeapStackDataOutputView(memory.randomAccessView.getBackingArray(),
+				memory.randomAccessView.translateOffset(0), memory.randomAccessView.size());
 
 			// reset counters
 			reset();

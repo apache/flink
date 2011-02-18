@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.ManagementEvent;
 import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
 import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
@@ -37,6 +38,9 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
+import eu.stratosphere.nephele.executiongraph.VertexAssignmentListener;
+import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
@@ -62,7 +66,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * 
 	 * @author warneke
 	 */
-	private final class ExecutionListenerWrapper implements ExecutionListener {
+	private static final class ExecutionListenerWrapper implements ExecutionListener {
 
 		/**
 		 * The event collector to forward the created event to.
@@ -141,7 +145,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * 
 	 * @author warneke
 	 */
-	private final class JobStatusListenerWrapper implements JobStatusListener {
+	private static final class JobStatusListenerWrapper implements JobStatusListener {
 
 		/**
 		 * The event collector to forward the created event to.
@@ -193,6 +197,61 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 				.addEvent(jobID, new JobEvent(System.currentTimeMillis(), newJobStatus, optionalMessage));
 		}
 
+	}
+
+	/**
+	 * The vertex assignment listener wrapper is an auxiliary class. It is required
+	 * because the job ID cannot be accessed from the data provided by the <code>vertexAssignmentChanged</code> callback
+	 * method. However, this job ID is needed to prepare the {@link VertexAssignmentEvent} for transmission.
+	 * 
+	 * @author warneke
+	 */
+	private static final class VertexAssignmentListenerWrapper implements VertexAssignmentListener {
+
+		/**
+		 * The event collector to forward the created event to.
+		 */
+		private final EventCollector eventCollector;
+
+		/**
+		 * The ID the job this wrapper has been created for.
+		 */
+		private final JobID jobID;
+
+		/**
+		 * Constructs a new vertex assignment listener wrapper.
+		 * 
+		 * @param eventCollector
+		 *        the event collector to forward the events to
+		 * @param jobID
+		 *        the ID of the job
+		 */
+		public VertexAssignmentListenerWrapper(EventCollector eventCollector, JobID jobID) {
+			this.eventCollector = eventCollector;
+			this.jobID = jobID;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void vertexAssignmentChanged(ExecutionVertexID id, AllocatedResource newAllocatedResource) {
+
+			// Create a new vertex assignment event
+			final ManagementVertexID managementVertexID = id.toManagementVertexID();
+			final long timestamp = System.currentTimeMillis();
+
+			final AbstractInstance instance = newAllocatedResource.getInstance();
+			VertexAssignmentEvent event;
+			if (instance == null) {
+				event = new VertexAssignmentEvent(timestamp, managementVertexID, "null", "null");
+			} else {
+				event = new VertexAssignmentEvent(timestamp, managementVertexID, instance.getName(), instance.getType()
+					.getIdentifier());
+			}
+
+			this.eventCollector.addEvent(this.jobID, event);
+		}
 	}
 
 	private final long TIMERTASKINTERVAL;
@@ -354,11 +413,16 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 			// Register the listener object which will pass state changes on to the collector
 			vertex.getEnvironment().registerExecutionListener(
 				new ExecutionListenerWrapper(this, vertex.getGroupVertex().getJobVertexID(), vertex.getID()));
+
+			// Register the listener object which will pass assignment changes on to the collector
+			vertex
+				.registerVertexAssignmentListener(new VertexAssignmentListenerWrapper(this, executionGraph.getJobID()));
 		}
 
 		// Register one job status listener wrapper for the entire job
 		executionGraph.registerJobStatusListener(new JobStatusListenerWrapper(this, executionGraph.getJobName(),
 			profilingAvailable));
+
 	}
 
 	/**
@@ -398,6 +462,9 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void processProfilingEvents(ProfilingEvent profilingEvent) {
 
