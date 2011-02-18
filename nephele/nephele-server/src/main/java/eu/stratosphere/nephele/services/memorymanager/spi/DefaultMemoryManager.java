@@ -139,14 +139,14 @@ public class DefaultMemoryManager implements MemoryManager {
 		for (int i = 0; i < numberOfFullChunks; i++) {
 			// allocate memory of the specified size
 			memory[i] = new byte[chunkSize];
-			freeSegments.add(new FreeSegmentEntry(i, i * this.chunkSize, i * this.chunkSize + memory[i].length));
+			freeSegments.add(new FreeSegmentEntry(i, i * ((long) this.chunkSize), i * ((long) this.chunkSize) + memory[i].length));
 		}
 		
 		// add the last chunk
 		if (lastChunkSize > 0) {
 			// allocate memory of the specified size
 			memory[numberOfFullChunks] = new byte[lastChunkSize];
-			freeSegments.add(new FreeSegmentEntry(numberOfFullChunks, numberOfFullChunks * this.chunkSize, numberOfFullChunks * this.chunkSize + lastChunkSize));
+			freeSegments.add(new FreeSegmentEntry(numberOfFullChunks, numberOfFullChunks * ((long) this.chunkSize), numberOfFullChunks * ((long) this.chunkSize) + lastChunkSize));
 		}
 	}
 
@@ -479,8 +479,8 @@ public class DefaultMemoryManager implements MemoryManager {
 
 		// re-integrate the memory into the free list
 		
-		long start = descriptor.chunk * (chunkSize) + descriptor.start;
-		long end = descriptor.chunk * (chunkSize) + descriptor.end;
+		long start = descriptor.chunk * ((long) chunkSize) + descriptor.start;
+		long end = descriptor.chunk * ((long) chunkSize) + descriptor.end;
 
 		// case 1: free list is empty
 		if (freeSegments.size() == 0) {

@@ -173,6 +173,18 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			float offsetArrayPerc, AbstractTask parentTask)
 	throws IOException, MemoryAllocationException
 	{
+		// sanity checks
+		if (memoryManager == null) {
+			throw new NullPointerException("Memory manager must not be null.");
+		}
+		if (ioManager == null) {
+			throw new NullPointerException("IO-Manager must not be null.");
+		}
+		if (parentTask == null) {
+			throw new NullPointerException("Parent Task must not be null.");
+		}
+		
+		
 		this.maxNumFileHandles = maxNumFileHandles;
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
