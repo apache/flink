@@ -11,8 +11,6 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -31,8 +29,6 @@ public class TempTaskTest extends TaskTestBase {
 	@Test
 	public void testTempTask() {
 
-		Logger.getRootLogger().setLevel(Level.DEBUG);
-		
 		int keyCnt = 1024;
 		int valCnt = 4;
 		
