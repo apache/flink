@@ -121,15 +121,6 @@ public class DistClusterProvider extends ClusterProvider {
 
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#clearHDFS()
-	 */
-	@Override
-	protected void clearFS() throws Exception {
-		filesystemProvider.delete("/", true);
-	}
-
 	@Override
 	protected void stopNephele() throws Exception {
 

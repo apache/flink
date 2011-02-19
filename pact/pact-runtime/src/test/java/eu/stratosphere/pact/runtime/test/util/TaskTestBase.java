@@ -10,6 +10,7 @@ import org.junit.After;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -24,6 +25,7 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 @RunWith( PowerMockRunner.class )
 @PrepareForTest( LibraryCacheManager.class )
+@PowerMockIgnore("org.apache.log4j.*")
 public abstract class TaskTestBase {
 
 	long memorySize = 0;

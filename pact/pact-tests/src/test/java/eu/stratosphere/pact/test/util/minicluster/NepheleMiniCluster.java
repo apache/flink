@@ -41,8 +41,6 @@ import eu.stratosphere.pact.test.util.FileWriter;
  */
 public class NepheleMiniCluster {
 
-	private static final int DEFAULT_NUM_TASK_TRACKERS = 1;
-
 	private static final boolean DEFAULT_VISUALIZER_ENABLED = false;
 
 	private static final Log LOG = LogFactory.getLog(NepheleMiniCluster.class);
@@ -58,16 +56,11 @@ public class NepheleMiniCluster {
 	private JobManager jobManager;
 
 	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir)
-																			throws Exception {
-		this(nepheleConfigDir, hdfsConfigDir, DEFAULT_NUM_TASK_TRACKERS);
-	}
-
-	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir, int numTaskTrackers)
 																									throws Exception {
-		this(nepheleConfigDir, hdfsConfigDir, numTaskTrackers, DEFAULT_VISUALIZER_ENABLED);
+		this(nepheleConfigDir, hdfsConfigDir, DEFAULT_VISUALIZER_ENABLED);
 	}
 
-	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir, int numTaskTrackers, boolean visualizerEnabled)
+	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir, boolean visualizerEnabled)
 										throws Exception {
 		this.nepheleConfigDir = nepheleConfigDir;
 		this.hdfsConfigDir = hdfsConfigDir;
