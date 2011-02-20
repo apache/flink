@@ -15,15 +15,17 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
+import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader.ReaderThread;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter.WriterThread;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -34,7 +36,8 @@ import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedExcepti
  * 
  * @author Alexander Alexandrov
  */
-public final class IOManager {
+public final class IOManager implements UncaughtExceptionHandler
+{
 	/**
 	 * Logging.
 	 */
@@ -63,8 +66,9 @@ public final class IOManager {
 	/**
 	 * A boolean flag indicating whether the close() has already been invoked.
 	 */
-	private boolean isClosed = false;
+	private volatile boolean isClosed = false;
 
+	
 	// -------------------------------------------------------------------------
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
@@ -89,28 +93,64 @@ public final class IOManager {
 		this.reader = new ChannelReader.ReaderThread();
 
 		// start the ChannelWriter worker thread
-		Thread writerThread = new Thread(this.writer);
-		writerThread.setName("IOManager writer thread");
-		writerThread.start();
+		this.writer.setName("IOManager writer thread");
+		this.writer.setDaemon(true);
+		this.writer.setUncaughtExceptionHandler(this);
+		this.writer.start();
 
 		// start the ChannelReader worker thread
-		Thread readerThread = new Thread(this.reader);
-		readerThread.setName("IOManager reader thread");
-		readerThread.start();
+		this.reader.setName("IOManager reader thread");
+		this.reader.setDaemon(true);
+		this.reader.setUncaughtExceptionHandler(this);
+		this.reader.start();
 	}
 
 	/**
 	 * Close method.
 	 */
-	public final void shutdown() {
+	public synchronized final void shutdown() {
 		if (!isClosed) {
+			isClosed = true;
+			
 			LOG.info("Closing DefaultIOManager instance.");
 
-			writer.close();
-			reader.close();
-
-			isClosed = true;
+			// close both threads by best effort and log problems
+			try {
+				writer.shutdown();
+			}
+			catch (Throwable t) {
+				LOG.error("Error while shutting down IO Manager writing thread.", t);
+			}
+			
+			try {
+				reader.shutdown();
+			}
+			catch (Throwable t) {
+				LOG.error("Error while shutting down IO Manager reading thread.", t);
+			}
+			
+			try {
+				this.writer.join();
+				this.reader.join();
+			}
+			catch (InterruptedException iex) {}
 		}
+	}
+	
+	public boolean isProperlyShutDown() {
+		return isClosed && 
+			(this.writer.getState() == Thread.State.TERMINATED) && 
+			(this.reader.getState() == Thread.State.TERMINATED);
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Thread.UncaughtExceptionHandler#uncaughtException(java.lang.Thread, java.lang.Throwable)
+	 */
+	@Override
+	public void uncaughtException(Thread t, Throwable e) {
+		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing IO Manager.", e);
+		shutdown();
+		
 	}
 
 	/**
@@ -151,6 +191,11 @@ public final class IOManager {
 		return new Channel.Enumerator(path, random);
 	}
 
+	
+	// ------------------------------------------------------------------------
+	//                          Channel Instantiations
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * <p>
 	 * Creates a ChannelWriter for the anonymous file identified by the specified {@code channelID} using the provided
@@ -163,7 +208,12 @@ public final class IOManager {
 	 * @throws ServiceException
 	 */
 	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<MemorySegment> freeSegments)
-			throws ServiceException {
+	throws IOException
+	{
+		if (isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
 		return new ChannelWriter(channelID, writer.requestQueue, IOManager.createBuffer(Buffer.Type.OUTPUT,
 			freeSegments), false);
 	}
@@ -182,7 +232,12 @@ public final class IOManager {
 	 * @throws ServiceException
 	 */
 	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<Buffer.Output> buffers, boolean filled)
-			throws ServiceException {
+	throws IOException
+	{
+		if (isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
 		return new ChannelWriter(channelID, writer.requestQueue, buffers, filled);
 	}
 
@@ -199,10 +254,20 @@ public final class IOManager {
 	 * @throws ServiceException
 	 */
 	public ChannelReader createChannelReader(Channel.ID channelID, Collection<MemorySegment> freeSegments)
-			throws ServiceException {
-		return new ChannelReader(channelID, reader.requestQueue, freeSegments);
+	throws IOException
+	{
+		if (isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
+		return new ChannelReader(channelID, reader.requestQueue, createBuffer(Buffer.Type.INPUT, freeSegments));
 	}
 
+	
+	// ------------------------------------------------------------------------
+	//       Utility methods for creating and binding / unbinding buffers
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * <p>
 	 * Generic factory method for different buffer types. Please, be aware that the factory constructs <i>unbound</i>
@@ -215,13 +280,13 @@ public final class IOManager {
 	 * @return T an unbound buffer from the specified type
 	 * @throws ServiceException
 	 */
-	public static <T extends Buffer> T createBuffer(Buffer.Type<T> bufferType) throws ServiceException {
+	public static <T extends Buffer> T createBuffer(Buffer.Type<T> bufferType) {
 		try {
 			return bufferType.clazz.newInstance();
-		} catch (InstantiationException e) {
-			throw new IllegalArgumentException("Unknown buffer type", e);
-		} catch (IllegalAccessException e) {
-			throw new IllegalArgumentException("Unknown buffer type", e);
+		}
+		catch (Exception e) {
+			// should never happen
+			throw new RuntimeException("Internal error: unknown buffer type.", e);
 		}
 	}
 
@@ -236,25 +301,18 @@ public final class IOManager {
 	 * @return Collection<T> an unsynchronized collection of initialized buffers
 	 * @throws ServiceException
 	 */
-	public static <T extends Buffer> Collection<T> createBuffer(Buffer.Type<T> bufferType, int numberOfBuffers)
-			throws ServiceException {
-		Collection<T> buffers = new ArrayList<T>(numberOfBuffers);
+	public static <T extends Buffer> List<T> createBuffer(Buffer.Type<T> bufferType, int numberOfBuffers) {
+		ArrayList<T> buffers = new ArrayList<T>(numberOfBuffers);
 
 		for (int i = 0; i < numberOfBuffers; i++) {
-			try {
-				buffers.add(createBuffer(bufferType));
-			} catch (ServiceException e) {
-				throw e;
-			}
+			buffers.add(createBuffer(bufferType));
 		}
 
 		return buffers;
 	}
 
 	/**
-	 * <p>
 	 * Generic factory method for typed initialized collections of different buffer types.
-	 * </p>
 	 * 
 	 * @param <T>
 	 * @param bufferType
@@ -262,34 +320,27 @@ public final class IOManager {
 	 * @return Collection<T> an unsynchronized collection of initialized buffers
 	 * @throws ServiceException
 	 */
-	public static <T extends Buffer> Collection<T> createBuffer(Buffer.Type<T> bufferType,
-			Collection<MemorySegment> freeSegments) throws ServiceException {
-		Collection<T> buffers = new ArrayList<T>(freeSegments.size());
+	public static <T extends Buffer> Collection<T> createBuffer(Buffer.Type<T> bufferType, Collection<MemorySegment> freeSegments)
+	{
+		ArrayList<T> buffers = new ArrayList<T>(freeSegments.size());
 
 		for (MemorySegment segment : freeSegments) {
-			try {
-				T buffer = createBuffer(bufferType);
-				buffer.bind(segment);
-				buffers.add(buffer);
-			} catch (ServiceException e) {
-				throw e;
-			}
+			T buffer = createBuffer(bufferType);
+			buffer.bind(segment);
+			buffers.add(buffer);
 		}
-
 		return buffers;
 	}
 
 	/**
 	 * Unbinds the collection of IO buffers.
 	 * 
-	 * @param buffers
-	 * @return a collection of the freed memory segments
-	 * @throws UnboundMemoryBackedException
-	 *         if the collection contains an
-	 *         unbound buffer
+	 * @param buffers The buffers to unbind.
+	 * @return A list containing the freed memory segments.
+	 * @throws UnboundMemoryBackedException Thrown, if the collection contains an unbound buffer.
 	 */
-	public static Collection<MemorySegment> unbindBuffers(BlockingQueue<? extends Buffer> buffers) {
-		Collection<MemorySegment> freeSegments = new ArrayList<MemorySegment>(buffers.size());
+	public static List<MemorySegment> unbindBuffers(BlockingQueue<? extends Buffer> buffers) {
+		ArrayList<MemorySegment> freeSegments = new ArrayList<MemorySegment>(buffers.size());
 
 		for (Buffer buffer : buffers) {
 			freeSegments.add(buffer.unbind());

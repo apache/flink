@@ -18,85 +18,66 @@ package eu.stratosphere.nephele.services.iomanager;
 import java.io.IOException;
 import java.nio.channels.ScatteringByteChannel;
 import java.util.Collection;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.List;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 
 /**
  * A reader from an underlying {@link ScatteringByteChannel}.
  * 
  * @author Alexander Alexandrov
  */
-public final class ChannelReader extends ChannelAccess<Buffer.Input> implements Reader {
-	protected final BlockingQueue<Buffer.Input> fullBufferQueue;
-
-	protected final int fullBufferQueueSize;
+public final class ChannelReader extends ChannelAccess<Buffer.Input> implements Reader
+{
+	/**
+	 * The current buffer from which is read.
+	 */
+	private Buffer.Input currentBuffer;
+	
+	/**
+	 * Flag marking this channel as closed.
+	 */
+	private volatile boolean closed = false;
+	
 	
 	// -------------------------------------------------------------------------
-	// Constructors / Destructors
+	//                     Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	protected ChannelReader(Channel.ID channelID, BlockingQueue<IORequest<Buffer.Input>> requestQueue,
-			Collection<MemorySegment> freeSegments)
-													throws ServiceException {
-		super(channelID, requestQueue);
+	public ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
+			Collection<Buffer.Input> buffers)
+	throws IOException
+	{
+		super(channelID, requestQueue, buffers);
 
-		// initialize the full buffer queue
-		this.fullBufferQueue = new ArrayBlockingQueue<Buffer.Input>(freeSegments.size(), true);
-		this.fullBufferQueueSize = freeSegments.size();
-
-		// add all buffers to the prefetching queue
-		for (Buffer.Input buffer : IOManager.createBuffer(Buffer.Type.INPUT, freeSegments)) {
-			requestQueue.add(new IORequest<Buffer.Input>(this, buffer));
+		// add all buffers to the request queue
+		for (Buffer.Input buffer : buffers) {
+			this.requestQueue.add(new IORequest<Buffer.Input>(this, buffer));
 		}
-
-		// get first full buffer
-		currentBuffer = nextBuffer();
 	}
 
 	@Override
-	public synchronized Collection<MemorySegment> close() throws ServiceException {
-		if (!isClosing) {
-			// set closing flag
-			isClosing = true;
-
-			// put current buffer back to the full buffer queue
-			fullBufferQueue.add(currentBuffer);
-
-			// wait until all pending IORequests are handled
-			lock.lock();
-			while (fullBufferQueue.size() < fullBufferQueueSize) {
-				allRequestsHandled.awaitUninterruptibly();
+	public List<MemorySegment> close() throws IOException
+	{
+		synchronized (this) {
+			if (this.closed) {
+				throw new IllegalStateException("Writer is already closing or has been closed.");
 			}
-			lock.unlock();
-
-			// close the file
-			try {
-				file.close();
-			} catch (IOException e) {
-				throw new ServiceException(e);
-			}
+			this.closed = true;
 		}
+		
+		// put current buffer back to the full buffer queue
+		this.returnBuffers.add(currentBuffer);
+		this.currentBuffer = null;
+		
+		// close the reader, getting all segments back
+		List<MemorySegment> segments = super.close();
 
-		return IOManager.unbindBuffers(fullBufferQueue);
-	}
-
-	@Override
-	protected void handleProcessedBuffer(Buffer.Input buffer) {
-		// append the buffer to the full buffers queue
-		fullBufferQueue.add(buffer);
-
-		if (fullBufferQueue.size() == fullBufferQueueSize) {
-			// notify writer thread waiting for completion of all requests
-			lock.lock();
-			allRequestsHandled.signalAll();
-			lock.unlock();
-		}
+		// close the file
+		fileChannel.close();
+		
+		return segments;
 	}
 
 	/**
@@ -106,20 +87,46 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * read operation was successful or {@code false} if the underlying channel
 	 * is exhausted.
 	 * 
-	 * @param readable
-	 *        the object reading from the current input buffer
+	 * @param readable The object reading from the current input buffer
 	 * @return a boolean flag indicating the success of the read operation
 	 */
-	public boolean read(IOReadableWritable readable) {
+	public boolean read(IOReadableWritable readable) throws IOException
+	{
+		if (this.currentBuffer == null) {
+			if (this.closed) {
+				throw new IllegalStateException("Reader has been closed.");
+			}
+			else {
+				try {
+					this.currentBuffer = this.nextBuffer();
+				}
+				catch (InterruptedException iex) {
+					throw new IOException("IO channel corrupt. Reader was interrupted getting a new buffer.");
+				}
+			}
+		}
+		
 		if (currentBuffer.read(readable)) // try to read from current buffer
 		{
 			// object was read from the current buffer without a problem
 			return true;
-		} else {
+		}
+		else {
+			// current buffer is exhausted. check the error state of this channel first
+			checkErroneous();
+			if (this.requestQueue.isClosed()) {
+				throw new IOException("The reader's IO path has been closed.");
+			}
 			
 			// current buffer is exhausted, swap buffers...
-			requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
-			currentBuffer = this.nextBuffer();
+			this.requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
+			try {
+				this.currentBuffer = this.nextBuffer();
+			}
+			catch (InterruptedException iex) {
+				throw new IOException("IO channel corrupt. Reader was interrupted getting a new buffer.");
+			}
+			
 			// ...and then retry reading from the next full buffer
 			return currentBuffer.read(readable);
 		}
@@ -138,29 +145,24 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * @throws UnboundMemoryBackedException
 	 */
 	public boolean repeatRead(IOReadableWritable readable) {
-		if (currentBuffer.repeatRead(readable)) // try to read from current buffer
-		{
-			// object was read from the current buffer without a problem
-			return true;
-		} else {
-			// current buffer is exhausted, swap buffers...
-			requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
-			currentBuffer = this.nextBuffer();
-			// ...and then retry reading from the next full buffer
-			return currentBuffer.repeatRead(readable);
+		if (this.currentBuffer == null) {
+			if (this.closed) {
+				throw new IllegalStateException("Reader has been closed.");
+			}
+			else {
+				throw new IllegalStateException("No previous read has occurred.");
+			}
 		}
-	}
-
-	/**
-	 * Take the next input buffer from the full buffers queue.
-	 * 
-	 * @return the next input buffer from the full buffer queue
-	 */
-	protected Buffer.Input nextBuffer() {
-		try {
-			return fullBufferQueue.take();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
+			
+		if (this.currentBuffer.repeatRead(readable)) // try to read from current buffer
+		{
+			return true;
+		}
+		else {
+			// this should never happen, because the previous read was successful and the
+			// buffers are only swapped before reads
+			// throw an exception to indicate the problem
+			throw new IllegalStateException("BUG: Repeated read failed after a successful read.");
 		}
 	}
 
@@ -169,57 +171,86 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * 
 	 * @author Alexander Alexandrov
 	 */
-	protected static class ReaderThread implements Runnable {
-		private static final IORequest<Buffer.Input> SENTINEL = new IORequest<Buffer.Input>(null, null);
+	protected static class ReaderThread extends Thread
+	{
+		protected final RequestQueue<IORequest<Buffer.Input>> requestQueue;
 
-		protected final BlockingQueue<IORequest<Buffer.Input>> requestQueue;
-
-		protected boolean isClosing;
+		private volatile boolean alive;
 
 		// ---------------------------------------------------------------------
 		// Constructors / Destructors
 		// ---------------------------------------------------------------------
 
 		protected ReaderThread() {
-			this.requestQueue = new LinkedBlockingQueue<IORequest<Buffer.Input>>();
-			this.isClosing = false;
+			this.requestQueue = new RequestQueue<IORequest<Buffer.Input>>();
+			this.alive = true;
 		}
-
-		protected void close() {
-			if (!isClosing) {
-				isClosing = true;
-				requestQueue.add(SENTINEL);
+		
+		/**
+		 * Shuts the thread down. This operation does not wait for all pending requests to be served, halts the thread
+		 * immediately. All buffers of pending requests are handed back to their channel readers and an exception is
+		 * reported to them, declaring their request queue as closed.
+		 */
+		protected void shutdown() {
+			if (alive) {
+				// shut down the thread
+				try {
+					this.alive = false;
+					this.requestQueue.close();
+					this.interrupt();
+				}
+				catch (Throwable t) {}
+				
+				// notify all pending write requests that the thread has been shut down
+				IOException ioex = new IOException("Reading thread has been closed.");
+				
+				while (!this.requestQueue.isEmpty()) {
+					IORequest<Buffer.Input> request = this.requestQueue.poll();
+					request.channel.handleProcessedBuffer(request.buffer, ioex);
+				}
 			}
 		}
 
 		// ---------------------------------------------------------------------
-		// Main loop
+		//                             Main loop
 		// ---------------------------------------------------------------------
 
 		@Override
-		public void run() {
-			try {
-				// fetch the first read request
-				IORequest<Buffer.Input> request = requestQueue.take();
-
-				while (request != SENTINEL) // repeat until the SENTINEL request arrives
-				{
+		public void run()
+		{
+			while (this.alive)
+			{
+				
+				// get the next buffer. ignore interrupts that are not due to a shutdown.
+				IORequest<Buffer.Input> request = null;
+				while (request == null) {
 					try {
-						// read buffer from the specified channel
-						request.buffer.readFromChannel(request.channelAccess.fileChannel);
-					} catch (IOException e) {
-						throw new RuntimeException(e);
+						request = this.requestQueue.take();
 					}
-
-					// invoke the processed buffer handler of the request issuing reader object
-					request.channelAccess.handleProcessedBuffer(request.buffer);
-
-					// fetch next request
-					request = requestQueue.take();
+					catch (InterruptedException iex) {
+						if (!this.alive) {
+							// exit
+							return;
+						}
+					}
 				}
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
+				
+				// remember any IO exception that occurs, so it can be reported to the writer
+				IOException ioex = null;
+
+				try {
+					// read buffer from the specified channel
+					request.buffer.readFromChannel(request.channel.fileChannel);
+				}
+				catch (IOException e) {
+					ioex = e;
+				}
+
+				// invoke the processed buffer handler of the request issuing reader object
+				request.channel.handleProcessedBuffer(request.buffer, ioex);
+			} // end while alive
 		}
-	}
+		
+	} // end reading thread
+	
 }

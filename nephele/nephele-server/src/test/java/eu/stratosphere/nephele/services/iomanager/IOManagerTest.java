@@ -24,17 +24,15 @@ import java.util.Random;
 import junit.framework.Assert;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest.DummyInvokable;
@@ -50,30 +48,26 @@ public class IOManagerTest {
 
 	public static final int SEGMENT_SIZE = 1024 * 1024; // 1M + 64 bytes
 
-	private static IOManager ioManager;
+	private IOManager ioManager;
 
 	private DefaultMemoryManager memoryManager;
 
 	private Generator generator;
 
-	@BeforeClass
-	public static void beforeClass() throws ServiceException {
-		ioManager = new IOManager();
-	}
-
-	@AfterClass
-	public static void afterClass() {
-		ioManager = null;
-	}
 
 	@Before
 	public void beforeTest() {
 		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE);
+		ioManager = new IOManager();
 		generator = new Generator(SEED, VALUE_LENGTH);
 	}
 
 	@After
 	public void afterTest() throws Exception {
+		ioManager.shutdown();
+		
+		Assert.assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
+		
 		if (!memoryManager.verifyEmpty()) {
 			Assert.fail("Not all memory was returned to the memory manager in the test.");
 		}
@@ -87,12 +81,12 @@ public class IOManagerTest {
 		Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
 
 		for (int i = 0; i < 10; i++) {
-			System.out.println(enumerator.next());
+			enumerator.next();
 		}
 	}
 
 	@Test
-	public void channelReaderWriter() throws ServiceException {
+	public void channelReaderWriter() throws MemoryAllocationException, IOException {
 		Channel.ID channelID = ioManager.createChannel();
 
 		// write generated key/value pairs to a channel
@@ -104,7 +98,7 @@ public class IOManagerTest {
 		Assert.assertEquals("counter equal", writtenCounter, readCounter);
 	}
 
-	private int writeToChannel(Channel.ID channelID) throws ServiceException {
+	private int writeToChannel(Channel.ID channelID) throws IOException, MemoryAllocationException{
 		// create the free memory segments to be used in the internal reader buffer flow
 		Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
 
@@ -128,7 +122,7 @@ public class IOManagerTest {
 		return writtenPairs;
 	}
 
-	private int readFromChannel(Channel.ID channelID) throws ServiceException {
+	private int readFromChannel(Channel.ID channelID) throws IOException, MemoryAllocationException {
 		// create the free memory segments to be used in the internal reader buffer flow
 		Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
 
