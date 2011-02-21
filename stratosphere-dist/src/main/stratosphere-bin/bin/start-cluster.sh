@@ -38,5 +38,5 @@ $NEPHELE_BIN_DIR/nephele-jobmanager.sh start cluster
 while read line
 do
 	HOST=$( extractHostName $line)
-	ssh $NEPHELE_SSH_OPTS $HOST nohup $NEPHELE_BIN_DIR/nephele-taskmanager.sh start &
+	ssh $NEPELE_E_SSH_OPTS $HOST nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh start &
 done < $HOSTLIST
