@@ -27,7 +27,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
@@ -146,23 +145,18 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * @param ioMemorySize
 	 * @return The ID of the channel that holds the merged data of all input channels.
 	 */
-	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize) {
+	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize) 
+	throws IOException, MemoryAllocationException
+	{
 		List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>(channelIDs.size());
 		final int ioMemoryPerChannel = ioMemorySize / (channelIDs.size() + 2);
 
 		for (Channel.ID id : channelIDs) {
 
-			final ChannelReader reader;
-			try {
-				inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
-				freeSegmentsAtShutdown(inputSegments);
+			inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
+			freeSegmentsAtShutdown(inputSegments);
 
-				reader = ioManager.createChannelReader(id, inputSegments);
-			} catch (MemoryAllocationException mae) {
-				throw new RuntimeException("Could not allocate IO buffers for merge reader", mae);
-			} catch (ServiceException se) {
-				throw new RuntimeException("Could not open channel reader for merging", se);
-			}
+			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -177,17 +171,10 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		final Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
 		final Channel.ID mergedChannelID = enumerator.next();
 
-		ChannelWriter writer;
-		try {
-			outputSegments = memoryManager.allocate(this.parent, 2, ioMemoryPerChannel);
-			freeSegmentsAtShutdown(outputSegments);
+		outputSegments = memoryManager.allocate(this.parent, 2, ioMemoryPerChannel);
+		freeSegmentsAtShutdown(outputSegments);
 
-			writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
-		} catch (MemoryAllocationException mae) {
-			throw new RuntimeException("Could not allocate IO Buffer for merge writer", mae);
-		} catch (ServiceException se) {
-			throw new RuntimeException("Could not open channel writer for merging", se);
-		}
+		ChannelWriter writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
 
 		WriterCollector<K, V> collector = new WriterCollector<K, V>(writer);
 
@@ -196,12 +183,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		}
 
 		// close channel writer
-		try {
-			outputSegments = writer.close();
-		} catch (ServiceException se) {
-			throw new RuntimeException("Could not close channel writer", se);
-		}
-
+		outputSegments = writer.close();
 		memoryManager.release(outputSegments);
 
 		return mergedChannelID;
@@ -437,6 +419,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * A simple collector that collects Key and Value and writes them into a given <code>Writer</code>.
 	 */
 	private static final class WriterCollector<K extends Key, V extends Value> implements Collector<K, V> {
+		
 		private final Writer writer; // the writer to write to
 
 		private KeyValuePair<K, V> pair; // the reusable key/value pair
@@ -462,7 +445,13 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		public void collect(K key, V value) {
 			pair.setKey(key);
 			pair.setValue(value);
-			writer.write(pair);
+			
+			try {
+				writer.write(pair);
+			}
+			catch (IOException ioex) {
+				throw new RuntimeException("An error occurred forwarding the key/value pair to the writer.", ioex);
+			}
 		}
 
 		/*

@@ -210,7 +210,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	 * @throws ServiceException
 	 */
 	private void allocatePartitionWriters(Channel.Enumerator enumerator, ArrayList<Channel.ID> partitionIDMap)
-			throws ServiceException {
+			throws IOException {
 		for (int i = 0; i < numberOfPartitions; i++) {
 			// open next channel
 			Channel.ID channel = enumerator.next();
@@ -232,7 +232,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	 * 
 	 * @throws ServiceException
 	 */
-	private void closePartitionWriters() throws ServiceException {
+	private void closePartitionWriters() throws IOException {
 		// close all channel writers
 		for (ChannelWriter writer : partitionWriters) {
 			Collection<MemorySegment> releasedSegments = writer.close();
