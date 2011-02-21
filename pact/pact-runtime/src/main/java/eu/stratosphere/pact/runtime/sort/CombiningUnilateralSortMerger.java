@@ -253,7 +253,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				LOG.debug("Combining buffer " + element.id + '.');
 
 				// set up the combining helpers
-				final BufferSortable<K, V> buffer = element.buffer;
+				final BufferSortableGuaranteed<K, V> buffer = element.buffer;
 				final CombineValueIterator<V> iter = new CombineValueIterator<V>(buffer);
 				final Collector<K, V> collector = new WriterCollector<K, V>(writer);
 
@@ -342,8 +342,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * The iterator returns the values of a given
 	 * interval.
 	 */
-	private static final class CombineValueIterator<V extends Value> implements Iterator<V> {
-		private final BufferSortable<?, V> buffer; // the buffer from which values are returned
+	private static final class CombineValueIterator<V extends Value> implements Iterator<V>
+	{
+		private final BufferSortableGuaranteed<?, V> buffer; // the buffer from which values are returned
 
 		private int last; // the position of the last value to be returned
 
@@ -355,7 +356,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(BufferSortable<?, V> buffer) {
+		public CombineValueIterator(BufferSortableGuaranteed<?, V> buffer) {
 			this.buffer = buffer;
 		}
 

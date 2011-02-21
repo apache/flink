@@ -221,8 +221,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			freeSegmentAtShutdown(seg);
 
 			// sort-buffer
-			BufferSortable<K, V> buffer = new BufferSortable<K, V>(seg, comparator, keySerialization,
-				valueSerialization, offsetArrayPerc);
+			BufferSortableGuaranteed<K, V> buffer = new BufferSortableGuaranteed<K, V>(seg, comparator, keySerialization,
+				valueSerialization);
 
 			// add to empty queue
 			CircularElement element = new CircularElement(i, buffer);
@@ -426,7 +426,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				try {
 					this.iteratorLock.wait();
 				}
-				catch (InterruptedException iex) {}
+				catch (InterruptedException iex) {
+					LOG.error("SHOULD NOT BE", iex);
+				}
 			}
 			
 			if (this.iteratorException != null) {
@@ -606,14 +608,14 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	protected final class CircularElement {
 		final int id;
 
-		final BufferSortable<K, V> buffer;
+		final BufferSortableGuaranteed<K, V> buffer;
 
 		public CircularElement() {
 			this.buffer = null;
 			this.id = -1;
 		}
 
-		public CircularElement(int id, BufferSortable<K, V> buffer) {
+		public CircularElement(int id, BufferSortableGuaranteed<K, V> buffer) {
 			this.id = id;
 			this.buffer = buffer;
 		}
