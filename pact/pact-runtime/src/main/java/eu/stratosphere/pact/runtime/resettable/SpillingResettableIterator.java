@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
-import java.util.Vector;
+import java.util.ArrayList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -61,9 +61,9 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	
 
-	protected Vector<MemorySegment> memorySegments;
+	protected ArrayList<MemorySegment> memorySegments;
 
-	protected Vector<Buffer.Input> inputBuffers;
+	protected ArrayList<Buffer.Input> inputBuffers;
 
 	protected ChannelReader ioReader;
 
@@ -98,7 +98,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		this.deserializer = deserializer;
 
 		// allocate memory segments and open IO Buffers on them
-		memorySegments = new Vector<MemorySegment>(nrOfBuffers);
+		memorySegments = new ArrayList<MemorySegment>(nrOfBuffers);
 		for (int i = 0; i < nrOfBuffers; ++i)
 			memorySegments.add(this.memoryManager.allocate(parentTask, availableMemory / nrOfBuffers));
 		currentBuffer = 0;
@@ -117,7 +117,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 		fitsIntoMem = true;
 		// allocate output Buffers on the memory segments
-		Vector<Buffer.Output> outputBuffers = new Vector<Buffer.Output>(nrOfBuffers);
+		ArrayList<Buffer.Output> outputBuffers = new ArrayList<Buffer.Output>(nrOfBuffers);
 		for (MemorySegment segment : memorySegments) {
 			Buffer.Output out = new Buffer.Output();
 			out.bind(segment);
@@ -156,7 +156,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			LOG.debug("Iterator opened, serialized " + count + " objects to disk.");
 		} else {
 			usedBuffers = currentBuffer + 1;
-			inputBuffers = new Vector<Buffer.Input>(nrOfBuffers);
+			inputBuffers = new ArrayList<Buffer.Input>(nrOfBuffers);
 			// create input Buffers on the output Buffers
 			for (Buffer.Output out : outputBuffers) {
 				int offset = out.getPosition();
@@ -184,7 +184,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				ioReader.close();
 				ioReader = ioManager.createChannelReader(bufferID, memorySegments); // reopen
 			}
-		} catch (ServiceException e) {
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 		LOG.debug("Iterator reset, deserialized " + count + " objects in previous run.");
@@ -212,8 +212,12 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				}
 				return true;
 			} else {
-				
-				return ioReader.read(next);
+				try {
+					return ioReader.read(next);
+				}
+				catch (IOException ioex) {
+					throw new RuntimeException(ioex);
+				}
 			}
 		} else {
 			return true;
@@ -235,7 +239,12 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	public void close() throws ServiceException {
 		if (!fitsIntoMem) {
-			ioReader.close();
+			try {
+				ioReader.close();
+			}
+			catch (IOException ioex) {
+				throw new RuntimeException();
+			}
 		}
 		memoryManager.release(memorySegments);
 		LOG.debug("Iterator closed. Deserialized " + count + " objects in last run.");

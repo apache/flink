@@ -15,10 +15,10 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
+import java.io.IOException;
 import java.util.Collection;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
@@ -27,7 +27,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * @author Erik Nijkamp
  */
 public interface Reader {
-	Collection<MemorySegment> close() throws ServiceException;
+	
+	Collection<MemorySegment> close() throws IOException;
 
-	boolean read(IOReadableWritable readable);
+	boolean read(IOReadableWritable readable) throws IOException;
 }

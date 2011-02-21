@@ -1,7 +1,7 @@
 package eu.stratosphere.pact.runtime.test.util;
 
 
-import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.AbstractTask;
 
 
 /**
@@ -9,7 +9,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class DummyInvokable extends AbstractInvokable {
+public class DummyInvokable extends AbstractTask {
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#registerInputOutput()

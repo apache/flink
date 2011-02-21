@@ -75,7 +75,7 @@ public class LocalClusterProvider extends ClusterProvider {
 		if(this.config.getString(Constants.FILESYSTEM_TYPE, "").equals("mini_hdfs")) {
 			hdfsConfigDir = ((HDFSProvider)filesystemProvider).getConfigDir();
 		}
-		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, numTaskTrackers);
+		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir);
 		nepheleRunning = true;
 	}
 
@@ -105,15 +105,6 @@ public class LocalClusterProvider extends ClusterProvider {
 	@Override
 	public void submitJobAndWait(JobGraph jobGraph, String jarFilePath) throws Exception {
 		nephele.submitJobAndWait(jobGraph);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#clearHDFS()
-	 */
-	@Override
-	protected void clearFS() throws Exception {
-		filesystemProvider.delete("/", true);
 	}
 
 }

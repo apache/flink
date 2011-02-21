@@ -29,7 +29,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
@@ -173,6 +172,18 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			float offsetArrayPerc, AbstractTask parentTask)
 	throws IOException, MemoryAllocationException
 	{
+		// sanity checks
+		if (memoryManager == null) {
+			throw new NullPointerException("Memory manager must not be null.");
+		}
+		if (ioManager == null) {
+			throw new NullPointerException("IO-Manager must not be null.");
+		}
+		if (parentTask == null) {
+			throw new NullPointerException("Parent Task must not be null.");
+		}
+		
+		
 		this.maxNumFileHandles = maxNumFileHandles;
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
@@ -427,7 +438,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 *         Thrown, if the readers
 	 */
 	protected final Iterator<KeyValuePair<K, V>> getMergingIterator(final List<Channel.ID> channelIDs,
-			final int ioMemorySize) throws MemoryAllocationException, IOException {
+			final int ioMemorySize)
+	throws MemoryAllocationException, IOException
+	{
 		// check if we do not have a channel at all. This happens if the input was empty
 		if (channelIDs.isEmpty()) {
 			// no data
@@ -444,12 +457,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			final Collection<MemorySegment> inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(inputSegments);
 
-			ChannelReader reader = null;
-			try {
-				reader = ioManager.createChannelReader(id, inputSegments);
-			} catch (ServiceException se) {
-				throw new java.io.IOException("Could not open sorted stream for merging: " + se.getMessage(), se);
-			}
+			ChannelReader reader = ioManager.createChannelReader(id, inputSegments);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -492,24 +500,20 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param ioMemorySize
 	 * @return The ID of the channel that hold the merged data of the input channels.
 	 */
-	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize) {
+	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize)
+	throws IOException, MemoryAllocationException
+	{
 		List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
 		final int ioMemoryPerChannel = ioMemorySize / (channelIDs.size() + 2);
 
 		for (Channel.ID id : channelIDs) {
 
 			Collection<MemorySegment> inputSegments;
-			final ChannelReader reader;
-			try {
-				inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
-				freeSegmentsAtShutdown(inputSegments);
+			
+			inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
+			freeSegmentsAtShutdown(inputSegments);
 
-				reader = ioManager.createChannelReader(id, inputSegments);
-			} catch (MemoryAllocationException mae) {
-				throw new RuntimeException("Could not allocate IO buffers for merge reader", mae);
-			} catch (ServiceException se) {
-				throw new RuntimeException("Could not open channel reader for merging", se);
-			}
+			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -523,18 +527,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		final Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
 		final Channel.ID mergedChannelID = enumerator.next();
 
-		Collection<MemorySegment> outputSegments;
-		ChannelWriter writer;
-		try {
-			outputSegments = memoryManager.allocate(this.parent, 2, ioMemoryPerChannel);
-			freeSegmentsAtShutdown(outputSegments);
+		Collection<MemorySegment> outputSegments = memoryManager.allocate(this.parent, 2, ioMemoryPerChannel);
+		freeSegmentsAtShutdown(outputSegments);
 
-			writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
-		} catch (MemoryAllocationException mae) {
-			throw new RuntimeException("Could not allocate IO Buffer for merge writer", mae);
-		} catch (ServiceException se) {
-			throw new RuntimeException("Could not open channel writer for merging", se);
-		}
+		ChannelWriter writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
 
 		while (mi.hasNext()) {
 
@@ -546,12 +542,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		}
 
 		// close channel writer
-		try {
-			outputSegments = writer.close();
-		} catch (ServiceException se) {
-			throw new RuntimeException("Could not close channel writer", se);
-		}
-
+		outputSegments = writer.close();
 		memoryManager.release(outputSegments);
 
 		return mergedChannelID;
@@ -1012,7 +1003,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * This class represents an iterator over a key/value stream that is obtained from a reader.
 	 */
 	protected static final class KVReaderIterator<K extends Key, V extends Value> implements
-			Iterator<KeyValuePair<K, V>> {
+			Iterator<KeyValuePair<K, V>>
+	{
 		private final ChannelReader reader; // the reader from which to get the input
 
 		private final SerializationFactory<K> keySerialization; // deserializer for keys
@@ -1062,21 +1054,22 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 			next = new KeyValuePair<K, V>(key, value);
 
-			if (!reader.read(next)) {
-				next = null;
-				try {
+			try {
+				if (!reader.read(next)) {
+					next = null;
 					toRelease.release(reader.close());
-				} catch (ServiceException sex) {
-					LOG.error("Error closing reader: " + sex.getMessage(), sex);
+	
+					if (this.deleteWhenDone) {
+						reader.deleteChannel();
+					}
+	
+					return false;
+				} else {
+					return true;
 				}
-
-				if (this.deleteWhenDone) {
-					reader.deleteChannel();
-				}
-
-				return false;
-			} else {
-				return true;
+			}
+			catch (IOException ioex) {
+				throw new RuntimeException(ioex);
 			}
 		}
 

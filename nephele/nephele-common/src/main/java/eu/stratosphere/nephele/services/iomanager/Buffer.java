@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedExcepti
  *        the type of the underlying memory segment.
  */
 abstract public class Buffer extends MemoryBacked {
+	
 	/**
 	 * Position in the underlying memory.
 	 */

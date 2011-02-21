@@ -112,7 +112,6 @@
 					</systemPropertyVariables>
 					<excludes>
 						<exclude>**/*TestBase*.class</exclude>
-						<exclude>**/*TestNepheleMiniCluster.class</exclude>
 					</excludes>
 					<forkMode>once</forkMode>
 					<argLine>-Xms512m -Xmx1024m</argLine>

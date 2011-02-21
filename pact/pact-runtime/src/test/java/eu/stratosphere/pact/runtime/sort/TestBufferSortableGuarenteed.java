@@ -31,7 +31,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
@@ -64,6 +63,7 @@ public class TestBufferSortableGuarenteed {
 
 	private MemoryManager memoryManager;
 
+	@SuppressWarnings("unused")
 	private static Level rootLevel, pkqLevel;
 
 	@BeforeClass
@@ -228,7 +228,7 @@ public class TestBufferSortableGuarenteed {
 			// buffer to buffer mock writer
 			Writer writer = new Writer() {
 				@Override
-				public Collection<MemorySegment> close() throws ServiceException {
+				public Collection<MemorySegment> close() {
 					return Collections.emptyList();
 				}
 
@@ -294,7 +294,6 @@ public class TestBufferSortableGuarenteed {
 				Pair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
 				buffer.write(pair);
 			}
-			final int position = buffer.position;
 			
 			buffer.swap(0, 1);
 			
@@ -322,7 +321,7 @@ public class TestBufferSortableGuarenteed {
 					buffer2.bind(memory2);
 					Writer writer = new Writer() {
 						@Override
-						public Collection<MemorySegment> close() throws ServiceException {
+						public Collection<MemorySegment> close() {
 							return Collections.emptyList();
 						}
 		
@@ -337,7 +336,9 @@ public class TestBufferSortableGuarenteed {
 				
 				{
 					Buffer.Input buffer2 = new Buffer.Input();
-					buffer2.bind(memory2);				
+					buffer2.bind(memory2);
+					
+					@SuppressWarnings("unused")
 					KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(), new TestData.Value());
 					/*
 					while (buffer2.read(pair) && buffer2.getPosition() <= position) 
@@ -393,7 +394,7 @@ public class TestBufferSortableGuarenteed {
 				buffer2.bind(memory2);
 				Writer writer = new Writer() {
 					@Override
-					public Collection<MemorySegment> close() throws ServiceException {
+					public Collection<MemorySegment> close() {
 						return Collections.emptyList();
 					}
 	
