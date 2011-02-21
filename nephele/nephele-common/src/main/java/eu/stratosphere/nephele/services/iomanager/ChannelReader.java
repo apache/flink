@@ -36,6 +36,11 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	private Buffer.Input currentBuffer;
 	
 	/**
+	 * Flag indicating whether to delete the channel file after the reading is done.
+	 */
+	private final boolean deleteWhenDone;
+	
+	/**
 	 * Flag marking this channel as closed.
 	 */
 	private volatile boolean closed = false;
@@ -46,10 +51,12 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	// -------------------------------------------------------------------------
 
 	public ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
-			Collection<Buffer.Input> buffers)
+			Collection<Buffer.Input> buffers, boolean deleteWhenDone)
 	throws IOException
 	{
 		super(channelID, requestQueue, buffers);
+		
+		this.deleteWhenDone = deleteWhenDone;
 
 		// add all buffers to the request queue
 		for (Buffer.Input buffer : buffers) {

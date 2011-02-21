@@ -156,7 +156,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(inputSegments);
 
-			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments);
+			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments, true);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -319,9 +319,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			if (CombiningUnilateralSortMerger.this.combineLastMerge) {
 				KeyGroupedIterator<K, V> iter = new KeyGroupedIterator<K, V>(getMergingIterator(channelIDs,
 					ioMemorySize));
-				lazyIterator.setTarget(new CombiningIterator<K, V>(combineStub, iter));
+				setResultIterator(new CombiningIterator<K, V>(combineStub, iter));
 			} else {
-				lazyIterator.setTarget(getMergingIterator(channelIDs, ioMemorySize));
+				setResultIterator(getMergingIterator(channelIDs, ioMemorySize));
 			}
 
 			LOG.debug("Spilling thread done.");

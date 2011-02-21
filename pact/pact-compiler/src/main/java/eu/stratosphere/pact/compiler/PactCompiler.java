@@ -1128,33 +1128,56 @@ public class PactCompiler {
 	/**
 	 * This utility method picks the instance type to be used for scheduling PACT processor
 	 * instances.
+	 * <p>
 	 * 
 	 * @param types The available types.
 	 * @return The type to be used for scheduling.
+	 * 
+	 * @throws CompilerException
+	 * @throws IllegalArgumentException
 	 */
 	private InstanceTypeDescription getType(Map<InstanceType, InstanceTypeDescription> types)
+	throws CompilerException
 	{
 		if (types == null || types.size() < 1) {
 			throw new IllegalArgumentException("No instance type found.");
 		}
 		
-		long minMemory = 0;
-		int minCPUCores = Integer.MAX_VALUE;
 		InstanceTypeDescription retValue = null;
+		long totalMemory = 0;
+		int numInstances = 0;
 		
 		final Iterator<InstanceTypeDescription> it = types.values().iterator();
-		while(it.hasNext()) {
+		while(it.hasNext())
+		{
 			final InstanceTypeDescription descr = it.next();
-			if(retValue == null) {
-				retValue = descr;
+			
+			// skip instances for which no hardware description is available
+			// this means typically that no 
+			if (descr.getHardwareDescription() == null || descr.getInstanceType() == null) {
+				continue;
 			}
-			if (descr.getInstanceType().getNumberOfCores() < minCPUCores &&
-				descr.getHardwareDescription().getSizeOfFreeMemory() > minMemory)
+			
+			final int curInstances = descr.getMaximumNumberOfAvailableInstances();
+			final long curMemory = curInstances * descr.getHardwareDescription().getSizeOfFreeMemory();
+			
+			// get, if first, or if it has more instances and not less memory, or if it has significantly more memory
+			// and the same number of cores still
+			if ( (retValue == null) ||
+				 (curInstances > numInstances && (int) (curMemory * 1.2f) > totalMemory) ||
+				 (curInstances * retValue.getInstanceType().getNumberOfCores() >= numInstances && 
+							(int) (curMemory * 1.5f) > totalMemory)
+				)
 			{
-				minCPUCores = descr.getInstanceType().getNumberOfCores();
-				minMemory = descr.getHardwareDescription().getSizeOfFreeMemory();
 				retValue = descr;
+				numInstances = curInstances;
+				totalMemory = curMemory;
 			}
+		}
+		
+		if (retValue == null) {
+			throw new CompilerException("No instance currently registered at the job-manager. Retry later.\n" +
+				"If the system has recently started, it may take a few seconds until the instances register.");
 		}
 		
 		return retValue;

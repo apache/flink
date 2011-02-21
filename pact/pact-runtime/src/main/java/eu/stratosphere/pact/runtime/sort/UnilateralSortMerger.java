@@ -66,9 +66,10 @@ import eu.stratosphere.pact.runtime.task.ReduceTask;
  * @param <V>
  *        The value class
  */
-public class UnilateralSortMerger<K extends Key, V extends Value> implements SortMerger<K, V> {
+public class UnilateralSortMerger<K extends Key, V extends Value> implements SortMerger<K, V>
+{
 	// ------------------------------------------------------------------------
-	// Constants
+	//                              Constants
 	// ------------------------------------------------------------------------
 
 	/**
@@ -77,19 +78,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
 
 	// ------------------------------------------------------------------------
-	// Fields
+	//                               Fields
 	// ------------------------------------------------------------------------
-
-	/**
-	 * The maximum number of file handles
-	 */
-	protected final int maxNumFileHandles;
-
-	/**
-	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
-	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
-	 */
-	protected final LazyDelegatingIterator<KeyValuePair<K, V>> lazyIterator;
 
 	/**
 	 * This list contains all segments of allocated memory. They will be freed the latest in the
@@ -126,7 +116,28 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * The parent task that owns this sorter.
 	 */
 	protected final AbstractTask parent;
+	
+	/**
+	 * The monitor which guards the iterator field.
+	 */
+	protected final Object iteratorLock = new Object();
+	
+	/**
+	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
+	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
+	 */
+	protected Iterator<KeyValuePair<K, V>> iterator;
+	
+	/**
+	 * The exception that is set, if the iterator cannot be created.
+	 */
+	protected IOException iteratorException;
 
+	/**
+	 * The maximum number of file handles
+	 */
+	protected final int maxNumFileHandles;
+	
 	// ------------------------------------------------------------------------
 	// Threads
 	// ------------------------------------------------------------------------
@@ -194,9 +205,6 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 		this.allocatedMemory = new ArrayList<MemorySegment>();
 
-		// instantiate lazy blocking iterator
-		this.lazyIterator = new LazyDelegatingIterator<KeyValuePair<K, V>>();
-
 		// circular queues
 		CircularQueues circularQueues = new CircularQueues();
 
@@ -224,12 +232,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		// exception handling
 		ExceptionHandler<IOException> exceptionHandler = new ExceptionHandler<IOException>() {
 			public void handleException(IOException exception) {
-				// log
-				LOG.error("Thread threw an IOException (delegating to lazy iterator)", exception);
-
 				// forward exception
-				lazyIterator.setException(exception);
-
+				setResultIteratorException(exception);
 				close();
 			}
 		};
@@ -321,8 +325,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * Adds a given memory segment to the list of segments that are to be released at shutdown.
 	 * 
-	 * @param s
-	 *        The memory segment to add to the list.
+	 * @param s The memory segment to add to the list.
 	 */
 	public void freeSegmentAtShutdown(MemorySegment s) {
 		this.allocatedMemory.add(s);
@@ -331,15 +334,14 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * Adds a given collection of memory segments to the list of segments that are to be released at shutdown.
 	 * 
-	 * @param s
-	 *        The collection of memory segments.
+	 * @param s The collection of memory segments.
 	 */
 	public void freeSegmentsAtShutdown(Collection<MemorySegment> s) {
 		this.allocatedMemory.addAll(s);
 	}
 
 	// ------------------------------------------------------------------------
-	// Factory Methods
+	//                           Factory Methods
 	// ------------------------------------------------------------------------
 
 	/**
@@ -409,7 +411,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	}
 
 	// ------------------------------------------------------------------------
-	// Result Iterator
+	//                           Result Iterator
 	// ------------------------------------------------------------------------
 
 	/*
@@ -418,7 +420,48 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 */
 	@Override
 	public Iterator<KeyValuePair<K, V>> getIterator() {
-		return lazyIterator;
+		synchronized (this.iteratorLock) {
+			// wait while both the iterator and the exception are not set
+			while (this.iterator == null && this.iteratorException == null) {
+				try {
+					this.iteratorLock.wait();
+				}
+				catch (InterruptedException iex) {}
+			}
+			
+			if (this.iteratorException != null) {
+				throw new RuntimeException("Error obtaining the sorted input: " + this.iteratorException.getMessage(),
+					this.iteratorException);
+			}
+			else {
+				return this.iterator;
+			}
+		}
+	}
+	
+	/**
+	 * Sets the result iterator. By setting the result iterator, all threads that are waiting for the result
+	 * iterator are notified and will obtain it.
+	 * 
+	 * @param iterator The result iterator to set.
+	 */
+	protected void setResultIterator(Iterator<KeyValuePair<K, V>> iterator) {
+		synchronized (this.iteratorLock) {
+			this.iterator = iterator;
+			this.iteratorLock.notifyAll();
+		}
+	}
+	
+	/**
+	 * Reports an exception to all threads that are waiting for the result iterator.
+	 * 
+	 * @param ioex The exception to be reported to the threads that wait for the result iterator.
+	 */
+	protected void setResultIteratorException(IOException ioex) {
+		synchronized (this.iteratorLock) {
+			this.iteratorException = ioex;
+			this.iteratorLock.notifyAll();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -457,7 +500,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			final Collection<MemorySegment> inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(inputSegments);
 
-			ChannelReader reader = ioManager.createChannelReader(id, inputSegments);
+			ChannelReader reader = ioManager.createChannelReader(id, inputSegments, true);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -513,7 +556,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(inputSegments);
 
-			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments);
+			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments, true);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -985,7 +1028,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			}
 
 			// set lazy iterator
-			lazyIterator.setTarget(getMergingIterator(channelIDs, ioMemorySize));
+			setResultIterator(getMergingIterator(channelIDs, ioMemorySize));
 
 			// done
 

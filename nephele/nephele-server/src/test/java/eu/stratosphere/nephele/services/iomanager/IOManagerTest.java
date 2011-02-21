@@ -127,7 +127,7 @@ public class IOManagerTest {
 		Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
 
 		// create the channel reader
-		ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments);
+		ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments, true);
 
 		generator.reset();
 
