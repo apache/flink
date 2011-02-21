@@ -109,8 +109,10 @@ public abstract class ChannelAccess<T extends Buffer> {
 	 */
 	public List<MemorySegment> close() throws IOException
 	{
+		// list to collect segments in
 		final ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(this.numBuffers);
 		
+		// get all segments from the return buffer queue
 		try {
 			while (segments.size() < this.numBuffers) {
 				final T buffer = this.returnBuffers.take();
@@ -144,8 +146,7 @@ public abstract class ChannelAccess<T extends Buffer> {
 			if (f.exists()) {
 				f.delete();
 			}
-		} catch (Throwable t) {
-		}
+		} catch (Throwable t) {}
 	}
 	
 	

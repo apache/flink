@@ -103,12 +103,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	public CombiningUnilateralSortMerger(ReduceStub<K, V, ?, ?> combineStub, MemoryManager memoryManager,
 			IOManager ioManager, int numSortBuffers, int sizeSortBuffer, int ioMemorySize, int maxNumFileHandles,
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
-			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader, float offsetArrayPerc,
+			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
 			AbstractTask parentTask, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, numSortBuffers, sizeSortBuffer, ioMemorySize, maxNumFileHandles,
-			keySerialization, valueSerialization, keyComparator, reader, offsetArrayPerc, parentTask);
+			keySerialization, valueSerialization, keyComparator, reader, parentTask);
 
 		this.combineStub = combineStub;
 		this.combineLastMerge = combineLastMerge;
@@ -156,7 +156,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(inputSegments);
 
-			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments);
+			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments, true);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -253,7 +253,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				LOG.debug("Combining buffer " + element.id + '.');
 
 				// set up the combining helpers
-				final BufferSortable<K, V> buffer = element.buffer;
+				final BufferSortableGuaranteed<K, V> buffer = element.buffer;
 				final CombineValueIterator<V> iter = new CombineValueIterator<V>(buffer);
 				final Collector<K, V> collector = new WriterCollector<K, V>(writer);
 
@@ -319,9 +319,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			if (CombiningUnilateralSortMerger.this.combineLastMerge) {
 				KeyGroupedIterator<K, V> iter = new KeyGroupedIterator<K, V>(getMergingIterator(channelIDs,
 					ioMemorySize));
-				lazyIterator.setTarget(new CombiningIterator<K, V>(combineStub, iter));
+				setResultIterator(new CombiningIterator<K, V>(combineStub, iter));
 			} else {
-				lazyIterator.setTarget(getMergingIterator(channelIDs, ioMemorySize));
+				setResultIterator(getMergingIterator(channelIDs, ioMemorySize));
 			}
 
 			LOG.debug("Spilling thread done.");
@@ -342,8 +342,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * The iterator returns the values of a given
 	 * interval.
 	 */
-	private static final class CombineValueIterator<V extends Value> implements Iterator<V> {
-		private final BufferSortable<?, V> buffer; // the buffer from which values are returned
+	private static final class CombineValueIterator<V extends Value> implements Iterator<V>
+	{
+		private final BufferSortableGuaranteed<?, V> buffer; // the buffer from which values are returned
 
 		private int last; // the position of the last value to be returned
 
@@ -355,7 +356,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(BufferSortable<?, V> buffer) {
+		public CombineValueIterator(BufferSortableGuaranteed<?, V> buffer) {
 			this.buffer = buffer;
 		}
 

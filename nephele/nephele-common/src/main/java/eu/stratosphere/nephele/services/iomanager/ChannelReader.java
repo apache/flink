@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
-import java.nio.channels.ScatteringByteChannel;
 import java.util.Collection;
 import java.util.List;
 
@@ -24,9 +23,10 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
- * A reader from an underlying {@link ScatteringByteChannel}.
+ * A reader from an underlying channel.
  * 
  * @author Alexander Alexandrov
+ * @author Stephan Ewen
  */
 public final class ChannelReader extends ChannelAccess<Buffer.Input> implements Reader
 {
@@ -36,20 +36,44 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	private Buffer.Input currentBuffer;
 	
 	/**
+	 * Flag indicating whether to delete the channel file after the reading is done.
+	 */
+	private final boolean deleteWhenDone;
+	
+	/**
+	 * Flag indicating that all input has been read.
+	 */
+	private volatile boolean allRead; 
+	
+	/**
 	 * Flag marking this channel as closed.
 	 */
 	private volatile boolean closed = false;
+	
+	/**
+	 * Flag indicating that the reader has returned all pairs it has.
+	 */
+	private boolean done;
 	
 	
 	// -------------------------------------------------------------------------
 	//                     Constructors / Destructors
 	// -------------------------------------------------------------------------
 
+	/**
+	 * @param channelID
+	 * @param requestQueue
+	 * @param buffers
+	 * @param deleteWhenDone
+	 * @throws IOException
+	 */
 	public ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
-			Collection<Buffer.Input> buffers)
+			Collection<Buffer.Input> buffers, boolean deleteWhenDone)
 	throws IOException
 	{
 		super(channelID, requestQueue, buffers);
+		
+		this.deleteWhenDone = deleteWhenDone;
 
 		// add all buffers to the request queue
 		for (Buffer.Input buffer : buffers) {
@@ -57,6 +81,9 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#close()
+	 */
 	@Override
 	public List<MemorySegment> close() throws IOException
 	{
@@ -68,14 +95,18 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		}
 		
 		// put current buffer back to the full buffer queue
-		this.returnBuffers.add(currentBuffer);
-		this.currentBuffer = null;
+		if (this.currentBuffer != null) {
+			this.returnBuffers.add(currentBuffer);
+			this.currentBuffer = null;
+		}
 		
 		// close the reader, getting all segments back
 		List<MemorySegment> segments = super.close();
 
 		// close the file
-		fileChannel.close();
+		if (this.fileChannel.isOpen()) {
+			this.fileChannel.close();
+		}
 		
 		return segments;
 	}
@@ -87,14 +118,22 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * read operation was successful or {@code false} if the underlying channel
 	 * is exhausted.
 	 * 
-	 * @param readable The object reading from the current input buffer
-	 * @return a boolean flag indicating the success of the read operation
+	 * @param readable The object reading from the current input buffer.
+	 * @return A boolean flag indicating the success of the read operation.
 	 */
 	public boolean read(IOReadableWritable readable) throws IOException
 	{
-		if (this.currentBuffer == null) {
+		// the buffer is null, if
+		// 1) this is the first call
+		// 2) the reader has been closed
+		// 3) the reader has been exhausted
+		if (this.currentBuffer == null)
+		{
 			if (this.closed) {
 				throw new IllegalStateException("Reader has been closed.");
+			}
+			else if (this.done) {
+				return false;
 			}
 			else {
 				try {
@@ -106,6 +145,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			}
 		}
 		
+		// get the next element from the buffer
 		if (currentBuffer.read(readable)) // try to read from current buffer
 		{
 			// object was read from the current buffer without a problem
@@ -114,20 +154,37 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		else {
 			// current buffer is exhausted. check the error state of this channel first
 			checkErroneous();
-			if (this.requestQueue.isClosed()) {
-				throw new IOException("The reader's IO path has been closed.");
+			
+			// only issue a new request, if not all requests have been served yet
+			if (!allRead) {
+				if (this.requestQueue.isClosed()) {
+					throw new IOException("The reader's IO path has been closed.");
+				}
+			
+				// issue request for the next piece of data
+				this.requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
+			}
+			else {
+				// no further requests necessary, return the buffer
+				this.returnBuffers.add(this.currentBuffer);
 			}
 			
-			// current buffer is exhausted, swap buffers...
-			this.requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
+			// get the next buffer from the list of filled buffers
 			try {
-				this.currentBuffer = this.nextBuffer();
+				this.currentBuffer = nextBuffer();
+				
+				if (this.currentBuffer.getRemainingBytes() == 0) {
+					this.done = true;
+					this.returnBuffers.add(this.currentBuffer);
+					this.currentBuffer = null;
+					return false;
+				}
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("IO channel corrupt. Reader was interrupted getting a new buffer.");
 			}
 			
-			// ...and then retry reading from the next full buffer
+			// retry reading from the next full buffer
 			return currentBuffer.read(readable);
 		}
 	}
@@ -164,6 +221,29 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			// throw an exception to indicate the problem
 			throw new IllegalStateException("BUG: Repeated read failed after a successful read.");
 		}
+	}
+	
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#handleProcessedBuffer(eu.stratosphere.nephele.services.iomanager.Buffer, java.io.IOException)
+	 */
+	public void handleProcessedBuffer(Buffer.Input buffer, IOException ex) {
+		// set flag such that no further requests are issued
+		if (buffer.getRemainingBytes() == 0 && !this.allRead) {
+			this.allRead = true;
+			
+			// clean up after us, if requested. don't report exceptions, just try
+			if (this.deleteWhenDone) {
+				try {
+					this.fileChannel.close();
+					deleteChannel();
+				}
+				catch (Throwable t) {}
+			}
+		}
+		
+		// handle buffer as we had it
+		super.handleProcessedBuffer(buffer, ex);
 	}
 
 	/**

@@ -75,11 +75,18 @@ public abstract class TaskTestBase {
 	}
 	
 	@After
-	public void checkMemoryManager() throws Exception {
+	public void shutdownIOManager() throws Exception {
+		mockEnv.getIOManager().shutdown();
+		Assert.assertTrue("IO Manager has not properly shut down.", mockEnv.getIOManager().isProperlyShutDown());
+	}
+	
+	@After
+	public void shutdownMemoryManager() throws Exception {
 		if (this.memorySize > 0) {
 			MemoryManager memMan = getMemoryManager();
-			if (!memMan.verifyEmpty()) {
-				Assert.fail("Memory Manager managed memory was not completely freed.");
+			if (memMan != null) {
+				Assert.assertTrue("Memory Manager managed memory was not completely freed.", memMan.verifyEmpty());
+				memMan.shutdown();
 			}
 		}
 	}

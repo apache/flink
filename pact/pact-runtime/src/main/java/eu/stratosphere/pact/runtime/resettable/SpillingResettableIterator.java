@@ -151,7 +151,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			}
 			writer.close();
 			// now open a reader on the channel
-			ioReader = ioManager.createChannelReader(bufferID, memorySegments);
+			ioReader = ioManager.createChannelReader(bufferID, memorySegments, false);
 			
 			LOG.debug("Iterator opened, serialized " + count + " objects to disk.");
 		} else {
@@ -182,7 +182,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				currentBuffer = 0;
 			} else {
 				ioReader.close();
-				ioReader = ioManager.createChannelReader(bufferID, memorySegments); // reopen
+				ioReader = ioManager.createChannelReader(bufferID, memorySegments, false); // reopen
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -241,6 +241,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		if (!fitsIntoMem) {
 			try {
 				ioReader.close();
+				ioReader.deleteChannel();
 			}
 			catch (IOException ioex) {
 				throw new RuntimeException();
