@@ -241,6 +241,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		if (!fitsIntoMem) {
 			try {
 				ioReader.close();
+				ioReader.deleteChannel();
 			}
 			catch (IOException ioex) {
 				throw new RuntimeException();
