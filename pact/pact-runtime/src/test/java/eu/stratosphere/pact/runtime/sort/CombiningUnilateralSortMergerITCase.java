@@ -62,10 +62,6 @@ public class CombiningUnilateralSortMergerITCase {
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 256;
 
-	public static final float OFFSETS_PERCENTAGE = 0.1f;
-
-	public static final float LOW_OFFSETS_PERCENTAGE = 0.001f;
-
 	private final AbstractTask parentTask = new DummyInvokable();
 	
 	private IOManager ioManager;
@@ -112,8 +108,7 @@ public class CombiningUnilateralSortMergerITCase {
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, PactInteger> merger = new CombiningUnilateralSortMerger<TestData.Key, PactInteger>(
 			new TestCountCombiner(), memoryManager, ioManager, 6, 1024 * 1024 * 8, 1024 * 1024 * 64, 128,
-			keySerialization, valSerialization, keyComparator, reader, OFFSETS_PERCENTAGE, parentTask, true);
-		Iterator<KeyValuePair<TestData.Key, PactInteger>> iterator = merger.getIterator();
+			keySerialization, valSerialization, keyComparator, reader, parentTask, true);
 
 		for (int i = 0; i < noKeyCnt; i++) {
 			for (int j = 0; j < noKeys; j++) {
@@ -123,6 +118,8 @@ public class CombiningUnilateralSortMergerITCase {
 			}
 		}
 		reader.close();
+		
+		Iterator<KeyValuePair<TestData.Key, PactInteger>> iterator = merger.getIterator();
 
 		while (iterator.hasNext()) {
 			Assert.assertEquals(noKeyCnt, iterator.next().getValue().getValue());
@@ -153,8 +150,7 @@ public class CombiningUnilateralSortMergerITCase {
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new CombiningUnilateralSortMerger<TestData.Key, TestData.Value>(
 			new TestCountCombiner2(), memoryManager, ioManager, 1, 1024 * 1024 * 4, 1024 * 1024 * 12, 2,
-			keySerialization, valSerialization, keyComparator, reader, OFFSETS_PERCENTAGE, parentTask, true);
-		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+			keySerialization, valSerialization, keyComparator, reader, parentTask, true);
 
 		// emit data
 		LOG.debug("emitting data");
@@ -169,6 +165,8 @@ public class CombiningUnilateralSortMergerITCase {
 		reader.close();
 
 		// check order
+		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+		
 		LOG.debug("checking results");
 		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
 		while (iterator.hasNext()) {

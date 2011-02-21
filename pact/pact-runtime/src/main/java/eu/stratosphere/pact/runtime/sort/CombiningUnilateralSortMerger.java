@@ -103,12 +103,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	public CombiningUnilateralSortMerger(ReduceStub<K, V, ?, ?> combineStub, MemoryManager memoryManager,
 			IOManager ioManager, int numSortBuffers, int sizeSortBuffer, int ioMemorySize, int maxNumFileHandles,
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
-			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader, float offsetArrayPerc,
+			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
 			AbstractTask parentTask, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, numSortBuffers, sizeSortBuffer, ioMemorySize, maxNumFileHandles,
-			keySerialization, valueSerialization, keyComparator, reader, offsetArrayPerc, parentTask);
+			keySerialization, valueSerialization, keyComparator, reader, parentTask);
 
 		this.combineStub = combineStub;
 		this.combineLastMerge = combineLastMerge;

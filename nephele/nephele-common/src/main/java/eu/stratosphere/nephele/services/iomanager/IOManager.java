@@ -85,8 +85,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	 *        channels.
 	 */
 	public IOManager(String path) {
-		LOG.info("creating DefaultIOManager instance");
-
 		this.path = path;
 		this.random = new Random();
 		this.writer = new ChannelWriter.WriterThread();

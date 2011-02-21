@@ -180,7 +180,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager, int numSortBuffers,
 			int sizeSortBuffer, int ioMemorySize, int maxNumFileHandles, SerializationFactory<K> keySerialization,
 			SerializationFactory<V> valueSerialization, Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			float offsetArrayPerc, AbstractTask parentTask)
+			AbstractTask parentTask)
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
