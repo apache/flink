@@ -379,6 +379,7 @@ public class CrossTask extends AbstractTask {
 			// open stub implementation
 			stub.open();
 	
+			boolean moreOuterBlocks = false;
 			do {
 				// loop over the spilled resettable iterator
 				while (innerInput.hasNext()) {
@@ -409,24 +410,15 @@ public class CrossTask extends AbstractTask {
 					outerInput.reset();
 				}
 				// reset the spilling resettable iterator (inner side)
-				innerInput.reset();
-			} while (outerInput.nextBlock());
+				moreOuterBlocks = outerInput.nextBlock();
+				if(moreOuterBlocks) {
+					innerInput.reset();
+				}
+			} while (moreOuterBlocks);
 	
 			// close stub implementation
 			stub.close();
 	
-			// close spilling resettable iterator
-			try {
-				innerInput.close();
-			} catch (ServiceException se) {
-				throw new RuntimeException("Unable to close SpillingResettableIterator", se);
-			}
-			// close block resettable iterator
-			try {
-				outerInput.close();
-			} catch (ServiceException se) {
-				throw new RuntimeException("Unable to close BlockResettableIterator", se);
-			}
 		} finally {
 			ServiceException se1 = null, se2 = null;
 			try {
@@ -570,18 +562,15 @@ public class CrossTask extends AbstractTask {
 					outerPair = outerInput.repeatLast();
 				}
 				// reset spilling resettable iterator of inner side
-				innerInput.reset();
+				if(outerInput.hasNext()) {
+					innerInput.reset();
+				}
 			}
 	
 			// close stub implementation
 			stub.close();
 	
 			// close spilling resettable iterator
-			try {
-				innerInput.close();
-			} catch (ServiceException se) {
-				throw new RuntimeException("Unable to close SpillingResettable iterator for inner side.", se);
-			}
 		} finally {
 			try {
 				if(innerInput != null) innerInput.close();
