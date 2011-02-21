@@ -89,7 +89,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	{
 		synchronized (this) {
 			if (this.closed) {
-				throw new IllegalStateException("Writer is already closing or has been closed.");
+				throw new IllegalStateException("Reader is already closing or has been closed.");
 			}
 			this.closed = true;
 		}

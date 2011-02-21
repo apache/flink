@@ -200,7 +200,7 @@ public class SpillingResettableIteratorTest {
 		while (iterator.hasNext())
 			Assert.assertEquals("In initial run, element " + count + " does not match expected value!", count++,
 				iterator.next().getValue());
-		Assert.assertEquals("Too few elements were deserialzied in initial run!", 1000, count);
+		Assert.assertEquals("Too few elements were deserialzied in initial run!", NUMTESTRECORDS, count);
 		// test resetting the iterator a few times
 		for (int j = 0; j < 10; ++j) {
 			count = 0;
@@ -209,7 +209,7 @@ public class SpillingResettableIteratorTest {
 			while (iterator.hasNext())
 				Assert.assertEquals("After reset nr. " + j + 1 + " element " + count
 					+ " does not match expected value!", count++, iterator.next().getValue());
-			Assert.assertEquals("Too few elements were deserialzied after reset nr. " + j + 1 + "!", 1000, count);
+			Assert.assertEquals("Too few elements were deserialzied after reset nr. " + j + 1 + "!", NUMTESTRECORDS, count);
 		}
 		// close the iterator
 		iterator.close();
