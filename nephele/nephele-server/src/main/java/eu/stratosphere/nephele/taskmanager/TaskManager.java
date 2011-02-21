@@ -696,7 +696,12 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.unregisterExecutionListener(id);
 		}
 
-		//TODO: Unregister from IO and memory manager here
+		// Unregister task from memory manager
+		if (this.memoryManager != null) {
+			this.memoryManager.releaseAll(environment.getInvokable());
+		}
+		
+		//TODO: Unregister from IO manager here
 		
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
