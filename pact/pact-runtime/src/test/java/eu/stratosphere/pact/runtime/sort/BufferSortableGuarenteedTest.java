@@ -50,8 +50,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Erik Nijkamp
  */
-public class TestBufferSortableGuarenteed {
-	private static final Log LOG = LogFactory.getLog(TestBufferSortableGuarenteed.class);
+public class BufferSortableGuarenteedTest {
+	private static final Log LOG = LogFactory.getLog(BufferSortableGuarenteedTest.class);
 
 	private static final long SEED = 649180756312423613L;
 

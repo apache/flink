@@ -8,6 +8,8 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stub.Collector;
@@ -66,7 +68,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		int valCnt1 = 1;
 		
 		// 87381 fit into memory, 87382 do not!
-		int keyCnt2 = 87381;
+		int keyCnt2 = 87385;
 		int valCnt2 = 1;
 		
 		super.initEnvironment(1*1024*1024);

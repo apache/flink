@@ -70,7 +70,7 @@ public final class IOManager implements UncaughtExceptionHandler
 
 	
 	// -------------------------------------------------------------------------
-	// Constructors / Destructors
+	//               Constructors / Destructors
 	// -------------------------------------------------------------------------
 
 	public IOManager() {
@@ -85,8 +85,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	 *        channels.
 	 */
 	public IOManager(String path) {
-		LOG.info("creating DefaultIOManager instance");
-
 		this.path = path;
 		this.random = new Random();
 		this.writer = new ChannelWriter.WriterThread();
@@ -106,7 +104,9 @@ public final class IOManager implements UncaughtExceptionHandler
 	}
 
 	/**
-	 * Close method.
+	 * Close method. Shuts down the reader and writer threads immediately, not waiting for their
+	 * pending requests to be served. This method waits until the threads have actually ceased their
+	 * operation.
 	 */
 	public synchronized final void shutdown() {
 		if (!isClosed) {
@@ -137,6 +137,12 @@ public final class IOManager implements UncaughtExceptionHandler
 		}
 	}
 	
+	/**
+	 * Utility method to check whether the IO manager has been properly shut down. The IO manager is considered
+	 * to be properly shut down when it is closed and its threads have ceased operation.
+	 * 
+	 * @return True, if the IO manager has properly shut down, false otherwise.
+	 */
 	public boolean isProperlyShutDown() {
 		return isClosed && 
 			(this.writer.getState() == Thread.State.TERMINATED) && 
@@ -153,6 +159,10 @@ public final class IOManager implements UncaughtExceptionHandler
 		
 	}
 
+	// ------------------------------------------------------------------------
+	//                          Channel Instantiations
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Creates a new {@link Channel.ID} in the default {@code path}.
 	 * 
@@ -193,7 +203,7 @@ public final class IOManager implements UncaughtExceptionHandler
 
 	
 	// ------------------------------------------------------------------------
-	//                          Channel Instantiations
+	//                        Reader / Writer instantiations
 	// ------------------------------------------------------------------------
 	
 	/**
@@ -205,7 +215,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @param channelID
 	 * @param freeSegments
 	 * @return
-	 * @throws ServiceException
+	 * @throws IOException
 	 */
 	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<MemorySegment> freeSegments)
 	throws IOException
@@ -229,7 +239,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @param freeSegments
 	 * @param filled
 	 * @return
-	 * @throws ServiceException
+	 * @throws IOException
 	 */
 	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<Buffer.Output> buffers, boolean filled)
 	throws IOException
@@ -251,16 +261,18 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @param channelID
 	 * @param freeSegments
 	 * @return
-	 * @throws ServiceException
+	 * @throws IOException
 	 */
-	public ChannelReader createChannelReader(Channel.ID channelID, Collection<MemorySegment> freeSegments)
+	public ChannelReader createChannelReader(Channel.ID channelID, Collection<MemorySegment> freeSegments,
+			boolean deleteFileAfterRead)
 	throws IOException
 	{
 		if (isClosed) {
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
-		return new ChannelReader(channelID, reader.requestQueue, createBuffer(Buffer.Type.INPUT, freeSegments));
+		return new ChannelReader(channelID, reader.requestQueue,
+			createBuffer(Buffer.Type.INPUT, freeSegments), deleteFileAfterRead);
 	}
 
 	
@@ -278,7 +290,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @param bufferType
 	 *        the type of the buffer to be created
 	 * @return T an unbound buffer from the specified type
-	 * @throws ServiceException
 	 */
 	public static <T extends Buffer> T createBuffer(Buffer.Type<T> bufferType) {
 		try {
@@ -299,7 +310,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @param bufferType
 	 * @param numberOfBuffers
 	 * @return Collection<T> an unsynchronized collection of initialized buffers
-	 * @throws ServiceException
 	 */
 	public static <T extends Buffer> List<T> createBuffer(Buffer.Type<T> bufferType, int numberOfBuffers) {
 		ArrayList<T> buffers = new ArrayList<T>(numberOfBuffers);
@@ -318,7 +328,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @param bufferType
 	 * @param numberOfBuffers
 	 * @return Collection<T> an unsynchronized collection of initialized buffers
-	 * @throws ServiceException
 	 */
 	public static <T extends Buffer> Collection<T> createBuffer(Buffer.Type<T> bufferType, Collection<MemorySegment> freeSegments)
 	{
@@ -348,4 +357,5 @@ public final class IOManager implements UncaughtExceptionHandler
 
 		return freeSegments;
 	}
+	
 }

@@ -286,7 +286,7 @@ public class CombineTask extends AbstractTask {
 				// instantiate a combining sort-merger
 				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
 					ioManager, NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
-					valSerialization, keyComparator, reader, 0.1f, this, true);
+					valSerialization, keyComparator, reader, this, true);
 				// obtain and return a grouped iterator from the combining sort-merger
 				return sortMerger;
 			}
