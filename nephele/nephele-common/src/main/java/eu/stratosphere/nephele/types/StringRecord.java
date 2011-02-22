@@ -426,19 +426,17 @@ public class StringRecord implements Record {
 	 */
 	public static String readString(DataInput in) throws IOException {
 
-		final boolean b = in.readBoolean();
-
-		if(b)
-		{
+		if (in.readBoolean()) {
 			final int length = in.readInt();
-			if(length >= 0)
-			{
-				final byte[] bytes = new byte[length];
-				in.readFully(bytes, 0, length);
-				return decode(bytes);
+			if (length < 0) {
+				throw new IOException("length of StringRecord is " + length);
 			}
+
+			final byte[] bytes = new byte[length];
+			in.readFully(bytes, 0, length);
+			return decode(bytes);
 		}
-		
+
 		return null;
 	}
 
