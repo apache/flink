@@ -30,6 +30,52 @@ if [ "$NEPHELE_IDENT_STRING" = "" ]; then
 	NEPHELE_IDENT_STRING="$USER"
 fi
 
+# auxilliary function to construct a lightweight classpath for the
+# Nephele TaskManager
+constructTaskManagerClassPath() {
+
+	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
+
+		add=0
+
+		if [[ "$jarfile" =~ 'nephele-server' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jackson' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'log4j' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
+			add=1
+		fi
+
+		if [[ "$add" = "1" ]]; then
+			if [[ $NEPHELE_TM_CLASSPATH = "" ]]; then
+				NEPHELE_TM_CLASSPATH=$jarfile;
+			else
+				NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$jarfile
+			fi
+		fi
+	done
+
+	echo $NEPHELE_TM_CLASSPATH
+}
+
 NEPHELE_TM_CLASSPATH=$(constructTaskManagerClassPath)
 
 log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.log

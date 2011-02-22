@@ -37,6 +37,64 @@ if [ "$NEPHELE_IDENT_STRING" = "" ]; then
 	NEPHELE_IDENT_STRING="$USER"
 fi
 
+# auxilliary function to construct a lightweight classpath for the
+# Nephele JobManager
+constructJobManagerClassPath() {
+
+	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
+
+		add=0
+
+		if [[ "$jarfile" =~ 'nephele-server' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-queuescheduler' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-clustermanager' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-httpclient' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'typica' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jackson' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'log4j' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
+			add=1
+		fi
+
+		if [[ "$add" = "1" ]]; then
+			if [[ $NEPHELE_JM_CLASSPATH = "" ]]; then
+				NEPHELE_JM_CLASSPATH=$jarfile;
+			else
+				NEPHELE_JM_CLASSPATH=$NEPHELE_JM_CLASSPATH:$jarfile
+			fi
+		fi
+	done
+
+	echo $NEPHELE_JM_CLASSPATH
+}
+
+NEPHELE_JM_CLASSPATH=$(constructJobManagerClassPath)
+
 log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager-$HOSTNAME.log
 out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager-$HOSTNAME.out
 pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-jobmanager.pid
@@ -53,7 +111,7 @@ case $STARTSTOP in
      			fi
 		fi
 		echo starting Nephele job manager
-		$JAVA_HOME/bin/java $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $NEPHELE_CONF_DIR  > "$out" 2>&1 < /dev/null &
+		$JAVA_HOME/bin/java $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_JM_CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $NEPHELE_CONF_DIR  > "$out" 2>&1 < /dev/null &
 		echo $! > $pid
 	;;
 
