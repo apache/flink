@@ -15,6 +15,12 @@
 
 #!/bin/bash
 
+# The default Java heap size for the Nephele Job Manager in MB
+DEFAULT_NEPHELE_JM_HEAP=256
+
+# The default Java heap size for the Nephele Task Manager in MB
+DEFAULT_NEPHELE_TM_HEAP=512
+
 # Resolve links
 this="$0"
 while [ -h "$this" ]; do
@@ -43,6 +49,16 @@ if [ -z "${HOSTNAME+x}" ]; then
         HOSTNAME=`hostname`
 fi
 
+# define NEPHELE_JM_HEAP if it is not already set
+if [ -z "${NEPHELE_JM_HEAP+x}" ]; then
+	NEPHELE_JM_HEAP=$DEFAULT_NEPHELE_JM_HEAP
+fi
+
+# define NEPHELE_TM_HEAP if it is not already set
+if [ -z "${NEPHELE_TM_HEAP+x}" ]; then
+	NEPHELE_TM_HEAP=$DEFAULT_NEPHELE_TM_HEAP
+fi
+
 # define the main directory of the Nephele installation
 NEPHELE_ROOT_DIR=`dirname "$this"`/..
 NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR/conf
@@ -54,14 +70,9 @@ NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR/log
 NEPHELE_OPTS=""
 #NEPHELE_OPTS=
 
-# jobmanager Java heap size in MB
-JM_JHEAP=256
-
-# taskmanager Java heap size in MB
-TM_JHEAP=512
-
 # arguments for the JVM. Used for job manager and task manager JVMs
-# DO NOT USE FOR MEMORY SETTINGS! Use JM_JHEAP and TM_JHEAP for that!
+# DO NOT USE FOR MEMORY SETTINGS! Use DEFAULT_NEPHELE_JM_HEAP and
+# DEFAULT_NEPHELE_TM_HEAP for that!
 JVM_ARGS="-Djava.net.preferIPv4Stack=true"
 
 # default classpath 
