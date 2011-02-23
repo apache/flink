@@ -220,7 +220,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 				// merger
 				sortMerger1 = new UnilateralSortMerger<K, V1>(memoryManager, ioManager, numSortBufferPerChannel,
 					sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-					valSerialization, keyComparator, reader1, 0.1f, parentTask);
+					valSerialization, keyComparator, reader1, parentTask);
 				// iterator
 				iterator1 = new KeyValueIterator<V1>(sortMerger1.getIterator());
 			}
@@ -234,7 +234,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 				// merger
 				sortMerger2 = new UnilateralSortMerger<K, V2>(memoryManager, ioManager, numSortBufferPerChannel,
 					sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-					valSerialization, keyComparator, reader2, 0.1f, parentTask);
+					valSerialization, keyComparator, reader2, parentTask);
 
 				// iterator
 				iterator2 = new KeyValueIterator<V2>(sortMerger2.getIterator());

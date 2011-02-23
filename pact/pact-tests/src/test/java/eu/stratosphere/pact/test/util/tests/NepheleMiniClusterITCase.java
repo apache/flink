@@ -24,8 +24,9 @@ import java.io.Writer;
 
 import junit.framework.TestCase;
 
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -51,18 +52,18 @@ import eu.stratosphere.pact.test.util.minicluster.NepheleMiniCluster;
  * @author Erik Nijkamp
  */
 public class NepheleMiniClusterITCase extends TestCase {
-	private HDFSProvider hdfs;
 
+	private HDFSProvider hdfs;
 	private NepheleMiniCluster nephele;
 
-	@BeforeClass
+	@Before
 	public void setUp() throws Exception {
 		hdfs = new MiniDFSProvider();
 		hdfs.start();
 
 		String nepheleConfigDir = System.getProperty("java.io.tmpdir") + "/minicluster/nephele/config";
 		String hdfsConfigDir = hdfs.getConfigDir();
-		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, 1 /*task-tracker*/);
+		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir);
 	}
 
 	@Test
@@ -70,6 +71,15 @@ public class NepheleMiniClusterITCase extends TestCase {
 		preSubmit();
 		nephele.submitJobAndWait(getJobGraph());
 		postSubmit();
+	}
+	
+	// TODO: for some reason, shutDown is not called after the test
+	//       We call it manually at the end of postSubmit.
+	@After
+	public void shutDown() throws Exception {
+		hdfs.stop();
+		nephele.stop();
+		System.gc();
 	}
 
 	protected void preSubmit() throws Exception {
@@ -111,8 +121,10 @@ public class NepheleMiniClusterITCase extends TestCase {
 			line = reader.readLine();
 		}
 		reader.close();
+		
+		shutDown();
 	}
-
+	
 	@Ignore
 	public static class FileLineWriter extends AbstractFileOutputTask {
 		private RecordReader<StringRecord> input;

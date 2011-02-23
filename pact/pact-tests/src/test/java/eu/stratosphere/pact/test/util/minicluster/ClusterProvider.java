@@ -62,6 +62,4 @@ public abstract class ClusterProvider {
 
 	protected abstract void stopFS() throws Exception;
 
-	protected abstract void clearFS() throws Exception;
-
 }

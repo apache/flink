@@ -13,40 +13,49 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.metrics.spi;
+package eu.stratosphere.nephele.services.iomanager;
+
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.concurrent.LinkedBlockingQueue;
+
 
 /**
- * Null metrics context: a metrics context which does nothing. Used as the
- * default context, so that no performance data is emitted if no configuration
- * data is found.
+ * A {@link LinkedBlockingQueue} that is extended with closing methods.
+ *
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class NullContext extends AbstractMetricsContext {
-
-	/** Creates a new instance of NullContext */
-	public NullContext() {
-	}
-
+public final class RequestQueue<E> extends LinkedBlockingQueue<E> implements Closeable
+{
 	/**
-	 * Do-nothing version of startMonitoring
+	 * UID for serialization interoperability. 
 	 */
-	public void startMonitoring() {
-	}
-
+	private static final long serialVersionUID = 3804115535778471680L;
+	
 	/**
-	 * Do-nothing version of emitRecord
+	 * Flag marking this queue as closed.
 	 */
-	protected void emitRecord(String contextName, String recordName, OutputRecord outRec) {
-	}
-
+	private volatile boolean closed = false;
+	
 	/**
-	 * Do-nothing version of update
+	 * Closes this request queue.
+	 * 
+	 * @see java.io.Closeable#close()
 	 */
-	protected void update(MetricsRecordImpl record) {
+	@Override
+	public void close() throws IOException {
+		this.closed = true;
 	}
-
+	
 	/**
-	 * Do-nothing version of remove
+	 * Checks whether this request queue is closed.
+	 * 
+	 * @return True, if the queue is closed, false otherwise.
 	 */
-	protected void remove(MetricsRecordImpl record) {
+	public boolean isClosed()
+	{
+		return this.closed;
 	}
+	
 }

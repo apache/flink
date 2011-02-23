@@ -30,6 +30,11 @@ public final class DefaultMemorySegment extends MemorySegment
 	 * The descriptor to the portion of the memory that was allocated.
 	 */
 	private MemorySegmentDescriptor descriptor;
+	
+	/**
+	 * The byte buffer used to wrap the memory segment for I/O.
+	 */
+	private ByteBuffer wrapper;
 
 	
 	public DefaultMemorySegment(MemorySegmentDescriptor descriptor,
@@ -48,8 +53,16 @@ public final class DefaultMemorySegment extends MemorySegment
 		if (offset > size || offset + length > size) {
 			throw new IndexOutOfBoundsException();
 		}
-
-		return ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
+		
+		if (this.wrapper == null) {
+			this.wrapper = ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
+		}
+		else {
+			this.wrapper.position(descriptor.start + offset);
+			this.wrapper.limit(descriptor.start + offset + length);
+		}
+		
+		return this.wrapper;
 	}
 	
 	/**

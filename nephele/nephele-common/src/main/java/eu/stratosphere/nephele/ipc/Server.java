@@ -52,7 +52,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.ipc.metrics.RpcMetrics;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
@@ -148,8 +147,6 @@ public abstract class Server {
 
 	// connections to nuke
 	// during a cleanup
-
-	protected RpcMetrics rpcMetrics;
 
 	private int maxQueueSize;
 
@@ -1018,7 +1015,6 @@ public abstract class Server {
 		// Start the listener here and let it bind to the port
 		listener = new Listener();
 		this.port = listener.getAddress().getPort();
-		this.rpcMetrics = new RpcMetrics(serverName, Integer.toString(this.port), this);
 		this.tcpNoDelay = false;
 
 		// Create the responder here
@@ -1108,9 +1104,6 @@ public abstract class Server {
 		listener.doStop();
 		responder.interrupt();
 		notifyAll();
-		if (this.rpcMetrics != null) {
-			this.rpcMetrics.shutdown();
-		}
 
 		// Wait until shut down of handlers is complete
 		if (this.handlers != null) {
