@@ -158,7 +158,7 @@ public class FileInputChannelTest {
 		try {
 			when(this.deserializationBuffer.readData(Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
 		} catch (IOException e) {
-			e.printStackTrace();
+			
 		}
 		when(this.uncompressedDataBuffer.remaining()).thenReturn(0);
 		
