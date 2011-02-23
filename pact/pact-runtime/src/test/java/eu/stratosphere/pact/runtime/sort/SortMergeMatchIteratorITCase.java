@@ -120,59 +120,65 @@ public class SortMergeMatchIteratorITCase {
 	}
 
 	@Test
-	public void testIterator() throws InterruptedException {
-		// collect expected data
-		Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-		Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-		Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
-
-		// reset the generators
-		generator1.reset();
-		generator2.reset();
-
-		// compare with iterator values
-		SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
-			memoryManager, ioManager, reader1, reader2, TestData.Key.class, TestData.Value.class, TestData.Value.class,
-			NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, 128, parentTask);
-
-		iterator.open();
-		while (iterator.next()) {
-			TestData.Key key = new TestData.Key(iterator.getKey().getKey());
-
-			// assert that matches for this key exist
-			Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
-
-			// assert that each map is expected
-			Iterator<TestData.Value> iter1 = iterator.getValues1();
-			Iterator<TestData.Value> iter2 = iterator.getValues2();
-
-			// clone add memorize
-			List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-			while (iter1.hasNext()) {
-				values1.add(new TestData.Value(iter1.next().getValue()));
-			}
-
-			List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-			while (iter2.hasNext()) {
-				values2.add(new TestData.Value(iter2.next().getValue()));
-			}
-
-			// compare
-			for (Value value1 : values1) {
-				for (Value value2 : values2) {
-					Collection<Match> expectedValues = expectedMatchesMap.get(key);
-					Match match = new Match(value1, value2);
-					Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-					expectedValues.remove(match);
+	public void testIterator() {
+		try {
+			// collect expected data
+			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+	
+			// reset the generators
+			generator1.reset();
+			generator2.reset();
+	
+			// compare with iterator values
+			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+				memoryManager, ioManager, reader1, reader2, TestData.Key.class, TestData.Value.class, TestData.Value.class,
+				NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, 128, parentTask);
+	
+			iterator.open();
+			while (iterator.next()) {
+				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+	
+				// assert that matches for this key exist
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+	
+				// assert that each map is expected
+				Iterator<TestData.Value> iter1 = iterator.getValues1();
+				Iterator<TestData.Value> iter2 = iterator.getValues2();
+	
+				// clone add memorize
+				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
+				while (iter1.hasNext()) {
+					values1.add(new TestData.Value(iter1.next().getValue()));
 				}
+	
+				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
+				while (iter2.hasNext()) {
+					values2.add(new TestData.Value(iter2.next().getValue()));
+				}
+	
+				// compare
+				for (Value value1 : values1) {
+					for (Value value2 : values2) {
+						Collection<Match> expectedValues = expectedMatchesMap.get(key);
+						Match match = new Match(value1, value2);
+						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
+						expectedValues.remove(match);
+					}
+				}
+	
 			}
-
+			iterator.close();
+	
+			// assert that each expected match was seen
+			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
+			}
 		}
-		iterator.close();
-
-		// assert that each expected match was seen
-		for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-			Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("An exception occurred during the test: " + e.getMessage());
 		}
 	}
 

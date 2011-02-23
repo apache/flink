@@ -30,7 +30,10 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.hash.SerializingHashMap.OverflowException;
 
+
 /**
+ * THIS CLASS IS EXPERIMENTAL DRAFT CODE THAT IS NOT CURRENTLY USED BY THE RUNTIME !!!
+ * 
  * Basic in-memory hash merge strategy. This strategy will try to initialize the
  * build hash table using the available memory. If an {@link OutOfMemoryException} is thrown by the {@code
  * hashMap.put(...)} call,
@@ -56,7 +59,7 @@ class InMemoryHashMatchStrategy<K extends Key, VB extends Value, VP extends Valu
 	}
 
 	@Override
-	public void initialize() throws ServiceException, IOException, InterruptedException {
+	public void initialize() throws ServiceException, IOException {
 		KeyValuePair<K, VB> pair = null;
 
 		try {
@@ -70,6 +73,9 @@ class InMemoryHashMatchStrategy<K extends Key, VB extends Value, VP extends Valu
 		} catch (OutOfMemoryException e) {
 			throw new RuntimeException("Caught OutOfMemoryException while building hash side", e);
 		}
+		catch (InterruptedException iex) {
+			throw new IOException("Reading of build side input was interrupted.");
+		}
 
 		LOG.debug("Finished building inmemory hash table");
 
@@ -81,17 +87,22 @@ class InMemoryHashMatchStrategy<K extends Key, VB extends Value, VP extends Valu
 	}
 
 	@Override
-	public boolean next() throws IOException, InterruptedException {
-		while (readerProbe.hasNext()) {
-			KeyValuePair<K, VP> pair = readerProbe.next();
-			K key = pair.getKey();
-
-			if (hashMap.contains(key)) {
-				currentKey = key;
-				currentBuildValuesIterable = hashMap.get(currentKey);
-				currentProbeValuesIterable.value = pair.getValue();
-				return true;
+	public boolean next() throws IOException {
+		try {
+			while (readerProbe.hasNext()) {
+				KeyValuePair<K, VP> pair = readerProbe.next();
+				K key = pair.getKey();
+	
+				if (hashMap.contains(key)) {
+					currentKey = key;
+					currentBuildValuesIterable = hashMap.get(currentKey);
+					currentProbeValuesIterable.value = pair.getValue();
+					return true;
+				}
 			}
+		}
+		catch (InterruptedException iex) {
+			throw new IOException(iex);
 		}
 
 		return false;

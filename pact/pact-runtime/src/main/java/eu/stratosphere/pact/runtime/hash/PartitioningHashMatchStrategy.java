@@ -38,7 +38,9 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
- * Fallback hash merge strategy which works if the build records don't fit into
+ * THIS CLASS IS EXPERIMENTAL DRAFT CODE THAT IS NOT CURRENTLY USED BY THE RUNTIME !!!
+ * 
+ * Fallback hash match strategy which works if the build records don't fit into
  * the main memory. In the {@code initialize()} phase, build records are
  * partitioned in buckets (each smaller than the available hash memory) and are
  * then spilled on the disc, Probe records are repartitioned using the same
@@ -93,7 +95,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	}
 
 	@Override
-	public void initialize() throws ServiceException, IOException, InterruptedException {
+	public void initialize() throws ServiceException, IOException {
 		// step 1: initialize partition output buffers
 		//
 		LOG.debug("initialization #1: setting up initial internal state");
@@ -147,7 +149,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	}
 
 	@Override
-	public boolean next() throws IOException, InterruptedException {
+	public boolean next() throws IOException {
 		KeyValuePair<K, VP> pair = probePairSerialization.newInstance();
 
 		// there are more pairs in the current partition
@@ -250,7 +252,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	 * @throws InterruptedException
 	 * @throws ServiceException
 	 */
-	private void repartitionBuildSide() throws IOException, InterruptedException, ServiceException {
+	private void repartitionBuildSide() throws IOException, ServiceException {
 		// step 1: partition hash map contents
 		//
 		LOG.debug("repartition build side #1: repartition hash map contents");
@@ -295,14 +297,19 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 		//
 		LOG.debug("repartition build side #3: repartition remaining records from reader");
 
-		while (readerBuild.hasNext()) {
-			pair = readerBuild.next();
-			partition = partitioner.getPartition(pair.getKey());
-			if (partition == 0) {
-				hashMap.put(pair.getKey(), pair.getValue());
-			} else {
-				partitionWriters.get(partition).write(pair);
+		try {
+			while (readerBuild.hasNext()) {
+				pair = readerBuild.next();
+				partition = partitioner.getPartition(pair.getKey());
+				if (partition == 0) {
+					hashMap.put(pair.getKey(), pair.getValue());
+				} else {
+					partitionWriters.get(partition).write(pair);
+				}
 			}
+		}
+		catch (InterruptedException iex) {
+			throw new IOException("Build side reading was interrupted.");
 		}
 	}
 
@@ -313,15 +320,20 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	private void repartitionProbeSide() throws OutOfMemoryException, IOException, InterruptedException {
+	private void repartitionProbeSide() throws OutOfMemoryException, IOException {
 		KeyValuePair<K, VP> pair;
 		int partition;
 
-		while (readerProbe.hasNext()) {
-			pair = readerProbe.next();
-			partition = partitioner.getPartition(pair.getKey());
-
-			partitionWriters.get(partition).write(pair);
+		try {
+			while (readerProbe.hasNext()) {
+				pair = readerProbe.next();
+				partition = partitioner.getPartition(pair.getKey());
+	
+				partitionWriters.get(partition).write(pair);
+			}
+		}
+		catch (InterruptedException iex) {
+			throw new IOException("Probe side reading was interrupted.");
 		}
 	}
 

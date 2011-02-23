@@ -83,8 +83,11 @@ public abstract class ChannelAccess<T extends Buffer> {
 			Collection<T> buffers)
 	throws IOException
 	{
-		if (channelID == null || requestQueue == null) {
-			throw new NullPointerException();
+		if (channelID == null || requestQueue == null || buffers == null) {
+			throw new IllegalArgumentException();
+		}
+		if (buffers.isEmpty()) {
+			throw new IllegalArgumentException();
 		}
 		
 		this.id = channelID;

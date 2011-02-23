@@ -55,7 +55,7 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 	 * @param filledBuffers
 	 * @throws IOException
 	 */
-	public ChannelWriter(Channel.ID channelID, RequestQueue<IORequest<Buffer.Output>> requestQueue,
+	protected ChannelWriter(Channel.ID channelID, RequestQueue<IORequest<Buffer.Output>> requestQueue,
 			Collection<Buffer.Output> buffers, boolean filledBuffers)
 	throws IOException
 	{

@@ -67,7 +67,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * @param deleteWhenDone
 	 * @throws IOException
 	 */
-	public ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
+	protected ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
 			Collection<Buffer.Input> buffers, boolean deleteWhenDone)
 	throws IOException
 	{

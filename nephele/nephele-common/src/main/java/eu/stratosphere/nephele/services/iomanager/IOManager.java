@@ -111,8 +111,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	public synchronized final void shutdown() {
 		if (!isClosed) {
 			isClosed = true;
-			
-			LOG.info("Closing DefaultIOManager instance.");
 
 			// close both threads by best effort and log problems
 			try {
@@ -207,10 +205,8 @@ public final class IOManager implements UncaughtExceptionHandler
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * <p>
 	 * Creates a ChannelWriter for the anonymous file identified by the specified {@code channelID} using the provided
 	 * {@code freeSegmens} as backing memory for an internal flow of output buffers.
-	 * </p>
 	 * 
 	 * @param channelID
 	 * @param freeSegments
@@ -229,11 +225,9 @@ public final class IOManager implements UncaughtExceptionHandler
 	}
 
 	/**
-	 * <p>
 	 * Creates a ChannelWriter for the anonymous file identified by the specified {@code channelID} using the provided
 	 * {@code memorySegments} as backing memory for an internal flow of output buffers. If the boolean variable {@code
 	 * filled} is set, the content of the memorySegments is flushed to the file before reusing.
-	 * </p>
 	 * 
 	 * @param channelID
 	 * @param freeSegments
@@ -252,11 +246,9 @@ public final class IOManager implements UncaughtExceptionHandler
 	}
 
 	/**
-	 * <p>
 	 * Creates a ChannelWriter for the anonymous file written on secondary storage and identified by the specified
 	 * {@code channelID} using the provided {@code freeSegments} as backing memory for an internal flow of input
 	 * buffers.
-	 * </p>
 	 * 
 	 * @param channelID
 	 * @param freeSegments
@@ -302,9 +294,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	}
 
 	/**
-	 * <p>
 	 * Generic factory method for typed initialized collections of different buffer types.
-	 * </p>
 	 * 
 	 * @param <T>
 	 * @param bufferType

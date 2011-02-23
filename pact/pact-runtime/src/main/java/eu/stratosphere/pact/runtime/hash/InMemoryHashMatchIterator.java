@@ -28,6 +28,9 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 
 
+/**
+ * THIS CLASS IS EXPERIMENTAL DRAFT CODE THAT IS NOT CURRENTLY USED BY THE RUNTIME !!!
+ */
 @SuppressWarnings("rawtypes")
 public class InMemoryHashMatchIterator implements MatchTaskIterator {
 	
@@ -49,8 +52,13 @@ public class InMemoryHashMatchIterator implements MatchTaskIterator {
 	}
 
 	@Override
-	public void open() throws IOException, InterruptedException {
-		buildHash();
+	public void open() throws IOException {
+		try {
+			buildHash();
+		}
+		catch (InterruptedException iex) {
+			throw new IOException("Hash building was interrupted.");
+		}
 	}
 
 	@Override
@@ -95,16 +103,21 @@ public class InMemoryHashMatchIterator implements MatchTaskIterator {
 	}
 
 	@Override
-	public boolean next() throws IOException, InterruptedException {
-		while (readerProbe.hasNext()) {
-			KeyValuePair pair = readerProbe.next();
-			currentKey = pair.getKey();
-			currentValue1 = pair.getValue();
-			currentValue2Iterable = build.get(currentKey);
-
-			if (currentValue2Iterable != null) {
-				return true;
+	public boolean next() throws IOException {
+		try {
+			while (readerProbe.hasNext()) {
+				KeyValuePair pair = readerProbe.next();
+				currentKey = pair.getKey();
+				currentValue1 = pair.getValue();
+				currentValue2Iterable = build.get(currentKey);
+	
+				if (currentValue2Iterable != null) {
+					return true;
+				}
 			}
+		}
+		catch (InterruptedException iex) {
+			throw new IOException(iex);
 		}
 
 		return false;

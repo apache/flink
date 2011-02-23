@@ -33,14 +33,17 @@ import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest.DummyInvokable;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 
-public class IOManagerTest {
+
+public class IOManagerTest
+{	
+	// ------------------------------------------------------------------------
+	//                             Constants
+	// ------------------------------------------------------------------------
 	
 	private static final long SEED = 649180756312423613L;
 
@@ -52,13 +55,43 @@ public class IOManagerTest {
 
 	public static final int SEGMENT_SIZE = 1024 * 1024; // 1M
 
+	// ------------------------------------------------------------------------
+	//                        Cross Test Fields
+	// ------------------------------------------------------------------------
+	
 	private IOManager ioManager;
 
 	private DefaultMemoryManager memoryManager;
 
 	private Generator generator;
 
-
+	// ------------------------------------------------------------------------
+	//                          Mock Objects
+	// ------------------------------------------------------------------------
+	
+//	@Mock
+//	private RandomAccessFile failingFile1;
+//	
+//	@Mock
+//	private RandomAccessFile failingFile2;
+//	
+//	@Mock
+//	private FileChannel mockFailingFileChannel1;
+//
+//	@Mock
+//	private FileChannel mockFailingFileChannel2;
+//	
+//	@Mock
+//	private Channel.ID failingChannel1;
+//	
+//	@Mock
+//	private Channel.ID failingChannel2;
+	
+	
+	// ------------------------------------------------------------------------
+	//                           Setup & Shutdown
+	// ------------------------------------------------------------------------
+	
 	@Before
 	public void beforeTest() {
 		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE);
@@ -67,7 +100,7 @@ public class IOManagerTest {
 	}
 
 	@After
-	public void afterTest() throws Exception {
+	public void afterTest() {
 		ioManager.shutdown();
 		Assert.assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
 		
@@ -77,7 +110,62 @@ public class IOManagerTest {
 	}
 
 	// ------------------------------------------------------------------------
+	//                           Test Methods
+	// ------------------------------------------------------------------------
 	
+	// ------------------------------------------------------------------------
+	
+//	/**
+//	 * 
+//	 */
+//	@Test
+//	public void testExceptionForwarding() throws Exception
+//	{
+//		final String failingVirtualFile1 = new String("virtual fail 1");
+//		final String failingVirtualFile2 = new String("virtual fail 2");
+//		
+//		final AbstractInvokable memoryOwner = new DummyInvokable();
+//		
+//		final int NUM_MEM_SEGS = 4;
+//		final int SIZE_MEM_SEGS = 4096;
+//		
+//		// set up the mocks
+//		PowerMockito.when(failingChannel1.getPath()).thenReturn(failingVirtualFile1);
+//		PowerMockito.when(failingChannel2.getPath()).thenReturn(failingVirtualFile2);
+//			
+//		PowerMockito.whenNew(RandomAccessFile.class).withParameterTypes(String.class, String.class).withArguments(Matchers.same(failingVirtualFile1), Matchers.any(String.class)).thenReturn(failingFile1);
+//		PowerMockito.whenNew(RandomAccessFile.class).withParameterTypes(String.class, String.class).withArguments(Matchers.same(failingVirtualFile2), Matchers.any(String.class)).thenReturn(failingFile2);
+//			
+//		PowerMockito.when(failingFile1.getChannel()).thenReturn(mockFailingFileChannel1);
+//		PowerMockito.when(failingFile2.getChannel()).thenReturn(mockFailingFileChannel2);
+//		
+//		try {
+//			// create 4 readers out of which two will cause different exceptions
+//			Channel.ID[] channels = new Channel.ID[4];
+//			
+//			channels[0] = ioManager.createChannel();
+//			channels[2] = ioManager.createChannel();
+//			channels[1] = failingChannel1;
+//			channels[3] = failingChannel2;
+//			
+//			// create the writers for the channels
+//			ChannelWriter[] writers = new ChannelWriter[channels.length];
+//			for (int i = 0; i < writers.length; i++) {
+//				writers[i] = ioManager.createChannelWriter(channels[i], memoryManager.allocate(memoryOwner, NUM_MEM_SEGS, SIZE_MEM_SEGS));
+//			}
+//			
+//		}
+//		catch (MemoryAllocationException maex) {
+//			Assert.fail("Memory allocation exception happend during test.");
+//		}
+//		catch (IOException ioex) {
+//			Assert.fail("IO exception happend during test.");
+//		}
+//	}
+
+	/**
+	 * Tests that the channel enumerator creates channels in the temporary files directory.
+	 */
 	@Test
 	public void channelEnumerator() {
 		File tempPath = new File(System.getProperty("java.io.tmpdir")); 
@@ -97,7 +185,7 @@ public class IOManagerTest {
 	// ------------------------------------------------------------------------
 	
 	@Test
-	public void channelReaderWriter() throws MemoryAllocationException, IOException {
+	public void channelReaderWriter() {
 		Channel.ID channelID = ioManager.createChannel();
 
 		// write generated key/value pairs to a channel
@@ -109,181 +197,76 @@ public class IOManagerTest {
 		Assert.assertEquals("counter equal", writtenCounter, readCounter);
 	}
 
-	private int writeToChannel(Channel.ID channelID) throws IOException, MemoryAllocationException{
-		// create the free memory segments to be used in the internal reader buffer flow
-		Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
-
-		// create the channel writer
-		ChannelWriter channelWriter = ioManager.createChannelWriter(channelID, freeSegments);
-
-		generator.reset();
-
-		// get first pair and initialize written pairs and written buffers counter
-		int writtenPairs = 0;
-		while (writtenPairs < NUMBER_OF_PAIRS) {
-			// writing was successfull, get next pair and increment counter
-			channelWriter.write(generator.next());
-			writtenPairs++;
+	private int writeToChannel(Channel.ID channelID) {
+		try {
+			// create the free memory segments to be used in the internal reader buffer flow
+			Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
+	
+			// create the channel writer
+			ChannelWriter channelWriter = ioManager.createChannelWriter(channelID, freeSegments);
+	
+			generator.reset();
+	
+			// get first pair and initialize written pairs and written buffers counter
+			int writtenPairs = 0;
+			while (writtenPairs < NUMBER_OF_PAIRS) {
+				// writing was successful, get next pair and increment counter
+				channelWriter.write(generator.next());
+				writtenPairs++;
+			}
+	
+			// close the writer and release the memory occupied by the buffers
+			memoryManager.release(channelWriter.close());
+	
+			// return number of written buffers
+			return writtenPairs;
 		}
-
-		// close the writer and release the memory occupied by the buffers
-		memoryManager.release(channelWriter.close());
-
-		// return number of written buffers
-		return writtenPairs;
+		catch (MemoryAllocationException maex) {
+			Assert.fail("Memory for channel writers could not be allocated.");
+			return 0;
+		}
+		catch (IOException ioex) {
+			Assert.fail("IO error occurred while writing to the channel: " + ioex.getMessage());
+			return 0;
+		}
 	}
 
-	private int readFromChannel(Channel.ID channelID) throws IOException, MemoryAllocationException {
-		// create the free memory segments to be used in the internal reader buffer flow
-		Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
-
-		// create the channel reader
-		ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments, true);
-
-		generator.reset();
-
-		Value value = new Value();
-		int readCounter = 0;
-		while (channelReader.read(value)) {
-			Assert.assertEquals("Pairs don't match", generator.next(), value);
-			readCounter++;
+	private int readFromChannel(Channel.ID channelID)  {
+		try {
+			// create the free memory segments to be used in the internal reader buffer flow
+			Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
+	
+			// create the channel reader
+			ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments, true);
+	
+			generator.reset();
+	
+			Value value = new Value();
+			int readCounter = 0;
+			while (channelReader.read(value)) {
+				Assert.assertEquals("Pairs don't match", generator.next(), value);
+				readCounter++;
+			}
+	
+			// close the reader and release the memory occupied by the buffers
+			memoryManager.release(channelReader.close());
+	
+			return readCounter;
 		}
-
-		// close the reader and release the memory occupied by the buffers
-		memoryManager.release(channelReader.close());
-
-		return readCounter;
+		catch (MemoryAllocationException maex) {
+			Assert.fail("Memory for channel readers could not be allocated.");
+			return 0;
+		}
+		catch (IOException ioex) {
+			Assert.fail("IO error occurred while reading from the channel: " + ioex.getMessage());
+			return 0;
+		}
 	}
 
 	// ------------------------------------------------------------------------
 	
-	/**
-	 * This test instantiates multiple channels and writes to them in parallel and re-reads the data in 
-	 * parallel. It is designed to check the ability of the IO manager to correctly handle multiple threads.
-	 */
-	@Test
-	public void parallelChannelsTest() throws Exception
+	protected static class Value implements IOReadableWritable
 	{
-		final Random rnd = new Random(236976457234657898l);
-		final AbstractInvokable memOwner = new DefaultMemoryManagerTest.DummyInvokable();
-		
-		final int NUM_CHANNELS = 29;
-		final int NUMBERS_TO_BE_WRITTEN = NUM_CHANNELS * 100000;
-		
-		final int minSegmentSize = 4 * 1024;
-		final int maxSegmentSize = SEGMENT_SIZE / NUM_CHANNELS;
-		
-		Channel.ID[] ids = new Channel.ID[NUM_CHANNELS];
-		Writer[] writers = new Writer[NUM_CHANNELS];
-		Reader[] readers = new Reader[NUM_CHANNELS];
-		
-		int[] writingCounters = new int[NUM_CHANNELS];
-		int[] readingCounters = new int[NUM_CHANNELS];
-		
-		// instantiate the channels and writers
-		for (int i = 0; i < NUM_CHANNELS; i++) {
-			ids[i] = this.ioManager.createChannel();
-			
-			final int segmentSize = rnd.nextInt(maxSegmentSize - minSegmentSize) + minSegmentSize;
-			Collection<MemorySegment> memSegs= memoryManager.allocate(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2, segmentSize);
-				
-			writers[i] = ioManager.createChannelWriter(ids[i], memSegs);
-		}
-		
-		
-		Value val = new Value();
-		
-		// write a lot of values unevenly distributed over the channels
-		for (int i = 0; i < NUMBERS_TO_BE_WRITTEN; i++) {
-			int channel = skewedSample(rnd, NUM_CHANNELS - 1);
-			
-			val.value = String.valueOf(writingCounters[channel]++);
-			writers[channel].write(val);
-		}
-		
-		// close all writers
-		for (int i = 0; i < NUM_CHANNELS; i++) {
-			memoryManager.release(writers[i].close());
-		}
-		writers = null;
-		
-		// instantiate the readers for sequential read
-		for (int i = 0; i < NUM_CHANNELS; i++) {
-			final int segmentSize = rnd.nextInt(maxSegmentSize - minSegmentSize) + minSegmentSize;
-			Collection<MemorySegment> memSegs= memoryManager.allocate(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2, segmentSize);
-				
-			Reader reader = ioManager.createChannelReader(ids[i], memSegs, false);
-			int nextVal = 0;
-			
-			while (reader.read(val)) {
-				int intValue = 0;
-				try {
-					intValue = Integer.parseInt(val.value);
-				}
-				catch (NumberFormatException nfex) {
-					Assert.fail("Invalid value read from reader. Valid decimal number expected.");
-				}
-				Assert.assertEquals("Written and read values do not match during sequential read.", nextVal, intValue);
-				nextVal++;
-			}
-			
-			Assert.assertEquals("NUmber of written numbers differs from number of read numbers.", writingCounters[i], nextVal);
-			
-			memoryManager.release(reader.close());
-		}
-		
-		
-		
-		// instantiate the readers
-		for (int i = 0; i < NUM_CHANNELS; i++) {
-			
-			final int segmentSize = rnd.nextInt(maxSegmentSize - minSegmentSize) + minSegmentSize;
-			Collection<MemorySegment> memSegs = memoryManager.allocate(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2, segmentSize);
-				
-			readers[i] = ioManager.createChannelReader(ids[i], memSegs, true);
-		}
-		
-		// read a lot of values in a mixed order from the channels
-		for (int i = 0; i < NUMBERS_TO_BE_WRITTEN; i++) {
-			int channel = skewedSample(rnd, NUM_CHANNELS - 1);
-			
-			if (!readers[channel].read(val)) {
-				continue;
-			}
-			
-			int intValue = 0;
-			try {
-				intValue = Integer.parseInt(val.value);
-			}
-			catch (NumberFormatException nfex) {
-				Assert.fail("Invalid value read from reader. Valid decimal number expected.");
-			}
-			
-			Assert.assertEquals("Written and read values do not match.", readingCounters[channel]++, intValue);
-		}
-		
-		// close all readers
-		for (int i = 0; i < NUM_CHANNELS; i++) {
-			memoryManager.release(readers[i].close());
-		}
-		readers = null;
-	}
-	
-	
-	private static final int skewedSample(Random rnd, int max) {
-		double uniform = rnd.nextDouble();
-		double var = Math.pow(uniform, 8.0);
-		double pareto = 0.2 / var;
-		
-		int val = (int) pareto;
-		return val > max ? val % max : val;
-	}
-	
-	
-	// ------------------------------------------------------------------------
-	
-	private static class Value implements IOReadableWritable {
-
 		String value;
 
 		public Value() {
@@ -330,8 +313,8 @@ public class IOManagerTest {
 		}
 	}
 
-	private static class Generator {
-
+	protected static class Generator
+	{
 		private long seed;
 
 		private Random rand;
@@ -354,6 +337,6 @@ public class IOManagerTest {
 			rand.nextBytes(this.value);
 			return new Value(this.value.toString());
 		}
-
 	}
+	
 }
