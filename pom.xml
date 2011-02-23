@@ -361,6 +361,7 @@
 					<systemPropertyVariables>
 						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
 					</systemPropertyVariables>
+					<argLine>-Xms512m -Xmx512m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -371,6 +372,7 @@
 					<systemPropertyVariables>
 						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
 					</systemPropertyVariables>
+					<argLine>-Xms512m -Xmx512m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>

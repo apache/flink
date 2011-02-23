@@ -83,7 +83,7 @@ out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.out
 pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager.pid
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/log4j.properties"
 
-JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$TM_JHEAP"m -Xmx"$TM_JHEAP"m"
+JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$NEPHELE_TM_HEAP"m -Xmx"$NEPHELE_TM_HEAP"m"
 
 case $STARTSTOP in
 

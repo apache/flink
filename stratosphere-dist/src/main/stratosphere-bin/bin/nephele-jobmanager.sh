@@ -27,7 +27,7 @@ if [ "$EXECUTIONMODE" = "local" ]; then
 	JM_JHEAP=`echo $JM_JHEAP+$TM_JHEAP | bc`
 fi
 
-JVM_ARGS="$JVM_ARGS -Xms"$JM_JHEAP"m -Xmx"$JM_JHEAP"m"
+JVM_ARGS="$JVM_ARGS -Xms"$NEPHELE_JM_HEAP"m -Xmx"$NEPHELE_JM_HEAP"m"
 
 if [ "$NEPHELE_PID_DIR" = "" ]; then
 	NEPHELE_PID_DIR=/tmp
