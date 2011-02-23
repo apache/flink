@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.discovery;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -30,8 +29,6 @@ import java.net.UnknownHostException;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -49,11 +46,6 @@ import eu.stratosphere.nephele.util.StringUtils;
  * The discovery service uses the <code>discoveryservice.magicnumber</code> configuration parameter. It needs to be set
  * to any number. Task managers discover the job manager only if their magic number matches. This allows running two
  * Nephele setups on the same cluster without interference of the {@link DiscoveryService}s.
- * <p>
- * On hosts with several network interfaces or IP addresses, the <code>servicenetwork</code> can be used to describe to
- * which IP the services shall be bound. A node with IP addresses 130.149.3.99/255.255.255.192 and
- * 192.168.198.3/255.255.0.0 could specify for example 130.149.3.64 or 192.168.0.0 as the service network. In fact also
- * 130.149.3.99 and 192.168.198.3 would work.
  * 
  * @author warneke
  * @author Dominic Battre
@@ -86,6 +78,11 @@ public class DiscoveryService implements Runnable {
 	private static final String MAGICNUMBER_KEY = "discoveryservice.magicnumber";
 
 	/**
+	 * The default magic number.
+	 */
+	private static final int DEFAULT_MAGICNUMBER_VALUE = 0;
+
+	/**
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(DiscoveryService.class);
@@ -94,6 +91,11 @@ public class DiscoveryService implements Runnable {
 	 * Singleton instance of the discovery service.
 	 */
 	private static DiscoveryService discoveryService = null;
+
+	/**
+	 * The network address the IPC is bound to, possibly <code>null</code>.
+	 */
+	private final InetAddress ipcAddress;
 
 	/**
 	 * The network port that is announced for the job manager's IPC service.
@@ -105,41 +107,73 @@ public class DiscoveryService implements Runnable {
 	 */
 	private Thread listeningThread = null;
 
-	private final static Pattern pingPattern = Pattern.compile("PING (\\d+)");
-
-	private final static Pattern pongPattern = Pattern.compile("PONG (\\d+)");
-
 	/**
 	 * The datagram socket of the discovery server.
 	 */
 	private DatagramSocket serverSocket = null;
 
-	private static final boolean USEIPV6 = "true".equals(System.getProperty("java.net.preferIPv4Stack")) ? false : true;
+	/**
+	 * Flag indicating whether to use IPv6 or not.
+	 */
+	private static final boolean USE_IPV6 = "true".equals(System.getProperty("java.net.preferIPv4Stack")) ? false
+		: true;
+
+	/**
+	 * ID for job manager lookup request packets.
+	 */
+	private static final int JM_LOOKUP_REQUEST_ID = 0;
+
+	/**
+	 * ID for job manager lookup reply packets.
+	 */
+	private static final int JM_LOOKUP_REPLY_ID = 1;
+
+	/**
+	 * ID for task manager address request packets.
+	 */
+	private static final int TM_ADDRESS_REQUEST_ID = 2;
+
+	/**
+	 * ID for task manager address reply packets.
+	 */
+	private static final int TM_ADDRESS_REPLY_ID = 3;
+
+	/**
+	 * The default size of response datagram packets.
+	 */
+	private static final int RESPONSE_PACKET_SIZE = 64;
 
 	/**
 	 * Constructs a new {@link DiscoveryService} object and stores
 	 * the job manager's IPC port.
 	 * 
+	 * @param ipcAddress
+	 *        the network address the IPC is bound to, possibly <code>null</code>
 	 * @param ipcPort
+	 *        the network port that is announced for the job manager's IPC service
 	 */
-	private DiscoveryService(int ipcPort) {
+	private DiscoveryService(final InetAddress ipcAddress, final int ipcPort) {
+
+		this.ipcAddress = ipcAddress;
 		this.ipcPort = ipcPort;
 	}
 
 	/**
 	 * Starts a new discovery service.
 	 * 
+	 * @param ipcAddress
+	 *        the network address the IPC is bound to, possibly <code>null</code>
 	 * @param ipcPort
-	 *        the network port that is announced for
-	 *        the job manager's IPC service.
+	 *        the network port that is announced for the job manager's IPC service.
 	 * @throws DiscoveryException
 	 *         thrown if the discovery service could not be started because
 	 *         of network difficulties
 	 */
-	public static synchronized void startDiscoveryService(int ipcPort) throws DiscoveryException {
+	public static synchronized void startDiscoveryService(final InetAddress ipcAddress, final int ipcPort)
+			throws DiscoveryException {
 
 		if (discoveryService == null) {
-			discoveryService = new DiscoveryService(ipcPort);
+			discoveryService = new DiscoveryService(ipcAddress, ipcPort);
 			discoveryService.startService();
 		}
 	}
@@ -165,7 +199,7 @@ public class DiscoveryService implements Runnable {
 	private void startService() throws DiscoveryException {
 
 		try {
-			this.serverSocket = new DatagramSocket(DISCOVERYPORT, getServiceAddress());
+			this.serverSocket = new DatagramSocket(DISCOVERYPORT, this.ipcAddress);
 		} catch (SocketException e) {
 			throw new DiscoveryException(e.toString());
 		}
@@ -190,47 +224,140 @@ public class DiscoveryService implements Runnable {
 	}
 
 	/**
-	 * Creates a new PING Message.
-	 * <p>
-	 * The message follows the format "PING X", where X is a magic number configured in "discoveryservice.magicnumber"
-	 * or 0 if no number is specified in the configuration. The magic number allows to execute several Nephele instances
-	 * in the same network without IP traffic isolation. Without such a mechanism, one Task Manager might register at
-	 * the wrong Discovery Service.
+	 * Creates a new job manager lookup request packet.
 	 * 
-	 * @return new PING datagram.
+	 * @return a new job manager lookup request packet
 	 */
-	private static DatagramPacket createPingPacket() {
-		int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, 0);
-		byte[] bytes = ("PING " + magicNumber).getBytes();
+	private static DatagramPacket createJobManagerLookupRequestPacket() {
+
+		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
+		final byte[] bytes = new byte[8];
+		integerToByteArray(magicNumber, 0, bytes);
+		integerToByteArray(JM_LOOKUP_REQUEST_ID, 4, bytes);
+
 		return new DatagramPacket(bytes, bytes.length);
 	}
 
 	/**
-	 * Returns whether the {@link DatagramPacket} contains a PING Message
-	 * that is addressed to us.
+	 * Creates a new job manager lookup reply packet.
 	 * 
-	 * @see {@link #createPingPacket()} for an explanation of the message format
-	 * @param packet
-	 *        Received {@link DatagramPacket} that might contain a PING message
-	 * @return true if the {@link DatagramPacket} contains a PING message addressed to us.
+	 * @return a new job manager lookup reply packet
 	 */
-	private static boolean isPingForUs(DatagramPacket packet) {
+	private static DatagramPacket createJobManagerLookupReplyPacket(final int ipcPort) {
+
+		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
+		final byte[] bytes = new byte[12];
+		integerToByteArray(magicNumber, 0, bytes);
+		integerToByteArray(JM_LOOKUP_REPLY_ID, 4, bytes);
+		integerToByteArray(ipcPort, 8, bytes);
+
+		return new DatagramPacket(bytes, bytes.length);
+	}
+
+	/**
+	 * Creates a new task manager address request packet.
+	 * 
+	 * @return a new task manager address request packet
+	 */
+	private static DatagramPacket createTaskManagerAddressRequestPacket() {
+
+		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
+		final byte[] bytes = new byte[8];
+		integerToByteArray(magicNumber, 0, bytes);
+		integerToByteArray(TM_ADDRESS_REQUEST_ID, 4, bytes);
+
+		return new DatagramPacket(bytes, bytes.length);
+	}
+
+	/**
+	 * Creates a new task manager address reply packet.
+	 * 
+	 * @param taskManagerAddress
+	 *        the address of the task manager which sent the request
+	 * @return a new task manager address reply packet
+	 */
+	private static DatagramPacket createTaskManagerAddressReplyPacket(final InetAddress taskManagerAddress) {
+
+		final byte[] addr = taskManagerAddress.getAddress();
+		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
+		final byte[] bytes = new byte[12 + addr.length];
+		integerToByteArray(magicNumber, 0, bytes);
+		integerToByteArray(TM_ADDRESS_REPLY_ID, 4, bytes);
+		integerToByteArray(addr.length, 8, bytes);
+		System.arraycopy(addr, 0, bytes, 12, addr.length);
+
+		return new DatagramPacket(bytes, bytes.length);
+	}
+
+	/**
+	 * Returns the network address with which the task manager shall announce itself to the job manager. To determine
+	 * the address this method exchanges packets with the job manager.
+	 * 
+	 * @param jobManagerAddress
+	 *        the address of the job manager
+	 * @return the address with which the task manager shall announce itself to the job manager
+	 * @throws DiscoveryException
+	 *         thrown if an error occurs during the packet exchange
+	 */
+	public static InetAddress getTaskManagerAddress(final InetAddress jobManagerAddress) throws DiscoveryException {
+
+		InetAddress taskManagerAddress = null;
+
+		DatagramSocket socket = null;
 
 		try {
-			String content = new String(packet.getData(), packet.getOffset(), packet.getLength());
 
-			Matcher m = pingPattern.matcher(content);
+			socket = new DatagramSocket();
+			LOG.debug("Setting socket timeout to " + CLIENTSOCKETTIMEOUT);
+			socket.setSoTimeout(CLIENTSOCKETTIMEOUT);
 
-			if (m.matches()) {
-				final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, 0);
-				if (Integer.parseInt(m.group(1)) == magicNumber) {
-					return true;
+			final DatagramPacket responsePacket = new DatagramPacket(new byte[RESPONSE_PACKET_SIZE],
+				RESPONSE_PACKET_SIZE);
+
+			for (int retries = 0; retries < DISCOVERFAILURERETRIES; retries++) {
+
+				final DatagramPacket addressRequest = createTaskManagerAddressRequestPacket();
+				addressRequest.setAddress(jobManagerAddress);
+				addressRequest.setPort(DISCOVERYPORT);
+
+				LOG.debug("Sending Task Manager address request to " + addressRequest.getSocketAddress());
+				socket.send(addressRequest);
+
+				try {
+					socket.receive(responsePacket);
+				} catch (SocketTimeoutException ste) {
+					LOG.warn("Timeout wainting for address reply. Retrying...");
+					continue;
 				}
+
+				if (!isPacketForUs(responsePacket)) {
+					LOG.warn("Received packet which is not destined to this Nephele setup");
+					continue;
+				}
+
+				final int packetTypeID = getPacketTypeID(responsePacket);
+				if (packetTypeID != TM_ADDRESS_REPLY_ID) {
+					LOG.warn("Received response of unknown type " + packetTypeID + ", discarding...");
+					continue;
+				}
+
+				taskManagerAddress = extractInetAddress(responsePacket);
+				break;
 			}
-		} catch (Exception e) {
-			LOG.error("Error parsing ping", e);
+
+		} catch (IOException ioe) {
+			throw new DiscoveryException(StringUtils.stringifyException(ioe));
+		} finally {
+			if (socket != null) {
+				socket.close();
+			}
 		}
-		return false;
+
+		if (taskManagerAddress == null) {
+			throw new DiscoveryException("Unable to obtain task manager address");
+		}
+
+		return taskManagerAddress;
 	}
 
 	/**
@@ -244,16 +371,6 @@ public class DiscoveryService implements Runnable {
 	 */
 	public static InetSocketAddress getJobManagerAddress() throws DiscoveryException {
 
-		/*
-		 * try {
-		 * InetSocketAddress result = new InetSocketAddress(InetAddress.getByName("192.168.2.111"),6123);
-		 * return result;
-		 * } catch (UnknownHostException e) {
-		 * // TODO Auto-generated catch block
-		 * e.printStackTrace();
-		 * throw new DiscoveryException("Unable toooo discoer JobManager via IP broadcast!");
-		 * }
-		 */
 		InetSocketAddress jobManagerAddress = null;
 
 		DatagramSocket socket = null;
@@ -271,26 +388,38 @@ public class DiscoveryService implements Runnable {
 			LOG.debug("Setting socket timeout to " + CLIENTSOCKETTIMEOUT);
 			socket.setSoTimeout(CLIENTSOCKETTIMEOUT);
 
-			final DatagramPacket pongBuffer = new DatagramPacket(new byte[100], 100);
+			final DatagramPacket responsePacket = new DatagramPacket(new byte[RESPONSE_PACKET_SIZE],
+				RESPONSE_PACKET_SIZE);
 
 			for (int retries = 0; retries < DISCOVERFAILURERETRIES; retries++) {
 
 				for (InetAddress broadcast : targetAddresses) {
-					final DatagramPacket ping = createPingPacket();
-					ping.setAddress(broadcast);
-					ping.setPort(DISCOVERYPORT);
-					LOG.debug("Sending discovery request to " + ping.getSocketAddress());
-					socket.send(ping);
+					final DatagramPacket lookupRequest = createJobManagerLookupRequestPacket();
+					lookupRequest.setAddress(broadcast);
+					lookupRequest.setPort(DISCOVERYPORT);
+					LOG.debug("Sending discovery request to " + lookupRequest.getSocketAddress());
+					socket.send(lookupRequest);
 				}
 
 				try {
-					socket.receive(pongBuffer);
+					socket.receive(responsePacket);
 				} catch (SocketTimeoutException ste) {
 					LOG.debug("Timeout wainting for discovery reply. Retrying...");
 					continue;
 				}
 
-				final int ipcPort = extractIpcPort(pongBuffer);
+				if (!isPacketForUs(responsePacket)) {
+					LOG.debug("Received packet which is not destined to this Nephele setup");
+					continue;
+				}
+
+				final int packetTypeID = getPacketTypeID(responsePacket);
+				if (packetTypeID != JM_LOOKUP_REPLY_ID) {
+					LOG.error("Received unexpected packet type " + packetTypeID + ", discarding... ");
+					continue;
+				}
+
+				final int ipcPort = extractIpcPort(responsePacket);
 				// TODO: This condition helps to deal with legacy implementations of the DiscoveryService
 				if (ipcPort < 0) {
 					continue;
@@ -298,20 +427,21 @@ public class DiscoveryService implements Runnable {
 
 				// Replace port from discovery service with the actual RPC port
 				// of the job manager
-				if (USEIPV6) {
+				if (USE_IPV6) {
 					// TODO: No connection possible unless we remove the scope identifier
-					if (pongBuffer.getAddress() instanceof Inet6Address) {
+					if (responsePacket.getAddress() instanceof Inet6Address) {
 						try {
-							jobManagerAddress = new InetSocketAddress(InetAddress.getByAddress(pongBuffer.getAddress()
+							jobManagerAddress = new InetSocketAddress(InetAddress.getByAddress(responsePacket
+								.getAddress()
 								.getAddress()), ipcPort);
 						} catch (UnknownHostException e) {
 							throw new DiscoveryException(StringUtils.stringifyException(e));
 						}
 					} else {
-						throw new DiscoveryException(pongBuffer.getAddress() + " is not a valid IPv6 address");
+						throw new DiscoveryException(responsePacket.getAddress() + " is not a valid IPv6 address");
 					}
 				} else {
-					jobManagerAddress = new InetSocketAddress(pongBuffer.getAddress(), ipcPort);
+					jobManagerAddress = new InetSocketAddress(responsePacket.getAddress(), ipcPort);
 				}
 				LOG.debug("Discovered job manager at " + jobManagerAddress);
 				break;
@@ -333,29 +463,63 @@ public class DiscoveryService implements Runnable {
 		return jobManagerAddress;
 	}
 
+	/**
+	 * Extracts an IPC port from the given datagram packet. The datagram packet must be of the type
+	 * <code>JM_LOOKUP_REPLY_PACKET_ID</code>.
+	 * 
+	 * @param packet
+	 *        the packet to extract the IPC port from.
+	 * @return the extracted IPC port or <code>-1</code> if the port could not be extracted
+	 */
 	private static int extractIpcPort(DatagramPacket packet) {
 
-		final String content = new String(packet.getData(), packet.getOffset(), packet.getLength());
+		final byte[] data = packet.getData();
 
-		Matcher m = pongPattern.matcher(content);
-
-		if (!m.matches()) {
-			LOG.error("DiscoveryService cannot extract port from " + content);
+		if (data == null) {
 			return -1;
 		}
 
-		LOG.debug("Received response from DiscoveryService: " + content);
+		if (packet.getLength() < 12) {
+			return -1;
+		}
 
-		int ipcPort = 0;
+		return byteArrayToInteger(data, 8);
+	}
+
+	/**
+	 * Extracts an {@link InetAddress} object from the given datagram packet. The datagram packet must be of the type
+	 * <code>TM_ADDRESS_REPLY_PACKET_ID</code>.
+	 * 
+	 * @param packet
+	 *        the packet to extract the address from
+	 * @return the extracted address or <code>null</code> if it could not be extracted
+	 */
+	private static InetAddress extractInetAddress(DatagramPacket packet) {
+
+		final byte[] data = packet.getData();
+
+		if (data == null) {
+			return null;
+		}
+
+		if (packet.getLength() < 16) {
+			return null;
+		}
+
+		final int len = byteArrayToInteger(data, 8);
+
+		final byte[] addr = new byte[len];
+		System.arraycopy(data, 12, addr, 0, len);
+
+		InetAddress inetAddress = null;
 
 		try {
-			ipcPort = Integer.parseInt(m.group(1));
-		} catch (NumberFormatException e) {
-			LOG.error(StringUtils.stringifyException(e));
-			return -1;
+			inetAddress = InetAddress.getByAddress(addr);
+		} catch (UnknownHostException e) {
+			return null;
 		}
 
-		return ipcPort;
+		return inetAddress;
 	}
 
 	/**
@@ -378,8 +542,6 @@ public class DiscoveryService implements Runnable {
 			return broadcastAddresses;
 		}
 
-		final InetAddress serviceAddress = getServiceAddress();
-
 		while (ie.hasMoreElements()) {
 			NetworkInterface nic = ie.nextElement();
 			try {
@@ -391,7 +553,7 @@ public class DiscoveryService implements Runnable {
 				for (InterfaceAddress adr : nic.getInterfaceAddresses()) {
 
 					// collect all broadcast addresses
-					if (USEIPV6) {
+					if (USE_IPV6) {
 						try {
 							final InetAddress interfaceAddress = adr.getAddress();
 							if (interfaceAddress instanceof Inet6Address) {
@@ -406,9 +568,7 @@ public class DiscoveryService implements Runnable {
 						}
 					} else {
 						final InetAddress broadcast = adr.getBroadcast();
-						if ((broadcast != null && serviceAddress == null)
-							|| (broadcast != null && DiscoveryService.onSameNetwork(serviceAddress, broadcast, adr
-								.getNetworkPrefixLength()))) {
+						if (broadcast != null) {
 							broadcastAddresses.add(broadcast);
 						}
 					}
@@ -423,158 +583,46 @@ public class DiscoveryService implements Runnable {
 	}
 
 	/**
-	 * Calculates the bit vector of the network prefix for a specific <code>addressLength</code> and
-	 * <code>networkPrefixLength</code>
-	 * 
-	 * @param addressLength
-	 *        the length (in bits) of the network address
-	 * @param networkPrefixLength
-	 *        the length (in bits) of network address prefix
-	 * @return bit vector representing the prefix of the network address
-	 */
-	static byte[] getNetworkPrefix(int addressLength, int networkPrefixLength) {
-
-		if (networkPrefixLength <= 0 || networkPrefixLength >= addressLength) {
-			throw new IllegalArgumentException("Invalid networkPrefixLength");
-		}
-
-		byte[] netmask = new byte[addressLength / 8];
-
-		for (int byteNr = 0; byteNr < netmask.length; ++byteNr) {
-			// create netmask for the current byte
-
-			// how many '1's remain for this byte?
-			// e.g. if networkPrefixLength was 11,
-			// then we have 8x'1' in the first byte
-			// and 3x'1' followed by 5x'0' in the second byte
-			int onesInThisByte = Math.min(networkPrefixLength, 8);
-			networkPrefixLength -= onesInThisByte;
-
-			// calculate bit pattern for current byte.
-
-			// suppose onesInThisByte is 3
-			// (1<<5) = 0010 0000
-			// (1<<5)-1 = 0001 1111
-			// ~(1<<5)-1) = 1110 0000
-
-			netmask[byteNr] = (byte) ~((1 << (8 - onesInThisByte)) - 1);
-		}
-
-		return netmask;
-	}
-
-	/**
-	 * Returns for a given <code>networkPrefixLength</code> whether <code>a</code> and <code>b</code> are in the same
-	 * network.
-	 * 
-	 * @param a
-	 *        first IP Address
-	 * @param b
-	 *        second IP Address
-	 * @param networkPrefixLength
-	 *        number of bits in IP addresses belonging to network id
-	 * @return true if a and b belong to the same network.
-	 */
-	static boolean onSameNetwork(InetAddress a, InetAddress b, int networkPrefixLength) {
-
-		if ((a == null) || (b == null)) {
-			return false;
-		}
-
-		// convert both addresses to byte array
-		byte[] A = a.getAddress();
-		byte[] B = b.getAddress();
-
-		// Compatible addresses must have the same length
-		if (A.length != B.length) {
-			return false;
-		}
-
-		byte[] prefix = getNetworkPrefix(A.length * 8, networkPrefixLength);
-
-		// check byte wise whether (A & netmask) = (B & netmask).
-		for (int byteNr = 0; byteNr < A.length; ++byteNr) {
-			if ((A[byteNr] & prefix[byteNr]) != (B[byteNr] & prefix[byteNr])) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * This function returns the IP address to which services shall bind.
-	 * <p>
-	 * If the configuration file contains an entry like <code>servicenetwork=192.168.178.0</code> (or a respective IPv6
-	 * address), this function returns the first IP bound to a network interface that belongs to the same network as the
-	 * specified <code>servicenetwork</code>.
-	 * <p>
-	 * If the configuration file does not contain a <code>servicenetwork</code> entry, the function returns
-	 * <code>null</code>. As a result, services will be bound to any/all local addresses. If no valid IP address can be
-	 * found, a {@link SocketException} is thrown.
-	 * 
-	 * @return {@link InetAddress} to which services shall bind.
-	 */
-	public static InetAddress getServiceAddress() {
-
-		final String serviceNetwork = GlobalConfiguration.getString("servicenetwork", null);
-
-		InetAddress serviceNetworkAddress = null;
-
-		if (serviceNetwork == null) {
-			return null;
-		}
-
-		try {
-			serviceNetworkAddress = InetAddress.getByName(serviceNetwork);
-
-			if ((serviceNetworkAddress instanceof Inet4Address) && USEIPV6) {
-				throw new UnknownHostException();
-			}
-
-			if ((serviceNetworkAddress instanceof Inet6Address) && !USEIPV6) {
-				throw new UnknownHostException();
-			}
-
-		} catch (UnknownHostException e) {
-			if (USEIPV6) {
-				LOG.error("Configured service network is not a valid IPv6 address");
-			} else {
-				LOG.error("Configured service network is not a valid IPv4 address");
-			}
-		}
-
-		// If the service network address could not be parsed, we fall back to all interfaces
-		if (serviceNetworkAddress == null) {
-			return null;
-		}
-
-		return findLocalAddressOnSameNetwork(serviceNetworkAddress);
-	}
-
-	/**
 	 * Server side implementation of Discovery Service.
 	 */
 	@Override
 	public void run() {
 
-		final DatagramPacket ping = new DatagramPacket(new byte[100], 100);
-		final byte[] PONG = ("PONG " + Integer.toString(this.ipcPort)).getBytes();
-		final DatagramPacket pong = new DatagramPacket(PONG, PONG.length);
+		final DatagramPacket requestPacket = new DatagramPacket(new byte[64], 64);
 
 		while (!Thread.interrupted()) {
 
 			try {
-				this.serverSocket.receive(ping);
+				this.serverSocket.receive(requestPacket);
 
-				if (isPingForUs(ping)) {
-					LOG.debug("Received ping from " + ping.getSocketAddress());
-					pong.setAddress(ping.getAddress());
-					pong.setPort(ping.getPort());
-
-					this.serverSocket.send(pong);
-				} else {
-					LOG.debug("Received ping for somebody else from " + ping.getSocketAddress());
+				if (!isPacketForUs(requestPacket)) {
+					LOG.debug("Received request packet which is not destined to this Nephele setup");
+					continue;
 				}
+
+				final int packetTypeID = getPacketTypeID(requestPacket);
+				if (packetTypeID == JM_LOOKUP_REQUEST_ID) {
+
+					LOG.debug("Received job manager lookup request from " + requestPacket.getSocketAddress());
+					final DatagramPacket responsePacket = createJobManagerLookupReplyPacket(this.ipcPort);
+					responsePacket.setAddress(requestPacket.getAddress());
+					responsePacket.setPort(requestPacket.getPort());
+
+					this.serverSocket.send(responsePacket);
+
+				} else if (packetTypeID == TM_ADDRESS_REQUEST_ID) {
+					LOG.debug("Received task manager address request from " + requestPacket.getSocketAddress());
+					final DatagramPacket responsePacket = createTaskManagerAddressReplyPacket(requestPacket
+						.getAddress());
+					responsePacket.setAddress(requestPacket.getAddress());
+					responsePacket.setPort(requestPacket.getPort());
+
+					this.serverSocket.send(responsePacket);
+
+				} else {
+					LOG.error("Received packet of unknown type " + packetTypeID + ", discarding...");
+				}
+
 			} catch (SocketTimeoutException ste) {
 				LOG.debug("Discovery service: socket timeout");
 			} catch (IOException ioe) {
@@ -588,59 +636,93 @@ public class DiscoveryService implements Runnable {
 	}
 
 	/**
-	 * Finds a local network address that is on the same network as <code>candidateAddress</code> or <code>null</code>
-	 * if no such
-	 * address is attached to one of the host's interfaces.
+	 * Serializes and writes the given integer number to the provided byte array.
 	 * 
-	 * @param candidateAddress
-	 *        the candidate address
-	 * @return a local network address on the same network as <code>candidateAddress</code> or <code>null</code> if no
-	 *         such address can be found
+	 * @param integerToSerialize
+	 *        the integer number of serialize
+	 * @param offset
+	 *        the offset at which to start writing inside the byte array
+	 * @param byteArray
+	 *        the byte array to write to
 	 */
-	public static InetAddress findLocalAddressOnSameNetwork(InetAddress candidateAddress) {
+	private static void integerToByteArray(final int integerToSerialize, final int offset, final byte[] byteArray) {
 
-		if (candidateAddress == null) {
-			LOG.debug("candidateAddress is null");
-			return null;
+		for (int i = 0; i < 4; ++i) {
+			final int shift = i << 3; // i * 8
+			byteArray[(offset + 3) - i] = (byte) ((integerToSerialize & (0xff << shift)) >>> shift);
+		}
+	}
+
+	/**
+	 * Reads and deserializes an integer number from the given byte array.
+	 * 
+	 * @param byteArray
+	 *        the byte array to read from
+	 * @param offset
+	 *        the offset at which to start reading the byte array
+	 * @return the deserialized integer number
+	 */
+	private static int byteArrayToInteger(final byte[] byteArray, final int offset) {
+
+		int integer = 0;
+
+		for (int i = 0; i < 4; ++i) {
+			System.out.print(byteArray[i]);
 		}
 
-		// If candidate address is a loopback address, simply return the address
-		if (candidateAddress.isLoopbackAddress()) {
-			return candidateAddress;
+		for (int i = 0; i < 4; ++i) {
+			integer |= (byteArray[(offset + 3) - i] & 0xff) << (i << 3);
 		}
 
-		// iterate over all network interfaces and return first address that
-		// is in the same network as candidateAddress
-		try {
-			Enumeration<NetworkInterface> ie = NetworkInterface.getNetworkInterfaces();
+		return integer;
+	}
 
-			while (ie.hasMoreElements()) {
-				NetworkInterface i = ie.nextElement();
-				if (!i.isUp()) {
-					continue;
-				}
+	/**
+	 * Extracts the datagram packet's magic number and checks it matches with the local magic number.
+	 * 
+	 * @param packet
+	 *        the packet to check
+	 * @return <code>true</code> if the packet carries the magic number expected by the local service, otherwise
+	 *         <code>false</code>
+	 */
+	private static boolean isPacketForUs(final DatagramPacket packet) {
 
-				for (InterfaceAddress adr : i.getInterfaceAddresses()) {
-					InetAddress address = adr.getAddress();
-					if ((address instanceof Inet4Address) && USEIPV6) {
-						continue;
-					}
+		final byte[] data = packet.getData();
 
-					if ((address instanceof Inet6Address) && !USEIPV6) {
-						continue;
-					}
-
-					final int networkPrefixLength = adr.getNetworkPrefixLength();
-
-					if (i.isPointToPoint() == false && onSameNetwork(address, candidateAddress, networkPrefixLength)) {
-						return address;
-					}
-				}
-			}
-		} catch (SocketException e) {
-			LOG.error(e);
+		if (data == null) {
+			return false;
 		}
 
-		return null;
+		if (packet.getLength() < 4) {
+			return false;
+		}
+
+		if (byteArrayToInteger(data, 0) != GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE)) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Extracts the packet type ID from the given datagram packet.
+	 * 
+	 * @param packet
+	 *        the packet to extract the type ID from
+	 * @return the extracted packet type ID or <code>-1</code> if the ID could not be extracted
+	 */
+	private static int getPacketTypeID(final DatagramPacket packet) {
+
+		final byte[] data = packet.getData();
+
+		if (data == null) {
+			return -1;
+		}
+
+		if (packet.getLength() < 8) {
+			return -1;
+		}
+
+		return byteArrayToInteger(data, 4);
 	}
 }

@@ -15,42 +15,21 @@
 
 package eu.stratosphere.nephele.discovery;
 
-import org.junit.Test;
-
+/**
+ * This class contains tests for the {@link DiscoveryService} class.
+ * 
+ * @author warneke
+ *
+ */
 public class DiscoveryServiceTest {
 
-	@Test
-	public void testToNetmask() {
-		/*
-		 * assertArrayEquals(
-		 * new byte[] {0, 0, 0, 0},
-		 * DiscoveryService.toNetmask(0) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, 0, 0, 0},
-		 * DiscoveryService.toNetmask(8) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)255, 0, 0},
-		 * DiscoveryService.toNetmask(16) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)255, (byte)255, 0},
-		 * DiscoveryService.toNetmask(24) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)255, (byte)255, (byte)255},
-		 * DiscoveryService.toNetmask(32) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)224, 0, 0},
-		 * DiscoveryService.toNetmask(8+3) );
-		 */
+/*	@BeforeClass
+	public static void startService() {
+		
 	}
 
-	@Test
-	public void testOnSameNetwork() throws Exception {
-		/*
-		 * Inet4Address a = (Inet4Address)InetAddress.getByAddress(new byte[] {(byte)192, (byte)168, (byte)0, (byte)1});
-		 * Inet4Address b = (Inet4Address)InetAddress.getByAddress(new byte[] {(byte)192, (byte)168, (byte)1, (byte)1});
-		 * assertTrue( DiscoveryService.onSameNetwork(a, b, 16));
-		 * assertFalse( DiscoveryService.onSameNetwork(a, b, 24));
-		 */
-	}
-
+	@AfterClass
+	public static void startService() {
+		
+	}*/
 }

@@ -187,12 +187,15 @@ public class TaskManager implements TaskOperationProtocol {
 		final int dataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
 
-		final InetAddress taskManagerAnnounceAddress = DiscoveryService.findLocalAddressOnSameNetwork(jobManagerAddress
-			.getAddress());
-		final InetSocketAddress taskManagerBindAddress = new InetSocketAddress(DiscoveryService.getServiceAddress(),
-			ipcPort);
+		InetAddress taskManagerAddress = null;
 
-		this.localInstanceConnectionInfo = new InstanceConnectionInfo(taskManagerAnnounceAddress, ipcPort, dataPort);
+		try {
+			taskManagerAddress = DiscoveryService.getTaskManagerAddress(jobManagerAddress.getAddress());
+		} catch (DiscoveryException e) {
+			throw new Exception("Failed to initialize discovery service. " + e.getMessage(), e);
+		}
+
+		this.localInstanceConnectionInfo = new InstanceConnectionInfo(taskManagerAddress, ipcPort, dataPort);
 
 		LOG.info("Announcing connection information " + this.localInstanceConnectionInfo + " to job manager");
 
@@ -221,8 +224,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// Start local RPC server
 		Server taskManagerServer = null;
 		try {
-			taskManagerServer = RPC.getServer(this, taskManagerBindAddress.getHostName(), taskManagerBindAddress
-				.getPort(), handlerCount, false);
+			taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostName(), ipcPort, handlerCount, false);
 			taskManagerServer.start();
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
@@ -676,7 +678,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the {@link Environment} of the task to be unregistered
 	 */
 	private void unregisterTask(ExecutionVertexID id, Environment environment) {
-		
+
 		// Unregister channels
 		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
 			unregisterOutputChannels(environment.getOutputGate(i));
@@ -700,9 +702,9 @@ public class TaskManager implements TaskOperationProtocol {
 		if (this.memoryManager != null) {
 			this.memoryManager.releaseAll(environment.getInvokable());
 		}
-		
-		//TODO: Unregister from IO manager here
-		
+
+		// TODO: Unregister from IO manager here
+
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
