@@ -263,7 +263,7 @@ public class QueueSchedulerTest {
 		when(this.graphIterator2.hasNext()).thenReturn(true, true, true, true, false);
 		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
 		when(this.vertex1.getAllocatedResource()).thenReturn(resource);
-		
+		when(resource.getInstanceType()).thenReturn(instanceType);
 		
 		toTest.resourceAllocated(jobid,resource);
 		verify(this.vertex1, times(4)).setExecutionState(ExecutionState.ASSIGNED);
