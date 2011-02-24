@@ -34,7 +34,7 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  */
 public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 
-	private static Logger LOGGER = Logger.getLogger(TPCHQuery3.class);
+	private static Logger LOGGER = Logger.getLogger(TPCHQuery10.class);
 
 	public static class FilterO extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
 
