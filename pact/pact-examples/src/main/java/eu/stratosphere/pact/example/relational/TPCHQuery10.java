@@ -3,6 +3,8 @@
  */
 package eu.stratosphere.pact.example.relational;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.Iterator;
 
 import org.apache.log4j.Logger;
@@ -12,6 +14,8 @@ import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -20,10 +24,9 @@ import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
@@ -117,12 +120,12 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 		@Override
 		public int compareTo(Key o) {
 
-			int custKey = Integer.parseInt(this.getStringValueAt(7));
+			int custKey = Integer.parseInt(this.getStringValueAt(6));
 			Tuple other = (Tuple) o;
-			int toCompareTo = Integer.parseInt(other.getStringValueAt(7));
+			int toCompareTo = Integer.parseInt(other.getStringValueAt(6));
 			if (custKey == toCompareTo) {
 
-				for (int i = 1; i < 7; i++) {
+				for (int i = 1; i < 6; i++) {
 					if (!(this.getStringValueAt(i).equals(other.getStringValueAt(i)))) {
 						return this.getStringValueAt(i).compareTo(other.getStringValueAt(i));
 					}
@@ -150,8 +153,24 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 		}
 	}
 
-	// @Combinable
+	public static class TupleOutputFormat extends TextOutputFormat<GroupKey, Tuple> {
+
+		@Override
+		public byte[] writeLine(KeyValuePair<GroupKey, Tuple> pair) {
+			return (pair.getKey().toString() + pair.getValue().toString() + "\n").getBytes();
+		}
+
+	}
+
+	@Combinable
 	public static class Sum extends ReduceStub<GroupKey, Tuple, GroupKey, Tuple> {
+
+		private static final DecimalFormat FORMATTER = new DecimalFormat("#.####");
+		static {
+			DecimalFormatSymbols decimalFormatSymbol = new DecimalFormatSymbols();
+			decimalFormatSymbol.setDecimalSeparator('.');
+			FORMATTER.setDecimalFormatSymbols(decimalFormatSymbol);
+		}
 
 		@Override
 		public void combine(GroupKey key, Iterator<Tuple> values, Collector<GroupKey, Tuple> out) {
@@ -164,13 +183,16 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 			while (values.hasNext()) {
 				Tuple v = values.next();
 				if (v.getNumberOfColumns() > 1) {
-					sum = Double.parseDouble(v.getStringValueAt(1)) * (1 - Double.parseDouble(v.getStringValueAt(2)));
+					long val = Math.round(Double.parseDouble(v.getStringValueAt(0))
+						* (1 - Double.parseDouble(v.getStringValueAt(1))) * 10000);
+					sum += (((double) val) / 10000d);
+
 				} else {
-					sum = Double.parseDouble(v.getStringValueAt(1));
+					sum += Double.parseDouble(v.getStringValueAt(0));
 				}
 			}
 			Tuple summed = new Tuple();
-			summed.addAttribute(String.valueOf(sum));
+			summed.addAttribute(FORMATTER.format(sum));
 
 			LOGGER.info("Output: " + key);
 			out.collect(key, summed);
@@ -268,8 +290,8 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 			Sum.class, "Reduce");
 		reduce.setDegreeOfParallelism(degreeOfParallelism);
 
-		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
-				StringTupleDataOutFormat.class, resultPath, "Output");
+		DataSinkContract<GroupKey, Tuple> result = new DataSinkContract<GroupKey, Tuple>(
+				TupleOutputFormat.class, resultPath, "Output");
 		result.setDegreeOfParallelism(degreeOfParallelism);
 
 		result.setInput(reduce);
