@@ -19,23 +19,19 @@ import org.mockito.Mock;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
 /**
- * 
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- * TODO: {@link StringRecord} has a lot of public methods that need to be tested. 
+ *         TODO: {@link StringRecord} has a lot of public methods that need to be tested.
  */
 public class StringRecordTest {
 
-	
 	@Mock
 	private DataInput inputMock;
-	
-	
+
 	@Before
-	public void setUp()
-	{
+	public void setUp() {
 		initMocks(this);
 	}
-	
+
 	/**
 	 * Tests the serialization/deserialization of the {@link StringRecord} class.
 	 */
@@ -57,28 +53,40 @@ public class StringRecordTest {
 			fail(ioe.getMessage());
 		}
 	}
-	
+
 	@Test
-	public void shouldReadProperInputs() throws IOException
-	{
-		when(inputMock.readBoolean()).thenReturn(true);
-		when(inputMock.readInt()).thenReturn(10);
-		
-		
-		String readString = StringRecord.readString(inputMock);
-		assertThat(readString, is(not(nullValue())));
-		
-		
+	public void shouldReadProperInputs() {
+		try {
+
+			when(this.inputMock.readBoolean()).thenReturn(true);
+			when(this.inputMock.readInt()).thenReturn(10);
+
+			final String readString = StringRecord.readString(inputMock);
+			assertThat(readString, is(not(nullValue())));
+
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		}
+
 	}
-	
-	
+
 	@Test
-	public void shouldReadNegativeInputs() throws IOException
-	{
-		when(inputMock.readBoolean()).thenReturn(true);
-		when(inputMock.readInt()).thenReturn(-1);
+	public void shouldReadNegativeInputs() {
 		
-		String readString = StringRecord.readString(inputMock);
-		assertThat(readString, is(nullValue()));
+		try {
+		
+			when(this.inputMock.readBoolean()).thenReturn(true);
+			when(this.inputMock.readInt()).thenReturn(-1);
+		} catch(IOException ioe) {
+			fail(ioe.getMessage());
+		}
+
+		try {
+			StringRecord.readString(inputMock);
+		} catch(IOException ioe) {
+			return;
+		}
+
+		fail("StringRecord.readString did not throw an IOException for negative length of string");		
 	}
 }
