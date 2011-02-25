@@ -32,7 +32,6 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 
 /**
@@ -66,9 +65,9 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 	private final int fileHandlesPerChannel;
 
-	private KeyGroupedIterator<K, V1> iterator1;
+	private KeyValueIterator<V1> iterator1;
 
-	private KeyGroupedIterator<K, V2> iterator2;
+	private KeyValueIterator<V2> iterator2;
 
 	private SortMerger<K, V1> sortMerger1;
 
@@ -144,8 +143,8 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 			
 		// =============== These calls freeze until the data is actually available ============ 
 		
-		this.iterator1 = new KeyGroupedIterator<K, V1>(sortMerger1.getIterator());
-		this.iterator2 = new KeyGroupedIterator<K, V2>(sortMerger2.getIterator());
+		this.iterator1 = new KeyValueIterator<V1>(sortMerger1.getIterator());
+		this.iterator2 = new KeyValueIterator<V2>(sortMerger2.getIterator());
 	}
 
 	@Override
@@ -213,5 +212,94 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 		return true;
 	}
+	
+	private class KeyValueIterator<V extends Value> {
+		private boolean nextKey = false;
+
+		private KeyValuePair<K, V> next = null;
+
+		private Iterator<KeyValuePair<K, V>> iterator;
+
+		public KeyValueIterator(Iterator<KeyValuePair<K, V>> iterator) {
+			this.iterator = iterator;
+		}
+
+		public boolean nextKey() {
+			// first pair
+			if (next == null) {
+				if (iterator.hasNext()) {
+					next = iterator.next();
+					return true;
+				} else {
+					return false;
+				}
+			}
+
+			// known key
+			if (nextKey) {
+				nextKey = false;
+				return true;
+			}
+
+			// next key
+			while (true) {
+				KeyValuePair<K, V> prev = next;
+				if (iterator.hasNext()) {
+					next = iterator.next();
+					if (next.getKey().compareTo(prev.getKey()) != 0) {
+						return true;
+					}
+				} else {
+					return false;
+				}
+			}
+		}
+
+		public K getKey() {
+			return next.getKey();
+		}
+
+		public Iterator<V> getValues() {
+			return new Iterator<V>() {
+				boolean first = true;
+
+				boolean last = false;
+
+				@Override
+				public boolean hasNext() {
+					if (first) {
+						first = false;
+						return true;
+					} else if (last) {
+						return false;
+					} else {
+						if (!iterator.hasNext()) {
+							return false;
+						}
+
+						KeyValuePair<K, V> prev = next;
+						next = iterator.next();
+						if (next.getKey().compareTo(prev.getKey()) == 0) {
+							return true;
+						} else {
+							last = true;
+							nextKey = true;
+							return false;
+						}
+					}
+				}
+
+				@Override
+				public V next() {
+					return next.getValue();
+				}
+
+				@Override
+				public void remove() {
+
+				}
+			};
+		}
+	};
 
 }
