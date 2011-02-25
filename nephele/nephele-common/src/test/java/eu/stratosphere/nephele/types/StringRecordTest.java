@@ -47,7 +47,7 @@ public class StringRecordTest {
 		try {
 
 			final StringRecord copy = (StringRecord) CommonTestUtils.createCopy(orig);
-
+			
 			assertEquals(orig.getLength(), copy.getLength());
 			assertEquals(orig.toString(), copy.toString());
 			assertEquals(orig, copy);
@@ -64,11 +64,8 @@ public class StringRecordTest {
 		when(inputMock.readBoolean()).thenReturn(true);
 		when(inputMock.readInt()).thenReturn(10);
 		
-		
 		String readString = StringRecord.readString(inputMock);
 		assertThat(readString, is(not(nullValue())));
-		
-		
 	}
 	
 	
