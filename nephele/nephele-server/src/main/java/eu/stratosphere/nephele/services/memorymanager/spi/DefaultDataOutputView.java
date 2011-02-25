@@ -54,10 +54,10 @@ public final class DefaultDataOutputView extends DefaultMemorySegmentView implem
 	}
 
 	@Override
-	public DataOutputView setPosition(int position) throws IOException {
+	public DataOutputView setPosition(int position) {
 		final int newPos = this.offset + position;
-		if (newPos >= this.end) {
-			throw new EOFException();
+		if (newPos > this.end) {
+			throw new IndexOutOfBoundsException();
 		}
 		
 		this.position = newPos;

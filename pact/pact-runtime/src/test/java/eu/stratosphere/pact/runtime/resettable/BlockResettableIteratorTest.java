@@ -122,6 +122,7 @@ public class BlockResettableIteratorTest
 			deserializer, memOwner);
 		// open the iterator
 		iterator.open();
+		
 		// now test walking through the iterator
 		int lower = 0;
 		int upper = 0;

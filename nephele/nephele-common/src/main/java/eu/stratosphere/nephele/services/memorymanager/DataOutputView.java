@@ -39,7 +39,7 @@ public interface DataOutputView extends DataOutput
 	/**
 	 * Sets the current read position.
 	 */
-	public DataOutput setPosition(int position) throws IOException;
+	public DataOutput setPosition(int position);
 
 	/**
 	 * Skips {@code size} memory.

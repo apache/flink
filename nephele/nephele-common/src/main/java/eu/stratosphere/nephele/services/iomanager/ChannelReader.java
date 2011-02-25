@@ -131,6 +131,14 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			this.fileChannel.close();
 		}
 		
+		// clean up after us, if requested. don't report exceptions, just try
+		if (this.deleteWhenDone) {
+			try {
+				deleteChannel();
+			}
+			catch (Throwable t) {}
+		}
+		
 		return segments;
 	}
 
@@ -242,7 +250,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 				else {
 					// retry reading from the next full buffer
 					this.currentBuffer = buffer;
-					return currentBuffer.read(readable);
+					return buffer.read(readable);
 				}
 			}
 			catch (InterruptedException iex) {
@@ -317,15 +325,6 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		// set flag such that no further requests are issued
 		if (buffer.getRemainingBytes() == 0 && !this.allRead) {
 			this.allRead = true;
-			
-			// clean up after us, if requested. don't report exceptions, just try
-			if (this.deleteWhenDone) {
-				try {
-					this.fileChannel.close();
-					deleteChannel();
-				}
-				catch (Throwable t) {}
-			}
 		}
 		
 		// handle buffer as we had it

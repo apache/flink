@@ -89,7 +89,7 @@ public abstract class Buffer {
 		private int repeatPosition;
 		
 		/**
-		 * Limit of the underlying memory.
+		 * Limit of the contents in the underlying memory.
 		 */
 		private int limit;
 		
@@ -98,6 +98,16 @@ public abstract class Buffer {
 			super(memory);
 			
 			this.inView = memory.inputView;
+			this.inView.reset();
+		}
+		
+		/**
+		 * Gets the current position of this buffer.
+		 * 
+		 * @return THe current position.
+		 */
+		public final int getPosition() {
+			return this.position;
 		}
 		
 		/**
@@ -111,13 +121,27 @@ public abstract class Buffer {
 		}
 		
 		/**
-		 * Rewinds this buffer, such that the position is zero.
+		 * Rewinds this buffer, such that the position is zero and the limit is kept.
 		 */
 		public final void rewind() {
 			this.position = 0;
 			this.repeatPosition = 0;
 			this.inView.reset();
 		}
+		
+		/**
+		 * Resets the buffer such that the position is zero and the limit is set to the given value.
+		 * 
+		 * @param limit The new limit.
+		 */
+		public final void reset(int limit) {
+			if (limit < 0) {
+				throw new IllegalArgumentException();
+			}
+			rewind();
+			this.limit = limit;
+		}
+		
 
 		/**
 		 * Reads an {@code IOReadableWritable} from the underlying memory
@@ -252,6 +276,7 @@ public abstract class Buffer {
 			super(memory);
 			
 			this.outView = memory.outputView;
+			this.outView.reset();
 		}
 
 		/**
@@ -266,10 +291,12 @@ public abstract class Buffer {
 		 * @throws UnboundMemoryBackedException
 		 */
 		public boolean write(IOReadableWritable object) {
+			final int pos = this.outView.getPosition();
 			try {
-				object.write(memory.outputView);
+				object.write(this.outView);
 				return true;
 			} catch (IOException e) {
+				this.outView.setPosition(pos);
 				return false;
 			}
 		}
@@ -290,6 +317,16 @@ public abstract class Buffer {
 		 */
 		public void rewind() {
 			this.outView.reset();
+		}
+		
+		/**
+		 * Gets the current position from this buffer.
+		 * 
+		 * @return The current position;
+		 */
+		public int getPosition()
+		{
+			return this.outView.getPosition();
 		}
 	}
 

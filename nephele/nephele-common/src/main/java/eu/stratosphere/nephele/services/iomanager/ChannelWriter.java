@@ -79,7 +79,8 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 
 		// get the first buffer from the empty buffer queue as current
 		try {
-			currentBuffer = nextBuffer();
+			this.currentBuffer = nextBuffer();
+			this.currentBuffer.rewind();
 			checkErroneous();
 		}
 		catch (InterruptedException iex) {
