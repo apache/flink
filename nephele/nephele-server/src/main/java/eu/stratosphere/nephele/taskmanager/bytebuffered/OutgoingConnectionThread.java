@@ -71,7 +71,7 @@ public class OutgoingConnectionThread extends Thread {
 			try {
 				selector.select(500);
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOG.error(e);
 			}
 
 			Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
@@ -116,7 +116,7 @@ public class OutgoingConnectionThread extends Thread {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e1) {
-					e1.printStackTrace();
+					LOG.error(e1);
 				}
 			}
 

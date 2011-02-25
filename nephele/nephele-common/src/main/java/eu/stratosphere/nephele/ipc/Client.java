@@ -512,12 +512,14 @@ public class Client {
 						try {
 							c = ClassUtils.getRecordByName(returnClassName);
 						} catch (ClassNotFoundException e) {
-							e.printStackTrace();
+							LOG.error(e);
 						}
 						try {
 							value = c.newInstance();
-						} catch (Exception e) {
-							e.printStackTrace();
+						} catch (InstantiationException e) {
+							LOG.error(e);
+						} catch (IllegalAccessException e) {
+							LOG.error(e);
 						}
 						value.read(in); // read value
 					}
