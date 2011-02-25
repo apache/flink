@@ -555,8 +555,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 							continue;
 						}
 					} catch (ExecutionFailureException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						LOG.error(e);
 					}
 				}
 				/*

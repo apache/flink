@@ -17,6 +17,9 @@ package eu.stratosphere.nephele.io.channels.bytebuffered;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -77,6 +80,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * Buffer for the uncompressed data.
 	 */
 	private Buffer uncompressedDataBuffer = null;
+
+	private static final Log LOG=LogFactory.getLog(AbstractByteBufferedInputChannel.class);
 
 	/**
 	 * Creates a new byte buffered output channel.
@@ -290,7 +295,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				try {
 					requestWriteBuffersFromBroker();
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					LOG.error(e);
 				}
 			}
 			if (this.compressor != null) {

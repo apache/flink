@@ -100,7 +100,7 @@ public class IncomingConnectionThread extends Thread {
 			try {
 				selector.select(500);
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOG.error(e);
 			}
 
 			final Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
