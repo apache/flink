@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.io.library;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
@@ -28,6 +31,8 @@ public class DirectoryWriter extends AbstractFileOutputTask {
 	 * The record reader to read the incoming strings from.
 	 */
 	private RecordReader<FileRecord> input = null;
+
+	private static final Log LOG = LogFactory.getLog(DirectoryWriter.class);
 
 	@Override
 	public void invoke() throws Exception {
@@ -50,7 +55,7 @@ public class DirectoryWriter extends AbstractFileOutputTask {
 			}
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOG.error(e);
 		}
 
 	}

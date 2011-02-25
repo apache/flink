@@ -139,6 +139,30 @@
             </configuration>
           </execution>
 
+      <!-- TPCHQuery10 -->
+          <execution>
+            <id>TPCHQuery10</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery10</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery10</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery10.class</include>
+                <include>**/relational/TPCHQuery10$*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+          
       <!-- WebLogAnalysis -->
           <execution>
             <id>WebLogAnalysis</id>

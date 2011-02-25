@@ -19,6 +19,9 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.InputGate;
@@ -31,6 +34,8 @@ import eu.stratosphere.nephele.types.Record;
 
 public abstract class AbstractDirectInputChannel<T extends Record> extends AbstractInputChannel<T> {
 
+	private static final Log LOG = LogFactory.getLog(AbstractDirectInputChannel.class);
+	
 	/**
 	 * The synchronization object to protect critical sections.
 	 */
@@ -300,7 +305,7 @@ public abstract class AbstractDirectInputChannel<T extends Record> extends Abstr
 				Thread.sleep(CONNECTION_SLEEP_INTERVAL);
 			} catch (InterruptedException e) {
 				// We need to finish this operation, otherwise the proper shutdown of the consumer is at risk
-				e.printStackTrace();
+				LOG.error(e);
 			}
 		}
 
