@@ -1,104 +1,194 @@
-/***********************************************************************************************************************
- *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- *
- **********************************************************************************************************************/
 package eu.stratosphere.pact.runtime.task;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.*;
-import static org.mockito.MockitoAnnotations.initMocks;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
-
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
-import org.junit.Before;
+import junit.framework.Assert;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.Pair;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.task.TupleMock;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-/**
- * Some small stuüid test to get into testing the stubs.
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- *
- */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ReduceStub.class)
-public class ReduceTaskTest {
+public class ReduceTaskTest extends TaskTestBase {
 
-	private class MockReducer extends ReduceStub<PactInteger, TupleMock, PactInteger, TupleMock>
-	{
-		int reduceCount = 0;
+	private static final Log LOG = LogFactory.getLog(ReduceTaskTest.class);
+	
+	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+
+	@Test
+	public void testReduceTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
 		
-		public int getReduceCount() {
-			return reduceCount;
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
 		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
+		}
+		
+		outList.clear();
+				
+	}
+	
+	@Test
+	public void testCombiningReduceTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockCombiningReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expSum = 0;
+		for(int i=1;i<valCnt;i++) {
+			expSum+=i;
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum-pair.getKey().getValue());
+		}
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testFailingReduceTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockFailingReduceStub.class);
+		
+		boolean stubFailed = false;
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			stubFailed = true;
+		}
+		
+		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
+		
+		outList.clear();
+				
+	}
+	
+	public static class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
-		public void reduce(PactInteger key, Iterator<TupleMock> values, Collector<PactInteger, TupleMock> out) {
-			this.reduceCount++;
+		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int cnt = 0;
+			while(values.hasNext()) {
+				values.next();
+				cnt++;
+			}
+			out.collect(key, new PactInteger(cnt-key.getValue()));
 		}
 	}
 	
-	private MockReducer reducer;
-	@Mock
-	private Iterator<Pair<PactInteger, TupleMock>> iteratorMock;
-	@Mock
-	private Collector<PactInteger, TupleMock> collectorMock;
-	@Mock
-	private KeyGroupedIterator<PactInteger, TupleMock> groupedIteratorMock;
-	
-	@Before
-	public void setUp()
-	{
-		initMocks(this);
-		this.reducer = new MockReducer();
+	@Combinable
+	public static class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+
+		@Override
+		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int sum = 0;
+			while(values.hasNext()) {
+				sum+=values.next().getValue();
+			}
+			out.collect(key, new PactInteger(sum-key.getValue()));			
+		}
+		
+		@Override
+		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int sum = 0;
+			while(values.hasNext()) {
+				sum+=values.next().getValue();
+			}
+			out.collect(key, new PactInteger(sum));
+		}
+		
 	}
 	
-	/*
-	@Test
-	public void shouldNotIterateInRunWithEmptyIterator()
-	{
-		this.reducer.run(this.iteratorMock, collectorMock);
-		assertThat(this.reducer.getReduceCount(), is(equalTo(0)));
+	public static class MockFailingReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+
+		int cnt = 0;
+		
+		@Override
+		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			int valCnt = 0;
+			while(values.hasNext()) {
+				values.next();
+				valCnt++;
+			}
+			
+			if(++cnt>=10) {
+				throw new RuntimeException("Expected Test Exception");
+			}
+			
+			out.collect(key, new PactInteger(valCnt-key.getValue()));
+		}
 	}
 	
-	@Test
-	public void shouldIterateWithNullCollector()
-	{
-		this.reducer.run(this.iteratorMock, null);
-		assertThat(this.reducer.getReduceCount(), is(equalTo(0)));
-	}
 	
-	@Test
-	public void shouldCallReduceOnes() throws Exception
-	{
-		whenNew(KeyGroupedIterator.class).withArguments(any()).thenReturn(this.groupedIteratorMock);
-		when(groupedIteratorMock.nextKey()).thenReturn(true, false);
-		this.reducer.run(this.iteratorMock, this.collectorMock);
-		assertThat(this.reducer.reduceCount, is(equalTo(1)));
-	}
-	*/
 	
 }

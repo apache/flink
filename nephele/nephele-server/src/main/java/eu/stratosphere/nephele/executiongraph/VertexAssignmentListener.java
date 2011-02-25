@@ -13,40 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.metrics.spi;
+package eu.stratosphere.nephele.executiongraph;
+
+import eu.stratosphere.nephele.instance.AllocatedResource;
 
 /**
- * Null metrics context: a metrics context which does nothing. Used as the
- * default context, so that no performance data is emitted if no configuration
- * data is found.
+ * Classes implementing the {@link VertexAssignmentListener} interface can register for notifications about changes in
+ * the assignment of an {@link ExecutionVertex} to an {@link AllocatedResource}.
+ * 
+ * @author warneke
  */
-public class NullContext extends AbstractMetricsContext {
-
-	/** Creates a new instance of NullContext */
-	public NullContext() {
-	}
+public interface VertexAssignmentListener {
 
 	/**
-	 * Do-nothing version of startMonitoring
+	 * Called when an {@link ExecutionVertex} has been assigned to an {@link AllocatedResource}.
+	 * 
+	 * @param id
+	 *        the ID of the vertex which has been reassigned
+	 * @param newAllocatedResource
+	 *        the allocated resource the vertex is now assigned to
 	 */
-	public void startMonitoring() {
-	}
-
-	/**
-	 * Do-nothing version of emitRecord
-	 */
-	protected void emitRecord(String contextName, String recordName, OutputRecord outRec) {
-	}
-
-	/**
-	 * Do-nothing version of update
-	 */
-	protected void update(MetricsRecordImpl record) {
-	}
-
-	/**
-	 * Do-nothing version of remove
-	 */
-	protected void remove(MetricsRecordImpl record) {
-	}
+	void vertexAssignmentChanged(ExecutionVertexID id, AllocatedResource newAllocatedResource);
 }

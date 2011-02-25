@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedExcepti
  *        the type of the underlying memory segment.
  */
 abstract public class Buffer extends MemoryBacked {
+	
 	/**
 	 * Position in the underlying memory.
 	 */
@@ -210,6 +211,11 @@ abstract public class Buffer extends MemoryBacked {
 
 			// read either the full buffer size or the remaining bytes from the channel
 			int limit = (int) Math.min(memory.size(), channel.size() - channel.position());
+			if (limit < 1) {
+				reset(0);
+				return;
+			}
+			
 			channel.read(memory.wrap(0, limit));
 
 			// find the end of the last fully contained object in the buffer

@@ -86,7 +86,7 @@ public class MiniDFSProvider extends HDFSProvider {
 	}
 
 	private static String getTempDir() {
-		return System.getProperty("user.dir") + "/tmp";
+		return System.getProperty("java.io.tmpdir") + "/miniDfs";
 	}
 
 	private static String getDfsDir() {

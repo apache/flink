@@ -345,7 +345,7 @@ public class ReduceTask extends AbstractTask {
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
 					NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
-					valSerialization, keyComparator, reader, 0.5f, this);
+					valSerialization, keyComparator, reader, this);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
 			} catch (MemoryAllocationException mae) {
@@ -377,7 +377,7 @@ public class ReduceTask extends AbstractTask {
 				// instantiate a combining sort-merger
 				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
 					ioManager, NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
-					valSerialization, keyComparator, reader, 0.1f, this, false);
+					valSerialization, keyComparator, reader, this, false);
 				// obtain and return a grouped iterator from the combining
 				// sort-merger
 				return sortMerger;
@@ -405,7 +405,7 @@ public class ReduceTask extends AbstractTask {
 	 * @param out
 	 *        The collector to write the results to.
 	 */
-	public final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
+	private final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
 		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
 		while (iter.nextKey()) {
 			this.stub.reduce(iter.getKey(), iter.getValues(), out);

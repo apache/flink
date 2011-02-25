@@ -46,7 +46,10 @@ import org.eclipse.swt.widgets.Widget;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
+import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
+import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementGate;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
@@ -465,6 +468,17 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			final ManagementVertex vertex = graph.getVertexByID(executionStateChangeEvent.getVertexID());
 			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
 
+		} else if (event instanceof VertexAssignmentEvent) {
+
+			final VertexAssignmentEvent vertexAssignmentEvent = (VertexAssignmentEvent) event;
+			final ManagementGraph graph = graphVisualizationData.getManagementGraph();
+			final ManagementVertex vertex = graph.getVertexByID(vertexAssignmentEvent.getVertexID());
+			vertex.setInstanceName(vertexAssignmentEvent.getInstanceName());
+			vertex.setInstanceType(vertexAssignmentEvent.getInstanceType());
+		} else if (event instanceof JobEvent) {
+			// Ignore this type of event
+		} else if (event instanceof VertexEvent) {
+			// Ignore this type of event
 		} else {
 			System.out.println("Unknown event: " + event);
 		}

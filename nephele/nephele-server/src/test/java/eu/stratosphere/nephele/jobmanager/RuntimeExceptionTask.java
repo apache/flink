@@ -13,27 +13,38 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.metrics;
+package eu.stratosphere.nephele.jobmanager;
+
+import eu.stratosphere.nephele.template.AbstractTask;
 
 /**
- * General-purpose, unchecked metrics exception.
+ * This task throws a {@link RuntimeException} when the method <code>registerInputOutput</code> is called.
+ * 
+ * @author warneke
  */
-public class MetricsException extends RuntimeException {
+public class RuntimeExceptionTask extends AbstractTask {
 
-	private static final long serialVersionUID = -1643257498540498497L;
+	/**
+	 * The message which is used for the test runtime exception.
+	 */
+	public static final String RUNTIME_EXCEPTION_MESSAGE = "This is a test runtime exception";
 
-	/** Creates a new instance of MetricsException */
-	public MetricsException() {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerInputOutput() {
+
+		throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
 	}
 
 	/**
-	 * Creates a new instance of MetricsException
-	 * 
-	 * @param message
-	 *        an error message
+	 * {@inheritDoc}
 	 */
-	public MetricsException(String message) {
-		super(message);
+	@Override
+	public void invoke() throws Exception {
+
+		// Nothing to do here
 	}
 
 }

@@ -16,20 +16,27 @@ package eu.stratosphere.pact.client.nephele.api;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.internal.matchers.Any;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.compiler.DataStatistics;
+import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
+import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,12 +59,24 @@ public class ClientTest {
 
 	@Mock
 	Configuration configMock;
+
 	@Mock
 	PactProgram program;
 	@Mock
-	JobGraph jobGraphMock;
+	Plan planMock;
 	@Mock 
 	File mockJarFile;
+	
+	@Mock
+	PactCompiler compilerMock;
+	@Mock
+	OptimizedPlan optimizedPlanMock;
+	
+	@Mock
+	JobGraphGenerator generatorMock;
+	@Mock
+	JobGraph jobGraphMock;
+
 	@Mock
 	JobClient jobClientMock;
 	@Mock
@@ -67,10 +86,24 @@ public class ClientTest {
 	public void setUp() throws Exception
 	{
 		initMocks(this);
-		when(program.getCompiledPlan()).thenReturn(jobGraphMock);
-		when(program.getJarFile()).thenReturn(mockJarFile);
+		
+		when(configMock.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)).thenReturn("localhost");
+		when(configMock.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)).thenReturn(6123);
+		
+		when(planMock.getJobName()).thenReturn("MockPlan");
 		when(mockJarFile.getAbsolutePath()).thenReturn("mockFilePath");
+		
+		when(program.getJarFile()).thenReturn(mockJarFile);
+		when(program.getPlan()).thenReturn(planMock);
+		
+		whenNew(PactCompiler.class).withArguments(any(DataStatistics.class), any(CostEstimator.class), any(InetSocketAddress.class)).thenReturn(this.compilerMock);
+		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
+		
+		whenNew(JobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
+		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraphMock);
+		
 		whenNew(JobClient.class).withArguments(any(JobGraph.class), any(Configuration.class)).thenReturn(this.jobClientMock);
+		
 		when(this.jobClientMock.submitJob()).thenReturn(jobSubmissionResultMock);
 	}
 	
@@ -78,8 +111,12 @@ public class ClientTest {
 	public void shouldSubmitToJobClient() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException
 	{
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
+		
 		Client out = new Client(configMock);
 		out.run(program);
+		
+		verify(this.compilerMock, times(1)).compile(planMock);
+		verify(this.generatorMock, times(1)).compileJobGraph(optimizedPlanMock);
 		verify(this.jobClientMock, times(1)).submitJob();
 	}
 	
@@ -90,6 +127,7 @@ public class ClientTest {
 	public void shouldThrowException() throws Exception
 	{
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.ERROR);
+		
 		Client out = new Client(configMock);
 		out.run(program);
 		verify(this.jobClientMock).submitJob();

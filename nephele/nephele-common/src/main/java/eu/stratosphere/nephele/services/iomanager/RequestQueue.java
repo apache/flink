@@ -12,44 +12,50 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.runtime.task;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+package eu.stratosphere.nephele.services.iomanager;
+
+
+import java.io.Closeable;
 import java.io.IOException;
+import java.util.concurrent.LinkedBlockingQueue;
 
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.Value;
 
 /**
- * Needed to use the mock implementations of {@link ReduceStub} and {@link MatchStub}.
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
+ * A {@link LinkedBlockingQueue} that is extended with closing methods.
  *
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-class TupleMock implements Value
+public final class RequestQueue<E> extends LinkedBlockingQueue<E> implements Closeable
 {
-	private String name = "";
+	/**
+	 * UID for serialization interoperability. 
+	 */
+	private static final long serialVersionUID = 3804115535778471680L;
 	
-	public TupleMock()
-	{}
+	/**
+	 * Flag marking this queue as closed.
+	 */
+	private volatile boolean closed = false;
 	
-	public TupleMock(String name)
+	/**
+	 * Closes this request queue.
+	 * 
+	 * @see java.io.Closeable#close()
+	 */
+	@Override
+	public void close() throws IOException {
+		this.closed = true;
+	}
+	
+	/**
+	 * Checks whether this request queue is closed.
+	 * 
+	 * @return True, if the queue is closed, false otherwise.
+	 */
+	public boolean isClosed()
 	{
-		this.name = name;
-	}
-	
-	@Override
-	public void read(DataInput in) throws IOException {
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-	}
-	
-	@Override
-	public String toString() {
-		return this.name;
+		return this.closed;
 	}
 	
 }

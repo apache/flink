@@ -263,7 +263,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 					MockTaskManager.INSTANCE.getIoManager(), NUM_SORT_BUFFERS,
 					SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES,
 					keySerialization, valSerialization, keyComparator,
-					new TestPairsReader(inputFileIterator, actualPair), 0.5f,
+					new TestPairsReader(inputFileIterator, actualPair),
 					new ReduceTask());
 
 			this.closableManager.add(sortMerger);

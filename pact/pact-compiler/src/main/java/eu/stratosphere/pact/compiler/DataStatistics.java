@@ -106,13 +106,7 @@ public class DataStatistics {
 		}
 
 		try {
-			URI uri = new Path(filePath).toUri();
-
-			// check if the file is qualified enough
-			if (uri.getHost() == null || uri.getPort() == -1) {
-				return stats;
-			}
-
+			final URI uri = new Path(filePath).toUri();
 			final Path file = new Path(uri.getPath());
 
 			// get the filesystem
@@ -175,11 +169,18 @@ public class DataStatistics {
 			// The sampling currently works only for text input formats
 			// ---------------------------------
 
-			if (format == null || !(format instanceof TextInputFormat<?, ?>)) {
+			// currently, the sampling only works on line separated data
+			if (format != null && format instanceof TextInputFormat<?, ?>) {
+				byte[] delimiter = ((TextInputFormat<?, ?>) format).getDelimiter();
+				if (! ((delimiter.length == 1 && delimiter[0] == '\n') ||
+					   (delimiter.length == 2 && delimiter[0] == '\r' && delimiter[1] == '\n')) )
+				{
+					return stats;
+				}
+			}
+			else {
 				return stats;
 			}
-			
-			final TextInputFormat<?, ?> textFormat = (TextInputFormat<?, ?>) format;
 			
 			// make the samples small for very small files
 			int numSamples = Math.min(numLineSamples, (int) (stats.fileSize / 1024));

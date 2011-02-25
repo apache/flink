@@ -30,7 +30,6 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class FixedSizeClusterCostEstimator extends CostEstimator {
-	private int numNodes;
 
 	/**
 	 * Creates a new cost estimator that assumes four nodes, unless
@@ -38,18 +37,6 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 
 	 */
 	public FixedSizeClusterCostEstimator() {
-		this(4); // @parallelism
-	}
-
-	/**
-	 * Creates a new cost estimator that assumes a given number of nodes, unless
-	 * the parameters of a contract indicate anything else.
-	 * 
-	 * @param numNodes
-	 *        The number of nodes in the cluster.
-	 */
-	public FixedSizeClusterCostEstimator(int numNodes) {
-		this.numNodes = numNodes;
 	}
 
 	/*
@@ -105,7 +92,9 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	@Override
 	public void getBroadcastCost(OptimizerNode target, OptimizerNode source, Costs costs) {
 		int parallelism = target.getDegreeOfParallelism();
-		parallelism = parallelism < 2 ? numNodes : parallelism;
+		if (parallelism < 1) {
+			throw new IllegalArgumentException("The given target node has no degree of parallism specified.");
+		}
 
 		// estimate: we need ship the whole data over the network to each node.
 		// assume a pessimistic number of 100 nodes. in any large setup, the compiler

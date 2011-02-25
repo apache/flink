@@ -23,7 +23,6 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -32,7 +31,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
@@ -40,9 +38,11 @@ import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
@@ -50,8 +50,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Erik Nijkamp
  */
-public class TestBufferSortableGuarenteed {
-	private static final Log LOG = LogFactory.getLog(TestBufferSortableGuarenteed.class);
+public class BufferSortableGuarenteedTest {
+	private static final Log LOG = LogFactory.getLog(BufferSortableGuarenteedTest.class);
 
 	private static final long SEED = 649180756312423613L;
 
@@ -63,26 +63,17 @@ public class TestBufferSortableGuarenteed {
 
 	private MemoryManager memoryManager;
 
+	@SuppressWarnings("unused")
 	private static Level rootLevel, pkqLevel;
 
 	@BeforeClass
 	public static void beforeClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLevel = rootLogger.getLevel();
-		rootLogger.setLevel(Level.INFO);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(BufferSortable.class.getPackage().getName());
-		pkqLevel = pkgLogger.getLevel();
-		pkgLogger.setLevel(Level.DEBUG);
+		
 	}
 
 	@AfterClass
 	public static void afterClass() {
-		Logger rootLogger = Logger.getRootLogger();
-		rootLogger.setLevel(rootLevel);
-
-		Logger pkgLogger = rootLogger.getLoggerRepository().getLogger(BufferSortable.class.getPackage().getName());
-		pkgLogger.setLevel(pkqLevel);
+		
 	}
 
 	@Before
@@ -111,7 +102,8 @@ public class TestBufferSortableGuarenteed {
 	@Test
 	public void testWrite() throws Exception {
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(MEMORY_SIZE);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, MEMORY_SIZE);
 
 		int writtenPairs = 0, readPairs = 0, position;
 		
@@ -127,7 +119,7 @@ public class TestBufferSortableGuarenteed {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 			position = buffer.position;
 			memory = buffer.unbind();
@@ -142,7 +134,7 @@ public class TestBufferSortableGuarenteed {
 			while (buffer.read(pair) && buffer.getPosition() <= position) {
 				readPairs++;
 			}
-			LOG.info("Read " + readPairs + " pairs from buffer.");
+			LOG.debug("Read " + readPairs + " pairs from buffer.");
 			memory = buffer.unbind();
 		}
 
@@ -156,7 +148,8 @@ public class TestBufferSortableGuarenteed {
 	@Test
 	public void testWriteRandom() throws Exception {
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(1024);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, 1024);
 
 		int writtenPairs = 0, readPairs = 0, position, limit;
 
@@ -173,7 +166,7 @@ public class TestBufferSortableGuarenteed {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
 				+ " bytes.");
 			limit = buffer.getPosition();
 			position = buffer.position;
@@ -191,7 +184,7 @@ public class TestBufferSortableGuarenteed {
 				LOG.debug("-> " + pair);
 				readPairs++;
 			}
-			LOG.info("Read " + readPairs + " pairs from buffer.");
+			LOG.debug("Read " + readPairs + " pairs from buffer.");
 			memory = buffer.unbind();
 		}
 
@@ -204,10 +197,11 @@ public class TestBufferSortableGuarenteed {
 
 	@Test
 	public void testSort() throws Exception {
+		AbstractInvokable memOwner = new DummyInvokable();
 		int writtenPairs = 0, readPairs = 0;
 
 		// allocate buffer for unsorted pairs
-		MemorySegment unsortedMemory = memoryManager.allocate(MEMORY_SIZE >> 1);
+		MemorySegment unsortedMemory = memoryManager.allocate(memOwner, MEMORY_SIZE >> 1);
 		final BufferSortableGuaranteed<TestData.Key, TestData.Value> unsortedBuffer = newSortBuffer(unsortedMemory);
 
 		// write pairs to buffer
@@ -217,12 +211,12 @@ public class TestBufferSortableGuarenteed {
 			while (unsortedBuffer.write(generator.next())) {
 				writtenPairs++;
 			}
-			LOG.info("Written " + writtenPairs + " pairs.");
+			LOG.debug("Written " + writtenPairs + " pairs.");
 
 		}
 
 		// allocate buffer for sorted pairs
-		MemorySegment sortedMemory = memoryManager.allocate(MEMORY_SIZE >> 1);
+		MemorySegment sortedMemory = memoryManager.allocate(memOwner, MEMORY_SIZE >> 1);
 		final Buffer.Output sortedBuffer = new Buffer.Output();
 		sortedBuffer.bind(sortedMemory);
 
@@ -234,7 +228,7 @@ public class TestBufferSortableGuarenteed {
 			// buffer to buffer mock writer
 			Writer writer = new Writer() {
 				@Override
-				public Collection<MemorySegment> close() throws ServiceException {
+				public Collection<MemorySegment> close() {
 					return Collections.emptyList();
 				}
 
@@ -289,7 +283,8 @@ public class TestBufferSortableGuarenteed {
 	public void testSwap() throws Exception {
 
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(256);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, 256);
 
 		// write pairs to buffer
 		{
@@ -299,7 +294,6 @@ public class TestBufferSortableGuarenteed {
 				Pair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
 				buffer.write(pair);
 			}
-			final int position = buffer.position;
 			
 			buffer.swap(0, 1);
 			
@@ -320,14 +314,14 @@ public class TestBufferSortableGuarenteed {
 			}
 			
 			{
-				MemorySegment memory2 = memoryManager.allocate(256);
+				MemorySegment memory2 = memoryManager.allocate(memOwner, 256);
 				
 				{
 					final Buffer.Output buffer2 = new Buffer.Output();
 					buffer2.bind(memory2);
 					Writer writer = new Writer() {
 						@Override
-						public Collection<MemorySegment> close() throws ServiceException {
+						public Collection<MemorySegment> close() {
 							return Collections.emptyList();
 						}
 		
@@ -342,12 +336,16 @@ public class TestBufferSortableGuarenteed {
 				
 				{
 					Buffer.Input buffer2 = new Buffer.Input();
-					buffer2.bind(memory2);				
+					buffer2.bind(memory2);
+					
+					@SuppressWarnings("unused")
 					KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(), new TestData.Value());
+					/*
 					while (buffer2.read(pair) && buffer2.getPosition() <= position) 
 					{
 						System.out.println(pair);
 					}
+					*/
 					memory2 = buffer2.unbind();
 				}
 				
@@ -366,7 +364,8 @@ public class TestBufferSortableGuarenteed {
 	public void testSimple() throws Exception {
 
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(256);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, 256);
 
 		// write pairs to buffer
 		{
@@ -390,12 +389,12 @@ public class TestBufferSortableGuarenteed {
 			}
 			
 			{
-				MemorySegment memory2 = memoryManager.allocate(256);
+				MemorySegment memory2 = memoryManager.allocate(memOwner, 256);
 				final Buffer.Output buffer2 = new Buffer.Output();
 				buffer2.bind(memory2);
 				Writer writer = new Writer() {
 					@Override
-					public Collection<MemorySegment> close() throws ServiceException {
+					public Collection<MemorySegment> close() {
 						return Collections.emptyList();
 					}
 	
@@ -422,7 +421,8 @@ public class TestBufferSortableGuarenteed {
 	public void testIterator() throws Exception {
 
 		// allocate memory segment
-		MemorySegment memory = memoryManager.allocate(MEMORY_SIZE);
+		AbstractInvokable memOwner = new DummyInvokable();
+		MemorySegment memory = memoryManager.allocate(memOwner, MEMORY_SIZE);
 
 		int writtenPairs = 0, readPairs = 0;
 
@@ -438,7 +438,7 @@ public class TestBufferSortableGuarenteed {
 				writtenPairs++;
 				pair = generator.next();
 			}
-			LOG.info("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
+			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
 			Iterator<KeyValuePair<TestData.Key, TestData.Value>> iter = buffer.getIterator();

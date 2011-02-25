@@ -130,7 +130,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 		currentPartition = 0;
 
 		currentBuildPartitionReader = ioManager.createChannelReader(buildPartitionIDs.get(currentPartition),
-			freeSegments);
+			freeSegments, false);
 		KeyValuePair<K, VB> pair = buildPairSerialization.newInstance();
 		while (currentBuildPartitionReader.read(pair)) {
 			hashMap.put(pair.getKey(), pair.getValue());
@@ -138,7 +138,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 		currentBuildPartitionReader.close();
 
 		currentProbePartitionReader = ioManager.createChannelReader(probePartitionIDs.get(currentPartition),
-			freeSegments);
+			freeSegments, false);
 	}
 
 	@Override
@@ -178,7 +178,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 			hashMap.clear();
 
 			currentBuildPartitionReader = ioManager.createChannelReader(buildPartitionIDs.get(currentPartition),
-				freeSegments);
+				freeSegments, false);
 			KeyValuePair<K, VB> tmp = buildPairSerialization.newInstance();
 			while (currentBuildPartitionReader.read(tmp)) {
 				hashMap.put(tmp.getKey(), tmp.getValue());
@@ -187,7 +187,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 			currentBuildPartitionReader.close();
 
 			currentProbePartitionReader = ioManager.createChannelReader(probePartitionIDs.get(currentPartition),
-				freeSegments);
+				freeSegments, false);
 
 			return next();
 		} catch (ServiceException e) {
@@ -210,7 +210,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	 * @throws ServiceException
 	 */
 	private void allocatePartitionWriters(Channel.Enumerator enumerator, ArrayList<Channel.ID> partitionIDMap)
-			throws ServiceException {
+			throws IOException {
 		for (int i = 0; i < numberOfPartitions; i++) {
 			// open next channel
 			Channel.ID channel = enumerator.next();
@@ -232,7 +232,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 	 * 
 	 * @throws ServiceException
 	 */
-	private void closePartitionWriters() throws ServiceException {
+	private void closePartitionWriters() throws IOException {
 		// close all channel writers
 		for (ChannelWriter writer : partitionWriters) {
 			Collection<MemorySegment> releasedSegments = writer.close();
@@ -272,7 +272,7 @@ class PartitioningHashMatchStrategy<K extends Key, VB extends Value, VP extends 
 
 		// spill and read partition 0 contents
 		ChannelReader partitionZeroReader = ioManager.createChannelReader(buildPartitionIDs.get(0), partitionWriters
-			.get(0).close());
+			.get(0).close(), false);
 		while (partitionZeroReader.read(pair)) {
 			hashMap.put(pair.getKey(), pair.getValue());
 		}

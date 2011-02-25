@@ -34,9 +34,11 @@ import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
@@ -81,6 +83,9 @@ public class SortMergeMatchIteratorITCase {
 	private Reader<KeyValuePair<TestData.Key, TestData.Value>> reader1;
 
 	private Reader<KeyValuePair<TestData.Key, TestData.Value>> reader2;
+	
+	// dummy abstract task
+	private final AbstractTask parentTask = new DummyInvokable();
 
 	// memory and io manager
 	private static IOManager ioManager;
@@ -128,7 +133,7 @@ public class SortMergeMatchIteratorITCase {
 		// compare with iterator values
 		SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
 			memoryManager, ioManager, reader1, reader2, TestData.Key.class, TestData.Value.class, TestData.Value.class,
-			NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, 128, null);
+			NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, 128, parentTask);
 
 		iterator.open();
 		while (iterator.next()) {

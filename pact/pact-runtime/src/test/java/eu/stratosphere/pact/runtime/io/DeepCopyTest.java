@@ -59,13 +59,12 @@ public class DeepCopyTest
 	{
 		ToClone toClone = new ToClone(1,2,3,4,5);
 		{
-			long start = System.currentTimeMillis();
 			final int count = 10000;
 			for(int i = 0; i < count; i++)
 			{
 				clone(toClone);
 			}
-			System.out.println("clone: " + count + " objects -> " + (System.currentTimeMillis()-start) + "ms");
+			// System.out.println("clone: " + count + " objects -> " + (System.currentTimeMillis()-start) + "ms");
 		}
 	}
 	

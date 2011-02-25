@@ -364,8 +364,8 @@ public class QueueScheduler implements Scheduler {
 				final ExecutionVertex vertex = it.next();
 				if (vertex.getExecutionState() == ExecutionState.ASSIGNING && vertex.getAllocatedResource() != null) {
 					// In local mode, we do not consider any topology, only the instance type
-					if (vertex.getAllocatedResource().getInstance().getType().equals(
-						allocatedResource.getInstance().getType())) {
+					if (vertex.getAllocatedResource().getInstanceType().equals(
+						allocatedResource.getInstanceType())) {
 						resourceToBeReplaced = vertex.getAllocatedResource();
 						break;
 					}

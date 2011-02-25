@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 
 public class DefaultRandomAccessSegmentTest {
+	
 	public static final long RANDOM_SEED = 643196033469871L;
 
 	public static final int MANAGED_MEMORY_SIZE = 1024 * 1024 * 16;
@@ -47,7 +48,7 @@ public class DefaultRandomAccessSegmentTest {
 	public void setUp() {
 		try {
 			manager = new DefaultMemoryManager(MANAGED_MEMORY_SIZE);
-			segment = manager.allocate(SEGMENT_SIZE);
+			segment = manager.allocate(new DefaultMemoryManagerTest.DummyInvokable(), SEGMENT_SIZE);
 			random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
