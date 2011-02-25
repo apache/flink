@@ -77,4 +77,22 @@ public class ManagementEventTest {
 		assertEquals(orig.hashCode(), copy.hashCode());
 		assertTrue(orig.equals(copy));
 	}
+
+	/**
+	 * Tests serialization/deserialization for {@link VertexAssignmentEvent}.
+	 */
+	@Test
+	public void testVertexAssignmentEvent() {
+
+		final VertexAssignmentEvent orig = new VertexAssignmentEvent(TIMESTAMP, new ManagementVertexID(), "test",
+			"standard");
+		final VertexAssignmentEvent copy = (VertexAssignmentEvent) ManagementTestUtils.createCopy(orig);
+
+		assertEquals(orig.getVertexID(), copy.getVertexID());
+		assertEquals(orig.getTimestamp(), copy.getTimestamp());
+		assertEquals(orig.getInstanceName(), copy.getInstanceName());
+		assertEquals(orig.getInstanceType(), copy.getInstanceType());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
+	}
 }

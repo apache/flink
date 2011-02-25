@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.services.memorymanager.OutOfMemoryException;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.runtime.hash.SerializingHashMap;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
@@ -58,7 +59,7 @@ public class SerializingHashMapTest {
 	public void setUp() throws MemoryAllocationException {
 		generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH);
 		memoryManager = new DefaultMemoryManager(SEGMENT_SIZE);
-		pactHashMap = new SerializingHashMap<Key, Value>(Key.class, Value.class, memoryManager.allocate(SEGMENT_SIZE));
+		pactHashMap = new SerializingHashMap<Key, Value>(Key.class, Value.class, memoryManager.allocate(new DummyInvokable(), SEGMENT_SIZE));
 		javaHashMap = new HashMap<Key, LinkedList<Value>>();
 	}
 

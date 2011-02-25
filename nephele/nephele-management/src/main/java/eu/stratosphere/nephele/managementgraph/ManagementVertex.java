@@ -65,12 +65,12 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	/**
 	 * The name of the instance the vertex represented by this management vertex currently runs on.
 	 */
-	private final String instanceName;
+	private String instanceName;
 
 	/**
 	 * The type of the instance the vertex represented by this management vertex currently runs on.
 	 */
-	private final String instanceType;
+	private String instanceType;
 
 	/**
 	 * The index of this vertex in the management group vertex it belongs to.
@@ -260,6 +260,26 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 */
 	public ExecutionState getExecutionState() {
 		return this.executionState;
+	}
+
+	/**
+	 * Sets the name of the instance this vertex currently runs on.
+	 * 
+	 * @param instanceName
+	 *        the name of the instance this vertex currently runs on
+	 */
+	public void setInstanceName(String instanceName) {
+		this.instanceName = instanceName;
+	}
+
+	/**
+	 * Sets the type of instance this vertex currently runs on.
+	 * 
+	 * @param instanceType
+	 *        the type of instance this vertex currently runs on
+	 */
+	public void setInstanceType(String instanceType) {
+		this.instanceType = instanceType;
 	}
 
 	/**

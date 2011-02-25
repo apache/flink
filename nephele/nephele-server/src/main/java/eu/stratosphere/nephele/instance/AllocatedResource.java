@@ -38,6 +38,11 @@ public class AllocatedResource {
 	private final AbstractInstance instance;
 
 	/**
+	 * The instance type this allocated resource represents.
+	 */
+	private final InstanceType instanceType;
+
+	/**
 	 * The allocation ID identifying the resources within the instance
 	 * which the task is expected to run on.
 	 */
@@ -48,11 +53,14 @@ public class AllocatedResource {
 	 * 
 	 * @param instance
 	 *        the instance a task is scheduled to run on.
+	 * @param instanceType
+	 *        the instance type this allocated resource represents
 	 * @param allocationID
 	 *        the allocation ID identifying the allocated resources within the instance
 	 */
-	public AllocatedResource(AbstractInstance instance, AllocationID allocationID) {
+	public AllocatedResource(AbstractInstance instance, InstanceType instanceType, AllocationID allocationID) {
 		this.instance = instance;
+		this.instanceType = instanceType;
 		this.allocationID = allocationID;
 	}
 
@@ -75,6 +83,15 @@ public class AllocatedResource {
 	}
 
 	/**
+	 * Returns the instance type this allocated resource represents.
+	 * 
+	 * @return the instance type this allocated resource represents
+	 */
+	public InstanceType getInstanceType() {
+		return this.instanceType;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -88,15 +105,23 @@ public class AllocatedResource {
 			}
 
 			if (this.allocationID == null) {
-				if (allocatedResource.getAllocationID() == null) {
-					return true;
-				} else {
+				if (allocatedResource.getAllocationID() != null) {
+					return false;
+				}
+			} else {
+				if (!this.allocationID.equals(allocatedResource.getAllocationID())) {
 					return false;
 				}
 			}
 
-			if (!this.allocationID.equals(allocatedResource.getAllocationID())) {
-				return false;
+			if (this.instanceType == null) {
+				if (allocatedResource.instance != null) {
+					return false;
+				}
+			} else {
+				if (!this.instanceType.equals(allocatedResource.getInstanceType())) {
+					return false;
+				}
 			}
 
 			return true;
@@ -110,6 +135,10 @@ public class AllocatedResource {
 	 */
 	@Override
 	public int hashCode() {
+
+		if (this.allocationID == null) {
+			return 0;
+		}
 
 		return this.allocationID.hashCode();
 	}

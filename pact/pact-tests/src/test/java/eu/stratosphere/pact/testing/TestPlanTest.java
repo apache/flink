@@ -26,8 +26,8 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.io.JsonInputFormat;
@@ -467,7 +467,7 @@ public class TestPlanTest extends TestPlanTestCase {
 		private static Pattern WORD_PATTERN = Pattern.compile("\\w+");
 
 		@Override
-		protected void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
+		public void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
 			Matcher matcher = WORD_PATTERN.matcher(key.getValue());
 			while (matcher.find())
 				out.collect(new PactString(matcher.group().toLowerCase()), new PactInteger(1));

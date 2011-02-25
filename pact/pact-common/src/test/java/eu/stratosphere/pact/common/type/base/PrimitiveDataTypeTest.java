@@ -76,8 +76,9 @@ public class PrimitiveDataTypeTest {
 			Assert.assertEquals(int2.getValue(), int2n.getValue());
 			Assert.assertEquals(int3.compareTo(int3n), 0);
 			Assert.assertEquals(int3.getValue(), int3n.getValue());
-		} catch (Exception e) {
-			Assert.assertTrue(false);
+		}
+		catch (Exception e) {
+			Assert.fail(e.getMessage());
 		}
 	}
 

@@ -119,7 +119,8 @@ public class TempTask extends AbstractTask {
 		try {
 			// obtain SpillingResettableIterator to dump pairs to disk and read again
 			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, reader,
-				MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()));
+				MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
+				this);
 
 			LOG.debug("Start temping records: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"

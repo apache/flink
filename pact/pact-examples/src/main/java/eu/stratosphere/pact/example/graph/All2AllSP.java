@@ -440,7 +440,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(ProjectPathStart.class);
 
 		@Override
-		protected void map(NodePair key, Path value, Collector<PactString, Path> out) {
+		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
 
 			LOG.debug("Emit: [" + key.getFirst() + "," + value + "]");
 			
@@ -459,7 +459,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(ProjectPathEnd.class);
 
 		@Override
-		protected void map(NodePair key, Path value, Collector<PactString, Path> out) {
+		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
 			
 			LOG.debug("Emit: [" + key.getSecond() + "," + value + "]");
 			
@@ -592,17 +592,11 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 4) {
-			throw new IllegalArgumentException(
-				"Must provide four arguments: <parallelism> <paths_input> <result_directory> <rdf_input_flag>");
-		}
-		
 		// parse job parameters
-		int noSubTasks = Integer.parseInt(args[0]);
-		String paths = args[1];
-		String output = args[2];
-		boolean rdfInput = Boolean.parseBoolean(args[3]);
+		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String paths     = (args.length > 1 ? args[1] : "");
+		String output    = (args.length > 2 ? args[2] : "");
+		boolean rdfInput = (args.length > 3 ? Boolean.parseBoolean(args[3]) : false);
 
 		DataSourceContract<NodePair, Path> pathsInput;
 		
@@ -652,7 +646,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, input-paths, output-paths, rdf-input-flag";
+		return "Parameters: [noSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]";
 	}
 
 }

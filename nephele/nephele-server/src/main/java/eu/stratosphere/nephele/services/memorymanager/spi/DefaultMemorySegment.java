@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.services.memorymanager.spi;
 
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
@@ -24,22 +23,66 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultMemorySegment extends MemorySegment {
-	protected final WeakReference<MemorySegmentDescriptor> descriptorReference;
 
-	public DefaultMemorySegment(WeakReference<MemorySegmentDescriptor> descriptorReference,
-			RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView) {
-		super(descriptorReference.get().size, randomAccessView, inputView, outputView);
-		this.descriptorReference = descriptorReference;
+public final class DefaultMemorySegment extends MemorySegment
+{
+	/**
+	 * The descriptor to the portion of the memory that was allocated.
+	 */
+	private MemorySegmentDescriptor descriptor;
+	
+	/**
+	 * The byte buffer used to wrap the memory segment for I/O.
+	 */
+	private ByteBuffer wrapper;
+
+	
+	public DefaultMemorySegment(MemorySegmentDescriptor descriptor,
+			RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView)
+	{
+		super(descriptor.size, randomAccessView, inputView, outputView);
+		this.descriptor = descriptor;
 	}
-
+	
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemorySegment#wrap(int, int)
+	 */
 	@Override
 	public ByteBuffer wrap(int offset, int length) {
 		if (offset > size || offset + length > size) {
 			throw new IndexOutOfBoundsException();
 		}
-
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-		return ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
+		
+		if (this.wrapper == null) {
+			this.wrapper = ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
+		}
+		else {
+			this.wrapper.position(descriptor.start + offset);
+			this.wrapper.limit(descriptor.start + offset + length);
+		}
+		
+		return this.wrapper;
+	}
+	
+	/**
+	 * @return
+	 */
+	MemorySegmentDescriptor getSegmentDescriptor()
+	{
+		return this.descriptor;
+	}
+	
+	/**
+	 * Clears all memory references in the views over this memory segment. This way, code trying to access this
+	 * memory segment through the views will fail.
+	 */
+	void clearMemoryReferences()
+	{
+		this.descriptor = null;
+		
+		((DefaultRandomAccessView) this.randomAccessView).memory = null;
+		((DefaultDataInputView) this.inputView).memory = null;
+		((DefaultDataOutputView) this.outputView).memory = null;
 	}
 }

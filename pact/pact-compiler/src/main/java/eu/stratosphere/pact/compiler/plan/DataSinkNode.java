@@ -238,6 +238,16 @@ public class DataSinkNode extends OptimizerNode {
 			this.openBranches = input.getSourcePact().getBranchesForParent(this);
 		}
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getBranchesForParent(eu.stratosphere.pact.compiler.plan.OptimizerNode)
+	 */
+	@Override
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent)
+	{
+		// return our own stack of open branches, because nothing is added
+		return this.openBranches;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -328,7 +338,7 @@ public class DataSinkNode extends OptimizerNode {
 		// check if the list does not contain any plan. That may happen, if the channels specify
 		// incompatible shipping strategies.
 		if (plans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the reduce contract '"
+			throw new CompilerException("Could not create a valid plan for the DataSource contract '"
 				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
 		}
 

@@ -21,7 +21,8 @@ import java.util.Comparator;
 import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 
-public class DeserializerComparator<T> implements RawComparator {
+public final class DeserializerComparator<T> implements RawComparator
+{
 	private final DataInputBuffer buffer = new DataInputBuffer();
 
 	private final Deserializer<T> deserializer;
@@ -33,7 +34,8 @@ public class DeserializerComparator<T> implements RawComparator {
 	private T key2;
 
 	public DeserializerComparator(Deserializer<T> deserializer, Comparator<T> comparator)
-																							throws IOException {
+			throws IOException
+	{
 		this.comparator = comparator;
 		this.deserializer = deserializer;
 		this.deserializer.open(buffer);

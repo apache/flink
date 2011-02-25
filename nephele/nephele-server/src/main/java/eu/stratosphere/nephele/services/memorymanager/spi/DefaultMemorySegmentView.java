@@ -15,18 +15,50 @@
 
 package eu.stratosphere.nephele.services.memorymanager.spi;
 
-import java.lang.ref.WeakReference;
-
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultMemorySegmentView {
-	protected WeakReference<MemorySegmentDescriptor> descriptorReference;
+
+public abstract class DefaultMemorySegmentView
+{
+	protected byte[] memory;
+	
+	protected final int offset;
+	
+	protected final int size;
 
 	// --------------------------------------------------------------------
 	// Constructors
 	// --------------------------------------------------------------------
 
-	public DefaultMemorySegmentView(MemorySegmentDescriptor descriptor) {
-		this.descriptorReference = new WeakReference<MemorySegmentDescriptor>(descriptor);
+	protected DefaultMemorySegmentView(MemorySegmentDescriptor descriptor) {
+		this.memory = descriptor.memory;
+		this.offset = descriptor.start;
+		this.size = descriptor.size;
+	}
+	
+	protected DefaultMemorySegmentView(byte[] memory, int offset, int size) {
+		this.memory = memory;
+		this.offset = offset;
+		this.size = size;
+	}
+	
+	/**
+	 * Gets the size of this memory segment.
+	 * 
+	 * @return The size of the memory segment.
+	 */
+	public final int getSize()
+	{
+		return this.size;
+	}
+	
+	/**
+	 * Gets the start (= offset) of the memory segment in the byte array.
+	 * 
+	 * @return The offset of the memory segment in the array.
+	 */
+	public final int getStart()
+	{
+		return this.offset;
 	}
 }

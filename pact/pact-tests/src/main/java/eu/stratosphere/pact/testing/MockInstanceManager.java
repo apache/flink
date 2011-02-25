@@ -61,7 +61,7 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	private final AllocatedResource allocatedResource = new AllocatedResource(
-			new MockInstance(DEFAULT, NETWORK_TOPOLOGY), new AllocationID());
+			new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT, new AllocationID());
 
 	private InstanceListener instanceListener;
 

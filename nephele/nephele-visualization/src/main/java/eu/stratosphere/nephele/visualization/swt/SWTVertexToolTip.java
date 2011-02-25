@@ -183,6 +183,8 @@ public class SWTVertexToolTip extends SWTToolTip {
 
 		// Update the labels
 		this.executionStateLabel.setText(this.managementVertex.getExecutionState().toString());
+		this.instanceIDLabel.setText(this.managementVertex.getInstanceName());
+		this.instanceTypeLabel.setText(this.managementVertex.getInstanceType());
 
 		final ManagementGroupVertex groupVertex = this.managementVertex.getGroupVertex();
 		final GroupVertexVisualizationData groupVertexVisualizationData = (GroupVertexVisualizationData) groupVertex

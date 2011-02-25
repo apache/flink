@@ -28,8 +28,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairSerializationFactory;
 
 /**
- * Abstract base class for the hash merge strategies (in-memory and
- * partitioning).
+ * Abstract base class for the hash match strategies (in-memory and partitioned).
  * 
  * @author Alexander Alexandrov
  */

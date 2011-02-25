@@ -29,7 +29,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
@@ -61,14 +60,16 @@ import eu.stratosphere.pact.runtime.task.ReduceTask;
  * 
  * @author Erik Nijkamp
  * @author Stephan Ewen
+ * 
  * @param <K>
  *        The key class
  * @param <V>
  *        The value class
  */
-public class UnilateralSortMerger<K extends Key, V extends Value> implements SortMerger<K, V> {
+public class UnilateralSortMerger<K extends Key, V extends Value> implements SortMerger<K, V>
+{
 	// ------------------------------------------------------------------------
-	// Constants
+	//                              Constants
 	// ------------------------------------------------------------------------
 
 	/**
@@ -77,19 +78,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
 
 	// ------------------------------------------------------------------------
-	// Fields
+	//                               Fields
 	// ------------------------------------------------------------------------
-
-	/**
-	 * The maximum number of file handles
-	 */
-	protected final int maxNumFileHandles;
-
-	/**
-	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
-	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
-	 */
-	protected final LazyDelegatingIterator<KeyValuePair<K, V>> lazyIterator;
 
 	/**
 	 * This list contains all segments of allocated memory. They will be freed the latest in the
@@ -121,7 +111,33 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * Factory used to deserialize the values.
 	 */
 	protected final SerializationFactory<V> valueSerialization;
+	
+	/**
+	 * The parent task that owns this sorter.
+	 */
+	protected final AbstractTask parent;
+	
+	/**
+	 * The monitor which guards the iterator field.
+	 */
+	protected final Object iteratorLock = new Object();
+	
+	/**
+	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
+	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
+	 */
+	protected Iterator<KeyValuePair<K, V>> iterator;
+	
+	/**
+	 * The exception that is set, if the iterator cannot be created.
+	 */
+	protected IOException iteratorException;
 
+	/**
+	 * The maximum number of file handles
+	 */
+	protected final int maxNumFileHandles;
+	
 	// ------------------------------------------------------------------------
 	// Threads
 	// ------------------------------------------------------------------------
@@ -164,19 +180,30 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager, int numSortBuffers,
 			int sizeSortBuffer, int ioMemorySize, int maxNumFileHandles, SerializationFactory<K> keySerialization,
 			SerializationFactory<V> valueSerialization, Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			float offsetArrayPerc, AbstractTask parentTask)
-															throws IOException, MemoryAllocationException {
+			AbstractTask parentTask)
+	throws IOException, MemoryAllocationException
+	{
+		// sanity checks
+		if (memoryManager == null) {
+			throw new NullPointerException("Memory manager must not be null.");
+		}
+		if (ioManager == null) {
+			throw new NullPointerException("IO-Manager must not be null.");
+		}
+		if (parentTask == null) {
+			throw new NullPointerException("Parent Task must not be null.");
+		}
+		
+		
 		this.maxNumFileHandles = maxNumFileHandles;
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.keyComparator = keyComparator;
 		this.keySerialization = keySerialization;
 		this.valueSerialization = valueSerialization;
+		this.parent = parentTask;
 
 		this.allocatedMemory = new ArrayList<MemorySegment>();
-
-		// instantiate lazy blocking iterator
-		this.lazyIterator = new LazyDelegatingIterator<KeyValuePair<K, V>>();
 
 		// circular queues
 		CircularQueues circularQueues = new CircularQueues();
@@ -190,12 +217,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			RawComparator comparator = new DeserializerComparator<K>(keyDeserializer, keyComparator);
 
 			// get memory for sorting
-			MemorySegment seg = memoryManager.allocate(sizeSortBuffer);
+			MemorySegment seg = memoryManager.allocate(parentTask, sizeSortBuffer);
 			freeSegmentAtShutdown(seg);
 
 			// sort-buffer
-			BufferSortable<K, V> buffer = new BufferSortable<K, V>(seg, comparator, keySerialization,
-				valueSerialization, offsetArrayPerc);
+			BufferSortableGuaranteed<K, V> buffer = new BufferSortableGuaranteed<K, V>(seg, comparator, keySerialization,
+				valueSerialization);
 
 			// add to empty queue
 			CircularElement element = new CircularElement(i, buffer);
@@ -205,16 +232,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		// exception handling
 		ExceptionHandler<IOException> exceptionHandler = new ExceptionHandler<IOException>() {
 			public void handleException(IOException exception) {
-				// log
-				LOG.error("Thread threw an IOException (delegating to lazy iterator)", exception);
-
 				// forward exception
-				lazyIterator.setException(exception);
-
-				try {
-					shutdown();
-				} catch (InterruptedException iex) {
-				}
+				setResultIteratorException(exception);
+				close();
 			}
 		};
 
@@ -245,8 +265,16 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * Shuts down all the threads initiated by this sort/merger. Also releases all previously allocated
 	 * memory, if it has not yet been released by the threads.
+	 * <p>
+	 * The threads are set to exit directly, but depending on their operation, it may take a while to actually happen.
+	 * The sorting thread will for example not finish before the current batch is sorted. This method attempts to wait
+	 * for the working thread to exit. If it is however interrupted, the method exits immediately and is not guaranteed
+	 * how long the threads continue to exist and occupy resources afterwards.
+	 *
+	 * @see java.io.Closeable#close()
 	 */
-	public void shutdown() throws InterruptedException {
+	@Override
+	public void close() {
 		try {
 			if (readThread != null) {
 				try {
@@ -270,14 +298,22 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				}
 			}
 
-			if (readThread != null) {
-				readThread.join();
+			try {
+				if (readThread != null) {
+					readThread.join();
+				}
+				
+				if (sortThread != null) {
+					sortThread.join();
+				}
+				
+				if (spillThread != null) {
+					spillThread.join();
+				}
 			}
-			if (sortThread != null) {
-				sortThread.join();
-			}
-			if (spillThread != null) {
-				spillThread.join();
+			catch (InterruptedException iex) {
+				LOG.debug("Closing of sort/merger was interrupted. " +
+						"The reading/sorting/spilling threads may still be working.", iex);
 			}
 		} finally {
 			// release all memory
@@ -289,8 +325,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * Adds a given memory segment to the list of segments that are to be released at shutdown.
 	 * 
-	 * @param s
-	 *        The memory segment to add to the list.
+	 * @param s The memory segment to add to the list.
 	 */
 	public void freeSegmentAtShutdown(MemorySegment s) {
 		this.allocatedMemory.add(s);
@@ -299,15 +334,14 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * Adds a given collection of memory segments to the list of segments that are to be released at shutdown.
 	 * 
-	 * @param s
-	 *        The collection of memory segments.
+	 * @param s The collection of memory segments.
 	 */
 	public void freeSegmentsAtShutdown(Collection<MemorySegment> s) {
 		this.allocatedMemory.addAll(s);
 	}
 
 	// ------------------------------------------------------------------------
-	// Factory Methods
+	//                           Factory Methods
 	// ------------------------------------------------------------------------
 
 	/**
@@ -377,7 +411,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	}
 
 	// ------------------------------------------------------------------------
-	// Result Iterator
+	//                           Result Iterator
 	// ------------------------------------------------------------------------
 
 	/*
@@ -386,7 +420,50 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 */
 	@Override
 	public Iterator<KeyValuePair<K, V>> getIterator() {
-		return lazyIterator;
+		synchronized (this.iteratorLock) {
+			// wait while both the iterator and the exception are not set
+			while (this.iterator == null && this.iteratorException == null) {
+				try {
+					this.iteratorLock.wait();
+				}
+				catch (InterruptedException iex) {
+					LOG.error("SHOULD NOT BE", iex);
+				}
+			}
+			
+			if (this.iteratorException != null) {
+				throw new RuntimeException("Error obtaining the sorted input: " + this.iteratorException.getMessage(),
+					this.iteratorException);
+			}
+			else {
+				return this.iterator;
+			}
+		}
+	}
+	
+	/**
+	 * Sets the result iterator. By setting the result iterator, all threads that are waiting for the result
+	 * iterator are notified and will obtain it.
+	 * 
+	 * @param iterator The result iterator to set.
+	 */
+	protected void setResultIterator(Iterator<KeyValuePair<K, V>> iterator) {
+		synchronized (this.iteratorLock) {
+			this.iterator = iterator;
+			this.iteratorLock.notifyAll();
+		}
+	}
+	
+	/**
+	 * Reports an exception to all threads that are waiting for the result iterator.
+	 * 
+	 * @param ioex The exception to be reported to the threads that wait for the result iterator.
+	 */
+	protected void setResultIteratorException(IOException ioex) {
+		synchronized (this.iteratorLock) {
+			this.iteratorException = ioex;
+			this.iteratorLock.notifyAll();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -406,7 +483,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 *         Thrown, if the readers
 	 */
 	protected final Iterator<KeyValuePair<K, V>> getMergingIterator(final List<Channel.ID> channelIDs,
-			final int ioMemorySize) throws MemoryAllocationException, IOException {
+			final int ioMemorySize)
+	throws MemoryAllocationException, IOException
+	{
 		// check if we do not have a channel at all. This happens if the input was empty
 		if (channelIDs.isEmpty()) {
 			// no data
@@ -420,15 +499,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		final int ioMemoryPerChannel = ioMemorySize / channelIDs.size();
 
 		for (Channel.ID id : channelIDs) {
-			final Collection<MemorySegment> inputSegments = memoryManager.allocate(1, ioMemoryPerChannel);
+			final Collection<MemorySegment> inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
 			freeSegmentsAtShutdown(inputSegments);
 
-			ChannelReader reader = null;
-			try {
-				reader = ioManager.createChannelReader(id, inputSegments);
-			} catch (ServiceException se) {
-				throw new java.io.IOException("Could not open sorted stream for merging: " + se.getMessage(), se);
-			}
+			ChannelReader reader = ioManager.createChannelReader(id, inputSegments, true);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -471,24 +545,20 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param ioMemorySize
 	 * @return The ID of the channel that hold the merged data of the input channels.
 	 */
-	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize) {
+	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, int ioMemorySize)
+	throws IOException, MemoryAllocationException
+	{
 		List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
 		final int ioMemoryPerChannel = ioMemorySize / (channelIDs.size() + 2);
 
 		for (Channel.ID id : channelIDs) {
 
 			Collection<MemorySegment> inputSegments;
-			final ChannelReader reader;
-			try {
-				inputSegments = memoryManager.allocate(1, ioMemoryPerChannel);
-				freeSegmentsAtShutdown(inputSegments);
+			
+			inputSegments = memoryManager.allocate(this.parent, 1, ioMemoryPerChannel);
+			freeSegmentsAtShutdown(inputSegments);
 
-				reader = ioManager.createChannelReader(id, inputSegments);
-			} catch (MemoryAllocationException mae) {
-				throw new RuntimeException("Could not allocate IO buffers for merge reader", mae);
-			} catch (ServiceException se) {
-				throw new RuntimeException("Could not open channel reader for merging", se);
-			}
+			final ChannelReader reader = ioManager.createChannelReader(id, inputSegments, true);
 
 			// wrap channel reader as iterator
 			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
@@ -502,18 +572,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		final Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
 		final Channel.ID mergedChannelID = enumerator.next();
 
-		Collection<MemorySegment> outputSegments;
-		ChannelWriter writer;
-		try {
-			outputSegments = memoryManager.allocate(2, ioMemoryPerChannel);
-			freeSegmentsAtShutdown(outputSegments);
+		Collection<MemorySegment> outputSegments = memoryManager.allocate(this.parent, 2, ioMemoryPerChannel);
+		freeSegmentsAtShutdown(outputSegments);
 
-			writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
-		} catch (MemoryAllocationException mae) {
-			throw new RuntimeException("Could not allocate IO Buffer for merge writer", mae);
-		} catch (ServiceException se) {
-			throw new RuntimeException("Could not open channel writer for merging", se);
-		}
+		ChannelWriter writer = ioManager.createChannelWriter(mergedChannelID, outputSegments);
 
 		while (mi.hasNext()) {
 
@@ -525,12 +587,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		}
 
 		// close channel writer
-		try {
-			outputSegments = writer.close();
-		} catch (ServiceException se) {
-			throw new RuntimeException("Could not close channel writer", se);
-		}
-
+		outputSegments = writer.close();
 		memoryManager.release(outputSegments);
 
 		return mergedChannelID;
@@ -551,14 +608,14 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	protected final class CircularElement {
 		final int id;
 
-		final BufferSortable<K, V> buffer;
+		final BufferSortableGuaranteed<K, V> buffer;
 
 		public CircularElement() {
 			this.buffer = null;
 			this.id = -1;
 		}
 
-		public CircularElement(int id, BufferSortable<K, V> buffer) {
+		public CircularElement(int id, BufferSortableGuaranteed<K, V> buffer) {
 			this.id = id;
 			this.buffer = buffer;
 		}
@@ -624,7 +681,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 *        The queues used to pass buffers between the threads.
 		 */
 		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues queues,
-				AbstractTask parentTask) {
+				AbstractTask parentTask)
+		{
 			// thread setup
 			super(name);
 			this.setDaemon(true);
@@ -714,7 +772,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The thread that consumes the input data and puts it into a buffer that will be sorted.
 	 */
-	private class ReadingThread extends ThreadBase {
+	private class ReadingThread extends ThreadBase
+	{
 		/**
 		 * The input channels to read from.
 		 */
@@ -897,7 +956,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 		private final int ioMemorySize;
 		
-		private final int buffersToKeepBeforeSpilling;
+		private Collection<MemorySegment> outputSegments;
+		
+//		private final int buffersToKeepBeforeSpilling;
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
@@ -909,7 +970,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
 			this.ioMemorySize = ioMemorySize;
-			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
+//			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
 		}
 
 		/**
@@ -920,7 +981,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
 
 			// allocate memory segments for channel writer
-			Collection<MemorySegment> outputSegments = memoryManager.allocate(2, ioMemorySize / 2);
+			outputSegments = memoryManager.allocate(UnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
 			freeSegmentsAtShutdown(outputSegments);
 
 			CircularElement element = null;
@@ -969,11 +1030,17 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			}
 
 			// set lazy iterator
-			lazyIterator.setTarget(getMergingIterator(channelIDs, ioMemorySize));
+			setResultIterator(getMergingIterator(channelIDs, ioMemorySize));
 
 			// done
 
 			LOG.debug("Spilling thread done.");
+		}
+		
+		@Override
+		public void shutdown() {
+			this.memoryManager.release(outputSegments);
+			super.shutdown();
 		}
 	}
 
@@ -981,7 +1048,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * This class represents an iterator over a key/value stream that is obtained from a reader.
 	 */
 	protected static final class KVReaderIterator<K extends Key, V extends Value> implements
-			Iterator<KeyValuePair<K, V>> {
+			Iterator<KeyValuePair<K, V>>
+	{
 		private final ChannelReader reader; // the reader from which to get the input
 
 		private final SerializationFactory<K> keySerialization; // deserializer for keys
@@ -1031,21 +1099,22 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 			next = new KeyValuePair<K, V>(key, value);
 
-			if (!reader.read(next)) {
-				next = null;
-				try {
+			try {
+				if (!reader.read(next)) {
+					next = null;
 					toRelease.release(reader.close());
-				} catch (ServiceException sex) {
-					LOG.error("Error closing reader: " + sex.getMessage(), sex);
+	
+					if (this.deleteWhenDone) {
+						reader.deleteChannel();
+					}
+	
+					return false;
+				} else {
+					return true;
 				}
-
-				if (this.deleteWhenDone) {
-					reader.deleteChannel();
-				}
-
-				return false;
-			} else {
-				return true;
+			}
+			catch (IOException ioex) {
+				throw new RuntimeException(ioex);
 			}
 		}
 
@@ -1104,4 +1173,5 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			throw new UnsupportedOperationException();
 		}
 	}
+
 }
