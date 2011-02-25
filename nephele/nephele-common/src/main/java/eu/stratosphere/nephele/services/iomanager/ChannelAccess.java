@@ -60,7 +60,7 @@ public abstract class ChannelAccess<T extends Buffer> {
 	/**
 	 * An exception that was encountered by the asynchronous request handling thread.
 	 */
-	private IOException exception;
+	private volatile IOException exception;
 	
 	/**
 	 * The number of buffers that this channel worked with.
@@ -119,7 +119,7 @@ public abstract class ChannelAccess<T extends Buffer> {
 		try {
 			while (segments.size() < this.numBuffers) {
 				final T buffer = this.returnBuffers.take();
-				segments.add(buffer.unbind());
+				segments.add(buffer.dispose());
 			
 				// check the error state of this channel after each segment and raise the exception in case
 				checkErroneous();
@@ -166,7 +166,7 @@ public abstract class ChannelAccess<T extends Buffer> {
 	 */
 	public void handleProcessedBuffer(T buffer, IOException ex) {
 		
-		if (ex != null && this.exception != null) {
+		if (ex != null && this.exception == null) {
 			this.exception = ex;
 		}
 		

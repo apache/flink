@@ -54,14 +54,23 @@ public final class DefaultDataOutputView extends DefaultMemorySegmentView implem
 	}
 
 	@Override
-	public DataOutputView setPosition(int position) {
-		this.position = position + this.offset;
+	public DataOutputView setPosition(int position) throws IOException {
+		final int newPos = this.offset + position;
+		if (newPos >= this.end) {
+			throw new EOFException();
+		}
+		
+		this.position = newPos;
 		return this;
 	}
 
 	@Override
-	public DataOutputView skip(int size) {
-		position += size;
+	public DataOutputView skip(int size) throws IOException {
+		final int newPos = this.position + size;
+		if (newPos > this.end) {
+			throw new EOFException();
+		}
+		this.position = newPos;
 		return this;
 	}
 
@@ -115,12 +124,13 @@ public final class DefaultDataOutputView extends DefaultMemorySegmentView implem
 
 	@Override
 	public void writeBytes(String s) throws IOException {
-		if (position + s.length() < this.end) {
-			int length = s.length();
-			for (int i = 0; i < length; i++) {
+		final int sLen = s.length();
+		
+		if (this.position + sLen < this.end) {
+			for (int i = 0; i < sLen; i++) {
 				writeByte(s.charAt(i));
 			}
-			position += length;
+			this.position += sLen;
 		} else {
 			throw new EOFException();
 		}

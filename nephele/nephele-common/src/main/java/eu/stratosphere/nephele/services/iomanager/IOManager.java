@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.BlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -220,8 +219,7 @@ public final class IOManager implements UncaughtExceptionHandler
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
-		return new ChannelWriter(channelID, writer.requestQueue, IOManager.createBuffer(Buffer.Type.OUTPUT,
-			freeSegments), false);
+		return new ChannelWriter(channelID, writer.requestQueue, IOManager.createOutputBuffers(freeSegments), false);
 	}
 
 	/**
@@ -263,8 +261,7 @@ public final class IOManager implements UncaughtExceptionHandler
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
-		return new ChannelReader(channelID, reader.requestQueue,
-			createBuffer(Buffer.Type.INPUT, freeSegments), deleteFileAfterRead);
+		return new ChannelReader(channelID, reader.requestQueue, createInputBuffers(freeSegments), deleteFileAfterRead);
 	}
 
 	
@@ -273,59 +270,52 @@ public final class IOManager implements UncaughtExceptionHandler
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * <p>
-	 * Generic factory method for different buffer types. Please, be aware that the factory constructs <i>unbound</i>
-	 * buffers. Binding the buffer to an underlying memory segment must be done by the client.
-	 * </p>
+	 * Creates an input buffer around the given memory segment.
 	 * 
-	 * @param <T>
-	 * @param bufferType
-	 *        the type of the buffer to be created
-	 * @return T an unbound buffer from the specified type
+	 * @return An input buffer storing its data in the given memory segment.
 	 */
-	public static <T extends Buffer> T createBuffer(Buffer.Type<T> bufferType) {
-		try {
-			return bufferType.clazz.newInstance();
-		}
-		catch (Exception e) {
-			// should never happen
-			throw new RuntimeException("Internal error: unknown buffer type.", e);
-		}
+	public static Buffer.Input createInputBuffer(MemorySegment memory) {
+		return new Buffer.Input(memory);
 	}
 
 	/**
-	 * Generic factory method for typed initialized collections of different buffer types.
+	 * Creates an output buffer around the given memory segment.
 	 * 
-	 * @param <T>
-	 * @param bufferType
-	 * @param numberOfBuffers
-	 * @return Collection<T> an unsynchronized collection of initialized buffers
+	 * @return An output buffer storing its data in the given memory segment.
 	 */
-	public static <T extends Buffer> List<T> createBuffer(Buffer.Type<T> bufferType, int numberOfBuffers) {
-		ArrayList<T> buffers = new ArrayList<T>(numberOfBuffers);
-
-		for (int i = 0; i < numberOfBuffers; i++) {
-			buffers.add(createBuffer(bufferType));
-		}
-
-		return buffers;
+	public static Buffer.Output createOutputBuffer(MemorySegment memory) {
+		return new Buffer.Output(memory);
 	}
 
 	/**
-	 * Generic factory method for typed initialized collections of different buffer types.
+	 * Factory method for input buffers.
 	 * 
-	 * @param <T>
-	 * @param bufferType
-	 * @param numberOfBuffers
-	 * @return Collection<T> an unsynchronized collection of initialized buffers
+	 * @param freeSegments The memory segments around which to create the input buffers.
+	 * @return An unsynchronized list of initialized input buffers.
 	 */
-	public static <T extends Buffer> Collection<T> createBuffer(Buffer.Type<T> bufferType, Collection<MemorySegment> freeSegments)
+	public static List<Buffer.Input> createInputBuffers(Collection<MemorySegment> freeSegments)
 	{
-		ArrayList<T> buffers = new ArrayList<T>(freeSegments.size());
+		ArrayList<Buffer.Input> buffers = new ArrayList<Buffer.Input>(freeSegments.size());
 
 		for (MemorySegment segment : freeSegments) {
-			T buffer = createBuffer(bufferType);
-			buffer.bind(segment);
+			Buffer.Input buffer = createInputBuffer(segment);
+			buffers.add(buffer);
+		}
+		return buffers;
+	}
+	
+	/**
+	 * Factory method for output buffers.
+	 * 
+	 * @param freeSegments The memory segments around which to create the output buffers.
+	 * @return An unsynchronized list of initialized output buffers.
+	 */
+	public static List<Buffer.Output> createOutputBuffers(Collection<MemorySegment> freeSegments)
+	{
+		ArrayList<Buffer.Output> buffers = new ArrayList<Buffer.Output>(freeSegments.size());
+
+		for (MemorySegment segment : freeSegments) {
+			Buffer.Output buffer = createOutputBuffer(segment);
 			buffers.add(buffer);
 		}
 		return buffers;
@@ -338,11 +328,11 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @return A list containing the freed memory segments.
 	 * @throws UnboundMemoryBackedException Thrown, if the collection contains an unbound buffer.
 	 */
-	public static List<MemorySegment> unbindBuffers(BlockingQueue<? extends Buffer> buffers) {
+	public static List<MemorySegment> unbindBuffers(Collection<? extends Buffer> buffers) {
 		ArrayList<MemorySegment> freeSegments = new ArrayList<MemorySegment>(buffers.size());
 
 		for (Buffer buffer : buffers) {
-			freeSegments.add(buffer.unbind());
+			freeSegments.add(buffer.dispose());
 		}
 
 		return freeSegments;
