@@ -238,7 +238,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				LOG.error("Cannot find class name for the profiler");
 				System.exit(FAILURERETURNCODE);
 			}
-			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName);
+			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName, ipcAddress);
 			if (this.profiler == null) {
 				LOG.error("Cannot load profiler");
 				System.exit(FAILURERETURNCODE);

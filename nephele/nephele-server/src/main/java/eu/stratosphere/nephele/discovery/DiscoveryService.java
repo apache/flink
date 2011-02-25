@@ -27,7 +27,10 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -83,6 +86,57 @@ public class DiscoveryService implements Runnable {
 	private static final int DEFAULT_MAGICNUMBER_VALUE = 0;
 
 	/**
+	 * Flag indicating whether to use IPv6 or not.
+	 */
+	private static final boolean USE_IPV6 = "true".equals(System.getProperty("java.net.preferIPv4Stack")) ? false
+		: true;
+
+	/**
+	 * ID for job manager lookup request packets.
+	 */
+	private static final int JM_LOOKUP_REQUEST_ID = 0;
+
+	/**
+	 * ID for job manager lookup reply packets.
+	 */
+	private static final int JM_LOOKUP_REPLY_ID = 1;
+
+	/**
+	 * ID for task manager address request packets.
+	 */
+	private static final int TM_ADDRESS_REQUEST_ID = 2;
+
+	/**
+	 * ID for task manager address reply packets.
+	 */
+	private static final int TM_ADDRESS_REPLY_ID = 3;
+
+	/**
+	 * The default size of response datagram packets.
+	 */
+	private static final int RESPONSE_PACKET_SIZE = 64;
+
+	/**
+	 * The offset inside a packet to the magic number field.
+	 */
+	private static final int MAGIC_NUMBER_OFFSET = 0;
+
+	/**
+	 * The offset inside a packet to the packet ID field.
+	 */
+	private static final int PACKET_ID_OFFSET = 4;
+
+	/**
+	 * The offset inside a packet to the packet type ID field.
+	 */
+	private static final int PACKET_TYPE_ID_OFFSET = 8;
+
+	/**
+	 * The offset inside a packet to the actual payload.
+	 */
+	private static final int PAYLOAD_OFFSET = 12;
+
+	/**
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(DiscoveryService.class);
@@ -113,35 +167,9 @@ public class DiscoveryService implements Runnable {
 	private DatagramSocket serverSocket = null;
 
 	/**
-	 * Flag indicating whether to use IPv6 or not.
+	 * Flag to check whether the service is running
 	 */
-	private static final boolean USE_IPV6 = "true".equals(System.getProperty("java.net.preferIPv4Stack")) ? false
-		: true;
-
-	/**
-	 * ID for job manager lookup request packets.
-	 */
-	private static final int JM_LOOKUP_REQUEST_ID = 0;
-
-	/**
-	 * ID for job manager lookup reply packets.
-	 */
-	private static final int JM_LOOKUP_REPLY_ID = 1;
-
-	/**
-	 * ID for task manager address request packets.
-	 */
-	private static final int TM_ADDRESS_REQUEST_ID = 2;
-
-	/**
-	 * ID for task manager address reply packets.
-	 */
-	private static final int TM_ADDRESS_REPLY_ID = 3;
-
-	/**
-	 * The default size of response datagram packets.
-	 */
-	private static final int RESPONSE_PACKET_SIZE = 64;
+	private volatile boolean isRunning = false;
 
 	/**
 	 * Constructs a new {@link DiscoveryService} object and stores
@@ -174,8 +202,21 @@ public class DiscoveryService implements Runnable {
 
 		if (discoveryService == null) {
 			discoveryService = new DiscoveryService(ipcAddress, ipcPort);
+		}
+		
+		if (!discoveryService.isRunning()) {
 			discoveryService.startService();
 		}
+	}
+
+	/**
+	 * Checks whether the discovery service is running.
+	 * 
+	 * @return <code>true</code> if the service is running, <code>false</code> otherwise
+	 */
+	public boolean isRunning() {
+
+		return this.isRunning;
 	}
 
 	/**
@@ -184,7 +225,9 @@ public class DiscoveryService implements Runnable {
 	public static synchronized void stopDiscoveryService() {
 
 		if (discoveryService != null) {
-			discoveryService.stopService();
+			if (discoveryService.isRunning()) {
+				discoveryService.stopService();
+			}
 		}
 
 	}
@@ -204,7 +247,9 @@ public class DiscoveryService implements Runnable {
 			throw new DiscoveryException(e.toString());
 		}
 
-		LOG.debug("Discovery service socket is bound to " + this.serverSocket.getLocalSocketAddress());
+		LOG.info("Discovery service socket is bound to " + this.serverSocket.getLocalSocketAddress());
+
+		this.isRunning = true;
 
 		this.listeningThread = new Thread(this);
 		this.listeningThread.start();
@@ -216,6 +261,8 @@ public class DiscoveryService implements Runnable {
 	private void stopService() {
 
 		LOG.debug("Stopping discovery service on port" + DISCOVERYPORT);
+
+		this.isRunning = false;
 
 		this.listeningThread.interrupt();
 
@@ -231,9 +278,10 @@ public class DiscoveryService implements Runnable {
 	private static DatagramPacket createJobManagerLookupRequestPacket() {
 
 		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
-		final byte[] bytes = new byte[8];
-		integerToByteArray(magicNumber, 0, bytes);
-		integerToByteArray(JM_LOOKUP_REQUEST_ID, 4, bytes);
+		final byte[] bytes = new byte[12];
+		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
+		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
+		integerToByteArray(JM_LOOKUP_REQUEST_ID, PACKET_TYPE_ID_OFFSET, bytes);
 
 		return new DatagramPacket(bytes, bytes.length);
 	}
@@ -241,15 +289,18 @@ public class DiscoveryService implements Runnable {
 	/**
 	 * Creates a new job manager lookup reply packet.
 	 * 
+	 * @param ipcPort
+	 *        the port of the job manager's IPC server
 	 * @return a new job manager lookup reply packet
 	 */
 	private static DatagramPacket createJobManagerLookupReplyPacket(final int ipcPort) {
 
 		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
-		final byte[] bytes = new byte[12];
-		integerToByteArray(magicNumber, 0, bytes);
-		integerToByteArray(JM_LOOKUP_REPLY_ID, 4, bytes);
-		integerToByteArray(ipcPort, 8, bytes);
+		final byte[] bytes = new byte[16];
+		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
+		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
+		integerToByteArray(JM_LOOKUP_REPLY_ID, PACKET_TYPE_ID_OFFSET, bytes);
+		integerToByteArray(ipcPort, PAYLOAD_OFFSET, bytes);
 
 		return new DatagramPacket(bytes, bytes.length);
 	}
@@ -262,9 +313,10 @@ public class DiscoveryService implements Runnable {
 	private static DatagramPacket createTaskManagerAddressRequestPacket() {
 
 		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
-		final byte[] bytes = new byte[8];
-		integerToByteArray(magicNumber, 0, bytes);
-		integerToByteArray(TM_ADDRESS_REQUEST_ID, 4, bytes);
+		final byte[] bytes = new byte[12];
+		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
+		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
+		integerToByteArray(TM_ADDRESS_REQUEST_ID, PACKET_TYPE_ID_OFFSET, bytes);
 
 		return new DatagramPacket(bytes, bytes.length);
 	}
@@ -280,11 +332,12 @@ public class DiscoveryService implements Runnable {
 
 		final byte[] addr = taskManagerAddress.getAddress();
 		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
-		final byte[] bytes = new byte[12 + addr.length];
-		integerToByteArray(magicNumber, 0, bytes);
-		integerToByteArray(TM_ADDRESS_REPLY_ID, 4, bytes);
-		integerToByteArray(addr.length, 8, bytes);
-		System.arraycopy(addr, 0, bytes, 12, addr.length);
+		final byte[] bytes = new byte[20 + addr.length];
+		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
+		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
+		integerToByteArray(TM_ADDRESS_REPLY_ID, PACKET_TYPE_ID_OFFSET, bytes);
+		integerToByteArray(addr.length, PAYLOAD_OFFSET, bytes);
+		System.arraycopy(addr, 0, bytes, PAYLOAD_OFFSET + 4, addr.length);
 
 		return new DatagramPacket(bytes, bytes.length);
 	}
@@ -321,12 +374,13 @@ public class DiscoveryService implements Runnable {
 				addressRequest.setPort(DISCOVERYPORT);
 
 				LOG.debug("Sending Task Manager address request to " + addressRequest.getSocketAddress());
+				System.out.println("Sending Task Manager address request to " + addressRequest.getSocketAddress());
 				socket.send(addressRequest);
 
 				try {
 					socket.receive(responsePacket);
 				} catch (SocketTimeoutException ste) {
-					LOG.warn("Timeout wainting for address reply. Retrying...");
+					LOG.warn("Timeout wainting for task manager address reply. Retrying...");
 					continue;
 				}
 
@@ -393,8 +447,9 @@ public class DiscoveryService implements Runnable {
 
 			for (int retries = 0; retries < DISCOVERFAILURERETRIES; retries++) {
 
+				final DatagramPacket lookupRequest = createJobManagerLookupRequestPacket();
+
 				for (InetAddress broadcast : targetAddresses) {
-					final DatagramPacket lookupRequest = createJobManagerLookupRequestPacket();
 					lookupRequest.setAddress(broadcast);
 					lookupRequest.setPort(DISCOVERYPORT);
 					LOG.debug("Sending discovery request to " + lookupRequest.getSocketAddress());
@@ -415,15 +470,11 @@ public class DiscoveryService implements Runnable {
 
 				final int packetTypeID = getPacketTypeID(responsePacket);
 				if (packetTypeID != JM_LOOKUP_REPLY_ID) {
-					LOG.error("Received unexpected packet type " + packetTypeID + ", discarding... ");
+					LOG.debug("Received unexpected packet type " + packetTypeID + ", discarding... ");
 					continue;
 				}
 
 				final int ipcPort = extractIpcPort(responsePacket);
-				// TODO: This condition helps to deal with legacy implementations of the DiscoveryService
-				if (ipcPort < 0) {
-					continue;
-				}
 
 				// Replace port from discovery service with the actual RPC port
 				// of the job manager
@@ -479,11 +530,11 @@ public class DiscoveryService implements Runnable {
 			return -1;
 		}
 
-		if (packet.getLength() < 12) {
+		if (packet.getLength() < (PAYLOAD_OFFSET + 4)) {
 			return -1;
 		}
 
-		return byteArrayToInteger(data, 8);
+		return byteArrayToInteger(data, PAYLOAD_OFFSET);
 	}
 
 	/**
@@ -502,14 +553,14 @@ public class DiscoveryService implements Runnable {
 			return null;
 		}
 
-		if (packet.getLength() < 16) {
+		if (packet.getLength() < PAYLOAD_OFFSET + 8) {
 			return null;
 		}
 
-		final int len = byteArrayToInteger(data, 8);
+		final int len = byteArrayToInteger(data, PAYLOAD_OFFSET);
 
 		final byte[] addr = new byte[len];
-		System.arraycopy(data, 12, addr, 0, len);
+		System.arraycopy(data, PAYLOAD_OFFSET + 4, addr, 0, len);
 
 		InetAddress inetAddress = null;
 
@@ -523,9 +574,9 @@ public class DiscoveryService implements Runnable {
 	}
 
 	/**
-	 * Returns the set of broadcast addresses available to the network
-	 * interfaces of this host. In case of IPv6 the set contains the
-	 * IPv6 multicast address to reach all nodes on the local link.
+	 * Returns the set of broadcast addresses available to the network interfaces of this host. In case of IPv6 the set
+	 * contains the IPv6 multicast address to reach all nodes on the local link. Moreover, all addresses of the loopback
+	 * interfaces are added to the set.
 	 * 
 	 * @return (possibly empty) set of broadcast addresses reachable by this host
 	 */
@@ -549,27 +600,35 @@ public class DiscoveryService implements Runnable {
 					continue;
 				}
 
-				// check all IPs bound to network interfaces
-				for (InterfaceAddress adr : nic.getInterfaceAddresses()) {
+				if (nic.isLoopback()) {
+					for (InterfaceAddress adr : nic.getInterfaceAddresses()) {
+						broadcastAddresses.add(adr.getAddress());
+					}
+				} else {
 
-					// collect all broadcast addresses
-					if (USE_IPV6) {
-						try {
-							final InetAddress interfaceAddress = adr.getAddress();
-							if (interfaceAddress instanceof Inet6Address) {
-								final Inet6Address ipv6Address = (Inet6Address) interfaceAddress;
-								final InetAddress multicastAddress = InetAddress.getByName(IPV6MULTICASTADDRESS + "%"
-									+ Integer.toString(ipv6Address.getScopeId()));
-								broadcastAddresses.add(multicastAddress);
+					// check all IPs bound to network interfaces
+					for (InterfaceAddress adr : nic.getInterfaceAddresses()) {
+
+						// collect all broadcast addresses
+						if (USE_IPV6) {
+							try {
+								final InetAddress interfaceAddress = adr.getAddress();
+								if (interfaceAddress instanceof Inet6Address) {
+									final Inet6Address ipv6Address = (Inet6Address) interfaceAddress;
+									final InetAddress multicastAddress = InetAddress.getByName(IPV6MULTICASTADDRESS
+										+ "%"
+										+ Integer.toString(ipv6Address.getScopeId()));
+									broadcastAddresses.add(multicastAddress);
+								}
+
+							} catch (UnknownHostException e) {
+								LOG.error(e);
 							}
-
-						} catch (UnknownHostException e) {
-							LOG.error(e);
-						}
-					} else {
-						final InetAddress broadcast = adr.getBroadcast();
-						if (broadcast != null) {
-							broadcastAddresses.add(broadcast);
+						} else {
+							final InetAddress broadcast = adr.getBroadcast();
+							if (broadcast != null) {
+								broadcastAddresses.add(broadcast);
+							}
 						}
 					}
 				}
@@ -590,16 +649,42 @@ public class DiscoveryService implements Runnable {
 
 		final DatagramPacket requestPacket = new DatagramPacket(new byte[64], 64);
 
-		while (!Thread.interrupted()) {
+		final Map<Integer, Long> packetIDMap = new HashMap<Integer, Long>();
+
+		while (this.isRunning) {
 
 			try {
 				this.serverSocket.receive(requestPacket);
-
+				
+				System.out.println("PACKET RECEIVED");
+				
 				if (!isPacketForUs(requestPacket)) {
 					LOG.debug("Received request packet which is not destined to this Nephele setup");
 					continue;
 				}
 
+				final Integer packetID = Integer.valueOf(extractPacketID(requestPacket));
+				if(packetIDMap.containsKey(packetID)) {
+					LOG.debug("Request with ID " + packetID.intValue() + " already answered, discarding...");
+					continue;
+				} else {
+					
+					final long currentTime = System.currentTimeMillis();
+					
+					//Remove old entries
+					final Iterator<Map.Entry<Integer, Long>> it = packetIDMap.entrySet().iterator();
+					while(it.hasNext()) {
+						
+						final Map.Entry<Integer, Long> entry = it.next();
+						if((entry.getValue().longValue() + 5000L) < currentTime) {
+							it.remove();
+						}
+					}
+					
+					packetIDMap.put(packetID, Long.valueOf(currentTime));
+				}
+				
+				
 				final int packetTypeID = getPacketTypeID(requestPacket);
 				if (packetTypeID == JM_LOOKUP_REQUEST_ID) {
 
@@ -620,13 +705,15 @@ public class DiscoveryService implements Runnable {
 					this.serverSocket.send(responsePacket);
 
 				} else {
-					LOG.error("Received packet of unknown type " + packetTypeID + ", discarding...");
+					LOG.debug("Received packet of unknown type " + packetTypeID + ", discarding...");
 				}
 
 			} catch (SocketTimeoutException ste) {
 				LOG.debug("Discovery service: socket timeout");
 			} catch (IOException ioe) {
-				LOG.error("Discovery service stopped working with IOException:\n" + ioe.toString());
+				if (this.isRunning) { // Ignore exception when service has been stopped
+					LOG.error("Discovery service stopped working with IOException:\n" + ioe.toString());
+				}
 				break;
 			}
 		}
@@ -667,10 +754,6 @@ public class DiscoveryService implements Runnable {
 		int integer = 0;
 
 		for (int i = 0; i < 4; ++i) {
-			System.out.print(byteArray[i]);
-		}
-
-		for (int i = 0; i < 4; ++i) {
 			integer |= (byteArray[(offset + 3) - i] & 0xff) << (i << 3);
 		}
 
@@ -693,11 +776,12 @@ public class DiscoveryService implements Runnable {
 			return false;
 		}
 
-		if (packet.getLength() < 4) {
+		if (packet.getLength() < (MAGIC_NUMBER_OFFSET + 4)) {
 			return false;
 		}
 
-		if (byteArrayToInteger(data, 0) != GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE)) {
+		if (byteArrayToInteger(data, MAGIC_NUMBER_OFFSET) != GlobalConfiguration.getInteger(MAGICNUMBER_KEY,
+			DEFAULT_MAGICNUMBER_VALUE)) {
 			return false;
 		}
 
@@ -719,10 +803,42 @@ public class DiscoveryService implements Runnable {
 			return -1;
 		}
 
-		if (packet.getLength() < 8) {
+		if (packet.getLength() < (PACKET_TYPE_ID_OFFSET + 4)) {
 			return -1;
 		}
 
-		return byteArrayToInteger(data, 4);
+		return byteArrayToInteger(data, PACKET_TYPE_ID_OFFSET);
+	}
+
+	/**
+	 * Generates a random packet ID.
+	 * 
+	 * @return a random packet ID
+	 */
+	private static int generateRandomPacketID() {
+
+		return (int) (Math.random() * (double) Integer.MAX_VALUE);
+	}
+
+	/**
+	 * Extracts the packet ID from the given packet.
+	 * 
+	 * @param packet
+	 *        the packet to extract the ID from
+	 * @return the extracted ID or <code>-1</code> if the ID could not be extracted
+	 */
+	private static int extractPacketID(final DatagramPacket packet) {
+
+		final byte[] data = packet.getData();
+
+		if (data == null) {
+			return -1;
+		}
+
+		if (data.length < (PACKET_ID_OFFSET + 4)) {
+			return -1;
+		}
+
+		return byteArrayToInteger(data, PACKET_ID_OFFSET);
 	}
 }

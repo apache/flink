@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.taskmanager;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -163,22 +164,31 @@ public class TaskManager implements TaskOperationProtocol {
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		// Use discovery service to find the job manager in the network?
+		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,null);
 		InetSocketAddress jobManagerAddress = null;
-		if (GlobalConfiguration.getBoolean(ConfigConstants.TASK_MANAGER_USE_DISCOVERY_KEY, true)) {
+		if(address == null) {
+			// Address is null, use discovery manager to determine address
+			LOG.info("Using discovery service to locate job manager");
 			try {
 				jobManagerAddress = DiscoveryService.getJobManagerAddress();
 			} catch (DiscoveryException e) {
-				throw new Exception("Failed to initialize discovery service. " + e.getMessage(), e);
+				throw new Exception("Failed to locate job manager via discovery: " + e.getMessage(), e);
 			}
-
 		} else {
-			final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS);
+			LOG.info("Reading location of job manager from configuration");
+			
 			final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-			jobManagerAddress = new InetSocketAddress(address, port);
+			
+			// Try to convert configured address to {@link InetAddress}
+			try {
+				final InetAddress tmpAddress = InetAddress.getByName(address);
+				jobManagerAddress = new InetSocketAddress(tmpAddress, port);
+			} catch(UnknownHostException e) {
+				throw new Exception("Failed to locate job manager based on configuration: " + e.getMessage(), e);
+			}
 		}
-
+		
 		LOG.info("Determined address of job manager to be " + jobManagerAddress);
 
 		// Determine interface address that is announced to the job manager
