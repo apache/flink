@@ -152,6 +152,7 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			try {
 				this.currentBuffer = nextBuffer();
 				this.currentBuffer.rewind();
+				checkErroneous();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("IO channel corrupt. Writer was interrupted getting a new buffer.");
