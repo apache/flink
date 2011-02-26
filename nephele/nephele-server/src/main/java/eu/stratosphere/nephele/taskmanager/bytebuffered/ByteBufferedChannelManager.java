@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -108,8 +107,10 @@ public class ByteBufferedChannelManager {
 
 	private final int numberOfWriteBuffers;
 
-	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService, InetAddress incomingDataAddress,
-			int incomingDataPort, String tmpDir)
+	private final InstanceConnectionInfo localConnectionInfo;
+
+	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService,
+			InstanceConnectionInfo localInstanceConnectionInfo, String tmpDir)
 												throws IOException {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
@@ -124,6 +125,8 @@ public class ByteBufferedChannelManager {
 			DEFAULT_BUFFER_SIZE_IN_BYTES);
 
 		this.channelLookupService = channelLookupService;
+
+		this.localConnectionInfo = localInstanceConnectionInfo;
 
 		// Start the connection threads
 		final int numberOfOutgoingConnectionThreads = configuration.getInteger(
@@ -141,7 +144,8 @@ public class ByteBufferedChannelManager {
 		synchronized (this.incomingConnectionThreads) {
 			for (int i = 0; i < numberOfIncomingConnectionThreads; i++) {
 				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(this, (i == 0),
-					new InetSocketAddress(incomingDataAddress, incomingDataPort));
+					new InetSocketAddress(localInstanceConnectionInfo.getAddress(),
+						localInstanceConnectionInfo.getDataPort()));
 				incomingConnectionThread.start();
 				this.incomingConnectionThreads.add(incomingConnectionThread);
 			}
@@ -585,7 +589,7 @@ public class ByteBufferedChannelManager {
 				while (true) {
 
 					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
-						channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
+						this.localConnectionInfo, channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
 
 					if (lookupResponse.receiverNotFound()) {
 						throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
@@ -602,7 +606,7 @@ public class ByteBufferedChannelManager {
 					}
 
 					if (lookupResponse.receiverReady()) {
-						ici = lookupResponse.getInstanceConnectionInfo();
+						ici = lookupResponse.getRemoteTargets().get(0);
 						break;
 					}
 				}

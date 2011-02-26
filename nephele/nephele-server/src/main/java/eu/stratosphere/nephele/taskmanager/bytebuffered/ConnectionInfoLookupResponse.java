@@ -11,6 +11,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  *
+
  **********************************************************************************************************************/
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
@@ -18,10 +19,13 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.List;
 
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.EnumUtils;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 
 public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
@@ -29,33 +33,48 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY
 	};
 
+	// was request successful?
 	private ReturnCode returnCode;
 
-	private InstanceConnectionInfo instanceConnectionInfo;
+	/**
+	 * Contains next-hop instances, this instance must forward multicast transmissions to.
+	 */
+	private final SerializableArrayList<InstanceConnectionInfo> remoteTargets = new SerializableArrayList<InstanceConnectionInfo>();
 
-	public ConnectionInfoLookupResponse(ReturnCode returnCode, InstanceConnectionInfo instanceConnectionInfo) {
-		this.returnCode = returnCode;
-		this.instanceConnectionInfo = instanceConnectionInfo;
-	}
+	/**
+	 * Contains local ChannelIDs, multicast packets must be forwarded to.
+	 */
+	private final SerializableArrayList<ChannelID> localTargets = new SerializableArrayList<ChannelID>();
 
 	public ConnectionInfoLookupResponse() {
 		this.returnCode = ReturnCode.NOT_FOUND;
-		this.instanceConnectionInfo = null;
 	}
 
-	public InstanceConnectionInfo getInstanceConnectionInfo() {
-		return this.instanceConnectionInfo;
+	public void addRemoteTarget(InstanceConnectionInfo remote) {
+		this.remoteTargets.add(remote);
+	}
+
+	public void addLocalTarget(ChannelID local) {
+		this.localTargets.add(local);
+	}
+
+	private void setReturnCode(ReturnCode code) {
+		this.returnCode = code;
+	}
+
+	public List<InstanceConnectionInfo> getRemoteTargets() {
+		return this.remoteTargets;
+	}
+
+	public List<ChannelID> getLocalTargets() {
+		return this.localTargets;
 	}
 
 	@Override
 	public void read(DataInput in) throws IOException {
 
-		if (in.readBoolean()) {
-			this.instanceConnectionInfo = new InstanceConnectionInfo();
-			this.instanceConnectionInfo.read(in);
-		} else {
-			this.instanceConnectionInfo = null;
-		}
+		this.localTargets.read(in);
+		this.remoteTargets.read(in);
 
 		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
 	}
@@ -63,12 +82,8 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	@Override
 	public void write(DataOutput out) throws IOException {
 
-		if (this.instanceConnectionInfo != null) {
-			out.writeBoolean(true);
-			this.instanceConnectionInfo.write(out);
-		} else {
-			out.writeBoolean(false);
-		}
+		this.localTargets.write(out);
+		this.remoteTargets.write(out);
 
 		EnumUtils.writeEnum(out, this.returnCode);
 
@@ -90,14 +105,25 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	}
 
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(InstanceConnectionInfo instanceConnectionInfo) {
-		return new ConnectionInfoLookupResponse(ReturnCode.FOUND_AND_RECEIVER_READY, instanceConnectionInfo);
+
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
+		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
+		response.addRemoteTarget(instanceConnectionInfo);
+
+		return response;
 	}
 
 	public static ConnectionInfoLookupResponse createReceiverNotFound() {
-		return new ConnectionInfoLookupResponse(ReturnCode.NOT_FOUND, null);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
+		response.setReturnCode(ReturnCode.NOT_FOUND);
+
+		return response;
 	}
 
 	public static ConnectionInfoLookupResponse createReceiverNotReady() {
-		return new ConnectionInfoLookupResponse(ReturnCode.FOUND_BUT_RECEIVER_NOT_READY, null);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
+		response.setReturnCode(ReturnCode.FOUND_BUT_RECEIVER_NOT_READY);
+
+		return response;
 	}
 }

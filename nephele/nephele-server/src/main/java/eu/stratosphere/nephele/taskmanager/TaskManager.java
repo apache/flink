@@ -164,9 +164,9 @@ public class TaskManager implements TaskOperationProtocol {
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		// Use discovery service to find the job manager in the network?
-		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,null);
+		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		InetSocketAddress jobManagerAddress = null;
-		if(address == null) {
+		if (address == null) {
 			// Address is null, use discovery manager to determine address
 			LOG.info("Using discovery service to locate job manager");
 			try {
@@ -176,19 +176,19 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		} else {
 			LOG.info("Reading location of job manager from configuration");
-			
+
 			final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-			
+
 			// Try to convert configured address to {@link InetAddress}
 			try {
 				final InetAddress tmpAddress = InetAddress.getByName(address);
 				jobManagerAddress = new InetSocketAddress(tmpAddress, port);
-			} catch(UnknownHostException e) {
+			} catch (UnknownHostException e) {
 				throw new Exception("Failed to locate job manager based on configuration: " + e.getMessage(), e);
 			}
 		}
-		
+
 		LOG.info("Determined address of job manager to be " + jobManagerAddress);
 
 		// Determine interface address that is announced to the job manager
@@ -265,8 +265,7 @@ public class TaskManager implements TaskOperationProtocol {
 		ByteBufferedChannelManager byteBufferedChannelManager = null;
 		try {
 			byteBufferedChannelManager = new ByteBufferedChannelManager(this.lookupService,
-				this.localInstanceConnectionInfo.getAddress(), this.localInstanceConnectionInfo.getDataPort(),
-				tmpDirPath);
+				this.localInstanceConnectionInfo, tmpDirPath);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
