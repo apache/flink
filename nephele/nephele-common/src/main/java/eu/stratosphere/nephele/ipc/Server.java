@@ -365,7 +365,6 @@ public abstract class Server {
 				} catch (InterruptedException e) {
 					if (running) { // unexpected -- log it
 						LOG.info(getName() + " caught: " + e.toString());
-						e.printStackTrace();
 					}
 				} catch (Exception e) {
 					closeCurrentConnection(key, e);
@@ -893,7 +892,7 @@ public abstract class Server {
 					protocol = getProtocolClass(header.getProtocol());
 				}
 			} catch (ClassNotFoundException cnfe) {
-				cnfe.printStackTrace();
+				LOG.error(cnfe);
 				throw new IOException("Unknown protocol: " + header.getProtocol());
 			}
 

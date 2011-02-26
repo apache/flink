@@ -179,10 +179,10 @@ public class MatchTask extends AbstractTask {
 			}
 		}
 		catch (IOException ioe) {
-			throw new RuntimeException("Error occured during processing MatchTask", ioe);
+			throw new RuntimeException("An I/O error occured during processing MatchTask", ioe);
 		}
-		catch (InterruptedException ie) {
-			throw new RuntimeException("Error occured during processing MatchTask", ie);
+		catch (Throwable t) {
+			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
 		}
 		finally {
 			// close MatchTaskIterator
