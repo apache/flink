@@ -34,7 +34,9 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -153,13 +155,26 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
 
+		final String ipcAddressString = GlobalConfiguration
+			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+
+		InetAddress ipcAddress = null;
+		if (ipcAddressString != null) {
+			try {
+				ipcAddress = InetAddress.getByName(ipcAddressString);
+			} catch (UnknownHostException e) {
+				LOG.error("Cannot convert " + ipcAddressString + " to an IP address: "
+					+ StringUtils.stringifyException(e));
+				System.exit(FAILURERETURNCODE);
+			}
+		}
+
 		final int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-		;
 
 		// First of all, start discovery manager
 		try {
-			DiscoveryService.startDiscoveryService(ipcPort);
+			DiscoveryService.startDiscoveryService(ipcAddress, ipcPort);
 		} catch (DiscoveryException e) {
 			LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
 			System.exit(FAILURERETURNCODE);
@@ -169,7 +184,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger("jobclient.polling.internval", 5);
 
 		// Determine own RPC address
-		final InetSocketAddress rpcServerAddress = new InetSocketAddress(DiscoveryService.getServiceAddress(), ipcPort);
+		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
 
 		// Start job manager's IPC server
 		try {
@@ -228,7 +243,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				LOG.error("Cannot find class name for the profiler");
 				System.exit(FAILURERETURNCODE);
 			}
-			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName);
+			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName, ipcAddress);
 			if (this.profiler == null) {
 				LOG.error("Cannot load profiler");
 				System.exit(FAILURERETURNCODE);

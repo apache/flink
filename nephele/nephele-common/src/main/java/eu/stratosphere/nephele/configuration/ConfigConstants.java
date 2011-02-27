@@ -52,11 +52,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
-	 * The key for the config parameter defining whether to use discovery on startup.
-	 */
-	public static final String TASK_MANAGER_USE_DISCOVERY_KEY = "taskmanager.setup.usediscovery";
-
-	/**
 	 * The key for the config parameter defining the directory for temporary files.
 	 */
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dir";
@@ -75,11 +70,6 @@ public final class ConfigConstants {
 	// ------------------------------------------------------------------------
 	// Default Values
 	// ------------------------------------------------------------------------
-
-	/**
-	 * The default network address to connect to for communication with the job manager.
-	 */
-	public static final String DEFAULT_JOB_MANAGER_IPC_ADDRESS = "127.0.0.1";
 
 	/**
 	 * The default network port to connect to for communication with the job manager.
