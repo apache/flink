@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.instance.local;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 
 /**
@@ -24,10 +27,17 @@ import eu.stratosphere.nephele.taskmanager.TaskManager;
  */
 public class LocalTaskManagerThread extends Thread {
 
+	private static final Log LOG = LogFactory.getLog(LocalTaskManagerThread.class);
+	
 	/**
 	 * The task manager to run in this thread.
 	 */
 	private TaskManager taskManager;
+	
+	/**
+	 * Flag stating whether the task manager was successfully initialized.
+	 */
+	private boolean taskManagerSuccessfullyInitialized = false;
 
 	/**
 	 * Constructs a new thread to run the task manager in Nephele's local mode.
@@ -38,9 +48,10 @@ public class LocalTaskManagerThread extends Thread {
 	public LocalTaskManagerThread(String configDir) {
 		try {
 			this.taskManager = new TaskManager(configDir);
+			this.taskManagerSuccessfullyInitialized = true;
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Could not start local TaskManager: " + e.getMessage(), e);
+			LOG.fatal("TaskManager could not be started!");
 		}
 	}
 
@@ -71,5 +82,14 @@ public class LocalTaskManagerThread extends Thread {
 	public boolean isTaskManagerShutDown() {
 
 		return this.taskManager.isShutDown();
+	}
+	
+	/**
+	 * Returns true if the TaskManager was successfully initialized.
+	 * 
+	 * @return true if the TaskManager was successfully initialized, false otherwise.
+	 */
+	public boolean isTaskManagerInitialized() {
+		return this.taskManagerSuccessfullyInitialized;
 	}
 }
