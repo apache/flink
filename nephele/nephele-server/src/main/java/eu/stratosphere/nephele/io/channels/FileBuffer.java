@@ -86,10 +86,6 @@ public class FileBuffer implements InternalBuffer {
 			return -1;
 		}
 
-		if (this.totalBytesRead >= this.bufferSize) {
-			return -1;
-		}
-
 		final int rem = remaining();
 		int bytesRead;
 		if (dst.remaining() > rem) {
@@ -99,6 +95,10 @@ public class FileBuffer implements InternalBuffer {
 			dst.limit(dst.limit() + excess);
 		} else {
 			bytesRead = this.fileChannel.read(dst);
+		}
+
+		if (bytesRead < 0) {
+			return -1;
 		}
 
 		this.totalBytesRead += bytesRead;
