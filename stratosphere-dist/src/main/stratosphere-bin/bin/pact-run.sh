@@ -29,10 +29,9 @@ fi
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
 log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-pact-run-$HOSTNAME.log
-out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-pact-run-$HOSTNAME.out
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/log4j.properties"
 
 export NEPHELE_CONF_DIR
 
 echo starting PACT Job
-$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $CLASSPATH eu.stratosphere.pact.client.CliFrontend $* > "$out"
+$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $CLASSPATH eu.stratosphere.pact.client.CliFrontend $*
