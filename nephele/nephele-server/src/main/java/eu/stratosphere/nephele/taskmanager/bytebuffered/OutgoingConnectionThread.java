@@ -138,7 +138,7 @@ public class OutgoingConnectionThread extends Thread {
 
 			if (!outgoingConnection.write(socketChannel)) {
 				// Try to close the connection
-				outgoingConnection.closeConnection(socketChannel, key);
+//				outgoingConnection.closeConnection(socketChannel, key);
 			}
 
 		} catch (IOException ioe) {
