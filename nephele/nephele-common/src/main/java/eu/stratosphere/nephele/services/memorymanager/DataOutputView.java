@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.services.memorymanager;
 
 
 import java.io.DataOutput;
+import java.io.IOException;
 
 
 /**
@@ -43,7 +44,7 @@ public interface DataOutputView extends DataOutput
 	/**
 	 * Skips {@code size} memory.
 	 */
-	public DataOutputView skip(int size);
+	public DataOutputView skip(int size) throws IOException;
 
 	/**
 	 * Resets the position to zero.

@@ -119,8 +119,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		// allocate output Buffers on the memory segments
 		ArrayList<Buffer.Output> outputBuffers = new ArrayList<Buffer.Output>(nrOfBuffers);
 		for (MemorySegment segment : memorySegments) {
-			Buffer.Output out = new Buffer.Output();
-			out.bind(segment);
+			Buffer.Output out = new Buffer.Output(segment);
 			outputBuffers.add(out);
 		}
 		// try to read data into memory
@@ -160,9 +159,8 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			// create input Buffers on the output Buffers
 			for (Buffer.Output out : outputBuffers) {
 				int offset = out.getPosition();
-				MemorySegment segment = out.unbind();
-				Buffer.Input in = new Buffer.Input();
-				in.bind(segment);
+				MemorySegment segment = out.dispose();
+				Buffer.Input in = new Buffer.Input(segment);
 				in.reset(offset);
 				inputBuffers.add(in);
 			}
@@ -178,7 +176,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			next = null;
 			if (fitsIntoMem) {
 				if (currentBuffer != usedBuffers)
-					inputBuffers.get(currentBuffer).reset();
+					inputBuffers.get(currentBuffer).rewind();
 				currentBuffer = 0;
 			} else {
 				ioReader.close();
@@ -202,7 +200,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				// try to read data
 				if (!inputBuffers.get(currentBuffer).read(next)) {
 					// switch to next buffer
-					inputBuffers.get(currentBuffer).reset(); // reset the old buffer
+					inputBuffers.get(currentBuffer).rewind(); // reset the old buffer
 					currentBuffer++;
 					if (currentBuffer == usedBuffers) // we are depleted
 						return false;

@@ -63,7 +63,7 @@ public class KeyValuePairDeserializer<K extends Key, V extends Value> implements
 			KeyValuePair<K, V> pair = getInstance();
 			pair.read(in);
 			return pair;
-		} catch (Exception e) {
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}

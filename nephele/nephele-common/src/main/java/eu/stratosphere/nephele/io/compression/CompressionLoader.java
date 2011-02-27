@@ -283,19 +283,15 @@ public class CompressionLoader {
 		try {
 			compressionLibrary = constructor.newInstance(getNativeLibraryPath());
 		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
 			LOG.error(e);
 			return null;
 		} catch (InstantiationException e) {
-			e.printStackTrace();
 			LOG.error(e);
 			return null;
 		} catch (IllegalAccessException e) {
-			e.printStackTrace();
 			LOG.error(e);
 			return null;
 		} catch (InvocationTargetException e) {
-			e.printStackTrace();
 			LOG.error(e);
 			return null;
 		}

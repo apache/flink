@@ -172,7 +172,7 @@ public class FileBufferManager {
 				final FileInputStream fis = new FileInputStream(file);
 				this.fileChannelForReading = fis.getChannel();
 			} catch (InterruptedException e) {
-				e.printStackTrace(); // TODO: Handle this correctly
+				LOG.error(e);
 			} finally {
 				this.readAttemptInProgress = false;
 			}
