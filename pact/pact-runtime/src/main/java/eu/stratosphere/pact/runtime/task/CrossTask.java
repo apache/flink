@@ -58,7 +58,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @see eu.stratosphere.pact.common.stub.CrossStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class CrossTask extends AbstractTask {
 
 	// memory to be used for IO buffering

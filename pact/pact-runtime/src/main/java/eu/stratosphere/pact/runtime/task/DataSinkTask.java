@@ -46,7 +46,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.io.OutputFormat
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class DataSinkTask extends AbstractFileOutputTask {
 
 	// Obtain DataSinkTask Logger

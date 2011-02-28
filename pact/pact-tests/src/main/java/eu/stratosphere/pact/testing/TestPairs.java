@@ -278,6 +278,10 @@ public class TestPairs<K extends Key, V extends Value> implements
 			throw new RuntimeException(
 					"IOException caught when obtaining SortMerger for ReduceTask",
 					ioe);
+		} catch (final InterruptedException iex) {
+			throw new RuntimeException(
+					"InterruptedException caught when obtaining iterator over sorted data.",
+					iex);
 		}
 	}
 

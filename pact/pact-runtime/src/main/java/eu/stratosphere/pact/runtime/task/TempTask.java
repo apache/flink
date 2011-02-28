@@ -51,6 +51,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * 
  * @author Fabian Hueske
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class TempTask extends AbstractTask {
 
 	// memory to be used for IO buffering
@@ -66,7 +67,6 @@ public class TempTask extends AbstractTask {
 	private RecordWriter<KeyValuePair<Key, Value>> writer;
 
 	// stub implementation of preceding PACT
-	@SuppressWarnings("unchecked")
 	Stub stub;
 
 	// task configuration
@@ -98,7 +98,6 @@ public class TempTask extends AbstractTask {
 	/**
 	 * {@inheritDoc}
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
 	public void invoke() throws Exception {
 		// TODO: Replace SpillingResetableIterator by a strategy with a reading
@@ -178,7 +177,6 @@ public class TempTask extends AbstractTask {
 	 *         Thrown if instance of stub implementation can not be
 	 *         obtained.
 	 */
-	@SuppressWarnings("unchecked")
 	private void initPrecedingStub() throws RuntimeException {
 
 		// obtain task configuration
@@ -214,7 +212,6 @@ public class TempTask extends AbstractTask {
 	 * @throws RuntimeException
 	 *         Thrown if an invalid input ship strategy was provided.
 	 */
-	@SuppressWarnings("unchecked")
 	private void initInputReader() {
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(stub
@@ -250,7 +247,6 @@ public class TempTask extends AbstractTask {
 	/**
 	 * Creates the TempTask's output writer
 	 */
-	@SuppressWarnings("unchecked")
 	private void initOutputWriter() {
 		// obtain output emitter
 		OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(0));

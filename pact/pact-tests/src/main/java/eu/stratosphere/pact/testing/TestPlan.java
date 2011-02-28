@@ -121,6 +121,7 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  * 
  * @author Arvid Heise
  */
+@SuppressWarnings("deprecation")
 public class TestPlan implements Closeable {
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
@@ -211,7 +212,6 @@ public class TestPlan implements Closeable {
 	/**
 	 * Locally executes the {@link ExecutionGraph}.
 	 */
-	@SuppressWarnings("deprecation")
 	private void execute(final ExecutionGraph eg,
 			final LocalScheduler localScheduler)
 			throws ExecutionFailureException {

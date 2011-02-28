@@ -419,16 +419,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @see eu.stratosphere.pact.runtime.sort.SortMerger#getIterator()
 	 */
 	@Override
-	public Iterator<KeyValuePair<K, V>> getIterator() {
+	public Iterator<KeyValuePair<K, V>> getIterator() throws InterruptedException
+	{
 		synchronized (this.iteratorLock) {
 			// wait while both the iterator and the exception are not set
 			while (this.iterator == null && this.iteratorException == null) {
-				try {
-					this.iteratorLock.wait();
-				}
-				catch (InterruptedException iex) {
-					LOG.error("SHOULD NOT BE", iex);
-				}
+				this.iteratorLock.wait();
 			}
 			
 			if (this.iteratorException != null) {

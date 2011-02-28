@@ -66,8 +66,13 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.MatchStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class MatchTask extends AbstractTask {
+	
+	// obtain MatchTask logger
+	private static final Log LOG = LogFactory.getLog(MatchTask.class);
+	
+	
 	// number of sort buffers to use
 	private int NUM_SORT_BUFFERS;
 
@@ -82,9 +87,6 @@ public class MatchTask extends AbstractTask {
 	
 	// share ratio for resettable iterator
 	private double MEMORY_SHARE_RATIO = 0.05;
-
-	// obtain MatchTask logger
-	private static final Log LOG = LogFactory.getLog(MatchTask.class);
 
 	// reader of first input
 	private RecordReader<KeyValuePair<Key, Value>> reader1;
@@ -342,7 +344,7 @@ public class MatchTask extends AbstractTask {
 	 * @throws IllegalConfigurationException
 	 *         Thrown if the local strategy is not supported.
 	 */
-	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) throws RuntimeException {
+	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) {
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain task manager's IO manager
