@@ -18,29 +18,6 @@
 <configuration>
 
 	<!--  ========================================================================
-	                              Addresses and Ports 
-	      ======================================================================== -->
-	      
-	<!-- the address of the job manager -->
-	<property>
-		<key>jobmanager.rpc.address</key>
-		<value>localhost</value>
-	</property>
-	
-	<!-- the IPC port of the job manager -->
-	<property>
-		<key>jobmanager.rpc.port</key>
-		<value>6123</value>
-	</property>
-	
-	<!-- the IPC port of the task manager -->
-	<property>
-		<key>taskmanager.rpc.port</key>
-		<value>6122</value>
-	</property>
-
-
-	<!--  ========================================================================
 	                           Instance and Memory Management 
 	      ======================================================================== -->
 	      

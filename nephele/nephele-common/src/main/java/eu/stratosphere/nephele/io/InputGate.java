@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -403,7 +404,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 			try {
 				c = ClassUtils.getRecordByName(className);
 			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				LOG.error(e);
 			}
 			
 			if(c == null) {
@@ -411,21 +412,28 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 			}
 			
 			AbstractInputChannel<T> eic = null;
-			try {
-				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
-					.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
-						CompressionLevel.class);
-
-				if (constructor == null) {
-					throw new IOException("Constructor is null!");
+				try {
+					final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
+						.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
+							CompressionLevel.class);
+					if (constructor == null) {
+						throw new IOException("Constructor is null!");
+					}
+					constructor.setAccessible(true);
+					eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
+				} catch (SecurityException e) {
+					LOG.error(e);
+				} catch (NoSuchMethodException e) {
+					LOG.error(e);
+				} catch (IllegalArgumentException e) {
+					LOG.error(e);
+				} catch (InstantiationException e) {
+					LOG.error(e);
+				} catch (IllegalAccessException e) {
+					LOG.error(e);
+				} catch (InvocationTargetException e) {
+					LOG.error(e);
 				}
-
-				constructor.setAccessible(true);
-				eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-
 			if (eic == null) {
 				throw new IOException("Created input channel is null!");
 			}

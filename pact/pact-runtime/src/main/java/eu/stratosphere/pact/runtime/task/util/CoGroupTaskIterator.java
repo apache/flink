@@ -18,17 +18,19 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.IOException;
 import java.util.Iterator;
 
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
 public interface CoGroupTaskIterator<K extends Key, V1 extends Value, V2 extends Value> {
+	
 	/**
 	 * General-purpose open method.
 	 * 
 	 * @throws IOException
-	 * @throws InterruptedException
+	 * @throws MemoryAllocationException
 	 */
-	void open() throws IOException, InterruptedException;
+	void open() throws IOException, MemoryAllocationException;
 
 	/**
 	 * General-purpose close method.
@@ -45,7 +47,7 @@ public interface CoGroupTaskIterator<K extends Key, V1 extends Value, V2 extends
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	boolean next() throws IOException, InterruptedException;
+	boolean next() throws IOException;
 
 	/**
 	 * Returns the current key.

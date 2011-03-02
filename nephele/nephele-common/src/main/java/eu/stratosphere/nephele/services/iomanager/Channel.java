@@ -34,7 +34,7 @@ public final class Channel {
 	 * 
 	 * @author Alexander Alexandrov
 	 */
-	public static final class ID {
+	public static class ID {
 		private final String path;
 
 		protected ID(String path) {

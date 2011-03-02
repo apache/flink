@@ -90,9 +90,54 @@ public class OutgoingConnection {
 	private long timstampOfLastRetry = 0;
 
 	/**
+	 * The timestamp of the last data transfer.
+	 */
+	private long timestampOfLastTransfer = 0;
+
+	/**
+	 * The time at which the connection has been closed.
+	 */
+	private long closeTimestamp = 0;
+
+	/**
 	 * The period of time in milliseconds that shall be waited before a connection attempt is considered to be failed.
 	 */
 	private static long RETRYINTERVAL = 1000L; // 1 second
+
+	/**
+	 * The minimum time the connection must be idle before the underlying TCP connection is closed
+	 */
+	private static final long MIN_IDLE_TIME_BEFORE_CLOSE = 3000L; // 3 seconds
+
+	/**
+	 * The minimum time that is waited before a connection is reestablished after it has been closed
+	 */
+	private static final long MIN_TIME_BEFORE_CONNECTION = 3000L; // 3 seconds
+
+	private static class ConnectionLauncher extends Thread {
+
+		private final OutgoingConnection outgoingConnection;
+
+		private final long sleepTime;
+
+		private ConnectionLauncher(OutgoingConnection outgoingConnection, long sleepTime) {
+
+			this.outgoingConnection = outgoingConnection;
+			this.sleepTime = sleepTime;
+		}
+
+		@Override
+		public void run() {
+
+			System.out.println("Sleeping for " + this.sleepTime);
+			try {
+				Thread.sleep(this.sleepTime);
+			} catch (InterruptedException e) {
+			}
+
+			this.outgoingConnection.triggerConnection();
+		}
+	}
 
 	/**
 	 * Constructs a new outgoing connection object.
@@ -130,14 +175,32 @@ public class OutgoingConnection {
 		synchronized (this.queuedEnvelopes) {
 
 			if (!this.isConnected) {
+
+				final long now = System.currentTimeMillis();
+				if (this.closeTimestamp + MIN_TIME_BEFORE_CONNECTION > now) {
+					// Trigger connection delayed
+					new ConnectionLauncher(this, (this.closeTimestamp + MIN_TIME_BEFORE_CONNECTION) - now).start();
+				} else {
+					// Trigger connection immediately
+					triggerConnection();
+				}
+			}
+
+			this.queuedEnvelopes.add(transferEnvelope);
+		}
+	}
+
+	private void triggerConnection() {
+
+		synchronized (this.queuedEnvelopes) {
+			if (!this.isConnected) {
 				this.retriesLeft = this.numberOfConnectionRetries;
 				this.timstampOfLastRetry = System.currentTimeMillis();
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
 			}
-
-			this.queuedEnvelopes.add(transferEnvelope);
 		}
+
 	}
 
 	/**
@@ -351,6 +414,7 @@ public class OutgoingConnection {
 			synchronized (this.queuedEnvelopes) {
 				this.queuedEnvelopes.poll();
 				this.currentEnvelope = null;
+				this.timestampOfLastTransfer = System.currentTimeMillis();
 			}
 		}
 
@@ -372,12 +436,18 @@ public class OutgoingConnection {
 	 */
 	public void closeConnection(SocketChannel socketChannel, SelectionKey key) throws IOException {
 
+		if ((this.timestampOfLastTransfer + MIN_IDLE_TIME_BEFORE_CLOSE) > System.currentTimeMillis()) {
+			return;
+		}
+
 		synchronized (this.queuedEnvelopes) {
 
 			if (this.queuedEnvelopes.isEmpty()) {
+				LOG.debug("Closing connection to " + socketChannel.socket().getRemoteSocketAddress());
 				socketChannel.close();
 				key.cancel();
 				this.isConnected = false;
+				this.closeTimestamp = System.currentTimeMillis();
 			}
 		}
 	}

@@ -55,7 +55,7 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 	 * @param filledBuffers
 	 * @throws IOException
 	 */
-	public ChannelWriter(Channel.ID channelID, RequestQueue<IORequest<Buffer.Output>> requestQueue,
+	protected ChannelWriter(Channel.ID channelID, RequestQueue<IORequest<Buffer.Output>> requestQueue,
 			Collection<Buffer.Output> buffers, boolean filledBuffers)
 	throws IOException
 	{
@@ -79,7 +79,8 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 
 		// get the first buffer from the empty buffer queue as current
 		try {
-			currentBuffer = nextBuffer();
+			this.currentBuffer = nextBuffer();
+			this.currentBuffer.rewind();
 			checkErroneous();
 		}
 		catch (InterruptedException iex) {
@@ -102,14 +103,18 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			}
 			this.closed = true;
 		}
+		
+		checkErroneous();
+		
 		// create a new write request for the current buffer
-		this.requestQueue.add(new IORequest<Buffer.Output>(this, currentBuffer));
-		this.currentBuffer = null;
+		if (this.currentBuffer != null) {
+			this.requestQueue.add(new IORequest<Buffer.Output>(this, this.currentBuffer));
+			this.currentBuffer = null;
+		}
 
 		final List<MemorySegment> segments = super.close();
 		
 		// flush contents to the underlying channel and close the file
-		this.fileChannel.force(true);
 		this.fileChannel.close();
 		
 		return segments;
@@ -134,8 +139,9 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			return true;
 		}
 		else {
-			// current buffer is full. check the error state of this channel first
+			// current buffer is full, check the error state of this channel
 			checkErroneous();
+			
 			if (this.requestQueue.isClosed()) {
 				throw new IOException("The writer's IO path has been closed.");
 			}
@@ -145,13 +151,15 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			
 			try {
 				this.currentBuffer = nextBuffer();
+				this.currentBuffer.rewind();
+				checkErroneous();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("IO channel corrupt. Writer was interrupted getting a new buffer.");
 			}
 			
 			// retry writing with an empty input buffer
-			if (currentBuffer.write(writable)) {
+			if (this.currentBuffer.write(writable)) {
 				return true;
 			}
 			else {

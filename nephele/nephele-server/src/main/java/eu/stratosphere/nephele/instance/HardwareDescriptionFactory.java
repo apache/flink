@@ -65,6 +65,11 @@ public class HardwareDescriptionFactory {
 	private static final String MAC_OS_PREFIX = "Mac";
 
 	/**
+	 * The expected prefix for FreeBSD.
+	 */
+	private static final String FREEBSD_OS_PREFIX = "FreeBSD";
+
+	/**
 	 * The path to the interface to extract memory information under Linux.
 	 */
 	private static final String LINUX_MEMORY_INFO_PATH = "/proc/meminfo";
@@ -246,6 +251,20 @@ public class HardwareDescriptionFactory {
 	}
 
 	/**
+	 * Checks whether the operating system this JVM runs on is FreeBSD.
+	 * 
+	 * @return <code>true</code> if the operating system this JVM runs on is FreeBSD, <code>false</code> otherwise
+	 */
+	private static boolean isFreeBSD() {
+
+		if (getOperatingSystemName().startsWith(FREEBSD_OS_PREFIX)) {
+			return true;
+		}
+
+		return false;
+	}
+	
+	/**
 	 * Returns the size of the physical memory in bytes.
 	 * 
 	 * @return the size of the physical memory in bytes or <code>-1</code> if the size could not be determined
@@ -258,6 +277,8 @@ public class HardwareDescriptionFactory {
 			LOG.error("Cannot determine size of physical memory: Support for Windows is not yet implemented");
 		} else if (isMac()) {
 			return getSizeOfPhysicalMemoryForMac();
+		} else if (isFreeBSD()) {
+			return getSizeOfPhysicalMemoryForFreeBSD();
 		} else {
 			LOG.error("Cannot determine size of physical memory: Unknown operating system");
 		}
@@ -322,7 +343,7 @@ public class HardwareDescriptionFactory {
 		BufferedReader bi = null;
 
 		try {
-			Process proc = Runtime.getRuntime().exec("sysctl hw");
+			Process proc = Runtime.getRuntime().exec("sysctl hw.memsize");
 
 			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
@@ -351,4 +372,43 @@ public class HardwareDescriptionFactory {
 		return -1;
 	}
 
+	/**
+	 * Returns the size of the physical memory in bytes on FreeBSD.
+	 * 
+	 * @return the size of the physical memory in bytes or <code>-1</code> if the size could not be determined
+	 */
+	private static long getSizeOfPhysicalMemoryForFreeBSD() {
+
+		BufferedReader bi = null;
+
+		try {
+			Process proc = Runtime.getRuntime().exec("sysctl hw.physmem");
+
+			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+
+			String line;
+
+			while ((line = bi.readLine()) != null) {
+				if (line.startsWith("hw.physmem")) {
+					long memsize = Long.parseLong(line.split(":")[1].trim());
+					bi.close();
+					proc.destroy();
+					return memsize;
+				}
+			}
+
+		} catch (Exception e) {
+			LOG.error(e);
+			return -1;
+		} finally {
+			if (bi != null) {
+				try {
+					bi.close();
+				} catch (IOException ioe) {
+				}
+			}
+		}
+		return -1;
+	}
+	
 }

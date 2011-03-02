@@ -17,6 +17,9 @@ package eu.stratosphere.nephele.io.channels.direct;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -26,6 +29,9 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
 public abstract class AbstractDirectOutputChannel<T extends Record> extends AbstractOutputChannel<T> {
+
+	private static final Log LOG = LogFactory.getLog(AbstractDirectOutputChannel.class);
+
 	/**
 	 * The connected direct input channel.
 	 */
@@ -163,7 +169,7 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 				Thread.sleep(CONNECTION_SLEEP_INTERVAL);
 			} catch (InterruptedException e) {
 				// We need to finish this operation, otherwise the proper shutdown of the consumer is at risk
-				e.printStackTrace();
+				LOG.error(e);
 			}
 		}
 

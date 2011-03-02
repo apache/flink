@@ -83,10 +83,12 @@ public class ProfilingUtils {
 	 * 
 	 * @param profilerClassName
 	 *        the class name of the profiling component to load
+	 * @param jobManagerBindAddress
+	 *        the address the job manager's RPC server is bound to
 	 * @return an instance of the job manager profiling component or <code>null</code> if an error occurs
 	 */
 	@SuppressWarnings("unchecked")
-	public static JobManagerProfiler loadJobManagerProfiler(String profilerClassName) {
+	public static JobManagerProfiler loadJobManagerProfiler(String profilerClassName, InetAddress jobManagerBindAddress) {
 
 		final Class<? extends JobManagerProfiler> profilerClass;
 		try {
@@ -97,9 +99,18 @@ public class ProfilingUtils {
 		}
 
 		JobManagerProfiler profiler = null;
-
+		
 		try {
-			profiler = profilerClass.newInstance();
+			
+			final Constructor<JobManagerProfiler> constr = (Constructor<JobManagerProfiler>) profilerClass.getConstructor(InetAddress.class);
+			profiler = constr.newInstance(jobManagerBindAddress);
+		
+		} catch(InvocationTargetException e) {
+			LOG.error("Cannot create profiler: " + StringUtils.stringifyException(e));
+			return null;
+		} catch (NoSuchMethodException e) {
+			LOG.error("Cannot create profiler: " + StringUtils.stringifyException(e));
+			return null;
 		} catch (InstantiationException e) {
 			LOG.error("Cannot create profiler: " + StringUtils.stringifyException(e));
 			return null;
