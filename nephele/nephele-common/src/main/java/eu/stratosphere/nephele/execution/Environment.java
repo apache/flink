@@ -146,6 +146,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	private String taskName;
 
 	/**
+	 * Stores whether the task has been canceled.
+	 */
+	private volatile boolean isCanceled = false;
+
+	/**
 	 * Creates a new environment object which contains the runtime information for the encapsulated Nephele task.
 	 * 
 	 * @param jobID
@@ -341,22 +346,30 @@ public class Environment implements Runnable, IOReadableWritable {
 			this.invokable.invoke();
 
 			// Make sure we switch to the right state, even if the user code has not hit an {@link InterruptedException}
-			if (this.executingThread.isInterrupted()) {
+			if (this.isCanceled) {
 				throw new InterruptedException();
 			}
 
 		} catch (InterruptedException e) {
 			changeExecutionState(ExecutionState.CANCELLED, null);
-			// TODO: Do we really have to return here? (Rethink clean up strategy)
-			return;
 		} catch (Exception e) {
+
+			// Clean up
+			try {
+				this.invokable.cancel();
+			} catch (Exception e2) {
+				LOG.error(StringUtils.stringifyException(e2));
+			}
+
 			// Report exception
 			changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
 			return;
 		}
 
-		// Task finished running, but there may be unconsumed output data in some of the channels
-		changeExecutionState(ExecutionState.FINISHING, null);
+		if (!this.isCanceled) {
+			// Task finished running, but there may be unconsumed output data in some of the channels
+			changeExecutionState(ExecutionState.FINISHING, null);
+		}
 
 		try {
 			// If there is any unclosed input gate, close it and propagate close operation to corresponding output gate
@@ -371,13 +384,17 @@ public class Environment implements Runnable, IOReadableWritable {
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
 		} catch (Exception e) {
-			// Report exception
-			changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
-			return;
+			if (!this.isCanceled) {
+				// Report exception
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+				return;
+			}
 		}
 
-		// Finally, switch execution state to FINISHED and report to job manager
-		changeExecutionState(ExecutionState.FINISHED, null);
+		if (!this.isCanceled) {
+			// Finally, switch execution state to FINISHED and report to job manager
+			changeExecutionState(ExecutionState.FINISHED, null);
+		}
 	}
 
 	/**
@@ -471,11 +488,20 @@ public class Environment implements Runnable, IOReadableWritable {
 			return;
 		}
 
-		// Interrupt the executing thread
-		this.executingThread.interrupt();
+		this.isCanceled = true;
 
 		// Change state
 		changeExecutionState(ExecutionState.CANCELLING, null);
+
+		// Request user code to shut down
+		try {
+			this.invokable.cancel();
+		} catch (Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
+
+		// Interrupt the executing thread
+		this.executingThread.interrupt();
 	}
 
 	// TODO: See if type safety can be improved here
