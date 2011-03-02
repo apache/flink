@@ -122,8 +122,8 @@ public class EnvironmentTest {
 				this.expectedStateChanges = new ExecutionState[] { ExecutionState.RUNNING, ExecutionState.FAILED };
 				break;
 			default: // Must be USER_ABORT
-				this.expectedStateChanges = new ExecutionState[] { ExecutionState.RUNNING, ExecutionState.CANCELLING,
-					ExecutionState.CANCELLED };
+				this.expectedStateChanges = new ExecutionState[] { ExecutionState.RUNNING, ExecutionState.CANCELING,
+					ExecutionState.CANCELED };
 				break;
 			}
 		}

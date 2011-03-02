@@ -225,7 +225,7 @@ public class QueueScheduler implements Scheduler {
 
 				if (state == ExecutionState.ASSIGNED || state == ExecutionState.READY
 					|| state == ExecutionState.RUNNING || state == ExecutionState.FINISHING
-					|| state == ExecutionState.CANCELLING) {
+					|| state == ExecutionState.CANCELING) {
 					instanceCanBeReleased = false;
 					break;
 				}

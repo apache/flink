@@ -1346,7 +1346,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 		while (it.hasNext()) {
 
-			if (it.next().getExecutionState() != ExecutionState.CANCELLED) {
+			if (it.next().getExecutionState() != ExecutionState.CANCELED) {
 				return false;
 			}
 		}

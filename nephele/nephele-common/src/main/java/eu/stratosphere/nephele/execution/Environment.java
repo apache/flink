@@ -351,7 +351,7 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 
 		} catch (InterruptedException e) {
-			changeExecutionState(ExecutionState.CANCELLED, null);
+			changeExecutionState(ExecutionState.CANCELED, null);
 		} catch (Exception e) {
 
 			// Clean up
@@ -491,7 +491,7 @@ public class Environment implements Runnable, IOReadableWritable {
 		this.isCanceled = true;
 
 		// Change state
-		changeExecutionState(ExecutionState.CANCELLING, null);
+		changeExecutionState(ExecutionState.CANCELING, null);
 
 		// Request user code to shut down
 		try {
@@ -967,25 +967,25 @@ public class Environment implements Runnable, IOReadableWritable {
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled after an instance request has been triggered.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled after an instance request has been triggered.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled that is not yet running on the task manager.
 			 */
@@ -998,10 +998,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.executionState == ExecutionState.FINISHING && newExecutionState == ExecutionState.FAILED) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.CANCELLING) {
+		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.CANCELING) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.CANCELLING && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.CANCELING && newExecutionState == ExecutionState.CANCELED) {
 			unexpectedStateChange = false;
 		}
 

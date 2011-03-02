@@ -63,7 +63,7 @@ public class QueueExecutionListener implements ExecutionListener {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELLED
+		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 			|| newExecutionState == ExecutionState.FAILED) {
 			// Check if instance can be released
 			this.queueScheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
