@@ -203,7 +203,7 @@ public class DiscoveryService implements Runnable {
 		if (discoveryService == null) {
 			discoveryService = new DiscoveryService(ipcAddress, ipcPort);
 		}
-		
+
 		if (!discoveryService.isRunning()) {
 			discoveryService.startService();
 		}
@@ -374,7 +374,6 @@ public class DiscoveryService implements Runnable {
 				addressRequest.setPort(DISCOVERYPORT);
 
 				LOG.debug("Sending Task Manager address request to " + addressRequest.getSocketAddress());
-				System.out.println("Sending Task Manager address request to " + addressRequest.getSocketAddress());
 				socket.send(addressRequest);
 
 				try {
@@ -655,36 +654,33 @@ public class DiscoveryService implements Runnable {
 
 			try {
 				this.serverSocket.receive(requestPacket);
-				
-				System.out.println("PACKET RECEIVED");
-				
+
 				if (!isPacketForUs(requestPacket)) {
 					LOG.debug("Received request packet which is not destined to this Nephele setup");
 					continue;
 				}
 
 				final Integer packetID = Integer.valueOf(extractPacketID(requestPacket));
-				if(packetIDMap.containsKey(packetID)) {
+				if (packetIDMap.containsKey(packetID)) {
 					LOG.debug("Request with ID " + packetID.intValue() + " already answered, discarding...");
 					continue;
 				} else {
-					
+
 					final long currentTime = System.currentTimeMillis();
-					
-					//Remove old entries
+
+					// Remove old entries
 					final Iterator<Map.Entry<Integer, Long>> it = packetIDMap.entrySet().iterator();
-					while(it.hasNext()) {
-						
+					while (it.hasNext()) {
+
 						final Map.Entry<Integer, Long> entry = it.next();
-						if((entry.getValue().longValue() + 5000L) < currentTime) {
+						if ((entry.getValue().longValue() + 5000L) < currentTime) {
 							it.remove();
 						}
 					}
-					
+
 					packetIDMap.put(packetID, Long.valueOf(currentTime));
 				}
-				
-				
+
 				final int packetTypeID = getPacketTypeID(requestPacket);
 				if (packetTypeID == JM_LOOKUP_REQUEST_ID) {
 

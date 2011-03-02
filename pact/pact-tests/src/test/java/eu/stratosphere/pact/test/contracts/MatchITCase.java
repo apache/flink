@@ -217,7 +217,7 @@ public class MatchITCase extends TestBase
 		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT /*,
 				PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND*/ };
 
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION, "BROADCAST_FIRST", "BROADCAST_SECOND" };
+		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION, "BROADCAST_FIRST", "BROADCAST_SECOND"};
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

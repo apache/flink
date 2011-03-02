@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 
@@ -27,10 +28,11 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class KeyGroupedIterator<K extends Key, V extends Value> {
-	private final Iterator<? extends Pair<K, V>> iterator;
+public final class KeyGroupedIterator<K extends Key, V extends Value> {
+	
+	private final Iterator<KeyValuePair<K, V>> iterator;
 
-	private Pair<K, V> next;
+	private KeyValuePair<K, V> next;
 
 	private K currentKey;
 
@@ -45,7 +47,7 @@ public class KeyGroupedIterator<K extends Key, V extends Value> {
 	 * @param iterator
 	 *        An iterator over key value pairs, which are sorted by the key.
 	 */
-	public KeyGroupedIterator(Iterator<? extends Pair<K, V>> iterator) {
+	public KeyGroupedIterator(Iterator<KeyValuePair<K, V>> iterator) {
 		this.iterator = iterator;
 	}
 

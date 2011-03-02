@@ -19,6 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -28,6 +29,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.event.task.EventNotificationManager;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -377,8 +379,12 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			final ClassLoader cl = LibraryCacheManager.getClassLoader(getJobID());
 			channelSelector = (ChannelSelector<T>) Class.forName(classNameSelector, true, cl).newInstance();
 			channelSelector.read(in);
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (InstantiationException e) {
+			LOG.error(e);
+		} catch (IllegalAccessException e) {
+			LOG.error(e);
+		} catch (ClassNotFoundException e) {
+			LOG.error(e);
 		}
 
 		final int numOutputChannels = in.readInt();
@@ -395,7 +401,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			try {
 				c = ClassUtils.getRecordByName(className);
 			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				LOG.error(e);
 			}
 
 			if (c == null) {
@@ -413,8 +419,18 @@ public class OutputGate<T extends Record> extends Gate<T> {
 
 				constructor.setAccessible(true);
 				eoc = constructor.newInstance(this, i, channelID, compressionLevel);
-			} catch (Exception e) {
-				e.printStackTrace();
+			} catch (InstantiationException e) {
+				LOG.error(e);
+			} catch (IllegalArgumentException e) {
+				LOG.error(e);
+			} catch (IllegalAccessException e) {
+				LOG.error(e);
+			} catch (InvocationTargetException e) {
+				LOG.error(e);
+			} catch (SecurityException e) {
+				LOG.error(e);
+			} catch (NoSuchMethodException e) {
+				LOG.error(e);
 			}
 
 			if (eoc == null) {

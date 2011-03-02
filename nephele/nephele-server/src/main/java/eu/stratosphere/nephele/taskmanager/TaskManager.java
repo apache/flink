@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -521,7 +522,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		final Environment environment = tmpEnvironment;
 		// Execute call in a new thread so IPC thread can return immediately
-		Thread tmpThread = new Thread(new Runnable() {
+		final Thread tmpThread = new Thread(new Runnable() {
 
 			@Override
 			public void run() {
@@ -853,6 +854,8 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private void checkTaskExecution() {
 
+		final List<Environment> crashEnvironments = new LinkedList<Environment>();
+		
 		synchronized (this.runningTasks) {
 
 			final Iterator<ExecutionVertexID> it = this.runningTasks.keySet().iterator();
@@ -863,9 +866,15 @@ public class TaskManager implements TaskOperationProtocol {
 				if (environment.getExecutingThread().getState() == Thread.State.TERMINATED) {
 					// Remove entry from the running tasks map
 					it.remove();
-					environment.changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
+					//Don't to IPC call while holding a lock on the runningTasks map
+					crashEnvironments.add(environment);
 				}
 			}
+		}
+		
+		final Iterator<Environment> it2 = crashEnvironments.iterator();
+		while(it2.hasNext()) {
+			it2.next().changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
 		}
 	}
 

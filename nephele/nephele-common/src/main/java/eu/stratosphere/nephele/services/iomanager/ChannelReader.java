@@ -15,7 +15,9 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 
@@ -30,6 +32,16 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  */
 public final class ChannelReader extends ChannelAccess<Buffer.Input> implements Reader
 {
+	/**
+	 * The input wrapper, which manages reads that span the border of two buffers.
+	 */
+	private InputWrapper inputWrapper;
+	
+	/**
+	 * The DataInput interface around the input wrapper.
+	 */
+	private DataInputStream inputWrapperReader;
+	
 	/**
 	 * The current buffer from which is read.
 	 */
@@ -67,12 +79,14 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * @param deleteWhenDone
 	 * @throws IOException
 	 */
-	public ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
+	protected ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
 			Collection<Buffer.Input> buffers, boolean deleteWhenDone)
 	throws IOException
 	{
 		super(channelID, requestQueue, buffers);
 		
+		this.inputWrapper = new InputWrapper(64);
+		this.inputWrapperReader = new DataInputStream(this.inputWrapper);
 		this.deleteWhenDone = deleteWhenDone;
 
 		// add all buffers to the request queue
@@ -94,10 +108,19 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			this.closed = true;
 		}
 		
+		checkErroneous();
+		
 		// put current buffer back to the full buffer queue
 		if (this.currentBuffer != null) {
 			this.returnBuffers.add(currentBuffer);
 			this.currentBuffer = null;
+		}
+		
+		// put the buffer in the input wrapper back, if there is one
+		if (this.inputWrapper.getCurrentInput() != null) {
+			Buffer.Input buf = this.inputWrapper.getCurrentInput();
+			this.inputWrapper.setCurrentInput(null);
+			this.returnBuffers.add(buf);
 		}
 		
 		// close the reader, getting all segments back
@@ -106,6 +129,14 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		// close the file
 		if (this.fileChannel.isOpen()) {
 			this.fileChannel.close();
+		}
+		
+		// clean up after us, if requested. don't report exceptions, just try
+		if (this.deleteWhenDone) {
+			try {
+				deleteChannel();
+			}
+			catch (Throwable t) {}
 		}
 		
 		return segments;
@@ -123,21 +154,35 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 */
 	public boolean read(IOReadableWritable readable) throws IOException
 	{
+		// cache the buffer to avoid to many member variable accesses
+		Buffer.Input buffer = this.currentBuffer;
+		
 		// the buffer is null, if
-		// 1) this is the first call
-		// 2) the reader has been closed
-		// 3) the reader has been exhausted
-		if (this.currentBuffer == null)
+		// 1) this is the first read call
+		// 2) the last read went to the input wrapper
+		// 3) the reader has been closed
+		// 4) the reader is exhausted
+		if (buffer == null)
 		{
-			if (this.closed) {
+			if (this.inputWrapper.getCurrentInput() != null) {
+				// case 2: last call went to input wrapper
+				buffer = this.inputWrapper.getCurrentInput();
+				this.currentBuffer = buffer;
+				this.inputWrapper.setCurrentInput(null);
+			}
+			else if (this.closed) {
+				// case 3: channel closed
 				throw new IllegalStateException("Reader has been closed.");
 			}
 			else if (this.done) {
+				// case 4: completely exhausted
 				return false;
 			}
 			else {
+				// case 1: first read
 				try {
-					this.currentBuffer = this.nextBuffer();
+					buffer = this.nextBuffer();
+					this.currentBuffer = buffer;
 				}
 				catch (InterruptedException iex) {
 					throw new IOException("IO channel corrupt. Reader was interrupted getting a new buffer.");
@@ -146,7 +191,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		}
 		
 		// get the next element from the buffer
-		if (currentBuffer.read(readable)) // try to read from current buffer
+		if (buffer.read(readable)) // try to read from current buffer
 		{
 			// object was read from the current buffer without a problem
 			return true;
@@ -155,37 +200,62 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			// current buffer is exhausted. check the error state of this channel first
 			checkErroneous();
 			
+			// check if this buffer contains parts of an incomplete object
+			boolean remainingBytes = buffer.getRemainingBytes() > 0;
+			if (remainingBytes) {
+				this.inputWrapper.setRemainingInput(buffer);
+			}
+			
 			// only issue a new request, if not all requests have been served yet
-			if (!allRead) {
+			if (!this.allRead) {
 				if (this.requestQueue.isClosed()) {
 					throw new IOException("The reader's IO path has been closed.");
 				}
 			
 				// issue request for the next piece of data
-				this.requestQueue.add(new IORequest<Buffer.Input>(this, currentBuffer));
+				this.requestQueue.add(new IORequest<Buffer.Input>(this, buffer));
 			}
 			else {
 				// no further requests necessary, return the buffer
-				this.returnBuffers.add(this.currentBuffer);
+				this.returnBuffers.add(buffer);
 			}
 			
 			// get the next buffer from the list of filled buffers
 			try {
-				this.currentBuffer = nextBuffer();
+				buffer = nextBuffer();
+				checkErroneous();
 				
-				if (this.currentBuffer.getRemainingBytes() == 0) {
+				// check if the channel is exhausted
+				if (buffer.getRemainingBytes() == 0) {
+					// this buffer contains no data, which means the channel was read completely
 					this.done = true;
-					this.returnBuffers.add(this.currentBuffer);
+					this.returnBuffers.add(buffer);
 					this.currentBuffer = null;
+					
+					// if parts of an incomplete object remain, the channel is corrupt.
+					if (remainingBytes) {
+						throw new IOException("Channel ends with an incomplete record.");
+					}
+					
 					return false;
+				}
+				
+				// check if the next object is to be read from the input wrapper
+				if (remainingBytes) {
+					this.inputWrapper.setCurrentInput(buffer);
+					this.currentBuffer = null;
+					readable.read(this.inputWrapperReader);
+					return true;
+				}
+				else {
+					// retry reading from the next full buffer
+					this.currentBuffer = buffer;
+					return buffer.read(readable);
 				}
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("IO channel corrupt. Reader was interrupted getting a new buffer.");
 			}
-			
-			// retry reading from the next full buffer
-			return currentBuffer.read(readable);
 		}
 	}
 	
@@ -201,12 +271,36 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * @return a boolean value indicating whether the read was successful
 	 * @throws UnboundMemoryBackedException
 	 */
-	public boolean repeatRead(IOReadableWritable readable) {
+	public boolean repeatRead(IOReadableWritable readable)
+	{
+		// the buffer is null, if
+		// 1) this is the first read call
+		// 2) the last read went to the input wrapper
+		// 3) the reader has been closed
+		// 4) the reader is exhausted
 		if (this.currentBuffer == null) {
-			if (this.closed) {
+			if (this.inputWrapper.getCurrentInput() != null) {
+				// case 2: previous read was from wrapping buffer
+				this.inputWrapper.rewind();
+				try {
+					readable.read(inputWrapperReader);
+				}
+				catch (IOException ioex) {
+					// this should never happen since a previous read from the input wrapper succeeded
+					throw new IllegalStateException("BUG: Repeated read from wrapped input failed after a successful read.");
+				}
+				return true;
+			}
+			else if (this.closed) {
+				// case 3: reader closed
 				throw new IllegalStateException("Reader has been closed.");
 			}
+			else if (this.done) {
+				// case 4: reader exhausted
+				throw new IllegalStateException("The channel has alreday been completely consumed.");
+			}
 			else {
+				// case 1: no previous read
 				throw new IllegalStateException("No previous read has occurred.");
 			}
 		}
@@ -231,20 +325,85 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		// set flag such that no further requests are issued
 		if (buffer.getRemainingBytes() == 0 && !this.allRead) {
 			this.allRead = true;
-			
-			// clean up after us, if requested. don't report exceptions, just try
-			if (this.deleteWhenDone) {
-				try {
-					this.fileChannel.close();
-					deleteChannel();
-				}
-				catch (Throwable t) {}
-			}
 		}
 		
 		// handle buffer as we had it
 		super.handleProcessedBuffer(buffer, ex);
 	}
+	
+	
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Utility class that takes care of objects whose serialized form is split among the remaining bytes of one
+	 * buffer and the beginning of another buffer. It copies the first buffer'sremaining bytes into
+	 * a temporary byte array. That way, the first buffer is immediately available again. That is important
+	 * if we have only one buffer. This wrapper then acts as an input stream that first serves the first
+	 * buffer's bytes from the byte array and the delegates all byte retrievals to the second buffer.
+	 *
+	 * @author Stephan Ewen
+	 */
+	private static final class InputWrapper extends InputStream
+	{
+		private Buffer.Input continuation;
+		
+		private byte[] wrappingArray;
+		
+		private int len;
+		
+		private int position;
+		
+		
+		public InputWrapper(int initialBufferSize) {
+			this.wrappingArray = new byte[initialBufferSize];
+			this.position = 0;
+		}
+		
+		public void setRemainingInput(Buffer.Input buffer) throws IOException {
+			final int size = buffer.getRemainingBytes();
+			
+			if (size > this.wrappingArray.length) {
+				this.wrappingArray = new byte[size];
+			}
+			
+			buffer.copyRemainingBytes(this.wrappingArray);
+			this.len = size;
+			this.position = 0;
+		}
+		
+		public void setCurrentInput(Buffer.Input buffer) {
+			this.continuation = buffer;
+		}
+		
+		public Buffer.Input getCurrentInput() {
+			return this.continuation;
+		}
+		
+		public void rewind() {
+			this.position = 0;
+			if (this.continuation != null) {
+				this.continuation.rewind();
+			}
+		}
+		
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#read()
+		 */
+		@Override
+		public int read() throws IOException {
+			if (this.position < this.len) {
+				return ((int) this.wrappingArray[this.position++]) & 0xff;
+			}
+			else {
+				return this.continuation.getNextByte();
+			}
+		}
+	}
+	
+	
+	
+	// ========================================================================
+	// ========================================================================
 
 	/**
 	 * A worker thread for asynchronous read.

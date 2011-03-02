@@ -285,7 +285,7 @@ public class ByteBufferedChannelManager {
 				this.emptyReadBuffers.wait(100); // Wait for 100 milliseconds, so the NIO thread won't do busy
 				// waiting...
 			} catch (InterruptedException e) {
-				e.printStackTrace();
+				LOG.error(e);
 			}
 		}
 

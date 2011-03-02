@@ -89,6 +89,7 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	 * Collects a {@link Key} and {@link Value}, wraps them in a KeyValuePair, and emit them to all writers.
 	 * Writers which require a deep-copy are fed with a copy obtained through de/serialization.
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public void collect(K key, V value) {
 		try {
