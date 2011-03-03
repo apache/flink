@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobgraph;
 /**
  * Defines the possible status of a job once it has been
  * accepted by the job manager.
+ * <p>
  * This class is thread-safe.
  * 
  * @author warneke
@@ -46,9 +47,9 @@ public enum JobStatus {
 	FAILED,
 
 	/**
-	 * All tasks of the job are either canceled or finished
+	 * All tasks of the job are canceled as a result of a user request.
 	 */
-	CANCELLED,
+	CANCELED,
 
 	/**
 	 * All of the job's tasks have successfully finished.

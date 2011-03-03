@@ -1371,7 +1371,7 @@ public class ExecutionGraph implements ExecutionListener {
 		}
 
 		if (jobHasCanceledStatus()) {
-			this.jobStatus = JobStatus.CANCELLED;
+			this.jobStatus = JobStatus.CANCELED;
 			return;
 		}
 

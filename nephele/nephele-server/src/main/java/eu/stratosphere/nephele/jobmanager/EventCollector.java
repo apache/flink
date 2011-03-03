@@ -188,7 +188,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 				this.eventCollector.createRunningJobEvent(jobID, this.jobName, this.isProfilingAvailable);
 			}
 
-			if (newJobStatus == JobStatus.FAILED || newJobStatus == JobStatus.CANCELLED
+			if (newJobStatus == JobStatus.FAILED || newJobStatus == JobStatus.CANCELED
 				|| newJobStatus == JobStatus.FINISHED) {
 				this.eventCollector.removeRunningJobEvent(jobID);
 			}

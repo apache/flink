@@ -826,7 +826,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		LOG.info("Job " + executionGraph.getJobName() + " (" + executionGraph.getJobID() + ") removed from scheduler");
 
 		final JobStatus jobStatus = executionGraph.getJobStatus();
-		if (jobStatus != JobStatus.FINISHED && jobStatus != JobStatus.FAILED && jobStatus != JobStatus.CANCELLED) {
+		if (jobStatus != JobStatus.FINISHED && jobStatus != JobStatus.FAILED && jobStatus != JobStatus.CANCELED) {
 			LOG.error("Job " + executionGraph.getJobName() + " removed from scheduler with unexpected status "
 				+ jobStatus);
 		}

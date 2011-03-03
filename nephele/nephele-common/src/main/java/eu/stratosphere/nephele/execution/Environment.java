@@ -345,6 +345,11 @@ public class Environment implements Runnable, IOReadableWritable {
 		try {
 			this.invokable.invoke();
 
+			// Make sure, we enter the catch block when the task has been canceled
+			if (this.isCanceled) {
+				throw new InterruptedException();
+			}
+
 		} catch (Exception e) {
 
 			if (!this.isCanceled) {

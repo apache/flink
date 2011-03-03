@@ -212,7 +212,8 @@ public class QueueScheduler implements Scheduler {
 
 		synchronized (this.jobQueue) {
 
-			List<ExecutionVertex> assignedVertices = executionGraph.getVerticesAssignedToResource(allocatedResource);
+			final List<ExecutionVertex> assignedVertices = executionGraph
+				.getVerticesAssignedToResource(allocatedResource);
 			if (assignedVertices.isEmpty()) {
 				return;
 			}

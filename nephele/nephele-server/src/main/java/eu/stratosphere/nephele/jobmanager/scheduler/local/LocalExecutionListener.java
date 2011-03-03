@@ -80,7 +80,7 @@ public class LocalExecutionListener implements ExecutionListener {
 		final ExecutionGraph executionGraph = this.executionVertex.getExecutionGraph();
 		final JobStatus jobStatus = executionGraph.getJobStatus();
 
-		if (jobStatus == JobStatus.FAILED || jobStatus == JobStatus.FINISHED || jobStatus == JobStatus.CANCELLED) {
+		if (jobStatus == JobStatus.FAILED || jobStatus == JobStatus.FINISHED || jobStatus == JobStatus.CANCELED) {
 			this.localScheduler.removeJobFromSchedule(executionGraph);
 		}
 	}
