@@ -33,6 +33,8 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
+import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
@@ -42,14 +44,13 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
-import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 
 /**
  * The queue scheduler mains of queue of all submitted jobs and executes one job at a time.
  * 
  * @author warneke
  */
-public class QueueScheduler implements Scheduler {
+public class QueueScheduler implements Scheduler, JobStatusListener {
 
 	/**
 	 * The LOG object to report events within the scheduler.
@@ -67,11 +68,6 @@ public class QueueScheduler implements Scheduler {
 	private final InstanceManager instanceManager;
 
 	/**
-	 * The listener object which is notified about scheduling events by the scheduler.
-	 */
-	private final SchedulingListener schedulingListener;
-
-	/**
 	 * Constructs a new queue scheduler.
 	 * 
 	 * @param schedulingListener
@@ -79,9 +75,8 @@ public class QueueScheduler implements Scheduler {
 	 * @param instanceManager
 	 *        the instance manager to be used with this scheduler
 	 */
-	public QueueScheduler(SchedulingListener schedulingListener, InstanceManager instanceManager) {
+	public QueueScheduler(InstanceManager instanceManager) {
 
-		this.schedulingListener = schedulingListener;
 		this.instanceManager = instanceManager;
 		this.instanceManager.setInstanceListener(this);
 	}
@@ -189,9 +184,7 @@ public class QueueScheduler implements Scheduler {
 			}
 		}
 
-		if (removedFromQueue) {
-			this.schedulingListener.jobRemovedFromScheduler(executionGraphToRemove);
-		} else {
+		if (!removedFromQueue) {
 			LOG.error("Cannot find job " + executionGraphToRemove.getJobName() + " ("
 				+ executionGraphToRemove.getJobID() + ") to remove");
 		}
@@ -277,7 +270,10 @@ public class QueueScheduler implements Scheduler {
 				}
 			}
 		}
-
+		
+		// Subscribe to job status notifications
+		executionGraph.registerJobStatusListener(this);
+		
 		// Set state of each vertex for scheduled
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
 		while (it2.hasNext()) {
@@ -424,5 +420,18 @@ public class QueueScheduler implements Scheduler {
 			this.jobQueue.clear();
 		}
 
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
+			String optionalMessage) {
+
+		if (newJobStatus == InternalJobStatus.FAILED || newJobStatus == InternalJobStatus.FINISHED
+			|| newJobStatus == InternalJobStatus.CANCELED) {
+			removeJobFromSchedule(executionGraph);
+		}
 	}
 }

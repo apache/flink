@@ -363,14 +363,14 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 
 			// Request closing of input and output gates, but don't wait for it
-			try {
+			/*try { //TODO: Fix this
 				closeInputGates();
 
 				requestAllOutputGatesToClose();
 
 			} catch (IOException ioe) {
 				LOG.error(StringUtils.stringifyException(ioe));
-			}
+			}*/
 
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);

@@ -42,7 +42,6 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
-import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 
 public class LocalScheduler implements Scheduler {
 
@@ -55,11 +54,7 @@ public class LocalScheduler implements Scheduler {
 
 	private final InstanceManager instanceManager;
 
-	private final SchedulingListener schedulingListener;
-
-	public LocalScheduler(SchedulingListener schedulingListener, InstanceManager instanceManager) {
-
-		this.schedulingListener = schedulingListener;
+	public LocalScheduler(InstanceManager instanceManager) {
 
 		// Set the instance manager
 		this.instanceManager = instanceManager;
@@ -172,9 +167,7 @@ public class LocalScheduler implements Scheduler {
 			}
 		}
 
-		if (removedFromQueue) {
-			this.schedulingListener.jobRemovedFromScheduler(executionGraphToRemove);
-		} else {
+		if (!removedFromQueue) {
 			LOG.error("Cannot find job " + executionGraphToRemove.getJobName() + " ("
 				+ executionGraphToRemove.getJobID() + ") to remove");
 		}

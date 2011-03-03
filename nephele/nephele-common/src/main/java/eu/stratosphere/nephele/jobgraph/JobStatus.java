@@ -42,12 +42,12 @@ public enum JobStatus {
 
 	/**
 	 * At least one task of the job has definitively failed and cannot
-	 * be recovered anymore.
+	 * be recovered anymore. As a result, the job has been terminated.
 	 */
 	FAILED,
 
 	/**
-	 * All tasks of the job are canceled as a result of a user request.
+	 * All tasks of the job are canceled as a result of a user request. The job has been terminated.
 	 */
 	CANCELED,
 

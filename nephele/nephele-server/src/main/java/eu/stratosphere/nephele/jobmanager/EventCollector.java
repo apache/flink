@@ -37,6 +37,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.executiongraph.VertexAssignmentListener;
 import eu.stratosphere.nephele.instance.AbstractInstance;
@@ -182,19 +183,25 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void jobStatusHasChanged(JobID jobID, JobStatus newJobStatus, String optionalMessage) {
+		public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
+				String optionalMessage) {
 
-			if (newJobStatus == JobStatus.SCHEDULED) {
-				this.eventCollector.createRunningJobEvent(jobID, this.jobName, this.isProfilingAvailable);
+			if (newJobStatus == InternalJobStatus.SCHEDULED) {
+				this.eventCollector.createRunningJobEvent(executionGraph.getJobID(), this.jobName,
+					this.isProfilingAvailable);
 			}
 
-			if (newJobStatus == JobStatus.FAILED || newJobStatus == JobStatus.CANCELED
-				|| newJobStatus == JobStatus.FINISHED) {
-				this.eventCollector.removeRunningJobEvent(jobID);
+			if (newJobStatus == InternalJobStatus.FAILED || newJobStatus == InternalJobStatus.CANCELED
+				|| newJobStatus == InternalJobStatus.FINISHED) {
+				this.eventCollector.removeRunningJobEvent(executionGraph.getJobID());
 			}
 
-			this.eventCollector
-				.addEvent(jobID, new JobEvent(System.currentTimeMillis(), newJobStatus, optionalMessage));
+			final JobStatus jobStatus = InternalJobStatus.toJobStatus(newJobStatus);
+			if (jobStatus != null) {
+
+				this.eventCollector.addEvent(executionGraph.getJobID(), new JobEvent(System.currentTimeMillis(),
+					jobStatus, optionalMessage));
+			}
 		}
 
 	}
