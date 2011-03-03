@@ -84,8 +84,8 @@ public class SWTGate extends AbstractSWTVertex {
 		case FINISHED:
 			returnColor = ColorScheme.getGateFinishedBorderColor(device);
 			break;
-		case CANCELLING:
-		case CANCELLED:
+		case CANCELING:
+		case CANCELED:
 			returnColor = ColorScheme.getGateCancelBorderColor(device);
 			break;
 		case FAILED:
@@ -114,8 +114,8 @@ public class SWTGate extends AbstractSWTVertex {
 		case FINISHED:
 			returnColor = ColorScheme.getGateFinishedBackgroundColor(device);
 			break;
-		case CANCELLING:
-		case CANCELLED:
+		case CANCELING:
+		case CANCELED:
 			returnColor = ColorScheme.getGateCancelBackgroundColor(device);
 			break;
 		case FAILED:
