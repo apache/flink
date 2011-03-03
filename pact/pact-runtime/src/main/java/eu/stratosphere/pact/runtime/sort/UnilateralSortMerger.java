@@ -945,7 +945,6 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 				queues.spill.put(element);
 			}
-
 		}
 	}
 
@@ -958,7 +957,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		
 		private Collection<MemorySegment> outputSegments;
 		
-//		private final int buffersToKeepBeforeSpilling;
+		private final int buffersToKeepBeforeSpilling;
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager, int ioMemorySize, AbstractTask parentTask,
@@ -970,7 +969,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
 			this.ioMemorySize = ioMemorySize;
-//			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
+			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
 		}
 
 		/**
@@ -984,56 +983,104 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			outputSegments = memoryManager.allocate(UnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
 			freeSegmentsAtShutdown(outputSegments);
 
+			/* ## 1. cache segments ## */
+			List<CircularElement> cache = new ArrayList<CircularElement>(buffersToKeepBeforeSpilling);
 			CircularElement element = null;
 			
 			// see whether we should keep some buffers
-
-			// loop as long as the thread is marked alive and we do not see the final
-			// element
-			while (isRunning() && (element = queues.spill.take()) != SENTINEL) {
-				// open next channel
-				Channel.ID channel = enumerator.next();
-				channelIDs.add(channel);
-
-				// create writer
-				ChannelWriter writer = ioManager.createChannelWriter(channel, outputSegments);
-
-				// write sort-buffer to channel
-				LOG.debug("Spilling buffer " + element.id + ".");
-				element.buffer.writeToChannel(writer);
-				LOG.debug("Spilled buffer " + element.id + ".");
-
-				// free buffers, store id
-				outputSegments = writer.close();
-
-				// pass empty sort-buffer to reading thread
-				element.buffer.reset();
-				queues.empty.put(element);
+			if(buffersToKeepBeforeSpilling > 0) {
+				// fill cache
+				while (isRunning()) {					
+					// is cache exhausted?
+					if(cache.size() >= buffersToKeepBeforeSpilling) {
+						queues.spill.put(cache);
+						cache.clear();
+						break;
+					}
+					
+					// take next element from queue
+					element = queues.spill.take();
+					if(element == SENTINEL) {
+						break;
+					} else {
+						cache.add(element);	
+					}
+				}
 			}
+			
+			/* ## 2. merge segments ## */
+			if(!cache.isEmpty()) {
+				
+				/* # case 1: operates on in-memory segments only # */
+				
+				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
+				
+				// iterate buffers and collect a set of iterators
+				for(CircularElement element : cache)
+				{
+					// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
+					iterators.add(element.buffer.getIterator());
+				}
+				
+				// release sort-buffers
+				LOG.debug("Releasing sort-buffer memory.");
+				while (!queues.empty.isEmpty()) {
+					memoryManager.release(queues.empty.take().buffer.unbind());
+				}
 
-			// done with the spilling
-			LOG.debug("Spilling done.");
-
-			// free output buffers
-			LOG.debug("Releasing output-buffer memory.");
-			memoryManager.release(outputSegments);
-
-			// release sort-buffers
-			LOG.debug("Releasing sort-buffer memory.");
-			while (!queues.empty.isEmpty()) {
-				memoryManager.release(queues.empty.take().buffer.unbind());
-			}
-
-			// merge channels until sufficient file handles are available
-			while (channelIDs.size() > maxNumFileHandles) {
-				channelIDs = mergeChannelList(channelIDs, ioMemorySize);
-			}
-
-			// set lazy iterator
-			setResultIterator(getMergingIterator(channelIDs, ioMemorySize));
+				// set lazy iterator
+				setResultIterator(new MergeIterator<K, V>(iterators, keyComparator));
+			
+			} else {
+				
+				/* # case 2: operates on materialized segments only # */
+				
+				// loop as long as the thread is marked alive and we do not see the final
+				// element
+				while (isRunning() && (element = queues.spill.take()) != SENTINEL) {
+					// open next channel
+					Channel.ID channel = enumerator.next();
+					channelIDs.add(channel);
+	
+					// create writer
+					ChannelWriter writer = ioManager.createChannelWriter(channel, outputSegments);
+	
+					// write sort-buffer to channel
+					LOG.debug("Spilling buffer " + element.id + ".");
+					element.buffer.writeToChannel(writer);
+					LOG.debug("Spilled buffer " + element.id + ".");
+	
+					// free buffers, store id
+					outputSegments = writer.close();
+	
+					// pass empty sort-buffer to reading thread
+					element.buffer.reset();
+					queues.empty.put(element);
+				}
+	
+				// done with the spilling
+				LOG.debug("Spilling done.");
+	
+				// free output buffers
+				LOG.debug("Releasing output-buffer memory.");
+				memoryManager.release(outputSegments);
+	
+				// release sort-buffers
+				LOG.debug("Releasing sort-buffer memory.");
+				while (!queues.empty.isEmpty()) {
+					memoryManager.release(queues.empty.take().buffer.unbind());
+				}
+	
+				// merge channels until sufficient file handles are available
+				while (channelIDs.size() > maxNumFileHandles) {
+					channelIDs = mergeChannelList(channelIDs, ioMemorySize);
+				}
+	
+				// set lazy iterator
+				setResultIterator(getMergingIterator(channelIDs, ioMemorySize));
+			}			
 
 			// done
-
 			LOG.debug("Spilling thread done.");
 		}
 		
