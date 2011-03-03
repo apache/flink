@@ -15,10 +15,6 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -142,25 +138,4 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 
 		return (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 	}
-	
-	// ------------------------------------------------------------------------
-	//                            Serialization
-	// ------------------------------------------------------------------------
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-		strategy = ShipStrategy.valueOf(in.readUTF());
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeUTF(strategy.name());
-	}
-
 }

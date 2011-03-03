@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -67,7 +66,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	/**
 	 * Channel selector to determine which channel is supposed receive the next record.
 	 */
-	private ChannelSelector<T> channelSelector = null;
+	private final ChannelSelector<T> channelSelector;
 
 	/**
 	 * The listener objects registered for this output gate.
@@ -85,20 +84,9 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	private Thread executingThread = null;
 
 	/**
-	 * Constructs a new output gate.
-	 * 
-	 * @param inputClass
-	 *        the class of the record that can be transported through this
-	 *        gate
-	 * @param index
-	 *        the index assigned to this output gate at the {@link Environment} object
+	 * Stores whether all records passed to this output gate shall be transmitted through all connected output channels.
 	 */
-	public OutputGate(Class<T> inputClass, int index) {
-		setDeserializer(new DefaultRecordDeserializer<T>(inputClass));
-
-		this.index = index;
-		this.channelSelector = new DefaultChannelSelector<T>();
-	}
+	private final boolean isBroadcast;
 
 	/**
 	 * Constructs a new output gate.
@@ -110,15 +98,24 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 *        the index assigned to this output gate at the {@link Environment} object
 	 * @param channelSelector
 	 *        the channel selector to be used for this output gate
+	 * @param isBroadcast
+	 *        <code>true</code> if every records passed to this output gate shall be transmitted through all connected
+	 *        output channels, <code>false</code> otherwise
 	 */
-	public OutputGate(Class<T> inputClass, int index, ChannelSelector<T> channelSelector) {
+	public OutputGate(Class<T> inputClass, int index, ChannelSelector<T> channelSelector, boolean isBroadcast) {
 		setDeserializer(new DefaultRecordDeserializer<T>(inputClass));
 
 		this.index = index;
-		this.channelSelector = channelSelector;
+		this.isBroadcast = isBroadcast;
 
-		if (channelSelector == null) {
-			this.channelSelector = new DefaultChannelSelector<T>();
+		if (this.isBroadcast) {
+			this.channelSelector = null;
+		} else {
+			if (channelSelector == null) {
+				this.channelSelector = new DefaultChannelSelector<T>();
+			} else {
+				this.channelSelector = channelSelector;
+			}
 		}
 	}
 
@@ -373,20 +370,6 @@ public class OutputGate<T extends Record> extends Gate<T> {
 
 		super.read(in);
 
-		// TODO (en)
-		try {
-			String classNameSelector = StringRecord.readString(in);
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(getJobID());
-			channelSelector = (ChannelSelector<T>) Class.forName(classNameSelector, true, cl).newInstance();
-			channelSelector.read(in);
-		} catch (InstantiationException e) {
-			LOG.error(e);
-		} catch (IllegalAccessException e) {
-			LOG.error(e);
-		} catch (ClassNotFoundException e) {
-			LOG.error(e);
-		}
-
 		final int numOutputChannels = in.readInt();
 
 		final Class<?>[] parameters = { this.getClass(), int.class, ChannelID.class, CompressionLevel.class };
@@ -449,9 +432,6 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	public void write(DataOutput out) throws IOException {
 
 		super.write(out);
-
-		StringRecord.writeString(out, this.channelSelector.getClass().getName());
-		this.channelSelector.write(out);
 
 		// Output channels
 		out.writeInt(this.getNumberOfOutputChannels());
@@ -578,5 +558,26 @@ public class OutputGate<T extends Record> extends Gate<T> {
 				this.outputGateListeners[i].channelCapacityExhausted(channelIndex);
 			}
 		}
+	}
+
+	/**
+	 * Checks if this output gate operates in broadcast mode, i.e. all records passed to it are transferred through all
+	 * connected output channels.
+	 * 
+	 * @return <code>true</code> if this output gate operates in broadcast mode, <code>false</code> otherwise
+	 */
+	public boolean isBroadcast() {
+
+		return this.isBroadcast;
+	}
+
+	/**
+	 * Returns the output gate's channel selector.
+	 * 
+	 * @return the output gate's channel selector or <code>null</code> if the gate operates in broadcast mode
+	 */
+	public ChannelSelector<T> getChannelSelector() {
+
+		return this.channelSelector;
 	}
 }

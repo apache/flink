@@ -110,7 +110,7 @@ public class MockEnvironment extends Environment {
 		private List<T> out;
 		
 		public MockOutputGate(int index, List<T> outList, Class<T> inputClass) {
-			super(inputClass, index);
+			super(inputClass, index, null, false);
 			this.out = outList;
 		}
 		

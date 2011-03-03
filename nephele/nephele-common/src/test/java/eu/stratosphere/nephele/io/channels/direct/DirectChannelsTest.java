@@ -48,7 +48,7 @@ public class DirectChannelsTest {
 		//create gates
 		final InputGate<StringRecord> inGate = new InputGate<StringRecord>(new DefaultRecordDeserializer<StringRecord>(
 			StringRecord.class), 1, null);
-		final OutputGate<StringRecord> outGate = new OutputGate<StringRecord>(StringRecord.class, 2);
+		final OutputGate<StringRecord> outGate = new OutputGate<StringRecord>(StringRecord.class, 2, null, false);
 
 		//create channels
 		final InMemoryInputChannel<StringRecord> in = inGate.createInMemoryInputChannel(new ChannelID(),
