@@ -117,10 +117,10 @@ public class ExecutionGraph implements ExecutionListener {
 	private InternalJobStatus jobStatus = InternalJobStatus.CREATED;
 
 	/**
-	 * The error description of the first task which causes this job to fail. 
+	 * The error description of the first task which causes this job to fail.
 	 */
 	private volatile String errorDescription = null;
-	
+
 	/**
 	 * List of listeners which are notified in case the status of this job has changed.
 	 */
@@ -1313,7 +1313,7 @@ public class ExecutionGraph implements ExecutionListener {
 		while (it.hasNext()) {
 
 			final ExecutionState state = it.next().getExecutionState();
-			
+
 			if (state != ExecutionState.CANCELED && state != ExecutionState.FAILED && state != ExecutionState.FINISHED) {
 				return false;
 			}
@@ -1349,12 +1349,12 @@ public class ExecutionGraph implements ExecutionListener {
 				return;
 			}
 			if (latestStateChange == ExecutionState.FAILED) {
-				
+
 				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
-				while(it.hasNext()) {
-					
+				while (it.hasNext()) {
+
 					final ExecutionVertex vertex = it.next();
-					if(vertex.getExecutionState() == ExecutionState.FAILED && !vertex.hasRetriesLeft()) {
+					if (vertex.getExecutionState() == ExecutionState.FAILED && !vertex.hasRetriesLeft()) {
 						this.jobStatus = InternalJobStatus.FAILING;
 						return;
 					}
@@ -1404,7 +1404,7 @@ public class ExecutionGraph implements ExecutionListener {
 			String optionalMessage) {
 
 		final InternalJobStatus oldStatus = this.jobStatus;
-		
+
 		checkAndUpdateJobStatus(newExecutionState);
 
 		if (newExecutionState == ExecutionState.FINISHED) {
@@ -1418,15 +1418,15 @@ public class ExecutionGraph implements ExecutionListener {
 		if (this.jobStatus != oldStatus) {
 
 			// The task caused the entire job to fail, save the error description
-			if(this.jobStatus == InternalJobStatus.FAILING) {
+			if (this.jobStatus == InternalJobStatus.FAILING) {
 				this.errorDescription = optionalMessage;
 			}
-			
+
 			// If this is the final failure state change, reuse the saved error description
-			if(this.jobStatus == InternalJobStatus.FAILED) {
+			if (this.jobStatus == InternalJobStatus.FAILED) {
 				optionalMessage = this.errorDescription;
 			}
-			
+
 			final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
 			while (it.hasNext()) {
 				it.next().jobStatusHasChanged(this, this.jobStatus, optionalMessage);

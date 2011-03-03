@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 
 /**
  * This is a wrapper class for the {@link QueueScheduler} to receive
