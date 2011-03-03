@@ -345,31 +345,39 @@ public class Environment implements Runnable, IOReadableWritable {
 		try {
 			this.invokable.invoke();
 
-			// Make sure we switch to the right state, even if the user code has not hit an {@link InterruptedException}
-			if (this.isCanceled) {
-				throw new InterruptedException();
-			}
-
-		} catch (InterruptedException e) {
-			changeExecutionState(ExecutionState.CANCELED, null);
 		} catch (Exception e) {
 
-			// Clean up
-			try {
-				this.invokable.cancel();
-			} catch (Exception e2) {
-				LOG.error(StringUtils.stringifyException(e2));
+			if (!this.isCanceled) {
+
+				// Perform clean up when the task failed and has been not canceled by the user
+				try {
+					this.invokable.cancel();
+				} catch (Exception e2) {
+					LOG.error(StringUtils.stringifyException(e2));
+				}
 			}
 
-			// Report exception
-			changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+			// Request closing of input and output gates, but don't wait for it
+			try {
+				closeInputGates();
+
+				requestAllOutputGatesToClose();
+
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+			}
+
+			if (this.isCanceled) {
+				changeExecutionState(ExecutionState.CANCELED, null);
+			} else {
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+			}
+
 			return;
 		}
 
-		if (!this.isCanceled) {
-			// Task finished running, but there may be unconsumed output data in some of the channels
-			changeExecutionState(ExecutionState.FINISHING, null);
-		}
+		// Task finished running, but there may be unconsumed output data in some of the channels
+		changeExecutionState(ExecutionState.FINISHING, null);
 
 		try {
 			// If there is any unclosed input gate, close it and propagate close operation to corresponding output gate
@@ -384,17 +392,13 @@ public class Environment implements Runnable, IOReadableWritable {
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
 		} catch (Exception e) {
-			if (!this.isCanceled) {
-				// Report exception
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
-				return;
-			}
+			// Report exception
+			changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+			return;
 		}
 
-		if (!this.isCanceled) {
-			// Finally, switch execution state to FINISHED and report to job manager
-			changeExecutionState(ExecutionState.FINISHED, null);
-		}
+		// Finally, switch execution state to FINISHED and report to job manager
+		changeExecutionState(ExecutionState.FINISHED, null);
 	}
 
 	/**
