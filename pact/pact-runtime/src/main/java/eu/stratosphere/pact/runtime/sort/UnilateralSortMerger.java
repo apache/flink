@@ -1085,14 +1085,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		}
 		
 		private CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache) throws InterruptedException {
-			if(!cache.isEmpty())
-			{
-				return cache.remove(0);
-			}
-			else
-			{
-				return queue.take();
-			}
+			return cache.isEmpty() ? queue.take() : cache.remove(0);
 		}
 		
 		@Override
