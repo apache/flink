@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>pact</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.1</version>
+  </parent>
+
+  <groupId>eu.stratosphere</groupId>
+  <artifactId>sopremo-common</artifactId>
+  <version>0.1</version>
+  <name>sopremo-common</name>
+
+  <packaging>jar</packaging>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-common</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+    	<groupId>org.codehaus.jackson</groupId>
+    	<artifactId>jackson-core-asl</artifactId>
+    	<version>1.7.1</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+    <dependency>
+    	<groupId>org.codehaus.jackson</groupId>
+    	<artifactId>jackson-mapper-asl</artifactId>
+    	<version>1.7.1</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>fastutil</groupId>
+      <artifactId>fastutil</artifactId>
+      <version>5.0.9</version>
+    </dependency>
+    <dependency>
+    	<groupId>org.antlr</groupId>
+    	<artifactId>antlr</artifactId>
+    	<version>3.3</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+  </dependencies>
+
+  <reporting>
+    <plugins>
+    </plugins>
+  </reporting>
+
+  <build>
+    <plugins>
+    </plugins>
+  </build>
+  
+</project>
