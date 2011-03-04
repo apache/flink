@@ -159,10 +159,4 @@ public abstract class AbstractChannel implements IOReadableWritable {
 	public abstract void transferEvent(AbstractEvent event) throws IOException;
 
 	public abstract void processEvent(AbstractEvent event);
-	
-	public boolean isMulticastChannel() {
-		
-		//TODO: Implement me
-		return false;
-	}
 }

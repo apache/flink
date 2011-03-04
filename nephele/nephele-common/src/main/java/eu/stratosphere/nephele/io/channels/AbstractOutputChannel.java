@@ -181,4 +181,15 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 		// Forward call to output gate
 		this.outputGate.channelCapacityExhausted(this.getChannelIndex());
 	}
+
+	/**
+	 * Returns <code>true</code> if this channel is connected to an output gate which operates in broadcast mode,
+	 * <code>false</code> otherwise.
+	 * 
+	 * @return <code>true</code> if the connected output gate operates in broadcase mode, <code>false</code> otherwise
+	 */
+	public boolean isBroadcastChannel() {
+
+		return this.outputGate.isBroadcast();
+	}
 }
