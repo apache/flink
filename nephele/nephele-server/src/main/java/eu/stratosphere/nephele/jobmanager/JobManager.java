@@ -907,6 +907,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		// Delegate call to the instance manager
-		return this.instanceManager.getMapOfAvailableInstanceTypes();
+		if(this.instanceManager != null)
+		{
+			return this.instanceManager.getMapOfAvailableInstanceTypes();
+		}
+		
+		return null;
 	}
 }

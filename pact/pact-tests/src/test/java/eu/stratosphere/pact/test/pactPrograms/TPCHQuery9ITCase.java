@@ -377,7 +377,7 @@ public class TPCHQuery9ITCase extends TestBase {
 
 		TPCHQuery9 tpch9 = new TPCHQuery9();
 		Plan plan = tpch9.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
+				config.getString("TPCHQuery9ITCase#NoSubtasks", "1"),
 				getFilesystemProvider().getURIPrefix()+partInputPath,
 				getFilesystemProvider().getURIPrefix()+partSuppInputPath,
 				getFilesystemProvider().getURIPrefix()+ordersInputPath,
@@ -399,6 +399,10 @@ public class TPCHQuery9ITCase extends TestBase {
 		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 
+	}
+	
+	@Override
+	public void stopCluster() throws Exception {
 		// clean up hdfs
 		getFilesystemProvider().delete(partInputPath, true);
 		getFilesystemProvider().delete(partSuppInputPath, true);
@@ -407,7 +411,7 @@ public class TPCHQuery9ITCase extends TestBase {
 		getFilesystemProvider().delete(supplierInputPath, true);
 		getFilesystemProvider().delete(nationInputPath, true);
 		getFilesystemProvider().delete(resultPath, true);
-
+		super.stopCluster();
 	}
 
 	@Parameters
@@ -416,7 +420,7 @@ public class TPCHQuery9ITCase extends TestBase {
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		Configuration config = new Configuration();
-		config.setInteger("TPCHQuery3Test#NoSubtasks", 4);
+		config.setInteger("TPCHQuery9ITCase#NoSubtasks", 4);
 		tConfigs.add(config);
 
 		return toParameterList(tConfigs);
