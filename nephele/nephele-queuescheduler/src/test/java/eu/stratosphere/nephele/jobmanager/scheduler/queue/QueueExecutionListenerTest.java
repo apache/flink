@@ -29,54 +29,51 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.instance.AllocatedResource;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
-
 
 /**
  * This class checks the functionality of the {@link QueueExecutionListener} class
+ * 
  * @author marrus
- *
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(QueueExecutionListener.class)
 public class QueueExecutionListenerTest {
-	
+
 	/**
-	 *This test checks the correctness of the executionStateChanged() method.
+	 * This test checks the correctness of the executionStateChanged() method.
 	 */
 	@Test
-	public void testExecutionStateChanged(){
-		Environment ee = mock(Environment.class);
-		
-		QueueScheduler localScheduler = mock(QueueScheduler.class);
-		ExecutionVertex executionVertex = mock( ExecutionVertex.class );
-		ExecutionGraph executionGraph = mock(ExecutionGraph.class);
-		AllocatedResource allocatedResource = mock(AllocatedResource.class);
+	public void testExecutionStateChanged() {
+
+		final Environment ee = mock(Environment.class);
+
+		final QueueScheduler localScheduler = mock(QueueScheduler.class);
+		final ExecutionVertex executionVertex = mock(ExecutionVertex.class);
+		final ExecutionGraph executionGraph = mock(ExecutionGraph.class);
+		final AllocatedResource allocatedResource = mock(AllocatedResource.class);
 		when(executionVertex.getExecutionGraph()).thenReturn(executionGraph);
 		when(executionVertex.getAllocatedResource()).thenReturn(allocatedResource);
-		
-		QueueExecutionListener toTest = new QueueExecutionListener(localScheduler,executionVertex);
-		//State change to RUNNING
-		when(executionGraph.getJobStatus()).thenReturn(JobStatus.RUNNING);
+
+		final QueueExecutionListener toTest = new QueueExecutionListener(localScheduler, executionVertex);
+		// State change to RUNNING
+		when(executionGraph.getJobStatus()).thenReturn(InternalJobStatus.RUNNING);
 		ExecutionState newExecutionState = ExecutionState.FINISHING;
-		toTest.executionStateChanged( ee, newExecutionState, "");
-		verify(localScheduler,times(0)).checkAndReleaseAllocatedResource(executionGraph, allocatedResource);
-		verify(localScheduler,times(0)).removeJobFromSchedule(executionGraph);
-		//Job finished
+		toTest.executionStateChanged(ee, newExecutionState, "");
+		verify(localScheduler, times(0)).checkAndReleaseAllocatedResource(executionGraph, allocatedResource);
+		verify(localScheduler, times(0)).removeJobFromSchedule(executionGraph);
+		// Job finished
 		newExecutionState = ExecutionState.FINISHED;
-		when(executionGraph.getJobStatus()).thenReturn(JobStatus.FINISHED);
-		toTest.executionStateChanged( ee, newExecutionState, "");
+		when(executionGraph.getJobStatus()).thenReturn(InternalJobStatus.FINISHED);
+		toTest.executionStateChanged(ee, newExecutionState, "");
 		verify(localScheduler).checkAndReleaseAllocatedResource(executionGraph, allocatedResource);
-		verify(localScheduler).removeJobFromSchedule(executionGraph);
-		//execution state changed to fails, vertex should be rescheduled
+		// execution state changed to fails, vertex should be rescheduled
 		newExecutionState = ExecutionState.FAILED;
 		when(executionVertex.hasRetriesLeft()).thenReturn(true);
-		toTest.executionStateChanged( ee, newExecutionState, "");
+		toTest.executionStateChanged(ee, newExecutionState, "");
 		verify(executionVertex).setExecutionState(ExecutionState.SCHEDULED);
-		
-		
+
 	}
-	
-	
+
 }
