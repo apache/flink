@@ -88,7 +88,8 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 
 			this.outputGate = eog;
 		} else {
-			this.outputGate = new OutputGate<T>(outputClass, this.environment.getNumberOfOutputGates(), selector, isBroadcast);
+			this.outputGate = new OutputGate<T>(environment.getJobID(), outputClass,
+				this.environment.getNumberOfOutputGates(), selector, isBroadcast);
 			this.environment.registerOutputGate(this.outputGate);
 		}
 	}

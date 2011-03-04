@@ -855,7 +855,7 @@ public class TaskManager implements TaskOperationProtocol {
 	private void checkTaskExecution() {
 
 		final List<Environment> crashEnvironments = new LinkedList<Environment>();
-		
+
 		synchronized (this.runningTasks) {
 
 			final Iterator<ExecutionVertexID> it = this.runningTasks.keySet().iterator();
@@ -866,14 +866,14 @@ public class TaskManager implements TaskOperationProtocol {
 				if (environment.getExecutingThread().getState() == Thread.State.TERMINATED) {
 					// Remove entry from the running tasks map
 					it.remove();
-					//Don't to IPC call while holding a lock on the runningTasks map
+					// Don't to IPC call while holding a lock on the runningTasks map
 					crashEnvironments.add(environment);
 				}
 			}
 		}
-		
+
 		final Iterator<Environment> it2 = crashEnvironments.iterator();
-		while(it2.hasNext()) {
+		while (it2.hasNext()) {
 			it2.next().changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
 		}
 	}

@@ -15,6 +15,10 @@
 
 package eu.stratosphere.nephele.io;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -35,15 +39,31 @@ public class DefaultChannelSelector<T extends Record> implements ChannelSelector
 	public DefaultChannelSelector() {
 		this.nextChannelToSendTo[0] = 0;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public int[] selectChannels(T record, int numberOfOutpuChannels) {
-	
+
 		this.nextChannelToSendTo[0] = (this.nextChannelToSendTo[0] + 1) % numberOfOutpuChannels;
-		
+
 		return this.nextChannelToSendTo;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(DataOutput out) throws IOException {
+		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void read(DataInput in) throws IOException {
+		// Nothing to do here
 	}
 }

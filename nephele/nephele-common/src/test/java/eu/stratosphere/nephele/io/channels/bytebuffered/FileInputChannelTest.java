@@ -64,7 +64,7 @@ public class FileInputChannelTest {
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	DeserializationBuffer deserializationBuffer;
+	DeserializationBuffer<StringRecord> deserializationBuffer;
 	@Mock
 	ChannelID id;
 	@Mock

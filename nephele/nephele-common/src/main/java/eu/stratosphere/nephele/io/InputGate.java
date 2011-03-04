@@ -30,8 +30,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -40,6 +38,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
@@ -52,17 +51,24 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * input gates
  * can be associated with a {@link DistributionPattern} object which dictates the concrete wiring between two groups of
  * vertices.
+ * <p>
+ * This class is in general not thread-safe.
  * 
  * @author warneke
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class InputGate<T extends Record> extends Gate<T> implements IOReadableWritable {
+public class InputGate<T extends Record> extends AbstractGate<T> implements IOReadableWritable {
 
 	/**
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(InputGate.class);
+
+	/**
+	 * The deserializer used to construct records from byte streams.
+	 */
+	private final RecordDeserializer<T> deserializer;
 
 	/**
 	 * The list of input channels attached to this input gate.
@@ -72,7 +78,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	/**
 	 * The distribution pattern to determine how to wire the channels.
 	 */
-	private DistributionPattern distributionPattern = null;
+	private final DistributionPattern distributionPattern;
 
 	/**
 	 * Queue with indices of channels that store at least one available record.
@@ -84,8 +90,9 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 */
 	private InputGateListener[] inputGateListeners = null;
 
-	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
-
+	/**
+	 * The channel to read from next.
+	 */
 	private int channelToReadFrom = -1;
 
 	/**
@@ -96,6 +103,8 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	/**
 	 * Constructs a new input gate.
 	 * 
+	 * @param jobID
+	 *        the ID of the job this input gate belongs to
 	 * @param inputClass
 	 *        the class of the record that can be transported through this gate
 	 * @param index
@@ -103,14 +112,15 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 * @param distributionPattern
 	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
 	 */
-	public InputGate(RecordDeserializer<T> deserializer, int index, DistributionPattern distributionPattern) {
-		this.index = index;
-		setDeserializer(deserializer);
-		if (distributionPattern == null) {
-			this.distributionPattern = new BipartiteDistributionPattern();
-		} else {
-			this.distributionPattern = distributionPattern;
-		}
+	public InputGate(final JobID jobID, final RecordDeserializer<T> deserializer, final int index,
+			final DistributionPattern distributionPattern) {
+
+		super(jobID, deserializer.getRecordType(), index);
+
+		this.deserializer = deserializer;
+
+		this.distributionPattern = (distributionPattern != null) ? distributionPattern
+			: new BipartiteDistributionPattern();
 	}
 
 	/**
@@ -120,6 +130,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 *        the input channel to be added.
 	 */
 	private void addInputChannel(AbstractInputChannel<T> inputChannel) {
+
 		if (!this.inputChannels.contains(inputChannel)) {
 			this.inputChannels.add(inputChannel);
 		}
@@ -406,34 +417,34 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 			} catch (ClassNotFoundException e) {
 				LOG.error(e);
 			}
-			
-			if(c == null) {
+
+			if (c == null) {
 				throw new IOException("Class is null!");
 			}
-			
+
 			AbstractInputChannel<T> eic = null;
-				try {
-					final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
+			try {
+				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
 						.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
 							CompressionLevel.class);
-					if (constructor == null) {
-						throw new IOException("Constructor is null!");
-					}
-					constructor.setAccessible(true);
-					eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
-				} catch (SecurityException e) {
-					LOG.error(e);
-				} catch (NoSuchMethodException e) {
-					LOG.error(e);
-				} catch (IllegalArgumentException e) {
-					LOG.error(e);
-				} catch (InstantiationException e) {
-					LOG.error(e);
-				} catch (IllegalAccessException e) {
-					LOG.error(e);
-				} catch (InvocationTargetException e) {
-					LOG.error(e);
+				if (constructor == null) {
+					throw new IOException("Constructor is null!");
 				}
+				constructor.setAccessible(true);
+				eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
+			} catch (SecurityException e) {
+				LOG.error(e);
+			} catch (NoSuchMethodException e) {
+				LOG.error(e);
+			} catch (IllegalArgumentException e) {
+				LOG.error(e);
+			} catch (InstantiationException e) {
+				LOG.error(e);
+			} catch (IllegalAccessException e) {
+				LOG.error(e);
+			} catch (InvocationTargetException e) {
+				LOG.error(e);
+			}
 			if (eic == null) {
 				throw new IOException("Created input channel is null!");
 			}
@@ -529,56 +540,25 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	}
 
 	/**
-	 * Subscribes the listener object to receive events of the given type.
-	 * 
-	 * @param eventListener
-	 *        the listener object to register
-	 * @param eventType
-	 *        the type of event to register the listener for
+	 * {@inheritDoc}
 	 */
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Removes the subscription for events of the given type for the listener object.
-	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
-	 */
-	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.unsubscribeFromEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Publishes an event.
-	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
-	 */
+	@Override
 	public void publishEvent(AbstractTaskEvent event) throws IOException {
 
 		// Copy event to all connected channels
-		Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
+		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
 		while (it.hasNext()) {
 			it.next().transferEvent(event);
 		}
 	}
 
 	/**
-	 * Passes a received event on to the event notification manager so it cam ne dispatched.
+	 * Returns the {@link RecordDeserializer} used by this input gate.
 	 * 
-	 * @param event
-	 *        the event to pass on to the notification manager
+	 * @return the {@link RecordDeserializer} used by this input gate
 	 */
-	public void deliverEvent(AbstractTaskEvent event) {
+	public RecordDeserializer<T> getRecordDeserializer() {
 
-		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);
+		return this.deserializer;
 	}
 }

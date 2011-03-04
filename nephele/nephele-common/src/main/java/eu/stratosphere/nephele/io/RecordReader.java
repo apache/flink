@@ -243,7 +243,8 @@ public class RecordReader<T extends Record> implements Reader<T> {
 
 			this.inputGate = ig;
 		} else {
-			this.inputGate = new InputGate<T>(deserializer, this.environment.getNumberOfInputGates(),
+			this.inputGate = new InputGate<T>(environment.getJobID(), deserializer,
+				this.environment.getNumberOfInputGates(),
 				distributionPattern);
 			this.environment.registerInputGate(this.inputGate);
 		}

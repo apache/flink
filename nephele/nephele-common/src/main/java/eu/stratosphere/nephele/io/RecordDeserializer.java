@@ -19,15 +19,44 @@ import java.io.DataInput;
 import java.io.IOException;
 
 /**
+ * This interface must be implemented by classes which transfer bytes streams back into {@link Record} objects.
+ * 
  * @author Erik Nijkamp
  * @param <T>
+ *        the type of record this record deserializer works with.
  */
 public interface RecordDeserializer<T extends IOReadableWritable> extends IOReadableWritable {
+
+	/**
+	 * Transforms a record back from a byte stream.
+	 * 
+	 * @param in
+	 *        the byte stream which contains the record's data
+	 * @return the record deserialized from <code>in</code>
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while deserializing the record from the stream
+	 */
 	T deserialize(DataInput in) throws IOException;
 
+	/**
+	 * Returns a new instance of the record deserialized by this record deserializer.
+	 * 
+	 * @return a new instance of the record deserialized by this deserializer
+	 */
 	T getInstance();
 
+	/**
+	 * Returns the type of the record deserialized by this record deserializer.
+	 * 
+	 * @return the type of the record deserialized by this record deserializer
+	 */
 	Class<T> getRecordType();
 
+	/**
+	 * Sets the class loader the record deserializer shall use.
+	 * 
+	 * @param classLoader
+	 *        the class loader to be used by this record deserializer.
+	 */
 	void setClassLoader(ClassLoader classLoader);
 }

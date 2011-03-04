@@ -27,8 +27,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -37,6 +35,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.channels.direct.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
@@ -46,12 +45,14 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * In Nephele output gates are a specialization of general gates and connect
  * record writers and output channels. As channels, output gates are always
  * parameterized to a specific type of record which they can transport.
+ * <p>
+ * This class is in general not thread-safe.
  * 
  * @author warneke
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class OutputGate<T extends Record> extends Gate<T> {
+public class OutputGate<T extends Record> extends AbstractGate<T> {
 
 	/**
 	 * The log object used for debugging.
@@ -61,7 +62,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	/**
 	 * The list of output channels attached to this gate.
 	 */
-	private ArrayList<AbstractOutputChannel<T>> outputChannels = new ArrayList<AbstractOutputChannel<T>>();
+	private final ArrayList<AbstractOutputChannel<T>> outputChannels = new ArrayList<AbstractOutputChannel<T>>();
 
 	/**
 	 * Channel selector to determine which channel is supposed receive the next record.
@@ -72,11 +73,6 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 * The listener objects registered for this output gate.
 	 */
 	private OutputGateListener[] outputGateListeners = null;
-
-	/**
-	 * The event notification manager used to dispatch events.
-	 */
-	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
 
 	/**
 	 * The thread which executes the task connected to the output gate.
@@ -91,6 +87,8 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	/**
 	 * Constructs a new output gate.
 	 * 
+	 * @param jobID
+	 *        the ID of the job this input gate belongs to
 	 * @param inputClass
 	 *        the class of the record that can be transported through this
 	 *        gate
@@ -102,10 +100,11 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 *        <code>true</code> if every records passed to this output gate shall be transmitted through all connected
 	 *        output channels, <code>false</code> otherwise
 	 */
-	public OutputGate(Class<T> inputClass, int index, ChannelSelector<T> channelSelector, boolean isBroadcast) {
-		setDeserializer(new DefaultRecordDeserializer<T>(inputClass));
+	public OutputGate(final JobID jobID, final Class<T> inputClass, final int index,
+			final ChannelSelector<T> channelSelector, final boolean isBroadcast) {
 
-		this.index = index;
+		super(jobID, inputClass, index);
+
 		this.isBroadcast = isBroadcast;
 
 		if (this.isBroadcast) {
@@ -344,18 +343,27 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			throw new InterruptedException();
 		}
 
-		final int numberOfOutputChannels = this.outputChannels.size();
-		final int[] selectedOutputChannels = this.channelSelector.selectChannels(record, numberOfOutputChannels);
+		if (this.isBroadcast) {
 
-		if (selectedOutputChannels == null) {
-			return;
-		}
+			// Broadcast gate, always use first channel to emit record
+			this.outputChannels.get(0).writeRecord(record);
 
-		for (int i = 0; i < selectedOutputChannels.length; ++i) {
+		} else {
 
-			if (selectedOutputChannels[i] < numberOfOutputChannels) {
-				final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(selectedOutputChannels[i]);
-				outputChannel.writeRecord(record);
+			// Non-broadcast gate, use channel selector to select output channels
+			final int numberOfOutputChannels = this.outputChannels.size();
+			final int[] selectedOutputChannels = this.channelSelector.selectChannels(record, numberOfOutputChannels);
+
+			if (selectedOutputChannels == null) {
+				return;
+			}
+
+			for (int i = 0; i < selectedOutputChannels.length; ++i) {
+
+				if (selectedOutputChannels[i] < numberOfOutputChannels) {
+					final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(selectedOutputChannels[i]);
+					outputChannel.writeRecord(record);
+				}
 			}
 		}
 	}
@@ -365,7 +373,6 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 * {@inheritDoc}
 	 */
 	@SuppressWarnings("unchecked")
-	@Override
 	public void read(DataInput in) throws IOException {
 
 		super.read(in);
@@ -428,7 +435,6 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
 	public void write(DataOutput out) throws IOException {
 
 		super.write(out);
@@ -482,32 +488,6 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	}
 
 	/**
-	 * Subscribes the listener object to receive events of the given type.
-	 * 
-	 * @param eventListener
-	 *        the listener object to register
-	 * @param eventType
-	 *        the type of event to register the listener for
-	 */
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Removes the subscription for events of the given type for the listener object.
-	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
-	 */
-	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
 	 * Publishes an event.
 	 * 
 	 * @param event
@@ -525,16 +505,11 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	}
 
 	/**
-	 * Passes a received event on to the event notification manager so it cam ne dispatched.
+	 * Flushes all connected output channels.
 	 * 
-	 * @param event
-	 *        the event to pass on to the notification manager
+	 * @throws IOException
+	 *         thrown if an error occurs while flushing an output channel
 	 */
-	public void deliverEvent(AbstractTaskEvent event) {
-
-		this.eventNotificationManager.deliverEvent(event);
-	}
-
 	public void flush() throws IOException {
 		// Flush all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
