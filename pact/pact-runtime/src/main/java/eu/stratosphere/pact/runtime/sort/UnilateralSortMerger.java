@@ -986,6 +986,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			/* ## 1. cache segments ## */
 			List<CircularElement> cache = new ArrayList<CircularElement>(buffersToKeepBeforeSpilling);
 			CircularElement element = null;
+			boolean cacheOnly = true;
 			
 			// see whether we should keep some buffers
 			if(buffersToKeepBeforeSpilling > 0) {
@@ -993,33 +994,32 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				while (isRunning()) {					
 					// is cache exhausted?
 					if(cache.size() >= buffersToKeepBeforeSpilling) {
-						queues.spill.put(cache);
-						cache.clear();
+						cacheOnly = false;
 						break;
 					}
 					
 					// take next element from queue
 					element = queues.spill.take();
+					cache.add(element);
 					if(element == SENTINEL) {
+						cacheOnly = true;
 						break;
-					} else {
-						cache.add(element);	
 					}
 				}
 			}
 			
 			/* ## 2. merge segments ## */
-			if(!cache.isEmpty()) {
+			if(cacheOnly) {
 				
 				/* # case 1: operates on in-memory segments only # */
 				
 				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
 				
 				// iterate buffers and collect a set of iterators
-				for(CircularElement element : cache)
+				for(CircularElement cached : cache)
 				{
 					// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
-					iterators.add(element.buffer.getIterator());
+					iterators.add(cached.buffer.getIterator());
 				}
 				
 				// release sort-buffers
@@ -1037,7 +1037,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				
 				// loop as long as the thread is marked alive and we do not see the final
 				// element
-				while (isRunning() && (element = queues.spill.take()) != SENTINEL) {
+				while (isRunning() && (element = takeNext(queues.spill, cache)) != SENTINEL) {
 					// open next channel
 					Channel.ID channel = enumerator.next();
 					channelIDs.add(channel);
@@ -1082,6 +1082,17 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 			// done
 			LOG.debug("Spilling thread done.");
+		}
+		
+		private CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache) throws InterruptedException {
+			if(!cache.isEmpty())
+			{
+				return cache.remove(0);
+			}
+			else
+			{
+				return queue.take();
+			}
 		}
 		
 		@Override
