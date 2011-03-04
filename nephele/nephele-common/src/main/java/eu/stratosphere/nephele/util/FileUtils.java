@@ -46,7 +46,7 @@ public class FileUtils {
 		final StringBuilder stringBuilder = new StringBuilder(prefix);
 
 		for (int i = 0; i < LENGTH; i++) {
-			stringBuilder.append(ALPHABET[(int) Math.floor(Math.random() * ALPHABET.length)]);
+			stringBuilder.append(ALPHABET[(int) Math.floor(Math.random() * (double)ALPHABET.length)]);
 		}
 
 		return stringBuilder.toString();

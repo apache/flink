@@ -31,6 +31,9 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
+import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -53,6 +56,8 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
 public class JobManagerITCase {
 
 	private static JobManagerThread jobManagerThread = null;
+
+	private static Configuration configuration;
 
 	/**
 	 * This is an auxiliary class to run the job manager thread.
@@ -134,6 +139,9 @@ public class JobManagerITCase {
 			} catch (InvocationTargetException e) {
 				fail(e.getMessage());
 			}
+
+			configuration = GlobalConfiguration
+				.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
 
 			// Start job manager thread
 			if (jobManager != null) {
@@ -233,7 +241,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg);
+			final JobClient jobClient = new JobClient(jg, configuration);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -317,7 +325,7 @@ public class JobManagerITCase {
 				+ ".jar"));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg);
+			final JobClient jobClient = new JobClient(jg, configuration);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -416,7 +424,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
-			JobClient jobClient = new JobClient(jg);
+			JobClient jobClient = new JobClient(jg, configuration);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {

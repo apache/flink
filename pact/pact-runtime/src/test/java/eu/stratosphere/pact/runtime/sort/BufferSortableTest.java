@@ -37,6 +37,7 @@ import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -100,6 +101,7 @@ public class BufferSortableTest {
 		MemorySegment memory = memoryManager.allocate(new DummyInvokable(), MEMORY_SIZE);
 
 		int writtenPairs = 0, readPairs = 0;
+		int pos = 0;
 
 		// write pairs to buffer
 		{
@@ -115,20 +117,22 @@ public class BufferSortableTest {
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
+			pos = buffer.position;
 			memory = buffer.unbind();
 		}
 
 		// read pairs from memory
 		{
-			Buffer.Input buffer = new Buffer.Input();
-			buffer.bind(memory);
+			Buffer.Input buffer = new Buffer.Input(memory);
+			buffer.reset(pos);
+			IntegerRecord intRec = new IntegerRecord();
 			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
 				new TestData.Key(), new TestData.Value());
-			while (buffer.read(pair)) {
+			while (buffer.read(intRec) && buffer.read(pair)) {
 				readPairs++;
 			}
 			LOG.debug("Read " + readPairs + " pairs from buffer.");
-			memory = buffer.unbind();
+			memory = buffer.dispose();
 		}
 
 		// assert
@@ -166,17 +170,17 @@ public class BufferSortableTest {
 
 		// read pairs from memory
 		{
-			Buffer.Input buffer = new Buffer.Input();
-			buffer.bind(memory);
+			Buffer.Input buffer = new Buffer.Input(memory);
 			buffer.reset(limit);
+			IntegerRecord rec = new IntegerRecord();
 			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
 				new TestData.Key(), new TestData.Value());
-			while (buffer.read(pair)) {
+			while (buffer.read(rec) && buffer.read(pair)) {
 				LOG.debug("-> " + pair);
 				readPairs++;
 			}
 			LOG.debug("Read " + readPairs + " pairs from buffer.");
-			memory = buffer.unbind();
+			memory = buffer.dispose();
 		}
 
 		// assert
@@ -232,8 +236,7 @@ public class BufferSortableTest {
 
 		// allocate buffer for sorted pairs
 		MemorySegment sortedMemory = memoryManager.allocate(new DummyInvokable(), MEMORY_SIZE >> 1);
-		final Buffer.Output sortedBuffer = new Buffer.Output();
-		sortedBuffer.bind(sortedMemory);
+		final Buffer.Output sortedBuffer = new Buffer.Output(sortedMemory);
 
 		// write pairs in sorted fashion
 		{
@@ -264,8 +267,9 @@ public class BufferSortableTest {
 		}
 
 		// unbind
+		int outPos = sortedBuffer.getPosition();
 		unsortedMemory = unsortedBuffer.unbind();
-		sortedMemory = sortedBuffer.unbind();
+		sortedMemory = sortedBuffer.dispose();
 
 		// read pairs
 		{
@@ -273,9 +277,8 @@ public class BufferSortableTest {
 			Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 
 			// read buffer
-			Buffer.Input buffer = new Buffer.Input();
-			buffer.bind(sortedMemory);
-			buffer.reset(sortedBuffer.getPosition());
+			Buffer.Input buffer = new Buffer.Input(sortedMemory);
+			buffer.reset(outPos);
 
 			// comparable pairs
 			KeyValuePair<TestData.Key, TestData.Value> pair1 = new KeyValuePair<TestData.Key, TestData.Value>(

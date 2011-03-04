@@ -153,7 +153,7 @@ public class HybridHashMatchIterator<K extends Key, V1 extends Value, V2 extends
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void open() throws IOException, InterruptedException {
+	public void open() throws IOException {
 		try {
 			hashMapSegment = memoryManager.allocate(this.parentTask, hashMapMemorySize);
 			bufferSegments = memoryManager.allocate(this.parentTask, numberOfIOBuffers, ioBufferSize);
@@ -227,7 +227,7 @@ public class HybridHashMatchIterator<K extends Key, V1 extends Value, V2 extends
 	}
 
 	@Override
-	public boolean next() throws IOException, InterruptedException {
+	public boolean next() throws IOException {
 		return activeStrategy.next();
 	}
 

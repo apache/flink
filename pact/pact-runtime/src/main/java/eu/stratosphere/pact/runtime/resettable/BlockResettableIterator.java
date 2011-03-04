@@ -110,22 +110,24 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	public void reset() {
 		// re-open the input reader
-		in.reset();
+		in.rewind();
 		deserializationInstance = null;
 	}
 
 	public boolean nextBlock() {
 		// add the last block to the worker queue of the writer thread
 		if (in != null)
-			emptySegments.add(in.unbind());
+			emptySegments.add(in.dispose());
 		// now fetch the latest filled Buffer
 		try {
 			in = filledBuffers.take();
 		} catch (InterruptedException e) {
 			throw new RuntimeException("BlockResettableIterator: Unable to fetch the last filled buffer", e);
 		}
-		if (!in.isBound())
+		if (in.getRemainingBytes() == 0) {
+			// empty buffer sigmals end
 			return false;
+		}
 		return true;
 	}
 
@@ -179,8 +181,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 					throw new RuntimeException("BlockResettableIterator: Unable to take next request", e1);
 				}
 				// create an output buffer
-				Buffer.Output out = new Buffer.Output();
-				out.bind(request);
+				Buffer.Output out = new Buffer.Output(request);
 
 				// write the last spilled element
 				if (next != null)
@@ -200,15 +201,25 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 					}
 				}
 
+				int pos = out.getPosition();
+				MemorySegment seg = out.dispose();
+				
 				// allocate a new input buffer for the segment and push it to the input queue
-				Buffer.Input in = new Buffer.Input();
-				in.bind(request);
-				in.reset(out.getPosition());
-				out.unbind();
+				Buffer.Input in = new Buffer.Input(seg);
+				in.reset(pos);
+				
 				finishedTasks.add(in);
 			}
-			Buffer.Input in = new Buffer.Input();
-			finishedTasks.add(in); // unbound buffer signals completion
+			
+			// wait for the next request
+			MemorySegment request = null;
+			try {
+				request = requestQueue.take();
+			} catch (InterruptedException e1) {
+				throw new RuntimeException("BlockResettableIterator: Unable to take next request", e1);
+			}
+			
+			finishedTasks.add(new Buffer.Input(request)); // null signals completion
 		}
 
 	}
