@@ -67,7 +67,8 @@ public class UnilateralSortMergerITCase {
 
 	@BeforeClass
 	public static void beforeClass() {
-		Logger.getLogger(UnilateralSortMerger.class).setLevel(Level.ALL);
+		Logger.getLogger(UnilateralSortMergerITCase.class).setLevel(Level.ALL);
+		//Logger.getLogger(UnilateralSortMerger.class).setLevel(Level.ALL);
 	}
 
 	@AfterClass
