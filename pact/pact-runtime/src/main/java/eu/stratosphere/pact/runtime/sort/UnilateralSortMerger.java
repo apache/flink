@@ -1009,9 +1009,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				LOG.debug("Initiating merge-iterator (in-memory segments).");
 				
 				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
-				
-				// TODO #### cached.buffer segments are never release, leak?? (en) ###
-				
+								
 				// iterate buffers and collect a set of iterators
 				Iterator<CircularElement> iter = cache.iterator();
 				while(iter.hasNext())
