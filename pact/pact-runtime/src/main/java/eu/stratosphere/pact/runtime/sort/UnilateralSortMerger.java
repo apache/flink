@@ -976,12 +976,6 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 * Entry point of the thread.
 		 */
 		public void go() throws Exception {
-			final Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
-			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
-
-			// allocate memory segments for channel writer
-			outputSegments = memoryManager.allocate(UnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
-			freeSegmentsAtShutdown(outputSegments);
 
 			/* ## 1. cache segments ## */
 			List<CircularElement> cache = new ArrayList<CircularElement>(buffersToKeepBeforeSpilling);
@@ -1016,11 +1010,18 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				
 				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
 				
+				// TODO #### cached.buffer segments are never release, leak?? (en) ###
+				
 				// iterate buffers and collect a set of iterators
-				for(CircularElement cached : cache)
+				Iterator<CircularElement> iter = cache.iterator();
+				while(iter.hasNext())
 				{
-					// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
-					iterators.add(cached.buffer.getIterator());
+					CircularElement cached = iter.next();
+					if(cached != SENTINEL)
+					{					
+						// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
+						iterators.add(cached.buffer.getIterator());
+					}
 				}
 				
 				// release sort-buffers
@@ -1036,6 +1037,14 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				
 				/* # case 2: operates on materialized segments only # */
 				LOG.debug("Initiating merge-iterator (materialized segments).");
+				
+				// channel ids
+				final Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
+				List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
+				
+				// allocate memory segments for channel writer
+				outputSegments = memoryManager.allocate(UnilateralSortMerger.this.parent, 2, ioMemorySize / 2);
+				freeSegmentsAtShutdown(outputSegments);
 				
 				// loop as long as the thread is marked alive and we do not see the final
 				// element
