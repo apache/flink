@@ -22,6 +22,8 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -65,7 +67,7 @@ public class UnilateralSortMergerITCase {
 
 	@BeforeClass
 	public static void beforeClass() {
-		
+		Logger.getLogger(UnilateralSortMerger.class).setLevel(Level.ALL);
 	}
 
 	@AfterClass
@@ -133,6 +135,52 @@ public class UnilateralSortMergerITCase {
 		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 	}
 
+	@Test
+	public void testSortInMemory() throws Exception {
+		// serialization
+		final SerializationFactory<TestData.Key> keySerialization = new WritableSerializationFactory<TestData.Key>(
+			TestData.Key.class);
+		final SerializationFactory<TestData.Value> valSerialization = new WritableSerializationFactory<TestData.Value>(
+			TestData.Value.class);
+
+		// comparator
+		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+
+		// reader
+		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
+
+		// merge iterator
+		LOG.debug("initializing sortmerger");
+		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
+			memoryManager, ioManager, 15, 1024 * 1024 * 4, 1024 * 1024 * 12, 2, keySerialization, valSerialization,
+			keyComparator, reader, parentTask);
+
+		// emit data
+		LOG.debug("emitting data");
+		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+			ValueMode.FIX_LENGTH);
+		for (int i = 0; i < NUM_PAIRS; i++) {
+			reader.emit(generator.next());
+		}
+		reader.close();
+
+		// check order
+		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+		
+		LOG.debug("checking results");
+		int pairsEmitted = 0;
+		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
+		while (iterator.hasNext()) {
+			pairsEmitted++;
+			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
+			if (pair1 != null && pair2 != null) {
+				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
+			}
+			pair1 = pair2;
+		}
+		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
+	}
+	
 	@Test
 	public void testSortTenBuffers() throws Exception {
 		// serialization

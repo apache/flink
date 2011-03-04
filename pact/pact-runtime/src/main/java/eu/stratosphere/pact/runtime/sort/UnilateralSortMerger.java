@@ -493,7 +493,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		}
 
 		// create one iterator per channel id
-		LOG.debug("Initialting final merge. Opening " + channelIDs.size() + " ChannelReaders.");
+		LOG.debug("Initiating final merge. Opening " + channelIDs.size() + " ChannelReaders.");
 
 		List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
 		final int ioMemoryPerChannel = ioMemorySize / channelIDs.size();
@@ -986,7 +986,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			/* ## 1. cache segments ## */
 			List<CircularElement> cache = new ArrayList<CircularElement>(buffersToKeepBeforeSpilling);
 			CircularElement element = null;
-			boolean cacheOnly = true;
+			boolean cacheOnly = false;
 			
 			// see whether we should keep some buffers
 			if(buffersToKeepBeforeSpilling > 0) {
@@ -1012,6 +1012,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			if(cacheOnly) {
 				
 				/* # case 1: operates on in-memory segments only # */
+				LOG.debug("Initiating merge-iterator (in-memory segments).");
 				
 				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
 				
@@ -1034,6 +1035,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			} else {
 				
 				/* # case 2: operates on materialized segments only # */
+				LOG.debug("Initiating merge-iterator (materialized segments).");
 				
 				// loop as long as the thread is marked alive and we do not see the final
 				// element
