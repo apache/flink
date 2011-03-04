@@ -345,8 +345,18 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 
 		if (this.isBroadcast) {
 
-			// Broadcast gate, always use first channel to emit record
-			this.outputChannels.get(0).writeRecord(record);
+			if (getChannelType() == ChannelType.INMEMORY) {
+
+				final int numberOfOutputChannels = this.outputChannels.size();
+				for (int i = 0; i < numberOfOutputChannels; ++i) {
+					this.outputChannels.get(i).writeRecord(record);
+				}
+
+			} else {
+
+				// Use optimization for byte buffered channels
+				this.outputChannels.get(0).writeRecord(record);
+			}
 
 		} else {
 
