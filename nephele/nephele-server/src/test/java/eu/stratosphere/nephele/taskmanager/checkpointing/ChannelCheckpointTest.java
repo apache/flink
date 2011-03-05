@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeProcessingLog;
 import eu.stratosphere.nephele.util.ServerTestUtils;
@@ -65,10 +66,10 @@ public class ChannelCheckpointTest {
 	private static final ChannelID TARGET_CHANNEL_ID = new ChannelID();
 
 	/**
-	 * The mocked byte buffered channel manager.
+	 * The mocked network connection manager
 	 */
 	@Mock
-	private ByteBufferedChannelManager byteBufferedChannelManager;
+	private NetworkConnectionManager networkConnectionManager;
 
 	/**
 	 * The mocked file buffer manager.
@@ -172,10 +173,10 @@ public class ChannelCheckpointTest {
 		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir);
 
 		// Mock behavior of internal objects
-		when(this.byteBufferedChannelManager.getFileBufferManager()).thenReturn(this.fileBufferManager);
+		/*when(this.byteBufferedChannelManager.getFileBufferManager()).thenReturn(this.fileBufferManager);
 		when(
 			this.byteBufferedChannelManager.registerIncomingConnection(Matchers.any(IncomingConnectionID.class),
-				Matchers.any(ReadableByteChannel.class))).thenReturn(this.incomingConnection);
+				Matchers.any(ReadableByteChannel.class))).thenReturn(this.incomingConnection);*/
 
 		try {
 			doThrow(new EOFException()).when(this.incomingConnection).read();
@@ -191,7 +192,7 @@ public class ChannelCheckpointTest {
 			channelCheckpoint.makePersistent();
 			channelCheckpoint.markChannelCheckpointAsFinished();
 
-			channelCheckpoint.recover(this.byteBufferedChannelManager);
+			channelCheckpoint.recover(this.networkConnectionManager, this.fileBufferManager);
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
 		} finally {

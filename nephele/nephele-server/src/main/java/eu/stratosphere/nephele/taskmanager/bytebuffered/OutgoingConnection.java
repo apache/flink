@@ -44,8 +44,14 @@ public class OutgoingConnection {
 	 */
 	private static final Log LOG = LogFactory.getLog(OutgoingConnection.class);
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	/**
+	 * The network connection manager managing this outgoing connection.
+	 */
+	private final NetworkConnectionManager networkConnectionManager;
 
+	/**
+	 * The address this outgoing connection is connected to.
+	 */
 	private final InetSocketAddress connectionAddress;
 
 	/**
@@ -109,8 +115,8 @@ public class OutgoingConnection {
 	/**
 	 * Constructs a new outgoing connection object.
 	 * 
-	 * @param byteBufferedChannelManager
-	 *        the byte buffered channel manager which manages the different connections
+	 * @param networkConnectionManager
+	 *        the network connection manager which manages this connection
 	 * @param connectionAddress
 	 *        the address of the destination host this outgoing connection object is supposed to connect to
 	 * @param connectionThread
@@ -118,11 +124,11 @@ public class OutgoingConnection {
 	 * @param numberOfConnectionRetries
 	 *        the number of connection retries allowed before an I/O error is reported
 	 */
-	public OutgoingConnection(ByteBufferedChannelManager byteBufferedChannelManager,
+	public OutgoingConnection(NetworkConnectionManager networkConnectionManager,
 			InetSocketAddress connectionAddress, OutgoingConnectionThread connectionThread,
 			int numberOfConnectionRetries) {
 
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.networkConnectionManager = networkConnectionManager;
 		this.connectionAddress = connectionAddress;
 		this.connectionThread = connectionThread;
 		this.numberOfConnectionRetries = numberOfConnectionRetries;
@@ -223,8 +229,7 @@ public class OutgoingConnection {
 
 			// Notify source of current envelope and release buffer
 			if (this.currentEnvelope != null) {
-				this.byteBufferedChannelManager
-					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
+				this.networkConnectionManager.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
 				if (this.currentEnvelope.getBuffer() != null) {
 					this.currentEnvelope.getBuffer().recycleBuffer();
 					this.currentEnvelope = null;
@@ -236,7 +241,7 @@ public class OutgoingConnection {
 			while (iter.hasNext()) {
 				final TransferEnvelope envelope = iter.next();
 				iter.remove();
-				this.byteBufferedChannelManager.reportIOExceptionForOutputChannel(envelope.getSource(), ioe);
+				this.networkConnectionManager.reportIOExceptionForOutputChannel(envelope.getSource(), ioe);
 				// Recycle the buffer inside the envelope
 				if (envelope.getBuffer() != null) {
 					envelope.getBuffer().recycleBuffer();
@@ -299,8 +304,7 @@ public class OutgoingConnection {
 
 			// We must assume the current envelope is corrupted so we notify the task which created it.
 			if (this.currentEnvelope != null) {
-				this.byteBufferedChannelManager
-					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
+				this.networkConnectionManager.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
 				if (this.currentEnvelope.getBuffer() != null) {
 					this.currentEnvelope.getBuffer().recycleBuffer();
 					this.currentEnvelope = null;

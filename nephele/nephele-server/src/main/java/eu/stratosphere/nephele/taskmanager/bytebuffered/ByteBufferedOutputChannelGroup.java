@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.WriteBufferProvider;
 import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
 import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
 
@@ -37,12 +38,17 @@ import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
  * 
  * @author warneke
  */
-public class ByteBufferedOutputChannelGroup {
+public final class ByteBufferedOutputChannelGroup {
 
 	/**
-	 * The byte buffered channel manager.
+	 * The dispatcher for received transfer envelopes.
 	 */
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+
+	/**
+	 * The buffer provider to request empty write buffers.
+	 */
+	private final WriteBufferProvider writeBufferProvider;
 
 	/**
 	 * The ephemeral checkpoint assigned to this {@link Environment}, possibly <code>null</code>.
@@ -57,8 +63,10 @@ public class ByteBufferedOutputChannelGroup {
 	/**
 	 * Constructs a new byte buffered output channel group object.
 	 * 
-	 * @param byteBufferedChannelManager
-	 *        the byte buffered channel manager this object is attached to
+	 * @param transferEnvelopeDispatcher
+	 *        the dispatcher for received transfer envelopes
+	 * @param writeBufferProvider
+	 *        the buffer provider to request empty write buffers
 	 * @param checkpointManager
 	 *        the checkpoint manager used to create ephemeral checkpoints
 	 * @param commonChannelType
@@ -66,10 +74,12 @@ public class ByteBufferedOutputChannelGroup {
 	 * @param executionVertexID
 	 *        the id of the execution vertex this channel group object belongs to
 	 */
-	public ByteBufferedOutputChannelGroup(ByteBufferedChannelManager byteBufferedChannelManager,
-			CheckpointManager checkpointManager, ChannelType commonChannelType, ExecutionVertexID executionVertexID) {
+	public ByteBufferedOutputChannelGroup(TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			WriteBufferProvider writeBufferProvider, CheckpointManager checkpointManager,
+			ChannelType commonChannelType, ExecutionVertexID executionVertexID) {
 
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.writeBufferProvider = writeBufferProvider;
 		this.commonChannelType = commonChannelType;
 		if (commonChannelType == ChannelType.FILE) {
 			// For file channels, we always store data in the checkpoint
@@ -84,7 +94,7 @@ public class ByteBufferedOutputChannelGroup {
 
 		// Register checkpoint as a listener to receive out-of-buffer notifications
 		if (this.ephemeralCheckpoint != null) {
-			this.byteBufferedChannelManager.registerOutOfWriterBuffersListener(this.ephemeralCheckpoint);
+			this.writeBufferProvider.registerOutOfWriteBuffersListener(this.ephemeralCheckpoint);
 		}
 	}
 
@@ -132,7 +142,7 @@ public class ByteBufferedOutputChannelGroup {
 
 		// Check if the provided envelope must be sent via the network
 		if (processingLog.mustBeSentViaNetwork()) {
-			this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(outgoingTransferEnvelope);
+			this.transferEnvelopeDispatcher.processEnvelope(outgoingTransferEnvelope);
 		}
 	}
 
@@ -157,7 +167,7 @@ public class ByteBufferedOutputChannelGroup {
 	 * @return the maximum size of available write buffers in bytes
 	 */
 	public int getMaximumBufferSize() {
-		return this.byteBufferedChannelManager.getMaximumBufferSize();
+		return this.writeBufferProvider.getMaximumBufferSize();
 	}
 
 	/**
@@ -186,6 +196,6 @@ public class ByteBufferedOutputChannelGroup {
 	 */
 	public BufferPairResponse requestEmptyWriteBuffers(BufferPairRequest byteBufferPair) throws InterruptedException {
 
-		return this.byteBufferedChannelManager.requestEmptyWriteBuffers(byteBufferPair);
+		return this.writeBufferProvider.requestEmptyWriteBuffers(byteBufferPair);
 	}
 }

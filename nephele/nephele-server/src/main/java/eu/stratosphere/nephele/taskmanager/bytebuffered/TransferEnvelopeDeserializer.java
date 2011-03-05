@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
 
 public class TransferEnvelopeDeserializer {
 
@@ -46,7 +46,7 @@ public class TransferEnvelopeDeserializer {
 
 	private DeserializationState deserializationState = DeserializationState.NOTDESERIALIZED;
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final ReadBufferProvider readBufferProvider;
 
 	private final DeserializationBuffer<ChannelID> channelIDDeserializationBuffer = new DeserializationBuffer<ChannelID>(
 		new DefaultRecordDeserializer<ChannelID>(ChannelID.class), true);
@@ -68,9 +68,9 @@ public class TransferEnvelopeDeserializer {
 
 	private int sizeOfBuffer = -1;
 
-	public TransferEnvelopeDeserializer(ByteBufferedChannelManager byteBufferedChannelManager,
-			boolean readsFromCheckpoint) {
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+	public TransferEnvelopeDeserializer(ReadBufferProvider readBufferProvider, boolean readsFromCheckpoint) {
+
+		this.readBufferProvider = readBufferProvider;
 		this.readsFromCheckpoint = readsFromCheckpoint;
 	}
 
@@ -239,9 +239,8 @@ public class TransferEnvelopeDeserializer {
 				}
 
 				final FileChannel fileChannel = (FileChannel) readableByteChannel;
-				final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
 				this.buffer = BufferFactory.createFromCheckpoint(this.sizeOfBuffer, this.transferEnvelope.getSource(),
-					fileChannel.position(), fileBufferManager);
+					fileChannel.position(), this.readBufferProvider.getFileBufferManager());
 				// Skip over buffer and finish deserialization step
 				fileChannel.position(fileChannel.position() + sizeOfBuffer);
 				this.transferEnvelope.setBuffer(this.buffer);
@@ -250,7 +249,7 @@ public class TransferEnvelopeDeserializer {
 
 			} else {
 				// Request read buffer from network channelManager
-				this.buffer = this.byteBufferedChannelManager.requestEmptyReadBuffer(this.sizeOfBuffer,
+				this.buffer = this.readBufferProvider.requestEmptyReadBuffer(this.sizeOfBuffer,
 					this.transferEnvelope.getSource());
 
 				/*

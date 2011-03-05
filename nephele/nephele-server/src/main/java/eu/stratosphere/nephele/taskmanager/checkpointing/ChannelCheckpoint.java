@@ -30,9 +30,10 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeSerializer;
 
@@ -161,7 +162,8 @@ public class ChannelCheckpoint {
 		}
 	}
 
-	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) {
+	public synchronized void recover(final NetworkConnectionManager networkConnectionManager,
+			final FileBufferManager fileBufferManager) {
 
 		if (!this.checkpointFinished) {
 			LOG.error("Checkpoint is not finished!");
@@ -185,7 +187,7 @@ public class ChannelCheckpoint {
 
 		// Register an external data source at the file buffer manager
 		try {
-			byteBufferedChannelManager.getFileBufferManager().registerExternalDataSourceForChannel(
+			fileBufferManager.registerExternalDataSourceForChannel(
 				this.sourceChannelID,
 				filename);
 		} catch (IOException ioe) {
@@ -197,8 +199,8 @@ public class ChannelCheckpoint {
 		final IncomingConnectionID connectionID = new IncomingConnectionID(filename);
 
 		// Start recovering
-		final IncomingConnection incomingConnection = byteBufferedChannelManager
-			.registerIncomingConnection(connectionID, this.fileChannel);
+		final IncomingConnection incomingConnection = networkConnectionManager.registerIncomingConnection(connectionID,
+			this.fileChannel);
 
 		try {
 			while (true) {

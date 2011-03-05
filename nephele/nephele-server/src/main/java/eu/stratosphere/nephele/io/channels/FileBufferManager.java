@@ -28,6 +28,8 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.FileUtils;
 
@@ -45,13 +47,21 @@ import eu.stratosphere.nephele.util.FileUtils;
  * 
  * @author warneke
  */
-public class FileBufferManager {
+public final class FileBufferManager {
 
 	/**
 	 * The logging object.
 	 */
 	private static final Log LOG = LogFactory.getLog(FileBufferManager.class);
 
+	/**
+	 * The singleton instance of the file buffer manager.
+	 */
+	private static FileBufferManager fileBufferManager = null;
+	
+	/**
+	 * The directory to store temporary files.
+	 */
 	private final String tmpDir;
 
 	private static enum FileEntryStatus {
@@ -169,7 +179,7 @@ public class FileBufferManager {
 				this.currentFileForWriting = null;
 			}
 		}
-		
+
 		/**
 		 * Returns the channel the writing thread is supposed to use to
 		 * write data to the file.
@@ -231,8 +241,9 @@ public class FileBufferManager {
 
 	private Map<ChannelID, FileBufferManagerEntry> dataSources = new HashMap<ChannelID, FileBufferManagerEntry>();
 
-	public FileBufferManager(String tmpDir) {
-		this.tmpDir = tmpDir;
+	private FileBufferManager() {
+		this.tmpDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
 	}
 
 	public void registerExternalDataSourceForChannel(ChannelID sourceChannelID, String filename) throws IOException {
@@ -304,12 +315,12 @@ public class FileBufferManager {
 			 * }
 			 */
 		}
-		
+
 		if (fbme == null) {
 			LOG.error("Cannot find data source for channel " + sourceChannelID + " to mark buffer as consumed");
 			return;
 		}
-		
+
 		try {
 			fbme.checkForEndOfFile();
 		} catch (IOException ioe) {
@@ -329,5 +340,18 @@ public class FileBufferManager {
 		}
 
 		fbme.reportEndOfWritePhase();
+	}
+
+	public static synchronized FileBufferManager getFileBufferManager() {
+
+		if(fileBufferManager == null) {
+			fileBufferManager = new FileBufferManager();
+		}
+		
+		return fileBufferManager;
+	}
+
+	public void shutDown() {
+		// TODO: Implement me
 	}
 }

@@ -30,6 +30,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChanne
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.OutOfByteBuffersListener;
 import eu.stratosphere.nephele.types.Record;
 
 /**

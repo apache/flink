@@ -15,7 +15,12 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-public interface OutOfByteBuffersListener {
+/**
+ * A transfer envelope dispatcher receives {@link TransferEnvelopes} and sends them to all of this destinations.
+ * 
+ * @author warneke
+ */
+public interface TransferEnvelopeDispatcher {
 
-	public void outOfByteBuffers();
+	void processEnvelope(TransferEnvelope transferEnvelope);
 }
