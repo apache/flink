@@ -29,6 +29,9 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelClose
 import eu.stratosphere.nephele.taskmanager.bufferprovider.WriteBufferProvider;
 import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
 import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
 
 /**
  * A byte buffered output channel group forwards all outgoing {@link TransferEnvelope} objects from

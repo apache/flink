@@ -28,6 +28,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
 
 /**
  * This class represents an outgoing TCP connection through which {@link TransferEnvelope} objects can be sent.

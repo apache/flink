@@ -39,8 +39,8 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManag
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeProcessingLog;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**

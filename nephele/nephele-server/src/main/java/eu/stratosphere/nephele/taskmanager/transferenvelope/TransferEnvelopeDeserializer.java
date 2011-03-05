@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import java.io.EOFException;
 import java.io.IOException;

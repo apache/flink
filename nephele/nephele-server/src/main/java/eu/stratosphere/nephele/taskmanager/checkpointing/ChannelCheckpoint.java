@@ -34,8 +34,8 @@ import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeSerializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
 
 public class ChannelCheckpoint {
 

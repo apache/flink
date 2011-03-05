@@ -13,7 +13,8 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
+
 
 /**
  * A transfer envelope dispatcher receives {@link TransferEnvelopes} and sends them to all of this destinations.

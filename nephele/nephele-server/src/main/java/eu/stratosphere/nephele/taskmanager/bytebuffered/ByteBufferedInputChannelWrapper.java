@@ -34,6 +34,9 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannel
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
 import eu.stratosphere.nephele.types.Record;
 
 public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannelBroker, ByteBufferedChannelWrapper {

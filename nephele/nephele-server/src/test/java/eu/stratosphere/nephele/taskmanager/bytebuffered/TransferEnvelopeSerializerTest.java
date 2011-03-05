@@ -33,6 +33,9 @@ import eu.stratosphere.nephele.io.ID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**

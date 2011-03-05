@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.OutOfByteBuffersListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.execution.Environment;
 
 /**

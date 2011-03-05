@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
