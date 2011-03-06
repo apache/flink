@@ -184,7 +184,8 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		try {
 			switch (this.checkpointingDecision) {
 			case NO_CHECKPOINTING:
-				transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+				//TODO: Fix me
+				//transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 				return;
 			case UNDECIDED:
 			case CHECKPOINTING:
@@ -194,10 +195,11 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 					return;
 				}
 
-				if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
+				//TODO: Fix me
+				/*if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
 					// Continue working with a copy of the transfer envelope
 					transferEnvelope = transferEnvelope.duplicate();
-				}
+				}*/
 
 				channelCheckpoint.addToCheckpoint(transferEnvelope);
 				break;

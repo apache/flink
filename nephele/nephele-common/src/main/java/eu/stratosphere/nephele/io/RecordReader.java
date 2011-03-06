@@ -362,8 +362,10 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 *        the event to be published
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Delegate call to input gate
 		this.inputGate.publishEvent(event);

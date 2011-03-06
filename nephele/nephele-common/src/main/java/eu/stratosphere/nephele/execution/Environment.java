@@ -828,7 +828,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Closes all input gates which are not already closed.
 	 */
-	private void closeInputGates() throws IOException {
+	private void closeInputGates() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
 			final InputGate<? extends Record> eig = getInputGate(i);
@@ -841,7 +841,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Requests all output gates to be closed.
 	 */
-	private void requestAllOutputGatesToClose() throws IOException {
+	private void requestAllOutputGatesToClose() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
 			this.getOutputGate(i).requestClose();

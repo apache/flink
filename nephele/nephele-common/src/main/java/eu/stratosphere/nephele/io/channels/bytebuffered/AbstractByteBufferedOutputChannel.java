@@ -81,7 +81,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 */
 	private Buffer uncompressedDataBuffer = null;
 
-	private static final Log LOG=LogFactory.getLog(AbstractByteBufferedInputChannel.class);
+	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedInputChannel.class);
 
 	/**
 	 * Creates a new byte buffered output channel.
@@ -129,7 +129,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestClose() throws IOException {
+	public void requestClose() throws IOException, InterruptedException {
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
@@ -144,9 +144,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * This method blocks until the requested number of buffers is available.
 	 * 
 	 * @throws InterruptedException
-	 *         throws if the thread is interrupted while waiting for the buffers
+	 *         thrown if the thread is interrupted while waiting for the buffers
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while waiting for the buffers
 	 */
-	private void requestWriteBuffersFromBroker() throws InterruptedException {
+	private void requestWriteBuffersFromBroker() throws InterruptedException, IOException {
 
 		final BufferPairResponse bufferPair = this.outputChannelBroker.requestEmptyWriteBuffers();
 		this.compressedDataBuffer = bufferPair.getCompressedDataBuffer();
@@ -161,8 +163,13 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	/**
 	 * Returns the filled buffers to the framework and triggers
 	 * further processing.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while releasing the buffers
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while releasing the buffers
 	 */
-	private void releaseWriteBuffers() {
+	private void releaseWriteBuffers() throws IOException, InterruptedException {
 
 		if (getCompressionLevel() == CompressionLevel.DYNAMIC_COMPRESSION) {
 			this.outputChannelBroker.transferEventToInputChannel(new CompressionEvent(this.compressor
@@ -275,7 +282,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void transferEvent(AbstractEvent event) throws IOException {
+	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		this.outputChannelBroker.transferEventToInputChannel(event);
 		flush();
@@ -285,7 +292,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 
 		// Get rid of remaining data in the serialization buffer
 		while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {

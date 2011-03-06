@@ -33,7 +33,7 @@ import java.nio.channels.WritableByteChannel;
  * 
  * @author warneke
  */
-public class Buffer implements ReadableByteChannel, WritableByteChannel {
+public final class Buffer implements ReadableByteChannel, WritableByteChannel {
 
 	/**
 	 * The concrete buffer implementation to which all method calls on
@@ -238,5 +238,10 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	public Buffer duplicate() {
 
 		return new Buffer(this.internalBuffer.duplicate());
+	}
+	
+	public boolean isReadBuffer() {
+	
+		return this.internalBuffer.isReadBuffer();
 	}
 }

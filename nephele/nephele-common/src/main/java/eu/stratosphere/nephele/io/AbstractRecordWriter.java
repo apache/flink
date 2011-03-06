@@ -169,14 +169,16 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *        the event to be published
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Delegate call to output gate
 		this.outputGate.publishEvent(event);
 	}
 
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		// Delegate call to output gate
 		this.outputGate.flush();
 	}

@@ -17,42 +17,25 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SocketChannel;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
-import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
 
 public final class ByteBufferedChannelManager implements TransferEnvelopeDispatcher {
 
@@ -65,7 +48,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final Map<ChannelID, ByteBufferedChannelWrapper> registeredChannels = new HashMap<ChannelID, ByteBufferedChannelWrapper>();
 
-	//private final Map<ChannelID, InetSocketAddress> connectionAddresses = new HashMap<ChannelID, InetSocketAddress>();
+	/**
+	 * This map caches transfer envelope receiver lists.
+	 */
+	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new HashMap<ChannelID, TransferEnvelopeReceiverList>();
 
 	private final NetworkConnectionManager networkConnectionManager;
 
@@ -169,10 +155,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		// Make sure all buffers are released in case the channel is unregistered as a result of an error
 		Queue<TransferEnvelope> incomingTransferEnvelopes = null;
 
-		/*synchronized (this.queuedIncomingTransferEnvelopes) {
-
-			incomingTransferEnvelopes = this.queuedIncomingTransferEnvelopes.remove(byteBufferedInputChannel.getID());
-		}*/
+		/*
+		 * synchronized (this.queuedIncomingTransferEnvelopes) {
+		 * incomingTransferEnvelopes = this.queuedIncomingTransferEnvelopes.remove(byteBufferedInputChannel.getID());
+		 * }
+		 */
 
 		if (incomingTransferEnvelopes == null) {
 			// No more data buffered for us, we are done...
@@ -180,16 +167,17 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 
 		// A dump thread might be working on the same queue, so access must be synchronized
-		/*synchronized (incomingTransferEnvelopes) {
-
-			final Iterator<TransferEnvelope> it = incomingTransferEnvelopes.iterator();
-			while (it.hasNext()) {
-				final TransferEnvelope envelope = it.next();
-				if (envelope.getBuffer() != null) {
-					envelope.getBuffer().recycleBuffer();
-				}
-			}
-		}*/
+		/*
+		 * synchronized (incomingTransferEnvelopes) {
+		 * final Iterator<TransferEnvelope> it = incomingTransferEnvelopes.iterator();
+		 * while (it.hasNext()) {
+		 * final TransferEnvelope envelope = it.next();
+		 * if (envelope.getBuffer() != null) {
+		 * envelope.getBuffer().recycleBuffer();
+		 * }
+		 * }
+		 * }
+		 */
 	}
 
 	public void unregisterByteBufferedOutputChannel(
@@ -214,134 +202,72 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.bufferProvider.unregisterOutOfWriteBuffersLister(channelWrapper);
 
 		// Make sure all output buffers are leased and recycled
-		/*InetSocketAddress connectionAddress = null;
-		synchronized (this.connectionAddresses) {
-			connectionAddress = this.connectionAddresses.remove(byteBufferedOutputChannel.getID());
-		}
-		if (connectionAddress == null) {
-			// Apparently, the connected task has not yet transmitted any data, so no buffers can be queued
-			return;
-		}*/
+		/*
+		 * InetSocketAddress connectionAddress = null;
+		 * synchronized (this.connectionAddresses) {
+		 * connectionAddress = this.connectionAddresses.remove(byteBufferedOutputChannel.getID());
+		 * }
+		 * if (connectionAddress == null) {
+		 * // Apparently, the connected task has not yet transmitted any data, so no buffers can be queued
+		 * return;
+		 * }
+		 */
 
 		// Make sure all queued outgoing buffers are dropped and recycled
-		/*synchronized (this.outgoingConnections) {
-			final OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
-			if (outgoingConnection != null) {
-				outgoingConnection.dropAllQueuedEnvelopesForChannel(byteBufferedOutputChannel.getID(), true);
-				if (outgoingConnection.canBeRemoved()) {
-					// reflects no envelopes, no
-					// currentEnvelope and not connected
-					this.outgoingConnections.remove(connectionAddress);
-				}
-			}
-		}*/
+		/*
+		 * synchronized (this.outgoingConnections) {
+		 * final OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
+		 * if (outgoingConnection != null) {
+		 * outgoingConnection.dropAllQueuedEnvelopesForChannel(byteBufferedOutputChannel.getID(), true);
+		 * if (outgoingConnection.canBeRemoved()) {
+		 * // reflects no envelopes, no
+		 * // currentEnvelope and not connected
+		 * this.outgoingConnections.remove(connectionAddress);
+		 * }
+		 * }
+		 * }
+		 */
 	}
 
-	public void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
-
-		final ChannelID targetID = transferEnvelope.getTarget();
-		ByteBufferedChannelWrapper targetChannelWrapper = null;
-		if (targetID == null) {
-			throw new IOException("Cannot process incoming transfer envelope: target channel ID is null!");
-		}
-
-		synchronized (this.registeredChannels) {
-			targetChannelWrapper = this.registeredChannels.get(targetID);
-			if (targetChannelWrapper == null) {
-
-				// Release buffer immediately
-				if (transferEnvelope.getBuffer() != null) {
-					transferEnvelope.getBuffer().recycleBuffer();
-				}
-
-				throw new IOException("Cannot find target channel to ID " + targetID
-					+ " to process incoming transfer envelope");
-			}
-		}
-
-		if (targetChannelWrapper.isInputChannel()) {
-
-			final ByteBufferedInputChannelWrapper networkInputChannelWrapper = (ByteBufferedInputChannelWrapper) targetChannelWrapper;
-			networkInputChannelWrapper.queueIncomingTransferEnvelope(transferEnvelope);
-
-		} else {
-
-			final ByteBufferedOutputChannelWrapper networkOutputChannelWrapper = (ByteBufferedOutputChannelWrapper) targetChannelWrapper;
-
-			// In case of an output channel, we only expect events and no buffers
-			if (transferEnvelope.getBuffer() != null) {
-				LOG.error("Incoming transfer envelope for network output channel "
-					+ targetChannelWrapper.getChannelID() + " has a buffer attached");
-			}
-			// Process the events immediately
-			final EventList eventList = transferEnvelope.getEventList();
-			final Iterator<AbstractEvent> iterator = eventList.iterator();
-			while (iterator.hasNext()) {
-				networkOutputChannelWrapper.processEvent(iterator.next());
-			}
-		}
-	}
-
-	/*private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) {
-
-		InetSocketAddress connectionAddress = null;
-
-		synchronized (this.connectionAddresses) {
-			connectionAddress = this.connectionAddresses.get(sourceChannelID);
-		}
-
-		if (connectionAddress == null) {
-			ByteBufferedChannelWrapper channelWrapper = null;
-			synchronized (this.registeredChannels) {
-				channelWrapper = this.registeredChannels.get(sourceChannelID);
-				if (channelWrapper == null) {
-					LOG.error("Cannot find channel object for ID " + sourceChannelID + " to do lookup");
-					return null;
-				}
-			}
-
-			InstanceConnectionInfo ici = null;
-			try {
-
-				while (true) {
-
-					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
-						this.localConnectionInfo, channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
-
-					if (lookupResponse.receiverNotFound()) {
-						throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
-							+ " does not appear to be running");
-					}
-
-					if (lookupResponse.receiverNotReady()) {
-						try {
-							Thread.sleep(500);
-						} catch (InterruptedException e) {
-							return null;
-						}
-						continue;
-					}
-
-					if (lookupResponse.receiverReady()) {
-						ici = lookupResponse.getRemoteTargets().get(0);
-						break;
-					}
-				}
-
-			} catch (IOException e) {
-				LOG.error(StringUtils.stringifyException(e));
-				return null;
-			}
-			if (ici != null) {
-				connectionAddress = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
-				synchronized (this.connectionAddresses) {
-					this.connectionAddresses.put(sourceChannelID, connectionAddress);
-				}
-			}
-		}
-
-		return connectionAddress;
-	}*/
+	/*
+	 * public void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
+	 * final ChannelID targetID = transferEnvelope.getTarget();
+	 * ByteBufferedChannelWrapper targetChannelWrapper = null;
+	 * if (targetID == null) {
+	 * throw new IOException("Cannot process incoming transfer envelope: target channel ID is null!");
+	 * }
+	 * synchronized (this.registeredChannels) {
+	 * targetChannelWrapper = this.registeredChannels.get(targetID);
+	 * if (targetChannelWrapper == null) {
+	 * // Release buffer immediately
+	 * if (transferEnvelope.getBuffer() != null) {
+	 * transferEnvelope.getBuffer().recycleBuffer();
+	 * }
+	 * throw new IOException("Cannot find target channel to ID " + targetID
+	 * + " to process incoming transfer envelope");
+	 * }
+	 * }
+	 * if (targetChannelWrapper.isInputChannel()) {
+	 * final ByteBufferedInputChannelWrapper networkInputChannelWrapper = (ByteBufferedInputChannelWrapper)
+	 * targetChannelWrapper;
+	 * networkInputChannelWrapper.queueIncomingTransferEnvelope(transferEnvelope);
+	 * } else {
+	 * final ByteBufferedOutputChannelWrapper networkOutputChannelWrapper = (ByteBufferedOutputChannelWrapper)
+	 * targetChannelWrapper;
+	 * // In case of an output channel, we only expect events and no buffers
+	 * if (transferEnvelope.getBuffer() != null) {
+	 * LOG.error("Incoming transfer envelope for network output channel "
+	 * + targetChannelWrapper.getChannelID() + " has a buffer attached");
+	 * }
+	 * // Process the events immediately
+	 * final EventList eventList = transferEnvelope.getEventList();
+	 * final Iterator<AbstractEvent> iterator = eventList.iterator();
+	 * while (iterator.hasNext()) {
+	 * networkOutputChannelWrapper.processEvent(iterator.next());
+	 * }
+	 * }
+	 * }
+	 */
 
 	/*
 	 * public int getNumberOfQueuedOutgoingEnvelopes(ChannelID sourceChannelID) {
@@ -404,17 +330,125 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	}
 
 	public NetworkConnectionManager getNetworkConnectionManager() {
-		
+
 		return this.networkConnectionManager;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEnvelope(TransferEnvelope transferEnvelope) {
-		// TODO Auto-generated method stub
+	public void processEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
-		System.out.println("Received transferEnvelope ");
+		final TransferEnvelopeReceiverList receiverList = getReceiverList(transferEnvelope.getJobID(),
+			transferEnvelope.getSource());
+
+		if (receiverList == null) {
+			LOG.error("Transfer envelope " + transferEnvelope.getSequenceNumber() + " from source channel "
+				+ transferEnvelope.getSource() + " has not have a receiver list");
+			return;
+		}
+
+		if (receiverList.getTotalNumberOfReceivers() == 0) {
+			LOG.error("Total number of receivers for envelope " + transferEnvelope.getSequenceNumber()
+				+ " from source channel " + transferEnvelope.getSource() + " is 0");
+		}
+
+		// This envelope is known to have either no buffer or an memory-based input buffer
+		if (transferEnvelope.getBuffer() == null) {
+
+			// No need to copy anything
+			final Iterator<ChannelID> localIt = receiverList.getLocalReceivers();
+
+			while (localIt.hasNext()) {
+
+				final ChannelID localReceiver = localIt.next();
+				synchronized (this.registeredChannels) {
+
+					final ByteBufferedChannelWrapper channelWrapper = this.registeredChannels.get(localReceiver);
+					if (channelWrapper == null) {
+						LOG.error("Cannot find local receiver " + localReceiver + " for job "
+							+ transferEnvelope.getJobID());
+						continue;
+					}
+					channelWrapper.queueTransferEnvelope(transferEnvelope);
+				}
+			}
+
+			final Iterator<InetSocketAddress> remoteIt = receiverList.getRemoteReceivers();
+
+			while (remoteIt.hasNext()) {
+
+				final InetSocketAddress remoteReceiver = remoteIt.next();
+				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
+			}
+
+		} else {
+
+			// Prepare envelopes
+			TransferEnvelope localEnvelope = null;
+			TransferEnvelope remoteEnvelope = null;
+			
+			if(transferEnvelope.getBuffer().isReadBuffer()) {
+				
+				localEnvelope = transferEnvelope;
+				if(receiverList.hasRemoteReceivers()) {
+					//TODO: Create remote envelope
+				}
+				
+			} else {
+				
+				remoteEnvelope = transferEnvelope;
+				if(receiverList.hasLocalReceivers()) {
+					//TODO: Create local envelope
+					System.out.println("Creating local envelope");
+				}
+				
+				
+			}
+			
+			
+		}
+
+	}
+
+	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID)
+			throws IOException, InterruptedException {
+
+		synchronized (this.receiverCache) {
+
+			TransferEnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
+			if (receiverList == null) {
+
+				while (true) {
+
+					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+							this.localConnectionInfo, jobID, sourceChannelID);
+
+					if (lookupResponse.receiverNotFound()) {
+						throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
+							+ sourceChannelID);
+					}
+
+					if (lookupResponse.receiverNotReady()) {
+						Thread.sleep(500);
+						continue;
+					}
+
+					if (lookupResponse.receiverReady()) {
+						receiverList = new TransferEnvelopeReceiverList(lookupResponse);
+						break;
+					}
+				}
+
+				if (receiverList == null) {
+					LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
+				} else {
+					this.receiverCache.put(sourceChannelID, receiverList);
+				}
+			}
+
+			return receiverList;
+		}
 	}
 }

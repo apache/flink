@@ -202,12 +202,12 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 			Buffer uncompressedDataBuffer = null;
 			if (bufferPairRequest.getCompressedDataBufferSize() >= 0) {
 				compressedDataBuffer = BufferFactory.createFromMemory(bufferPairRequest.getCompressedDataBufferSize(),
-					this.emptyWriteBuffers.poll(), this.emptyWriteBuffers);
+					this.emptyWriteBuffers.poll(), this.emptyWriteBuffers, false);
 			}
 
 			if (bufferPairRequest.getUncompressedDataBufferSize() >= 0) {
 				uncompressedDataBuffer = BufferFactory.createFromMemory(bufferPairRequest
-					.getUncompressedDataBufferSize(), this.emptyWriteBuffers.poll(), this.emptyWriteBuffers);
+					.getUncompressedDataBufferSize(), this.emptyWriteBuffers.poll(), this.emptyWriteBuffers, false);
 			}
 
 			return new BufferPairResponse(compressedDataBuffer, uncompressedDataBuffer);
@@ -231,12 +231,12 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 			Buffer uncompressedDataBuffer = null;
 			if (bufferPairRequest.getCompressedDataBufferSize() >= 0) {
 				compressedDataBuffer = BufferFactory.createFromMemory(bufferPairRequest.getCompressedDataBufferSize(),
-					this.emptyReadBuffers.poll(), this.emptyReadBuffers);
+					this.emptyReadBuffers.poll(), this.emptyReadBuffers, true);
 			}
 
 			if (bufferPairRequest.getUncompressedDataBufferSize() >= 0) {
 				uncompressedDataBuffer = BufferFactory.createFromMemory(bufferPairRequest
-					.getUncompressedDataBufferSize(), this.emptyReadBuffers.poll(), this.emptyReadBuffers);
+					.getUncompressedDataBufferSize(), this.emptyReadBuffers.poll(), this.emptyReadBuffers, true);
 			}
 			return new BufferPairResponse(compressedDataBuffer, uncompressedDataBuffer);
 		}
@@ -259,7 +259,7 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 			if ((this.emptyReadBuffers.size() - 2) > 0) { // -2 because there must be at least one buffer left if
 				// compression is enabled
 				return BufferFactory.createFromMemory(minimumSizeOfBuffer, this.emptyReadBuffers.poll(),
-					this.emptyReadBuffers);
+					this.emptyReadBuffers, true);
 			}
 
 			if (this.isSpillingAllowed) {

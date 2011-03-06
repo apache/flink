@@ -36,7 +36,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
 import eu.stratosphere.nephele.types.Record;
 
 public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannelBroker, ByteBufferedChannelWrapper {
@@ -46,7 +45,7 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	private final AbstractByteBufferedInputChannel<? extends Record> byteBufferedInputChannel;
 
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
-	
+
 	private final ReadBufferProvider readBufferProvider;
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
@@ -58,10 +57,10 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 	public ByteBufferedInputChannelWrapper(AbstractByteBufferedInputChannel<? extends Record> byteBufferedInputChannel,
 			TransferEnvelopeDispatcher transferEnvelopeDispatcher, ReadBufferProvider readBufferProvider) {
-		
+
 		this.byteBufferedInputChannel = byteBufferedInputChannel;
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
-		
+
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.readBufferProvider = readBufferProvider;
 	}
@@ -201,17 +200,16 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	}
 
 	@Override
-	public void transferEventToOutputChannel(AbstractEvent event) {
+	public void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException {
 
-		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(this.byteBufferedInputChannel.getID(),
-			this.byteBufferedInputChannel.getConnectedChannelID(), new TransferEnvelopeProcessingLog(true, false));
+		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
 
-		ephemeralTransferEnvelope.setSequenceNumber(0);
 		ephemeralTransferEnvelope.addEvent(event);
 		this.transferEnvelopeDispatcher.processEnvelope(ephemeralTransferEnvelope);
 	}
 
-	void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
+	@Override
+	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
 
 		synchronized (this.queuedEnvelopes) {
 			this.queuedEnvelopes.add(transferEnvelope);

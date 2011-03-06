@@ -84,7 +84,9 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
@@ -107,6 +109,7 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -120,7 +123,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
+public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol,
+		JobStatusListener {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -703,7 +707,8 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID, ChannelID targetChannelID) {
+	public ConnectionInfoLookupResponse lookupConnectionInfo(final InstanceConnectionInfo caller, final JobID jobID,
+			final ChannelID sourceChannelID) {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 		if (eg == null) {
@@ -711,28 +716,48 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
 
-		final ExecutionVertex vertex = eg.getVertexByChannelID(targetChannelID);
-		if (vertex == null) {
-			LOG.debug("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
-			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
+		if (outputChannel.isBroadcastChannel() && outputChannel.getType() != ChannelType.INMEMORY) {
+
+			// TODO: Implement broadcast functionality here
+
+		} else {
+
+			// Find vertex of connected input channel
+			final ExecutionVertex targetVertex = eg.getVertexByChannelID(outputChannel.getConnectedChannelID());
+			if (targetVertex == null) {
+				LOG.error("Cannot find vertex to input channel " + outputChannel.getConnectedChannelID());
+				return ConnectionInfoLookupResponse.createReceiverNotFound();
+			}
+
+			// Check execution state
+			final ExecutionState executionState = targetVertex.getExecutionState();
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			// TODO: Start vertex if in lazy mode
+
+			final AbstractInstance assignedInstance = targetVertex.getAllocatedResource().getInstance();
+			if (assignedInstance == null) {
+				LOG.error("Cannot resolve lookup: vertex found for channel ID " + outputChannel.getConnectedChannelID()
+					+ " but no instance assigned");
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
+				// Receiver runs on the same task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(outputChannel.getConnectedChannelID());
+			} else {
+				// Receiver runs on a different task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance
+					.getInstanceConnectionInfo());
+			}
 		}
 
-		final ExecutionState executionState = vertex.getExecutionState();
-		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
-			return ConnectionInfoLookupResponse.createReceiverNotReady();
-		}
+		LOG.error("Receiver(s) not found");
 
-		// TODO: Start vertex if in lazy mode
-
-		final AbstractInstance assignedInstance = vertex.getAllocatedResource().getInstance();
-
-		if (assignedInstance == null) {
-			LOG.debug("Cannot resolve lookup: vertex found for channel ID " + targetChannelID
-				+ " but no instance assigned");
-			return ConnectionInfoLookupResponse.createReceiverNotReady();
-		}
-
-		return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance.getInstanceConnectionInfo());
+		return ConnectionInfoLookupResponse.createReceiverNotFound();
 	}
 
 	/**

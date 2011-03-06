@@ -19,45 +19,32 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.jobgraph.JobID;
 
 public final class TransferEnvelope {
 
-	private ChannelID source = null;
+	private final JobID jobID;
 
-	private ChannelID target = null;
+	private final ChannelID source;
+
+	private final int sequenceNumber;
 
 	private EventList eventList;
 
-	private int sequenceNumber = -1;
-
 	private Buffer buffer = null;
 
-	private final TransferEnvelopeProcessingLog processingLog;
-
-	public TransferEnvelope(ChannelID source, ChannelID target, TransferEnvelopeProcessingLog processingLog) {
+	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source) {
+		this.sequenceNumber = sequenceNumber;
+		this.jobID = jobID;
 		this.source = source;
-		this.target = target;
-		this.processingLog = processingLog;
 	}
 
-	public TransferEnvelope() {
-		this.processingLog = null;
-	}
-
-	public void setSource(ChannelID source) {
-		this.source = source;
+	public JobID getJobID() {
+		return this.jobID;
 	}
 
 	public ChannelID getSource() {
 		return this.source;
-	}
-
-	public void setTarget(ChannelID target) {
-		this.target = target;
-	}
-
-	public ChannelID getTarget() {
-		return this.target;
 	}
 
 	public void addEvent(AbstractEvent event) {
@@ -82,36 +69,23 @@ public final class TransferEnvelope {
 		this.eventList = eventList;
 	}
 
-	public void setSequenceNumber(int sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
-	}
-
 	public int getSequenceNumber() {
 		return this.sequenceNumber;
 	}
 
 	public void setBuffer(Buffer buffer) {
 		this.buffer = buffer;
-
-		if (this.processingLog != null) {
-			this.processingLog.setBuffer(buffer);
-		}
 	}
 
 	public Buffer getBuffer() {
 		return this.buffer;
 	}
 
-	public TransferEnvelopeProcessingLog getProcessingLog() {
-		return this.processingLog;
-	}
-
 	public TransferEnvelope duplicate() {
 
-		final TransferEnvelope duplicatedTransferEnvelope = new TransferEnvelope(this.source, this.target,
-			this.processingLog);
+		final TransferEnvelope duplicatedTransferEnvelope = new TransferEnvelope(this.sequenceNumber, this.jobID,
+			this.source);
 
-		duplicatedTransferEnvelope.sequenceNumber = this.sequenceNumber;
 		duplicatedTransferEnvelope.eventList = this.eventList; // No need to duplicate event list
 		if (this.buffer != null) {
 			duplicatedTransferEnvelope.buffer = this.buffer.duplicate();

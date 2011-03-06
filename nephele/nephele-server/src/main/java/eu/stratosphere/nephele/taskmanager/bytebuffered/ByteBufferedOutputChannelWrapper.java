@@ -97,7 +97,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseWriteBuffers() {
+	public void releaseWriteBuffers() throws IOException, InterruptedException {
 
 		if (this.outgoingTransferEnvelope == null) {
 			LOG.error("Cannot find transfer envelope for channel with ID " + this.byteBufferedOutputChannel.getID());
@@ -132,7 +132,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	 * {@inheritDoc}
 	 */
 	@Override
-	public BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException {
+	public BufferPairResponse requestEmptyWriteBuffers() throws IOException, InterruptedException {
 
 		if (this.outgoingTransferEnvelope == null) {
 			this.outgoingTransferEnvelope = createNewOutgoingTransferEnvelope();
@@ -186,17 +186,15 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 
 	/**
 	 * Creates a new {@link TransferEnvelope} object. The method assigns
-	 * and increases the sequence number.
+	 * and increases the sequence number. Moreover, it will look up the list of receivers for this transfer envelope.
+	 * This method will block until the lookup is completed.
 	 * 
-	 * @return a new {@link TransferEnvelope} object
+	 * @return a new {@link TransferEnvelope} object containing the correct sequence number and receiver list
 	 */
 	private TransferEnvelope createNewOutgoingTransferEnvelope() {
 
-		final TransferEnvelope transferEnvelope = new TransferEnvelope(this.byteBufferedOutputChannel.getID(),
-			this.byteBufferedOutputChannel.getConnectedChannelID(), this.byteBufferedOutputChannelGroup
-				.getProcessingLog(this.byteBufferedOutputChannel.getType()));
-
-		transferEnvelope.setSequenceNumber(this.sequenceNumber++);
+		final TransferEnvelope transferEnvelope = new TransferEnvelope(this.sequenceNumber++, getJobID(),
+			getChannelID());
 
 		return transferEnvelope;
 	}
@@ -205,7 +203,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void transferEventToInputChannel(AbstractEvent event) {
+	public void transferEventToInputChannel(AbstractEvent event) throws InterruptedException, IOException {
 
 		if (this.outgoingTransferEnvelope != null) {
 			this.outgoingTransferEnvelope.addEvent(event);
@@ -279,5 +277,11 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	@Override
 	public void outOfByteBuffers() {
 		this.byteBufferedOutputChannel.channelCapacityExhausted();
+	}
+
+	@Override
+	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
+		// TODO Auto-generated method stub
+		
 	}
 }

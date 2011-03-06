@@ -493,8 +493,13 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * Immediately closes the input gate and all its input channels. The corresponding
 	 * output channels are notified. Any remaining records in any buffers or queue is considered
 	 * irrelevant and is discarded.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while closing the gate
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the gate to be closed
 	 */
-	public void close() {
+	public void close() throws IOException, InterruptedException {
 
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
@@ -543,7 +548,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
 		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();

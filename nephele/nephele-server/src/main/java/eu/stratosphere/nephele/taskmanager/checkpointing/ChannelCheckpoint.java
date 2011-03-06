@@ -113,7 +113,8 @@ public class ChannelCheckpoint {
 		while (this.transferEnvelopeSerializer.write(this.fileChannel))
 			;
 
-		transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+		//TODO: Mark transfer envelope as processed
+		//transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 	}
 
 	public synchronized void makePersistent() throws IOException {
@@ -146,7 +147,8 @@ public class ChannelCheckpoint {
 		while (it.hasNext()) {
 
 			final TransferEnvelope transferEnvelope = it.next();
-			transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+			//TODO: Mark transfer envelope as processed
+			//transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 		}
 
 		this.queuedEnvelopes.clear();

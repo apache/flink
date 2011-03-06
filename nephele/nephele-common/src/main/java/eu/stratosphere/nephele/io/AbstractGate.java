@@ -179,8 +179,10 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	 *        the event to be published
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public abstract void publishEvent(final AbstractTaskEvent event) throws IOException;
+	public abstract void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException;
 
 	/**
 	 * Sets the type of the input/output channels which are connected to this gate.

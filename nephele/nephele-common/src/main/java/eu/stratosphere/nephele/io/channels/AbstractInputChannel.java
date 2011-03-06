@@ -97,8 +97,13 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 * Immediately closes the input channel. The corresponding output channels are
 	 * notified if necessary. Any remaining records in any buffers or queue is considered
 	 * irrelevant and is discarded.
+	 * 
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the channel to close
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while closing the channel
 	 */
-	public abstract void close();
+	public abstract void close() throws IOException, InterruptedException;
 
 	// TODO: See if type safety can be improved here
 	@SuppressWarnings("unchecked")

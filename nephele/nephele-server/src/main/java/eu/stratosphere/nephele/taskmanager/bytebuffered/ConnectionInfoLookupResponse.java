@@ -104,6 +104,15 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		return (this.returnCode == ReturnCode.FOUND_AND_RECEIVER_READY);
 	}
 
+	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(ChannelID targetChannelID) {
+
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
+		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
+		response.addLocalTarget(targetChannelID);
+
+		return response;
+	}
+
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(InstanceConnectionInfo instanceConnectionInfo) {
 
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();

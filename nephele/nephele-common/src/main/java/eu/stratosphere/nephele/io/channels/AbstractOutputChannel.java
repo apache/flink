@@ -84,8 +84,13 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	 * Requests the output channel to close. After calling this method no more records can be written
 	 * to the channel. The channel is finally closed when all remaining data that may exist in internal buffers
 	 * are written to the channel.
+	 * 
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while requesting the close operation
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while requesting the close operation
 	 */
-	public abstract void requestClose() throws IOException;
+	public abstract void requestClose() throws IOException, InterruptedException;
 
 	@Override
 	public void read(DataInput in) throws IOException {
@@ -162,7 +167,7 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 		return false;
 	}
 
-	public abstract void flush() throws IOException;
+	public abstract void flush() throws IOException, InterruptedException;
 
 	/**
 	 * {@inheritDoc}

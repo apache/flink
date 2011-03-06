@@ -15,23 +15,19 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.util.Iterator;
+import java.io.IOException;
 
-import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.WriteBufferProvider;
 import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
 import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
 
 /**
  * A byte buffered output channel group forwards all outgoing {@link TransferEnvelope} objects from
@@ -112,56 +108,34 @@ public final class ByteBufferedOutputChannelGroup {
 	 *        the transfer envelope to be forwarded
 	 */
 	public void processEnvelope(ByteBufferedOutputChannelWrapper channelWrapper,
-			TransferEnvelope outgoingTransferEnvelope) {
+			TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
 
-		final TransferEnvelopeProcessingLog processingLog = outgoingTransferEnvelope.getProcessingLog();
+		// TODO: Adapt code to work with checkpointing again
+		/*
+		 * final TransferEnvelopeReceiverList processingLog = outgoingTransferEnvelope.getProcessingLog();
+		 * // Check if the provided envelope must be written to the checkpoint
+		 * if (this.ephemeralCheckpoint != null && processingLog.mustBeWrittenToCheckpoint()) {
+		 * this.ephemeralCheckpoint.addTransferEnvelope(outgoingTransferEnvelope);
+		 * // Look for a close event
+		 * final EventList eventList = outgoingTransferEnvelope.getEventList();
+		 * if (!eventList.isEmpty() && this.commonChannelType == ChannelType.FILE) {
+		 * final Iterator<AbstractEvent> it = eventList.iterator();
+		 * while (it.hasNext()) {
+		 * if (it.next() instanceof ByteBufferedChannelCloseEvent) {
+		 * // Mark corresponding channel as closed
+		 * this.ephemeralCheckpoint.markChannelAsFinished(outgoingTransferEnvelope.getSource());
+		 * // If checkpoint is persistent it is save to acknowledge the close event
+		 * if (this.ephemeralCheckpoint.isPersistent()) {
+		 * channelWrapper.processEvent(new ByteBufferedChannelCloseEvent());
+		 * }
+		 * break;
+		 * }
+		 * }
+		 * }
+		 * }
+		 */
 
-		// Check if the provided envelope must be written to the checkpoint
-		if (this.ephemeralCheckpoint != null && processingLog.mustBeWrittenToCheckpoint()) {
-
-			this.ephemeralCheckpoint.addTransferEnvelope(outgoingTransferEnvelope);
-
-			// Look for a close event
-			final EventList eventList = outgoingTransferEnvelope.getEventList();
-			if (!eventList.isEmpty() && this.commonChannelType == ChannelType.FILE) {
-
-				final Iterator<AbstractEvent> it = eventList.iterator();
-				while (it.hasNext()) {
-
-					if (it.next() instanceof ByteBufferedChannelCloseEvent) {
-						// Mark corresponding channel as closed
-						this.ephemeralCheckpoint.markChannelAsFinished(outgoingTransferEnvelope.getSource());
-
-						// If checkpoint is persistent it is save to acknowledge the close event
-						if (this.ephemeralCheckpoint.isPersistent()) {
-							channelWrapper.processEvent(new ByteBufferedChannelCloseEvent());
-						}
-
-						break;
-					}
-				}
-			}
-		}
-
-		// Check if the provided envelope must be sent via the network
-		if (processingLog.mustBeSentViaNetwork()) {
-			this.transferEnvelopeDispatcher.processEnvelope(outgoingTransferEnvelope);
-		}
-	}
-
-	/**
-	 * Called by the channel wrapper to retrieve a new processing log for a
-	 * transfer envelope. The processing log determines whether the envelope
-	 * is later written to the checkpoint, sent via the network, or both.
-	 * 
-	 * @param individualChannelType
-	 *        the type of the individual channel asking for the processing log
-	 * @return the newly created processing log.
-	 */
-	public TransferEnvelopeProcessingLog getProcessingLog(final ChannelType individualChannelType) {
-
-		return new TransferEnvelopeProcessingLog((individualChannelType == ChannelType.NETWORK),
-			(this.ephemeralCheckpoint != null));
+		this.transferEnvelopeDispatcher.processEnvelope(outgoingTransferEnvelope);
 	}
 
 	/**

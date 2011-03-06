@@ -294,8 +294,11 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	/**
 	 * Requests the output gate to closed. This means the application will send
 	 * no records through this gate anymore.
+	 * 
+	 * @throws IOException
+	 * @throws InterruptedException
 	 */
-	public void requestClose() throws IOException {
+	public void requestClose() throws IOException, InterruptedException {
 		// Close all output channels
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
 			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
@@ -498,14 +501,10 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	}
 
 	/**
-	 * Publishes an event.
-	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
+	 * {@inheritDoc}
 	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	@Override
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
@@ -519,8 +518,10 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurs while flushing an output channel
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the data to be flushed
 	 */
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		// Flush all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
 		while (it.hasNext()) {

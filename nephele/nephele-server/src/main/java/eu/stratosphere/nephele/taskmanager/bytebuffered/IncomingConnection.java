@@ -122,7 +122,11 @@ public class IncomingConnection {
 
 		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
 		if (transferEnvelope != null) {
-			this.transferEnvelopeDispatcher.processEnvelope(transferEnvelope);
+			try {
+				this.transferEnvelopeDispatcher.processEnvelope(transferEnvelope);
+			} catch (InterruptedException e) {
+				LOG.debug(StringUtils.stringifyException(e));
+			}
 		}
 
 	}

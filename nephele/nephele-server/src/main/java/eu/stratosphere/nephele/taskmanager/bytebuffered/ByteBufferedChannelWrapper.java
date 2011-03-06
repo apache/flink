@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 public interface ByteBufferedChannelWrapper {
 
@@ -31,4 +32,6 @@ public interface ByteBufferedChannelWrapper {
 	public ChannelID getConnectedChannelID();
 
 	public void reportIOException(IOException ioe);
+	
+	public void queueTransferEnvelope(TransferEnvelope transferEnvelope);
 }

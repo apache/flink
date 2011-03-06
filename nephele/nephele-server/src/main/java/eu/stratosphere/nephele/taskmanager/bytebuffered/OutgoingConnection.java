@@ -29,7 +29,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeProcessingLog;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
 
 /**
@@ -364,12 +363,7 @@ public class OutgoingConnection {
 
 			// Make sure we recycle the attached memory or file buffers correctly
 			if (this.currentEnvelope.getBuffer() != null) {
-				final TransferEnvelopeProcessingLog processingLog = this.currentEnvelope.getProcessingLog();
-				if (processingLog != null) {
-					processingLog.setSentViaNetwork();
-				} else {
-					this.currentEnvelope.getBuffer().recycleBuffer();
-				}
+				this.currentEnvelope.getBuffer().recycleBuffer();
 			}
 
 			synchronized (this.queuedEnvelopes) {
@@ -436,16 +430,13 @@ public class OutgoingConnection {
 	}
 
 	/**
-	 * Returns the number of queued {@link TransferEnvelope} objects with the given channel ID. The
-	 * flag <code>source</code> states whether the given channel ID refers to the source or the destination channel ID.
+	 * Returns the number of queued {@link TransferEnvelope} objects with the given source channel ID.
 	 * 
-	 * @param channelID
-	 *        the channel ID to count the queued envelopes for
-	 * @param source
-	 *        <code>true</code> to indicate the given channel ID refers to the source, <code>false</code> otherwise
-	 * @return the number of queued transfer envelopes for the given channel ID
+	 * @param sourceChannelID
+	 *        the source channel ID to count the queued envelopes for
+	 * @return the number of queued transfer envelopes with the given source channel ID
 	 */
-	public int getNumberOfQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
+	public int getNumberOfQueuedEnvelopesFromChannel(final ChannelID sourceChannelID) {
 
 		synchronized (this.queuedEnvelopes) {
 
@@ -454,14 +445,8 @@ public class OutgoingConnection {
 			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
 			while (it.hasNext()) {
 				final TransferEnvelope te = it.next();
-				if (source) {
-					if (channelID.equals(te.getSource())) {
-						number++;
-					}
-				} else {
-					if (channelID.equals(te.getTarget())) {
-						number++;
-					}
+				if (sourceChannelID.equals(te.getSource())) {
+					number++;
 				}
 			}
 
@@ -470,24 +455,20 @@ public class OutgoingConnection {
 	}
 
 	/**
-	 * Removes all queued {@link TransferEnvelope} objects from the transmission which match the given channel ID. The
-	 * flag <code>source</code> states whether the given channel ID refers to the source or the destination channel ID.
-	 * <p>
-	 * This method should only be called by the byte buffered channel manager.
+	 * Removes all queued {@link TransferEnvelope} objects from the transmission which match the given source channel
+	 * ID.
 	 * 
-	 * @param channelID
-	 *        the channel ID to count the queued envelopes for
-	 * @param source
-	 *        <code>true</code> to indicate the given channel ID refers to the source, <code>false</code> otherwise
+	 * @param sourceChannelID
+	 *        the source channel ID of the transfered transfer envelopes to be dropped
 	 */
-	public void dropAllQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
+	public void dropAllQueuedEnvelopesFromChannel(final ChannelID sourceChannelID) {
 
 		synchronized (this.queuedEnvelopes) {
 
 			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
 			while (it.hasNext()) {
 				final TransferEnvelope te = it.next();
-				if ((source && channelID.equals(te.getSource())) || (!source && channelID.equals(te.getTarget()))) {
+				if (sourceChannelID.equals(te.getSource())) {
 					it.remove();
 					if (te.getBuffer() != null) {
 						te.getBuffer().recycleBuffer();
