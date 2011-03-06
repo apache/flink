@@ -146,6 +146,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	private String taskName;
 
 	/**
+	 * Stores whether the task has been canceled.
+	 */
+	private volatile boolean isCanceled = false;
+
+	/**
 	 * Creates a new environment object which contains the runtime information for the encapsulated Nephele task.
 	 * 
 	 * @param jobID
@@ -340,18 +345,39 @@ public class Environment implements Runnable, IOReadableWritable {
 		try {
 			this.invokable.invoke();
 
-			// Make sure we switch to the right state, even if the user code has not hit an {@link InterruptedException}
-			if (this.executingThread.isInterrupted()) {
+			// Make sure, we enter the catch block when the task has been canceled
+			if (this.isCanceled) {
 				throw new InterruptedException();
 			}
 
-		} catch (InterruptedException e) {
-			changeExecutionState(ExecutionState.CANCELLED, null);
-			// TODO: Do we really have to return here? (Rethink clean up strategy)
-			return;
 		} catch (Exception e) {
-			// Report exception
-			changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+
+			if (!this.isCanceled) {
+
+				// Perform clean up when the task failed and has been not canceled by the user
+				try {
+					this.invokable.cancel();
+				} catch (Exception e2) {
+					LOG.error(StringUtils.stringifyException(e2));
+				}
+			}
+
+			// Request closing of input and output gates, but don't wait for it
+			/*try { //TODO: Fix this
+				closeInputGates();
+
+				requestAllOutputGatesToClose();
+
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+			}*/
+
+			if (this.isCanceled) {
+				changeExecutionState(ExecutionState.CANCELED, null);
+			} else {
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+			}
+
 			return;
 		}
 
@@ -471,11 +497,20 @@ public class Environment implements Runnable, IOReadableWritable {
 			return;
 		}
 
-		// Interrupt the executing thread
-		this.executingThread.interrupt();
+		this.isCanceled = true;
 
 		// Change state
-		changeExecutionState(ExecutionState.CANCELLING, null);
+		changeExecutionState(ExecutionState.CANCELING, null);
+
+		// Request user code to shut down
+		try {
+			this.invokable.cancel();
+		} catch (Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
+
+		// Interrupt the executing thread
+		this.executingThread.interrupt();
 	}
 
 	// TODO: See if type safety can be improved here
@@ -941,25 +976,25 @@ public class Environment implements Runnable, IOReadableWritable {
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled after an instance request has been triggered.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled after an instance request has been triggered.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled that is not yet running on the task manager.
 			 */
@@ -972,10 +1007,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.executionState == ExecutionState.FINISHING && newExecutionState == ExecutionState.FAILED) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.CANCELLING) {
+		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.CANCELING) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.CANCELLING && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.CANCELING && newExecutionState == ExecutionState.CANCELED) {
 			unexpectedStateChange = false;
 		}
 

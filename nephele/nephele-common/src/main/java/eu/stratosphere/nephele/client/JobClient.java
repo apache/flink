@@ -307,7 +307,7 @@ public class JobClient {
 					if (jobStatus == JobStatus.FINISHED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						return;
-					} else if (jobStatus == JobStatus.CANCELLED || jobStatus == JobStatus.FAILED) {
+					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
 						throw new JobExecutionException(jobEvent.getOptionalMessage());

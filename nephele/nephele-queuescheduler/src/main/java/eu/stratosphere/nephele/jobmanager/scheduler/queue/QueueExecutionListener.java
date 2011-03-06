@@ -20,12 +20,12 @@ import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
 
 /**
  * This is a wrapper class for the {@link QueueScheduler} to receive
  * notifications about state changes of vertices belonging
  * to scheduled jobs.
+ * <p>
  * This class is thread-safe.
  * 
  * @author warneke
@@ -63,7 +63,7 @@ public class QueueExecutionListener implements ExecutionListener {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELLED
+		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 			|| newExecutionState == ExecutionState.FAILED) {
 			// Check if instance can be released
 			this.queueScheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
@@ -75,13 +75,6 @@ public class QueueExecutionListener implements ExecutionListener {
 				// Reschedule vertex
 				this.executionVertex.setExecutionState(ExecutionState.SCHEDULED);
 			}
-		}
-
-		final ExecutionGraph executionGraph = this.executionVertex.getExecutionGraph();
-		final JobStatus jobStatus = executionGraph.getJobStatus();
-
-		if (jobStatus == JobStatus.FAILED || jobStatus == JobStatus.FINISHED || jobStatus == JobStatus.CANCELLED) {
-			this.queueScheduler.removeJobFromSchedule(executionGraph);
 		}
 	}
 
