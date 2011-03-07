@@ -720,6 +720,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		if (outputChannel.isBroadcastChannel() && outputChannel.getType() != ChannelType.INMEMORY) {
 
 			// TODO: Implement broadcast functionality here
+			// will do so! ;)
 
 		} else {
 
