@@ -25,12 +25,14 @@
     	<version>${version}</version>
     </dependency>
 
+    
     <dependency>
     	<groupId>eu.stratosphere</groupId>
     	<artifactId>pact-common</artifactId>
     	<version>${version}</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
     </dependency>
-    
   </dependencies>
 
   <reporting>

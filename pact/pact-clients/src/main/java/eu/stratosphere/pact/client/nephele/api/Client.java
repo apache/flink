@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -134,7 +135,24 @@ public class Client {
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
 	public void run(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
-		run(prog, getOptimizedPlan(prog));
+		run(prog, false);
+	}
+	
+	/**
+	 * Runs a pact program on the nephele system whose job-manager is configured in this client's configuration.
+	 * This method involves all steps, from compiling, job-graph generation to submission.
+	 * 
+	 * @param prog The program to be executed.
+	 * @param wait A flag that indicates whether this function call should block until the program execution is done.
+	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
+	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file,
+	 *                                    or if the submission failed. That might be either due to an I/O problem,
+	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
+	 *                                    on the nephele system failed.
+	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 */
+	public void run(PactProgram prog, boolean wait) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		run(prog, getOptimizedPlan(prog), wait);
 	}
 	
 	/**
@@ -149,8 +167,24 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 */
 	public void run(PactProgram prog, OptimizedPlan compiledPlan) throws ProgramInvocationException {
+		run(prog, compiledPlan, false);
+	}
+	
+	/**
+	 * Submits the given program to the nephele job-manager for execution. The first step of teh compilation process is skipped and
+	 * the given compiled plan is taken.
+	 * 
+	 * @param prog The original pact program.
+	 * @param compiledPlan The optimized plan.
+	 * @param wait A flag that indicates whether this function call should block until the program execution is done.
+	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file,
+	 *                                    or if the submission failed. That might be either due to an I/O problem,
+	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
+	 *                                    on the nephele system failed.
+	 */
+	public void run(PactProgram prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(prog, compiledPlan);
-		run(job);
+		run(job, wait);
 	}
 
 	/**
@@ -162,10 +196,19 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 */
 	public void run(JobGraph jobGraph) throws ProgramInvocationException {
+		run (jobGraph, false);
+	}
+	/**
+	 * Submits the job-graph to the nephele job-manager for execution.
+	 * 
+	 * @param prog The program to be submitted.
+	 * @throws ProgramInvocationException Thrown, if the submission failed. That might be either due to an I/O problem,
+	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
+	 *                                    on the nephele system failed.
+	 */
+	public void run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 		// submit job to nephele
 		nepheleConfig.setBoolean("jobclient.shutdown.terminatejob", false); // TODO: terminate job logic is broken
-
-		JobSubmissionResult result = null;
 
 		JobClient client;
 		try {
@@ -175,15 +218,23 @@ public class Client {
 		}
 
 		try {
-			result = client.submitJob();
-		} catch (IOException e) {
+			if (wait) {
+				client.submitJobAndWait();
+			}
+			else {
+				JobSubmissionResult result = client.submitJob();
+				
+				if (result.getReturnCode() != ReturnCode.SUCCESS) {
+					throw new ProgramInvocationException("The job was not successfully submitted to the nephele job manager"
+						+ (result.getDescription() == null ? "." : ": " + result.getDescription()));
+				}
+			}
+		}
+		catch (IOException e) {
 			throw new ProgramInvocationException("Could not submit job to job manager: " + e.getMessage());
 		}
-
-		if (result.getReturnCode() != ReturnCode.SUCCESS) {
-			throw new ProgramInvocationException("The job was not successfully submitted to the nephele job manager"
-				+ (result.getDescription() == null ? "." : ": " + result.getDescription()));
-			// (result.getDescription() == null ? "." : ": " + result.getDescription().split("\n")[0]));
+		catch (JobExecutionException jex) {
+			throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 		}
 	}
 }
