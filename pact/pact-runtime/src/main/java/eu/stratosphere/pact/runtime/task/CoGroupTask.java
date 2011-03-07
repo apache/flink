@@ -381,10 +381,10 @@ public class CoGroupTask extends AbstractTask {
 			}
 		}
 		catch (IOException ioe) {
-			throw new RuntimeException("Error occured during processing CoGroupTask", ioe);
+			throw new RuntimeException("An IO error occured during processing CoGroupTask", ioe);
 		}
-		catch (InterruptedException ie) {
-			throw new RuntimeException("Error occured during processing CoGroupTask", ie);
+		catch (Throwable t) {
+			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
 		}
 		finally {
 			// close CoGroupTaskIterator
@@ -403,7 +403,7 @@ public class CoGroupTask extends AbstractTask {
 	}
 
 	// ------------------------------------------------------------------------
-	// Typed access methods
+	//                        Typed access methods
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")

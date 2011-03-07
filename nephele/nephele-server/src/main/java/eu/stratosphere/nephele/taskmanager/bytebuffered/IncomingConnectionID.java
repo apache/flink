@@ -75,10 +75,16 @@ public class IncomingConnectionID {
 	@Override
 	public boolean equals(Object obj) {
 
+		if (!(obj instanceof IncomingConnectionID)) {
+			return false;
+		}
+
+		final IncomingConnectionID ici = (IncomingConnectionID) obj;
+
 		if (this.inetAddress != null) {
-			return this.inetAddress.equals(obj);
+			return this.inetAddress.equals(ici.inetAddress);
 		} else {
-			return this.fileName.equals(obj);
+			return this.fileName.equals(ici.fileName);
 		}
 	}
 
@@ -94,13 +100,13 @@ public class IncomingConnectionID {
 			return this.fileName.hashCode();
 		}
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public String toString() {
-		
+
 		if (this.inetAddress != null) {
 			return this.inetAddress.toString();
 		} else {

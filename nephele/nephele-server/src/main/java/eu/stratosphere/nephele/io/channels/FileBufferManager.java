@@ -54,6 +54,10 @@ public class FileBufferManager {
 
 	private final String tmpDir;
 
+	private static enum FileEntryStatus {
+		CLOSED, WRITING, WRITING_BUT_READ_REQUESTED
+	};
+
 	/**
 	 * Objects of this class store management information of each channel
 	 * pair that uses file buffers.
@@ -64,17 +68,7 @@ public class FileBufferManager {
 	 */
 	private class FileBufferManagerEntry {
 
-		/**
-		 * Stores whether the reading thread is currently waiting
-		 * for an input file to be closed.
-		 */
-		private boolean readAttemptInProgress = false;
-
-		/**
-		 * Stores if there is currently a writing thread which
-		 * could write the input file.
-		 */
-		private boolean writeAttemptInProgress = false;
+		private FileEntryStatus status = FileEntryStatus.CLOSED;
 
 		/**
 		 * Stores whether the data written to disk by this
@@ -83,16 +77,8 @@ public class FileBufferManager {
 		 */
 		private final boolean isTemporaryFile;
 
-		/**
-		 * The channel which is currently used to
-		 * read from an output file.
-		 */
 		private FileChannel fileChannelForReading = null;
 
-		/**
-		 * The channel which is currently used to
-		 * write to the input file.
-		 */
 		private FileChannel fileChannelForWriting = null;
 
 		/**
@@ -104,11 +90,8 @@ public class FileBufferManager {
 		/**
 		 * A list of output files ready to be read.
 		 */
-		private Deque<File> filesForReading = new ArrayDeque<File>();
+		private final Deque<File> filesForReading = new ArrayDeque<File>();
 
-		/**
-		 * The file which is used as the current input file.
-		 */
 		private File currentFileForWriting = null;
 
 		/**
@@ -152,19 +135,15 @@ public class FileBufferManager {
 				return this.fileChannelForReading;
 			}
 
-			this.readAttemptInProgress = true;
-
 			try {
 
-				while (this.filesForReading.isEmpty()) {
+				if (this.status == FileEntryStatus.CLOSED) {
+					closeCurrentWriteFile();
+				}
 
-					// System.out.println("Size: " + this.filesForReading.size() + ", " + this.writeAttemptInProgress +
-					// ", " + this.fileChannelForWriting);
-					if (!this.writeAttemptInProgress && this.fileChannelForWriting != null) {
-						closeCurrentWriteFile();
-					} else {
-						this.wait();
-					}
+				while (this.filesForReading.isEmpty()) {
+					this.status = FileEntryStatus.WRITING_BUT_READ_REQUESTED;
+					this.wait();
 				}
 
 				final File file = this.filesForReading.peek();
@@ -172,14 +151,25 @@ public class FileBufferManager {
 				final FileInputStream fis = new FileInputStream(file);
 				this.fileChannelForReading = fis.getChannel();
 			} catch (InterruptedException e) {
-				e.printStackTrace(); // TODO: Handle this correctly
-			} finally {
-				this.readAttemptInProgress = false;
+				LOG.error(e);
 			}
 
 			return this.fileChannelForReading;
 		}
 
+		private void closeCurrentWriteFile() throws IOException {
+
+			if (this.fileChannelForWriting != null) {
+
+				this.fileChannelForWriting.close();
+				this.fileChannelForWriting = null;
+
+				this.filesForReading.add(this.currentFileForWriting);
+				this.notify();
+				this.currentFileForWriting = null;
+			}
+		}
+		
 		/**
 		 * Returns the channel the writing thread is supposed to use to
 		 * write data to the file.
@@ -197,7 +187,7 @@ public class FileBufferManager {
 				this.fileChannelForWriting = fos.getChannel();
 			}
 
-			this.writeAttemptInProgress = true;
+			this.status = FileEntryStatus.WRITING;
 			return this.fileChannelForWriting;
 		}
 
@@ -225,35 +215,17 @@ public class FileBufferManager {
 			}
 		}
 
-		/**
-		 * Closes the current input file and adds it to
-		 * the list of files which are ready to be read
-		 * from.
-		 * 
-		 * @throws IOException
-		 *         thrown if an error occurs while closing the input file
-		 */
-		private void closeCurrentWriteFile() throws IOException {
-
-			this.fileChannelForWriting.close();
-			this.filesForReading.add(this.currentFileForWriting);
-			this.currentFileForWriting = null;
-			this.fileChannelForWriting = null;
-			notify();
-		}
-
-		private synchronized boolean cleanUpPossible() {
-
-			return (this.fileChannelForWriting == null);
-		}
-
 		private synchronized void reportEndOfWritePhase() throws IOException {
 
-			if (this.readAttemptInProgress) {
+			if (this.status == FileEntryStatus.CLOSED) {
+				throw new IOException("reportEndOfWritePhase is called, but file entry status is CLOSED");
+			}
+
+			if (this.status == FileEntryStatus.WRITING_BUT_READ_REQUESTED) {
 				closeCurrentWriteFile();
 			}
 
-			this.writeAttemptInProgress = false;
+			this.status = FileEntryStatus.CLOSED;
 		}
 	}
 
@@ -319,19 +291,10 @@ public class FileBufferManager {
 
 	public void reportFileBufferAsConsumed(ChannelID sourceChannelID) {
 
+		FileBufferManagerEntry fbme = null;
 		synchronized (this.dataSources) {
 
-			FileBufferManagerEntry fbme = this.dataSources.get(sourceChannelID);
-			if (fbme == null) {
-				LOG.error("Cannot find data source for channel " + sourceChannelID + " to mark buffer as consumed");
-				return;
-			}
-
-			try {
-				fbme.checkForEndOfFile();
-			} catch (IOException ioe) {
-				LOG.error(ioe);
-			}
+			fbme = this.dataSources.get(sourceChannelID);
 
 			// Clean up
 			// TODO: Fix this
@@ -340,6 +303,17 @@ public class FileBufferManager {
 			 * this.dataSources.remove(sourceChannelID);
 			 * }
 			 */
+		}
+		
+		if (fbme == null) {
+			LOG.error("Cannot find data source for channel " + sourceChannelID + " to mark buffer as consumed");
+			return;
+		}
+		
+		try {
+			fbme.checkForEndOfFile();
+		} catch (IOException ioe) {
+			LOG.error(ioe);
 		}
 	}
 

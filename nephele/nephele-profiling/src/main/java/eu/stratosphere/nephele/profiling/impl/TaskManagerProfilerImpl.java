@@ -262,7 +262,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 					this.jobManagerProfiler.reportProfilingData(this.profilingDataContainer);
 					this.profilingDataContainer.clear();
 				} catch (IOException e) {
-					e.printStackTrace();
+					LOG.error(e);
 				}
 			}
 		}

@@ -34,7 +34,9 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -71,6 +73,8 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
+import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -86,10 +90,8 @@ import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
-import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.optimizer.Optimizer;
@@ -118,8 +120,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol,
-		SchedulingListener {
+public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -153,13 +154,26 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
 
+		final String ipcAddressString = GlobalConfiguration
+			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+
+		InetAddress ipcAddress = null;
+		if (ipcAddressString != null) {
+			try {
+				ipcAddress = InetAddress.getByName(ipcAddressString);
+			} catch (UnknownHostException e) {
+				LOG.error("Cannot convert " + ipcAddressString + " to an IP address: "
+					+ StringUtils.stringifyException(e));
+				System.exit(FAILURERETURNCODE);
+			}
+		}
+
 		final int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-		;
 
 		// First of all, start discovery manager
 		try {
-			DiscoveryService.startDiscoveryService(ipcPort);
+			DiscoveryService.startDiscoveryService(ipcAddress, ipcPort);
 		} catch (DiscoveryException e) {
 			LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
 			System.exit(FAILURERETURNCODE);
@@ -169,7 +183,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger("jobclient.polling.internval", 5);
 
 		// Determine own RPC address
-		final InetSocketAddress rpcServerAddress = new InetSocketAddress(DiscoveryService.getServiceAddress(), ipcPort);
+		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
 
 		// Start job manager's IPC server
 		try {
@@ -209,7 +223,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		LOG.info("Trying to load " + schedulerClassName + " as scheduler");
 
 		// Try to get the instance manager class name
-		this.scheduler = JobManagerUtils.loadScheduler(schedulerClassName, this, this.instanceManager);
+		this.scheduler = JobManagerUtils.loadScheduler(schedulerClassName, this.instanceManager);
 		if (this.scheduler == null) {
 			LOG.error("Unable to load scheduler " + schedulerClassName);
 			System.exit(FAILURERETURNCODE);
@@ -223,7 +237,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				LOG.error("Cannot find class name for the profiler");
 				System.exit(FAILURERETURNCODE);
 			}
-			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName);
+			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName, ipcAddress);
 			if (this.profiler == null) {
 				LOG.error("Cannot load profiler");
 				System.exit(FAILURERETURNCODE);
@@ -475,6 +489,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			this.optimizer.optimize(eg);
 		}
 
+		// Register for updates on the job status
+		eg.registerJobStatusListener(this);
+
 		// Schedule job
 		LOG.info("Scheduling job " + job.getName());
 		try {
@@ -555,8 +572,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 							continue;
 						}
 					} catch (ExecutionFailureException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						LOG.error(e);
 					}
 				}
 				/*
@@ -653,9 +669,13 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			false, true);
 		while (it.hasNext()) {
 
-			final TaskCancelResult result = it.next().cancelTask();
-			if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
-				errorResult = result;
+			final ExecutionVertex vertex = it.next();
+			final ExecutionState state = vertex.getExecutionState();
+			if (state == ExecutionState.RUNNING) {
+				final TaskCancelResult result = vertex.cancelTask();
+				if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+					errorResult = result;
+				}
 			}
 		}
 
@@ -804,34 +824,6 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	}
 
 	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void jobRemovedFromScheduler(ExecutionGraph executionGraph) {
-
-		LOG.info("Job " + executionGraph.getJobName() + " (" + executionGraph.getJobID() + ") removed from scheduler");
-
-		final JobStatus jobStatus = executionGraph.getJobStatus();
-		if (jobStatus != JobStatus.FINISHED && jobStatus != JobStatus.FAILED && jobStatus != JobStatus.CANCELLED) {
-			LOG.error("Job " + executionGraph.getJobName() + " removed from scheduler with unexpected status "
-				+ jobStatus);
-		}
-
-		// Remove all checkpoints for a successfully finished job
-		if (jobStatus == JobStatus.FINISHED) {
-			removeAllCheckpoints(executionGraph);
-		}
-
-		if (jobStatus == JobStatus.FAILED) {
-			// Make sure all tasks are really removed
-			cancelJob(executionGraph);
-		}
-
-		// Unregister job for Nephele's monitoring and optimization components
-		unregisterJob(executionGraph);
-	}
-
-	/**
 	 * Collects all vertices with checkpoints from the given execution graph and advices the corresponding task managers
 	 * to remove those checkpoints.
 	 * 
@@ -840,8 +832,8 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 */
 	private void removeAllCheckpoints(ExecutionGraph executionGraph) {
 
-		final JobStatus jobStatus = executionGraph.getJobStatus();
-		if (jobStatus != JobStatus.FINISHED) {
+		final InternalJobStatus jobStatus = executionGraph.getJobStatus();
+		if (jobStatus != InternalJobStatus.FINISHED) {
 			LOG.error("removeAllCheckpoints called for an unsuccesfull job, ignoring request");
 		}
 
@@ -909,5 +901,33 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 		// Delegate call to the instance manager
 		return this.instanceManager.getMapOfAvailableInstanceTypes();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
+			String optionalMessage) {
+
+		LOG.info("Status of job " + executionGraph.getJobName() + "(" + executionGraph.getJobID() + ")"
+			+ " changed to " + newJobStatus);
+
+		if (newJobStatus == InternalJobStatus.CANCELING || newJobStatus == InternalJobStatus.FAILING) {
+
+			// Cancel all remaining tasks
+			cancelJob(executionGraph);
+		}
+
+		// Remove all checkpoints for a successfully finished job
+		if (newJobStatus == InternalJobStatus.FINISHED) {
+			removeAllCheckpoints(executionGraph);
+		}
+
+		if (newJobStatus == InternalJobStatus.CANCELED || newJobStatus == InternalJobStatus.FAILED
+			|| newJobStatus == InternalJobStatus.FINISHED) {
+			// Unregister job for Nephele's monitoring and optimization components
+			unregisterJob(executionGraph);
+		}
 	}
 }

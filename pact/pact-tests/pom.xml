@@ -114,7 +114,6 @@
 						<exclude>**/*TestBase*.class</exclude>
 					</excludes>
 					<forkMode>once</forkMode>
-					<argLine>-Xms512m -Xmx1024m</argLine>
 				</configuration>
 			</plugin>
 			
@@ -127,6 +126,9 @@
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
+					<forkMode>always</forkMode>
+					<threadCount>1</threadCount>
+					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
       

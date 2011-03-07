@@ -12,23 +12,20 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.pact.example.relational.types.tpch9;
 
-package eu.stratosphere.nephele.jobmanager.scheduler;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactPair;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+public class IntPair extends PactPair<PactInteger, PactInteger> {
+	public IntPair() {
+	}
 
-/**
- * This interface can be implemented in order to receive notifications about certain scheduling events.
- * 
- * @author warneke
- */
-public interface SchedulingListener {
+	public IntPair(PactInteger first, PactInteger second) {
+		super(first, second);
+	}
 
-	/**
-	 * Called by the scheduler to indicate that the given job has been removed from the scheduler.
-	 * 
-	 * @param executionGraph
-	 *        the job which has been removed from the scheduler
-	 */
-	void jobRemovedFromScheduler(ExecutionGraph executionGraph);
+	public IntPair(int first, int second) {
+		super(new PactInteger(first), new PactInteger(second));
+	}
 }

@@ -75,9 +75,9 @@ abstract class HashMatchStrategy<K extends Key, VB extends Value, VP extends Val
 		this.currentProbeValuesIterable = new ProbeValueIterable();
 	}
 
-	abstract public void initialize() throws ServiceException, IOException, InterruptedException;
+	abstract public void initialize() throws ServiceException, IOException;
 
-	abstract public boolean next() throws IOException, InterruptedException;
+	abstract public boolean next() throws IOException;
 
 	abstract public void close();
 

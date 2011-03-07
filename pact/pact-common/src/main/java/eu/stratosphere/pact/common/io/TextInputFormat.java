@@ -20,6 +20,9 @@ import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -52,6 +55,8 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 
 	private boolean end;
 
+	private static final Log LOG = LogFactory.getLog(TextInputFormat.class);
+
 	/**
 	 * This function parses the given byte array which represents a serialized key/value
 	 * pair. The parsed content is then returned by setting the pair variables. If the
@@ -77,7 +82,7 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 				return readLine(pair, line);
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOG.error(e);
 			return false;
 		}
 	}
