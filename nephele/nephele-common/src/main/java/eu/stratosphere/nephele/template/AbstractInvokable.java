@@ -156,4 +156,15 @@ public abstract class AbstractInvokable {
 		}
 	}
 
+	/**
+	 * This method is called when a task is canceled either as a result of a user abort or an execution failure. It can
+	 * be overwritten to respond to shut down the user code properly.
+	 * 
+	 * @throws Exception
+	 *         thrown if any exception occurs during the execution of the user code
+	 */
+	public void cancel() throws Exception {
+
+		// The default implementation does nothing.
+	}
 }

@@ -65,12 +65,12 @@ public enum ExecutionState {
 	/**
 	 * The task has been requested to be canceled, but is not yet terminated.
 	 */
-	CANCELLING,
+	CANCELING,
 
 	/**
 	 * The task has been canceled due to a user request or the error of a connected task.
 	 */
-	CANCELLED,
+	CANCELED,
 
 	/**
 	 * The task has been aborted due to a failure during execution.
