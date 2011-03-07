@@ -20,6 +20,7 @@ import static org.junit.Assert.fail;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import junit.framework.Assert;
@@ -62,6 +63,75 @@ public class DefaultMemoryManagerTest {
 		random = null;
 	}
 
+	@Test
+	public void allocateAllSingle() throws Exception {
+		final AbstractInvokable mockInvoke = new DummyInvokable();
+		
+		int numSplits = 6;
+		if(MEMORY_SIZE%numSplits != 0) throw new Exception("Invalid number of splits");
+		
+		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		
+		List<MemorySegment> segments = new ArrayList<MemorySegment>();
+		
+		try {
+			for(int i=0;i<numSplits;i++) {
+				segments.add(memoryManager.allocate(mockInvoke, MEMORY_SIZE/numSplits));
+			}
+		} catch (MemoryAllocationException e) {
+			Assert.fail("Unable to allocate memory");
+		}
+		
+		memoryManager.release(segments);
+	}
+	
+	@Test
+	public void allocateAllMulti() throws Exception {
+		final AbstractInvokable mockInvoke = new DummyInvokable();
+		
+		int numSplits = 6;
+		if(MEMORY_SIZE%numSplits != 0) throw new Exception("Invalid number of splits");
+		
+		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		
+		List<MemorySegment> segments = new ArrayList<MemorySegment>();
+		
+		try {
+			for(int i=0;i<numSplits/2;i++) {
+				segments.addAll(memoryManager.allocate(mockInvoke, 2, MEMORY_SIZE/numSplits));
+			}
+		} catch (MemoryAllocationException e) {
+			Assert.fail("Unable to allocate memory");
+		}
+		
+		memoryManager.release(segments);
+	}
+	
+	@Test
+	public void allocateAllMixed() throws Exception {
+		final AbstractInvokable mockInvoke = new DummyInvokable();
+		
+		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		
+		List<MemorySegment> segments = new ArrayList<MemorySegment>();
+		
+		try {
+			segments.add(memoryManager.allocate(mockInvoke, 1024*1024*10));
+			segments.add(memoryManager.allocate(mockInvoke, 1024*1024*10));
+			segments.add(memoryManager.allocate(mockInvoke, 1024*1024*10));
+			segments.addAll(memoryManager.allocate(mockInvoke, 2, 1024*1024*3));
+			segments.add(memoryManager.allocate(mockInvoke, 1024*1024*10));
+			segments.add(memoryManager.allocate(mockInvoke, 1024*1024*10));
+			segments.add(memoryManager.allocate(mockInvoke, 1024*1024*10));
+			segments.addAll(memoryManager.allocate(mockInvoke, 2, 1024*1024*3));
+			
+		} catch (MemoryAllocationException e) {
+			Assert.fail("Unable to allocate memory");
+		}
+		
+		memoryManager.release(segments);
+	}
+	
 	@Test
 	public void allocateRelease() throws Throwable {
 		

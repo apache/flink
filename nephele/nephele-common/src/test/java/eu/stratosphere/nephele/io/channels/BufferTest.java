@@ -98,7 +98,6 @@ public class BufferTest {
 			intSerializationBuffer.serialize(intRecord);
 			fail();
 		} catch (IOException e) {
-			e.printStackTrace();
 		}
 		// Read from buffer (written in file)
 		try {
@@ -132,7 +131,6 @@ public class BufferTest {
 			record = intDeserialitionBuffer.readData(readable);
 			fail();
 		} catch (IOException e) {
-			e.printStackTrace();
 		}
 
 	}

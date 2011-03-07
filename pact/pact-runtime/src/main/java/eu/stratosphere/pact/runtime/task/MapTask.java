@@ -69,6 +69,9 @@ public class MapTask extends AbstractTask {
 	// task configuration (including stub parameters)
 	private TaskConfig config;
 
+	// task's cancel flag
+	private boolean taskWasCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -143,6 +146,14 @@ public class MapTask extends AbstractTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void cancel() throws Exception {
+		this.taskWasCanceled = true;
+	}
+	
 	/**
 	 * Initializes the stub implementation and configuration.
 	 * 
@@ -246,10 +257,26 @@ public class MapTask extends AbstractTask {
 	 * @param out
 	 *        A collector for the output of the map() function.
 	 */
-	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) {
+	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) throws InterruptedException {
 		while (in.hasNext()) {
 			Pair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);
+			
+			// check if task thread was interrupted
+			if(Thread.interrupted()) {
+				if(this.taskWasCanceled) {
+					// task was canceled by TaskManager
+					// close stub and terminate
+					this.stub.close();
+					break;
+				} else {
+					// task was interrupted but not canceled
+					this.stub.close();
+					// forward unexpected InterruptedException to environment
+					throw new InterruptedException("Task thread was unexpectedly interrupted.");
+				}
+			}
+			
 		}
 	}
 }
