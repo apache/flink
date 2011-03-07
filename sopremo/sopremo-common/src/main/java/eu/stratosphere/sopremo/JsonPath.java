@@ -50,7 +50,10 @@ public class JsonPath {
 
 		@Override
 		protected void toString(StringBuilder builder) {
-			builder.append(constant);
+			if (constant instanceof CharSequence)
+				builder.append("\'").append(constant).append("\'");
+			else
+				builder.append(constant);
 			super.toString(builder);
 		}
 	}
@@ -122,6 +125,20 @@ public class JsonPath {
 	}
 
 	public static class Arithmetic extends JsonPath {
+		public static enum ArithmeticOperator {
+			PLUS("+"), MINUS("-"), MULTIPLY("*"), DIVIDE("/");
+
+			private final String sign;
+
+			ArithmeticOperator(String sign) {
+				this.sign = sign;
+			}
+
+			@Override
+			public String toString() {
+				return sign;
+			}
+		}
 
 		private ArithmeticOperator operator;
 
@@ -141,20 +158,5 @@ public class JsonPath {
 			builder.append(' ');
 			builder.append(op2);
 		}
-	}
-}
-
-enum ArithmeticOperator {
-	PLUS("+"), MINUS("-"), MULTIPLY("*"), DIVIDE("/");
-	
-	private final String sign;
-
-	ArithmeticOperator(String sign) {
-		this.sign = sign;
-	}
-
-	@Override
-	public String toString() {
-		return sign;
 	}
 }

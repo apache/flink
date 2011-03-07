@@ -43,6 +43,7 @@ public class TestPlanTestCase {
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
 				"localhost");
 		GlobalConfiguration.includeConfiguration(config);
+		GlobalConfiguration.getString("loadXerces", "");
 
 		mockStatic(RPC.class, new Answer<Object>() {
 			@Override

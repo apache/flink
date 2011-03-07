@@ -4,17 +4,16 @@ import java.util.Collection;
 
 import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Partition;
 import eu.stratosphere.sopremo.Transformation;
 
-public class Join extends Operator {
+public class Join extends ConditionalOperator {
 
 	public Join(Transformation transformation, Condition condition, Operator... inputs) {
-		super(Partition.DEFAULT, transformation, condition, inputs);
+		super(transformation, condition, inputs);
 	}
 
 	public Join(Transformation transformation, Condition condition, Collection<Operator> inputs) {
-		super(Partition.DEFAULT, transformation, condition, inputs);
+		super(transformation, condition, inputs);
 	}
 
 }

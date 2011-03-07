@@ -10,7 +10,7 @@ import eu.stratosphere.sopremo.Transformation;
 public class Aggregation extends Operator {
 
 	public Aggregation(Transformation transformation, Condition condition, Operator input) {
-		super(Partition.DEFAULT, transformation, condition, input);
+		super(transformation, input);
 	}
 
 }

@@ -1,8 +1,6 @@
 package eu.stratosphere.sopremo.operator;
 
-import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Partition;
 import eu.stratosphere.sopremo.Transformation;
 
 public class Source extends Operator {
@@ -11,7 +9,7 @@ public class Source extends Operator {
 	private String type;
 
 	public Source(String type, String inputName) {
-		super(Partition.DEFAULT, null, null);
+		super(Transformation.IDENTITY);
 		this.inputName = inputName;
 		this.type = type;
 	}

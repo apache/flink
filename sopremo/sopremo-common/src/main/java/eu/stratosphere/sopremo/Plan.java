@@ -3,12 +3,11 @@ package eu.stratosphere.sopremo;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 
-import com.ibm.jaql.lang.expr.core.Expr;
+import eu.stratosphere.dag.DirectedAcyclicGraphPrinter;
+import eu.stratosphere.dag.Navigator;
 
 
 public class Plan {

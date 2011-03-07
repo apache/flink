@@ -5,10 +5,10 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Partition;
 import eu.stratosphere.sopremo.Transformation;
 
-public class Selection extends Operator {
+public class Selection extends ConditionalOperator {
 
 	public Selection(Condition condition, Operator input) {
-		super(Partition.DEFAULT, null, condition, input);
+		super(Transformation.IDENTITY, condition, input);
 	}
 
 }

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Transformation implements Mapping {
+	public static final Transformation IDENTITY = new Transformation();
 	private List<Mapping> mappings = new ArrayList<Mapping>();
 
 	public Transformation() {
@@ -19,22 +20,3 @@ public class Transformation implements Mapping {
 	}
 }
 
-class ValueTransformation implements Mapping {
-	private String target;
-
-	private JsonPath transformation;
-
-	public ValueTransformation(String target, JsonPath transformation) {
-		this.target = target;
-		this.transformation = transformation;
-	}
-
-	@Override
-	public String toString() {
-		return String.format("%s=%s", this.target, this.transformation);
-	}
-}
-
-interface Mapping {
-
-}

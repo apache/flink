@@ -8,47 +8,61 @@ public class Operator {
 
 	private Transformation transformation;
 
-	private Condition condition;
-
-	private Partition partition;
-
 	private String name;
 
-	public Operator(String name, Partition partition, Transformation transformation, Condition condition,
+	public Operator(String name, Transformation transformation,
 			Operator... inputs) {
-		this(name, partition, transformation, condition, Arrays.asList(inputs));
+		this(name, transformation, Arrays.asList(inputs));
 	}
 
-	protected Operator(Partition partition, Transformation transformation, Condition condition,
+	protected Operator(Transformation transformation,
 			Operator... inputs) {
-		this(null, partition, transformation, condition, inputs);
+		this(null, transformation, inputs);
 	}
 
-	protected Operator(Partition partition, Transformation transformation, Condition condition,
+	protected Operator(Transformation transformation,
 			Collection<Operator> inputs) {
-		this(null, partition, transformation, condition, inputs);
+		this(null, transformation, inputs);
 	}
 
-	public Operator(String name, Partition partition, Transformation transformation, Condition condition,
+	public Operator(String name, Transformation transformation,
 			Collection<Operator> inputs) {
 		this.inputs = inputs;
-		this.name = name == null ? getClass().getSimpleName() : name;
+		this.name = name == null ? this.getClass().getSimpleName() : name;
 		this.transformation = transformation;
-		this.condition = condition;
-		this.partition = partition;
 	}
 
 	public Collection<Operator> getInputs() {
-		return inputs;
+		return this.inputs;
+	}
+
+	public Transformation getTransformation() {
+		return this.transformation;
+	}
+
+	public void setTransformation(Transformation transformation) {
+		if (transformation == null)
+			throw new NullPointerException("transformation must not be null");
+
+		this.transformation = transformation;
+	}
+
+	public String getName() {
+		return this.name;
+	}
+
+	public void setName(String name) {
+		if (name == null)
+			throw new NullPointerException("name must not be null");
+
+		this.name = name;
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder(name);
-		if (condition != null)
-			builder.append(", ").append(condition);
-		if (transformation != null)
-			builder.append(", ").append(transformation);
+		StringBuilder builder = new StringBuilder(this.name);
+		if (this.transformation != Transformation.IDENTITY)
+			builder.append(", ").append(this.transformation);
 		return builder.toString();
 	}
 
