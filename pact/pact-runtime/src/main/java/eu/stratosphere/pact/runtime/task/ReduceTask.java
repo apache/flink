@@ -307,6 +307,7 @@ public class ReduceTask extends AbstractTask {
 			};
 
 			try {
+				SIZE_SORT_BUFFER = 12*1024*1024;
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
 					NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,

@@ -18,11 +18,13 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Arrays;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 
 /**
  * @author Erik Nijkamp
@@ -34,6 +36,18 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	private ShipStrategy strategy;
 
 	private byte[] salt;
+	
+	private PactInteger[] histo = {
+		new PactInteger(441),
+		new PactInteger(1442),
+		new PactInteger(2316),
+		new PactInteger(3145),
+		new PactInteger(4269),
+		new PactInteger(5418),
+		new PactInteger(6678),
+		new PactInteger(7591),
+		new PactInteger(8734)
+	};
 
 	private int nextChannelToSendTo = 0;
 
@@ -62,6 +76,8 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 			return broadcast(numberOfChannels);
 		case PARTITION_HASH:
 			return partition(pair, numberOfChannels);
+		case PARTITION_RANGE:
+			return range_partition(pair);
 		default:
 			return robin(numberOfChannels);
 		}
@@ -81,6 +97,10 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 
 	private int[] partition(KeyValuePair<K, V> pair, int numberOfChannels) {
 		return new int[] { getPartition(pair.getKey(), numberOfChannels) };
+	}
+	
+	private int[] range_partition(KeyValuePair<K, V> pair) {
+		return new int[] {Arrays.binarySearch(histo, pair.getKey())};
 	}
 
 	private int getPartition(K key, int numberOfChannels) {
