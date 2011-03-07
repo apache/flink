@@ -36,7 +36,7 @@ public class IncomingConnectionThread extends Thread {
 
 	private static final Log LOG = LogFactory.getLog(IncomingConnectionThread.class);
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final NetworkConnectionManager networkConnectionManager;
 
 	private final Selector selector;
 
@@ -44,13 +44,13 @@ public class IncomingConnectionThread extends Thread {
 
 	private final Queue<IncomingConnection> pendingIncomingConnections = new ArrayDeque<IncomingConnection>();
 
-	public IncomingConnectionThread(ByteBufferedChannelManager networkChannelManager, boolean isListeningThread,
+	public IncomingConnectionThread(NetworkConnectionManager networkConnectionManager, boolean isListeningThread,
 			InetSocketAddress listeningAddress)
 												throws IOException {
 		super("Incoming Connection Thread");
 
 		this.selector = Selector.open();
-		this.byteBufferedChannelManager = networkChannelManager;
+		this.networkConnectionManager = networkConnectionManager;
 
 		if (isListeningThread) {
 			this.listeningSocket = ServerSocketChannel.open();
@@ -159,7 +159,7 @@ public class IncomingConnectionThread extends Thread {
 		// Register the new incoming connection with the byte buffered channel manager
 		final InetSocketAddress remoteAddress = (InetSocketAddress) clientSocket.socket().getRemoteSocketAddress();
 		final IncomingConnectionID incomingConnectionID = new IncomingConnectionID(remoteAddress.getAddress());
-		this.byteBufferedChannelManager.registerIncomingConnection(incomingConnectionID, clientSocket);
+		this.networkConnectionManager.registerIncomingConnection(incomingConnectionID, clientSocket);
 
 	}
 

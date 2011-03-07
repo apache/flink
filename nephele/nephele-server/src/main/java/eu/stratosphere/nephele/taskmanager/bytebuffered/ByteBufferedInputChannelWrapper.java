@@ -33,6 +33,9 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.types.Record;
 
 public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannelBroker, ByteBufferedChannelWrapper {
@@ -41,11 +44,9 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 	private final AbstractByteBufferedInputChannel<? extends Record> byteBufferedInputChannel;
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
-	private final int minimumQueueLengthForThrottling;
-
-	private final int maximumQueueLengthForThrottling;
+	private final ReadBufferProvider readBufferProvider;
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
@@ -55,14 +56,13 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	private Buffer uncompressedDataBuffer = null;
 
 	public ByteBufferedInputChannelWrapper(AbstractByteBufferedInputChannel<? extends Record> byteBufferedInputChannel,
-			ByteBufferedChannelManager byteBufferedChannelManager, int minimumQueueLengthForThrottling,
-			int maximumQueueLengthForThrottling) {
-		this.byteBufferedInputChannel = byteBufferedInputChannel;
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.minimumQueueLengthForThrottling = minimumQueueLengthForThrottling;
-		this.maximumQueueLengthForThrottling = maximumQueueLengthForThrottling;
+			TransferEnvelopeDispatcher transferEnvelopeDispatcher, ReadBufferProvider readBufferProvider) {
 
+		this.byteBufferedInputChannel = byteBufferedInputChannel;
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
+
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.readBufferProvider = readBufferProvider;
 	}
 
 	@Override
@@ -116,13 +116,13 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 		} else {
 
 			// Compression enabled
-			final int maximumBufferSize = this.byteBufferedChannelManager.getMaximumBufferSize();
+			final int maximumBufferSize = this.readBufferProvider.getMaximumBufferSize();
 			final BufferPairRequest request = new BufferPairRequest(
 				transferEnvelope.getBuffer().isBackedByMemory() ? -1 : transferEnvelope.getBuffer().size(),
 				maximumBufferSize, true);
 
 			try {
-				response = this.byteBufferedChannelManager.requestEmptyReadBuffers(request);
+				response = this.readBufferProvider.requestEmptyReadBuffers(request);
 			} catch (InterruptedException e) {
 				this.byteBufferedInputChannel.checkForNetworkEvents(); // Make sure we check again
 				return null;
@@ -179,10 +179,6 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			}
 
 			transferEnvelope = this.queuedEnvelopes.poll();
-
-			if (queuedEnvelopes.size() == (this.minimumQueueLengthForThrottling - 1)) {
-				stopThrottling();
-			}
 		}
 
 		final Buffer consumedBuffer = transferEnvelope.getBuffer();
@@ -204,38 +200,23 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	}
 
 	@Override
-	public void transferEventToOutputChannel(AbstractEvent event) {
+	public void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException {
 
-		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(this.byteBufferedInputChannel.getID(),
-			this.byteBufferedInputChannel.getConnectedChannelID(), new TransferEnvelopeProcessingLog(true, false));
+		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
 
-		ephemeralTransferEnvelope.setSequenceNumber(0);
 		ephemeralTransferEnvelope.addEvent(event);
-		this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(ephemeralTransferEnvelope);
+		this.transferEnvelopeDispatcher.processEnvelope(ephemeralTransferEnvelope);
 	}
 
-	void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
+	@Override
+	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
 
 		synchronized (this.queuedEnvelopes) {
 			this.queuedEnvelopes.add(transferEnvelope);
-
-			if (this.queuedEnvelopes.size() == (this.maximumQueueLengthForThrottling + 1)) {
-				startThrottling();
-			}
 		}
 
 		// Notify the channel about the new data
 		this.byteBufferedInputChannel.checkForNetworkEvents();
-	}
-
-	private void startThrottling() {
-
-		// transferEventToOutputChannel(new NetworkThrottleEvent(true));
-	}
-
-	private void stopThrottling() {
-
-		// transferEventToOutputChannel(new NetworkThrottleEvent(false));
 	}
 
 	@Override
@@ -243,8 +224,6 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 		this.byteBufferedInputChannel.reportIOException(ioe);
 		this.byteBufferedInputChannel.checkForNetworkEvents();
-		// Corresponding output channel might be throttled down, so make sure it will make up to process the IOException
-		stopThrottling();
 	}
 
 	@Override

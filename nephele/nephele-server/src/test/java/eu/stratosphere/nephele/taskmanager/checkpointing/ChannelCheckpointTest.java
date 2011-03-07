@@ -19,27 +19,23 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.nio.channels.ReadableByteChannel;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeProcessingLog;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
@@ -65,10 +61,10 @@ public class ChannelCheckpointTest {
 	private static final ChannelID TARGET_CHANNEL_ID = new ChannelID();
 
 	/**
-	 * The mocked byte buffered channel manager.
+	 * The mocked network connection manager
 	 */
 	@Mock
-	private ByteBufferedChannelManager byteBufferedChannelManager;
+	private NetworkConnectionManager networkConnectionManager;
 
 	/**
 	 * The mocked file buffer manager.
@@ -172,10 +168,10 @@ public class ChannelCheckpointTest {
 		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir);
 
 		// Mock behavior of internal objects
-		when(this.byteBufferedChannelManager.getFileBufferManager()).thenReturn(this.fileBufferManager);
+		/*when(this.byteBufferedChannelManager.getFileBufferManager()).thenReturn(this.fileBufferManager);
 		when(
 			this.byteBufferedChannelManager.registerIncomingConnection(Matchers.any(IncomingConnectionID.class),
-				Matchers.any(ReadableByteChannel.class))).thenReturn(this.incomingConnection);
+				Matchers.any(ReadableByteChannel.class))).thenReturn(this.incomingConnection);*/
 
 		try {
 			doThrow(new EOFException()).when(this.incomingConnection).read();
@@ -191,7 +187,7 @@ public class ChannelCheckpointTest {
 			channelCheckpoint.makePersistent();
 			channelCheckpoint.markChannelCheckpointAsFinished();
 
-			channelCheckpoint.recover(this.byteBufferedChannelManager);
+			channelCheckpoint.recover(this.networkConnectionManager, this.fileBufferManager);
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
 		} finally {
@@ -213,10 +209,7 @@ public class ChannelCheckpointTest {
 	private static TransferEnvelope generateTransferEnvelope(final ChannelID sourceChannelID,
 			final ChannelID targetChannelID, int expectedSeqNo) {
 
-		final TransferEnvelopeProcessingLog processingLog = new TransferEnvelopeProcessingLog(false, true);
-
-		final TransferEnvelope transferEnvelope = new TransferEnvelope(sourceChannelID, targetChannelID, processingLog);
-		transferEnvelope.setSequenceNumber(expectedSeqNo);
+		final TransferEnvelope transferEnvelope = new TransferEnvelope(expectedSeqNo, new JobID(), sourceChannelID);
 
 		return transferEnvelope;
 	}

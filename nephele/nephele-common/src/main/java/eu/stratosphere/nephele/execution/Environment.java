@@ -27,9 +27,12 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -318,15 +321,6 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.jobID == null) {
 			LOG.warn("jobVertexID is null");
 		}
-
-		// Set the vertex ID for all the gates
-		for (int i = 0; i < this.inputGates.size(); i++) {
-			this.inputGates.get(i).setJobID(this.jobID);
-		}
-
-		for (int i = 0; i < this.outputGates.size(); i++) {
-			this.outputGates.get(i).setJobID(this.jobID);
-		}
 	}
 
 	/**
@@ -363,14 +357,14 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 
 			// Request closing of input and output gates, but don't wait for it
-			/*try { //TODO: Fix this
-				closeInputGates();
-
-				requestAllOutputGatesToClose();
-
-			} catch (IOException ioe) {
-				LOG.error(StringUtils.stringifyException(ioe));
-			}*/
+			/*
+			 * try { //TODO: Fix this
+			 * closeInputGates();
+			 * requestAllOutputGatesToClose();
+			 * } catch (IOException ioe) {
+			 * LOG.error(StringUtils.stringifyException(ioe));
+			 * }
+			 */
 
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
@@ -557,15 +551,38 @@ public class Environment implements Runnable, IOReadableWritable {
 		final int numOuputGates = in.readInt();
 
 		for (int i = 0; i < numOuputGates; i++) {
-			final String gateClassName = StringRecord.readString(in);
-			Class<? extends Record> c = null;
+			final String typeClassName = StringRecord.readString(in);
+			Class<? extends Record> type = null;
 			try {
-				c = (Class<? extends Record>) Class.forName(gateClassName, true, cl);
+				type = (Class<? extends Record>) Class.forName(typeClassName, true, cl);
 			} catch (ClassNotFoundException cnfe) {
-				throw new IOException("Class " + gateClassName + " not found in one of the supplied jar files: "
+				throw new IOException("Class " + typeClassName + " not found in one of the supplied jar files: "
 					+ StringUtils.stringifyException(cnfe));
 			}
-			final OutputGate<? extends Record> eog = new OutputGate(c, i);
+
+			final boolean isBroadcast = in.readBoolean();
+
+			ChannelSelector<? extends Record> channelSelector = null;
+			if (!isBroadcast) {
+
+				final String channelSelectorClassName = StringRecord.readString(in);
+				try {
+					channelSelector = (ChannelSelector<? extends Record>) Class.forName(channelSelectorClassName, true,
+						cl).newInstance();
+				} catch (InstantiationException e) {
+					throw new IOException(StringUtils.stringifyException(e));
+				} catch (IllegalAccessException e) {
+					throw new IOException(StringUtils.stringifyException(e));
+				} catch (ClassNotFoundException e) {
+					throw new IOException(StringUtils.stringifyException(e));
+				}
+
+			}
+
+			channelSelector.read(in);
+
+			@SuppressWarnings("rawtypes")
+			final OutputGate<? extends Record> eog = new OutputGate(this.jobID, type, i, channelSelector, isBroadcast);
 			eog.read(in);
 			this.outputGates.add(eog);
 			// Mark as unbound for reconnection of RecordWriter
@@ -576,8 +593,45 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		for (int i = 0; i < numInputGates; i++) {
 
-			// TODO (erik) : gate.read(...) deserializes the type c anyway ...
-			final InputGate<? extends Record> eig = new InputGate(null /* c */, i, null);
+			final String deserializerClassName = StringRecord.readString(in);
+			RecordDeserializer<? extends Record> recordDeserializer = null;
+			Class<? extends RecordDeserializer<? extends Record>> deserializerClass = null;
+			try {
+				deserializerClass = (Class<? extends RecordDeserializer<? extends Record>>) cl
+					.loadClass(deserializerClassName);
+				recordDeserializer = deserializerClass.newInstance();
+
+			} catch (ClassNotFoundException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (InstantiationException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (IllegalAccessException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			}
+
+			recordDeserializer.setClassLoader(cl);
+			recordDeserializer.read(in);
+
+			final String distributionPatternClassName = StringRecord.readString(in);
+			DistributionPattern distributionPattern = null;
+			Class<? extends DistributionPattern> distributionPatternClass = null;
+			try {
+				distributionPatternClass = (Class<? extends DistributionPattern>) cl
+					.loadClass(distributionPatternClassName);
+
+				distributionPattern = distributionPatternClass.newInstance();
+
+			} catch (ClassNotFoundException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (InstantiationException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (IllegalAccessException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			}
+
+			@SuppressWarnings("rawtypes")
+			final InputGate<? extends Record> eig = new InputGate(this.jobID, recordDeserializer, i,
+				distributionPattern);
 			eig.read(in);
 			this.inputGates.add(eig);
 			// Mark as unbound for reconnection of RecordReader
@@ -663,13 +717,25 @@ public class Environment implements Runnable, IOReadableWritable {
 		// Output gates
 		out.writeInt(getNumberOfOutputGates());
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
-			StringRecord.writeString(out, getOutputGate(i).getType().getName());
+			final OutputGate<? extends Record> outputGate = getOutputGate(i);
+			StringRecord.writeString(out, outputGate.getType().getName());
+			out.writeBoolean(outputGate.isBroadcast());
+			if (!outputGate.isBroadcast()) {
+				// Write out class name of channel selector
+				StringRecord.writeString(out, outputGate.getChannelSelector().getClass().getName());
+				outputGate.getChannelSelector().write(out);
+			}
+
 			getOutputGate(i).write(out);
 		}
 
 		// Input gates
 		out.writeInt(getNumberOfInputGates());
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
+			final InputGate<? extends Record> inputGate = getInputGate(i);
+			StringRecord.writeString(out, inputGate.getRecordDeserializer().getClass().getName());
+			inputGate.getRecordDeserializer().write(out);
+			StringRecord.writeString(out, inputGate.getDistributionPattern().getClass().getName());
 			getInputGate(i).write(out);
 		}
 
@@ -762,7 +828,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Closes all input gates which are not already closed.
 	 */
-	private void closeInputGates() throws IOException {
+	private void closeInputGates() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
 			final InputGate<? extends Record> eig = getInputGate(i);
@@ -775,7 +841,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Requests all output gates to be closed.
 	 */
-	private void requestAllOutputGatesToClose() throws IOException {
+	private void requestAllOutputGatesToClose() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
 			this.getOutputGate(i).requestClose();

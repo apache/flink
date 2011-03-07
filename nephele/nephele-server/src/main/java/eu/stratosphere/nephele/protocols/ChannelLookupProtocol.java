@@ -17,29 +17,31 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 
 /**
- * The channel lookup protocol can be used to resolve the ID of
- * a network channel to the network connection information for the task manager
- * which manages the channel.
+ * The channel lookup protocol can be used to resolve the ID of an output channel to all recipients which shall receive
+ * the data of this channel.
  * 
  * @author warneke
  */
 public interface ChannelLookupProtocol extends VersionedProtocol {
 
 	/**
-	 * Resolves the given channel ID to the network connection information for
-	 * the task manager which manages the channel.
+	 * Retrieves all recipients of a data for the given <code>sourceChannelID</code>.
 	 * 
+	 * @param caller
+	 *        the {@link InstanceConnectionInfo} object of the task manager which calls this method
 	 * @param jobID
 	 *        the ID of the job the channel ID belongs to
-	 * @param targetChannelID
+	 * @param sourceChannelID
 	 *        the ID of the channel to resolve
 	 * @return the lookup response containing the connection info and a return code
 	 */
-	ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID targetChannelID) throws IOException;
+	ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
+			ChannelID sourceChannelID) throws IOException;
 }

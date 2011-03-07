@@ -25,6 +25,10 @@ import java.nio.channels.SocketChannel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDeserializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -52,10 +56,9 @@ public class IncomingConnection {
 	 */
 	private final TransferEnvelopeDeserializer deserializer;
 
-	/**
-	 * The byte buffered channel manager which handles and dispatches the received transfer envelopes.
-	 */
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+
+	private final NetworkConnectionManager networkConnectionManager;
 
 	/**
 	 * Indicates if this incoming connection object reads from a checkpoint or a TCP connection.
@@ -67,11 +70,13 @@ public class IncomingConnection {
 	private IncomingConnection previousConnection = null;
 
 	public IncomingConnection(IncomingConnectionID incomingConnectionID,
-			ByteBufferedChannelManager byteBufferedChannelManager, ReadableByteChannel readableByteChannel) {
+			NetworkConnectionManager networkConnectionManager, TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			ReadBufferProvider readBufferProvider, ReadableByteChannel readableByteChannel) {
 		this.incomingConnectionID = incomingConnectionID;
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.networkConnectionManager = networkConnectionManager;
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.readsFromCheckpoint = (this.readableByteChannel instanceof FileChannel);
-		this.deserializer = new TransferEnvelopeDeserializer(byteBufferedChannelManager, readsFromCheckpoint);
+		this.deserializer = new TransferEnvelopeDeserializer(readBufferProvider, readsFromCheckpoint);
 		this.readableByteChannel = readableByteChannel;
 	}
 
@@ -103,7 +108,7 @@ public class IncomingConnection {
 
 		this.deserializer.reset();
 		// Unregister incoming connection
-		this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
+		this.networkConnectionManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
 	}
 
 	public void read() throws IOException, EOFException {
@@ -117,7 +122,11 @@ public class IncomingConnection {
 
 		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
 		if (transferEnvelope != null) {
-			this.byteBufferedChannelManager.queueIncomingTransferEnvelope(transferEnvelope);
+			try {
+				this.transferEnvelopeDispatcher.processEnvelope(transferEnvelope);
+			} catch (InterruptedException e) {
+				LOG.debug(StringUtils.stringifyException(e));
+			}
 		}
 
 	}
@@ -175,6 +184,7 @@ public class IncomingConnection {
 			key.cancel();
 		}
 
-		this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
+		this.networkConnectionManager.unregisterIncomingConnection(this.incomingConnectionID,
+			this.readableByteChannel);
 	}
 }

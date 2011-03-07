@@ -13,9 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
-public interface OutOfByteBuffersListener {
+import java.io.IOException;
 
-	public void outOfByteBuffers();
+/**
+ * A transfer envelope dispatcher receives {@link TransferEnvelopes} and sends them to all of this destinations.
+ * 
+ * @author warneke
+ */
+public interface TransferEnvelopeDispatcher {
+
+	void processEnvelope(TransferEnvelope transferEnvelope) throws IOException, InterruptedException;
 }

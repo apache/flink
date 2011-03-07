@@ -10,6 +10,7 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
@@ -21,18 +22,20 @@ import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 public class MockEnvironment extends Environment {
 
 	private MemoryManager memManager;
+
 	private IOManager ioManager;
-	
+
 	private Configuration config;
 
 	private List<InputGate<KeyValuePair<PactInteger, PactInteger>>> inputs;
+
 	private List<OutputGate<KeyValuePair<PactInteger, PactInteger>>> outputs;
 
 	public MockEnvironment(long memorySize) {
 		this.config = new Configuration();
 		this.inputs = new ArrayList<InputGate<KeyValuePair<PactInteger, PactInteger>>>();
 		this.outputs = new ArrayList<OutputGate<KeyValuePair<PactInteger, PactInteger>>>();
-	
+
 		this.memManager = new DefaultMemoryManager(memorySize);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
 	}
@@ -42,15 +45,14 @@ public class MockEnvironment extends Environment {
 		inputs.add(new MockInputGate<KeyValuePair<PactInteger, PactInteger>>(id, inputIterator,
 			new KeyValuePairDeserializer<PactInteger, PactInteger>(PactInteger.class, PactInteger.class)));
 	}
-	
-	
+
 	public void addOutput(List<KeyValuePair<PactInteger, PactInteger>> outputList) {
 		int id = outputs.size();
 		@SuppressWarnings("unchecked")
 		Class<KeyValuePair<PactInteger, PactInteger>> clazz = (Class<KeyValuePair<PactInteger, PactInteger>>) (Class<?>) KeyValuePair.class;
 		outputs.add(new MockOutputGate<KeyValuePair<PactInteger, PactInteger>>(id, outputList, clazz));
 	}
-	
+
 	@Override
 	public Configuration getRuntimeConfiguration() {
 		return this.config;
@@ -60,7 +62,7 @@ public class MockEnvironment extends Environment {
 	public boolean hasUnboundInputGates() {
 		return this.inputs.size() > 0 ? true : false;
 	}
-	
+
 	@Override
 	public boolean hasUnboundOutputGates() {
 		return this.outputs.size() > 0 ? true : false;
@@ -70,17 +72,17 @@ public class MockEnvironment extends Environment {
 	public InputGate<? extends Record> getUnboundInputGate(int gateID) {
 		return inputs.remove(gateID);
 	}
-	
+
 	@Override
 	public eu.stratosphere.nephele.io.OutputGate<? extends Record> getUnboundOutputGate(int gateID) {
 		return outputs.remove(gateID);
 	}
-	
+
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memManager;
 	}
-	
+
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
@@ -91,7 +93,7 @@ public class MockEnvironment extends Environment {
 		private Iterator<T> it;
 
 		public MockInputGate(int id, Iterator<T> it, RecordDeserializer<T> d) {
-			super(d, id, null);
+			super(new JobID(), d, id, null);
 			this.it = it;
 		}
 
@@ -104,21 +106,21 @@ public class MockEnvironment extends Environment {
 			}
 		}
 	}
-	
+
 	private static class MockOutputGate<T extends Record> extends OutputGate<T> {
-		
+
 		private List<T> out;
-		
+
 		public MockOutputGate(int index, List<T> outList, Class<T> inputClass) {
-			super(inputClass, index);
+			super(new JobID(), inputClass, index, null, false);
 			this.out = outList;
 		}
-		
+
 		@Override
-		public void writeRecord(T record) throws IOException ,InterruptedException {
+		public void writeRecord(T record) throws IOException, InterruptedException {
 			out.add(record);
 		}
-		
+
 	}
 
 }

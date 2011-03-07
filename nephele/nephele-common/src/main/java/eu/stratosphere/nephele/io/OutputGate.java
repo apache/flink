@@ -27,10 +27,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -38,6 +35,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.channels.direct.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
@@ -47,12 +45,14 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * In Nephele output gates are a specialization of general gates and connect
  * record writers and output channels. As channels, output gates are always
  * parameterized to a specific type of record which they can transport.
+ * <p>
+ * This class is in general not thread-safe.
  * 
  * @author warneke
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class OutputGate<T extends Record> extends Gate<T> {
+public class OutputGate<T extends Record> extends AbstractGate<T> {
 
 	/**
 	 * The log object used for debugging.
@@ -62,12 +62,12 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	/**
 	 * The list of output channels attached to this gate.
 	 */
-	private ArrayList<AbstractOutputChannel<T>> outputChannels = new ArrayList<AbstractOutputChannel<T>>();
+	private final ArrayList<AbstractOutputChannel<T>> outputChannels = new ArrayList<AbstractOutputChannel<T>>();
 
 	/**
 	 * Channel selector to determine which channel is supposed receive the next record.
 	 */
-	private ChannelSelector<T> channelSelector = null;
+	private final ChannelSelector<T> channelSelector;
 
 	/**
 	 * The listener objects registered for this output gate.
@@ -75,34 +75,20 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	private OutputGateListener[] outputGateListeners = null;
 
 	/**
-	 * The event notification manager used to dispatch events.
-	 */
-	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
-
-	/**
 	 * The thread which executes the task connected to the output gate.
 	 */
 	private Thread executingThread = null;
 
 	/**
-	 * Constructs a new output gate.
-	 * 
-	 * @param inputClass
-	 *        the class of the record that can be transported through this
-	 *        gate
-	 * @param index
-	 *        the index assigned to this output gate at the {@link Environment} object
+	 * Stores whether all records passed to this output gate shall be transmitted through all connected output channels.
 	 */
-	public OutputGate(Class<T> inputClass, int index) {
-		setDeserializer(new DefaultRecordDeserializer<T>(inputClass));
-
-		this.index = index;
-		this.channelSelector = new DefaultChannelSelector<T>();
-	}
+	private final boolean isBroadcast;
 
 	/**
 	 * Constructs a new output gate.
 	 * 
+	 * @param jobID
+	 *        the ID of the job this input gate belongs to
 	 * @param inputClass
 	 *        the class of the record that can be transported through this
 	 *        gate
@@ -110,15 +96,25 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 *        the index assigned to this output gate at the {@link Environment} object
 	 * @param channelSelector
 	 *        the channel selector to be used for this output gate
+	 * @param isBroadcast
+	 *        <code>true</code> if every records passed to this output gate shall be transmitted through all connected
+	 *        output channels, <code>false</code> otherwise
 	 */
-	public OutputGate(Class<T> inputClass, int index, ChannelSelector<T> channelSelector) {
-		setDeserializer(new DefaultRecordDeserializer<T>(inputClass));
+	public OutputGate(final JobID jobID, final Class<T> inputClass, final int index,
+			final ChannelSelector<T> channelSelector, final boolean isBroadcast) {
 
-		this.index = index;
-		this.channelSelector = channelSelector;
+		super(jobID, inputClass, index);
 
-		if (channelSelector == null) {
-			this.channelSelector = new DefaultChannelSelector<T>();
+		this.isBroadcast = isBroadcast;
+
+		if (this.isBroadcast) {
+			this.channelSelector = null;
+		} else {
+			if (channelSelector == null) {
+				this.channelSelector = new DefaultChannelSelector<T>();
+			} else {
+				this.channelSelector = channelSelector;
+			}
 		}
 	}
 
@@ -298,8 +294,11 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	/**
 	 * Requests the output gate to closed. This means the application will send
 	 * no records through this gate anymore.
+	 * 
+	 * @throws IOException
+	 * @throws InterruptedException
 	 */
-	public void requestClose() throws IOException {
+	public void requestClose() throws IOException, InterruptedException {
 		// Close all output channels
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
 			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
@@ -347,18 +346,37 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			throw new InterruptedException();
 		}
 
-		final int numberOfOutputChannels = this.outputChannels.size();
-		final int[] selectedOutputChannels = this.channelSelector.selectChannels(record, numberOfOutputChannels);
+		if (this.isBroadcast) {
 
-		if (selectedOutputChannels == null) {
-			return;
-		}
+			if (getChannelType() == ChannelType.INMEMORY) {
 
-		for (int i = 0; i < selectedOutputChannels.length; ++i) {
+				final int numberOfOutputChannels = this.outputChannels.size();
+				for (int i = 0; i < numberOfOutputChannels; ++i) {
+					this.outputChannels.get(i).writeRecord(record);
+				}
 
-			if (selectedOutputChannels[i] < numberOfOutputChannels) {
-				final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(selectedOutputChannels[i]);
-				outputChannel.writeRecord(record);
+			} else {
+
+				// Use optimization for byte buffered channels
+				this.outputChannels.get(0).writeRecord(record);
+			}
+
+		} else {
+
+			// Non-broadcast gate, use channel selector to select output channels
+			final int numberOfOutputChannels = this.outputChannels.size();
+			final int[] selectedOutputChannels = this.channelSelector.selectChannels(record, numberOfOutputChannels);
+
+			if (selectedOutputChannels == null) {
+				return;
+			}
+
+			for (int i = 0; i < selectedOutputChannels.length; ++i) {
+
+				if (selectedOutputChannels[i] < numberOfOutputChannels) {
+					final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(selectedOutputChannels[i]);
+					outputChannel.writeRecord(record);
+				}
 			}
 		}
 	}
@@ -368,24 +386,9 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 * {@inheritDoc}
 	 */
 	@SuppressWarnings("unchecked")
-	@Override
 	public void read(DataInput in) throws IOException {
 
 		super.read(in);
-
-		// TODO (en)
-		try {
-			String classNameSelector = StringRecord.readString(in);
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(getJobID());
-			channelSelector = (ChannelSelector<T>) Class.forName(classNameSelector, true, cl).newInstance();
-			channelSelector.read(in);
-		} catch (InstantiationException e) {
-			LOG.error(e);
-		} catch (IllegalAccessException e) {
-			LOG.error(e);
-		} catch (ClassNotFoundException e) {
-			LOG.error(e);
-		}
 
 		final int numOutputChannels = in.readInt();
 
@@ -445,13 +448,9 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
 	public void write(DataOutput out) throws IOException {
 
 		super.write(out);
-
-		StringRecord.writeString(out, this.channelSelector.getClass().getName());
-		this.channelSelector.write(out);
 
 		// Output channels
 		out.writeInt(this.getNumberOfOutputChannels());
@@ -502,40 +501,10 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	}
 
 	/**
-	 * Subscribes the listener object to receive events of the given type.
-	 * 
-	 * @param eventListener
-	 *        the listener object to register
-	 * @param eventType
-	 *        the type of event to register the listener for
+	 * {@inheritDoc}
 	 */
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Removes the subscription for events of the given type for the listener object.
-	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
-	 */
-	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Publishes an event.
-	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
-	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	@Override
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
@@ -545,17 +514,14 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	}
 
 	/**
-	 * Passes a received event on to the event notification manager so it cam ne dispatched.
+	 * Flushes all connected output channels.
 	 * 
-	 * @param event
-	 *        the event to pass on to the notification manager
+	 * @throws IOException
+	 *         thrown if an error occurs while flushing an output channel
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the data to be flushed
 	 */
-	public void deliverEvent(AbstractTaskEvent event) {
-
-		this.eventNotificationManager.deliverEvent(event);
-	}
-
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		// Flush all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
 		while (it.hasNext()) {
@@ -578,5 +544,26 @@ public class OutputGate<T extends Record> extends Gate<T> {
 				this.outputGateListeners[i].channelCapacityExhausted(channelIndex);
 			}
 		}
+	}
+
+	/**
+	 * Checks if this output gate operates in broadcast mode, i.e. all records passed to it are transferred through all
+	 * connected output channels.
+	 * 
+	 * @return <code>true</code> if this output gate operates in broadcast mode, <code>false</code> otherwise
+	 */
+	public boolean isBroadcast() {
+
+		return this.isBroadcast;
+	}
+
+	/**
+	 * Returns the output gate's channel selector.
+	 * 
+	 * @return the output gate's channel selector or <code>null</code> if the gate operates in broadcast mode
+	 */
+	public ChannelSelector<T> getChannelSelector() {
+
+		return this.channelSelector;
 	}
 }

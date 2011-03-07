@@ -23,37 +23,67 @@ import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
+ * The default implementation for {@link RecordDeserializer}. It is suitable for all non parameterized record types.
+ * <p>
+ * This class is in general not thread-safe.
+ * 
  * @author Erik Nijkamp
  * @param <T>
+ *        the type of record deserialized by this record deserializer
  */
 public class DefaultRecordDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
+
+	/**
+	 * The type of record deserialized by this record deserializer.
+	 */
 	private Class<T> recordClass;
 
+	/**
+	 * The class loader that shall be used to look for <code>recordClass</code>.
+	 */
 	private ClassLoader classLoader;
 
+	/**
+	 * Empty constructor used for serialization/deserialization.
+	 */
 	public DefaultRecordDeserializer() {
-
 	}
 
-	public DefaultRecordDeserializer(Class<T> recordClass) {
+	/**
+	 * Constructs a new default record deserializer.
+	 * 
+	 * @param recordClass
+	 *        the type of record to be deserialized
+	 */
+	public DefaultRecordDeserializer(final Class<T> recordClass) {
 		this.recordClass = recordClass;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public T deserialize(DataInput in) throws IOException {
-		T record = getInstance();
+	public T deserialize(final DataInput in) throws IOException {
+		
+		final T record = getInstance();
 		record.read(in);
 		return record;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Class<T> getRecordType() {
 		return recordClass;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		final String typeClassName = StringRecord.readString(in);
 		try {
 			this.recordClass = (Class<T>) Class.forName(typeClassName, true, this.classLoader);
@@ -62,17 +92,27 @@ public class DefaultRecordDeserializer<T extends IOReadableWritable> implements 
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
+		
 		StringRecord.writeString(out, this.recordClass.getName());
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void setClassLoader(ClassLoader classLoader) {
+	public void setClassLoader(final ClassLoader classLoader) {
 
 		this.classLoader = classLoader;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public T getInstance() {
 		T record;

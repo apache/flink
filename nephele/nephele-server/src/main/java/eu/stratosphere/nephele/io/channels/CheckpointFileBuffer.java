@@ -143,4 +143,10 @@ public class CheckpointFileBuffer implements InternalBuffer {
 
 		throw new IllegalStateException("duplicate called on CheckpointFileBuffer");
 	}
+
+	@Override
+	public boolean isReadBuffer() {
+		
+		return true;
+	}
 }

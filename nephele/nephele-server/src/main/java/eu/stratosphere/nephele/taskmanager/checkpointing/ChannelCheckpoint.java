@@ -30,11 +30,12 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeSerializer;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
 
 public class ChannelCheckpoint {
 
@@ -112,7 +113,8 @@ public class ChannelCheckpoint {
 		while (this.transferEnvelopeSerializer.write(this.fileChannel))
 			;
 
-		transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+		//TODO: Mark transfer envelope as processed
+		//transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 	}
 
 	public synchronized void makePersistent() throws IOException {
@@ -145,7 +147,8 @@ public class ChannelCheckpoint {
 		while (it.hasNext()) {
 
 			final TransferEnvelope transferEnvelope = it.next();
-			transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+			//TODO: Mark transfer envelope as processed
+			//transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 		}
 
 		this.queuedEnvelopes.clear();
@@ -161,7 +164,8 @@ public class ChannelCheckpoint {
 		}
 	}
 
-	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) {
+	public synchronized void recover(final NetworkConnectionManager networkConnectionManager,
+			final FileBufferManager fileBufferManager) {
 
 		if (!this.checkpointFinished) {
 			LOG.error("Checkpoint is not finished!");
@@ -185,7 +189,7 @@ public class ChannelCheckpoint {
 
 		// Register an external data source at the file buffer manager
 		try {
-			byteBufferedChannelManager.getFileBufferManager().registerExternalDataSourceForChannel(
+			fileBufferManager.registerExternalDataSourceForChannel(
 				this.sourceChannelID,
 				filename);
 		} catch (IOException ioe) {
@@ -197,8 +201,8 @@ public class ChannelCheckpoint {
 		final IncomingConnectionID connectionID = new IncomingConnectionID(filename);
 
 		// Start recovering
-		final IncomingConnection incomingConnection = byteBufferedChannelManager
-			.registerIncomingConnection(connectionID, this.fileChannel);
+		final IncomingConnection incomingConnection = networkConnectionManager.registerIncomingConnection(connectionID,
+			this.fileChannel);
 
 		try {
 			while (true) {

@@ -212,4 +212,10 @@ public class FileBuffer implements InternalBuffer {
 		throw new RuntimeException("Not yet implemented");
 	}
 
+	@Override
+	public boolean isReadBuffer() {
+		
+		return true;
+	}
+
 }

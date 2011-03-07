@@ -64,7 +64,7 @@ public class FileInputChannelTest {
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	DeserializationBuffer deserializationBuffer;
+	DeserializationBuffer<StringRecord> deserializationBuffer;
 	@Mock
 	ChannelID id;
 	@Mock
@@ -140,7 +140,7 @@ public class FileInputChannelTest {
 	 */
 	@Test
 	@PrepareForTest(CompressionLoader.class)
-	public void deserializeNextRecordTest() throws IOException {
+	public void deserializeNextRecordTest() throws IOException, InterruptedException {
 		StringRecord record = new StringRecord("abc");
 		Decompressor decompressorMock = mock(Decompressor.class);
 		this.uncompressedDataBuffer = mock(Buffer.class);

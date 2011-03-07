@@ -13,27 +13,9 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.bufferprovider;
 
-import java.io.IOException;
+public interface OutOfByteBuffersListener {
 
-import eu.stratosphere.nephele.event.task.AbstractEvent;
-
-public interface ByteBufferedInputChannelBroker {
-
-	public void releaseConsumedReadBuffer();
-
-	public BufferPairResponse getReadBufferToConsume();
-
-	/**
-	 * Forwards the given event to the connected network output channel on a best effort basis.
-	 * 
-	 * @param event
-	 *        the event to be transferred
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be transfered
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while transfering the event
-	 */
-	void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException;
+	public void outOfByteBuffers();
 }

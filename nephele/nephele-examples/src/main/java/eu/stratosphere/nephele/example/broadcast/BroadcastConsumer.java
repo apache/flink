@@ -13,40 +13,55 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.example.events;
+package eu.stratosphere.nephele.example.broadcast;
 
-import eu.stratosphere.nephele.event.task.StringTaskEvent;
+import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 
 /**
- * @author casp
+ * This is a sample consumer task for the broadcast test job.
+ * 
+ * @author warneke
  */
-public class EventReceiver extends AbstractTask {
+public class BroadcastConsumer extends AbstractFileOutputTask {
 
-	// this is just a dummy input gate...
-	private RecordReader<StringRecord> input = null;
+	/**
+	 * The record record through which this task receives incoming records.
+	 */
+	private RecordReader<BroadcastRecord> input;
 
-	private RecordWriter<StringRecord> output = null;
-
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void registerInputOutput() {
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class, null);
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
-		this.input.subscribeToEvent(new MyEventListener(), StringTaskEvent.class);
+
+		this.input = new RecordReader<BroadcastRecord>(this, BroadcastRecord.class, new BipartiteDistributionPattern());
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void invoke() throws Exception {
 
+		int count = 1;
+
 		while (this.input.hasNext()) {
 
-			StringRecord s = input.next();
-			this.output.emit(s);
+			final BroadcastRecord record = this.input.next();
+
+			// Check content of record
+			for (int i = 0; i < record.getSize(); i++) {
+
+				if (record.getData(i) != i) {
+					throw new RuntimeException(count + "th record has unexpected byte " + record.getData(i)
+						+ " at position " + i);
+				}
+			}
+
+			++count;
 		}
-
 	}
-
 }

@@ -25,9 +25,11 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.OutOfByteBuffersListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutOfByteBuffersListener;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.execution.Environment;
 
 /**
@@ -182,7 +184,8 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		try {
 			switch (this.checkpointingDecision) {
 			case NO_CHECKPOINTING:
-				transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+				//TODO: Fix me
+				//transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 				return;
 			case UNDECIDED:
 			case CHECKPOINTING:
@@ -192,10 +195,11 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 					return;
 				}
 
-				if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
+				//TODO: Fix me
+				/*if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
 					// Continue working with a copy of the transfer envelope
 					transferEnvelope = transferEnvelope.duplicate();
-				}
+				}*/
 
 				channelCheckpoint.addToCheckpoint(transferEnvelope);
 				break;
@@ -298,8 +302,13 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			LOG.error("Cannot find channel checkpoint for channel " + sourceChannelID);
 		}
 
-		final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
-			channelCheckpoint, sourceChannelID);
+		final NetworkConnectionManager networkConnectionManager = byteBufferedChannelManager
+			.getNetworkConnectionManager();
+		final FileBufferManager fileBufferManager = byteBufferedChannelManager.getBufferProvider()
+			.getFileBufferManager();
+
+		final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(networkConnectionManager,
+			fileBufferManager, channelCheckpoint, sourceChannelID);
 
 		thread.start();
 	}
@@ -325,11 +334,11 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 */
 	public synchronized void remove() {
 
-		if(!this.isFinished()) {
+		if (!this.isFinished()) {
 			LOG.error("Trying to remove an unfinished checkpoint. Request is ignored.");
 			return;
 		}
-		
+
 		discardCheckpoint();
 	}
 
@@ -355,7 +364,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			return;
 		}
 
-		//TODO: Uncomment this when feature is full implemented
-		//this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
+		// TODO: Uncomment this when feature is full implemented
+		// this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 	}
 }
