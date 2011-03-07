@@ -86,6 +86,11 @@ public class CoGroupTask extends AbstractTask {
 
 	// task config including stub parameters
 	private TaskConfig config;
+	
+	// cancel flag
+	private volatile boolean taskCanceled;
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * {@inheritDoc}
@@ -119,6 +124,20 @@ public class CoGroupTask extends AbstractTask {
 		typedInvoke(coGroup.getFirstInKeyType(), coGroup.getFirstInValueType(), coGroup.getSecondInValueType(), coGroup
 			.getOutKeyType(), coGroup.getSecondInValueType());
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.debug("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	}
+	
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Initializes the stub implementation and configuration. Takes the stub class from the configuration,
@@ -333,6 +352,7 @@ public class CoGroupTask extends AbstractTask {
 	 */
 	private <IK extends Key, IV1 extends Value, IV2 extends Value, OK extends Key, OV extends Value> void typedInvoke(
 			Class<IK> ikClass, Class<IV1> iv1Class, Class<IV2> iv2Class, Class<OK> okClass, Class<OV> ovClass)
+	throws Exception
 	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -361,10 +381,26 @@ public class CoGroupTask extends AbstractTask {
 			coGroup.open();
 			
 			// for each distinct key in both inputs (not necessarily shared by both inputs)
-			while (coGroupIterator.next()) {
+			while (coGroupIterator.next() && !taskCanceled) {
 				// call coGroup() method of stub implementation
 				coGroup.coGroup(coGroupIterator.getKey(), coGroupIterator.getValues1(), coGroupIterator.getValues2(),
 					collector);
+			}
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", ex);
+				throw ex;
+			}
+		}
+		finally {
+			// close CoGroupTaskIterator
+			// this is important to release the memory segments
+			if (coGroupIterator != null) {
+				coGroupIterator.close();
 			}
 			
 			// close stub implementation.
@@ -378,19 +414,6 @@ public class CoGroupTask extends AbstractTask {
 					+ this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
-			}
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("An IO error occured during processing CoGroupTask", ioe);
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
-		}
-		finally {
-			// close CoGroupTaskIterator
-			// this is important to release the memory segments
-			if (coGroupIterator != null) {
-				coGroupIterator.close();
 			}
 			
 			// close output collector

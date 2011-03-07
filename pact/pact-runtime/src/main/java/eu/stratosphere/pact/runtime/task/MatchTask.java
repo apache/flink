@@ -72,6 +72,10 @@ public class MatchTask extends AbstractTask {
 	// obtain MatchTask logger
 	private static final Log LOG = LogFactory.getLog(MatchTask.class);
 	
+	// copier for key and values
+	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
+	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
+	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
 	
 	// number of sort buffers to use
 	private int NUM_SORT_BUFFERS;
@@ -103,15 +107,15 @@ public class MatchTask extends AbstractTask {
 	// task config including stub parameters
 	private TaskConfig config;
 
-	// copier for key and values
-	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
-	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
-	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
-	
 	// serialization factories for key and values
 	private SerializationFactory<Key> keySerialization;
 	private SerializationFactory<Value> v1Serialization;
 	private SerializationFactory<Value> v2Serialization;
+	
+	// flag marking the task as canceled
+	private volatile boolean taskCanceled; 
+
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * {@inheritDoc}
@@ -140,7 +144,7 @@ public class MatchTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() // throws Exception
+	public void invoke() throws Exception
 	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -162,9 +166,24 @@ public class MatchTask extends AbstractTask {
 			matchStub.open();
 			
 			// for each distinct key that is contained in both inputs
-			while (matchIterator.next()) {
+			while (matchIterator.next() && !taskCanceled) {
 				// call run() method of match stub implementation
 				crossValues(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2());
+			}
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", ex);
+				throw ex;
+			}
+		}
+		finally {
+			// close MatchTaskIterator
+			if (matchIterator != null) {
+				matchIterator.close();
 			}
 			
 			// close stub implementation.
@@ -179,18 +198,6 @@ public class MatchTask extends AbstractTask {
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
 			}
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("An I/O error occured during processing MatchTask", ioe);
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
-		}
-		finally {
-			// close MatchTaskIterator
-			if (matchIterator != null) {
-				matchIterator.close();
-			}
 
 			// close output collector
 			output.close();
@@ -200,6 +207,20 @@ public class MatchTask extends AbstractTask {
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.debug("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	}
+	
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Initializes the stub implementation and configuration.

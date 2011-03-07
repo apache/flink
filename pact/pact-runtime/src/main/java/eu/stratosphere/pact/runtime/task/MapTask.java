@@ -257,14 +257,17 @@ public class MapTask extends AbstractTask {
 	 * @param out
 	 *        A collector for the output of the map() function.
 	 */
-	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) throws InterruptedException {
+	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) throws InterruptedException
+	{
+		Thread runner = Thread.currentThread();
+		
 		while (in.hasNext()) {
 			Pair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);
 			
 			// check if task thread was interrupted
-			if(Thread.interrupted()) {
-				if(this.taskWasCanceled) {
+			if (runner.isInterrupted()) {
+				if (this.taskWasCanceled) {
 					// task was canceled by TaskManager
 					// close stub and terminate
 					this.stub.close();
