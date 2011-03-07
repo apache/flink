@@ -781,7 +781,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELLED
+		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 			|| newExecutionState == ExecutionState.FAILED) {
 
 			// In any of these states the task's thread will be terminated, so we remove the task from the running tasks

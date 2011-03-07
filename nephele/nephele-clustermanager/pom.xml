@@ -32,6 +32,7 @@
         <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
         <excludes>
           <exclude>**/TestInstanceListener.java</exclude>
+          <exclude>**/ClusterManagerTest.java</exclude>
         </excludes>
       </configuration>
   	  </plugin>
