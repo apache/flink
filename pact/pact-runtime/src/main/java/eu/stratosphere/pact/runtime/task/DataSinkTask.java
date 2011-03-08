@@ -111,7 +111,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		format.setOutput(fdos);
 		format.open();
 
-		while (reader.hasNext()) {
+		while (reader.hasNext() && !this.taskCanceled) {
 			KeyValuePair pair = reader.next();
 			format.writePair(pair);
 			// byte[] line = format.writeLine(pair);
@@ -121,17 +121,24 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		format.close();
 		fdos.close(); // Should this be done in the format?l
 
-		LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
 		if (fdos != null) {
 			fdos.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if(!this.taskCanceled) {
+			
+			LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -141,7 +148,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}

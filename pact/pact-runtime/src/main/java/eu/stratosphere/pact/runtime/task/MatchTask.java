@@ -158,7 +158,7 @@ public class MatchTask extends AbstractTask {
 			// open MatchTaskIterator
 			matchIterator.open();
 			
-			LOG.info("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
