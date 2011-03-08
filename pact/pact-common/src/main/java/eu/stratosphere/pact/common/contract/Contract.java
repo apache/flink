@@ -22,6 +22,10 @@ import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.stub.Stub;
 
 /**
+ * Abstract base class for all Parallelization Contracts (PACTs).
+ * A PACT receives one or multiple input sets of key/value-pairs ({@see eu.stratosphere.pact.common.type.KeyValuePair}) 
+ * and partitions and combines these pairs into independent sets which are processed by user functions.
+ * 
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */

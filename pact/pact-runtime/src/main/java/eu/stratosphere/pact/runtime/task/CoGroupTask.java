@@ -182,7 +182,8 @@ public class CoGroupTask extends AbstractTask {
 	 *         Thrown if the local strategy is not supported.
 	 */
 	private <K extends Key, V1 extends Value, V2 extends Value> CoGroupTaskIterator<K, V1, V2> getIterator(
-			Class<K> ikClass, Class<V1> iv1Class, Class<V2> iv2Class) {
+			Class<K> ikClass, Class<V1> iv1Class, Class<V2> iv2Class)
+	{
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain task manager's io manager
@@ -278,6 +279,7 @@ public class CoGroupTask extends AbstractTask {
 	 *        The class of the output value.
 	 */
 	private <OK extends Key, OV extends Value> void typedInitOutputCollector(Class<OK> okClass, Class<OV> ovClass) {
+		
 		// create collection for writers
 		List<RecordWriter<KeyValuePair<OK, OV>>> writers = new ArrayList<RecordWriter<KeyValuePair<OK, OV>>>();
 
@@ -294,9 +296,12 @@ public class CoGroupTask extends AbstractTask {
 
 			// add writer to collection
 			writers.add(writer);
+			
 		}
 		// create collector and register all writers
-		output = new OutputCollector<OK, OV>(writers);
+		// all writers forward copies, except the first one
+		// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+		output = new OutputCollector<OK, OV>(writers, (int)(Math.pow(2, writers.size())-1));
 	}
 
 	/**
@@ -327,7 +332,8 @@ public class CoGroupTask extends AbstractTask {
 	 *        The class of the output value.
 	 */
 	private <IK extends Key, IV1 extends Value, IV2 extends Value, OK extends Key, OV extends Value> void typedInvoke(
-			Class<IK> ikClass, Class<IV1> iv1Class, Class<IV2> iv2Class, Class<OK> okClass, Class<OV> ovClass) {
+			Class<IK> ikClass, Class<IV1> iv1Class, Class<IV2> iv2Class, Class<OK> okClass, Class<OV> ovClass)
+	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -335,16 +341,15 @@ public class CoGroupTask extends AbstractTask {
 		final CoGroupStub<IK, IV1, IV2, OK, OV> coGroup = getCoGroupStub();
 		final OutputCollector<OK, OV> collector = getOutputCollector();
 
-		final CoGroupTaskIterator<IK, IV1, IV2> coGroupIterator = getIterator(ikClass, iv1Class, iv2Class);
-
-		LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		// open stub implementation
-		coGroup.open();
+		CoGroupTaskIterator<IK, IV1, IV2> coGroupIterator = null; 
 
 		try {
+			coGroupIterator = getIterator(ikClass, iv1Class, iv2Class);
+			
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			
 			// open CoGroupTaskIterator
 			coGroupIterator.open();
 
@@ -352,31 +357,42 @@ public class CoGroupTask extends AbstractTask {
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
+			// open stub implementation
+			coGroup.open();
+			
 			// for each distinct key in both inputs (not necessarily shared by both inputs)
 			while (coGroupIterator.next()) {
 				// call coGroup() method of stub implementation
 				coGroup.coGroup(coGroupIterator.getKey(), coGroupIterator.getValues1(), coGroupIterator.getValues2(),
 					collector);
 			}
-
-		} catch (IOException ioe) {
-			throw new RuntimeException("Error occured during processing CoGroupTask", ioe);
-		} catch (InterruptedException ie) {
-			throw new RuntimeException("Error occured during processing CoGroupTask", ie);
-		} finally {
-
-			// close stub implementation
+			
+			// close stub implementation.
+			// when the stub is closed, anything will have been written, so any error will be logged but has no 
+			// effect on the successful completion of the task
 			try {
 				coGroup.close();
-			} catch (Throwable t) {
 			}
-
+			catch (Throwable t) {
+				LOG.error("Error while closing the CoGroup user function " 
+					+ this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
+			}
+		}
+		catch (IOException ioe) {
+			throw new RuntimeException("An IO error occured during processing CoGroupTask", ioe);
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
+		}
+		finally {
 			// close CoGroupTaskIterator
-			try {
+			// this is important to release the memory segments
+			if (coGroupIterator != null) {
 				coGroupIterator.close();
-			} catch (Throwable t) {
 			}
-
+			
 			// close output collector
 			collector.close();
 		}
@@ -387,7 +403,7 @@ public class CoGroupTask extends AbstractTask {
 	}
 
 	// ------------------------------------------------------------------------
-	// Typed access methods
+	//                        Typed access methods
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")

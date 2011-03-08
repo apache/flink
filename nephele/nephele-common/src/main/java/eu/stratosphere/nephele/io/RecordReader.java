@@ -326,18 +326,42 @@ public class RecordReader<T extends Record> implements Reader<T> {
 		this.inputGate.registerInputGateListener(inputGateListener);
 	}
 
-	public void subscribeToEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Subscribes the listener object to receive events of the given type.
+	 * 
+	 * @param eventListener
+	 *        the listener object to register
+	 * @param eventType
+	 *        the type of event to register the listener for
+	 */
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to input gate
-		this.inputGate.subscribeToEvent(eventNotifiable, eventType);
+		this.inputGate.subscribeToEvent(eventListener, eventType);
 	}
 
-	public void unsubscribeFromEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Removes the subscription for events of the given type for the listener object.
+	 * 
+	 * @param eventListener
+	 *        the listener object to cancel the subscription for
+	 * @param eventType
+	 *        the type of the event to cancel the subscription for
+	 */
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to input gate
-		this.inputGate.unsubscribeFromEvent(eventNotifiable, eventType);
+		this.inputGate.unsubscribeFromEvent(eventListener, eventType);
 	}
 
+	/**
+	 * Publishes an event.
+	 * 
+	 * @param event
+	 *        the event to be published
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the event
+	 */
 	public void publishEvent(AbstractTaskEvent event) throws IOException {
 
 		// Delegate call to input gate

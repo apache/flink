@@ -17,7 +17,7 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.fs.hdfs.DistributedDataInputStream;
+import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -38,7 +38,7 @@ import eu.stratosphere.pact.common.type.Value;
  */
 public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K, V> {
 
-	protected DistributedDataInputStream stream;
+	protected FSDataInputStream stream;
 
 	protected long start;
 
@@ -71,7 +71,7 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 	public abstract boolean nextPair(KeyValuePair<K, V> pair) throws IOException;
 
 	/**
-	 * Method used to check if the end of the input is reached
+	 * Method used to check if the end of the input is reached.
 	 * 
 	 * @return returns true if the end is reached, otherwise false
 	 * @throws IOException
@@ -80,25 +80,18 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 	public abstract boolean reachedEnd() throws IOException;
 
 	/**
-	 * Conncets the input stream to the input format
+	 * Connects the input stream to the input format.
 	 * 
 	 * @param fdis
 	 * @param start
 	 * @param length
 	 * @param bufferSize
 	 */
-	public void setInput(DistributedDataInputStream fdis, long start, long length, int bufferSize) {
+	public void setInput(FSDataInputStream fdis, long start, long length, int bufferSize) {
 		this.stream = fdis;
 		this.start = start;
 		this.length = length;
 		this.bufferSize = bufferSize;
 	}
-
-	// IDEA: Implement filter interface so that records can directly be skipped
-	// if e.g. the key does not match and that way the values don't need
-	// to be read
-	// ... should probably done by a configuration parameter not by a
-	// setter method
-	// public void setFilter(InputFilter f);
 
 }

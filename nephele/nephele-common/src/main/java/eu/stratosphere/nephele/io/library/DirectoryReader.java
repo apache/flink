@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.io.library;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -31,6 +34,8 @@ public class DirectoryReader extends AbstractFileInputTask {
 
 	// buffer
 	private byte[] buffer;
+
+	private static final Log LOG = LogFactory.getLog(DirectoryReader.class);
 
 	/**
 	 * {@inheritDoc}
@@ -58,7 +63,7 @@ public class DirectoryReader extends AbstractFileInputTask {
 						output.emit(fr);
 					} catch (InterruptedException e) {
 						// TODO: Respond to interruption properly
-						e.printStackTrace();
+						LOG.error(e);
 					}
 				}
 				fr = new FileRecord(split.getPath().getName());
@@ -85,7 +90,7 @@ public class DirectoryReader extends AbstractFileInputTask {
 				output.emit(fr);
 			} catch (InterruptedException e) {
 				// TODO: Respond to interruption properly
-				e.printStackTrace();
+				LOG.error(e);
 			}
 	}
 

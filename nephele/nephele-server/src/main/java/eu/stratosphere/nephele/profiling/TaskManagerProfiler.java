@@ -17,7 +17,7 @@ package eu.stratosphere.nephele.profiling;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.InputGateListener;
@@ -34,16 +34,16 @@ import eu.stratosphere.nephele.types.Record;
 public interface TaskManagerProfiler {
 
 	/**
-	 * Registers an {@link ExecutionNotifiable} object for profiling.
+	 * Registers an {@link ExecutionListener} object for profiling.
 	 * 
 	 * @param id
 	 *        the {@link ExecutionVertexID} of the task
 	 * @param jobConfiguration
 	 *        the job configuration sent with the task
 	 * @param environment
-	 *        the {@link Environment} object to register the notifiable for
+	 *        the {@link Environment} object to register the listener for
 	 */
-	void registerExecutionNotifiable(ExecutionVertexID id, Configuration jobConfiguration, Environment environment);
+	void registerExecutionListener(ExecutionVertexID id, Configuration jobConfiguration, Environment environment);
 
 	/**
 	 * Registers a {@link InputGateListener} object for the given input gate.
@@ -72,13 +72,13 @@ public interface TaskManagerProfiler {
 			OutputGate<? extends Record> outputGate);
 
 	/**
-	 * Unregisters all previously register {@link ExecutionNotifiable} objects for
+	 * Unregisters all previously register {@link ExecutionListener} objects for
 	 * the vertex identified by the given ID.
 	 * 
 	 * @param id
-	 *        the ID of the vertex to unregister the {@link ExecutionNotifiable} objects for
+	 *        the ID of the vertex to unregister the {@link ExecutionListener} objects for
 	 */
-	void unregisterExecutionNotifiable(ExecutionVertexID id);
+	void unregisterExecutionListener(ExecutionVertexID id);
 
 	/**
 	 * Unregisters all previously register {@link InputGateListener} objects for

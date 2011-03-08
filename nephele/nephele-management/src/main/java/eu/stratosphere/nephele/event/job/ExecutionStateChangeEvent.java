@@ -19,12 +19,16 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.util.EnumUtils;
 
-public class ExecutionStateChangeEvent extends AbstractEvent implements ManagementEvent {
+/**
+ * An {@link ExecutionStateChangeEvent} can be used to notify other objects about an execution state change of a vertex.
+ * 
+ * @author warneke
+ */
+public final class ExecutionStateChangeEvent extends AbstractEvent implements ManagementEvent {
 
 	/**
 	 * The ID identifies the vertex this events refers to.
@@ -43,11 +47,11 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 	 *        the timestamp of the event
 	 * @param managementVertexID
 	 *        identifies the vertex this event refers to
-	 * @param executionState
+	 * @param newExecutionState
 	 *        the new execution state of the vertex this event refers to
 	 */
-	public ExecutionStateChangeEvent(long timestamp, ManagementVertexID managementVertexID,
-			ExecutionState newExecutionState) {
+	public ExecutionStateChangeEvent(final long timestamp, final ManagementVertexID managementVertexID,
+			final ExecutionState newExecutionState) {
 		super(timestamp);
 		this.managementVertexID = managementVertexID;
 		this.newExecutionState = newExecutionState;
@@ -65,10 +69,20 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 		this.newExecutionState = ExecutionState.CREATED;
 	}
 
+	/**
+	 * Returns the ID of the vertex this event refers to.
+	 * 
+	 * @return the ID of the vertex this event refers to
+	 */
 	public ManagementVertexID getVertexID() {
 		return this.managementVertexID;
 	}
 
+	/**
+	 * Returns the new execution state of the vertex this event refers to.
+	 * 
+	 * @return the new execution state of the vertex this event refers to
+	 */
 	public ExecutionState getNewExecutionState() {
 		return this.newExecutionState;
 	}
@@ -77,7 +91,7 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		super.read(in);
 
@@ -89,7 +103,7 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		super.write(out);
 
@@ -101,7 +115,7 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!super.equals(obj)) {
 			return false;
@@ -121,5 +135,22 @@ public class ExecutionStateChangeEvent extends AbstractEvent implements Manageme
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		if (this.newExecutionState != null) {
+			return this.newExecutionState.hashCode();
+		}
+
+		if (this.managementVertexID != null) {
+			return this.managementVertexID.hashCode();
+		}
+
+		return super.hashCode();
 	}
 }

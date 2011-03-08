@@ -37,20 +37,23 @@ public abstract class ID implements IOReadableWritable {
 	/**
 	 * The buffer storing the actual ID.
 	 */
-	private byte[] bytes = null;
+	private final byte[] bytes = new byte[SIZE];
 
 	/**
 	 * Constructs a new ID with a specific bytes value.
 	 */
 	public ID(byte[] bytes) {
-		this.bytes = bytes;
+		
+		if(bytes.length == SIZE) {
+			System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
+		}
 	}
 
 	/**
 	 * Constructs a new random ID from a uniform distribution.
 	 */
 	public ID() {
-		this.bytes = new byte[SIZE];
+		
 		for (int i = 0; i < SIZE; i++) {
 			this.bytes[i] = (byte) ((Math.random() * 256.0) + Byte.MIN_VALUE);
 		}
@@ -68,10 +71,11 @@ public abstract class ID implements IOReadableWritable {
 			return;
 		}
 
-		this.bytes = new byte[src.length];
-		for (int i = 0; i < src.length; i++) {
-			bytes[i] = src[i];
+		if(src.length != SIZE) {
+			return;
 		}
+		
+		System.arraycopy(src, 0, this.bytes, 0, SIZE);
 	}
 
 	/**
@@ -161,14 +165,6 @@ public abstract class ID implements IOReadableWritable {
 	@Override
 	public void read(DataInput in) throws IOException {
 
-		// First read number of bytes
-		final int length = in.readInt();
-		if (length == 0) {
-			this.bytes = null;
-			return;
-		}
-
-		this.bytes = new byte[length];
 		in.readFully(this.bytes);
 	}
 
@@ -178,15 +174,7 @@ public abstract class ID implements IOReadableWritable {
 	@Override
 	public void write(DataOutput out) throws IOException {
 
-		// First, write number of bytes
-		if (this.bytes == null) {
-			out.writeInt(0);
-			return;
-		}
-
-		out.writeInt(this.bytes.length);
-
-		// Now, write the particular bytes
+		// Write the particular bytes
 		out.write(this.bytes);
 
 	}

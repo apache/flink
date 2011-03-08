@@ -28,8 +28,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.ExternalDFSProvider;
-import eu.stratosphere.pact.test.util.filesystem.LocalFSProvider;
-import eu.stratosphere.pact.test.util.filesystem.MiniDFSProvider;
 
 public class DistClusterProvider extends ClusterProvider {
 
@@ -121,15 +119,6 @@ public class DistClusterProvider extends ClusterProvider {
 		filesystemProvider.stop();
 		this.filesystemRunning = false;
 
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#clearHDFS()
-	 */
-	@Override
-	protected void clearFS() throws Exception {
-		filesystemProvider.delete("/", true);
 	}
 
 	@Override

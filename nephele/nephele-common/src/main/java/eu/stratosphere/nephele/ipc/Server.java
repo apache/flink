@@ -52,7 +52,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.ipc.metrics.RpcMetrics;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
@@ -148,8 +147,6 @@ public abstract class Server {
 
 	// connections to nuke
 	// during a cleanup
-
-	protected RpcMetrics rpcMetrics;
 
 	private int maxQueueSize;
 
@@ -257,6 +254,8 @@ public abstract class Server {
 
 		// two cleanup runs
 		private int backlogLength = 128;
+
+		private volatile boolean shutDown = false;
 
 		public Listener()
 							throws IOException {
@@ -366,7 +365,6 @@ public abstract class Server {
 				} catch (InterruptedException e) {
 					if (running) { // unexpected -- log it
 						LOG.info(getName() + " caught: " + e.toString());
-						e.printStackTrace();
 					}
 				} catch (Exception e) {
 					closeCurrentConnection(key, e);
@@ -390,6 +388,12 @@ public abstract class Server {
 					closeConnection(connectionList.remove(0));
 				}
 			}
+
+			this.shutDown = true;
+		}
+
+		public boolean isShutDown() {
+			return this.shutDown;
 		}
 
 		private void closeCurrentConnection(SelectionKey key, Throwable e) {
@@ -483,6 +487,8 @@ public abstract class Server {
 
 		final static int PURGE_INTERVAL = 900000; // 15mins
 
+		private volatile boolean shutDown = false;
+
 		Responder()
 					throws IOException {
 			this.setName("IPC Server Responder");
@@ -561,6 +567,12 @@ public abstract class Server {
 				}
 			}
 			LOG.info("Stopping " + this.getName());
+
+			this.shutDown = true;
+		}
+
+		public boolean isShutDown() {
+			return this.shutDown;
 		}
 
 		private void doAsyncWrite(SelectionKey key) throws IOException {
@@ -789,10 +801,6 @@ public abstract class Server {
 			this.lastContact = lastContact;
 		}
 
-		public long getLastContact() {
-			return lastContact;
-		}
-
 		/* Return true if the connection has no outstanding rpc */
 		private boolean isIdle() {
 			return rpcCount == 0;
@@ -884,7 +892,7 @@ public abstract class Server {
 					protocol = getProtocolClass(header.getProtocol());
 				}
 			} catch (ClassNotFoundException cnfe) {
-				cnfe.printStackTrace();
+				LOG.error(cnfe);
 				throw new IOException("Unknown protocol: " + header.getProtocol());
 			}
 
@@ -928,6 +936,9 @@ public abstract class Server {
 
 	/** Handles queued calls . */
 	private class Handler extends Thread {
+
+		private volatile boolean shutDown = false;
+
 		public Handler(int instanceNumber) {
 			this.setDaemon(true);
 			this.setName("IPC Server handler " + instanceNumber + " on " + port);
@@ -966,8 +977,14 @@ public abstract class Server {
 				}
 			}
 			LOG.info(getName() + ": exiting");
+
+			this.shutDown = true;
 		}
 
+		public boolean isShutDown() {
+
+			return this.shutDown;
+		}
 	}
 
 	protected Server(String bindAddress, int port, Class<? extends IOReadableWritable> paramClass, int handlerCount)
@@ -978,7 +995,7 @@ public abstract class Server {
 	/**
 	 * Constructs a server listening on the named port and address. Parameters passed must
 	 * be of the named class. The <code>handlerCount</handlerCount> determines
-   * the number of handler threads that will be used to process calls.
+	 * the number of handler threads that will be used to process calls.
 	 */
 	protected Server(String bindAddress, int port, Class<? extends IOReadableWritable> invocationClass,
 			int handlerCount, String serverName)
@@ -997,7 +1014,6 @@ public abstract class Server {
 		// Start the listener here and let it bind to the port
 		listener = new Listener();
 		this.port = listener.getAddress().getPort();
-		this.rpcMetrics = new RpcMetrics(serverName, Integer.toString(this.port), this);
 		this.tcpNoDelay = false;
 
 		// Create the responder here
@@ -1087,9 +1103,53 @@ public abstract class Server {
 		listener.doStop();
 		responder.interrupt();
 		notifyAll();
-		if (this.rpcMetrics != null) {
-			this.rpcMetrics.shutdown();
+
+		// Wait until shut down of handlers is complete
+		if (this.handlers != null) {
+
+			while (true) {
+
+				int i = 0;
+				for (; i < this.handlerCount; i++) {
+					if (this.handlers[i] != null) {
+						if (!this.handlers[i].isShutDown()) {
+							break;
+						}
+					}
+				}
+
+				if (i < this.handlerCount) {
+					try {
+						wait(100);
+					} catch (InterruptedException e) {
+						break;
+					}
+				} else {
+					// exit while loop
+					break;
+				}
+			}
 		}
+
+		// Wait until shut down of responder is complete
+		while (!this.responder.isShutDown()) {
+			try {
+				wait(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
+
+		// Wait until shut down of listener is complete
+		while (!this.listener.isShutDown()) {
+			try {
+				wait(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
+
+		LOG.debug("Shutdown of RPC server completed");
 	}
 
 	/**

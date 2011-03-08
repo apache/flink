@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
 
@@ -60,61 +59,37 @@
       <artifactId>hadoop-core</artifactId>
     </dependency>
 
-    <dependency>
-    	<groupId>org.mortbay.jetty</groupId>
-    	<artifactId>jetty</artifactId>
-    	<version>6.1.14</version>
-    	<type>jar</type>
-    	<scope>runtime</scope>
-    </dependency>
-   
-    <dependency>
-    	<groupId>org.mortbay.jetty</groupId>
-    	<artifactId>jetty-util</artifactId>
-    	<version>6.1.14</version>
-    	<type>jar</type>
-    	<scope>runtime</scope>
-    </dependency>
-    
-    <dependency>
-    	<groupId>tomcat</groupId>
-    	<artifactId>jasper-compiler</artifactId>
-    	<version>5.5.12</version>
-    	<type>jar</type>
-    	<scope>runtime</scope>
-    </dependency>
-    
-    <dependency>
-    	<groupId>tomcat</groupId>
-    	<artifactId>jasper-runtime</artifactId>
-    	<version>5.5.12</version>
-    	<type>jar</type>
-    	<scope>runtime</scope>
-    </dependency>
-    
-    <dependency>
-    	<groupId>org.mortbay.jetty</groupId>
-    	<artifactId>servlet-api-2.5</artifactId>
-    	<version>6.1.14</version>
-    	<type>jar</type>
-    	<scope>runtime</scope>
-    </dependency>
-    
-    <dependency>
-    	<groupId>jetty</groupId>
-    	<artifactId>jsp</artifactId>
-    	<version>2.1-6.0.2</version>
-    	<type>jar</type>
-    	<scope>runtime</scope>
-    </dependency>
-    
-    <dependency>
-    	<groupId>jetty</groupId>
-    	<artifactId>jsp-api</artifactId>
-    	<version>2.1-6.0.2</version>
-    	<type>jar</type>
-    	<scope>runtime</scope>
-    </dependency>
+
+	<dependency>
+		<groupId>junit</groupId>
+		<artifactId>junit</artifactId>
+		<version>4.7</version>
+		<type>jar</type>
+	</dependency>
+	<dependency>
+		<groupId>org.mockito</groupId>
+		<artifactId>mockito-all</artifactId>
+		<version>1.8.5</version>
+		<type>jar</type>
+	</dependency>
+	<dependency>
+		<groupId>org.powermock</groupId>
+		<artifactId>powermock-module-junit4</artifactId>
+		<version>1.4.7</version>
+		<type>jar</type>
+	</dependency>
+	<dependency>
+		<groupId>org.powermock</groupId>
+		<artifactId>powermock-api-mockito</artifactId>
+		<version>1.4.7</version>
+		<type>jar</type>
+	</dependency>
+	<dependency>
+		<groupId>org.hamcrest</groupId>
+		<artifactId>hamcrest-all</artifactId>
+		<version>1.1</version>
+		<type>jar</type>
+	</dependency>
   </dependencies>
 
   <reporting>
@@ -125,29 +100,38 @@
   <build>
     <plugins>
             
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.7</version>
-        <configuration>
-          <systemPropertyVariables>
-            <property>
-              <name>java.net.preferIPv4Stack</name>
-              <value>true</value>
-            </property>
-          </systemPropertyVariables>
-        
-          <includes>
-            <!--
-            <include>**/TestNepheleMiniCluster.java</include>
-            -->
-            
-            <include>**/ContractTests.java</include>    
-            <include>**/PactProgramTests.java</include>
-            
-          </includes>
-        </configuration>
-      </plugin>
+     		 <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+						<log.level>WARN</log.level>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*TestBase*.class</exclude>
+					</excludes>
+					<forkMode>once</forkMode>
+				</configuration>
+			</plugin>
+			
+			<plugin>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<excludes>
+						<exclude>**/*9ITCase.class</exclude>
+						<exclude>**/*RuntimeExceptionFailureITCase.class</exclude>
+					</excludes>
+					<systemPropertyVariables>
+						<log.level>WARN</log.level>
+					</systemPropertyVariables>
+					<forkMode>always</forkMode>
+					<threadCount>1</threadCount>
+					<perCoreThreadCount>false</perCoreThreadCount>
+				</configuration>
+			</plugin>
       
     </plugins>
   </build>

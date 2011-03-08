@@ -25,14 +25,23 @@ import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.Queue;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeSerializer;
 
 public class ChannelCheckpoint {
+
+	/**
+	 * The log object used to report debug information and possible errors.
+	 */
+	private static final Log LOG = LogFactory.getLog(ChannelCheckpoint.class);
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
@@ -80,7 +89,7 @@ public class ChannelCheckpoint {
 		}
 	}
 
-	private String getFilename() throws IOException {
+	private String getFilename() {
 
 		return (this.tmpDir + File.separator + "checkpoint_" + this.executionVertexID.toString() + "_" + this.sourceChannelID
 			.toString());
@@ -141,42 +150,69 @@ public class ChannelCheckpoint {
 
 		this.queuedEnvelopes.clear();
 
-		// TODO: Remove any files that may have been written
+		// Remove any files that may have been written
+		final File file = new File(getFilename());
+		if (file.exists()) {
+			try {
+				file.delete();
+			} catch (SecurityException e) {
+				LOG.error(e);
+			}
+		}
 	}
 
-	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) throws IOException {
+	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) {
 
 		if (!this.checkpointFinished) {
-			throw new IOException("Checkpoint is not finished!");
+			LOG.error("Checkpoint is not finished!");
 		}
 
 		if (this.fileChannel.isOpen()) {
-			throw new IOException("File channel is still open!");
+			LOG.error("File channel is still open!");
 		}
 
 		// The name of the file which contains the checkpoint
 		final String filename = getFilename();
 
-		// Register an external data source at the file buffer manager
-		byteBufferedChannelManager.getFileBufferManager().registerExternalDataSourceForChannel(this.sourceChannelID,
-			filename);
-
 		// Open file channel for recovery
-		final FileInputStream fis = new FileInputStream(filename);
+		FileInputStream fis = null;
+		try {
+			fis = new FileInputStream(filename);
+		} catch (IOException ioe) {
+			LOG.error(ioe);
+			return;
+		}
+
+		// Register an external data source at the file buffer manager
+		try {
+			byteBufferedChannelManager.getFileBufferManager().registerExternalDataSourceForChannel(
+				this.sourceChannelID,
+				filename);
+		} catch (IOException ioe) {
+			LOG.error(ioe);
+		}
+
 		this.fileChannel = fis.getChannel();
+
+		final IncomingConnectionID connectionID = new IncomingConnectionID(filename);
 
 		// Start recovering
 		final IncomingConnection incomingConnection = byteBufferedChannelManager
-			.registerIncomingConnectionFromCheckpoint();
+			.registerIncomingConnection(connectionID, this.fileChannel);
 
 		try {
 			while (true) {
-				incomingConnection.read(this.fileChannel);
+				incomingConnection.read();
 			}
 		} catch (EOFException e) {
 			// EOF Exception is expected here
+		} catch (IOException e) {
+			incomingConnection.reportTransmissionProblem(null, e);
+			// TODO: Unregister external data source
+			return;
 		}
 
-		this.fileChannel.close();
+		// TODO: Unregister external data source
+		incomingConnection.closeConnection(null);
 	}
 }

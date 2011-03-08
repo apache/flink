@@ -22,6 +22,7 @@ package eu.stratosphere.nephele.configuration;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class ConfigConstants {
+
 	// ------------------------------------------------------------------------
 	// Configuration Keys
 	// ------------------------------------------------------------------------
@@ -51,9 +52,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
-	 * The key for the config parameter defining whether to use discovery on startup.
+	 * The key for the config parameter defining the directory for temporary files.
 	 */
-	public static final String TASK_MANAGER_USE_DISCOVERY_KEY = "taskmanager.setup.usediscovery";
+	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dir";
 
 	/**
 	 * The key for the config parameter defining the amount of memory available for the task manager's
@@ -62,33 +63,13 @@ public final class ConfigConstants {
 	public static final String MEMORY_MANAGER_AVAILABLE_MEMORY_SIZE_KEY = "taskmanager.memory.size";
 
 	/**
-	 * The key for the config parameter defining the amount of memory available for the task manager's
-	 * memory manager (as a fraction of the whole available memory).
+	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
-	public static final String MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
-
-	/**
-	 * The key for the config parameter defining the directory for temporary files.
-	 */
-	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dir";
-
 	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
-
-	// ----------------------------- Instances --------------------------------
-
-	/**
-	 * The key for the config parameter defining the type of instance returned by the local instance manager.
-	 */
-	public static final String JOBMANAGER_LOCALINSTANCE_TYPE_KEY = "jobmanager.instancemanager.local.type";
 
 	// ------------------------------------------------------------------------
 	// Default Values
 	// ------------------------------------------------------------------------
-
-	/**
-	 * The default network address to connect to for communication with the job manager.
-	 */
-	public static final String DEFAULT_JOB_MANAGER_IPC_ADDRESS = "127.0.0.1";
 
 	/**
 	 * The default network port to connect to for communication with the job manager.
@@ -108,7 +89,7 @@ public final class ConfigConstants {
 	/**
 	 * The default amount of memory assigned to each task manager (in megabytes).
 	 */
-	public static final int DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY = -1;
+	public static final int DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY = 512;
 
 	/**
 	 * The default minimal amount of memory that the memory manager does not occupy (in megabytes).
@@ -116,16 +97,31 @@ public final class ConfigConstants {
 	public static final long DEFAULT_MEMORY_MANAGER_MIN_UNRESERVED_MEMORY = 256 * 1024 * 1024;
 
 	/**
-	 * The default amount of memory assigned to each task manager (as a fraction of the free memory).
-	 */
-	public static final float DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY_FRACTION = 0.7f;
-
-	/**
 	 * The default directory for temporary files of the task manager
 	 */
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
 
+	/**
+	 * The default value for the flag to terminate a job on job-client shutdown.
+	 */
 	public static final boolean DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB = true;
+
+	/**
+	 * The default scheduler to be used when Nephele is started in local mode.
+	 */
+	public static final String DEFAULT_LOCAL_MODE_SCHEDULER = "eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler";
+
+	// ----------------------------- Instances --------------------------------
+
+	/**
+	 * The default definition for an instance type, if no other configuration is provided.
+	 */
+	public static final String DEFAULT_INSTANCE_TYPE = "default,2,1,1024,10,10";
+
+	/**
+	 * The default index for the default instance type.
+	 */
+	public static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
 
 	// ------------------------------------------------------------------------
 

@@ -28,8 +28,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairSerializationFactory;
 
 /**
- * Abstract base class for the hash merge strategies (in-memory and
- * partitioning).
+ * Abstract base class for the hash match strategies (in-memory and partitioned).
  * 
  * @author Alexander Alexandrov
  */
@@ -76,9 +75,9 @@ abstract class HashMatchStrategy<K extends Key, VB extends Value, VP extends Val
 		this.currentProbeValuesIterable = new ProbeValueIterable();
 	}
 
-	abstract public void initialize() throws ServiceException, IOException, InterruptedException;
+	abstract public void initialize() throws ServiceException, IOException;
 
-	abstract public boolean next() throws IOException, InterruptedException;
+	abstract public boolean next() throws IOException;
 
 	abstract public void close();
 

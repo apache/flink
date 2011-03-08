@@ -17,6 +17,12 @@ package eu.stratosphere.nephele.managementgraph;
 
 import eu.stratosphere.nephele.io.ID;
 
-public class ManagementGroupVertexID extends ID {
-
+/**
+ * A management group vertex ID uniquely identifies a {@link ManagementGroupVertex}.
+ * <p>
+ * This class is not thread-safe.
+ * 
+ * @author warneke
+ */
+public final class ManagementGroupVertexID extends ID {
 }

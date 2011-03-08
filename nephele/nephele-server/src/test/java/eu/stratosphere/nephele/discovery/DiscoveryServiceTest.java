@@ -15,47 +15,100 @@
 
 package eu.stratosphere.nephele.discovery;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
+/**
+ * This class contains tests for the {@link DiscoveryService} class.
+ * 
+ * @author warneke
+ */
 public class DiscoveryServiceTest {
 
-	@Test
-	public void testToNetmask() {
-		/*
-		 * assertArrayEquals(
-		 * new byte[] {0, 0, 0, 0},
-		 * DiscoveryService.toNetmask(0) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, 0, 0, 0},
-		 * DiscoveryService.toNetmask(8) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)255, 0, 0},
-		 * DiscoveryService.toNetmask(16) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)255, (byte)255, 0},
-		 * DiscoveryService.toNetmask(24) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)255, (byte)255, (byte)255},
-		 * DiscoveryService.toNetmask(32) );
-		 * assertArrayEquals(
-		 * new byte[] {(byte)255, (byte)224, 0, 0},
-		 * DiscoveryService.toNetmask(8+3) );
-		 */
+	/**
+	 * The dummy IPC port used during the tests.
+	 */
+	private static final int IPC_PORT = 5555;
+
+	/**
+	 * Starts the discovery service before the tests.
+	 * 
+	 * @throws UnknownHostException
+	 *         thrown if the {@link InetAddress} of localhost cannot be determined
+	 * @throws DiscoveryException
+	 *         thrown if an error occurs during the start of the discovery manager
+	 */
+	@BeforeClass
+	public static void startService() throws UnknownHostException, DiscoveryException {
+
+		final InetAddress bindAddress = InetAddress.getLocalHost();
+
+		DiscoveryService.startDiscoveryService(bindAddress, IPC_PORT);
 	}
 
+	/**
+	 * Tests the job manager discovery function.
+	 */
 	@Test
-	public void testOnSameNetwork() throws Exception {
-		/*
-		 * Inet4Address a = (Inet4Address)InetAddress.getByAddress(new byte[] {(byte)192, (byte)168, (byte)0, (byte)1});
-		 * Inet4Address b = (Inet4Address)InetAddress.getByAddress(new byte[] {(byte)192, (byte)168, (byte)1, (byte)1});
-		 * assertTrue( DiscoveryService.onSameNetwork(a, b, 16));
-		 * assertFalse( DiscoveryService.onSameNetwork(a, b, 24));
-		 */
+	public void testJobManagerDiscovery() {
+		
+		InetAddress localHost = null;
+		
+		try {
+			localHost = InetAddress.getLocalHost();
+		} catch(UnknownHostException e) {
+			fail(e.getMessage());
+		}
+		
+		try {
+			final InetSocketAddress jobManagerAddress = DiscoveryService.getJobManagerAddress();
+			
+			assertEquals(localHost, jobManagerAddress.getAddress());
+			assertEquals(IPC_PORT, jobManagerAddress.getPort());
+			
+		} catch(DiscoveryException e) {
+			fail(e.getMessage());
+		}
 	}
+	
+	/**
+	 * Tests if the task manager address resolution works properly.
+	 */
+	@Test
+	public void testTaskManagerAddressResolution() {
+		
+		InetAddress localHost = null;
+		
+		try {
+			localHost = InetAddress.getLocalHost();
+		} catch(UnknownHostException e) {
+			fail(e.getMessage());
+		}
+		
+		try {
+			final InetAddress taskManagerAddress = DiscoveryService.getTaskManagerAddress(localHost);
+			
+			assertEquals(localHost, taskManagerAddress);
+			
+		} catch(DiscoveryException e) {
+			fail(e.getMessage());
+		}
+	}
+	
+	/**
+	 * Shuts the discovery service down after the tests.
+	 */
+	@AfterClass
+	public static void stopService() {
 
+		DiscoveryService.stopDiscoveryService();
+	}
 }

@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>stratosphere</artifactId>
 	<version>0.1</version>
-	
+
 	<name>stratosphere</name>
 	<packaging>pom</packaging>
 	<url>http://www.stratosphere.eu</url>
 	<inceptionYear>2009</inceptionYear>
-	
+
 	<licenses>
 		<license>
 			<name>The Apache Software License, Version 2.0</name>
@@ -20,7 +21,7 @@
 			<distribution>stratosphere</distribution>
 		</license>
 	</licenses>
-	
+
 	<developers>
 		<developer>
 			<id>warneke</id>
@@ -32,7 +33,7 @@
 				<role>Lead Developer</role>
 			</roles>
 		</developer>
-		
+
 		<developer>
 			<id>sewen</id>
 			<name>Stephan Ewen</name>
@@ -43,7 +44,7 @@
 				<role>Lead Developer</role>
 			</roles>
 		</developer>
-		
+
 		<developer>
 			<id>fhueske</id>
 			<name>Fabian Hueske</name>
@@ -58,11 +59,12 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<project.reporting.outputEncoding>UTF-8
+		</project.reporting.outputEncoding>
 	</properties>
-	
+
 	<pluginRepositories>
-		<pluginRepository>
+		<!-- <pluginRepository>
 			<id>mc-release</id>
 			<name>Local Maven repository of releases</name>
 			<url>http://mc-repo.googlecode.com/svn/maven2/releases</url>
@@ -80,9 +82,9 @@
 		<pluginRepository>
 			<id>apache.snapshots</id>
 			<url>http://repository.apache.org/snapshots/</url>
-		</pluginRepository>
+		</pluginRepository> -->
 	</pluginRepositories>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -91,43 +93,69 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-		
 		<dependency>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-            <version>1.1.1</version>
-            <type>jar</type>
+			<groupId>commons-logging</groupId>
+			<artifactId>commons-logging</artifactId>
+			<version>1.1.1</version>
+			<type>jar</type>
 			<scope>compile</scope>
-        </dependency>
-        
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.16</version>
-            <type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.16</version>
+			<type>jar</type>
 			<scope>compile</scope>
-        </dependency> 
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
+			<version>1.8.5</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+			<version>1.4.7</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito</artifactId>
+			<version>1.4.7</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-all</artifactId>
+			<version>1.1</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
-	
+
 	<dependencyManagement>
-        <!--
-        this section defines the module versions that are used if nothing
-        else is specified.
-        -->
-        <dependencies>
-	        <dependency>
-	        	<groupId>org.apache.hadoop</groupId>
-	        	<artifactId>hadoop-core</artifactId>
-	        	<version>0.20.2</version>
-	        	<type>jar</type>
-	        	<scope>compile</scope>
-	        </dependency>
-        </dependencies>
-    </dependencyManagement>
-	
+		<!--
+			this section defines the module versions that are used if nothing
+			else is specified.
+		-->
+		<dependencies>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-core</artifactId>
+				<version>0.20.2</version>
+				<type>jar</type>
+				<scope>compile</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<reporting>
 		<plugins>
-		
+
 			<plugin>
 				<!--
 					just define the Java version to be used for compiling and plugins
@@ -137,30 +165,34 @@
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
-					<compilerArgument>-g:none -O</compilerArgument>
+					<!--
+						High optimization, no debugging <compilerArgument>-g:none
+						-O</compilerArgument>
+					-->
+					<compilerArgument></compilerArgument>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<!-- measure and report source code complexity -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>javancss-maven-plugin</artifactId>
 				<version>2.0</version>
 			</plugin>
-			
+
 			<plugin>
 				<!-- analyze dependencies in source code -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>jdepend-maven-plugin</artifactId>
 			</plugin>
-			
+
 			<!--
 				disabled because currently no SCM defined generates changelog
 				<plugin> <groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-changelog-plugin</artifactId>
 				<version>2.2-SNAPSHOT</version> </plugin>
 			-->
-			
+
 			<plugin>
 				<!-- report occurrences of various todo markers in code -->
 				<groupId>org.codehaus.mojo</groupId>
@@ -175,19 +207,17 @@
 					</tags>
 				</configuration>
 			</plugin>
-			
+
 			<!--
-				todo: reenable when SCM is available 
-			<plugin>
+				todo: reenable when SCM is available <plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>scmchangelog-maven-plugin</artifactId>
 				<version>1.2</version> <configuration>
 				<connectionUrl>scm:svn:https://projekte.itmc.tu-dortmund.de/svn/sla4dgrid/trunk</connectionUrl>
 				<tagBase>https://projekte.itmc.tu-dortmund.de/svn/sla4dgrid/tags/</tagBase>
-				<filter>.*</filter> </configuration> 
-			</plugin>
+				<filter>.*</filter> </configuration> </plugin>
 			-->
-			
+
 			<plugin>
 				<!--
 					generates cross references in code so that you can click in the
@@ -199,7 +229,7 @@
 					<linkJavadoc>true</linkJavadoc>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<!-- discovers frequent bugs in programs -->
 				<groupId>org.codehaus.mojo</groupId>
@@ -212,7 +242,7 @@
 					<xmlOutput>true</xmlOutput>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<!-- maven source code analysis for frequent bugs-->
 				<artifactId>maven-pmd-plugin</artifactId>
@@ -229,33 +259,31 @@
 					</reportSet>
 				</reportSets>
 			</plugin>
-			
+
 			<!--
-			<plugin>
-				generation of JavaDoc
+				<plugin> generation of JavaDoc
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.5</version>
-			</plugin>
+				<artifactId>maven-javadoc-plugin</artifactId> <version>2.5</version>
+				</plugin>
 			-->
-			
+
 			<plugin>
 				<!-- style checker -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.3</version>
+				<version>2.6</version>
 				<configuration>
-					<configLocation>nephele/checkstyle.xml</configLocation>
+					<configLocation>stratosphere/checkstyle.xml</configLocation>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<!-- execution of Unit Tests -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-report-plugin</artifactId>
 				<version>2.7</version>
 			</plugin>
-			
+
 			<plugin>
 				<!-- check coverage of tests -->
 				<groupId>org.codehaus.mojo</groupId>
@@ -267,7 +295,7 @@
 					</formats>
 				</configuration>
 			</plugin>
-			
+
 			<!--
 				Generator for QA reports, summarizes various inputs and draws
 				diagrams indicating improvements/deterioration <plugin>
@@ -278,12 +306,12 @@
 				<report>report-movers-all</report> </reports> </reportSet>
 				</reportSets> </plugin>
 			-->
-			
+
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>dashboard-maven-plugin</artifactId>
 			</plugin>
-			
+
 		</plugins>
 	</reporting>
 
@@ -301,89 +329,57 @@
 					<target>1.6</target>
 				</configuration>
 			</plugin>
-
-     		<plugin>
-          	  <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <version>2.7</version>
-              <executions>
-                <execution>
-                  <id>javadoc:aggregate-jar</id>
-                  <goals>
-                    <goal>aggregate-jar</goal>
-                  </goals>
-                  <phase>compile</phase>
-                  <configuration>
-                    <quiet>true</quiet>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-	
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.9-SNAPSHOT</version>
-				<configuration>
-					<classpathContainers>
-						<classpathContainer>
-							org.eclipse.jdt.launching.JRE_CONTAINER
-            			</classpathContainer>
-					</classpathContainers>
-				</configuration>
-			</plugin>
-			
-			<!--
-			<plugin>
-			
-					check whether license information is included in files, can be used
-					to insert headers as well
-					
-				<groupId>com.google.code.maven-license-plugin</groupId>
-				<artifactId>maven-license-plugin</artifactId>
-				<version>1.4.0</version>
-				<configuration>
-					<header>src/main/etc/header.txt</header>
-				</configuration>
-			</plugin>
-			-->
-			<!--
-			<plugin>
-				
-					plugin that tests which fraction of the source code is covered by
-					JUnit tests
-
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>cobertura-maven-plugin</artifactId>
-				<configuration>
-					<instrumentation>
-						<ignores>
-							<ignore>com.example.boringcode.*</ignore>
-						</ignores>
-						<excludes>
-							<exclude>com/example/dullcode/**/*.class</exclude>
-							<exclude>com/example/**/*Test.class</exclude>
-						</excludes>
-					</instrumentation>
-				</configuration>
-				<version>2.4</version>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.7</version>
 				<executions>
 					<execution>
+						<id>javadoc:aggregate-jar</id>
 						<goals>
-							<goal>clean</goal>
+							<goal>aggregate-jar</goal>
 						</goals>
+						<phase>site</phase>
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
-			-->
-			<!-- 
 			<plugin>
-			
-					plugin that tests whether the code style is appropriate
-					
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>2.6</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+					<argLine>-Xms512m -Xmx512m</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+					<argLine>-Xms512m -Xmx512m</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
+				<!-- plugin that tests whether the code style is appropriate -->	
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.3</version>
+				<version>2.6</version>
 				<dependencies>
 					<dependency>
 						<groupId>eu.stratosphere</groupId>
@@ -392,14 +388,107 @@
 					</dependency>
 				</dependencies>
 			</plugin>
-			 -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-eclipse-plugin</artifactId>
+				<version>2.8</version>
+				<configuration>
+					<classpathContainers>
+						<classpathContainer>
+							org.eclipse.jdt.launching.JRE_CONTAINER
+						</classpathContainer>
+					</classpathContainers>
+				</configuration>
+			</plugin>
+
+
+			<!--
+				<plugin> check whether license information is included in files, can
+				be used to insert headers as well
+
+				<groupId>com.google.code.maven-license-plugin</groupId>
+				<artifactId>maven-license-plugin</artifactId>
+				<version>1.4.0</version> <configuration>
+				<header>src/main/etc/header.txt</header> </configuration> </plugin>
+			-->
+			<!--
+				<plugin> plugin that tests which fraction of the source code is
+				covered by JUnit tests <groupId>org.codehaus.mojo</groupId>
+				<artifactId>cobertura-maven-plugin</artifactId> <configuration>
+				<instrumentation> <ignores>
+				<ignore>com.example.boringcode.*</ignore> </ignores> <excludes>
+				<exclude>com/example/dullcode/**/*.class</exclude>
+				<exclude>com/example/**/*Test.class</exclude> </excludes>
+				</instrumentation> </configuration> <version>2.4</version>
+				<executions> <execution> <goals> <goal>clean</goal> </goals>
+				</execution> </executions> </plugin>
+			-->
+			<!--
+				<plugin> plugin that tests whether the code style is appropriate
+
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.3</version> <dependencies> <dependency>
+				<groupId>eu.stratosphere</groupId>
+				<artifactId>build-tools</artifactId> <version>0.1</version>
+				</dependency> </dependencies> </plugin>
+			-->
 		</plugins>
 	</build>
+
+	<profiles>
+		<!--
+			Hudson by default defines a property BUILD_NUMBER which is used to
+			enable the profile.
+		-->
+		<profile>
+			<id>hudson</id>
+			<activation>
+				<property>
+					<name>BUILD_NUMBER</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<version>2.0.2</version>
+						<configuration>
+							<source>1.6</source>
+							<target>1.6</target>
+							<compilerArgument>-g</compilerArgument>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>cobertura-maven-plugin</artifactId>
+						<version>2.4</version>
+						<configuration>
+							<formats>
+								<format>xml</format>
+								<format>html</format>
+							</formats>
+						</configuration>
+						<executions>
+							<execution>
+								<phase>cobertura</phase>
+								<goals>
+									<goal>cobertura</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 
 	<modules>
 		<module>nephele</module>
 		<module>pact</module>
-		<module>build-tools</module> 
-		<module>stratosphere-dist</module> 
+		<module>build-tools</module>
+		<module>stratosphere-dist</module>
 	</modules>
 </project>

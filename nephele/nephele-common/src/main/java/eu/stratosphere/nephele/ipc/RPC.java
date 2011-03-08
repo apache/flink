@@ -32,7 +32,6 @@ import java.util.HashMap;
 import javax.net.SocketFactory;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.metrics.util.MetricsTimeVaryingRate;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -64,15 +63,17 @@ public class RPC {
 
 	/** A method invocation, including the method name and its parameters. */
 	private static class Invocation implements IOReadableWritable {
+		
 		private String methodName;
 
 		private Class<? extends IOReadableWritable>[] parameterClasses;
 
 		private IOReadableWritable[] parameters;
 
+		@SuppressWarnings("unused")
 		public Invocation() {
 		}
-
+		
 		// TODO: See if type safety can be improved here
 		@SuppressWarnings("unchecked")
 		public Invocation(Method method, IOReadableWritable[] parameters) {
@@ -99,14 +100,15 @@ public class RPC {
 		// TODO: See if type safety can be improved here
 		@SuppressWarnings("unchecked")
 		public void read(DataInput in) throws IOException {
-			methodName = StringRecord.readString(in);
-			parameters = new IOReadableWritable[in.readInt()];
-			parameterClasses = new Class[parameters.length];
+			
+			this.methodName = StringRecord.readString(in);
+			this.parameters = new IOReadableWritable[in.readInt()];
+			this.parameterClasses = new Class[parameters.length];
 
 			for (int i = 0; i < parameters.length; i++) {
 
 				// Read class name for parameter and try to get class to that name
-				String className = StringRecord.readString(in);
+				final String className = StringRecord.readString(in);
 				try {
 					parameterClasses[i] = ClassUtils.getRecordByName(className);
 				} catch (ClassNotFoundException cnfe) {
@@ -114,14 +116,17 @@ public class RPC {
 				}
 
 				// See if parameter is null
-				boolean isNonNull = in.readBoolean();
-				if (isNonNull) {
+				if (in.readBoolean()) {
 					try {
-						parameters[i] = parameterClasses[i].newInstance();
+						final String parameterClassName = StringRecord.readString(in);
+						final Class<? extends IOReadableWritable>  parameterClass = ClassUtils.getRecordByName(parameterClassName);
+						parameters[i] = parameterClass.newInstance();
 					} catch (IllegalAccessException iae) {
 						throw new IOException(iae.toString());
 					} catch (InstantiationException ie) {
 						throw new IOException(ie.toString());
+					} catch(ClassNotFoundException cnfe) {
+						throw new IOException(cnfe.toString());
 					}
 					// Object will do everything else on its own
 					parameters[i].read(in);
@@ -136,10 +141,11 @@ public class RPC {
 			out.writeInt(parameterClasses.length);
 			for (int i = 0; i < parameterClasses.length; i++) {
 				StringRecord.writeString(out, parameterClasses[i].getName());
-				if (parameters[i] == null) {
+				if(parameters[i] == null) {
 					out.writeBoolean(false);
 				} else {
 					out.writeBoolean(true);
+					StringRecord.writeString(out, parameters[i].getClass().getName());
 					parameters[i].write(out);
 				}
 			}
@@ -425,15 +431,7 @@ public class RPC {
 					LOG.debug("Served: " + call.getMethodName() + " queueTime= " + qTime + " procesingTime= "
 						+ processingTime);
 				}
-				rpcMetrics.rpcQueueTime.inc(qTime);
-				rpcMetrics.rpcProcessingTime.inc(processingTime);
-
-				MetricsTimeVaryingRate m = (MetricsTimeVaryingRate) rpcMetrics.registry.get(call.getMethodName());
-				if (m == null) {
-					m = new MetricsTimeVaryingRate(call.getMethodName(), rpcMetrics.registry);
-				}
-				m.inc(processingTime);
-
+				
 				if (verbose)
 					log("Return: " + value);
 

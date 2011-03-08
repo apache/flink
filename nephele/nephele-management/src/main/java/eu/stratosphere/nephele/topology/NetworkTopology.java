@@ -33,9 +33,9 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 
 public class NetworkTopology implements IOReadableWritable {
 
-	private final static String DEFAULT_ROOT_NODE_NAME = "root";
+	private static final String DEFAULT_ROOT_NODE_NAME = "root";
 
-	private final static String SEPARATOR = "/";
+	private static final String SEPARATOR = "/";
 
 	private final NetworkNode rootNode;
 
@@ -47,7 +47,7 @@ public class NetworkTopology implements IOReadableWritable {
 		this.rootNode = new NetworkNode(DEFAULT_ROOT_NODE_NAME, null, this);
 	}
 
-	public static NetworkTopology fromFile(File topologyFile) throws IOException {
+	public static NetworkTopology fromFile(final File topologyFile) throws IOException {
 
 		// First create root node and topology object
 		final NetworkTopology topology = new NetworkTopology();
@@ -96,7 +96,7 @@ public class NetworkTopology implements IOReadableWritable {
 		return topology;
 	}
 
-	public static NetworkTopology fromFile(String topologyFileName) throws IOException {
+	public static NetworkTopology fromFile(final String topologyFileName) throws IOException {
 
 		return fromFile(new File(topologyFileName));
 	}
@@ -106,12 +106,12 @@ public class NetworkTopology implements IOReadableWritable {
 		return new NetworkTopology();
 	}
 
-	void addNode(NetworkNode networkNode) {
+	void addNode(final NetworkNode networkNode) {
 
 		this.nodeMap.put(networkNode.getName(), networkNode);
 	}
 
-	public NetworkNode getNodeByName(String name) {
+	public NetworkNode getNodeByName(final String name) {
 
 		return this.nodeMap.get(name);
 	}
@@ -122,14 +122,14 @@ public class NetworkTopology implements IOReadableWritable {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		this.rootNode.read(in);
 
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		this.rootNode.write(out);
 

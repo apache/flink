@@ -25,11 +25,21 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
- * @TODO
- * @author DIMA
+ * ReduceContract represents a Reduce InputContract of the PACT Programming Model.
+ * InputContracts are second-order functions. 
+ * They have one or multiple input sets of key/value-pairs and a first-order user function (stub implementation).
+ * <p> 
+ * Reduce works on a single input and calls the first-order user function of a 
+ * {@see eu.stratosphere.pact.common.stub.ReduceStub} for each group of key/value-pairs that share the same key independently.
+ * 
+ * @see eu.stratosphere.pact.common.stub.ReduceStub
+ * 
+ * @author Erik Nijkamp
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public class ReduceContract<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
 		SingleInputContract<IK, IV, OK, OV> {
+	
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
 	public @interface Combinable {
@@ -39,14 +49,34 @@ public class ReduceContract<IK extends Key, IV extends Value, OK extends Key, OV
 
 	private static int nextID = 1;
 
+	/**
+	 * Creates a ReduceContract with the provided {@see eu.stratosphere.pact.common.stub.ReduceStub} implementation 
+	 * and the given name. 
+	 * 
+	 * @param reducer The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param n The name of the PACT.
+	 */
 	public ReduceContract(Class<? extends ReduceStub<IK, IV, OK, OV>> reducer, String n) {
 		super(reducer, n);
 	}
 
+	/**
+	 * Creates a ReduceContract with the provided {@see eu.stratosphere.pact.common.stub.ReduceStub} implementation
+	 * and a default name.
+	 * 
+	 * @param reducer The {@link ReduceStub} implementation for this Reduce InputContract.
+	 */
 	public ReduceContract(Class<? extends ReduceStub<IK, IV, OK, OV>> reducer) {
 		super(reducer, defaultName + (nextID++));
 	}
 
+	/**
+	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
+	 * The annotation indicates that the contract's {@see eu.stratosphere.pact.common.stub.ReduceStub} implements 
+	 * the {@see  eu.stratosphere.pact.common.stub.ReduceStub#combine(Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector) method.
+	 * 
+	 * @return true if the ReduceContract is combinable, false otherwise.
+	 */
 	public boolean isCombinable() {
 		return (super.clazz.getAnnotation(Combinable.class) != null);
 	}

@@ -18,7 +18,9 @@ package eu.stratosphere.pact.example.graph;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
@@ -29,8 +31,6 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -40,397 +40,591 @@ import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.pact.common.type.base.PactPair;
+import eu.stratosphere.pact.common.type.base.PactString;
 
+/**
+ * Implementation of the All-2-All Shortest Path example PACT program.
+ * The program implements on iteration of the algorithm and must be run multiple times until no changes are computed.
+ * 
+ * The all-2-all shortest path algorithm comes from the domain graph problems. The goal is to find all shortest paths
+ * between any two transitively connected nodes in a graph. In this implementation edges are interpreted as directed and weighted.
+ * 
+ * For the first iteration, the program allows two input formats.
+ * 1) RDF triples with foaf:knows predicates. A triple are interpreted as an edge from the RDF subject to the RDF object with weight 1.
+ * 2) The programs text-serialization for paths (see @see PathInFormat and @see PathOutFormat). 
+ * 
+ * The RDF input format is used if the 4th parameter of the getPlan() method is set to "true". If set to "false" the path input format is used. 
+ *  
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ */
 public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 
-	public static class Edge implements Key, Value {
-
-		private int vertex1;
-
-		private int vertex2;
-
-		public Edge(int vertex1, int vertex2) {
-			this.vertex1 = vertex1;
-			this.vertex2 = vertex2;
+	/**
+	 * Simple extension of PactPair to hold two nodes represented as strings.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
+	public static class NodePair extends PactPair<PactString, PactString> {
+		
+		public NodePair() {
+			super();
 		}
 
-		public Edge() {
+		public NodePair(PactString s1, PactString s2) {
+			super(s1, s2);
 		}
 
-		public int getVertex1() {
-			return vertex1;
-		}
-
-		public int getVertex2() {
-			return vertex2;
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-			vertex1 = in.readInt();
-			vertex2 = in.readInt();
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeInt(vertex1);
-			out.writeInt(vertex2);
-		}
-
-		@Override
-		public int compareTo(Key o) {
-			if (!(o instanceof Edge)) {
-				return -1;
-			}
-			Edge compEdge = (Edge) o;
-			int compVal = vertex1 - compEdge.vertex1;
-			if (compVal == 0) {
-				compVal = vertex2 - compEdge.vertex2;
-			}
-			return compVal;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (o instanceof Edge) {
-				Edge r = (Edge) o;
-				return (vertex1 == r.vertex1 && vertex2 == r.vertex2);
-			} else {
-				return false;
-			}
-		}
-
-		@Override
-		public int hashCode() {
-			long h = ((vertex1 & 0xffffffffL) << 32) | (vertex2 & 0xffffffffL) << 0;
-			return (int) (h ^ (h >>> 32));
-		}
-
-		@Override
 		public String toString() {
-			return "<" + (vertex1) + "|" + (vertex2) + ">";
+			return getFirst().toString() + " " + getSecond();
 		}
+		
 	}
 
-	public static class ConnectionInfo implements Value {
+	/**
+	 * Holds information about a path from one node (from-node) to another node (to-node).
+	 * The length of the path and all nodes on the path (hops) are stored.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
+	public static class Path implements Value {
 
-		int fromVertex;
+		// path from from-node to to-node
+		String fromNode;
+		String toNode;
 
-		int toVertex;
+		// length of the path
+		int length;
 
-		int distance;
-
-		int[] hopsList;
-
+		// all nodes on the path (hops)
+		String[] hopsList;
 		int hopCnt;
 
-		public ConnectionInfo() {
-			hopsList = new int[8];
+		/**
+		 * Creates an empty path
+		 */
+		public Path() {
+			hopsList = new String[8];
+			hopCnt = 0;
+		}
+		
+		/**
+		 * Creates a path from from-node to to-node with an initial length.
+		 * The path is a direct connection of both nodes since no hops are specified.
+		 * 
+		 * @param fromNode The starting node of the path.
+		 * @param toNode The ending node of the path.
+		 * @param length The length of the path.
+		 */
+		public Path(String fromNode, String toNode, int length) {
+			this.fromNode = fromNode;
+			this.toNode = toNode;
+			this.length = length;
+			hopsList = new String[8];
 			hopCnt = 0;
 		}
 
-		public ConnectionInfo(int fromVertex, int toVertex, int distance, int[] hopsList, int hopCnt) {
-			this.fromVertex = fromVertex;
-			this.toVertex = toVertex;
-			this.distance = distance;
+		/**
+		 * Creates a path from from-node to to-node with a given length and hops list.
+		 * The hops list should be ordered to fully specify the path.
+		 * 
+		 * @param fromNode The starting node of the path.
+		 * @param toNode The ending node of the path.
+		 * @param length The length of the path.
+		 * @param hopsList The intermediate nodes (hops) of the path.
+		 * @param hopCnt The number of hops of the path.
+		 */
+		public Path(String fromNode, String toNode, int length, String[] hopsList, int hopCnt) {
+			this.fromNode = fromNode;
+			this.toNode = toNode;
+			this.length = length;
 			this.hopsList = hopsList;
 			this.hopCnt = hopCnt;
 		}
 
-		public int getFromVertex() {
-			return fromVertex;
+		/**
+		 * Returns the starting node of the path.
+		 * 
+		 * @return The starting node of the path.
+		 */
+		public String getFromNode() {
+			return fromNode;
 		}
 
-		public int getToVertex() {
-			return toVertex;
+		/**
+		 * Returns the ending node of the path.
+		 * 
+		 * @return The ending node of the path.
+		 */
+		public String getToNode() {
+			return toNode;
 		}
 
-		public int getDistance() {
-			return distance;
+		/**
+		 * Returns the length of the path.
+		 * 
+		 * @return The length of the path.
+		 */
+		public int getLength() {
+			return length;
 		}
 
-		public int[] getHopsList() {
+		/**
+		 * Returns an array with all intermediate nodes of the path.
+		 * 
+		 * @return An array with all intermediate nodes of the path.
+		 */
+		public String[] getHopsList() {
 			return hopsList;
 		}
 
+		/**
+		 * Returns the number of intermediate nodes of the path. 
+		 * 
+		 * @return The number of intermediate nodes of the path.
+		 */
 		public int getHopCnt() {
 			return hopCnt;
 		}
 
-		public void setFromVertex(int fromVertex) {
-			this.fromVertex = fromVertex;
+		/**
+		 * Sets the starting node of the path.
+		 * 
+		 * @param fromNode The new starting node of the path.
+		 */
+		public void setFromNode(String fromNode) {
+			this.fromNode = fromNode;
 		}
 
-		public void setToVertex(int toVertex) {
-			this.toVertex = toVertex;
+		/**
+		 * Sets the ending node of the path.
+		 * 
+		 * @param toNode The new ending node of the path.
+		 */
+		public void setToNode(String toNode) {
+			this.toNode = toNode;
 		}
 
-		public void setDistance(int distance) {
-			this.distance = distance;
+		/**
+		 * Updates the length of the path.
+		 * 
+		 * @param length The new length of the path.
+		 */
+		public void setLength(int length) {
+			this.length = length;
 		}
 
-		public void addHop(int hop) {
+		/**
+		 * Adds an intermediate node at the end of the hops list.
+		 * 
+		 * @param hop The node which is appended to the end of the hops list. 
+		 */
+		public void addHop(String hop) {
+			// check if hop list array must be extended
 			if (hopCnt == hopsList.length) {
-				int[] newHopList = new int[2 * hopCnt];
+				// create a new array with double size of current one
+				String[] newHopList = new String[2 * hopCnt];
+				// copy all hops to new list
 				for (int i = 0; i < hopCnt; i++) {
 					newHopList[i] = hopsList[i];
 				}
+				// set new list
 				hopsList = newHopList;
 			}
+			// add hop at the end of hop list
 			this.hopsList[hopCnt++] = hop;
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+		 */
 		@Override
 		public void read(DataInput in) throws IOException {
-			fromVertex = in.readInt();
-			toVertex = in.readInt();
-			distance = in.readInt();
+			fromNode = in.readUTF();
+			toNode = in.readUTF();
+			length = in.readInt();
 			hopCnt = in.readInt();
 			if (hopCnt < 8) {
-				hopsList = new int[8];
+				hopsList = new String[8];
 			} else {
-				hopsList = new int[hopCnt * 2];
+				hopsList = new String[hopCnt * 2];
 			}
 			for (int i = 0; i < hopCnt; i++) {
-				hopsList[i] = in.readInt();
+				hopsList[i] = in.readUTF();
 			}
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+		 */
 		@Override
 		public void write(DataOutput out) throws IOException {
-			out.writeInt(fromVertex);
-			out.writeInt(toVertex);
-			out.writeInt(distance);
+			out.writeUTF(fromNode);
+			out.writeUTF(toNode);
+			out.writeInt(length);
 			out.writeInt(hopCnt);
 			for (int i = 0; i < hopCnt; i++) {
-				out.writeInt(hopsList[i]);
+				out.writeUTF(hopsList[i]);
 			}
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see java.lang.Object#toString()
+		 */
 		@Override
 		public String toString() {
-			StringBuilder returnString = new StringBuilder(fromVertex + "|" + toVertex + "|" + distance + "|");
+			StringBuilder returnString = new StringBuilder(fromNode + "|" + toNode + "|" + length + "|");
 			for (int i = 0; i < hopCnt; i++) {
 				returnString.append(hopsList[i]);
-				if (i + 1 < hopCnt) {
-					returnString.append(' ');
-				}
+					returnString.append('|');
 			}
-			returnString.append('|');
 
 			return returnString.toString();
 		}
 	}
 
 	/**
-	 * Reads and writes connection data in the following format:
-	 * <string:fromVertice>|<string:toVertice>|<int:distance>|<string:hops>|
-	 * The connection info is completeley hold in the value.
-	 * The key holds the pair of fromVertice and toVertice.
+	 * Reads RDF triples and filters on the foaf:knows RDF predicate. The triples elements must be separated by whitespaces.
+	 * The foaf:knows RDF predicate indicates that the RDF subject knows the object (typically of type foaf:person).
+	 * The connections between people are extracted and handles as graph edges. For the All-2-All Shortest Path algorithm the 
+	 * connection is interpreted as a directed edge, i.e. subject knows object, but the object does not necessarily know the subject.
 	 * 
-	 * @author fhueske
+	 * The RDFTripleInFormat filters all RDF triples with foaf:knows predicates. 
+	 * For each triple with foaf:knows predicate, a path is created where the from-node is set to the RDF subject, 
+	 * the to-node to the RDFobject, and length to 1. The path is used as output value.
+	 * The key is set to a NodePair, where the first node is the RDF subject and the second node is the RDF object. 
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
 	 */
-	public static class PathInFormat extends TextInputFormat<Edge, ConnectionInfo> {
+	public static class RDFTripleInFormat extends TextInputFormat<NodePair, Path> {
+
+		private static final Log LOG = LogFactory.getLog(RDFTripleInFormat.class);
+		
+		@Override
+		public boolean readLine(KeyValuePair<NodePair, Path> pair, byte[] line) {
+			
+			String lineStr = new String(line);
+			// replace reduce whitespaces and trim
+			lineStr = lineStr.replaceAll("\\s+", " ").trim();
+			// build whitespace tokenizer
+			StringTokenizer st = new StringTokenizer(lineStr, " ");
+
+			// line must have at least three elements
+			if (st.countTokens() < 3)
+				return false;
+
+			String rdfSubj = st.nextToken();
+			String rdfPred = st.nextToken();
+			String rdfObj = st.nextToken();
+
+			// we only want foaf:knows predicates
+			if (!rdfPred.equals("<http://xmlns.com/foaf/0.1/knows>"))
+				return false;
+
+			// build node pair from subject and object
+			NodePair edge = new NodePair(new PactString(rdfSubj), new PactString(rdfObj)); 
+			// create initial path from subject node to object node with length 1 and no hops
+			Path initPath = new Path(rdfSubj, rdfObj, 1);
+			
+			pair.setKey(edge);
+			pair.setValue(initPath);
+
+			LOG.debug("Read in: " + pair.getKey() + " :: " + pair.getValue());
+			
+			return true;
+			
+		}
+		
+	}
+	
+	
+	/**
+	 * The PathInFormat reads paths consisting of a from-node a to-node, a length, the number of hop nodes, and a lists of hop nodes.
+	 * All elements of the path must be separated by the pipe character ('|').
+	 * 
+	 * PathInFormat returns key-value-pairs with a NodePair as key and the path as value.
+	 * The first element of the NodePair is the from-node of the path and the second element is the to-node of the path.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class PathInFormat extends TextInputFormat<NodePair, Path> {
 
 		private static final Log LOG = LogFactory.getLog(PathInFormat.class);
 
 		@Override
-		public boolean readLine(KeyValuePair<Edge, ConnectionInfo> pair, byte[] line) {
+		public boolean readLine(KeyValuePair<NodePair, Path> pair, byte[] line) {
 
-			int start = 0;
-			int valueCnt = 0;
-
-			String fromVertex = null;
-			String toVertex = null;
-			int distance = 0;
-			String hopsList = null;
-
-			ConnectionInfo conn = new ConnectionInfo();
-			for (int pos = 0; pos < line.length; pos++) {
-				if (line[pos] == '|') {
-					if (valueCnt == 0) {
-						// fromVertex
-						fromVertex = new String(line, start, pos - start);
-						conn.setFromVertex(fromVertex.hashCode());
-					} else if (valueCnt == 1) {
-						// toVertex
-						toVertex = new String(line, start, pos - start);
-						conn.setToVertex(toVertex.hashCode());
-					} else if (valueCnt == 2) {
-						// distance
-						distance = Integer.parseInt(new String(line, start, pos - start));
-						conn.setDistance(distance);
-					} else {
-						// hopList
-						hopsList = new String(line, start, pos - start);
-						StringTokenizer st = new StringTokenizer(hopsList, " ");
-						while (st.hasMoreTokens()) {
-							conn.addHop(Integer.parseInt(st.nextToken()));
-						}
-					}
-					start = pos + 1;
-					valueCnt++;
-				}
+			String lineStr = new String(line);
+			StringTokenizer st = new StringTokenizer(lineStr, "|");
+			
+			// path must have at least 4 tokens (fromNode, toNode, length, hopCnt)
+			if (st.countTokens() < 4) return false;
+			
+			String fromNode = st.nextToken();
+			String toNode = st.nextToken();
+			int length = Integer.parseInt(st.nextToken());
+			int hopCnt = Integer.parseInt(st.nextToken());
+			
+			// remaining tokens must be hops
+			if (st.countTokens() != hopCnt+4) return false;
+			
+			// create hop list array. Use larger array to avoid reallocation.
+			String[] hops = new String[hopCnt*2];
+			for(int i=0;i<hopCnt;i++) {
+				hops[i] = st.nextToken();
 			}
+			
+			NodePair nodePair = new NodePair(new PactString(fromNode), new PactString(toNode));
+			Path path = new Path(fromNode,toNode,length,hops,hopCnt);
 
-			pair.setKey(new Edge(fromVertex.hashCode(), toVertex.hashCode()));
-			pair.setValue(conn);
+			pair.setKey(nodePair);
+			pair.setValue(path);
 
-			LOG.info("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
+			LOG.debug("Read in: " + pair.getKey() + " :: " + pair.getValue());
+			
 			return true;
 		}
 	}
 
-	public static class PathOutFormat extends TextOutputFormat<Edge, ConnectionInfo> {
+	/**
+	 * The PathOutFormat serializes paths to text. 
+	 * In order, the from-node, the to-node, the length, the number of hops, and all hops are written out.
+	 * Each element (including each hop) is followed by the pipe character ('|') for separation.  
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
+	public static class PathOutFormat extends TextOutputFormat<PactNull, Path> {
 
 		private static final Log LOG = LogFactory.getLog(PathInFormat.class);
 
 		@Override
-		public byte[] writeLine(KeyValuePair<Edge, ConnectionInfo> pair) {
+		public byte[] writeLine(KeyValuePair<PactNull, Path> pair) {
 			StringBuilder line = new StringBuilder();
-			line.append(pair.getValue().toString() + "\n");
-
-			LOG.info("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+			Path path = pair.getValue();
+			
+			line.append(path.getFromNode()+"|");
+			line.append(path.getToNode()+"|");
+			line.append(path.getLength()+"|");
+			line.append(path.getHopCnt()+"|");
+			for(int i=0;i<path.getHopCnt();i++) {
+				line.append(path.getHopsList()[i]+"|");
+			}
+			line.append("\n");
+			
+			LOG.debug("Writing out: [" + path + "]");
 
 			return line.toString().getBytes();
 		}
 
 	}
 
-	public static class ProjectPathStart extends MapStub<Edge, ConnectionInfo, PactInteger, ConnectionInfo> {
+	/**
+	 * Sets the key of the emitted key-value-pairs to the from-node of the input path.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
+	public static class ProjectPathStart extends MapStub<NodePair, Path, PactString, Path> {
 
 		private static final Log LOG = LogFactory.getLog(ProjectPathStart.class);
 
 		@Override
-		protected void map(Edge key, ConnectionInfo value, Collector<PactInteger, ConnectionInfo> out) {
-			LOG.info("Processing: [" + key + "," + value + "]");
-			out.collect(new PactInteger(key.getVertex1()), value);
-			LOG.info("Emitted: [" + key.getVertex1() + "," + value + "]");
+		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
+
+			LOG.debug("Emit: [" + key.getFirst() + "," + value + "]");
+			
+			out.collect(key.getFirst(), value);
 		}
 	}
 
-	public static class ProjectPathEnd extends MapStub<Edge, ConnectionInfo, PactInteger, ConnectionInfo> {
+	/**
+	 * Sets the key of the emitted key-value-pair to the to-node of the input path.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
+	public static class ProjectPathEnd extends MapStub<NodePair, Path, PactString, Path> {
 
 		private static final Log LOG = LogFactory.getLog(ProjectPathEnd.class);
 
 		@Override
-		protected void map(Edge key, ConnectionInfo value, Collector<PactInteger, ConnectionInfo> out) {
-			LOG.info("Processing: [" + key + "," + value + "]");
-			out.collect(new PactInteger(key.getVertex2()), value);
-			LOG.info("Emitted: [" + key.getVertex2() + "," + value + "]");
+		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
+			
+			LOG.debug("Emit: [" + key.getSecond() + "," + value + "]");
+			
+			out.collect(key.getSecond(), value);
 		}
 	}
 
-	public static class ConcatPath extends MatchStub<PactInteger, ConnectionInfo, ConnectionInfo, Edge, ConnectionInfo> {
+	/**
+	 * Concatenates two paths where the from-node of the first path and the to-node of the second path are the same.
+	 * The second input path becomes the first part and the first input path the second part of the output path.
+	 * The length of the output path is the sum of both input paths. 
+	 * The output path's hops list is built from both path's hops lists and the common node.  
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
+	public static class ConcatPaths extends MatchStub<PactString, Path, Path, NodePair, Path> {
 
-		private static final Log LOG = LogFactory.getLog(ConcatPath.class);
+		private static final Log LOG = LogFactory.getLog(ConcatPaths.class);
 
 		@Override
-		public void match(PactInteger key, ConnectionInfo value1, ConnectionInfo value2,
-				Collector<Edge, ConnectionInfo> out) {
+		public void match(PactString matchNode, Path path1, Path path2, Collector<NodePair, Path> out) {
 
-			LOG.info("Processing: [" + key + "," + value1 + "] + [" + key + "," + value2 + "]");
+			LOG.debug("Process: [" + matchNode + "," + path1 + "] + [" + matchNode + "," + path2 + "]");
 
-			int fromVertex = value2.getFromVertex();
-			int toVertex = value1.getToVertex();
-			if (fromVertex == toVertex)
-				return;
+			// path1 was projected to path start, path2 was projected to path end.
+			// Therefore, path2's end node and path1's start node are identical
+			// First half of new path will be path2, second half will be path1
+			
+			// Get from-node and to-node of new path  
+			String fromNode = path2.getFromNode();
+			String toNode = path1.getToNode();
+			
+			// Check whether from-node = to-node to prevent circles!
+			if (fromNode.equals(toNode)) return;
 
-			ConnectionInfo value = new ConnectionInfo();
-			value.setFromVertex(fromVertex);
-			value.setToVertex(toVertex);
-			value.setDistance(value1.getDistance() + value2.getDistance());
-
-			for (int i = 0; i < value2.getHopCnt(); i++) {
-				value.addHop(value2.getHopsList()[i]);
+			// Create new path
+			Path value = new Path();
+			value.setFromNode(fromNode);
+			value.setToNode(toNode);
+			// Compute length of new path
+			value.setLength(path1.getLength() + path2.getLength());
+			// Concatenate hops lists and insert matching node
+			for (int i = 0; i < path2.getHopCnt(); i++) {
+				value.addHop(path2.getHopsList()[i]);
 			}
-			value.addHop(key.getValue());
-			for (int i = 0; i < value1.getHopCnt(); i++) {
-				value.addHop(value1.getHopsList()[i]);
+			value.addHop(matchNode.getValue());
+			for (int i = 0; i < path1.getHopCnt(); i++) {
+				value.addHop(path1.getHopsList()[i]);
 			}
 
-			out.collect(new Edge(fromVertex, toVertex), value);
-			LOG.info("Emitted: [<" + fromVertex + "|" + toVertex + ">," + value + "]");
+			LOG.debug("Emit: [" + fromNode + "|" + toNode + " , " + value + "]");
+			
+			out.collect(new NodePair(new PactString(fromNode), new PactString(toNode)), value);
+			
 		}
 	}
 
-	@SameKey
-	public static class FindShortestPath extends
-			CoGroupStub<Edge, ConnectionInfo, ConnectionInfo, Edge, ConnectionInfo> {
+	/**
+	 * Gets two lists of paths as input and emits for each included from-node/to-node combination the shortest path(s).
+	 * If for a combination more than one shortest path exists, all shortest paths are emitted. 
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
+	public static class FindShortestPath extends CoGroupStub<NodePair, Path, Path, PactNull, Path> {
 
 		private static final Log LOG = LogFactory.getLog(FindShortestPath.class);
 
 		@Override
-		public void coGroup(Edge key, Iterator<ConnectionInfo> values1, Iterator<ConnectionInfo> values2,
-				Collector<Edge, ConnectionInfo> out) {
+		public void coGroup(NodePair key, Iterator<Path> inputPaths, Iterator<Path> concatPaths, Collector<PactNull, Path> out) {
 
-			int minDist = Integer.MAX_VALUE;
-			ConnectionInfo minDistValue = null;
+			// init minimum length and minimum path
+			int minLength = Integer.MAX_VALUE;
+			List<Path> shortestPaths = new ArrayList<Path>();
 
-			while (values1.hasNext()) {
-				ConnectionInfo value = values1.next();
-				LOG.info("Processing: [" + key + "," + value + "]");
-				int dist = value.getDistance();
-				if (dist < minDist) {
-					minDist = dist;
-					minDistValue = value;
+			// find shortest path of all input paths
+			while (inputPaths.hasNext()) {
+				Path value = inputPaths.next();
+				LOG.debug("Process: [" + key + "," + value + "]");
+
+				if (value.getLength() == minLength) {
+					// path has also minimum length add to list
+					shortestPaths.add(value);
+				} else if (value.getLength() < minLength) {
+					// path has minimum length
+					minLength = value.getLength();
+					// clear list and add
+					shortestPaths.clear();
+					shortestPaths.add(value);
 				}
 			}
 
-			while (values2.hasNext()) {
-				ConnectionInfo value = values2.next();
-				LOG.info("Processing: [" + key + "," + value + "]");
-				int dist = value.getDistance();
-				if (dist < minDist) {
-					minDist = dist;
-					minDistValue = value;
+			// find shortest path of all input and concatenated paths
+			while (concatPaths.hasNext()) {
+				Path value = concatPaths.next();
+				LOG.debug("Process: [" + key + "," + value + "]");
+				
+				if (value.getLength() == minLength) {
+					// path has also minimum length add to list
+					shortestPaths.add(value);
+				} else if (value.getLength() < minLength) {
+					// path has minimum length
+					minLength = value.getLength();
+					// clear list and add
+					shortestPaths.clear();
+					shortestPaths.add(value);
 				}
 			}
-
-			out.collect(key, minDistValue);
-			LOG.info("Emitted: [" + key + "," + minDistValue + "]");
+			
+			// emit all shortest paths
+			for(Path shortestPath : shortestPaths) {
+				LOG.debug("Emit: [" + key + "," + shortestPath + "]");
+				out.collect(new PactNull(), shortestPath);
+			}
 		}
 	}
 
+	/**
+	 * Assembles the Plan of the All-2-All Shortest Paths example Pact program.
+	 * The program computes one iteration of the All-2-All Shortest Paths algorithm.
+	 * 
+	 * For the first iteration, two input formats can be chosen:
+	 * 1) RDF triples with foaf:knows predicates
+	 * 2) Text-serialized paths (see PathInFormat and PathOutFormat)
+	 * 
+	 * To choose 1) set the forth parameter to "true". If set to "false" 2) will be used.
+	 *
+	 */
 	@Override
 	public Plan getPlan(String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 3) {
-			return null;
+		// parse job parameters
+		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String paths     = (args.length > 1 ? args[1] : "");
+		String output    = (args.length > 2 ? args[2] : "");
+		boolean rdfInput = (args.length > 3 ? Boolean.parseBoolean(args[3]) : false);
+
+		DataSourceContract<NodePair, Path> pathsInput;
+		
+		if(rdfInput) {
+			pathsInput = new DataSourceContract<NodePair, Path>(RDFTripleInFormat.class, paths);
+		} else {
+			pathsInput = new DataSourceContract<NodePair, Path>(PathInFormat.class, paths);
 		}
-
-		int noSubTasks = Integer.parseInt(args[0]);
-		String paths = args[1];
-		String output = args[2];
-
-		DataSourceContract<Edge, ConnectionInfo> pathsInput = new DataSourceContract<Edge, ConnectionInfo>(
-			PathInFormat.class, paths);
 		pathsInput.setFormatParameter("delimiter", "\n");
 		pathsInput.setDegreeOfParallelism(noSubTasks);
-		pathsInput.setOutputContract(UniqueKey.class);
 
-		MapContract<Edge, ConnectionInfo, PactInteger, ConnectionInfo> pathStarts = new MapContract<Edge, ConnectionInfo, PactInteger, ConnectionInfo>(
+		MapContract<NodePair, Path, PactString, Path> pathStarts = new MapContract<NodePair, Path, PactString, Path>(
 			ProjectPathStart.class, "Project Starts");
 		pathStarts.setDegreeOfParallelism(noSubTasks);
 
-		MapContract<Edge, ConnectionInfo, PactInteger, ConnectionInfo> pathEnds = new MapContract<Edge, ConnectionInfo, PactInteger, ConnectionInfo>(
+		MapContract<NodePair, Path, PactString, Path> pathEnds = new MapContract<NodePair, Path, PactString, Path>(
 			ProjectPathEnd.class, "Project Ends");
 		pathEnds.setDegreeOfParallelism(noSubTasks);
 
-		MatchContract<PactInteger, ConnectionInfo, ConnectionInfo, Edge, ConnectionInfo> concatPaths = new MatchContract<PactInteger, ConnectionInfo, ConnectionInfo, Edge, ConnectionInfo>(
-			ConcatPath.class, "Concat Paths");
+		MatchContract<PactString, Path, Path, NodePair, Path> concatPaths = new MatchContract<PactString, Path, Path, NodePair, Path>(
+			ConcatPaths.class, "Concat Paths");
 		concatPaths.setDegreeOfParallelism(noSubTasks);
 
-		CoGroupContract<Edge, ConnectionInfo, ConnectionInfo, Edge, ConnectionInfo> findShortestPaths = new CoGroupContract<Edge, ConnectionInfo, ConnectionInfo, Edge, ConnectionInfo>(
+		CoGroupContract<NodePair, Path, Path, PactNull, Path> findShortestPaths = new CoGroupContract<NodePair, Path, Path, PactNull, Path>(
 			FindShortestPath.class, "Find Shortest Paths");
 		findShortestPaths.setDegreeOfParallelism(noSubTasks);
 
-		DataSinkContract<Edge, ConnectionInfo> result = new DataSinkContract<Edge, ConnectionInfo>(PathOutFormat.class,
+		DataSinkContract<PactNull, Path> result = new DataSinkContract<PactNull, Path>(PathOutFormat.class,
 			output);
 		result.setDegreeOfParallelism(noSubTasks);
 
@@ -442,13 +636,17 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 		concatPaths.setSecondInput(pathEnds);
 		pathEnds.setInput(pathsInput);
 
-		return new Plan(result, "All2All Shortest Paths");
+		return new Plan(result, "All-2-All Shortest Paths");
 
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.plan.PlanAssemblerDescription#getDescription()
+	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, input-paths, output-paths";
+		return "Parameters: [noSubStasks], [inputPaths], [outputPaths], [RDFInputFlag]";
 	}
 
 }

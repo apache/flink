@@ -22,11 +22,17 @@ import java.io.UTFDataFormatException;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultDataInputView extends DefaultMemorySegmentView implements DataInputView {
+public final class DefaultDataInputView extends DefaultMemorySegmentView implements DataInputView
+{
 	/**
-	 * The current write size.
+	 * The current position (in the backing array) to read from.
 	 */
 	private int position;
+	
+	/**
+	 * The end of the segment in the backing array corresponding to this view.
+	 */
+	private int end;
 
 	/**
 	 * Cached string builder for string assembly.
@@ -39,7 +45,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	public DefaultDataInputView(MemorySegmentDescriptor descriptor) {
 		super(descriptor);
-		position = descriptor.start;
+		this.position = this.offset;
+		this.end = descriptor.end;
 	}
 
 	// -------------------------------------------------------------------------
@@ -48,12 +55,12 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public int getPosition() {
-		return position - descriptorReference.get().start;
+		return position - this.offset;
 	}
 
 	@Override
 	public DataInputView setPosition(int position) {
-		this.position = position + descriptorReference.get().start;
+		this.position = position + this.offset;
 		return this;
 	}
 
@@ -65,7 +72,7 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public DataInputView reset() {
-		position = descriptorReference.get().start;
+		position = this.offset;
 		return this;
 	}
 
@@ -75,10 +82,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public boolean readBoolean() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end) {
-			return descriptor.memory[position++] != 0;
+		if (position < this.end) {
+			return this.memory[position++] != 0;
 		} else {
 			throw new EOFException();
 		}
@@ -86,10 +91,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public byte readByte() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end) {
-			return descriptor.memory[position++];
+		if (position < this.end) {
+			return this.memory[position++];
 		} else {
 			throw new EOFException();
 		}
@@ -97,10 +100,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public char readChar() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + 1 < descriptor.end) {
-			return (char) (((descriptor.memory[position++] & 0xff) << 8) | ((descriptor.memory[position++] & 0xff) << 0));
+		if (position + 1 < this.end) {
+			return (char) (((this.memory[position++] & 0xff) << 8) | ((this.memory[position++] & 0xff) << 0));
 		} else {
 			throw new EOFException();
 		}
@@ -123,10 +124,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public void readFully(byte[] b, int off, int len) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end && position + len <= descriptor.end && off + len <= b.length) {
-			System.arraycopy(descriptor.memory, position, b, off, len);
+		if (position < this.end && position + len <= this.end && off + len <= b.length) {
+			System.arraycopy(this.memory, position, b, off, len);
 			position += len;
 		} else {
 			throw new EOFException();
@@ -135,11 +134,9 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public int readInt() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position >= 0 && position + 3 < descriptor.end) {
-			return ((descriptor.memory[position++] & 0xff) << 24) | ((descriptor.memory[position++] & 0xff) << 16)
-				| ((descriptor.memory[position++] & 0xff) << 8) | ((descriptor.memory[position++] & 0xff) << 0);
+		if (position >= 0 && position + 3 < this.end) {
+			return ((this.memory[position++] & 0xff) << 24) | ((this.memory[position++] & 0xff) << 16)
+				| ((this.memory[position++] & 0xff) << 8) | ((this.memory[position++] & 0xff) << 0);
 		} else {
 			throw new EOFException();
 		}
@@ -147,12 +144,10 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public String readLine() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end) {
+		if (position < this.end) {
 			// read until a newline is found
 			char curr = readChar();
-			while (position < descriptor.end && curr != '\n') {
+			while (position < this.end && curr != '\n') {
 				bld.append(curr);
 				curr = readChar();
 			}
@@ -173,17 +168,15 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public long readLong() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position >= 0 && position + 7 < descriptor.end) {
-			return (((long) descriptor.memory[position++] & 0xff) << 56)
-				| (((long) descriptor.memory[position++] & 0xff) << 48)
-				| (((long) descriptor.memory[position++] & 0xff) << 40)
-				| (((long) descriptor.memory[position++] & 0xff) << 32)
-				| (((long) descriptor.memory[position++] & 0xff) << 24)
-				| (((long) descriptor.memory[position++] & 0xff) << 16)
-				| (((long) descriptor.memory[position++] & 0xff) << 8)
-				| (((long) descriptor.memory[position++] & 0xff) << 0);
+		if (position >= 0 && position + 7 < this.end) {
+			return (((long) this.memory[position++] & 0xff) << 56)
+				| (((long) this.memory[position++] & 0xff) << 48)
+				| (((long) this.memory[position++] & 0xff) << 40)
+				| (((long) this.memory[position++] & 0xff) << 32)
+				| (((long) this.memory[position++] & 0xff) << 24)
+				| (((long) this.memory[position++] & 0xff) << 16)
+				| (((long) this.memory[position++] & 0xff) << 8)
+				| (((long) this.memory[position++] & 0xff) << 0);
 		} else {
 			throw new EOFException();
 		}
@@ -191,10 +184,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public short readShort() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position >= 0 && position + 1 < descriptor.end) {
-			return (short) ((((descriptor.memory[position++]) & 0xff) << 8) | (((descriptor.memory[position++]) & 0xff) << 0));
+		if (position >= 0 && position + 1 < this.end) {
+			return (short) ((((this.memory[position++]) & 0xff) << 8) | (((this.memory[position++]) & 0xff) << 0));
 		} else {
 			throw new EOFException();
 		}
@@ -268,10 +259,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public int readUnsignedByte() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position < descriptor.end) {
-			return (descriptor.memory[position++] & 0xff);
+		if (position < this.end) {
+			return (this.memory[position++] & 0xff);
 		} else {
 			throw new EOFException();
 		}
@@ -279,10 +268,8 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public int readUnsignedShort() throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + 1 < descriptor.end) {
-			return ((descriptor.memory[position++] & 0xff) << 8) | ((descriptor.memory[position++] & 0xff) << 0);
+		if (position + 1 < this.end) {
+			return ((this.memory[position++] & 0xff) << 8) | ((this.memory[position++] & 0xff) << 0);
 		} else {
 			throw new EOFException();
 		}
@@ -290,14 +277,12 @@ public class DefaultDataInputView extends DefaultMemorySegmentView implements Da
 
 	@Override
 	public int skipBytes(int n) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (position + n <= descriptor.end) {
+		if (position + n <= this.end) {
 			position += n;
 			return n;
 		} else {
-			n = descriptor.end - position;
-			position = descriptor.end;
+			n = this.end - position;
+			position = this.end;
 			return n;
 		}
 	}

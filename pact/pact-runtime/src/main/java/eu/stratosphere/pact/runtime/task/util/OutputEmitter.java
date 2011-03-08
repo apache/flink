@@ -25,36 +25,77 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
+ * 
+ * 
  * @author Erik Nijkamp
  * @author Alexander Alexandrov
- * @param <K>
- * @param <V>
+ * 
+ * @param <K> The type of the key.
+ * @param <V> The type of the value.
  */
-public class OutputEmitter<K extends Key, V extends Value> implements ChannelSelector<KeyValuePair<K, V>> {
-	private ShipStrategy strategy;
-
-	private byte[] salt;
-
-	private int nextChannelToSendTo = 0;
-
+public class OutputEmitter<K extends Key, V extends Value> implements ChannelSelector<KeyValuePair<K, V>>
+{
+	/**
+	 * Enumeration defining the different shipping types of the output, such as local forward, re-partitioning by hash,
+	 * or re-partitioning by range.
+	 */
 	public enum ShipStrategy {
 		FORWARD, BROADCAST, PARTITION_HASH, PARTITION_RANGE, SFR, NONE
 	}
+	
+	// ------------------------------------------------------------------------
+	//                       Fields
+	// ------------------------------------------------------------------------
+	
+	private final byte[] salt;					// the salt used to randomize the hash values
+	
+	private ShipStrategy strategy;				// the shipping strategy used by this output emitter
+	
+	private int[] channels;						// the reused array defining target channels
+	
+	private int nextChannelToSendTo = 0;		// counter to go over channels round robin 
 
-	// TODO required by IOReadableWritable (en)
+
+	// ------------------------------------------------------------------------
+	//                           Constructors
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a new channel selector that distributes data round robin.
+	 */
 	public OutputEmitter() {
-		this.salt = new byte[] { 17, 31, 47, 51, 83, 1 };
+		this(ShipStrategy.NONE);
 	}
 
+	/**
+	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...).
+	 * 
+	 * @param strategy The distribution strategy to be used.
+	 */
 	public OutputEmitter(ShipStrategy strategy) {
 		this(strategy, new byte[] { 17, 31, 47, 51, 83, 1 });
 	}
 
+	/**
+	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...), using the
+	 * supplied salt to randomize hashes.
+	 *  
+	 * @param strategy The distribution strategy to be used.
+	 * @param salt The salt used to randomize hash values.
+	 */
 	public OutputEmitter(ShipStrategy strategy, byte[] salt) {
 		this.strategy = strategy;
 		this.salt = salt;
 	}
+	
+	
+	// ------------------------------------------------------------------------
+	//                          Channel Selection
+	// ------------------------------------------------------------------------
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.ChannelSelector#selectChannels(java.lang.Object, int)
+	 */
 	@Override
 	public int[] selectChannels(KeyValuePair<K, V> pair, int numberOfChannels) {
 		switch (strategy) {
@@ -62,8 +103,10 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 			return broadcast(numberOfChannels);
 		case PARTITION_HASH:
 			return partition(pair, numberOfChannels);
-		default:
+		case FORWARD:
 			return robin(numberOfChannels);
+		default:
+			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
 	}
 
@@ -73,14 +116,21 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	}
 
 	private int[] broadcast(int numberOfChannels) {
-		int[] channels = new int[numberOfChannels];
-		for (int i = 0; i < numberOfChannels; i++)
-			channels[i] = i;
+		if (channels == null || channels.length != numberOfChannels) {
+			channels = new int[numberOfChannels];
+			for (int i = 0; i < numberOfChannels; i++)
+				channels[i] = i;
+		}
+		
 		return channels;
 	}
 
 	private int[] partition(KeyValuePair<K, V> pair, int numberOfChannels) {
-		return new int[] { getPartition(pair.getKey(), numberOfChannels) };
+		if (channels == null || channels.length != 1) {
+			channels = new int[1];
+		}
+		channels[0] = getPartition(pair.getKey(), numberOfChannels);
+		return channels;
 	}
 
 	private int getPartition(K key, int numberOfChannels) {
@@ -92,12 +142,22 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 
 		return (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 	}
+	
+	// ------------------------------------------------------------------------
+	//                            Serialization
+	// ------------------------------------------------------------------------
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
 	@Override
 	public void read(DataInput in) throws IOException {
 		strategy = ShipStrategy.valueOf(in.readUTF());
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
 		out.writeUTF(strategy.name());

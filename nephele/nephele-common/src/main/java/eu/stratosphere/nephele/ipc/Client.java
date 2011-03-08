@@ -416,10 +416,6 @@ public class Client {
 			}
 		}
 
-		public InetSocketAddress getRemoteAddress() {
-			return server;
-		}
-
 		/*
 		 * Send a ping to the server if the time elapsed
 		 * since last I/O activity is equal to or greater than the ping interval
@@ -516,12 +512,14 @@ public class Client {
 						try {
 							c = ClassUtils.getRecordByName(returnClassName);
 						} catch (ClassNotFoundException e) {
-							e.printStackTrace();
+							LOG.error(e);
 						}
 						try {
 							value = c.newInstance();
-						} catch (Exception e) {
-							e.printStackTrace();
+						} catch (InstantiationException e) {
+							LOG.error(e);
+						} catch (IllegalAccessException e) {
+							LOG.error(e);
 						}
 						value.read(in); // read value
 					}
@@ -622,11 +620,6 @@ public class Client {
 		private int size;
 
 		private int count;
-
-		public ParallelResults(int size) {
-			this.values = new IOReadableWritable[size];
-			this.size = size;
-		}
 
 		/** Collect a result. */
 		public synchronized void callComplete(ParallelCall call) {

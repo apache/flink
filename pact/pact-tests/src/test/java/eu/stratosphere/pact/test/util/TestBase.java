@@ -51,11 +51,11 @@ import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
  * @author Fabian Hueske
  */
 public abstract class TestBase extends TestCase {
-	private static final int MINIMUM_HEAP_SIZE_MB = 512;
+	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	private static final Log LOG = LogFactory.getLog(TestBase.class);
 
-	private static ClusterProvider cluster;
+	protected static ClusterProvider cluster;
 
 	protected final Configuration config;
 
@@ -142,7 +142,7 @@ public abstract class TestBase extends TestCase {
 				p.load(new FileInputStream(configFile));
 
 				for (String key : p.stringPropertyNames()) {
-					if (key.equals(testClassName)) {
+					if (key.endsWith(testClassName)) {
 						for (String config : p.getProperty(key).split(",")) {
 							clusterConfigs.add(config);
 						}
@@ -152,7 +152,7 @@ public abstract class TestBase extends TestCase {
 		}
 
 		if (clusterConfigs.isEmpty()) {
-			LOG.warn("no test config defined for test-class '" + testClassName + "'");
+			LOG.warn("No test config defined for test-class '" + testClassName + "'. Using default config: '"+Constants.DEFAULT_TEST_CONFIG+"'.");	
 			clusterConfigs.add(Constants.DEFAULT_TEST_CONFIG);
 		}
 

@@ -19,11 +19,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
-public class EnvironmentListenerImpl implements ExecutionNotifiable {
+public class EnvironmentListenerImpl implements ExecutionListener {
 
 	private static final Log LOG = LogFactory.getLog(EnvironmentListenerImpl.class);
 
@@ -84,7 +84,7 @@ public class EnvironmentListenerImpl implements ExecutionNotifiable {
 			break;
 		case FINISHING:
 		case FINISHED:
-		case CANCELLED:
+		case CANCELED:
 		case FAILED:
 			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(ee, ee.getExecutingThread());
 			break;

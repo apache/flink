@@ -211,10 +211,8 @@ public class GlobalConfiguration {
 
 		if (configDir == null) {
 
-			if (configDir == null) {
-				LOG.warn("Given configuration directory is null, cannot load configuration");
-				return;
-			}
+			LOG.warn("Given configuration directory is null, cannot load configuration");
+			return;
 		}
 
 		final File confDirFile = new File(configDir);

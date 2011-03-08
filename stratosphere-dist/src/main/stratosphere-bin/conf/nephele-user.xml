@@ -18,29 +18,6 @@
 <configuration>
 
 	<!--  ========================================================================
-	                              Addresses and Ports 
-	      ======================================================================== -->
-	      
-	<!-- the address of the job manager -->
-	<property>
-		<key>jobmanager.rpc.address</key>
-		<value>localhost</value>
-	</property>
-	
-	<!-- the IPC port of the job manager -->
-	<property>
-		<key>jobmanager.rpc.port</key>
-		<value>6123</value>
-	</property>
-	
-	<!-- the IPC port of the task manager -->
-	<property>
-		<key>taskmanager.rpc.port</key>
-		<value>6122</value>
-	</property>
-
-
-	<!--  ========================================================================
 	                           Instance and Memory Management 
 	      ======================================================================== -->
 	      
@@ -49,33 +26,21 @@
 	     will be considered to have the here defined resources available.
 	     The available resources are defined as follows:
 	     <name>,<compute-units>,<CPU-cores>,<memory in MB>,<disk-space in GB>,<price-per-hour>  -->
-
+	
 	<property>
-		<key>jobmanager.instancemanager.local.type</key>
-		<value>standard,2,1,300,10,10</value>
+		<key>instancemanager.cluster.type.1</key>
+		<value>standard,2,1,1024,20,0</value>
 	</property>
 	
 	<property>
-		<key>jobmanager.instancemanager.cluster.type.1</key>
-		<value>standard,2,1,1024,10,10</value>
+		<key>instancemanager.cluster.type.2</key>
+		<value>medium,4,2,2048,40,0</value>
 	</property>
 	
 	<property>
-		<key>jobmanager.instancemanager.cluster.type.2</key>
-		<value>medium,2,1,1024,20,20</value>
-	</property>
-	
-	<property>
-		<key>jobmanager.instancemanager.cluster.defaulttype</key>
+		<key>instancemanager.cluster.defaulttype</key>
 		<value>1</value>
-	</property>
-	
-	<!-- Amount of memory that the memory manager allocates -->
-	<property>
-		<key>taskmanager.memory.size</key>
-		<value>300</value>
-	</property>
-	
+	</property>	
 	
 	<!--  ========================================================================
 	                   Scheduler and Instance Manager Classes 
@@ -101,8 +66,8 @@
 	
 	<!-- the default instance manager for cluster execution mode -->
 	<property>
-		 <key>jobmanager.instancemanager.cluster.classname</key>
-                <value>eu.stratosphere.nephele.instance.clusterng.ClusterManager</value>
+		<key>jobmanager.instancemanager.cluster.classname</key>
+		<value>eu.stratosphere.nephele.instance.cluster.ClusterManager</value>
 	</property>
 	
 	<!--the default scheduler for cloud execution mode -->
@@ -129,7 +94,7 @@
 	      
 	<property>
 		<key>jobmanager.profiling.enable</key>
-        <value>false</value>
+		<value>false</value>
 	</property>
 
 	<property>
@@ -141,7 +106,10 @@
 		<key>taskmanager.profiling.classname</key>
 		<value>eu.stratosphere.nephele.profiling.impl.TaskManagerProfilerImpl</value>
 	 </property>
-	<!-- compression -->
+	 
+	 	<!--  ========================================================================
+	                                  Compression
+	      ======================================================================== -->
 	<property>
 		<key>channel.compression.lightClass</key> 
 		<value>eu.stratosphere.nephele.io.compression.library.lzo.LzoLibrary</value> 

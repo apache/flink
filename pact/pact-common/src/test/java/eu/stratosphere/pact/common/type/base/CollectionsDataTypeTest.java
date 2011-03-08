@@ -53,7 +53,7 @@ public class CollectionsDataTypeTest {
 	}
 
 	@Test
-	public void testN_Pair() {
+	public void testPactPair() {
 		NfIntStringPair pair1 = new NfIntStringPair();
 
 		pair1.setFirst(new PactInteger(10));
@@ -154,7 +154,7 @@ public class CollectionsDataTypeTest {
 	}
 
 	@Test
-	public void testN_Map() {
+	public void testPactMap() {
 		NfIntStringMap map0 = new NfIntStringMap();
 		map0.put(new PactInteger(10), new PactString("20"));
 
@@ -201,7 +201,7 @@ public class CollectionsDataTypeTest {
 	}
 
 	@Test
-	public void testN_List() {
+	public void testPactList() {
 		NfStringList list = new NfStringList();
 		list.add(new PactString("Hello!"));
 

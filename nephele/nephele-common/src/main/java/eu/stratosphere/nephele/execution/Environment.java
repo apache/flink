@@ -121,9 +121,9 @@ public class Environment implements Runnable, IOReadableWritable {
 	private JobID jobID = null;
 
 	/**
-	 * List of {@link ExecutionNotifiable} object which shall be notified about changes of the execution state.
+	 * List of {@link ExecutionListener} object which shall be notified about changes of the execution state.
 	 */
-	private final List<ExecutionNotifiable> executionNotifiables = new ArrayList<ExecutionNotifiable>();
+	private final List<ExecutionListener> executionListeners = new ArrayList<ExecutionListener>();
 
 	/**
 	 * The runtime configuration of the task encapsulated in the environment object.
@@ -144,6 +144,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * The name of the task running in this environment.
 	 */
 	private String taskName;
+
+	/**
+	 * Stores whether the task has been canceled.
+	 */
+	private volatile boolean isCanceled = false;
 
 	/**
 	 * Creates a new environment object which contains the runtime information for the encapsulated Nephele task.
@@ -201,32 +206,33 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
-	 * Registers the {@link ExecutionNotifiable} object for this environment. This object
+	 * Registers the {@link ExecutionListener} object for this environment. This object
 	 * will be notified about important events during the task execution.
 	 * 
-	 * @param executionNotifiable
+	 * @param executionListener
 	 *        the object to be notified for important events during the task execution
 	 */
-	public void registerExecutionNotifiable(ExecutionNotifiable executionNotifiable) {
+	public void registerExecutionListener(ExecutionListener executionListener) {
 
-		synchronized (this.executionNotifiables) {
+		synchronized (this.executionListeners) {
 
-			if (!this.executionNotifiables.contains(executionNotifiable)) {
-				this.executionNotifiables.add(executionNotifiable);
+			if (!this.executionListeners.contains(executionListener)) {
+				this.executionListeners.add(executionListener);
 			}
 		}
 	}
 
 	/**
-	 * Unregisters the {@link ExecutionNotifiable} object for this environment. This object
+	 * Unregisters the {@link ExecutionListener} object for this environment. This object
 	 * will no longer be notified about important events during the task execution.
 	 * 
-	 * @param executionNotifible
+	 * @param executionListener
+	 *        the lister object to be unregistered
 	 */
-	public void unregisterExecutionNotifiable(ExecutionNotifiable executionNotifible) {
+	public void unregisterExecutionListener(ExecutionListener executionListener) {
 
-		synchronized (this.executionNotifiables) {
-			this.executionNotifiables.remove(executionNotifible);
+		synchronized (this.executionListeners) {
+			this.executionListeners.remove(executionListener);
 		}
 	}
 
@@ -286,8 +292,12 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Creates a new instance of the Nephele task and registers it with its
 	 * environment.
+	 * 
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public void instantiateInvokable() {
+	public void instantiateInvokable() throws Exception {
 
 		if (this.invokableClass == null) {
 			LOG.fatal("InvokableClass is null");
@@ -335,18 +345,39 @@ public class Environment implements Runnable, IOReadableWritable {
 		try {
 			this.invokable.invoke();
 
-			// Make sure we switch to the right state, even if the user code has not hit an {@link InterruptedException}
-			if (this.executingThread.isInterrupted()) {
+			// Make sure, we enter the catch block when the task has been canceled
+			if (this.isCanceled) {
 				throw new InterruptedException();
 			}
 
-		} catch (InterruptedException e) {
-			changeExecutionState(ExecutionState.CANCELLED, null);
-			// TODO: Do we really have to return here? (Rethink clean up strategy)
-			return;
 		} catch (Exception e) {
-			// Report exception
-			changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+
+			if (!this.isCanceled) {
+
+				// Perform clean up when the task failed and has been not canceled by the user
+				try {
+					this.invokable.cancel();
+				} catch (Exception e2) {
+					LOG.error(StringUtils.stringifyException(e2));
+				}
+			}
+
+			// Request closing of input and output gates, but don't wait for it
+			/*try { //TODO: Fix this
+				closeInputGates();
+
+				requestAllOutputGatesToClose();
+
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+			}*/
+
+			if (this.isCanceled) {
+				changeExecutionState(ExecutionState.CANCELED, null);
+			} else {
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+			}
+
 			return;
 		}
 
@@ -466,11 +497,20 @@ public class Environment implements Runnable, IOReadableWritable {
 			return;
 		}
 
-		// Interrupt the executing thread
-		this.executingThread.interrupt();
+		this.isCanceled = true;
 
 		// Change state
-		changeExecutionState(ExecutionState.CANCELLING, null);
+		changeExecutionState(ExecutionState.CANCELING, null);
+
+		// Request user code to shut down
+		try {
+			this.invokable.cancel();
+		} catch (Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
+
+		// Interrupt the executing thread
+		this.executingThread.interrupt();
 	}
 
 	// TODO: See if type safety can be improved here
@@ -582,7 +622,11 @@ public class Environment implements Runnable, IOReadableWritable {
 		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
 
 		// Finally, instantiate the invokable object
-		instantiateInvokable();
+		try {
+			instantiateInvokable();
+		} catch (Exception e) {
+			throw new IOException(StringUtils.stringifyException(e));
+		}
 	}
 
 	/**
@@ -773,8 +817,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * does not cover the gates arrays. They must be manually reconstructed.
 	 * 
 	 * @return a duplicate (deep copy) of this environment object
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public Environment duplicateEnvironment() {
+	public Environment duplicateEnvironment() throws Exception {
 
 		final Environment duplicatedEnvironment = new Environment();
 		duplicatedEnvironment.invokableClass = this.invokableClass;
@@ -788,9 +835,9 @@ public class Environment implements Runnable, IOReadableWritable {
 		duplicatedEnvironment.jobID = this.jobID;
 		duplicatedEnvironment.taskName = this.taskName;
 		duplicatedEnvironment.executingThread = this.executingThread;
-		final Iterator<ExecutionNotifiable> it2 = this.executionNotifiables.iterator();
+		final Iterator<ExecutionListener> it2 = this.executionListeners.iterator();
 		while (it2.hasNext()) {
-			duplicatedEnvironment.executionNotifiables.add(it2.next());
+			duplicatedEnvironment.executionListeners.add(it2.next());
 		}
 		duplicatedEnvironment.runtimeConfiguration = this.runtimeConfiguration;
 
@@ -929,25 +976,25 @@ public class Environment implements Runnable, IOReadableWritable {
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled after an instance request has been triggered.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled after an instance request has been triggered.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task is canceled that is not yet running on the task manager.
 			 */
@@ -960,10 +1007,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.executionState == ExecutionState.FINISHING && newExecutionState == ExecutionState.FAILED) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.CANCELLING) {
+		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.CANCELING) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.CANCELLING && newExecutionState == ExecutionState.CANCELLED) {
+		if (this.executionState == ExecutionState.CANCELING && newExecutionState == ExecutionState.CANCELED) {
 			unexpectedStateChange = false;
 		}
 
@@ -974,8 +1021,8 @@ public class Environment implements Runnable, IOReadableWritable {
 		this.executionState = newExecutionState;
 
 		// Notify all the observers
-		synchronized (this.executionNotifiables) {
-			final Iterator<ExecutionNotifiable> it = this.executionNotifiables.iterator();
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
 				it.next().executionStateChanged(this, newExecutionState, optionalMessage);
 			}
@@ -1003,7 +1050,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
-	 * Sends a notification to all registered {@link ExecutionNotifiable} objects that a new user thread has been
+	 * Sends a notification to all registered {@link ExecutionListener} objects that a new user thread has been
 	 * started.
 	 * 
 	 * @param userThread
@@ -1011,8 +1058,8 @@ public class Environment implements Runnable, IOReadableWritable {
 	 */
 	public void userThreadStarted(Thread userThread) {
 
-		synchronized (this.executionNotifiables) {
-			final Iterator<ExecutionNotifiable> it = this.executionNotifiables.iterator();
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
 				it.next().userThreadStarted(this, userThread);
 			}
@@ -1021,15 +1068,15 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
-	 * Sends a notification to all registered {@link ExecutionNotifiable} objects that a user thread has finished.
+	 * Sends a notification to all registered {@link ExecutionListener} objects that a user thread has finished.
 	 * 
 	 * @param userThread
 	 *        the user thread which has finished
 	 */
 	public void userThreadFinished(Thread userThread) {
 
-		synchronized (this.executionNotifiables) {
-			final Iterator<ExecutionNotifiable> it = this.executionNotifiables.iterator();
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
 				it.next().userThreadFinished(this, userThread);
 			}

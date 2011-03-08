@@ -19,7 +19,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
  * 
  * @author warneke
  */
-public class EnvironmentWrapper implements ExecutionNotifiable {
+public class EnvironmentWrapper implements ExecutionListener {
 
 	private static final Log LOG = LogFactory.getLog(EnvironmentWrapper.class);
 

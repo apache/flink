@@ -15,7 +15,8 @@
 
 package eu.stratosphere.pact.runtime.resettable;
 
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
@@ -28,8 +29,9 @@ import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.util.MemoryBlockIterator;
+import eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator;
 
 /**
  * Implementation of an iterator that fetches a block of data into main memory and offers a resettable
@@ -44,7 +46,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	protected MemoryManager memoryManager;
 
-	protected Vector<MemorySegment> buffers;
+	protected List<MemorySegment> buffers;
 
 	protected T deserializationInstance = null;
 
@@ -66,18 +68,20 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	protected Thread blockFetcherThread;
 
+	
 	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader, int availableMemory, int nrOfBuffers,
-			RecordDeserializer<T> deserializer)
-												throws MemoryAllocationException {
+			RecordDeserializer<T> deserializer, AbstractInvokable ownerTask)
+	throws MemoryAllocationException
+	{
 		this.deserializer = deserializer;
 		this.memoryManager = memoryManager;
 		// allocate the queues
 		emptySegments = new LinkedBlockingQueue<MemorySegment>();
 		filledBuffers = new LinkedBlockingQueue<Buffer.Input>();
 		// allocate the memory buffers
-		buffers = new Vector<MemorySegment>(nrOfBuffers);
+		buffers = new ArrayList<MemorySegment>(nrOfBuffers);
 		for (int i = 0; i < nrOfBuffers; ++i)
-			buffers.add(memoryManager.allocate(availableMemory / nrOfBuffers));
+			buffers.add(memoryManager.allocate(ownerTask, availableMemory / nrOfBuffers));
 		// now append all memory segments to the workerQueue
 		emptySegments.addAll(buffers);
 		// create the writer thread
@@ -106,22 +110,24 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	public void reset() {
 		// re-open the input reader
-		in.reset();
+		in.rewind();
 		deserializationInstance = null;
 	}
 
 	public boolean nextBlock() {
 		// add the last block to the worker queue of the writer thread
 		if (in != null)
-			emptySegments.add(in.unbind());
+			emptySegments.add(in.dispose());
 		// now fetch the latest filled Buffer
 		try {
 			in = filledBuffers.take();
 		} catch (InterruptedException e) {
 			throw new RuntimeException("BlockResettableIterator: Unable to fetch the last filled buffer", e);
 		}
-		if (!in.isBound())
+		if (in.getRemainingBytes() == 0) {
+			// empty buffer sigmals end
 			return false;
+		}
 		return true;
 	}
 
@@ -142,7 +148,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	@Override
 	public void remove() {
-		// do nothing
+		throw new UnsupportedOperationException();
 	}
 
 	protected class BlockFetcher<R extends Record> implements Runnable {
@@ -175,8 +181,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 					throw new RuntimeException("BlockResettableIterator: Unable to take next request", e1);
 				}
 				// create an output buffer
-				Buffer.Output out = new Buffer.Output();
-				out.bind(request);
+				Buffer.Output out = new Buffer.Output(request);
 
 				// write the last spilled element
 				if (next != null)
@@ -196,15 +201,25 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 					}
 				}
 
+				int pos = out.getPosition();
+				MemorySegment seg = out.dispose();
+				
 				// allocate a new input buffer for the segment and push it to the input queue
-				Buffer.Input in = new Buffer.Input();
-				in.bind(request);
-				in.reset(out.getPosition());
-				out.unbind();
+				Buffer.Input in = new Buffer.Input(seg);
+				in.reset(pos);
+				
 				finishedTasks.add(in);
 			}
-			Buffer.Input in = new Buffer.Input();
-			finishedTasks.add(in); // unbound buffer signals completion
+			
+			// wait for the next request
+			MemorySegment request = null;
+			try {
+				request = requestQueue.take();
+			} catch (InterruptedException e1) {
+				throw new RuntimeException("BlockResettableIterator: Unable to take next request", e1);
+			}
+			
+			finishedTasks.add(new Buffer.Input(request)); // null signals completion
 		}
 
 	}

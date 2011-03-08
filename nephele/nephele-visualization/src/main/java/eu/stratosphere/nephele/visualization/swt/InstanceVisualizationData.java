@@ -181,7 +181,7 @@ public class InstanceVisualizationData {
 
 	private final double toMBitPerSec(long numberOfBytes, long profilingPeriod) {
 
-		return ((double) numberOfBytes / (BYTE_TO_MEGABIT * profilingPeriod / 1000));
+		return (((double) numberOfBytes) / ((double) (BYTE_TO_MEGABIT * profilingPeriod / 1000L)));
 	}
 
 	public boolean isProfilingEnabledForJob() {

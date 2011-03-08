@@ -24,25 +24,55 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
- * This scheduler interface must be implemented by a scheduler implementations
- * for Nephele. The interface defines the fundamental methods for scheduling and
- * removing jobs. While Nephele's {@link JobManager} is responsible for requesting
- * the required instances for the job at the {@link InstanceManager}, the scheduler
- * is in charge of assigning the individual tasks to the
+ * This scheduler interface must be implemented by a scheduler implementations for Nephele. The interface defines the
+ * fundamental methods for scheduling and removing jobs. While Nephele's
+ * {@link eu.stratosphere.nephele.jobmanager.JobManager} is responsible for requesting the required instances for the
+ * job at the {@link eu.stratosphere.nephele.instance.InstanceManager}, the scheduler is in charge of assigning the
+ * individual tasks to the instances.
  * 
  * @author warneke
  */
 public interface Scheduler extends InstanceListener {
 
+	/**
+	 * Adds a job represented by an {@link ExecutionGraph} object to the scheduler. The job is then executed according
+	 * to the strategies of the concrete scheduler implementation.
+	 * 
+	 * @param executionGraph
+	 *        the job to be added to the scheduler
+	 * @throws SchedulingException
+	 *         thrown if an error occurs and the scheduler does not accept the new job
+	 */
 	void schedulJob(ExecutionGraph executionGraph) throws SchedulingException;
 
+	/**
+	 * Returns a (possibly empty) set of vertices which are ready to be executed.
+	 * 
+	 * @return a (possibly empty) set of vertices which are ready to be executed
+	 */
 	Set<ExecutionVertex> getVerticesReadyToBeExecuted();
 
+	/**
+	 * Returns the execution graph which is associated with the given job ID.
+	 * 
+	 * @param jobID
+	 *        the job ID to search the execution graph for
+	 * @return the execution graph which belongs to the given job ID or <code>null</code if no such execution graph
+	 *         exists
+	 */
 	ExecutionGraph getExecutionGraphByID(JobID jobID);
 
+	/**
+	 * Returns the {@link InstanceManager} object which is used by the current scheduler.
+	 * 
+	 * @return the {@link InstanceManager} object which is used by the current scheduler
+	 */
 	InstanceManager getInstanceManager();
 
 	// void removeJob(JobID jobID);
 
+	/**
+	 * Shuts the scheduler down. After shut down no jobs can be added to the scheduler.
+	 */
 	void shutdown();
 }

@@ -24,7 +24,7 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
 /**
  * Through this interface it is possible to access profiling data about the CPU utilization
- * of the corresponding {@link ExecutionVertex} thread during its execution.
+ * of the corresponding execution thread during its execution.
  * 
  * @author stanik
  */
@@ -53,8 +53,8 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	}
 
 	/**
-	 * Returns the percentage of time the {@link ExecutionVertex} thread spent in user
-	 * mode in the given profiling interval.
+	 * Returns the percentage of time the execution thread spent in
+	 * user mode in the given profiling interval.
 	 * 
 	 * @return the percentage of time spent in user mode
 	 */
@@ -63,8 +63,8 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	}
 
 	/**
-	 * Returns the percentage of time the {@link ExecutionVertex} thread spent in system
-	 * mode in the given profiling interval.
+	 * Returns the percentage of time the execution thread spent in
+	 * system mode in the given profiling interval.
 	 * 
 	 * @return the percentage of time spent in system mode
 	 */
@@ -73,8 +73,8 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	}
 
 	/**
-	 * Returns the percentage of time the {@link ExecutionVertex} thread has been blocked
-	 * to enter or reenter a monitor in the given profiling interval.
+	 * Returns the percentage of time the execution thread has been
+	 * blocked to enter or reenter a monitor in the given profiling interval.
 	 * 
 	 * @return the percentage of time the thread has been blocked
 	 */
@@ -83,10 +83,10 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	}
 
 	/**
-	 * Returns the percentage of time the {@link ExecutionVertex} thread spent in either
-	 * WAITING or TIMED_WAITING state in the given profiling interval.
+	 * Returns the percentage of time the execution thread spent in
+	 * either <code>WAITING</code> or <code>TIMED_WAITING</code> state in the given profiling interval.
 	 * 
-	 * @return the percentage of time the thread spent waiting.
+	 * @return the percentage of time the thread spent waiting
 	 */
 	public int getWaitedTime() {
 		return this.waitedTime;
@@ -124,7 +124,7 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	@Override
 	public boolean equals(Object obj) {
 
-		if (super.equals(obj)) {
+		if (!super.equals(obj)) {
 			return false;
 		}
 
@@ -151,5 +151,14 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return super.hashCode();
 	}
 }

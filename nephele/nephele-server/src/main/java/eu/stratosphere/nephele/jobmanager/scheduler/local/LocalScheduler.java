@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobmanager.scheduler.local;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -37,9 +38,10 @@ import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
-import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
+import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 
 public class LocalScheduler implements Scheduler {
 
@@ -52,11 +54,7 @@ public class LocalScheduler implements Scheduler {
 
 	private final InstanceManager instanceManager;
 
-	private final SchedulingListener schedulingListener;
-
-	public LocalScheduler(SchedulingListener schedulingListener, InstanceManager instanceManager) {
-
-		this.schedulingListener = schedulingListener;
+	public LocalScheduler(InstanceManager instanceManager) {
 
 		// Set the instance manager
 		this.instanceManager = instanceManager;
@@ -118,11 +116,13 @@ public class LocalScheduler implements Scheduler {
 	 */
 	private void requestInstances(ExecutionGraph executionGraph) throws InstanceException {
 
-		final Map<InstanceType, Integer> requiredInstanceTypes = executionGraph
-			.getInstanceTypesRequiredForCurrentStage();
+		final Map<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
 
-		if (requiredInstanceTypes == null)
-			throw new InstanceException("Cannot acquire required instance types to run next stage");
+		executionGraph.collectInstanceTypesRequiredForCurrentStage(requiredInstanceTypes, ExecutionState.SCHEDULED);
+
+		if (requiredInstanceTypes.isEmpty()) {
+			return;
+		}
 
 		// Switch vertex state to assigning
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph
@@ -135,16 +135,13 @@ public class LocalScheduler implements Scheduler {
 			}
 		}
 
-		/*
-		 * In the current version we try to allocate one instance per WS call. In the future might
-		 * be preferable to allocate all instances at once.
-		 */
-		final Iterator<InstanceType> it = requiredInstanceTypes.keySet().iterator();
+		final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstanceTypes.entrySet().iterator();
 		while (it.hasNext()) {
 
-			final InstanceType type = it.next();
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+			final InstanceType type = entry.getKey();
 
-			for (int i = 0; i < requiredInstanceTypes.get(type).intValue(); i++) {
+			for (int i = 0; i < entry.getValue().intValue(); i++) {
 				LOG.info("Trying to allocate instance of type " + type.getIdentifier());
 				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
 					type);
@@ -155,7 +152,7 @@ public class LocalScheduler implements Scheduler {
 	void removeJobFromSchedule(ExecutionGraph executionGraphToRemove) {
 
 		boolean removedFromQueue = false;
-		;
+
 		synchronized (this.jobQueue) {
 
 			final Iterator<ExecutionGraph> it = this.jobQueue.iterator();
@@ -170,9 +167,7 @@ public class LocalScheduler implements Scheduler {
 			}
 		}
 
-		if (removedFromQueue) {
-			this.schedulingListener.jobRemovedFromScheduler(executionGraphToRemove);
-		} else {
+		if (!removedFromQueue) {
 			LOG.error("Cannot find job " + executionGraphToRemove.getJobName() + " ("
 				+ executionGraphToRemove.getJobID() + ") to remove");
 		}
@@ -207,7 +202,7 @@ public class LocalScheduler implements Scheduler {
 
 				if (state == ExecutionState.ASSIGNED || state == ExecutionState.READY
 					|| state == ExecutionState.RUNNING || state == ExecutionState.FINISHING
-					|| state == ExecutionState.CANCELLING) {
+					|| state == ExecutionState.CANCELING) {
 					instanceCanBeReleased = false;
 					break;
 				}
@@ -229,24 +224,52 @@ public class LocalScheduler implements Scheduler {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void schedulJob(ExecutionGraph executionGraph) {
+	public void schedulJob(ExecutionGraph executionGraph) throws SchedulingException {
 
-		synchronized (this.jobQueue) {
+		// First, check if there are enough resources to run this job
+		final Map<InstanceType, InstanceTypeDescription> availableInstances = this.instanceManager
+			.getMapOfAvailableInstanceTypes();
 
-			final ExecutionGraphIterator it = new ExecutionGraphIterator(executionGraph, true);
+		for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
+
+			final Map<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
+			executionGraph.collectInstanceTypesRequiredForStage(i, requiredInstanceTypes, ExecutionState.CREATED);
+
+			final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstanceTypes.entrySet().iterator();
 			while (it.hasNext()) {
 
-				final ExecutionVertex vertex = it.next();
-				if (vertex.getExecutionState() != ExecutionState.CREATED) {
-					LOG.error("Execution vertex " + vertex + " has state " + vertex.getExecutionState() + ", expected "
-						+ ExecutionState.CREATED);
+				final Map.Entry<InstanceType, Integer> entry = it.next();
+				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
+				if (descr == null) {
+					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
+						+ " available");
 				}
 
-				vertex.getEnvironment().registerExecutionNotifiable(new LocalExecutionNotifiable(this, vertex));
-				vertex.setExecutionState(ExecutionState.SCHEDULED);
+				if (descr.getMaximumNumberOfAvailableInstances() != -1
+					&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
+					throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
+						+ " instances of type " + entry.getKey() + " required, but only "
+						+ descr.getMaximumNumberOfAvailableInstances() + " are available");
+				}
+			}
+		}
 
+		// Set state of each vertex for scheduled
+		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
+		while (it2.hasNext()) {
+
+			final ExecutionVertex vertex = it2.next();
+			if (vertex.getExecutionState() != ExecutionState.CREATED) {
+				LOG.error("Execution vertex " + vertex + " has state " + vertex.getExecutionState() + ", expected "
+					+ ExecutionState.CREATED);
 			}
 
+			vertex.getEnvironment().registerExecutionListener(new LocalExecutionListener(this, vertex));
+			vertex.setExecutionState(ExecutionState.SCHEDULED);
+
+		}
+
+		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
 		}
 	}
@@ -308,6 +331,7 @@ public class LocalScheduler implements Scheduler {
 				} catch (InstanceException e) {
 					LOG.error(e);
 				}
+				return;
 			}
 
 			AllocatedResource resourceToBeReplaced = null;
@@ -318,8 +342,8 @@ public class LocalScheduler implements Scheduler {
 				final ExecutionVertex vertex = it.next();
 				if (vertex.getExecutionState() == ExecutionState.ASSIGNING && vertex.getAllocatedResource() != null) {
 					// In local mode, we do not consider any topology, only the instance type
-					if (vertex.getAllocatedResource().getInstance().getType().equals(
-						allocatedResource.getInstance().getType())) {
+					if (vertex.getAllocatedResource().getInstanceType().equals(
+						allocatedResource.getInstanceType())) {
 						resourceToBeReplaced = vertex.getAllocatedResource();
 						break;
 					}

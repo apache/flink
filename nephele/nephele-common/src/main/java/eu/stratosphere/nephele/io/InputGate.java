@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -403,24 +404,36 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 			try {
 				c = ClassUtils.getRecordByName(className);
 			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				LOG.error(e);
 			}
+			
+			if(c == null) {
+				throw new IOException("Class is null!");
+			}
+			
 			AbstractInputChannel<T> eic = null;
-			try {
-				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
-					.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
-						CompressionLevel.class);
-
-				if (constructor == null) {
-					throw new IOException("Constructor is null!");
+				try {
+					final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
+						.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
+							CompressionLevel.class);
+					if (constructor == null) {
+						throw new IOException("Constructor is null!");
+					}
+					constructor.setAccessible(true);
+					eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
+				} catch (SecurityException e) {
+					LOG.error(e);
+				} catch (NoSuchMethodException e) {
+					LOG.error(e);
+				} catch (IllegalArgumentException e) {
+					LOG.error(e);
+				} catch (InstantiationException e) {
+					LOG.error(e);
+				} catch (IllegalAccessException e) {
+					LOG.error(e);
+				} catch (InvocationTargetException e) {
+					LOG.error(e);
 				}
-
-				constructor.setAccessible(true);
-				eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-
 			if (eic == null) {
 				throw new IOException("Created input channel is null!");
 			}
@@ -507,21 +520,48 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String toString() {
 		return "Input " + super.toString();
 	}
 
-	public void subscribeToEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Subscribes the listener object to receive events of the given type.
+	 * 
+	 * @param eventListener
+	 *        the listener object to register
+	 * @param eventType
+	 *        the type of event to register the listener for
+	 */
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
-		this.eventNotificationManager.subscribeToEvent(eventNotifiable, eventType);
+		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
 	}
 
-	public void unsubscribeFromEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Removes the subscription for events of the given type for the listener object.
+	 * 
+	 * @param eventListener
+	 *        the listener object to cancel the subscription for
+	 * @param eventType
+	 *        the type of the event to cancel the subscription for
+	 */
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
-		this.eventNotificationManager.unsubscribeFromEvent(eventNotifiable, eventType);
+		this.eventNotificationManager.unsubscribeFromEvent(eventListener, eventType);
 	}
 
+	/**
+	 * Publishes an event.
+	 * 
+	 * @param event
+	 *        the event to be published
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the event
+	 */
 	public void publishEvent(AbstractTaskEvent event) throws IOException {
 
 		// Copy event to all connected channels
@@ -531,6 +571,12 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 		}
 	}
 
+	/**
+	 * Passes a received event on to the event notification manager so it cam ne dispatched.
+	 * 
+	 * @param event
+	 *        the event to pass on to the notification manager
+	 */
 	public void deliverEvent(AbstractTaskEvent event) {
 
 		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);

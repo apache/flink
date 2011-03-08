@@ -27,27 +27,69 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.util.EnumUtils;
 
-public class ManagementGroupVertex implements IOReadableWritable {
+/**
+ * This class implements a management group vertex of a {@link ManagementGraph}. A management group vertex is derived
+ * from the type of group vertices Nephele uses in its internal scheduling structures.
+ * <p>
+ * This class is not thread-safe.
+ * 
+ * @author warneke
+ */
+public final class ManagementGroupVertex extends ManagementAttachment implements IOReadableWritable {
 
+	/**
+	 * The ID of the management group vertex.
+	 */
 	private final ManagementGroupVertexID id;
 
+	/**
+	 * The name of the management group vertex.
+	 */
 	private final String name;
 
+	/**
+	 * The stage this management group vertex belongs to.
+	 */
 	private final ManagementStage stage;
 
+	/**
+	 * The list of {@link ManagementVertex} contained in this group vertex.
+	 */
 	private final List<ManagementVertex> groupMembers = new ArrayList<ManagementVertex>();
 
+	/**
+	 * The list of group edges which originate from this group vertex.
+	 */
 	private final List<ManagementGroupEdge> forwardEdges = new ArrayList<ManagementGroupEdge>();
 
+	/**
+	 * The list of group edges which arrive at this group vertex.
+	 */
 	private final List<ManagementGroupEdge> backwardEdges = new ArrayList<ManagementGroupEdge>();
 
-	private Object attachment = null;
-
-	public ManagementGroupVertex(ManagementStage stage, String name) {
+	/**
+	 * Constructs a new management group vertex.
+	 * 
+	 * @param stage
+	 *        the stage this group vertex belongs to
+	 * @param name
+	 *        the name of the new management group vertex
+	 */
+	public ManagementGroupVertex(final ManagementStage stage, final String name) {
 		this(stage, new ManagementGroupVertexID(), name);
 	}
 
-	public ManagementGroupVertex(ManagementStage stage, ManagementGroupVertexID id, String name) {
+	/**
+	 * Constructs a new management group vertex.
+	 * 
+	 * @param stage
+	 *        the stage this group vertex belongs to
+	 * @param id
+	 *        the ID of the management group vertex
+	 * @param name
+	 *        the name of the new management group vertex
+	 */
+	public ManagementGroupVertex(final ManagementStage stage, final ManagementGroupVertexID id, final String name) {
 
 		this.stage = stage;
 		this.id = id;
@@ -56,15 +98,33 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		stage.addGroupVertex(this);
 	}
 
+	/**
+	 * Returns the ID of this management group vertex.
+	 * 
+	 * @return the ID of this management group vertex
+	 */
 	public ManagementGroupVertexID getID() {
 		return this.id;
 	}
 
+	/**
+	 * Returns the name of this management group vertex.
+	 * 
+	 * @return the anme of this management group vertex, possibly <code>null</code>
+	 */
 	public String getName() {
 		return name;
 	}
 
-	void insertForwardEdge(ManagementGroupEdge edge, int index) {
+	/**
+	 * Inserts a new edge starting at this group vertex at the given index.
+	 * 
+	 * @param edge
+	 *        the edge to be added
+	 * @param index
+	 *        the index at which the edge shall be added
+	 */
+	void insertForwardEdge(final ManagementGroupEdge edge, final int index) {
 
 		while (index >= this.forwardEdges.size()) {
 			this.forwardEdges.add(null);
@@ -73,7 +133,15 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		this.forwardEdges.set(index, edge);
 	}
 
-	void insertBackwardEdge(ManagementGroupEdge edge, int index) {
+	/**
+	 * Inserts a new edge arriving at this group vertex at the given index.
+	 * 
+	 * @param edge
+	 *        the edge to be added
+	 * @param index
+	 *        the index at which the edge shall be added
+	 */
+	void insertBackwardEdge(final ManagementGroupEdge edge, final int index) {
 
 		while (index >= this.backwardEdges.size()) {
 			this.backwardEdges.add(null);
@@ -82,15 +150,33 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		this.backwardEdges.set(index, edge);
 	}
 
+	/**
+	 * Returns the number of edges originating at this group vertex.
+	 * 
+	 * @return the number of edges originating at this group vertex
+	 */
 	public int getNumberOfForwardEdges() {
 		return this.forwardEdges.size();
 	}
 
+	/**
+	 * Returns the number of edges arriving at this group vertex.
+	 * 
+	 * @return the number of edges arriving at this group vertex
+	 */
 	public int getNumberOfBackwardEdges() {
 		return this.backwardEdges.size();
 	}
 
-	public ManagementGroupEdge getForwardEdge(int index) {
+	/**
+	 * Returns the group edge which leaves this group vertex at the given index.
+	 * 
+	 * @param index
+	 *        the index of the group edge
+	 * @return the group edge which leaves this group vertex at the given index or <code>null</code> if no such group
+	 *         edge exists
+	 */
+	public ManagementGroupEdge getForwardEdge(final int index) {
 
 		if (index < this.forwardEdges.size()) {
 			return this.forwardEdges.get(index);
@@ -99,7 +185,15 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		return null;
 	}
 
-	public ManagementGroupEdge getBackwardEdge(int index) {
+	/**
+	 * Returns the group edge which arrives at this group vertex at the given index.
+	 * 
+	 * @param index
+	 *        the index of the group edge
+	 * @return the group edge which arrives at this group vertex at the given index or <code>null</code> if no such
+	 *         group edge exists
+	 */
+	public ManagementGroupEdge getBackwardEdge(final int index) {
 
 		if (index < this.backwardEdges.size()) {
 			return this.backwardEdges.get(index);
@@ -108,7 +202,13 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		return null;
 	}
 
-	void addGroupMember(ManagementVertex vertex) {
+	/**
+	 * Adds a {@link ManagementVertex} to this group vertex.
+	 * 
+	 * @param vertex
+	 *        the vertex to be added
+	 */
+	void addGroupMember(final ManagementVertex vertex) {
 
 		while (this.groupMembers.size() <= vertex.getIndexInGroup()) {
 			this.groupMembers.add(null);
@@ -119,7 +219,13 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		this.getGraph().addVertex(vertex.getID(), vertex);
 	}
 
-	void collectVertices(List<ManagementVertex> vertices) {
+	/**
+	 * Adds all management vertices which are included in this group vertex to the given list.
+	 * 
+	 * @param vertices
+	 *        the list to which the vertices shall be added
+	 */
+	void collectVertices(final List<ManagementVertex> vertices) {
 
 		final Iterator<ManagementVertex> it = this.groupMembers.iterator();
 		while (it.hasNext()) {
@@ -127,19 +233,41 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		}
 	}
 
+	/**
+	 * Returns the stage this management group vertex belongs to.
+	 * 
+	 * @return the stage this management group vertex belongs to
+	 */
 	public ManagementStage getStage() {
 		return this.stage;
 	}
 
+	/**
+	 * Returns the management graph this group vertex is part of.
+	 * 
+	 * @return the management graph this group vertex is part of
+	 */
 	public ManagementGraph getGraph() {
 		return this.stage.getGraph();
 	}
 
+	/**
+	 * Returns the number of management vertices included in this group vertex.
+	 * 
+	 * @return the number of management vertices included in this group vertex
+	 */
 	public int getNumberOfGroupMembers() {
 		return this.groupMembers.size();
 	}
 
-	public ManagementVertex getGroupMember(int index) {
+	/**
+	 * Returns the management vertex with the given index.
+	 * 
+	 * @param index
+	 *        the index of the management vertex to be returned
+	 * @return the management vertex with the given index or <code>null</code> if no such vertex exists
+	 */
+	public ManagementVertex getGroupMember(final int index) {
 
 		if (index < this.groupMembers.size()) {
 			return this.groupMembers.get(index);
@@ -192,18 +320,34 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		return true;
 	}
 
+	/**
+	 * Returns the number of the management stage this group vertex belongs to.
+	 * 
+	 * @return the number of the management stage this group vertex belongs to
+	 */
 	public int getStageNumber() {
 
 		return this.stage.getStageNumber();
 	}
 
-	public int getIndexOf(ManagementVertex managementVertex) {
+	/**
+	 * Returns the index at which the given management vertex is included in this group vertex.
+	 * 
+	 * @param managementVertex
+	 *        the management vertex to retrieve the index for
+	 * @return the index of the given management vertex or <code>-1</code> if the given vertex is not included in this
+	 *         group vertex
+	 */
+	public int getIndexOf(final ManagementVertex managementVertex) {
 
 		return this.groupMembers.indexOf(managementVertex);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		int numberOfForwardLinks = in.readInt();
 		for (int i = 0; i < numberOfForwardLinks; i++) {
@@ -219,8 +363,11 @@ public class ManagementGroupVertex implements IOReadableWritable {
 
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write the number of forward links
 		out.writeInt(this.forwardEdges.size());
@@ -235,14 +382,12 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		}
 	}
 
-	public void setAttachment(Object attachment) {
-		this.attachment = attachment;
-	}
-
-	public Object getAttachment() {
-		return this.attachment;
-	}
-
+	/**
+	 * Returns the list of successors of this group vertex. A successor is a group vertex which can be reached via a
+	 * group edge originating at this group vertex.
+	 * 
+	 * @return the list of successors of this group vertex.
+	 */
 	public List<ManagementGroupVertex> getSuccessors() {
 
 		final List<ManagementGroupVertex> successors = new ArrayList<ManagementGroupVertex>();
@@ -254,6 +399,12 @@ public class ManagementGroupVertex implements IOReadableWritable {
 		return successors;
 	}
 
+	/**
+	 * Returns the list of predecessors of this group vertex. A predecessors is a group vertex which can be reached via
+	 * a group edge arriving at this group vertex.
+	 * 
+	 * @return the list of predecessors of this group vertex.
+	 */
 	public List<ManagementGroupVertex> getPredecessors() {
 
 		final List<ManagementGroupVertex> predecessors = new ArrayList<ManagementGroupVertex>();

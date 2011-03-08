@@ -16,6 +16,9 @@
 package eu.stratosphere.nephele.executiongraph;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -90,6 +93,11 @@ public class ExecutionVertex {
 	private AllocationID allocationID = null;
 
 	/**
+	 * A list of {@link VertexAssignmentListener} objects to be notified about changes in the instance assignment.
+	 */
+	private List<VertexAssignmentListener> vertexAssignmentListeners = new ArrayList<VertexAssignmentListener>();
+
+	/**
 	 * Create a new execution vertex and instantiates its environment.
 	 * 
 	 * @param jobID
@@ -100,9 +108,12 @@ public class ExecutionVertex {
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
 	public ExecutionVertex(JobID jobID, Class<? extends AbstractInvokable> invokableClass,
-			ExecutionGraph executionGraph, ExecutionGroupVertex groupVertex) {
+			ExecutionGraph executionGraph, ExecutionGroupVertex groupVertex) throws Exception {
 		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex);
 
 		this.groupVertex.addInitialSubtask(this);
@@ -114,7 +125,7 @@ public class ExecutionVertex {
 		this.environment = new Environment(jobID, groupVertex.getName(), invokableClass, groupVertex.getConfiguration());
 
 		// Register the vertex itself as a listener for state changes
-		this.environment.registerExecutionNotifiable(this.executionGraph);
+		this.environment.registerExecutionListener(this.executionGraph);
 		this.environment.instantiateInvokable();
 	}
 
@@ -173,8 +184,11 @@ public class ExecutionVertex {
 	 * @param preserveVertexID
 	 *        <code>true</code> to copy the vertex's ID to the duplicated vertex, <code>false</code> to create a new ID
 	 * @return a duplicate of this execution vertex
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public synchronized ExecutionVertex duplicateVertex(boolean preserveVertexID) {
+	public synchronized ExecutionVertex duplicateVertex(boolean preserveVertexID) throws Exception {
 
 		ExecutionVertexID newVertexID;
 		if (preserveVertexID) {
@@ -186,10 +200,13 @@ public class ExecutionVertex {
 		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
 			this.executionGraph, this.groupVertex);
 
-		duplicatedVertex.environment = this.environment.duplicateEnvironment();
+		synchronized (duplicatedVertex) {
 
-		// TODO set new profiling record with new vertex id
-		duplicatedVertex.allocatedResource = this.allocatedResource;
+			duplicatedVertex.environment = this.environment.duplicateEnvironment();
+
+			// TODO set new profiling record with new vertex id
+			duplicatedVertex.allocatedResource = this.allocatedResource;
+		}
 
 		return duplicatedVertex;
 	}
@@ -199,8 +216,11 @@ public class ExecutionVertex {
 	 * a new vertex ID.
 	 * 
 	 * @return a duplicate of this execution vertex.
+	 * @throws Exception
+	 *         any exception that might be thrown by the user code during instantiation and registration of input and
+	 *         output channels
 	 */
-	public ExecutionVertex splitVertex() {
+	public ExecutionVertex splitVertex() throws Exception {
 
 		return duplicateVertex(false);
 	}
@@ -232,6 +252,12 @@ public class ExecutionVertex {
 	 */
 	public synchronized void setAllocatedResource(AllocatedResource allocatedResource) {
 		this.allocatedResource = allocatedResource;
+
+		// Notify all listener objects
+		final Iterator<VertexAssignmentListener> it = this.vertexAssignmentListeners.iterator();
+		while (it.hasNext()) {
+			it.next().vertexAssignmentChanged(this.vertexID, this.allocatedResource);
+		}
 	}
 
 	/**
@@ -249,7 +275,7 @@ public class ExecutionVertex {
 	 * 
 	 * @return the allocation ID which identifies the resources used
 	 *         by this vertex within the assigned instance or <code>null</code> if the instance is still assigned to a
-	 *         {@link DummyInstance}.
+	 *         {@link eu.stratosphere.nephele.instance.DummyInstance}.
 	 */
 	public synchronized AllocationID getAllocationID() {
 		return this.allocationID;
@@ -376,6 +402,7 @@ public class ExecutionVertex {
 	public TaskSubmissionResult startTask() {
 
 		AllocatedResource allocatedRes = null;
+		Environment env = null;
 		synchronized (this) {
 			if (this.allocatedResource == null) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
@@ -394,11 +421,11 @@ public class ExecutionVertex {
 				return result;
 			}
 			allocatedRes = this.allocatedResource;
+			env = this.environment;
 		}
 
 		try {
-			return allocatedRes.getInstance().submitTask(this.vertexID, this.executionGraph.getJobConfiguration(),
-				this.environment);
+			return allocatedRes.getInstance().submitTask(this.vertexID, this.executionGraph.getJobConfiguration(), env);
 		} catch (IOException e) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
@@ -422,7 +449,7 @@ public class ExecutionVertex {
 
 			if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
 				// Set to canceled directly
-				setExecutionState(ExecutionState.CANCELLED);
+				setExecutionState(ExecutionState.CANCELED);
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
@@ -434,7 +461,7 @@ public class ExecutionVertex {
 
 			if (es != ExecutionState.RUNNING && es != ExecutionState.FINISHING) {
 				// Set to canceled directly
-				setExecutionState(ExecutionState.CANCELLED);
+				setExecutionState(ExecutionState.CANCELED);
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
@@ -486,5 +513,31 @@ public class ExecutionVertex {
 	public boolean hasRetriesLeft() {
 		// TODO: Implement me
 		return false;
+	}
+
+	/**
+	 * Registers the {@link VertexAssignmentListener} object for this vertex. This object
+	 * will be notified about reassignments of this vertex to another instance.
+	 * 
+	 * @param vertexAssignmentListener
+	 *        the object to be notified about reassignments of this vertex to another instance
+	 */
+	public synchronized void registerVertexAssignmentListener(VertexAssignmentListener vertexAssignmentListener) {
+
+		if (!this.vertexAssignmentListeners.contains(vertexAssignmentListener)) {
+			this.vertexAssignmentListeners.add(vertexAssignmentListener);
+		}
+	}
+
+	/**
+	 * Unregisters the {@link VertexAssignmentListener} object for this vertex. This object
+	 * will no longer be notified about reassignments of this vertex to another instance.
+	 * 
+	 * @param vertexAssignmentListener
+	 *        the listener to be unregistered
+	 */
+	public void unregisterVertexAssignmentListener(VertexAssignmentListener vertexAssignmentListener) {
+
+		this.vertexAssignmentListeners.remove(vertexAssignmentListener);
 	}
 }

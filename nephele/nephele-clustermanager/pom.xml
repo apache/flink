@@ -16,14 +16,9 @@
 
    <dependencies>
     <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>nephele-server</artifactId>
-    	<version>${version}</version>
-    </dependency>
-    
-    <dependency>
-    	<groupId>com.google.collections</groupId>
-    	<artifactId>google-collections</artifactId>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>nephele-server</artifactId>
+      <version>${version}</version>
     </dependency>
   </dependencies>
   
@@ -35,7 +30,11 @@
       <configuration>
         <!-- we need to execute tests in target/test-classes so that the config files are found -->
         <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-      </configuration>  	  	
+        <excludes>
+          <exclude>**/TestInstanceListener.java</exclude>
+          <exclude>**/ClusterManagerTest.java</exclude>
+        </excludes>
+      </configuration>
   	  </plugin>
   	</plugins>
   </build>

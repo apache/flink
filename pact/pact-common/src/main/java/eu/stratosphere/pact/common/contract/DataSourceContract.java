@@ -26,7 +26,8 @@ import eu.stratosphere.pact.common.type.Value;
 /**
  * Contract for input nodes which read data from external data sources.
  * 
- * @author DIMA
+ * @author Erik Nijkamp
+ * @author Moritz Kaufmann
  */
 public class DataSourceContract<KT extends Key, VT extends Value> extends Contract implements
 		OutputContractConfigurable {

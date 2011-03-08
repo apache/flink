@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Random;
@@ -24,71 +25,167 @@ import java.util.Random;
 import junit.framework.Assert;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest.DummyInvokable;
 
-public class IOManagerTest {
+
+public class IOManagerTest
+{	
+	// ------------------------------------------------------------------------
+	//                             Constants
+	// ------------------------------------------------------------------------
+	
 	private static final long SEED = 649180756312423613L;
 
 	private static final int VALUE_LENGTH = 118;
 
 	private static final int NUMBER_OF_PAIRS = 1024 * 8 * 64;
 
-	public static final int NUMBER_OF_SEGMENTS = 10; // 10MB
+	public static final int NUMBER_OF_SEGMENTS = 10; // 10
 
-	public static final int SEGMENT_SIZE = 1024 * 1024; // 1M + 64 bytes
+	public static final int SEGMENT_SIZE = 1024 * 1024; // 1M
 
-	private static IOManager ioManager;
+	// ------------------------------------------------------------------------
+	//                        Cross Test Fields
+	// ------------------------------------------------------------------------
+	
+	private IOManager ioManager;
 
-	private MemoryManager memoryManager;
+	private DefaultMemoryManager memoryManager;
 
 	private Generator generator;
 
-	@BeforeClass
-	public static void beforeClass() throws ServiceException {
-		ioManager = new IOManager();
-	}
-
-	@AfterClass
-	public static void afterClass() {
-		ioManager = null;
-	}
-
+	// ------------------------------------------------------------------------
+	//                          Mock Objects
+	// ------------------------------------------------------------------------
+	
+//	@Mock
+//	private RandomAccessFile failingFile1;
+//	
+//	@Mock
+//	private RandomAccessFile failingFile2;
+//	
+//	@Mock
+//	private FileChannel mockFailingFileChannel1;
+//
+//	@Mock
+//	private FileChannel mockFailingFileChannel2;
+//	
+//	@Mock
+//	private Channel.ID failingChannel1;
+//	
+//	@Mock
+//	private Channel.ID failingChannel2;
+	
+	
+	// ------------------------------------------------------------------------
+	//                           Setup & Shutdown
+	// ------------------------------------------------------------------------
+	
 	@Before
 	public void beforeTest() {
 		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE);
+		ioManager = new IOManager();
 		generator = new Generator(SEED, VALUE_LENGTH);
 	}
 
 	@After
 	public void afterTest() {
+		ioManager.shutdown();
+		Assert.assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
+		
+		Assert.assertTrue("Not all memory was returned to the memory manager in the test.", memoryManager.verifyEmpty());
 		memoryManager.shutdown();
 		memoryManager = null;
 	}
 
+	// ------------------------------------------------------------------------
+	//                           Test Methods
+	// ------------------------------------------------------------------------
+	
+	// ------------------------------------------------------------------------
+	
+//	/**
+//	 * 
+//	 */
+//	@Test
+//	public void testExceptionForwarding() throws Exception
+//	{
+//		final String failingVirtualFile1 = new String("virtual fail 1");
+//		final String failingVirtualFile2 = new String("virtual fail 2");
+//		
+//		final AbstractInvokable memoryOwner = new DummyInvokable();
+//		
+//		final int NUM_MEM_SEGS = 4;
+//		final int SIZE_MEM_SEGS = 4096;
+//		
+//		// set up the mocks
+//		PowerMockito.when(failingChannel1.getPath()).thenReturn(failingVirtualFile1);
+//		PowerMockito.when(failingChannel2.getPath()).thenReturn(failingVirtualFile2);
+//			
+//		PowerMockito.whenNew(RandomAccessFile.class).withParameterTypes(String.class, String.class).withArguments(Matchers.same(failingVirtualFile1), Matchers.any(String.class)).thenReturn(failingFile1);
+//		PowerMockito.whenNew(RandomAccessFile.class).withParameterTypes(String.class, String.class).withArguments(Matchers.same(failingVirtualFile2), Matchers.any(String.class)).thenReturn(failingFile2);
+//			
+//		PowerMockito.when(failingFile1.getChannel()).thenReturn(mockFailingFileChannel1);
+//		PowerMockito.when(failingFile2.getChannel()).thenReturn(mockFailingFileChannel2);
+//		
+//		try {
+//			// create 4 readers out of which two will cause different exceptions
+//			Channel.ID[] channels = new Channel.ID[4];
+//			
+//			channels[0] = ioManager.createChannel();
+//			channels[2] = ioManager.createChannel();
+//			channels[1] = failingChannel1;
+//			channels[3] = failingChannel2;
+//			
+//			// create the writers for the channels
+//			ChannelWriter[] writers = new ChannelWriter[channels.length];
+//			for (int i = 0; i < writers.length; i++) {
+//				writers[i] = ioManager.createChannelWriter(channels[i], memoryManager.allocate(memoryOwner, NUM_MEM_SEGS, SIZE_MEM_SEGS));
+//			}
+//			
+//		}
+//		catch (MemoryAllocationException maex) {
+//			Assert.fail("Memory allocation exception happend during test.");
+//		}
+//		catch (IOException ioex) {
+//			Assert.fail("IO exception happend during test.");
+//		}
+//	}
+
+	/**
+	 * Tests that the channel enumerator creates channels in the temporary files directory.
+	 */
 	@Test
 	public void channelEnumerator() {
+		File tempPath = new File(System.getProperty("java.io.tmpdir")); 
+		
 		Channel.Enumerator enumerator = ioManager.createChannelEnumerator();
 
 		for (int i = 0; i < 10; i++) {
-			System.out.println(enumerator.next());
+			Channel.ID id = enumerator.next();
+			
+			File path = new File(id.getPath());
+			Assert.assertTrue("Channel IDs must name an absolute path.", path.isAbsolute());
+			Assert.assertFalse("Channel IDs must name a file, not a directory.", path.isDirectory());
+			Assert.assertTrue("Path is not in the temp directory.", tempPath.equals(path.getParentFile()));
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	
 	@Test
-	public void channelReaderWriter() throws ServiceException {
+	public void channelReaderWriter() {
 		Channel.ID channelID = ioManager.createChannel();
 
 		// write generated key/value pairs to a channel
@@ -100,54 +197,76 @@ public class IOManagerTest {
 		Assert.assertEquals("counter equal", writtenCounter, readCounter);
 	}
 
-	private int writeToChannel(Channel.ID channelID) throws ServiceException {
-		// create the free memory segments to be used in the internal reader buffer flow
-		Collection<MemorySegment> freeSegments = memoryManager.allocate(NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
-
-		// create the channel writer
-		ChannelWriter channelWriter = ioManager.createChannelWriter(channelID, freeSegments);
-
-		generator.reset();
-
-		// get first pair and initialize written pairs and written buffers counter
-		int writtenPairs = 0;
-		while (writtenPairs < NUMBER_OF_PAIRS) {
-			// writing was successfull, get next pair and increment counter
-			channelWriter.write(generator.next());
-			writtenPairs++;
+	private int writeToChannel(Channel.ID channelID) {
+		try {
+			// create the free memory segments to be used in the internal reader buffer flow
+			Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
+	
+			// create the channel writer
+			ChannelWriter channelWriter = ioManager.createChannelWriter(channelID, freeSegments);
+	
+			generator.reset();
+	
+			// get first pair and initialize written pairs and written buffers counter
+			int writtenPairs = 0;
+			while (writtenPairs < NUMBER_OF_PAIRS) {
+				// writing was successful, get next pair and increment counter
+				channelWriter.write(generator.next());
+				writtenPairs++;
+			}
+	
+			// close the writer and release the memory occupied by the buffers
+			memoryManager.release(channelWriter.close());
+	
+			// return number of written buffers
+			return writtenPairs;
 		}
-
-		// close the writer and release the memory occupied by the buffers
-		memoryManager.release(channelWriter.close());
-
-		// return number of written buffers
-		return writtenPairs;
+		catch (MemoryAllocationException maex) {
+			Assert.fail("Memory for channel writers could not be allocated.");
+			return 0;
+		}
+		catch (IOException ioex) {
+			Assert.fail("IO error occurred while writing to the channel: " + ioex.getMessage());
+			return 0;
+		}
 	}
 
-	private int readFromChannel(Channel.ID channelID) throws ServiceException {
-		// create the free memory segments to be used in the internal reader buffer flow
-		Collection<MemorySegment> freeSegments = memoryManager.allocate(NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
-
-		// create the channel reader
-		ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments);
-
-		generator.reset();
-
-		Value value = new Value();
-		int readCounter = 0;
-		while (channelReader.read(value)) {
-			Assert.assertEquals("Pairs don't match", generator.next(), value);
-			readCounter++;
+	private int readFromChannel(Channel.ID channelID)  {
+		try {
+			// create the free memory segments to be used in the internal reader buffer flow
+			Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
+	
+			// create the channel reader
+			ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments, true);
+	
+			generator.reset();
+	
+			Value value = new Value();
+			int readCounter = 0;
+			while (channelReader.read(value)) {
+				Assert.assertEquals("Pairs don't match", generator.next(), value);
+				readCounter++;
+			}
+	
+			// close the reader and release the memory occupied by the buffers
+			memoryManager.release(channelReader.close());
+	
+			return readCounter;
 		}
-
-		// close the reader and release the memory occupied by the buffers
-		memoryManager.release(channelReader.close());
-
-		return readCounter;
+		catch (MemoryAllocationException maex) {
+			Assert.fail("Memory for channel readers could not be allocated.");
+			return 0;
+		}
+		catch (IOException ioex) {
+			Assert.fail("IO error occurred while reading from the channel: " + ioex.getMessage());
+			return 0;
+		}
 	}
 
-	private class Value implements IOReadableWritable {
-
+	// ------------------------------------------------------------------------
+	
+	protected static class Value implements IOReadableWritable
+	{
 		String value;
 
 		public Value() {
@@ -171,7 +290,6 @@ public class IOManagerTest {
 		public int hashCode() {
 			final int prime = 31;
 			int result = 1;
-			result = prime * result + getOuterType().hashCode();
 			result = prime * result + ((value == null) ? 0 : value.hashCode());
 			return result;
 		}
@@ -185,8 +303,7 @@ public class IOManagerTest {
 			if (getClass() != obj.getClass())
 				return false;
 			Value other = (Value) obj;
-			if (!getOuterType().equals(other.getOuterType()))
-				return false;
+
 			if (value == null) {
 				if (other.value != null)
 					return false;
@@ -194,15 +311,10 @@ public class IOManagerTest {
 				return false;
 			return true;
 		}
-
-		private IOManagerTest getOuterType() {
-			return IOManagerTest.this;
-		}
-
 	}
 
-	private class Generator {
-
+	protected static class Generator
+	{
 		private long seed;
 
 		private Random rand;
@@ -225,6 +337,6 @@ public class IOManagerTest {
 			rand.nextBytes(this.value);
 			return new Value(this.value.toString());
 		}
-
 	}
+	
 }
