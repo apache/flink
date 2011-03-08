@@ -58,7 +58,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @see eu.stratosphere.pact.common.stub.CrossStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class CrossTask extends AbstractTask {
 
 	// memory to be used for IO buffering
@@ -82,6 +82,13 @@ public class CrossTask extends AbstractTask {
 	// task config including stub parameters
 	private TaskConfig config;
 
+	// spilling resettable iterator for inner input
+	private SpillingResettableIterator<KeyValuePair<Key, Value>> spillingResetIt = null;
+	private BlockResettableIterator<KeyValuePair<Key, Value>> blockResetIt = null;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -149,7 +156,34 @@ public class CrossTask extends AbstractTask {
 			runStreamed(memoryManager, ioManager, innerReader, outerReader);
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		
+		if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST || 
+				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
+			if(this.spillingResetIt != null) this.spillingResetIt.abort();
+			if(this.blockResetIt != null) this.blockResetIt.abort();
+		} else if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST || 
+				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
+			if(this.spillingResetIt != null) this.spillingResetIt.abort();
+		}
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -307,7 +341,7 @@ public class CrossTask extends AbstractTask {
 	 */
 	private void runBlocked(MemoryManager memoryManager, IOManager ioManager,
 			RecordReader<KeyValuePair<Key, Value>> innerReader, RecordReader<KeyValuePair<Key, Value>> outerReader)
-			throws RuntimeException {
+			throws Exception {
 
 		// spilling iterator for inner side
 		SpillingResettableIterator<KeyValuePair<Key, Value>> innerInput = null;
@@ -323,6 +357,7 @@ public class CrossTask extends AbstractTask {
 					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
 						innerReader, MEMORY_IO / 2, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 							.getFirstInValueType()), this);
+					spillingResetIt = innerInput;
 				} catch (MemoryAllocationException mae) {
 					throw new RuntimeException("Unable to obtain SpillingResettableIterator for first input", mae);
 				}
@@ -331,6 +366,7 @@ public class CrossTask extends AbstractTask {
 					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
 						MEMORY_IO / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), 
 								stub.getSecondInValueType()), this);
+					blockResetIt = outerInput;
 				} catch (MemoryAllocationException mae) {
 					throw new RuntimeException("Unable to obtain BlockResettableIterator for second input", mae);
 				}
@@ -341,6 +377,7 @@ public class CrossTask extends AbstractTask {
 					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
 						innerReader, MEMORY_IO / 2, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(),
 							stub.getSecondInValueType()), this);
+					spillingResetIt = innerInput;
 				} catch (MemoryAllocationException mae) {
 					throw new RuntimeException("Unable to obtain SpillingResettableIterator for second input", mae);
 				}
@@ -349,6 +386,7 @@ public class CrossTask extends AbstractTask {
 					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
 						MEMORY_IO / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 							.getFirstInValueType()), this);
+					blockResetIt = outerInput;
 				} catch (MemoryAllocationException mae) {
 					throw new RuntimeException("Unable to obtain BlockResettableIterator for first input", mae);
 				}
@@ -366,6 +404,10 @@ public class CrossTask extends AbstractTask {
 			} catch (InterruptedException ie) {
 				throw new RuntimeException("Unable to open SpillingResettableIterator", ie);
 			}
+			
+			// check if task was cancelled while data was read
+			if(this.taskCanceled) return;
+			
 			// open blocked resettable iterator
 			outerInput.open();
 	
@@ -382,11 +424,11 @@ public class CrossTask extends AbstractTask {
 			boolean moreOuterBlocks = false;
 			do {
 				// loop over the spilled resettable iterator
-				while (innerInput.hasNext()) {
+				while (innerInput.hasNext() && !this.taskCanceled) {
 					// get inner pair
 					Pair<Key, Value> innerPair = innerInput.next();
 					// loop over the pairs in the current memory block
-					while (outerInput.hasNext()) {
+					while (outerInput.hasNext() && !this.taskCanceled) {
 						// get outer pair
 						Pair<Key, Value> outerPair = outerInput.next();
 	
@@ -414,11 +456,20 @@ public class CrossTask extends AbstractTask {
 				if(moreOuterBlocks) {
 					innerInput.reset();
 				}
-			} while (moreOuterBlocks);
+			} while (moreOuterBlocks && !this.taskCanceled);
 	
 			// close stub implementation
 			stub.close();
-	
+		} catch (Exception ex) {
+			
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+			
 		} finally {
 			ServiceException se1 = null, se2 = null;
 			try {
@@ -459,7 +510,7 @@ public class CrossTask extends AbstractTask {
 	 */
 	private void runStreamed(MemoryManager memoryManager, IOManager ioManager,
 			RecordReader<KeyValuePair<Key, Value>> innerReader, final RecordReader<KeyValuePair<Key, Value>> outerReader)
-			throws RuntimeException {
+			throws Exception {
 
 		// obtain streaming iterator for outer side
 		// streaming is achieved by simply wrapping the input reader of the outer side
@@ -515,6 +566,7 @@ public class CrossTask extends AbstractTask {
 				innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
 					innerReader, MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 						.getFirstInValueType()), this);
+				spillingResetIt = innerInput;
 			} catch (MemoryAllocationException mae) {
 				throw new RuntimeException("Unable to obtain SpillingResettable iterator for inner side.", mae);
 			}
@@ -529,6 +581,9 @@ public class CrossTask extends AbstractTask {
 			} catch (InterruptedException ie) {
 				throw new RuntimeException("Unable to open SpillingResettable iterator for inner side.", ie);
 			}
+			
+			
+			if(this.taskCanceled) return;
 	
 			LOG.debug("Resetable iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -538,12 +593,12 @@ public class CrossTask extends AbstractTask {
 			stub.open();
 	
 			// read streamed iterator of outer side
-			while (outerInput.hasNext()) {
+			while (outerInput.hasNext() && !this.taskCanceled) {
 				// get outer pair
 				Pair outerPair = outerInput.next();
 	
 				// read spilled iterator of inner side
-				while (innerInput.hasNext()) {
+				while (innerInput.hasNext() && !this.taskCanceled) {
 					// get inner pair
 					Pair innerPair = innerInput.next();
 	
@@ -562,17 +617,27 @@ public class CrossTask extends AbstractTask {
 					outerPair = outerInput.repeatLast();
 				}
 				// reset spilling resettable iterator of inner side
-				if(outerInput.hasNext()) {
+				if(outerInput.hasNext() && !this.taskCanceled) {
 					innerInput.reset();
 				}
 			}
 	
 			// close stub implementation
 			stub.close();
-	
-			// close spilling resettable iterator
+		
+		} catch (Exception ex) {
+			
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+
 		} finally {
 			try {
+				// close spilling resettable iterator
 				if(innerInput != null) innerInput.close();
 			} catch (ServiceException se) {
 				LOG.warn(se);

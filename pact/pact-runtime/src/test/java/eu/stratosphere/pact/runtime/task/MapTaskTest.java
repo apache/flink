@@ -13,7 +13,10 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
+import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class MapTaskTest extends TaskTestBase {
@@ -74,6 +77,41 @@ public class MapTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
+	}
+	
+	@Test
+	public void testCancelMapTask() {
+		
+		super.initEnvironment(1);
+		super.addInput(new InfiniteInputIterator());
+		super.addOutput(new NirvanaOutputList());
+		
+		final MapTask testTask = new MapTask();
+		
+		super.registerTask(testTask, MockMapStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}				
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+				
 	}
 	
 	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {

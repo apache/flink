@@ -67,6 +67,8 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 	protected BlockFetcher<T> blockFetcher;
 
 	protected Thread blockFetcherThread;
+	
+	private volatile boolean abortFlag = false;
 
 	
 	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader, int availableMemory, int nrOfBuffers,
@@ -145,6 +147,11 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 		memoryManager.release(buffers);
 		LOG.debug("Iterator closed.");
 	}
+	
+	public void abort() {
+		this.abortFlag = true;
+		if(this.blockFetcherThread != null) this.blockFetcherThread.interrupt();
+	}
 
 	@Override
 	public void remove() {
@@ -172,7 +179,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 		public void run() {
 			boolean finished = false;
 
-			while (!finished) {
+			while (!finished && !abortFlag) {
 				// wait for the next request
 				MemorySegment request = null;
 				try {
@@ -189,7 +196,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 				// now fetch elements from the reader until the memory segment is filled
 				finished = true;
-				while (reader.hasNext()) {
+				while (reader.hasNext() && !abortFlag) {
 					try {
 						next = reader.next();
 					} catch (Exception e) {
@@ -210,6 +217,8 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 				
 				finishedTasks.add(in);
 			}
+			
+			if(abortFlag) return;
 			
 			// wait for the next request
 			MemorySegment request = null;

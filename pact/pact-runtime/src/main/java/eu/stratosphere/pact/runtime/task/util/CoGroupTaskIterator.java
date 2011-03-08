@@ -29,8 +29,9 @@ public interface CoGroupTaskIterator<K extends Key, V1 extends Value, V2 extends
 	 * 
 	 * @throws IOException
 	 * @throws MemoryAllocationException
+	 * @throws InterruptedException 
 	 */
-	void open() throws IOException, MemoryAllocationException;
+	void open() throws IOException, MemoryAllocationException, InterruptedException;
 
 	/**
 	 * General-purpose close method.

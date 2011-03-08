@@ -46,7 +46,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.io.OutputFormat
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class DataSinkTask extends AbstractFileOutputTask {
 
 	// Obtain DataSinkTask Logger
@@ -61,6 +61,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	// task configuration
 	private Config config;
 
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -108,7 +111,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		format.setOutput(fdos);
 		format.open();
 
-		while (reader.hasNext()) {
+		while (reader.hasNext() && !this.taskCanceled) {
 			KeyValuePair pair = reader.next();
 			format.writePair(pair);
 			// byte[] line = format.writeLine(pair);
@@ -118,15 +121,34 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		format.close();
 		fdos.close(); // Should this be done in the format?l
 
-		LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
 		if (fdos != null) {
 			fdos.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			
+			LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}

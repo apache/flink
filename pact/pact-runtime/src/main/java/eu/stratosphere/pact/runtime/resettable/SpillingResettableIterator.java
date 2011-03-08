@@ -52,6 +52,8 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	
 	
 	private int count = 0;
+	
+	private volatile boolean abortFlag = false;
 
 	protected MemoryManager memoryManager;
 
@@ -123,7 +125,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			outputBuffers.add(out);
 		}
 		// try to read data into memory
-		while (recordReader.hasNext()) {
+		while (recordReader.hasNext() && !this.abortFlag) {
 			next = recordReader.next();
 			count++;
 			if (!outputBuffers.get(currentBuffer).write(next)) {
@@ -144,7 +146,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			ChannelWriter writer = ioManager.createChannelWriter(bufferID, outputBuffers, true);
 			// serialize the unwritten element
 			writer.write(next);
-			while (recordReader.hasNext()) {
+			while (recordReader.hasNext() && !this.abortFlag) {
 				count++;
 				writer.write(recordReader.next());
 			}
@@ -169,6 +171,10 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		}
 		count = 0;
 		next = null;
+		
+		if(this.abortFlag) {
+			this.close();
+		}
 	}
 
 	public void reset() {
@@ -247,6 +253,10 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		}
 		memoryManager.release(memorySegments);
 		LOG.debug("Iterator closed. Deserialized " + count + " objects in last run.");
+	}
+	
+	public void abort() {
+		this.abortFlag = true;
 	}
 
 	@Override

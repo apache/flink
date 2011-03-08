@@ -33,5 +33,5 @@ import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
  */
 public interface SortMerger<K extends Key, V extends Value> extends CloseableInputProvider<KeyValuePair<K, V>>
 {
-	Iterator<KeyValuePair<K, V>> getIterator();
+	Iterator<KeyValuePair<K, V>> getIterator() throws InterruptedException;
 }

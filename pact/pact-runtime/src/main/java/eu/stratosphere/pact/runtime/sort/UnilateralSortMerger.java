@@ -139,6 +139,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 */
 	protected final int maxNumFileHandles;
 	
+	/**
+	 * Flag indicating that the sorter was closed.
+	 */
+	protected volatile boolean closed;
+	
 	// ------------------------------------------------------------------------
 	// Threads
 	// ------------------------------------------------------------------------
@@ -234,8 +239,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		ExceptionHandler<IOException> exceptionHandler = new ExceptionHandler<IOException>() {
 			public void handleException(IOException exception) {
 				// forward exception
-				setResultIteratorException(exception);
-				close();
+				if (!closed) {
+					setResultIteratorException(exception);
+					close();
+				}
 			}
 		};
 
@@ -275,8 +282,28 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @see java.io.Closeable#close()
 	 */
 	@Override
-	public void close() {
+	public void close()
+	{
+		// check if the sorter has been closed before
+		if (this.closed) {
+			return;
+		}
+		
+		// mark as closed
+		this.closed = true;
+		
+		// from here on, the code is in a try block, because even through errors might be thrown in this block,
+		// we need to make sure that all the memory is released.
 		try {
+			// if the result iterator has not been obtained yet, set the exception
+			synchronized (this.iteratorLock) {
+				if (this.iterator == null && this.iteratorException == null) {
+					this.iteratorException = new IOException("The sort-merger has been closed.");
+					this.iteratorLock.notifyAll();
+				}
+			}
+			
+			// stop all the threads
 			if (readThread != null) {
 				try {
 					readThread.shutdown();
@@ -419,16 +446,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @see eu.stratosphere.pact.runtime.sort.SortMerger#getIterator()
 	 */
 	@Override
-	public Iterator<KeyValuePair<K, V>> getIterator() {
+	public Iterator<KeyValuePair<K, V>> getIterator() throws InterruptedException
+	{
 		synchronized (this.iteratorLock) {
 			// wait while both the iterator and the exception are not set
 			while (this.iterator == null && this.iteratorException == null) {
-				try {
-					this.iteratorLock.wait();
-				}
-				catch (InterruptedException iex) {
-					LOG.error("SHOULD NOT BE", iex);
-				}
+				this.iteratorLock.wait();
 			}
 			
 			if (this.iteratorException != null) {
@@ -448,9 +471,13 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param iterator The result iterator to set.
 	 */
 	protected void setResultIterator(Iterator<KeyValuePair<K, V>> iterator) {
+		
 		synchronized (this.iteratorLock) {
-			this.iterator = iterator;
-			this.iteratorLock.notifyAll();
+			// set the result iterator only, if no exception has occurred
+			if (this.iteratorException == null) {
+				this.iterator = iterator;
+				this.iteratorLock.notifyAll();
+			}
 		}
 	}
 	
@@ -461,8 +488,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 */
 	protected void setResultIteratorException(IOException ioex) {
 		synchronized (this.iteratorLock) {
-			this.iteratorException = ioex;
-			this.iteratorLock.notifyAll();
+			if (this.iteratorException == null) {
+				this.iteratorException = ioex;
+				this.iteratorLock.notifyAll();
+			}
 		}
 	}
 
