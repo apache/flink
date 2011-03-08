@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
@@ -384,11 +383,11 @@ public class CrossTask extends AbstractTask {
 				// loop over the spilled resettable iterator
 				while (innerInput.hasNext()) {
 					// get inner pair
-					Pair<Key, Value> innerPair = innerInput.next();
+					KeyValuePair<Key, Value> innerPair = innerInput.next();
 					// loop over the pairs in the current memory block
 					while (outerInput.hasNext()) {
 						// get outer pair
-						Pair<Key, Value> outerPair = outerInput.next();
+						KeyValuePair<Key, Value> outerPair = outerInput.next();
 	
 						// call cross() method of CrossStub depending on local
 						// strategy
@@ -540,12 +539,12 @@ public class CrossTask extends AbstractTask {
 			// read streamed iterator of outer side
 			while (outerInput.hasNext()) {
 				// get outer pair
-				Pair outerPair = outerInput.next();
+				KeyValuePair outerPair = outerInput.next();
 	
 				// read spilled iterator of inner side
 				while (innerInput.hasNext()) {
 					// get inner pair
-					Pair innerPair = innerInput.next();
+					KeyValuePair innerPair = innerInput.next();
 	
 					// call cross() method of CrossStub depending on local
 					// strategy

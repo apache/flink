@@ -20,7 +20,6 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
@@ -85,7 +84,7 @@ public final class KeyGroupedIterator<K extends Key, V extends Value> {
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			Pair<K, V> prev = this.next;
+			KeyValuePair<K, V> prev = this.next;
 			if (this.iterator.hasNext()) {
 				this.next = this.iterator.next();
 				if (next.getKey().compareTo(prev.getKey()) != 0) {

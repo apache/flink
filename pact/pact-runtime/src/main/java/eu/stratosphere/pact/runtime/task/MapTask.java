@@ -33,7 +33,6 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
@@ -109,14 +108,14 @@ public class MapTask extends AbstractTask {
 		 * Iterator over all input key-value pairs. The iterator wraps the input
 		 * reader of the Nepehele task.
 		 */
-		Iterator<Pair<Key, Value>> input = new Iterator<Pair<Key, Value>>() {
+		Iterator<KeyValuePair<Key, Value>> input = new Iterator<KeyValuePair<Key, Value>>() {
 
 			public boolean hasNext() {
 				return reader.hasNext();
 			}
 
 			@Override
-			public Pair<Key, Value> next() {
+			public KeyValuePair<Key, Value> next() {
 				try {
 					return reader.next();
 				} catch (IOException e) {
@@ -257,9 +256,9 @@ public class MapTask extends AbstractTask {
 	 * @param out
 	 *        A collector for the output of the map() function.
 	 */
-	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) throws InterruptedException {
+	private void callStub(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) throws InterruptedException {
 		while (in.hasNext()) {
-			Pair<Key, Value> pair = in.next();
+			KeyValuePair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);
 			
 			// check if task thread was interrupted

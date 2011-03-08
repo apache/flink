@@ -41,7 +41,6 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -293,7 +292,7 @@ public class BufferSortableGuarenteedTest {
 			BufferSortableGuaranteed<TestData.Key, TestData.Value> buffer = newSortBuffer(memory);
 			for(int i = 1; i <= 3; i++)
 			{
-				Pair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
+				KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
 				buffer.write(pair);
 			}
 			
@@ -372,7 +371,7 @@ public class BufferSortableGuarenteedTest {
 			BufferSortableGuaranteed<TestData.Key, TestData.Value> buffer = newSortBuffer(memory);
 			for(int i = 1; i < 4; i++)
 			{
-				Pair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
+				KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
 				buffer.write(pair);
 			}
 			
@@ -384,7 +383,7 @@ public class BufferSortableGuarenteedTest {
 				{
 					throw new IllegalStateException();
 				}
-				Pair<TestData.Key, TestData.Value> pair = iter.next();
+				KeyValuePair<TestData.Key, TestData.Value> pair = iter.next();
 				Assert.assertEquals(i, pair.getKey().getKey());
 			}
 			

@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
@@ -517,7 +516,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	 * @throws IOException
 	 * @throws UnboundMemoryBackedException
 	 */
-	public boolean write(Pair<K, V> pair) {
+	public boolean write(KeyValuePair<K, V> pair) {
 		try {
 			/* 1. WRITE PAIR */
 			// reserve 4 bytes for length
