@@ -63,7 +63,7 @@ public class RPC {
 
 	/** A method invocation, including the method name and its parameters. */
 	private static class Invocation implements IOReadableWritable {
-		
+
 		private String methodName;
 
 		private Class<? extends IOReadableWritable>[] parameterClasses;
@@ -73,7 +73,7 @@ public class RPC {
 		@SuppressWarnings("unused")
 		public Invocation() {
 		}
-		
+
 		// TODO: See if type safety can be improved here
 		@SuppressWarnings("unchecked")
 		public Invocation(Method method, IOReadableWritable[] parameters) {
@@ -100,7 +100,7 @@ public class RPC {
 		// TODO: See if type safety can be improved here
 		@SuppressWarnings("unchecked")
 		public void read(DataInput in) throws IOException {
-			
+
 			this.methodName = StringRecord.readString(in);
 			this.parameters = new IOReadableWritable[in.readInt()];
 			this.parameterClasses = new Class[parameters.length];
@@ -119,13 +119,14 @@ public class RPC {
 				if (in.readBoolean()) {
 					try {
 						final String parameterClassName = StringRecord.readString(in);
-						final Class<? extends IOReadableWritable>  parameterClass = ClassUtils.getRecordByName(parameterClassName);
+						final Class<? extends IOReadableWritable> parameterClass = ClassUtils
+							.getRecordByName(parameterClassName);
 						parameters[i] = parameterClass.newInstance();
 					} catch (IllegalAccessException iae) {
 						throw new IOException(iae.toString());
 					} catch (InstantiationException ie) {
 						throw new IOException(ie.toString());
-					} catch(ClassNotFoundException cnfe) {
+					} catch (ClassNotFoundException cnfe) {
 						throw new IOException(cnfe.toString());
 					}
 					// Object will do everything else on its own
@@ -141,7 +142,7 @@ public class RPC {
 			out.writeInt(parameterClasses.length);
 			for (int i = 0; i < parameterClasses.length; i++) {
 				StringRecord.writeString(out, parameterClasses[i].getName());
-				if(parameters[i] == null) {
+				if (parameters[i] == null) {
 					out.writeBoolean(false);
 				} else {
 					out.writeBoolean(true);
@@ -227,11 +228,6 @@ public class RPC {
 
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 
-			final boolean logDebug = LOG.isDebugEnabled();
-			long startTime = 0;
-			if (logDebug) {
-				startTime = System.currentTimeMillis();
-			}
 			// TODO clean up
 			IOReadableWritable[] castArgs = null;
 			if (args != null) {
@@ -246,20 +242,17 @@ public class RPC {
 						castArgs[i] = (IOReadableWritable) args[i];
 				}
 			}
-			IOReadableWritable value = client.call(new Invocation(method, castArgs), address, method
+			final IOReadableWritable value = this.client.call(new Invocation(method, castArgs), this.address, method
 				.getDeclaringClass());
-			if (logDebug) {
-				long callTime = System.currentTimeMillis() - startTime;
-				LOG.debug("Call: " + method.getName() + " " + callTime);
-			}
+
 			return value;
 		}
 
 		/* close the IPC client that's responsible for this invoker's RPCs */
 		synchronized private void close() {
-			if (!isClosed) {
-				isClosed = true;
-				CLIENTS.stopClient(client);
+			if (!this.isClosed) {
+				this.isClosed = true;
+				CLIENTS.stopClient(this.client);
 			}
 		}
 	}
@@ -354,15 +347,13 @@ public class RPC {
 	 * port and address.
 	 */
 	public static Server getServer(final Object instance, final String bindAddress, final int port,
-			final int numHandlers, final boolean verbose) throws IOException {
-		return new Server(instance, bindAddress, port, numHandlers, verbose);
+			final int numHandlers) throws IOException {
+		return new Server(instance, bindAddress, port, numHandlers);
 	}
 
 	/** An RPC Server. */
 	public static class Server extends eu.stratosphere.nephele.ipc.Server {
 		private Object instance;
-
-		private boolean verbose;
 
 		/**
 		 * Construct an RPC server.
@@ -378,7 +369,7 @@ public class RPC {
 		 */
 		public Server(Object instance, String bindAddress, int port)
 																	throws IOException {
-			this(instance, bindAddress, port, 1, false);
+			this(instance, bindAddress, port, 1);
 		}
 
 		private static String classNameBase(String className) {
@@ -402,61 +393,41 @@ public class RPC {
 		 *        the port to listen for connections on
 		 * @param numHandlers
 		 *        the number of method handler threads to run
-		 * @param verbose
-		 *        whether each call should be logged
 		 */
-		public Server(Object instance, String bindAddress, int port, int numHandlers, boolean verbose)
-																										throws IOException {
+		public Server(Object instance, String bindAddress, int port, int numHandlers) throws IOException {
 			super(bindAddress, port, Invocation.class, numHandlers, classNameBase(instance.getClass().getName()));
 			this.instance = instance;
-			this.verbose = verbose;
 		}
 
 		public IOReadableWritable call(Class<?> protocol, IOReadableWritable param, long receivedTime)
 				throws IOException {
+			
 			try {
-				Invocation call = (Invocation) param;
-				if (verbose)
-					log("Call: " + call);
-
-				Method method = protocol.getMethod(call.getMethodName(), call.getParameterClasses());
+				
+				final Invocation call = (Invocation) param;
+				
+				final Method method = protocol.getMethod(call.getMethodName(), call.getParameterClasses());
 				method.setAccessible(true);
 
-				long startTime = System.currentTimeMillis();
-				Object value = method.invoke((Object) instance, (Object[]) call.getParameters());
-
-				int processingTime = (int) (System.currentTimeMillis() - startTime);
-				int qTime = (int) (startTime - receivedTime);
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Served: " + call.getMethodName() + " queueTime= " + qTime + " procesingTime= "
-						+ processingTime);
-				}
-				
-				if (verbose)
-					log("Return: " + value);
+				final Object value = method.invoke((Object) instance, (Object[]) call.getParameters());
 
 				return (IOReadableWritable) value;
 
 			} catch (InvocationTargetException e) {
-				Throwable target = e.getTargetException();
+				
+				final Throwable target = e.getTargetException();
 				if (target instanceof IOException) {
 					throw (IOException) target;
 				} else {
-					IOException ioe = new IOException(target.toString());
+					final IOException ioe = new IOException(target.toString());
 					ioe.setStackTrace(target.getStackTrace());
 					throw ioe;
 				}
 			} catch (Throwable e) {
-				IOException ioe = new IOException(e.toString());
+				final IOException ioe = new IOException(e.toString());
 				ioe.setStackTrace(e.getStackTrace());
 				throw ioe;
 			}
 		}
-	}
-
-	private static void log(String value) {
-		if (value != null && value.length() > 55)
-			value = value.substring(0, 55) + "...";
-		LOG.info(value);
 	}
 }

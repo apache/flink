@@ -189,7 +189,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		try {
 			final int handlerCount = GlobalConfiguration.getInteger("jobmanager.rpc.numhandler", 3);
 			this.jobManagerServer = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-				handlerCount, false);
+				handlerCount);
 			this.jobManagerServer.start();
 		} catch (IOException ioe) {
 			LOG.error("Cannot start RPC server: " + StringUtils.stringifyException(ioe));

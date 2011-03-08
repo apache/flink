@@ -235,7 +235,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// Start local RPC server
 		Server taskManagerServer = null;
 		try {
-			taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostName(), ipcPort, handlerCount, false);
+			taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostName(), ipcPort, handlerCount);
 			taskManagerServer.start();
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
