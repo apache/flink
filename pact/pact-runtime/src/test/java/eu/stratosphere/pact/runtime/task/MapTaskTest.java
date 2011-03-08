@@ -100,32 +100,7 @@ public class MapTaskTest extends TaskTestBase {
 		}
 	}
 	
-	@Test
-	public void testUnexpectedMapTaskCanceling() {
-		
-		super.initEnvironment(1);
-		super.addInput(new InfiniteInputIterator());
-		super.addOutput(new NirvanaOutputList());
-		
-		MapTask testTask = new MapTask();
-		
-		super.registerTask(testTask, MockMapStub.class);
-		
-		TaskCancelThread tct = new TaskCancelThread(1, Thread.currentThread(), testTask, false);
-		tct.start();
-		
-		boolean taskInterrupted = false;
-		
-		try {
-			testTask.invoke();
-		} catch (InterruptedException ie) {
-			taskInterrupted = true;
-		} catch (Exception ie) {
-			Assert.fail("Task through unexpected exception");
-		}
-		
-		Assert.assertTrue("Unexpected InterruptedException was not forwarded",taskInterrupted);
-	}
+	
 	
 	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
