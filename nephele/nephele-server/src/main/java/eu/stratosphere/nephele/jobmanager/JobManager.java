@@ -676,7 +676,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 			final ExecutionVertex vertex = it.next();
 			final ExecutionState state = vertex.getExecutionState();
-			if (state == ExecutionState.RUNNING) {
+			if (state != ExecutionState.FAILED) {
 				final TaskCancelResult result = vertex.cancelTask();
 				if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
 					errorResult = result;
