@@ -110,6 +110,8 @@ public class DirectChannelManagerTest {
 			outputChannel.transferEvent(new StringTaskEvent("Test"));
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		}
 
 		assertEquals(inputChannel, dcm.getDirectInputChannelByID(this.inputChannelID));
