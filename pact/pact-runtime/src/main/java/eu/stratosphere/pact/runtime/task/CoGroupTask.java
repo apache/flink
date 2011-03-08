@@ -132,7 +132,7 @@ public class CoGroupTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -366,12 +366,12 @@ public class CoGroupTask extends AbstractTask {
 		try {
 			coGroupIterator = getIterator(ikClass, iv1Class, iv2Class);
 			
+			// open CoGroupTaskIterator
+			coGroupIterator.open();
+			
 			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-			
-			// open CoGroupTaskIterator
-			coGroupIterator.open();
 
 			LOG.debug("Start processing: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -390,7 +390,7 @@ public class CoGroupTask extends AbstractTask {
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT user code: " + this.getEnvironment().getTaskName() + " ("
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ex;
@@ -420,9 +420,15 @@ public class CoGroupTask extends AbstractTask {
 			collector.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
 	}
 
 	// ------------------------------------------------------------------------

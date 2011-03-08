@@ -140,7 +140,7 @@ public class MapTask extends AbstractTask {
 		} catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT user code: " + this.getEnvironment().getTaskName() + " ("
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ex;
@@ -155,6 +155,10 @@ public class MapTask extends AbstractTask {
 			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
 	}
 
@@ -164,7 +168,7 @@ public class MapTask extends AbstractTask {
 	@Override
 	public void cancel() throws Exception {
 		this.taskCanceled = true;
-		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
