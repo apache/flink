@@ -80,51 +80,38 @@ public class MapTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testProperMapTaskCanceling() {
+	public void testCancelMapTask() {
 		
 		super.initEnvironment(1);
 		super.addInput(new InfiniteInputIterator());
 		super.addOutput(new NirvanaOutputList());
 		
-		MapTask testTask = new MapTask();
+		final MapTask testTask = new MapTask();
 		
 		super.registerTask(testTask, MockMapStub.class);
 		
-		TaskCancelThread tct = new TaskCancelThread(1, Thread.currentThread(), testTask, true);
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}				
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
 		tct.start();
 		
 		try {
-			testTask.invoke();
-		} catch (Exception ie) {
-			Assert.fail("Task through exception although it was properly canceled");
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
 		}
-	}
-	
-	@Test
-	public void testUnexpectedMapTaskCanceling() {
-		
-		super.initEnvironment(1);
-		super.addInput(new InfiniteInputIterator());
-		super.addOutput(new NirvanaOutputList());
-		
-		MapTask testTask = new MapTask();
-		
-		super.registerTask(testTask, MockMapStub.class);
-		
-		TaskCancelThread tct = new TaskCancelThread(1, Thread.currentThread(), testTask, false);
-		tct.start();
-		
-		boolean taskInterrupted = false;
-		
-		try {
-			testTask.invoke();
-		} catch (InterruptedException ie) {
-			taskInterrupted = true;
-		} catch (Exception ie) {
-			Assert.fail("Task through unexpected exception");
-		}
-		
-		Assert.assertTrue("Unexpected InterruptedException was not forwarded",taskInterrupted);
+				
 	}
 	
 	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {

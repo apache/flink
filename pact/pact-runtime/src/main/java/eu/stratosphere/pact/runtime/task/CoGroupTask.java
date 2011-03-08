@@ -88,7 +88,7 @@ public class CoGroupTask extends AbstractTask {
 	private TaskConfig config;
 	
 	// cancel flag
-	private volatile boolean taskCanceled;
+	private volatile boolean taskCanceled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -132,7 +132,7 @@ public class CoGroupTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.debug("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -390,9 +390,9 @@ public class CoGroupTask extends AbstractTask {
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+				LOG.error("Unexpected ERROR in PACT user code: " + this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", ex);
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ex;
 			}
 		}
