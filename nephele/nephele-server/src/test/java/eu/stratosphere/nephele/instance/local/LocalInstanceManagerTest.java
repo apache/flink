@@ -20,6 +20,8 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import junit.framework.Assert;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -107,6 +109,8 @@ public class LocalInstanceManagerTest {
 			assertEquals(160, defaultInstanceType.getDiskCapacity());
 			assertEquals(0, defaultInstanceType.getPricePerHour());
 
+		} catch(Exception e) {
+			Assert.fail("Instanciating LocalInstanceManager failed: "+e.getMessage());
 		} finally {
 
 			if (lm != null) {

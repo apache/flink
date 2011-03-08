@@ -134,7 +134,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 	private final Scheduler scheduler;
 
-	private final InstanceManager instanceManager;
+	private InstanceManager instanceManager;
 
 	private final int recommendedClientPollingInterval;
 
@@ -207,7 +207,12 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			} catch (IOException e) {
 				LOG.error(e);
 			}
-			this.instanceManager = new LocalInstanceManager(configDir);
+			try {
+				this.instanceManager = new LocalInstanceManager(configDir);
+			} catch (RuntimeException rte) {
+				LOG.fatal(rte);
+				System.exit(FAILURERETURNCODE);
+			}
 		} else {
 			final String instanceManagerClassName = JobManagerUtils.getInstanceManagerClassName(executionMode);
 			LOG.info("Trying to load " + instanceManagerClassName + " as instance manager");

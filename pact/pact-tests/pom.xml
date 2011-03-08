@@ -122,6 +122,8 @@
 				<version>2.7</version>
 				<configuration>
 					<excludes>
+						<exclude>**/*9ITCase.class</exclude>
+						<exclude>**/*RuntimeExceptionFailureITCase.class</exclude>
 					</excludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>

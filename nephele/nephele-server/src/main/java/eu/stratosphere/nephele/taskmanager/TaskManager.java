@@ -299,7 +299,12 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Initialize the memory manager
 		LOG.info("Initializing memory manager with " + (hardware.getSizeOfFreeMemory() >>> 20) + " megabytes of memory");
-		this.memoryManager = new DefaultMemoryManager(hardware.getSizeOfFreeMemory());
+		try {
+			this.memoryManager = new DefaultMemoryManager(hardware.getSizeOfFreeMemory());
+		} catch(RuntimeException rte) {
+			LOG.fatal("Unable to initialize memory manager with " + (hardware.getSizeOfFreeMemory() >>> 20) + " megabytes of memory",rte);
+			throw rte;
+		}
 
 		// Initialize the I/O manager
 		this.ioManager = new IOManager(tmpDirPath);
@@ -339,8 +344,8 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			taskManager = new TaskManager(configDir);
 		} catch (Throwable t) {
-			System.err.println("Taskmanager startup failed:" + t.getMessage());
-			t.printStackTrace(System.err);
+			LOG.fatal("Taskmanager startup failed:" + t.getMessage());
+			LOG.error(System.err);
 			System.exit(FAILURERETURNCODE);
 		}
 

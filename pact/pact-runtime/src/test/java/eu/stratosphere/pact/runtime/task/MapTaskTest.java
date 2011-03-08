@@ -13,7 +13,10 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
+import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class MapTaskTest extends TaskTestBase {
@@ -74,6 +77,54 @@ public class MapTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
+	}
+	
+	@Test
+	public void testProperMapTaskCanceling() {
+		
+		super.initEnvironment(1);
+		super.addInput(new InfiniteInputIterator());
+		super.addOutput(new NirvanaOutputList());
+		
+		MapTask testTask = new MapTask();
+		
+		super.registerTask(testTask, MockMapStub.class);
+		
+		TaskCancelThread tct = new TaskCancelThread(1, Thread.currentThread(), testTask, true);
+		tct.start();
+		
+		try {
+			testTask.invoke();
+		} catch (Exception ie) {
+			Assert.fail("Task through exception although it was properly canceled");
+		}
+	}
+	
+	@Test
+	public void testUnexpectedMapTaskCanceling() {
+		
+		super.initEnvironment(1);
+		super.addInput(new InfiniteInputIterator());
+		super.addOutput(new NirvanaOutputList());
+		
+		MapTask testTask = new MapTask();
+		
+		super.registerTask(testTask, MockMapStub.class);
+		
+		TaskCancelThread tct = new TaskCancelThread(1, Thread.currentThread(), testTask, false);
+		tct.start();
+		
+		boolean taskInterrupted = false;
+		
+		try {
+			testTask.invoke();
+		} catch (InterruptedException ie) {
+			taskInterrupted = true;
+		} catch (Exception ie) {
+			Assert.fail("Task through unexpected exception");
+		}
+		
+		Assert.assertTrue("Unexpected InterruptedException was not forwarded",taskInterrupted);
 	}
 	
 	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {

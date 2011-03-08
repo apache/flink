@@ -55,7 +55,7 @@ public abstract class TestBase extends TestCase {
 
 	private static final Log LOG = LogFactory.getLog(TestBase.class);
 
-	private static ClusterProvider cluster;
+	protected static ClusterProvider cluster;
 
 	protected final Configuration config;
 
