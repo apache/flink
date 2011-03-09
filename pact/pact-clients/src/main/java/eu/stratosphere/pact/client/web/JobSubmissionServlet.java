@@ -175,20 +175,25 @@ public class JobSubmissionServlet extends HttpServlet {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				eipe.getCause().printStackTrace(w);
+				eipe.printStackTrace(w);
 
 				showErrorPage(resp, "An error occurred in the pact assembler class:<br/><br/>"
-					+ eipe.getCause().getMessage() + "<br/><br/><pre>" + sw.toString() + "</pre>");
+					+ eipe.getMessage() + "<br/>"
+					+ (eipe.getCause()!= null?"Caused by: " + eipe.getCause().getMessage():"")
+					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
+				eipe.getCause().printStackTrace(w);;
 				return;
 			}
 			catch (CompilerException cex) {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				cex.getCause().printStackTrace(w);
+				cex.printStackTrace(w);
 
 				showErrorPage(resp, "An error occurred in the compiler:<br/><br/>"
-					+ cex.getCause().getMessage() + "<br/><br/><pre>" + sw.toString() + "</pre>");
+					+ cex.getMessage() + "<br/>"
+					+ (cex.getCause()!= null?"Caused by: " + cex.getCause().getMessage():"")
+					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
 				return;
 			}
 			catch (Throwable t) {
