@@ -179,9 +179,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 				showErrorPage(resp, "An error occurred in the pact assembler class:<br/><br/>"
 					+ eipe.getMessage() + "<br/>"
-					+ (eipe.getCause()!= null?"Caused by: " + eipe.getCause().getMessage():"")
 					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
-				eipe.getCause().printStackTrace(w);;
 				return;
 			}
 			catch (CompilerException cex) {
