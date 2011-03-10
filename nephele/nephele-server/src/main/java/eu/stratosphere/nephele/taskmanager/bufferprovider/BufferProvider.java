@@ -175,6 +175,50 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 	}
 
 	/**
+	 * Requests one buffer from the pool of write buffers. If a buffer is available, it will have at least the size of
+	 * <code>bufferSize</code> bytes.
+	 * 
+	 * @param bufferSize
+	 *        the minimum size of the requested buffer
+	 * @return a buffer from the pool of write buffers with at least the size of <code>bufferSize</code> bytes or
+	 *         <code>null</code> if no buffer is available
+	 */
+	public Buffer requestEmptyWriteBuffer(final int bufferSize) {
+
+		if (bufferSize > this.bufferSizeInBytes) {
+			LOG.error("buffer of " + bufferSize + " requested, but maximum buffer size is " + this.bufferSizeInBytes);
+		}
+
+		synchronized (this.emptyWriteBuffers) {
+
+			if (this.emptyWriteBuffers.isEmpty()) {
+
+				sendOutOfWriteBuffersNotification();
+				return null;
+			}
+
+			return BufferFactory.createFromMemory(bufferSize, this.emptyWriteBuffers.poll(), this.emptyWriteBuffers,
+				false);
+		}
+	}
+
+	/**
+	 * Sends out out of write buffers notifications to all registered listeners.
+	 */
+	private void sendOutOfWriteBuffersNotification() {
+
+		synchronized (this.registeredOutOfWriteBuffersListeners) {
+			if (!this.registeredOutOfWriteBuffersListeners.isEmpty()) {
+				final Iterator<OutOfByteBuffersListener> it = this.registeredOutOfWriteBuffersListeners
+					.iterator();
+				while (it.hasNext()) {
+					it.next().outOfByteBuffers();
+				}
+			}
+		}
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -185,15 +229,7 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 
 			while (this.emptyWriteBuffers.size() < bufferPairRequest.getNumberOfRequestedByteBuffers()) {
 
-				synchronized (this.registeredOutOfWriteBuffersListeners) {
-					if (!this.registeredOutOfWriteBuffersListeners.isEmpty()) {
-						final Iterator<OutOfByteBuffersListener> it = this.registeredOutOfWriteBuffersListeners
-							.iterator();
-						while (it.hasNext()) {
-							it.next().outOfByteBuffers();
-						}
-					}
-				}
+				sendOutOfWriteBuffersNotification();
 
 				this.emptyWriteBuffers.wait();
 			}
@@ -243,11 +279,25 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Requests an empty read buffer with a minimum size of <code>minimumSizeOfBuffer</code> for a specific
+	 * {@link AbstractByteBufferedInputChannel}. The method will wait until the request can be fulfilled.
+	 * 
+	 * @param minimumSizeOfBuffer
+	 *        the minimum size of the requested read buffer in bytes
+	 * @param targetChannelID
+	 *        the ID of the input channel this buffer is for
+	 * @return the buffer with at least the requested size
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while allocating the buffer
 	 */
-	@Override
-	public Buffer requestEmptyReadBuffer(final int minimumSizeOfBuffer, final ChannelID targetChannelID)
-			throws IOException {
+	public Buffer requestEmptyReadBufferAndWait(int minimumSizeOfBuffer, ChannelID targetChannelID) throws IOException,
+			InterruptedException {
+
+		return requestEmptyReadBufferInternal(minimumSizeOfBuffer, targetChannelID, true);
+	}
+
+	private Buffer requestEmptyReadBufferInternal(int minimumSizeOfBuffer, ChannelID targetChannelID, boolean wait)
+			throws IOException, InterruptedException {
 
 		if (minimumSizeOfBuffer > this.bufferSizeInBytes) {
 			throw new IOException("Requested buffer size is " + minimumSizeOfBuffer + ", system can offer at most "
@@ -256,22 +306,52 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 
 		synchronized (this.emptyReadBuffers) {
 
-			if ((this.emptyReadBuffers.size() - 2) > 0) { // -2 because there must be at least one buffer left if
-				// compression is enabled
+			if (wait) {
+
+				while ((this.emptyReadBuffers.size() - 2) <= 0) { // -2 because there must be at least one buffer left
+																	// if
+					// compression is enabled
+
+					if (this.isSpillingAllowed) {
+						return BufferFactory.createFromFile(minimumSizeOfBuffer, targetChannelID,
+							this.fileBufferManager);
+					} else {
+						this.emptyReadBuffers.wait();
+					}
+				}
+
 				return BufferFactory.createFromMemory(minimumSizeOfBuffer, this.emptyReadBuffers.poll(),
 					this.emptyReadBuffers, true);
-			}
 
-			if (this.isSpillingAllowed) {
-				return BufferFactory.createFromFile(minimumSizeOfBuffer, targetChannelID, this.fileBufferManager);
-			}
+			} else {
 
-			try {
-				this.emptyReadBuffers.wait(100); // Wait for 100 milliseconds, so the NIO thread won't do busy
-				// waiting...
-			} catch (InterruptedException e) {
-				LOG.error(e);
+				if ((this.emptyReadBuffers.size() - 2) > 0) { // -2 because there must be at least one buffer left if
+					// compression is enabled
+					return BufferFactory.createFromMemory(minimumSizeOfBuffer, this.emptyReadBuffers.poll(),
+						this.emptyReadBuffers, true);
+				}
+
+				if (this.isSpillingAllowed) {
+					return BufferFactory.createFromFile(minimumSizeOfBuffer, targetChannelID, this.fileBufferManager);
+				}
 			}
+		}
+
+		return null;
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Buffer requestEmptyReadBuffer(final int minimumSizeOfBuffer, final ChannelID targetChannelID)
+			throws IOException {
+
+		try {
+			return requestEmptyReadBufferInternal(minimumSizeOfBuffer, targetChannelID, false);
+		} catch (InterruptedException e) {
+			LOG.error("Caught InterruptedException although the method is not supposed to block");
 		}
 
 		return null;

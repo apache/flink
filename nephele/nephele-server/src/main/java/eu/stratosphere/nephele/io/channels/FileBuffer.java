@@ -218,4 +218,10 @@ public class FileBuffer implements InternalBuffer {
 		return true;
 	}
 
+	@Override
+	public void copyToBuffer(Buffer destinationBuffer) throws IOException {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

@@ -38,4 +38,6 @@ public interface InternalBuffer extends ReadableByteChannel, WritableByteChannel
 	InternalBuffer duplicate();
 	
 	boolean isReadBuffer();
+	
+	void copyToBuffer(Buffer destinationBuffer) throws IOException;
 }

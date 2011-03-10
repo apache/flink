@@ -17,9 +17,10 @@ package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.Set;
+import java.util.List;
 
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -36,49 +37,23 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
  */
 public class TransferEnvelopeReceiverList {
 
-	private final static class ReadOnlyIterator<T> implements Iterator<T> {
+	private final List<ChannelID> localReceivers;
 
-		private final Iterator<T> iterator;
-
-		private ReadOnlyIterator(Iterator<T> iterator) {
-			this.iterator = iterator;
-		}
-
-		@Override
-		public boolean hasNext() {
-
-			return this.iterator.hasNext();
-		}
-
-		@Override
-		public T next() {
-
-			return this.iterator.next();
-		}
-
-		@Override
-		public void remove() {
-			// Ignore remove calls
-			throw new IllegalStateException("remove called on ReadOnlyIterator");
-		}
-	}
-
-	private final Set<ChannelID> localReceivers = new HashSet<ChannelID>();
-
-	private final Set<InetSocketAddress> remoteReceivers = new HashSet<InetSocketAddress>();
+	private final List<InetSocketAddress> remoteReceivers;
 
 	public TransferEnvelopeReceiverList(final ConnectionInfoLookupResponse cilr) {
 
-		final Iterator<ChannelID> localIt = cilr.getLocalTargets().iterator();
-		while (localIt.hasNext()) {
-			this.localReceivers.add(localIt.next());
-		}
+		this.localReceivers = Collections.unmodifiableList(cilr.getLocalTargets());
+
+		final List<InetSocketAddress> tmpList = new ArrayList<InetSocketAddress>(cilr.getRemoteTargets().size());
 
 		final Iterator<InstanceConnectionInfo> remoteIt = cilr.getRemoteTargets().iterator();
 		while (remoteIt.hasNext()) {
 			final InstanceConnectionInfo ici = remoteIt.next();
-			this.remoteReceivers.add(new InetSocketAddress(ici.getAddress(), ici.getDataPort()));
+			tmpList.add(new InetSocketAddress(ici.getAddress(), ici.getDataPort()));
 		}
+
+		this.remoteReceivers = Collections.unmodifiableList(tmpList);
 	}
 
 	// TODO: Check points
@@ -98,13 +73,13 @@ public class TransferEnvelopeReceiverList {
 		return (this.localReceivers.size() + this.remoteReceivers.size());
 	}
 
-	public Iterator<InetSocketAddress> getRemoteReceivers() {
+	public List<InetSocketAddress> getRemoteReceivers() {
 
-		return new ReadOnlyIterator<InetSocketAddress>(this.remoteReceivers.iterator());
+		return this.remoteReceivers;
 	}
 
-	public Iterator<ChannelID> getLocalReceivers() {
+	public List<ChannelID> getLocalReceivers() {
 
-		return new ReadOnlyIterator<ChannelID>(this.localReceivers.iterator());
+		return this.localReceivers;
 	}
 }

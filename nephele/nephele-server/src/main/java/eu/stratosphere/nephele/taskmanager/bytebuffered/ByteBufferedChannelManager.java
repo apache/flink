@@ -15,10 +15,12 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
@@ -26,9 +28,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
@@ -334,82 +338,186 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		return this.networkConnectionManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void processEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
+	private boolean processEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
 		final TransferEnvelopeReceiverList receiverList = getReceiverList(transferEnvelope.getJobID(),
 			transferEnvelope.getSource());
 
 		if (receiverList == null) {
-			LOG.error("Transfer envelope " + transferEnvelope.getSequenceNumber() + " from source channel "
+			throw new IOException("Transfer envelope " + transferEnvelope.getSequenceNumber() + " from source channel "
 				+ transferEnvelope.getSource() + " has not have a receiver list");
-			return;
 		}
 
 		if (receiverList.getTotalNumberOfReceivers() == 0) {
-			LOG.error("Total number of receivers for envelope " + transferEnvelope.getSequenceNumber()
+			throw new IOException("Total number of receivers for envelope " + transferEnvelope.getSequenceNumber()
 				+ " from source channel " + transferEnvelope.getSource() + " is 0");
 		}
 
 		// This envelope is known to have either no buffer or an memory-based input buffer
 		if (transferEnvelope.getBuffer() == null) {
+			return processEnvelopeEnvelopeWithoutBuffer(transferEnvelope, receiverList);
+		} else {
+			return processEnvelopeWithBuffer(transferEnvelope, receiverList);
+		}
+	}
 
-			// No need to copy anything
-			final Iterator<ChannelID> localIt = receiverList.getLocalReceivers();
+	private boolean processEnvelopeWithBuffer(final TransferEnvelope transferEnvelope,
+			final TransferEnvelopeReceiverList receiverList) throws IOException, InterruptedException {
+		
+		final Buffer buffer = transferEnvelope.getBuffer();
+		if (buffer.isReadBuffer()) {
 
-			while (localIt.hasNext()) {
+			if (receiverList.hasRemoteReceivers()) {
 
-				final ChannelID localReceiver = localIt.next();
-				synchronized (this.registeredChannels) {
+				final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
 
-					final ByteBufferedChannelWrapper channelWrapper = this.registeredChannels.get(localReceiver);
-					if (channelWrapper == null) {
-						LOG.error("Cannot find local receiver " + localReceiver + " for job "
-							+ transferEnvelope.getJobID());
-						continue;
-					}
-					channelWrapper.queueTransferEnvelope(transferEnvelope);
+				// Create remote envelope
+				final Buffer writeBuffer = this.bufferProvider.requestEmptyWriteBuffer(buffer.size());
+				if (writeBuffer == null) {
+					return false;
 				}
+
+				// TODO: Copy buffer content
+
+				final TransferEnvelope remoteEnvelope = new TransferEnvelope(transferEnvelope.getSequenceNumber(),
+					transferEnvelope.getJobID(), transferEnvelope.getSource(), transferEnvelope.getEventList());
+
+				remoteEnvelope.setBuffer(writeBuffer);
+
+				for (int i = 1; i < remoteReceivers.size(); ++i) {
+
+					this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceivers.get(i),
+						remoteEnvelope.duplicate());
+				}
+
+				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceivers.get(0), remoteEnvelope);
 			}
 
-			final Iterator<InetSocketAddress> remoteIt = receiverList.getRemoteReceivers();
+			if (receiverList.hasLocalReceivers()) {
 
-			while (remoteIt.hasNext()) {
+				final List<ChannelID> localReceivers = receiverList.getLocalReceivers();
 
-				final InetSocketAddress remoteReceiver = remoteIt.next();
-				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
+				synchronized (this.registeredChannels) {
+
+					ByteBufferedChannelWrapper channelWrapper = null;
+					for (int i = 1; i < localReceivers.size(); ++i) {
+
+						channelWrapper = this.registeredChannels.get(localReceivers.get(i));
+						if (channelWrapper == null) {
+							LOG.error("Cannot find local receiver " + localReceivers.get(i) + " for job "
+								+ transferEnvelope.getJobID());
+							continue;
+						}
+						channelWrapper.queueTransferEnvelope(transferEnvelope.duplicate());
+					}
+
+					channelWrapper = this.registeredChannels.get(localReceivers.get(0));
+					if (channelWrapper == null) {
+						LOG.error("Cannot find local receiver " + localReceivers.get(0) + " for job "
+							+ transferEnvelope.getJobID());
+					} else {
+						channelWrapper.queueTransferEnvelope(transferEnvelope);
+					}
+				}
+			} else {
+				buffer.recycleBuffer();
 			}
 
 		} else {
 
-			// Prepare envelopes
-			TransferEnvelope localEnvelope = null;
-			TransferEnvelope remoteEnvelope = null;
-			
-			if(transferEnvelope.getBuffer().isReadBuffer()) {
+			if (receiverList.hasLocalReceivers()) {
+
+				final List<ChannelID> localReceivers = receiverList.getLocalReceivers();
+
+				final Buffer readBuffer = this.bufferProvider.requestEmptyReadBufferAndWait(buffer.size(),
+					localReceivers.get(0));
+
+				// Copy content of buffer
+				transferEnvelope.getBuffer().copyToBuffer(readBuffer);
+
+				final TransferEnvelope localEnvelope = new TransferEnvelope(transferEnvelope.getSequenceNumber(),
+					transferEnvelope.getJobID(), transferEnvelope.getSource(), transferEnvelope.getEventList());
+
+				localEnvelope.setBuffer(readBuffer);
 				
-				localEnvelope = transferEnvelope;
-				if(receiverList.hasRemoteReceivers()) {
-					//TODO: Create remote envelope
+				synchronized (this.registeredChannels) {
+
+					ByteBufferedChannelWrapper channelWrapper = null;
+					for (int i = 1; i < localReceivers.size(); ++i) {
+						
+						channelWrapper = this.registeredChannels.get(localReceivers.get(i));
+						if (channelWrapper == null) {
+							LOG.error("Cannot find local receiver " + localReceivers.get(i) + " for job "
+								+ transferEnvelope.getJobID());
+							continue;
+						}
+						channelWrapper.queueTransferEnvelope(localEnvelope.duplicate());
+					}
+
+					channelWrapper = this.registeredChannels.get(localReceivers.get(0));
+					if (channelWrapper == null) {
+						LOG.error("Cannot find local receiver " + localReceivers.get(0) + " for job "
+							+ transferEnvelope.getJobID());
+					} else {
+						
+						channelWrapper.queueTransferEnvelope(localEnvelope);
+					}
 				}
-				
-			} else {
-				
-				remoteEnvelope = transferEnvelope;
-				if(receiverList.hasLocalReceivers()) {
-					//TODO: Create local envelope
-					System.out.println("Creating local envelope");
-				}
-				
-				
 			}
-			
-			
+
+			if (receiverList.hasRemoteReceivers()) {
+
+				final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
+
+				for (int i = 1; i < remoteReceivers.size(); ++i) {
+
+					this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceivers.get(i),
+						transferEnvelope.duplicate());
+				}
+
+				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceivers.get(0), transferEnvelope);
+
+			} else {
+				buffer.recycleBuffer();
+			}
+
 		}
 
+		return true;
+	}
+
+	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
+			final TransferEnvelopeReceiverList receiverList) {
+
+		System.out.println("Received envelope without buffer");
+		
+		// No need to copy anything
+		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
+
+		while (localIt.hasNext()) {
+
+			final ChannelID localReceiver = localIt.next();
+			synchronized (this.registeredChannels) {
+
+				final ByteBufferedChannelWrapper channelWrapper = this.registeredChannels.get(localReceiver);
+				if (channelWrapper == null) {
+					LOG.error("Cannot find local receiver " + localReceiver + " for job "
+						+ transferEnvelope.getJobID());
+					continue;
+				}
+				channelWrapper.queueTransferEnvelope(transferEnvelope);
+			}
+		}
+
+		final Iterator<InetSocketAddress> remoteIt = receiverList.getRemoteReceivers().iterator();
+
+		while (remoteIt.hasNext()) {
+
+			final InetSocketAddress remoteReceiver = remoteIt.next();
+			this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
+		}
+
+		return true;
 	}
 
 	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID)
@@ -450,5 +558,36 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			return receiverList;
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) throws IOException,
+			InterruptedException {
+		
+		processEnvelope(transferEnvelope);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
+			InterruptedException {
+		
+		processEnvelope(transferEnvelope);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean processEnvelopeFromNetworkOrCheckpoint(final TransferEnvelope transferEnvelope) throws IOException {
+		
+		System.out.println("Received envelope from network or checkpoint");
+		
+		return false;
 	}
 }

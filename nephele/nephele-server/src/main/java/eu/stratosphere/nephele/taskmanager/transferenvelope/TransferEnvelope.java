@@ -29,14 +29,20 @@ public final class TransferEnvelope {
 
 	private final int sequenceNumber;
 
-	private EventList eventList;
+	private final EventList eventList;
 
 	private Buffer buffer = null;
 
 	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source) {
+		this(sequenceNumber, jobID, source, new EventList());
+	}
+	
+	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source, EventList eventList) {
+		
 		this.sequenceNumber = sequenceNumber;
 		this.jobID = jobID;
 		this.source = source;
+		this.eventList = eventList;
 	}
 
 	public JobID getJobID() {
@@ -49,24 +55,12 @@ public final class TransferEnvelope {
 
 	public void addEvent(AbstractEvent event) {
 
-		if (this.eventList == null) {
-			this.eventList = new EventList();
-		}
-
 		this.eventList.add(event);
 	}
-
+	
 	public EventList getEventList() {
 
-		if (this.eventList == null) {
-			this.eventList = new EventList();
-		}
-
 		return this.eventList;
-	}
-
-	public void setEventList(EventList eventList) {
-		this.eventList = eventList;
 	}
 
 	public int getSequenceNumber() {
@@ -84,9 +78,8 @@ public final class TransferEnvelope {
 	public TransferEnvelope duplicate() {
 
 		final TransferEnvelope duplicatedTransferEnvelope = new TransferEnvelope(this.sequenceNumber, this.jobID,
-			this.source);
+			this.source, this.eventList); // No need to duplicate event list
 
-		duplicatedTransferEnvelope.eventList = this.eventList; // No need to duplicate event list
 		if (this.buffer != null) {
 			duplicatedTransferEnvelope.buffer = this.buffer.duplicate();
 		} else {

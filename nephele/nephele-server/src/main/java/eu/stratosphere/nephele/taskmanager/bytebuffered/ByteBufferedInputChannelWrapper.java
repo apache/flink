@@ -70,14 +70,6 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 		TransferEnvelope transferEnvelope = null;
 
-		// TODO: Remove this
-		/*
-		 * int j = 0;
-		 * if(j == 0) {
-		 * return null;
-		 * }
-		 */
-
 		synchronized (this.queuedEnvelopes) {
 
 			if (this.queuedEnvelopes.isEmpty()) {
@@ -140,7 +132,8 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 				final Buffer oldBuffer = transferEnvelope.getBuffer();
 
 				try {
-					oldBuffer.copyToMemoryBackedBuffer(response.getCompressedDataBuffer());
+					oldBuffer.copyToBuffer(response.getCompressedDataBuffer());
+					//TODO: Fix this
 					transferEnvelope.setBuffer(response.getCompressedDataBuffer());
 				} catch (IOException ioe) {
 					LOG.error(ioe);
@@ -154,7 +147,7 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 			this.uncompressedDataBuffer = response.getUncompressedDataBuffer();
 		}
-
+		
 		// Process events
 		final EventList eventList = transferEnvelope.getEventList();
 		if (!eventList.isEmpty()) {
@@ -205,7 +198,7 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
 
 		ephemeralTransferEnvelope.addEvent(event);
-		this.transferEnvelopeDispatcher.processEnvelope(ephemeralTransferEnvelope);
+		this.transferEnvelopeDispatcher.processEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
 
 	@Override

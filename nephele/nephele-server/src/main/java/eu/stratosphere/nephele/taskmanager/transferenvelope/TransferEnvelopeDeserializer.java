@@ -55,7 +55,6 @@ public class TransferEnvelopeDeserializer {
 	private final DeserializationBuffer<JobID> jobIDDeserializationBuffer = new DeserializationBuffer<JobID>(
 			new DefaultRecordDeserializer<JobID>(JobID.class), true);
 
-	
 	private final DeserializationBuffer<EventList> notificationListDeserializationBuffer = new DeserializationBuffer<EventList>(
 		new DefaultRecordDeserializer<EventList>(EventList.class), true);
 
@@ -74,11 +73,13 @@ public class TransferEnvelopeDeserializer {
 	private int sizeOfBuffer = -1;
 
 	private int deserializedSequenceNumber = -1;
-	
+
 	private JobID deserializedJobID = null;
-	
+
 	private ChannelID deserializedSourceID = null;
-	
+
+	private EventList deserializedEventList = null;
+
 	public TransferEnvelopeDeserializer(ReadBufferProvider readBufferProvider, boolean readsFromCheckpoint) {
 
 		this.readBufferProvider = readBufferProvider;
@@ -162,36 +163,36 @@ public class TransferEnvelopeDeserializer {
 
 	private boolean readID(ReadableByteChannel readableByteChannel) throws IOException {
 
-		if(this.deserializationState == DeserializationState.SEQUENCENUMBERDESERIALIZED) {
-			
+		if (this.deserializationState == DeserializationState.SEQUENCENUMBERDESERIALIZED) {
+
 			this.deserializedJobID = this.jobIDDeserializationBuffer.readData(readableByteChannel);
-			if(this.deserializedJobID == null) {
+			if (this.deserializedJobID == null) {
 				return true;
 			}
-			
+
 			this.deserializationState = DeserializationState.JOBIDDESERIALIZED;
-			
+
 		} else {
-			
+
 			this.deserializedSourceID = this.channelIDDeserializationBuffer.readData(readableByteChannel);
-			if(this.deserializedSourceID == null) {
+			if (this.deserializedSourceID == null) {
 				return true;
 			}
-			
-			this.transferEnvelope = new TransferEnvelope(this.deserializedSequenceNumber, this.deserializedJobID, this.deserializedSourceID);
+
 			this.deserializationState = DeserializationState.SOURCEDESERIALIZED;
 		}
-		
+
 		return false;
 	}
 
 	private boolean readNotificationList(ReadableByteChannel readableByteChannel) throws IOException {
 
-		final EventList eventList = this.notificationListDeserializationBuffer.readData(readableByteChannel);
-		if (eventList == null) {
+		this.deserializedEventList = this.notificationListDeserializationBuffer.readData(readableByteChannel);
+		if (this.deserializedEventList == null) {
 			return true;
 		} else {
-			this.transferEnvelope.setEventList(eventList);
+			this.transferEnvelope = new TransferEnvelope(this.deserializedSequenceNumber, this.deserializedJobID,
+				this.deserializedSourceID, this.deserializedEventList);
 			this.deserializationState = DeserializationState.NOTIFICATIONSDESERIALIZED;
 			return false;
 		}

@@ -201,31 +201,22 @@ public final class Buffer implements ReadableByteChannel, WritableByteChannel {
 	}
 
 	/**
-	 * Copies the content of the buffer to the given memory backed buffer. This operation
-	 * is realized through the regular read/write interfaces and modifies the buffers state
-	 * accordingly.
+	 * Copies the content of the buffer to the given destination buffer. The state of the source buffer is not modified
+	 * by this operation.
 	 * 
-	 * @param memoryBackedBuffer
-	 *        the memory backed buffer to copy this buffer's content to
+	 * @param destinationBuffer
+	 *        the destination buffer to copy this buffer's content to
 	 * @throws IOException
 	 *         thrown if an error occurs while copying the data
 	 */
-	public void copyToMemoryBackedBuffer(Buffer memoryBackedBuffer) throws IOException {
+	public void copyToBuffer(Buffer destinationBuffer) throws IOException {
 
-		if (!memoryBackedBuffer.isBackedByMemory()) {
-			throw new IllegalArgumentException("Provided buffer must be backed by memory!");
+		if (size() > destinationBuffer.size()) {
+			throw new IllegalArgumentException("Destination buffer is too small to store content of source buffer: "
+				+ size() + " vs. " + destinationBuffer.size());
 		}
 
-		if (size() != memoryBackedBuffer.size()) {
-			throw new IllegalArgumentException("Buffer sizes do not match: " + size() + " vs. "
-				+ memoryBackedBuffer.size());
-		}
-
-		while (memoryBackedBuffer.hasRemaining()) {
-			memoryBackedBuffer.write(this);
-		}
-
-		memoryBackedBuffer.finishWritePhase();
+		this.internalBuffer.copyToBuffer(destinationBuffer);
 	}
 
 	/**
@@ -239,9 +230,9 @@ public final class Buffer implements ReadableByteChannel, WritableByteChannel {
 
 		return new Buffer(this.internalBuffer.duplicate());
 	}
-	
+
 	public boolean isReadBuffer() {
-	
+
 		return this.internalBuffer.isReadBuffer();
 	}
 }

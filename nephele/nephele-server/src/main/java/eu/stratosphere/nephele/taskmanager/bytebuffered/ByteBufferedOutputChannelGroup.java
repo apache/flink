@@ -135,7 +135,7 @@ public final class ByteBufferedOutputChannelGroup {
 		 * }
 		 */
 
-		this.transferEnvelopeDispatcher.processEnvelope(outgoingTransferEnvelope);
+		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
 	}
 
 	/**
