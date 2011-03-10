@@ -112,8 +112,8 @@ public class MatchTask extends AbstractTask {
 	private SerializationFactory<Value> v1Serialization;
 	private SerializationFactory<Value> v2Serialization;
 	
-	// flag marking the task as canceled
-	private volatile boolean taskCanceled; 
+	// cancel flag
+	private volatile boolean taskCanceled = false;
 
 	// ------------------------------------------------------------------------
 	
@@ -215,7 +215,7 @@ public class MatchTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.debug("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}

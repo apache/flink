@@ -16,7 +16,10 @@ import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
+import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class ReduceTaskTest extends TaskTestBase {
@@ -133,6 +136,89 @@ public class ReduceTaskTest extends TaskTestBase {
 				
 	}
 	
+	@Test
+	public void testCancelReduceTaskWhileSorting() {
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(new NirvanaOutputList());
+		
+		final ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockReduceStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
+	@Test
+	public void testCancelReduceTaskWhileReducing() {
+		
+		final int keyCnt = 1000;
+		final int valCnt = 2;
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(new NirvanaOutputList());
+		
+		final ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockDelayedReduceStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(2, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
 	public static class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
@@ -189,6 +275,18 @@ public class ReduceTaskTest extends TaskTestBase {
 		}
 	}
 	
+	public static class MockDelayedReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+
+		@Override
+		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			while(values.hasNext()) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {}
+				values.next();
+			}
+		}
+	}
 	
 	
 }

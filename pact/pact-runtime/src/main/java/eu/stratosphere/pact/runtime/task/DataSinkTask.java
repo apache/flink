@@ -61,6 +61,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	// task configuration
 	private Config config;
 
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -127,6 +130,18 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		}
 
 		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
