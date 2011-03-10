@@ -96,6 +96,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
+import eu.stratosphere.nephele.multicast.MulticastManager;
 import eu.stratosphere.nephele.optimizer.Optimizer;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
@@ -137,6 +138,8 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	private final EventCollector eventCollector;
 
 	private final Scheduler scheduler;
+
+	private final MulticastManager multicastManager;
 
 	private final InstanceManager instanceManager;
 
@@ -232,6 +235,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			LOG.error("Unable to load scheduler " + schedulerClassName);
 			System.exit(FAILURERETURNCODE);
 		}
+
+		// Create multicastManager
+		this.multicastManager = new MulticastManager(this.scheduler);
 
 		// Load profiler if it should be used
 		if (GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
@@ -367,11 +373,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	@SuppressWarnings("static-access")
 	public static void main(String[] args) {
 
-		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg().withDescription(
-			"Specify configuration directory.").create("configDir");
+		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
+			.withDescription("Specify configuration directory.").create("configDir");
 
-		final Option executionModeOpt = OptionBuilder.withArgName("execution mode").hasArg().withDescription(
-			"Specify execution mode.").create("executionMode");
+		final Option executionModeOpt = OptionBuilder.withArgName("execution mode").hasArg()
+			.withDescription("Specify execution mode.").create("executionMode");
 
 		final Options options = new Options();
 		options.addOption(configDirOpt);
@@ -720,6 +726,8 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		if (outputChannel.isBroadcastChannel() && outputChannel.getType() != ChannelType.INMEMORY) {
 
 			// TODO: Implement broadcast functionality here
+			// will do so! ;)
+			return multicastManager.lookupConnectionInfo(caller, jobID, sourceChannelID);
 
 		} else {
 
@@ -755,9 +763,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			}
 		}
 
-		LOG.error("Receiver(s) not found");
+		//LOG.error("Receiver(s) not found");
 
-		return ConnectionInfoLookupResponse.createReceiverNotFound();
+		//return ConnectionInfoLookupResponse.createReceiverNotFound();
 	}
 
 	/**
@@ -864,8 +872,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 		final List<ExecutionVertex> verticesWithCheckpoints = executionGraph.getVerticesWithCheckpoints();
 		// Group vertex IDs by assigned instance
-		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap =
-			new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
+		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap = new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
 		final Iterator<ExecutionVertex> it = verticesWithCheckpoints.iterator();
 		while (it.hasNext()) {
 
