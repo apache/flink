@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -281,7 +282,15 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 
 	@Override
 	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
-		// TODO Auto-generated method stub
 		
+		if(transferEnvelope.getBuffer() != null) {
+			LOG.error("Transfer envelope for output channel has buffer attached");
+		}
+		
+		Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
+		while(it.hasNext()) {
+			
+			this.byteBufferedOutputChannel.processEvent(it.next());
+		}
 	}
 }

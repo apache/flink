@@ -84,6 +84,7 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -723,6 +724,30 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		}
 
 		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
+		
+		if(outputChannel == null) {
+			AbstractInputChannel<? extends Record> inputChannel = eg.getInputChannelByID(sourceChannelID);
+			
+			final ChannelID connectedChannelID = inputChannel.getConnectedChannelID();
+			final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
+			
+			final AbstractInstance assignedInstance = connectedVertex.getAllocatedResource().getInstance();
+			if (assignedInstance == null) {
+				LOG.error("Cannot resolve lookup: vertex found for channel ID " + connectedChannelID
+					+ " but no instance assigned");
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
+				// Receiver runs on the same task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(connectedChannelID);
+			} else {
+				// Receiver runs on a different task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance
+					.getInstanceConnectionInfo());
+			}
+		}
+		
 		if (outputChannel.isBroadcastChannel() && outputChannel.getType() != ChannelType.INMEMORY) {
 
 			// TODO: Implement broadcast functionality here

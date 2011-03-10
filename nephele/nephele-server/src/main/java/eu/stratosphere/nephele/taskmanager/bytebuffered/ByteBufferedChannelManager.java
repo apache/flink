@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
@@ -32,7 +31,6 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
@@ -489,7 +487,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList) {
 
-		System.out.println("Received envelope without buffer");
+		System.out.println("Received envelope without buffer with event list size " + transferEnvelope.getEventList().size());
 		
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
