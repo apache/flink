@@ -524,4 +524,28 @@ public class OutgoingConnection {
 	public void setSelectionKey(SelectionKey selectionKey) {
 		this.selectionKey = selectionKey;
 	}
+
+	/**
+	 * Returns the number of currently queued envelopes which contain a write buffer.
+	 * 
+	 * @return the number of currently queued envelopes which contain a write buffer
+	 */
+	public int getNumberOfQueuedWriteBuffers() {
+
+		int retVal = 0;
+
+		synchronized(this.queuedEnvelopes) {
+			
+			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
+			while(it.hasNext()) {
+				
+				final TransferEnvelope envelope = it.next();
+				if(envelope.getBuffer() != null) {
+					++retVal;
+				}
+			}
+		}
+		
+		return retVal;
+	}
 }
