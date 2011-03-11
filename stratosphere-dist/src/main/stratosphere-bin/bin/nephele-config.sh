@@ -85,11 +85,11 @@ extractHostName() {
         # extract first part of string (before any whitespace characters)
         SLAVE=$1
         # Remove types and possible comments
-        if [[ "$SLAVE" =~ '^([0-9a-zA-Z/.-]+).*$' ]]; then
+        if [[ "$SLAVE" =~ ^([0-9a-zA-Z/.-]+).*$ ]]; then
                 SLAVE=${BASH_REMATCH[1]}
         fi
         # Extract the hostname from the network hierarchy
-        if [[ "$SLAVE" =~ '^.*/([0-9a-zA-Z.-]+)$' ]]; then
+        if [[ "$SLAVE" =~ ^.*/([0-9a-zA-Z.-]+)$ ]]; then
                 SLAVE=${BASH_REMATCH[1]}
         fi
 
