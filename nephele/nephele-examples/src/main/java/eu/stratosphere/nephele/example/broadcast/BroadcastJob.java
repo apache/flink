@@ -77,11 +77,11 @@ public class BroadcastJob {
 
 		final JobFileInputVertex producer = new JobFileInputVertex("Broadcast Producer", jobGraph);
 		producer.setFileInputClass(BroadcastProducer.class);
-		producer.setFilePath(new Path("file:///tmp/"));
+		producer.setFilePath(new Path("file:///tmp/dummy/"));
 
 		final JobFileOutputVertex consumer = new JobFileOutputVertex("Broadcast Consumer", jobGraph);
 		consumer.setFileOutputClass(BroadcastConsumer.class);
-		consumer.setFilePath(new Path("file:///tmp/"));
+		consumer.setFilePath(new Path("file:///tmp/dummy"));
 
 		try {
 			producer.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
