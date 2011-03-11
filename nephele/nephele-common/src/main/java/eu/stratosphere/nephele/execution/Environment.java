@@ -577,9 +577,10 @@ public class Environment implements Runnable, IOReadableWritable {
 					throw new IOException(StringUtils.stringifyException(e));
 				}
 
+				channelSelector.read(in);
 			}
 
-			channelSelector.read(in);
+			
 
 			@SuppressWarnings("rawtypes")
 			final OutputGate<? extends Record> eog = new OutputGate(this.jobID, type, i, channelSelector, isBroadcast);
