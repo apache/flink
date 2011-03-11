@@ -240,6 +240,8 @@ public class OutgoingConnectionThread extends Thread {
 
 		synchronized (this.pendingWriteEventSubscribeRequests) {
 			this.pendingWriteEventSubscribeRequests.add(selectionKey);
+		}
+		synchronized (this.connectionsToClose) {
 			this.connectionsToClose.remove((OutgoingConnection) selectionKey.attachment());
 		}
 
