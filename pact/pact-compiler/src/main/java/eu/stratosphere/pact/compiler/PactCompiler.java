@@ -407,12 +407,15 @@ public class PactCompiler {
 	}
 
 	// ------------------------------------------------------------------------
-	// Compilation
+	//                               Compilation
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
-	 * and all channels have a shipping strategy assigned. The process goes through several phases:
+	 * and all channels have a shipping strategy assigned. The compiler connects to the job manager to obtain information
+	 * about the available instances and their memory and then chooses an instance type to schedule the execution on.
+	 * <p>
+	 * The compilation process itself goes through several phases:
 	 * <ol>
 	 * <li>Create <tt>OptimizerNode</tt> representations of the PACTs, assign parallelism and compute size estimates.</li>
 	 * <li>Compute interesting properties and auxiliary structures.</li>
@@ -420,23 +423,19 @@ public class PactCompiler {
 	 * opposed to the Database approaches), because we support plans that are not trees.</li>
 	 * </ol>
 	 * 
-	 * @param pactPlan
-	 *        The PACT plan to be translated.
+	 * @param pactPlan The PACT plan to be translated.
 	 * @return The optimized plan.
 	 * @throws CompilerException
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
-		}
-
+	public OptimizedPlan compile(Plan pactPlan) throws CompilerException
+	{
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Connecting compiler to JobManager.");
+			LOG.debug("Connecting compiler to JobManager to dertermine instance information.");
 		}
 		
 		// create the connection in a separate thread, such that this thread
@@ -461,6 +460,40 @@ public class PactCompiler {
 				t.getMessage(), t);
 		}
 
+		// determine which type to run on
+		InstanceTypeDescription type = getType(instances);
+		
+		return compile(pactPlan, type);
+	}
+	/**
+	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
+	 * and all channels have a shipping strategy assigned. The process goes through several phases:
+	 * <ol>
+	 * <li>Create <tt>OptimizerNode</tt> representations of the PACTs, assign parallelism and compute size estimates.</li>
+	 * <li>Compute interesting properties and auxiliary structures.</li>
+	 * <li>Enumerate plan alternatives. This cannot be done in the same step as the interesting property computation (as
+	 * opposed to the Database approaches), because we support plans that are not trees.</li>
+	 * </ol>
+	 * 
+	 * @param pactPlan The PACT plan to be translated.
+	 * @param type The instance type to schedule the execution on. Used also to determine the amount of memory
+	 *             available to the tasks.
+	 * @return The optimized plan.
+	 * @throws CompilerException
+	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
+	 *         situation during the compilation process.
+	 */
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException
+	{
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
+		}
+		
+		String instanceName = type.getInstanceType().getIdentifier();
+		long memoryPerInstance = type.getHardwareDescription().getSizeOfFreeMemory();
+		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
+		int numInstances = type.getMaximumNumberOfAvailableInstances();
+		
 		// determine the maximum number of machines to use
 		int maxMachinesJob = pactPlan.getMaxNumberMachines();
 
@@ -476,14 +509,6 @@ public class PactCompiler {
 
 			maxMachinesJob = Math.min(maxMachinesJob, this.maxMachines);
 		}
-
-		// determine which type to run on
-		InstanceTypeDescription type = getType(instances);
-
-		String instanceName = type.getInstanceType().getIdentifier();
-		long memoryPerInstance = type.getHardwareDescription().getSizeOfFreeMemory();
-		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
-		int numInstances = type.getMaximumNumberOfAvailableInstances();
 
 		// adjust the maximum number of machines the the number of available instances
 		if (maxMachinesJob < 1) {
@@ -565,7 +590,7 @@ public class PactCompiler {
 			this.costEstimator);
 		rootNode.accept(propsVisitor);
 
-		// the final step is not to generate the actual plan alternatives
+		// the final step is now to generate the actual plan alternatives
 		List<? extends OptimizerNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
 
 		if (bestPlan.size() != 1) {
@@ -1171,6 +1196,9 @@ public class PactCompiler {
 		return retValue;
 	}
 	
+	/**
+	 * Utility class for an asynchronous connection to the job manager to determine the available instances.
+	 */
 	private static final class JobManagerConnector implements Runnable
 	{
 		private static final long MAX_MILLIS_TO_WAIT = 10000;

@@ -388,12 +388,12 @@ public class CrossNode extends TwoInputNode {
 		boolean isFirst = false;
 
 		if (oc.appliesToFirstInput()) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred1, ss1);
+			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+			lp = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
 			isFirst = true;
 		} else if (oc.appliesToSecondInput()) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred2, ss2);
+			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+			lp = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
 		} else {
 			gp = new GlobalProperties();
 			lp = new LocalProperties();
