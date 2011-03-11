@@ -16,7 +16,11 @@ import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
+import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
+import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class CombineTaskTest extends TaskTestBase {
@@ -95,6 +99,46 @@ public class CombineTaskTest extends TaskTestBase {
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 				
 		outList.clear();
+		
+	}
+	
+	@Test
+	public void testCancelCombineTaskSorting() {
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(new NirvanaOutputList());
+		
+		final CombineTask testTask = new CombineTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
+		super.getTaskConfig().setNumSortBuffer(2);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(2);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
 		
 	}
 	

@@ -104,6 +104,10 @@ public class DataSourceTask extends AbstractFileInputTask {
 		// for each assigned input split
 		for (int i = 0; i < splits.length; i++) {
 
+			if(this.taskCanceled) {
+				break;
+			}
+			
 			// get start and end
 			FileInputSplit split = splits[i];
 			long start = split.getStart();
@@ -133,7 +137,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 			}
 
 			// as long as there is data to read
-			while (!format.reachedEnd()) {
+			while (!format.reachedEnd() && !this.taskCanceled) {
 
 				// create immutable pair
 				if (immutable) {
@@ -158,9 +162,15 @@ public class DataSourceTask extends AbstractFileInputTask {
 
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
 
 	}
 	
@@ -171,7 +181,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}

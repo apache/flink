@@ -155,12 +155,12 @@ public class MatchTask extends AbstractTask {
 		try {
 			matchIterator = getIterator(reader1, reader2);
 			
+			// open MatchTaskIterator
+			matchIterator.open();
+			
 			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-			
-			// open MatchTaskIterator
-			matchIterator.open();
 
 			// open match stub instance
 			matchStub.open();
@@ -176,7 +176,7 @@ public class MatchTask extends AbstractTask {
 			if (!this.taskCanceled) {
 				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", ex);
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ex;
 			}
 		}
@@ -203,9 +203,15 @@ public class MatchTask extends AbstractTask {
 			output.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -215,7 +221,7 @@ public class MatchTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -445,7 +451,7 @@ public class MatchTask extends AbstractTask {
 			this.v1Copier.setCopy(firstV1);
 			
 			matchStub.match(key, firstV1, firstV2, output);
-			while (v2HasNext) {
+			while (v2HasNext && !this.taskCanceled) {
 				key = this.keySerialization.newInstance();
 				this.keyCopier.getCopy(key);
 				v1 = this.v1Serialization.newInstance();
@@ -456,7 +462,7 @@ public class MatchTask extends AbstractTask {
 				matchStub.match(key, v1, v2, output);
 			}
 
-		} else if (!v2HasNext) {
+		} else if (!v2HasNext && !this.taskCanceled) {
 			// only values2 contains only one value
 			this.v2Copier.setCopy(firstV2);
 			
@@ -513,7 +519,7 @@ public class MatchTask extends AbstractTask {
 				this.v2Copier.setCopy(firstV2);
 				
 				// run through resettable iterator with firstV2
-				while (v1ResettableIterator.hasNext()) {
+				while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
 					key = this.keySerialization.newInstance();
 					this.keyCopier.getCopy(key);
 					v2 = this.v2Serialization.newInstance();
@@ -525,12 +531,12 @@ public class MatchTask extends AbstractTask {
 				v1ResettableIterator.reset();
 				
 				// run through resettable iterator for each v2
-				while(values2.hasNext()) {
+				while(values2.hasNext() && !this.taskCanceled) {
 					
 					v2 = values2.next();
 					this.v2Copier.setCopy(v2);
 					
-					while (v1ResettableIterator.hasNext()) {
+					while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
 						key = this.keySerialization.newInstance();
 						this.keyCopier.getCopy(key);
 						v2 = this.v2Serialization.newInstance();

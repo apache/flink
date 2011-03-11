@@ -15,7 +15,10 @@ import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
+import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class MatchTaskTest extends TaskTestBase {
@@ -246,6 +249,136 @@ public class MatchTaskTest extends TaskTestBase {
 		
 	}
 	
+	@Test
+	public void testCancelMatchTaskWhileSort1() {
+		
+		int keyCnt = 20;
+		int valCnt = 20;
+		
+		super.initEnvironment(5*1024*1024);
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(new NirvanaOutputList());
+		
+		final MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+	}
+	
+	@Test
+	public void testCancelMatchTaskWhileSort2() {
+		
+		int keyCnt = 20;
+		int valCnt = 20;
+		
+		super.initEnvironment(5*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(new NirvanaOutputList());
+		
+		final MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+	}
+	
+	@Test
+	public void testCancelMatchTaskWhileMatching() {
+		
+		int keyCnt = 20;
+		int valCnt = 20;
+		
+		super.initEnvironment(5*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addOutput(new NirvanaOutputList());
+		
+		final MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setNumSortBuffer(4);
+		super.getTaskConfig().setSortBufferSize(1);
+		super.getTaskConfig().setMergeFactor(4);
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, MockDelayingMatchStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
 //	@Test
 //	public void testHash1MatchTask() {
 //
@@ -389,5 +522,19 @@ public class MatchTaskTest extends TaskTestBase {
 	}
 	
 	
+	public static class MockDelayingMatchStub extends MatchStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+
+		HashSet<Integer> hashSet = new HashSet<Integer>(1000);
+		
+		@Override
+		public void match(PactInteger key, PactInteger value1, PactInteger value2,
+				Collector<PactInteger, PactInteger> out) {
+			
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) { }			
+		}
+		
+	}
 	
 }

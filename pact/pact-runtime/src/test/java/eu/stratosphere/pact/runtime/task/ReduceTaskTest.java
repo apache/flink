@@ -193,7 +193,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.getTaskConfig().setMergeFactor(4);
 		super.getTaskConfig().setIOBufferSize(1);
 		
-		super.registerTask(testTask, MockDelayedReduceStub.class);
+		super.registerTask(testTask, MockDelayingReduceStub.class);
 		
 		Thread taskRunner = new Thread() {
 			public void run() {
@@ -275,7 +275,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static class MockDelayedReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockDelayingReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
 		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {

@@ -71,6 +71,9 @@ public class TempTask extends AbstractTask {
 
 	// task configuration
 	private TaskConfig config;
+	
+	// spilling thread
+	SpillingResettableIterator<KeyValuePair<Key, Value>> tempIterator;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -117,7 +120,7 @@ public class TempTask extends AbstractTask {
 		// obtain task manager's io manager
 		final IOManager ioManager = getEnvironment().getIOManager();
 
-		SpillingResettableIterator<KeyValuePair<Key, Value>> tempIterator = null;
+		tempIterator = null;
 		try {
 			// obtain SpillingResettableIterator to dump pairs to disk and read again
 			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, reader,
@@ -131,7 +134,7 @@ public class TempTask extends AbstractTask {
 			// open SpillingResettableIterator
 			// all input pairs are consumed and written to disk.
 			tempIterator.open();
-
+			
 			LOG.debug("Finished temping records: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -141,16 +144,18 @@ public class TempTask extends AbstractTask {
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 			// all read pairs from SpillingResettableIterator (from disk)
-			while (tempIterator.hasNext()) {
+			while (tempIterator.hasNext() && !this.taskCanceled) {
 				// read next pair
 				KeyValuePair<Key, Value> pair = tempIterator.next();
 				// forward pair to output writer
 				writer.emit(pair);
 			}
 
-			LOG.debug("Finished serving records: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if(!this.taskCanceled) {
+				LOG.debug("Finished serving records: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			}
 
 		} catch (MemoryAllocationException mae) {
 			throw new RuntimeException("Unable to obtain SpillingResettableIterator for TempTask", mae);
@@ -158,17 +163,28 @@ public class TempTask extends AbstractTask {
 			throw new RuntimeException(se);
 		} catch (IOException ioe) {
 			throw new RuntimeException(ioe);
-		} catch (InterruptedException ie) {
-			throw new RuntimeException(ie);
+		} catch (Exception ie) {
+			if(!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ie;
+			}
 		} finally {
 
 			// close SpillingResettableIterator
 			tempIterator.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -177,8 +193,13 @@ public class TempTask extends AbstractTask {
 	@Override
 	public void cancel() throws Exception
 	{
+		// activate cancel flag
 		this.taskCanceled = true;
-		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		// abort temp iterator
+		if(tempIterator != null) {
+			tempIterator.abort();
+		}
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}

@@ -149,19 +149,11 @@ public class ReduceTask extends AbstractTask {
 			// run stub implementation
 			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
 
-			if (this.taskCanceled) {
-				// task was canceled. Exit immediately.
-				return;
-			}
-	
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT user code: " + this.getEnvironment().getTaskName() + " ("
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ex;
@@ -188,6 +180,16 @@ public class ReduceTask extends AbstractTask {
 			// close output collector
 			output.close();
 		}
+		
+		if (this.taskCanceled) {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -197,7 +199,7 @@ public class ReduceTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.info("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
