@@ -246,4 +246,15 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		return this.instanceConnectionInfo.hashCode();
 	}
+
+	/**
+	 * Triggers the remote task manager to print out the current utilization of its read and write buffers to its logs.
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request
+	 */
+	public void logBufferUtilization() throws IOException {
+
+		getTaskManager().logBufferUtilization();
+	}
 }
