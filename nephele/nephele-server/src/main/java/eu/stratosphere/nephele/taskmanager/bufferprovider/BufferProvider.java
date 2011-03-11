@@ -57,7 +57,7 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 	/**
 	 * The default setting for spilling.
 	 */
-	private static final boolean DEFAULT_ALLOW_SPILLING = true;
+	private static final boolean DEFAULT_ALLOW_SPILLING = false;
 
 	/**
 	 * The default number of read buffers to create at startup.
@@ -133,6 +133,7 @@ public final class BufferProvider implements ReadBufferProvider, WriteBufferProv
 
 		this.isSpillingAllowed = GlobalConfiguration
 			.getBoolean("channel.network.allowSpilling", DEFAULT_ALLOW_SPILLING);
+		
 
 		// Initialize buffers
 		for (int i = 0; i < this.numberOfReadBuffers; i++) {
