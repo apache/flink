@@ -31,7 +31,7 @@ public class BroadcastRecord implements Record {
 	/**
 	 * The size of a broadcast record.
 	 */
-	private static final int RECORD_SIZE = 229;
+	private static final int RECORD_SIZE = 127;
 
 	/**
 	 * The actual data of the broadcast record.
