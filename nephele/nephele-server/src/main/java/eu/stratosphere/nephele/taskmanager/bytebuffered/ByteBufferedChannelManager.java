@@ -361,7 +361,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private boolean processEnvelopeWithBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList) throws IOException, InterruptedException {
-		
+
 		final Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer.isReadBuffer()) {
 
@@ -437,12 +437,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					transferEnvelope.getJobID(), transferEnvelope.getSource(), transferEnvelope.getEventList());
 
 				localEnvelope.setBuffer(readBuffer);
-				
+
 				synchronized (this.registeredChannels) {
 
 					ByteBufferedChannelWrapper channelWrapper = null;
 					for (int i = 1; i < localReceivers.size(); ++i) {
-						
+
 						channelWrapper = this.registeredChannels.get(localReceivers.get(i));
 						if (channelWrapper == null) {
 							LOG.error("Cannot find local receiver " + localReceivers.get(i) + " for job "
@@ -457,7 +457,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						LOG.error("Cannot find local receiver " + localReceivers.get(0) + " for job "
 							+ transferEnvelope.getJobID());
 					} else {
-						
+
 						channelWrapper.queueTransferEnvelope(localEnvelope);
 					}
 				}
@@ -487,8 +487,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList) {
 
-		System.out.println("Received envelope without buffer with event list size " + transferEnvelope.getEventList().size());
-		
+		System.out.println("Received envelope without buffer with event list size "
+			+ transferEnvelope.getEventList().size());
+
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
 
@@ -551,6 +552,24 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
 				} else {
 					this.receiverCache.put(sourceChannelID, receiverList);
+
+					System.out.println("Receiver list for source channel ID " + sourceChannelID + " at task manager "
+						+ this.localConnectionInfo);
+					if (receiverList.hasLocalReceivers()) {
+						System.out.println("\tLocal receivers:");
+						final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
+						while (it.hasNext()) {
+							System.out.println("\t\t" + it.next());
+						}
+					}
+
+					if (receiverList.hasRemoteReceivers()) {
+						System.out.println("Remote receivers:");
+						final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
+						while (it.hasNext()) {
+							System.out.println("\t\t" + it.next());
+						}
+					}
 				}
 			}
 
@@ -564,7 +583,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
-		
+
 		processEnvelope(transferEnvelope);
 	}
 
@@ -574,7 +593,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
-		
+
 		processEnvelope(transferEnvelope);
 	}
 
@@ -583,9 +602,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	@Override
 	public boolean processEnvelopeFromNetworkOrCheckpoint(final TransferEnvelope transferEnvelope) throws IOException {
-		
+
 		System.out.println("Received envelope from network or checkpoint");
-		
+
 		return false;
 	}
 }
