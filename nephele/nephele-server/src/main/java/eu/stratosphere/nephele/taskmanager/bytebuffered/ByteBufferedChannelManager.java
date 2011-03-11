@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public final class ByteBufferedChannelManager implements TransferEnvelopeDispatcher {
 
@@ -375,7 +376,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					return false;
 				}
 
-				// TODO: Copy buffer content
+				// Copy content of buffer
+				transferEnvelope.getBuffer().copyToBuffer(writeBuffer);
 
 				final TransferEnvelope remoteEnvelope = new TransferEnvelope(transferEnvelope.getSequenceNumber(),
 					transferEnvelope.getJobID(), transferEnvelope.getSource(), transferEnvelope.getEventList());
@@ -584,8 +586,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 
-		System.out.println("Received enveloep from output channel");
-		
 		processEnvelope(transferEnvelope);
 	}
 
@@ -596,7 +596,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 		
-		System.out.println("Received enveloep from input channel");
+		System.out.println("Received envelope from input channel");
 		
 		processEnvelope(transferEnvelope);
 	}
@@ -607,7 +607,14 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public boolean processEnvelopeFromNetworkOrCheckpoint(final TransferEnvelope transferEnvelope) throws IOException {
 
-		System.out.println("Received envelope from network or checkpoint");
+		try {
+			if(!processEnvelope(transferEnvelope)) {
+				System.out.println("Processing envelope from network returned false");
+			}
+		} catch(InterruptedException e) {
+			LOG.error("Caught unexpected interrupted exception: " + StringUtils.stringifyException(e));
+		}
+		
 
 		return false;
 	}

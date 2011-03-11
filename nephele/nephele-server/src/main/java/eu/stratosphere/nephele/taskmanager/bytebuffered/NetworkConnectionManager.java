@@ -142,6 +142,8 @@ public final class NetworkConnectionManager {
 
 		synchronized (this.incomingConnections) {
 
+			System.out.println("Registering incoming connection for " + incomingConnectionID);
+			
 			// Find previous connection
 			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
 
@@ -162,6 +164,9 @@ public final class NetworkConnectionManager {
 			ReadableByteChannel readableByteChannel) {
 
 		synchronized (this.incomingConnections) {
+			
+			System.out.println("Unregistering incoming connection for " + incomingConnectionID);
+			
 			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
 			if (incomingConnection == null) {
 				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
@@ -208,6 +213,7 @@ public final class NetworkConnectionManager {
 		synchronized (this.outgoingConnections) {
 			outgoingConnection = this.outgoingConnections.get(targetAddress);
 			if (outgoingConnection == null) {
+				System.out.println("Creating outgoing connection for" + targetAddress);
 				outgoingConnection = createOutgoingConnection(targetAddress);
 			}
 

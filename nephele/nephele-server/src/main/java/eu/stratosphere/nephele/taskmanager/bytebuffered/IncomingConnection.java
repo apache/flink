@@ -111,6 +111,8 @@ public class IncomingConnection {
 		this.networkConnectionManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
 	}
 
+	private TransferEnvelope currentTransferEnvelope = null;
+	
 	public void read() throws IOException, EOFException {
 
 		if (!isActiveConnection()) {
@@ -118,13 +120,26 @@ public class IncomingConnection {
 			return;
 		}
 
-		this.deserializer.read(this.readableByteChannel);
+		if(this.currentTransferEnvelope == null) {
+		
+			this.deserializer.read(this.readableByteChannel);
 
-		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
-		if (transferEnvelope != null) {
-			this.transferEnvelopeDispatcher.processEnvelopeFromNetworkOrCheckpoint(transferEnvelope);
+			this.currentTransferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
 		}
-
+		
+		if(this.currentTransferEnvelope != null) {
+			if(this.transferEnvelopeDispatcher.processEnvelopeFromNetworkOrCheckpoint(this.currentTransferEnvelope)) {
+				this.currentTransferEnvelope = null;
+			} else {
+				try {
+					Thread.sleep(100);
+				} catch(InterruptedException e) {
+					LOG.debug(StringUtils.stringifyException(e));
+				}
+			}
+		}
+		
+		//TODO: Clean up strategy for current transfer envelope
 	}
 
 	public boolean isCloseUnexpected() {
@@ -149,12 +164,14 @@ public class IncomingConnection {
 
 		// This cannot be the active connection if corresponding byte channel is closed
 		if (!this.readableByteChannel.isOpen()) {
+			System.out.println("readableByteChannel is not open");
 			return false;
 		}
 
 		// If the previous connection still considers itself as the active connection, wait for the previous connection
 		// to finish first
 		if (this.previousConnection.isActiveConnection()) {
+			System.out.println("Previous connection is still open");
 			return false;
 		} else {
 			this.previousConnection = null;

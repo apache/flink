@@ -153,6 +153,7 @@ public class OutgoingConnection {
 
 				this.retriesLeft = this.numberOfConnectionRetries;
 				this.timstampOfLastRetry = System.currentTimeMillis();
+				System.out.println("Triggering connection to " + this.connectionAddress);
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
 				this.isSubscribedToWriteEvent = true;
@@ -414,7 +415,7 @@ public class OutgoingConnection {
 				return;
 			}
 
-			LOG.debug("Closing connection to " + this.connectionAddress);
+			System.out.println("Closing connection to " + this.connectionAddress);
 
 			if (this.selectionKey != null) {
 
