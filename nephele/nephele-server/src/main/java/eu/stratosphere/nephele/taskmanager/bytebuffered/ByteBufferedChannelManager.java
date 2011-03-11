@@ -584,6 +584,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 
+		System.out.println("Received enveloep from output channel");
+		
 		processEnvelope(transferEnvelope);
 	}
 
@@ -593,7 +595,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
-
+		
+		System.out.println("Received enveloep from input channel");
+		
 		processEnvelope(transferEnvelope);
 	}
 
