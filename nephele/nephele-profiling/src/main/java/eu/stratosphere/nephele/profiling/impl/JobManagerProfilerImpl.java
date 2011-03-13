@@ -75,7 +75,7 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 		try {
 
 			profilingServerTmp = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-				handlerCount, false);
+				handlerCount);
 			profilingServerTmp.start();
 		} catch (IOException ioe) {
 			throw new ProfilingException("Cannot start profiling RPC server: " + StringUtils.stringifyException(ioe));

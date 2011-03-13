@@ -156,7 +156,7 @@ public abstract class AbstractChannel implements IOReadableWritable {
 
 	public abstract boolean isInputChannel();
 
-	public abstract void transferEvent(AbstractEvent event) throws IOException;
+	public abstract void transferEvent(AbstractEvent event) throws IOException, InterruptedException;
 
 	public abstract void processEvent(AbstractEvent event);
 }

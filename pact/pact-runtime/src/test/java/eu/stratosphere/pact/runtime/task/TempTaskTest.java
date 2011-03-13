@@ -17,7 +17,10 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
+import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class TempTaskTest extends TaskTestBase {
@@ -50,6 +53,42 @@ public class TempTaskTest extends TaskTestBase {
 		}
 		
 		Assert.assertTrue(outList.size() == keyCnt*valCnt);
+		
+	}
+	
+	@Test
+	public void testCancelTempTask() {
+		
+		super.initEnvironment(1024*1024*1);
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(new NirvanaOutputList());
+		
+		final TempTask testTask = new TempTask();
+		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.registerTask(testTask, PrevStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
 		
 	}
 	

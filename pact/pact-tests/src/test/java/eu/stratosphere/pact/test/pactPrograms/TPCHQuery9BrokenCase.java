@@ -34,9 +34,9 @@ import eu.stratosphere.pact.example.relational.TPCHQuery9;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class TPCHQuery9ITCase extends TestBase {
+public class TPCHQuery9BrokenCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(TPCHQuery9ITCase.class);
+	private static final Log LOG = LogFactory.getLog(TPCHQuery9BrokenCase.class);
 	
 	private String partInputPath = null;
 	private String partSuppInputPath = null;
@@ -356,7 +356,7 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "IRAN|1996|9672.556\n";
 		
 
-	public TPCHQuery9ITCase(Configuration config) {
+	public TPCHQuery9BrokenCase(Configuration config) {
 		super(config);
 	}
 

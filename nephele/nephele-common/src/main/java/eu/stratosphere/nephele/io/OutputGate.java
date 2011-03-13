@@ -299,7 +299,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 * Requests the output gate to closed. This means the application will send
 	 * no records through this gate anymore.
 	 */
-	public void requestClose() throws IOException {
+	public void requestClose() throws IOException, InterruptedException {
 		// Close all output channels
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
 			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
@@ -534,8 +534,10 @@ public class OutputGate<T extends Record> extends Gate<T> {
 	 *        the event to be published
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
@@ -555,7 +557,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 		this.eventNotificationManager.deliverEvent(event);
 	}
 
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		// Flush all connected channels
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
 		while (it.hasNext()) {

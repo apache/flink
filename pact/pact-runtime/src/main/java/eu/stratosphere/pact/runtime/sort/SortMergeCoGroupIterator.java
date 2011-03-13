@@ -114,7 +114,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	}
 
 	@Override
-	public void open() throws IOException, MemoryAllocationException {
+	public void open() throws IOException, MemoryAllocationException, InterruptedException {
 		returnStatus = ReturnStatus.RETURN_NONE;
 		matchStatus = MatchStatus.NONE_REMAINED;
 		

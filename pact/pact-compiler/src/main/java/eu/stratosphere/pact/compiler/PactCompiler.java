@@ -438,29 +438,27 @@ public class PactCompiler {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Connecting compiler to JobManager.");
 		}
-
+		
+		// create the connection in a separate thread, such that this thread
+		// can abort, if an unsuccessful connection occurs.
 		Map<InstanceType, InstanceTypeDescription> instances = null;
-		ExtendedManagementProtocol jobManagerConnection = null;
+		
+		JobManagerConnector jmc = new JobManagerConnector(this.jobManagerAddress);
+		Thread connectorThread = new Thread(jmc, "Compiler - JobManager connector.");
+		connectorThread.setDaemon(true);
+		connectorThread.start();
 
+		// connect and get the result
 		try {
-			jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
-				jobManagerAddress, NetUtils.getSocketFactory());
-
-			instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
+			jmc.waitForCompletion();
+			instances = jmc.instances;
 			if (instances == null) {
-				throw new IOException();
+				throw new NullPointerException("Returned instance map is <null>");
 			}
-		} catch (IOException ioex) {
-			throw new CompilerException("Could not instantiate the connection to the job-manager", ioex);
-		} finally {
-			if (jobManagerConnection != null) {
-				try {
-					RPC.stopProxy(jobManagerConnection);
-				} catch (Throwable t) {
-					LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
-				}
-			}
-			jobManagerConnection = null;
+		}
+		catch (Throwable t) {
+			throw new CompilerException("Available instances could not be determined from job manager: " + 
+				t.getMessage(), t);
 		}
 
 		// determine the maximum number of machines to use
@@ -1171,5 +1169,96 @@ public class PactCompiler {
 		}
 		
 		return retValue;
+	}
+	
+	private static final class JobManagerConnector implements Runnable
+	{
+		private static final long MAX_MILLIS_TO_WAIT = 10000;
+		
+		private final InetSocketAddress jobManagerAddress;
+		
+		private final Object lock = new Object();
+		
+		private volatile Map<InstanceType, InstanceTypeDescription> instances;
+		
+		private volatile Throwable error;
+		
+		
+		private JobManagerConnector(InetSocketAddress jobManagerAddress)
+		{
+			this.jobManagerAddress = jobManagerAddress;
+		}
+		
+		
+		public void waitForCompletion() throws Throwable
+		{
+			long start = System.currentTimeMillis();
+			long remaining = MAX_MILLIS_TO_WAIT;
+			
+			if (this.error != null) {
+				throw this.error;
+			}
+			if (this.instances != null) {
+				return;
+			}
+			
+			do {
+				try {
+					synchronized (this.lock) {
+						this.lock.wait(remaining);
+					}
+				} catch (InterruptedException iex) {}
+			}
+			while (this.error == null && this.instances == null &&
+					(remaining = MAX_MILLIS_TO_WAIT + start - System.currentTimeMillis()) > 0);
+			
+			if (this.error != null) {
+				throw this.error;
+			}
+			if (this.instances != null) {
+				return;
+			}
+			
+			// try to forcefully shut this thread down
+			throw new IOException("Connection timed out.");
+		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Runnable#run()
+		 */
+		@Override
+		public void run()
+		{
+			ExtendedManagementProtocol jobManagerConnection = null;
+
+			try {
+				jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+					this.jobManagerAddress, NetUtils.getSocketFactory());
+
+				this.instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
+				if (this.instances == null) {
+					throw new IOException("Returned instance map was <null>");
+				}
+			}
+			catch (Throwable t) {
+				this.error = t;
+			}
+			finally {
+				// first of all, signal completion
+				synchronized (this.lock) {
+					this.lock.notifyAll();
+				}
+				
+				if (jobManagerConnection != null) {
+					try {
+						RPC.stopProxy(jobManagerConnection);
+					} catch (Throwable t) {
+						LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
+					}
+				}
+				jobManagerConnection = null;
+			}
+		}
+		
 	}
 }

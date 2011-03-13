@@ -8,13 +8,11 @@ public class TaskCancelThread extends Thread {
 	final private int cancelTimeout;
 	final private Thread interruptedThread;
 	final private AbstractTask canceledTask;
-	final private boolean cancelTaskBeforeInteruption;
 	
-	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractTask canceledTask, boolean cancelTaskBeforeInterruption) {
+	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractTask canceledTask) {
 		this.cancelTimeout = cancelTimeout;
 		this.interruptedThread = interruptedThread;
 		this.canceledTask = canceledTask;
-		this.cancelTaskBeforeInteruption = cancelTaskBeforeInterruption;
 	}
 	
 	@Override
@@ -25,16 +23,12 @@ public class TaskCancelThread extends Thread {
 			Assert.fail("CancelThread interruped while waiting for cancel timeout");
 		}
 		
-		if(this.cancelTaskBeforeInteruption) {
-			try {
-				this.canceledTask.cancel();
-			} catch (Exception e) {
-				Assert.fail("Canceling task failed");
-			}
+		try {
+			this.canceledTask.cancel();
+			this.interruptedThread.interrupt();
+		} catch (Exception e) {
+			Assert.fail("Canceling task failed");
 		}
-		
-		this.interruptedThread.interrupt();
-		
 	}
 	
 }

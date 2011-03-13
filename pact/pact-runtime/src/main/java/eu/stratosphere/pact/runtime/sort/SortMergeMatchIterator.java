@@ -98,7 +98,7 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 	}
 
 	@Override
-	public void open() throws IOException, MemoryAllocationException
+	public void open() throws IOException, MemoryAllocationException, InterruptedException
 	{
 		// comparator
 		final Comparator<K> keyComparator = new Comparator<K>() {

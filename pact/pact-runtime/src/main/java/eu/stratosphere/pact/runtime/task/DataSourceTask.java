@@ -46,7 +46,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @author Moritz Kaufmann
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class DataSourceTask extends AbstractFileInputTask {
 
 	// Obtain DataSourceTask Logger
@@ -61,6 +61,9 @@ public class DataSourceTask extends AbstractFileInputTask {
 	// Task configuration
 	private Config config;
 
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -101,6 +104,10 @@ public class DataSourceTask extends AbstractFileInputTask {
 		// for each assigned input split
 		for (int i = 0; i < splits.length; i++) {
 
+			if(this.taskCanceled) {
+				break;
+			}
+			
 			// get start and end
 			FileInputSplit split = splits[i];
 			long start = split.getStart();
@@ -130,7 +137,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 			}
 
 			// as long as there is data to read
-			while (!format.reachedEnd()) {
+			while (!format.reachedEnd() && !this.taskCanceled) {
 
 				// create immutable pair
 				if (immutable) {
@@ -155,10 +162,28 @@ public class DataSourceTask extends AbstractFileInputTask {
 
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
 	}
 
 	/**

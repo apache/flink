@@ -62,7 +62,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.ReduceStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class ReduceTask extends AbstractTask {
 
 	// number of sort buffers to use
@@ -91,7 +91,12 @@ public class ReduceTask extends AbstractTask {
 
 	// task config including stub parameters
 	private TaskConfig config;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
 
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -143,6 +148,21 @@ public class ReduceTask extends AbstractTask {
 			
 			// run stub implementation
 			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
+
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
+		finally {
+			if (sortedInputProvider != null) {
+				sortedInputProvider.close();
+			}
 			
 			// close stub implementation.
 			// when the stub is closed, anything will have been written, so any error will be logged but has no 
@@ -156,21 +176,36 @@ public class ReduceTask extends AbstractTask {
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
 			}
-	
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		}
-		finally {
-			if (sortedInputProvider != null) {
-				sortedInputProvider.close();
-			}
 			
 			// close output collector
 			output.close();
 		}
+		
+		if (this.taskCanceled) {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Initializes the stub implementation and configuration.
 	 * 
@@ -407,7 +442,7 @@ public class ReduceTask extends AbstractTask {
 	 */
 	private final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
 		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
-		while (iter.nextKey()) {
+		while (iter.nextKey() && !taskCanceled) {
 			this.stub.reduce(iter.getKey(), iter.getValues(), out);
 		}
 	}

@@ -66,8 +66,17 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.MatchStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class MatchTask extends AbstractTask {
+	
+	// obtain MatchTask logger
+	private static final Log LOG = LogFactory.getLog(MatchTask.class);
+	
+	// copier for key and values
+	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
+	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
+	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
+	
 	// number of sort buffers to use
 	private int NUM_SORT_BUFFERS;
 
@@ -82,9 +91,6 @@ public class MatchTask extends AbstractTask {
 	
 	// share ratio for resettable iterator
 	private double MEMORY_SHARE_RATIO = 0.05;
-
-	// obtain MatchTask logger
-	private static final Log LOG = LogFactory.getLog(MatchTask.class);
 
 	// reader of first input
 	private RecordReader<KeyValuePair<Key, Value>> reader1;
@@ -101,15 +107,15 @@ public class MatchTask extends AbstractTask {
 	// task config including stub parameters
 	private TaskConfig config;
 
-	// copier for key and values
-	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
-	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
-	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
-	
 	// serialization factories for key and values
 	private SerializationFactory<Key> keySerialization;
 	private SerializationFactory<Value> v1Serialization;
 	private SerializationFactory<Value> v2Serialization;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * {@inheritDoc}
@@ -138,7 +144,7 @@ public class MatchTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() // throws Exception
+	public void invoke() throws Exception
 	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -149,20 +155,35 @@ public class MatchTask extends AbstractTask {
 		try {
 			matchIterator = getIterator(reader1, reader2);
 			
+			// open MatchTaskIterator
+			matchIterator.open();
+			
 			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-			
-			// open MatchTaskIterator
-			matchIterator.open();
 
 			// open match stub instance
 			matchStub.open();
 			
 			// for each distinct key that is contained in both inputs
-			while (matchIterator.next()) {
+			while (matchIterator.next() && !taskCanceled) {
 				// call run() method of match stub implementation
 				crossValues(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2());
+			}
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
+		finally {
+			// close MatchTaskIterator
+			if (matchIterator != null) {
+				matchIterator.close();
 			}
 			
 			// close stub implementation.
@@ -177,27 +198,35 @@ public class MatchTask extends AbstractTask {
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
 			}
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("An I/O error occured during processing MatchTask", ioe);
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
-		}
-		finally {
-			// close MatchTaskIterator
-			if (matchIterator != null) {
-				matchIterator.close();
-			}
 
 			// close output collector
 			output.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
+	
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Initializes the stub implementation and configuration.
@@ -342,7 +371,7 @@ public class MatchTask extends AbstractTask {
 	 * @throws IllegalConfigurationException
 	 *         Thrown if the local strategy is not supported.
 	 */
-	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) throws RuntimeException {
+	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) {
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain task manager's IO manager
@@ -422,7 +451,7 @@ public class MatchTask extends AbstractTask {
 			this.v1Copier.setCopy(firstV1);
 			
 			matchStub.match(key, firstV1, firstV2, output);
-			while (v2HasNext) {
+			while (v2HasNext && !this.taskCanceled) {
 				key = this.keySerialization.newInstance();
 				this.keyCopier.getCopy(key);
 				v1 = this.v1Serialization.newInstance();
@@ -433,7 +462,7 @@ public class MatchTask extends AbstractTask {
 				matchStub.match(key, v1, v2, output);
 			}
 
-		} else if (!v2HasNext) {
+		} else if (!v2HasNext && !this.taskCanceled) {
 			// only values2 contains only one value
 			this.v2Copier.setCopy(firstV2);
 			
@@ -490,7 +519,7 @@ public class MatchTask extends AbstractTask {
 				this.v2Copier.setCopy(firstV2);
 				
 				// run through resettable iterator with firstV2
-				while (v1ResettableIterator.hasNext()) {
+				while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
 					key = this.keySerialization.newInstance();
 					this.keyCopier.getCopy(key);
 					v2 = this.v2Serialization.newInstance();
@@ -502,12 +531,12 @@ public class MatchTask extends AbstractTask {
 				v1ResettableIterator.reset();
 				
 				// run through resettable iterator for each v2
-				while(values2.hasNext()) {
+				while(values2.hasNext() && !this.taskCanceled) {
 					
 					v2 = values2.next();
 					this.v2Copier.setCopy(v2);
 					
-					while (v1ResettableIterator.hasNext()) {
+					while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
 						key = this.keySerialization.newInstance();
 						this.keyCopier.getCopy(key);
 						v2 = this.v2Serialization.newInstance();
