@@ -363,14 +363,14 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 
 			// Request closing of input and output gates, but don't wait for it
-			/*try { //TODO: Fix this
-				closeInputGates();
-
-				requestAllOutputGatesToClose();
-
-			} catch (IOException ioe) {
-				LOG.error(StringUtils.stringifyException(ioe));
-			}*/
+			/*
+			 * try { //TODO: Fix this
+			 * closeInputGates();
+			 * requestAllOutputGatesToClose();
+			 * } catch (IOException ioe) {
+			 * LOG.error(StringUtils.stringifyException(ioe));
+			 * }
+			 */
 
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
@@ -397,8 +397,13 @@ public class Environment implements Runnable, IOReadableWritable {
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
 		} catch (Exception e) {
-			// Report exception
-			changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+
+			if (this.isCanceled) {
+				changeExecutionState(ExecutionState.CANCELED, null);
+			} else {
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+			}
+
 			return;
 		}
 
@@ -702,11 +707,18 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurred while closing the output channels
+	 * @throws InterruptedException
+	 *         thrown if the thread waiting for the channels to be closed is interrupted
 	 */
-	private void waitForOutputChannelsToBeClosed() throws IOException {
+	private void waitForOutputChannelsToBeClosed() throws IOException, InterruptedException {
 
 		// Wait for disconnection of all output gates
 		while (true) {
+
+			// Make sure, we leave this method with an InterruptedException when the task has been canceled
+			if (this.isCanceled) {
+				throw new InterruptedException();
+			}
 
 			boolean allClosed = true;
 			for (int i = 0; i < getNumberOfOutputGates(); i++) {
@@ -719,11 +731,7 @@ public class Environment implements Runnable, IOReadableWritable {
 			if (allClosed) {
 				break;
 			} else {
-				try {
-					Thread.sleep(SLEEPINTERVAL);
-				} catch (InterruptedException e) {
-					LOG.debug(e);
-				}
+				Thread.sleep(SLEEPINTERVAL);
 			}
 		}
 	}
@@ -733,11 +741,18 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurred while closing the input channels
+	 * @throws InterruptedException
+	 *         thrown if the thread waiting for the channels to be closed is interrupted
 	 */
-	private void waitForInputChannelsToBeClosed() throws IOException {
+	private void waitForInputChannelsToBeClosed() throws IOException, InterruptedException {
 
 		// Wait for disconnection of all output gates
 		while (true) {
+
+			// Make sure, we leave this method with an InterruptedException when the task has been canceled
+			if (this.isCanceled) {
+				throw new InterruptedException();
+			}
 
 			boolean allClosed = true;
 			for (int i = 0; i < getNumberOfInputGates(); i++) {
@@ -750,11 +765,7 @@ public class Environment implements Runnable, IOReadableWritable {
 			if (allClosed) {
 				break;
 			} else {
-				try {
-					Thread.sleep(SLEEPINTERVAL);
-				} catch (InterruptedException e) {
-					LOG.debug(e);
-				}
+				Thread.sleep(SLEEPINTERVAL);
 			}
 		}
 	}
@@ -938,6 +949,12 @@ public class Environment implements Runnable, IOReadableWritable {
 
 	public void changeExecutionState(ExecutionState newExecutionState, String optionalMessage) {
 
+		// Ignore state changes in final states
+		if (this.executionState == ExecutionState.CANCELED || this.executionState == ExecutionState.FINISHED
+				|| this.executionState == ExecutionState.FAILED) {
+			return;
+		}
+
 		LOG.info("ExecutionState set from " + executionState + " to " + newExecutionState + " for task "
 			+ this.getTaskName() + " (" + (this.getIndexInSubtaskGroup() + 1) + "/" + this.getCurrentNumberOfSubtasks()
 			+ ")");
@@ -1026,7 +1043,6 @@ public class Environment implements Runnable, IOReadableWritable {
 			while (it.hasNext()) {
 				it.next().executionStateChanged(this, newExecutionState, optionalMessage);
 			}
-
 		}
 	}
 

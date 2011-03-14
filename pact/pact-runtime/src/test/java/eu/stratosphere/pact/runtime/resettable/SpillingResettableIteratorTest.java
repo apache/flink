@@ -21,8 +21,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Vector;
 
-import junit.framework.Assert;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,8 +37,9 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
+import junit.framework.Assert;
 
 public class SpillingResettableIteratorTest {
 
@@ -59,6 +58,7 @@ public class SpillingResettableIteratorTest {
 	private RecordDeserializer<PactInteger> deserializer;
 
 	protected class CollectionReader<T extends Record> implements Reader<T> {
+
 		private Vector<T> objects;
 
 		private int position = 0;
@@ -106,8 +106,7 @@ public class SpillingResettableIteratorTest {
 			this.objects.add(tmp);
 		}
 		// create the deserializer
-		this.deserializer = new DefaultRecordDeserializer<PactInteger>(
-				PactInteger.class);
+		this.deserializer = new DefaultRecordDeserializer<PactInteger>(PactInteger.class);
 	}
 
 	@After
@@ -123,22 +122,21 @@ public class SpillingResettableIteratorTest {
 	}
 
 	/**
-	 * Tests the resettable iterator with too few memory, so that the data has
-	 * to be written to disk.
+	 * Tests the resettable iterator with too few memory, so that the data
+	 * has to be written to disk.
 	 * 
 	 * @throws ServiceException
 	 * @throws InterruptedException
 	 */
 	@Test
-	public void testResettableIterator() throws ServiceException,
-			InterruptedException {
+	public void testResettableIterator() throws ServiceException, InterruptedException {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
-				memman, ioman, reader, 1000, deserializer, memOwner);
+		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -148,32 +146,26 @@ public class SpillingResettableIteratorTest {
 		// now test walking through the iterator
 		int count = 0;
 		while (iterator.hasNext())
-			Assert.assertEquals("In initial run, element " + count
-					+ " does not match expected value!", count++, iterator
-					.next().getValue());
-		Assert.assertEquals(
-				"Too few elements were deserialzied in initial run!",
-				NUMTESTRECORDS, count);
+			Assert.assertEquals("In initial run, element " + count + " does not match expected value!", count++,
+				iterator.next().getValue());
+		Assert.assertEquals("Too few elements were deserialzied in initial run!", NUMTESTRECORDS, count);
 		// test resetting the iterator a few times
 		for (int j = 0; j < 10; ++j) {
 			count = 0;
 			iterator.reset();
 			// now we should get the same results
 			while (iterator.hasNext())
-				Assert.assertEquals("After reset nr. " + j + 1 + " element "
-						+ count + " does not match expected value!", count++,
-						iterator.next().getValue());
-			Assert.assertEquals(
-					"Too few elements were deserialzied after reset nr. " + j
-							+ 1 + "!", NUMTESTRECORDS, count);
+				Assert.assertEquals("After reset nr. " + j + 1 + " element " + count
+					+ " does not match expected value!", count++, iterator.next().getValue());
+			Assert.assertEquals("Too few elements were deserialzied after reset nr. " + j + 1 + "!", NUMTESTRECORDS,
+				count);
 		}
 		// close the iterator
 		iterator.close();
 
 		// make sure there are no memory leaks
 		try {
-			MemorySegment test = memman.allocate(new DummyInvokable(),
-					memoryCapacity);
+			MemorySegment test = memman.allocate(new DummyInvokable(), memoryCapacity);
 			memman.release(test);
 		} catch (Exception e) {
 			Assert.fail("Memory leak detected. SpillingResettableIterator does not release all memory.");
@@ -181,22 +173,21 @@ public class SpillingResettableIteratorTest {
 	}
 
 	/**
-	 * Tests the resettable iterator with enough memory so that all data is kept
-	 * locally in a membuffer.
+	 * Tests the resettable iterator with enough memory so that all data
+	 * is kept locally in a membuffer.
 	 * 
 	 * @throws ServiceException
 	 * @throws InterruptedException
 	 */
 	@Test
-	public void testResettableIteratorInMemory() throws ServiceException,
-			InterruptedException {
+	public void testResettableIteratorInMemory() throws ServiceException, InterruptedException {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable iterator
-		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
-				memman, ioman, reader, 10000, deserializer, memOwner);
+		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
+			reader, 10000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -206,31 +197,25 @@ public class SpillingResettableIteratorTest {
 		// now test walking through the iterator
 		int count = 0;
 		while (iterator.hasNext())
-			Assert.assertEquals("In initial run, element " + count
-					+ " does not match expected value!", count++, iterator
-					.next().getValue());
-		Assert.assertEquals(
-				"Too few elements were deserialzied in initial run!",
-				NUMTESTRECORDS, count);
+			Assert.assertEquals("In initial run, element " + count + " does not match expected value!", count++,
+				iterator.next().getValue());
+		Assert.assertEquals("Too few elements were deserialzied in initial run!", NUMTESTRECORDS, count);
 		// test resetting the iterator a few times
 		for (int j = 0; j < 10; ++j) {
 			count = 0;
 			iterator.reset();
 			// now we should get the same results
 			while (iterator.hasNext())
-				Assert.assertEquals("After reset nr. " + j + 1 + " element "
-						+ count + " does not match expected value!", count++,
-						iterator.next().getValue());
-			Assert.assertEquals(
-					"Too few elements were deserialzied after reset nr. " + j
-							+ 1 + "!", NUMTESTRECORDS, count);
+				Assert.assertEquals("After reset nr. " + j + 1 + " element " + count
+					+ " does not match expected value!", count++, iterator.next().getValue());
+			Assert.assertEquals("Too few elements were deserialzied after reset nr. " + j + 1 + "!", NUMTESTRECORDS,
+				count);
 		}
 		// close the iterator
 		iterator.close();
 		// make sure there are no memory leaks
 		try {
-			MemorySegment test = memman.allocate(new DummyInvokable(),
-					memoryCapacity);
+			MemorySegment test = memman.allocate(new DummyInvokable(), memoryCapacity);
 			memman.release(test);
 		} catch (Exception e) {
 			Assert.fail("Memory leak detected. SpillingResettableIterator does not release all memory.");
@@ -238,8 +223,7 @@ public class SpillingResettableIteratorTest {
 	}
 
 	/**
-	 * Tests whether multiple call of hasNext() changes the state of the
-	 * iterator
+	 * Tests whether multiple call of hasNext() changes the state of the iterator
 	 */
 	@Test
 	public void testHasNext() throws ServiceException, InterruptedException {
@@ -248,8 +232,8 @@ public class SpillingResettableIteratorTest {
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
-				memman, ioman, reader, 1000, deserializer, memOwner);
+		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -264,51 +248,8 @@ public class SpillingResettableIteratorTest {
 			cnt++;
 		}
 
-		Assert.assertTrue(cnt + " elements read from iterator, but "
-				+ NUMTESTRECORDS + " expected", cnt == NUMTESTRECORDS);
-
-	}
-
-	/**
-	 * Tests whether multiple call of hasNext() changes the state of the
-	 * iterator
-	 */
-	@Test
-	public void testHasNextPactNull() throws ServiceException,
-			InterruptedException {
-		final AbstractInvokable memOwner = new DummyInvokable();
-
-		List<PactNull> objects = new ArrayList<PactNull>();
-		final int NUM_ELEMENTS = 12;
-		for (int i = 0; i < NUM_ELEMENTS; i++) {
-			objects.add(new PactNull());
-		}
-
-		DefaultRecordDeserializer<PactNull> deserializer = new DefaultRecordDeserializer<PactNull>(
-				PactNull.class);
-
-		// create the reader
-		CollectionReader<PactNull> reader = new CollectionReader<PactNull>(
-				objects);
-		// create the resettable Iterator
-		SpillingResettableIterator<PactNull> iterator = new SpillingResettableIterator<PactNull>(
-				memman, ioman, reader, 1000, deserializer, memOwner);
-		// open the iterator
-		try {
-			iterator.open();
-		} catch (IOException e) {
-			Assert.fail("Could not open resettable iterator:" + e.getMessage());
-		}
-
-		int cnt = 0;
-		while (iterator.hasNext()) {
-			iterator.hasNext();
-			iterator.next();
-			cnt++;
-		}
-
-		Assert.assertTrue(cnt + " elements read from iterator, but "
-				+ NUM_ELEMENTS + " expected", cnt == NUM_ELEMENTS);
+		Assert.assertTrue(cnt + " elements read from iterator, but " + NUMTESTRECORDS + " expected",
+			cnt == NUMTESTRECORDS);
 
 	}
 
@@ -325,8 +266,8 @@ public class SpillingResettableIteratorTest {
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
-				memman, ioman, reader, 1000, deserializer, memOwner);
+		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -338,19 +279,16 @@ public class SpillingResettableIteratorTest {
 		int cnt = 0;
 		while (cnt < NUMTESTRECORDS) {
 			record = iterator.next();
-			Assert.assertTrue("Record was not read from iterator",
-					record != null);
+			Assert.assertTrue("Record was not read from iterator", record != null);
 			cnt++;
 		}
 
 		record = iterator.next();
-		Assert.assertTrue("Too many records were read from iterator",
-				record == null);
+		Assert.assertTrue("Too many records were read from iterator", record == null);
 	}
 
 	/**
-	 * Tests whether lastReturned() returns the latest returned element read
-	 * from spilled file.
+	 * Tests whether lastReturned() returns the latest returned element read from spilled file.
 	 */
 	@Test
 	public void testRepeatLast() throws ServiceException, InterruptedException {
@@ -359,8 +297,8 @@ public class SpillingResettableIteratorTest {
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
-				memman, ioman, reader, 1000, deserializer, memOwner);
+		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
+			reader, 1000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -378,38 +316,31 @@ public class SpillingResettableIteratorTest {
 			record2 = iterator.repeatLast();
 			compare = objects.get(cnt);
 
-			Assert.assertTrue(
-					"Record read with next() does not equal expected value",
-					record1.equals(compare));
-			Assert.assertTrue(
-					"Record read with next() does not equal record read with lastReturned()",
-					record1.equals(record2));
-			Assert.assertTrue(
-					"Records read with next() and lastReturned have same reference",
-					record1 != record2);
+			Assert.assertTrue("Record read with next() does not equal expected value", record1.equals(compare));
+			Assert.assertTrue("Record read with next() does not equal record read with lastReturned()",
+				record1.equals(record2));
+			Assert.assertTrue("Records read with next() and lastReturned have same reference", record1 != record2);
 
 			cnt++;
 		}
 
-		Assert.assertTrue(cnt + " elements read from iterator, but "
-				+ NUMTESTRECORDS + " expected", cnt == NUMTESTRECORDS);
+		Assert.assertTrue(cnt + " elements read from iterator, but " + NUMTESTRECORDS + " expected",
+			cnt == NUMTESTRECORDS);
 
 	}
 
 	/**
-	 * Tests whether lastReturned() returns the latest returned element read
-	 * from memory.
+	 * Tests whether lastReturned() returns the latest returned element read from memory.
 	 */
 	@Test
-	public void testRepeatLastInMemory() throws ServiceException,
-			InterruptedException {
+	public void testRepeatLastInMemory() throws ServiceException, InterruptedException {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(
-				memman, ioman, reader, 10000, deserializer, memOwner);
+		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
+			reader, 10000, deserializer, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -427,21 +358,16 @@ public class SpillingResettableIteratorTest {
 			record2 = iterator.repeatLast();
 			compare = objects.get(cnt);
 
-			Assert.assertTrue(
-					"Record read with next() does not equal expected value",
-					record1.equals(compare));
-			Assert.assertTrue(
-					"Record read with next() does not equal record read with lastReturned()",
-					record1.equals(record2));
-			Assert.assertTrue(
-					"Records read with next() and lastReturned have same reference",
-					record1 != record2);
+			Assert.assertTrue("Record read with next() does not equal expected value", record1.equals(compare));
+			Assert.assertTrue("Record read with next() does not equal record read with lastReturned()",
+				record1.equals(record2));
+			Assert.assertTrue("Records read with next() and lastReturned have same reference", record1 != record2);
 
 			cnt++;
 		}
 
-		Assert.assertTrue(cnt + " elements read from iterator, but "
-				+ NUMTESTRECORDS + " expected", cnt == NUMTESTRECORDS);
+		Assert.assertTrue(cnt + " elements read from iterator, but " + NUMTESTRECORDS + " expected",
+			cnt == NUMTESTRECORDS);
 
 	}
 

@@ -96,4 +96,13 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         if an error occurs during this remote procedure call
 	 */
 	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
+
+	/**
+	 * Triggers the task manager write the current utilization of its read and write buffers to its logs.
+	 * This method is primarily for debugging purposes.
+	 * 
+	 * @throws IOException
+	 *         throws if an error occurs while transmitting the request
+	 */
+	void logBufferUtilization() throws IOException;
 }

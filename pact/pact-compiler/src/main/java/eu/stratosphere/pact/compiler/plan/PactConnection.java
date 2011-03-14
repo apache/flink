@@ -163,13 +163,25 @@ public class PactConnection {
 	 *        The shipping strategy to be applied to this connection.
 	 */
 	public void setShipStrategy(ShipStrategy strategy) {
-		// TODO: Arvid: this should be checked within the compiler
-		// // this check is for debugging purposes: it checks, that a ship strategy (other than none)
-		// // is not changed by the compiler
-		// if (this.shipStrategy != ShipStrategy.NONE && this.shipStrategy != strategy) {
-		// throw new CompilerException("Internal error: Compiler attempts to change a fixed shipping strategy.");
-		// }
-
+		// adjust the ship strategy to the interesting properties, if necessary
+		if (strategy == ShipStrategy.FORWARD && sourcePact.getDegreeOfParallelism() < targetPact.getDegreeOfParallelism()) {
+			// check, whether we have an interesting property on partitioning. if so, make sure that we use a
+			// forward strategy that preserves that partitioning by locally routing the keys correctly
+			if(this.interestingProps != null) {
+				for (InterestingProperties props : this.interestingProps) {
+					PartitionProperty pp = props.getGlobalProperties().getPartitioning();
+					if (pp == PartitionProperty.HASH_PARTITIONED || pp == PartitionProperty.ANY) {
+						strategy = ShipStrategy.PARTITION_LOCAL_HASH;
+						break;
+					}
+					else if (pp == PartitionProperty.RANGE_PARTITIONED) {
+						throw new CompilerException("Range partitioning during forwards with changing degree " +
+								"of parallelism is currently not handled!");
+					}
+				}
+			}
+		}
+		
 		this.shipStrategy = strategy;
 	}
 
@@ -248,7 +260,7 @@ public class PactConnection {
 	 * @return The global data properties of the output data.
 	 */
 	public GlobalProperties getGlobalProperties() {
-		return PactConnection.getGlobalPropertiesAfterConnection(sourcePact, shipStrategy);
+		return PactConnection.getGlobalPropertiesAfterConnection(sourcePact, targetPact, shipStrategy);
 	}
 
 	/**
@@ -257,7 +269,7 @@ public class PactConnection {
 	 * @return The local data properties of the output data.
 	 */
 	public LocalProperties getLocalProperties() {
-		return PactConnection.getLocalPropertiesAfterConnection(sourcePact, shipStrategy);
+		return PactConnection.getLocalPropertiesAfterConnection(sourcePact, targetPact, shipStrategy);
 	}
 
 	/*
@@ -304,7 +316,7 @@ public class PactConnection {
 	 * 
 	 * @return The properties of the data after this channel.
 	 */
-	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, ShipStrategy shipMode) {
+	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
 
 		switch (shipMode) {
@@ -319,7 +331,10 @@ public class PactConnection {
 			gp.setKeyOrder(Order.NONE);
 			break;
 		case FORWARD:
-			// nothing changes
+			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
+				gp.setKeyOrder(Order.NONE);
+			}
+			// nothing else changes
 			break;
 		case NONE:
 			throw new CompilerException(
@@ -338,12 +353,21 @@ public class PactConnection {
 	 * 
 	 * @return The properties of the data after a channel using the given strategy.
 	 */
-	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, ShipStrategy shipMode) {
+	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		LocalProperties lp = source.getLocalProperties().createCopy();
 
 		if (shipMode == null || shipMode == ShipStrategy.NONE) {
 			throw new CompilerException("Cannot determine properties if shipping strategy is not defined.");
-		} else if (shipMode != ShipStrategy.FORWARD) {
+		}
+		else if (shipMode == ShipStrategy.FORWARD) {
+			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
+				// any order is destroyed by the random merging of the inputs
+				lp.setKeyOrder(Order.NONE);
+				// keys are only grouped if they are unique
+				lp.setKeysGrouped(lp.isKeyUnique());
+			}
+		}
+		else {
 			lp.reset();
 		}
 

@@ -35,9 +35,9 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class IOManagerPerformanceITCase
+public class IOManagerPerformanceBenchmark
 {
-	private static final Log LOG = LogFactory.getLog(IOManagerPerformanceITCase.class);
+	private static final Log LOG = LogFactory.getLog(IOManagerPerformanceBenchmark.class);
 	
 	private static final int[] SEGMENT_SIZES_ALIGNED = { 4096, 16384, 524288 };
 	
