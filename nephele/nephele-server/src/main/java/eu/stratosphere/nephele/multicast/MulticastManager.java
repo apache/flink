@@ -64,11 +64,17 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 *        the ID of the channel to resolve
 	 * @return the lookup response containing the connection info and a return code
 	 */
-	public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
+	public synchronized ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
 			ChannelID sourceChannelID) {
 
+		
+		System.out.println("==RECEIVING REQUEST FROM " + caller + " == SOURCE CHANNEL:  " + sourceChannelID);
 		// check, if the tree is already created and cached
-		if (this.cachedTrees.containsKey(caller)) {
+		if (this.cachedTrees.containsKey(sourceChannelID)) {
+			System.out.println("==RETURNING CACHED ENTRY TO " + caller + " ==");
+			System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));
+			System.out.println("==END ENTRY==");
+
 			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 		} else {
 
@@ -77,11 +83,13 @@ public class MulticastManager implements ChannelLookupProtocol {
 			// first check, if all receivers are up and ready
 			if (!checkIfAllTargetVerticesExist(caller, jobID, sourceChannelID)) {
 				// not all target vertices exist..
+				System.out.println("== NOT ALL RECEIVERS FOUND==");
 				return ConnectionInfoLookupResponse.createReceiverNotFound();
 			}
 
 			if (!checkIfAllTargetVerticesReady(caller, jobID, sourceChannelID)) {
 				// not all target vertices are ready..
+				System.out.println("== NOT ALL RECEIVERS READY==");
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
@@ -89,6 +97,10 @@ public class MulticastManager implements ChannelLookupProtocol {
 			LinkedList<TreeNode> treenodes = extractTreeNodes(caller, jobID, sourceChannelID);
 			cachedTrees.put(sourceChannelID, createSequentialTree(treenodes));
 
+			
+			System.out.println("==RETURNING ENTRY TO " + caller + " ==");
+			System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));
+			System.out.println("==END ENTRY==");
 			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 
 		}
@@ -105,24 +117,30 @@ public class MulticastManager implements ChannelLookupProtocol {
 	private MulticastForwardingTable createSequentialTree(LinkedList<TreeNode> nodes) {
 		MulticastForwardingTable table = new MulticastForwardingTable();
 
+		
+		System.out.println("+++TREE+++");
 		while (nodes.size() > 0) {
 			TreeNode actualnode = nodes.pollFirst();
-
+			
+			System.out.println("POLL FIRST: " + actualnode.getConnectionInfo());
+			
 			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 
 			// add all local targets
 			for (ChannelID id : actualnode.getLocalTargets()) {
+				System.out.println("local target: " + id);
 				actualentry.addLocalTarget(id);
 			}
 
 			// add remote target - next node in the list
 			if (nodes.size() > 0) {
+				System.out.println("remote target: " + nodes.getFirst().getConnectionInfo());
 				actualentry.addRemoteTarget(nodes.getFirst().getConnectionInfo());
 			}
 
 			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
 		}
-
+		System.out.println("+++END TREE+++");
 		return table;
 	}
 
@@ -192,12 +210,15 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 * @return
 	 */
 	private LinkedList<TreeNode> extractTreeNodes(InstanceConnectionInfo source, JobID jobID, ChannelID sourceChannelID) {
+		System.out.println("==NO CACHE ENTRY FOUND. CREATING TREE==");
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 
 		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
 
 		final OutputGate<? extends Record> broadcastgate = outputChannel.getOutputGate();
 
+		System.out.println("Output gate is: " + broadcastgate.toString());
+		
 		final LinkedList<AbstractOutputChannel<? extends Record>> outputChannels = new LinkedList<AbstractOutputChannel<? extends Record>>();
 
 		// get all broadcast output channels
@@ -207,13 +228,19 @@ public class MulticastManager implements ChannelLookupProtocol {
 			}
 		}
 
+		System.out.println("Number of output channels attached: " + outputChannels.size());
+
+		for(AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()){
+			System.out.println("Out channel ID: " + c.getID() + " connected channel: " + c.getConnectedChannelID() + " target instance: " + eg.getVertexByChannelID(c.getConnectedChannelID()).getAllocatedResource().getInstance().getInstanceConnectionInfo());
+		}
+		
 		final LinkedList<TreeNode> treenodes = new LinkedList<TreeNode>();
 
 		TreeNode actualnode;
 
 		// create sender node (root) with source instance
 		actualnode = new TreeNode(source);
-
+		
 		// search for local targets for the tree node
 		for (Iterator<AbstractOutputChannel<? extends Record>> iter = outputChannels.iterator(); iter.hasNext();) {
 
@@ -224,6 +251,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 			// is the target vertex running on the same instance?
 			if (targetVertex.getAllocatedResource().getInstance().getInstanceConnectionInfo().equals(source)) {
 				actualnode.addLocalTarget(actualoutputchannel.getConnectedChannelID());
+
 
 				iter.remove();
 
@@ -237,19 +265,23 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		while (outputChannels.size() > 0) {
 
+		
 			AbstractOutputChannel<? extends Record> firstChannel = outputChannels.pollFirst();
 
 			ExecutionVertex firstTarget = eg.getVertexByChannelID(firstChannel.getConnectedChannelID());
 
+			
 			InstanceConnectionInfo actualinstance = firstTarget.getAllocatedResource().getInstance()
 				.getInstanceConnectionInfo();
 
+			
 			// create tree node for current instance
 			actualnode = new TreeNode(actualinstance);
 
 			// add first local target
 			actualnode.addLocalTarget(firstChannel.getConnectedChannelID());
 
+			
 			// now we iterate through the remaining channels to find other local targets...
 			for (Iterator<AbstractOutputChannel<? extends Record>> iter = outputChannels.iterator(); iter.hasNext();) {
 				AbstractOutputChannel<? extends Record> actualoutputchannel = iter.next();

@@ -147,4 +147,18 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 		return response;
 	}
+	
+	@Override
+	public String toString(){
+		StringBuilder returnstring = new StringBuilder();
+		returnstring.append("local targets (total: " + this.localTargets.size() + "):\n");
+		for(ChannelID i: this.localTargets){
+			returnstring.append(i + "\n");
+		}
+		returnstring.append("remote targets: (total: " + this.remoteTargets.size() + "):\n");
+		for(InstanceConnectionInfo i: this.remoteTargets){
+			returnstring.append(i + "\n");
+		}
+		return returnstring.toString();
+	}
 }
