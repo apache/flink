@@ -100,9 +100,21 @@ public abstract class TestBase extends TestCase {
 		preSubmit();
 
 		// submit job
-		JobGraph jobGraph = getJobGraph();
-		cluster.submitJobAndWait(jobGraph, getJarFilePath());
-
+		JobGraph jobGraph = null;
+		try {
+			jobGraph = getJobGraph();
+		} catch(Exception e) {
+			LOG.error(e);
+			Assert.fail("Failed to obtain JobGraph!");
+		}
+		
+		try {
+			cluster.submitJobAndWait(jobGraph, getJarFilePath());
+		} catch(Exception e) {
+			LOG.error(e);
+			Assert.fail("Job execution failed!");
+		}
+		
 		// post-submit
 		postSubmit();
 	}
