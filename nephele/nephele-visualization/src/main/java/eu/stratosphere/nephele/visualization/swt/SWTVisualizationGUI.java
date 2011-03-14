@@ -92,6 +92,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private long lastClickTime = 0;
 
+	private int printBufferCounter = 0;
+	
 	private Map<JobID, GraphVisualizationData> visualizableJobs = new HashMap<JobID, GraphVisualizationData>();
 
 	/**
@@ -276,7 +278,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		try {
 
 			// Check for new jobs
-			final List<NewJobEvent> newJobs = jobManager.getNewJobs();
+			final List<NewJobEvent> newJobs = this.jobManager.getNewJobs();
 			if (!newJobs.isEmpty()) {
 				final Iterator<NewJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
@@ -319,6 +321,12 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 						// Clean up
 						cleanUpOldEvents(QUERYINTERVAL * 1000);
+					}
+					
+					//Print buffer distribution for debugging
+					if(this.printBufferCounter++ == 10) {
+						this.jobManager.logBufferUtilization(jobID);
+						this.printBufferCounter = 0;
 					}
 				}
 

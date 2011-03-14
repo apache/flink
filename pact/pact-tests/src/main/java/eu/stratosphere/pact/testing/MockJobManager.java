@@ -79,4 +79,8 @@ final class MockJobManager implements ExtendedManagementProtocol {
 	public static Object getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public void logBufferUtilization(JobID jobID) throws IOException {
+	}
 }
