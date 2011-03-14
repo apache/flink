@@ -118,4 +118,15 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *         thrown if an error occurs while transmitting the list
 	 */
 	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() throws IOException;
+
+	/**
+	 * Triggers all task managers involved in processing the job with the given job ID to write the utilization of
+	 * their read and write buffers to their log files. This method is primarily for debugging purposes.
+	 * 
+	 * @param jobID
+	 *        the ID of the job to print the buffer distribution for
+	 * @throws IOException
+	 *         throws if an error occurs while transmitting the request
+	 */
+	void logBufferUtilization(JobID jobID) throws IOException;
 }

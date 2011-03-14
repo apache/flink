@@ -447,8 +447,11 @@ public class ByteBufferedChannelManager {
 			// Find previous connection
 			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
 
-			// Set previous connection if there is any and set sequence number to expect
-			incomingConnection.setPreviousConnection(previousConnection);
+			if (previousConnection != null) {
+				LOG.warn("Found previous connection for " + incomingConnectionID);
+				previousConnection.markConnectionAsInactive();
+			}
+
 			this.incomingConnections.put(incomingConnectionID, incomingConnection);
 		}
 
@@ -464,6 +467,7 @@ public class ByteBufferedChannelManager {
 			ReadableByteChannel readableByteChannel) {
 
 		synchronized (this.incomingConnections) {
+
 			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
 			if (incomingConnection == null) {
 				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
@@ -764,5 +768,32 @@ public class ByteBufferedChannelManager {
 
 	public FileBufferManager getFileBufferManager() {
 		return this.fileBufferManager;
+	}
+
+	/**
+	 * Triggers the byte buffer channel manager write the current utilization of its read and write buffers to the logs.
+	 * This method is primarily for debugging purposes.
+	 */
+	public void logBufferUtilization() {
+
+		System.out.println("Buffer utilization for at " + System.currentTimeMillis());
+		synchronized (this.emptyWriteBuffers) {
+			System.out.println("\tEmpty write buffers: " + this.emptyWriteBuffers.size());
+		}
+		synchronized (this.emptyReadBuffers) {
+			System.out.println("\tEmpty read buffers: " + this.emptyReadBuffers.size());
+		}
+		synchronized (this.outgoingConnections) {
+
+			final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
+				System.out.println("\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
+			}
+		}
+
 	}
 }

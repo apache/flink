@@ -191,4 +191,8 @@ class MockTaskManager implements TaskOperationProtocol {
 	public void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 	}
 
+	@Override
+	public void logBufferUtilization() throws IOException {
+	}
+
 }
