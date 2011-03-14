@@ -949,6 +949,12 @@ public class Environment implements Runnable, IOReadableWritable {
 
 	public void changeExecutionState(ExecutionState newExecutionState, String optionalMessage) {
 
+		// Ignore state changes in final states
+		if (this.executionState == ExecutionState.CANCELED || this.executionState == ExecutionState.FINISHED
+				|| this.executionState == ExecutionState.FAILED) {
+			return;
+		}
+
 		LOG.info("ExecutionState set from " + executionState + " to " + newExecutionState + " for task "
 			+ this.getTaskName() + " (" + (this.getIndexInSubtaskGroup() + 1) + "/" + this.getCurrentNumberOfSubtasks()
 			+ ")");
@@ -1037,7 +1043,6 @@ public class Environment implements Runnable, IOReadableWritable {
 			while (it.hasNext()) {
 				it.next().executionStateChanged(this, newExecutionState, optionalMessage);
 			}
-
 		}
 	}
 
