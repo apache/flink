@@ -36,7 +36,7 @@ import eu.stratosphere.pact.test.util.FailingTestBase;
  *
  */
 @RunWith(Parameterized.class)
-public class RuntimeExceptionFailureITCase extends FailingTestBase {
+public class TaskFailureITCase extends FailingTestBase {
 
 	/**
 	 * {@inheritDoc}
@@ -44,12 +44,12 @@ public class RuntimeExceptionFailureITCase extends FailingTestBase {
 	 * @param clusterConfig
 	 * @param testConfig
 	 */
-	public RuntimeExceptionFailureITCase(String clusterConfig, Configuration testConfig) {
+	public TaskFailureITCase(String clusterConfig, Configuration testConfig) {
 		super(testConfig,clusterConfig);
 	}
 
 	// log
-	private static final Log LOG = LogFactory.getLog(RuntimeExceptionFailureITCase.class);
+	private static final Log LOG = LogFactory.getLog(TaskFailureITCase.class);
 
 	// input for map tasks
 	private static final String MAP_IN_1 = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n";
@@ -196,7 +196,7 @@ public class RuntimeExceptionFailureITCase extends FailingTestBase {
 		config.setInteger("MapTest#NoSubtasks", 4);
 		testConfigs.add(config);
 
-		return toParameterList(RuntimeExceptionFailureITCase.class, testConfigs);
+		return toParameterList(TaskFailureITCase.class, testConfigs);
 	}
 
 	/**
