@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.io.channels.direct.AbstractDirectInputChannel;
 import eu.stratosphere.nephele.io.channels.direct.AbstractDirectOutputChannel;
 import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.channels.direct.InMemoryOutputChannel;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -193,7 +192,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	}
 
 	@Override
-	public void logBufferUtilization(JobID jobID) throws IOException {
+	public void logBufferUtilization() throws IOException {
 	}
 
 }
