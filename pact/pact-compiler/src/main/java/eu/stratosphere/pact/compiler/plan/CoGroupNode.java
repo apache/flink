@@ -332,7 +332,7 @@ public class CoGroupNode extends TwoInputNode {
 						if (gp2.getPartitioning().isComputablyPartitioned()) {
 							// input is partitioned
 							// check, whether that partitioning is the same as the one of input one!
-							if ((!gp1.getPartitioning().isPartitioned())
+							if ((!gp1.getPartitioning().isComputablyPartitioned())
 								|| gp1.getPartitioning() == gp2.getPartitioning()) {
 								ss2 = ShipStrategy.FORWARD;
 							} else {
@@ -426,7 +426,7 @@ public class CoGroupNode extends TwoInputNode {
 							// ShipStrategy.PARTITION_RANGE, estimator);
 						}
 					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
@@ -466,7 +466,7 @@ public class CoGroupNode extends TwoInputNode {
 
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
 					gp2 = pred2.getGlobalProperties();
 
 					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
@@ -505,9 +505,9 @@ public class CoGroupNode extends TwoInputNode {
 				} else {
 					// both are fixed
 					// check, if they produce a valid plan. for that, we need to have an equal partitioning
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
-					if (gp1.getPartitioning().isPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+					gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
 						// partitioning there and equal
 						createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
 					} else {
@@ -558,10 +558,10 @@ public class CoGroupNode extends TwoInputNode {
 	private void createCoGroupAlternative(List<CoGroupNode> target, OptimizerNode pred1, OptimizerNode pred2,
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator) {
 		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
+		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
 
-		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, ss1);
-		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, ss2);
+		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
+		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
 
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();

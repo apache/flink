@@ -320,12 +320,12 @@ public class ReduceNode extends SingleInputNode {
 					// ss2 = ShipStrategy.PARTITION_RANGE;
 				}
 
-				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(pred, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
 			} else {
 				// fixed strategy
-				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(pred, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
 
 				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
 					// the shipping strategy is fixed to a value that does not leave us with

@@ -548,14 +548,12 @@ public class MatchTask extends AbstractTask {
 					v1ResettableIterator.reset();
 				}
 				
-				// close resettable iterator and release memory
-				v1ResettableIterator.close();
-				
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			} finally {
 				if(v1ResettableIterator != null) {
 					try {
+						// close resettable iterator and release memory
 						v1ResettableIterator.close();
 					} catch (ServiceException e) {
 						LOG.warn(e);

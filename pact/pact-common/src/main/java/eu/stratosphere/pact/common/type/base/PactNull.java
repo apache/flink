@@ -97,7 +97,7 @@ public final class PactNull implements Key {
 	 */
 	@Override
 	public boolean equals(Object o) {
-		return (o.getClass() == PactNull.class);
+		return (o != null && o.getClass() == PactNull.class);
 	}
 
 	/*

@@ -148,9 +148,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 				edge = new Edge(new PactString(rdfObj), new PactString(rdfSubj));
 			}
 
-			EdgeList edgeList = new EdgeList();
-			edgeList.add(edge);
-
 			pair.setKey(edge);
 			pair.setValue(new PactNull());
 
