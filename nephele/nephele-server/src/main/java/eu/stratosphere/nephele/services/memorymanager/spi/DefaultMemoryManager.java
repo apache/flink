@@ -177,12 +177,21 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 	//                 MemoryManager interface implementation
 	// ------------------------------------------------------------------------
-
+	
+	public List<MemorySegment> allocate(AbstractInvokable owner, int numDesiredSegments, int desiredSegmentSize, int minimalSegmentSize)
+	throws MemoryAllocationException
+	{
+		ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(numDesiredSegments + 1);
+		
+		
+		return segments;
+	}
+	
 	/*
 	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, int)
 	 */
 	@Override
-	public synchronized MemorySegment allocate(AbstractInvokable owner, int segmentSize)
+	public MemorySegment allocate(AbstractInvokable owner, int segmentSize)
 	throws MemoryAllocationException
 	{
 		if (segmentSize < 1) {

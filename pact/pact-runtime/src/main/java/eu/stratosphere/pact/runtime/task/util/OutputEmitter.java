@@ -40,7 +40,7 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	 * or re-partitioning by range.
 	 */
 	public enum ShipStrategy {
-		FORWARD, BROADCAST, PARTITION_HASH, PARTITION_RANGE, SFR, NONE
+		FORWARD, BROADCAST, PARTITION_HASH, PARTITION_RANGE, PARTITION_LOCAL_HASH, PARTITION_LOCAL_RANGE, SFR, NONE
 	}
 	
 	// ------------------------------------------------------------------------
@@ -97,11 +97,12 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	 * @see eu.stratosphere.nephele.io.ChannelSelector#selectChannels(java.lang.Object, int)
 	 */
 	@Override
-	public int[] selectChannels(KeyValuePair<K, V> pair, int numberOfChannels) {
+	public final int[] selectChannels(KeyValuePair<K, V> pair, int numberOfChannels) {
 		switch (strategy) {
 		case BROADCAST:
 			return broadcast(numberOfChannels);
 		case PARTITION_HASH:
+		case PARTITION_LOCAL_HASH:
 			return partition(pair, numberOfChannels);
 		case FORWARD:
 			return robin(numberOfChannels);
@@ -110,12 +111,19 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 		}
 	}
 
-	private int[] robin(int numberOfChannels) {
-		nextChannelToSendTo = (nextChannelToSendTo + 1) % numberOfChannels;
-		return new int[] { nextChannelToSendTo };
+	private final int[] robin(int numberOfChannels) {
+		if (this.channels == null || this.channels.length != 1) {
+			this.channels = new int[1];
+		}
+		
+		int channel = (nextChannelToSendTo + 1) % numberOfChannels;
+		this.nextChannelToSendTo = channel;
+		this.channels[0] = channel;
+		
+		return this.channels;
 	}
 
-	private int[] broadcast(int numberOfChannels) {
+	private final int[] broadcast(int numberOfChannels) {
 		if (channels == null || channels.length != numberOfChannels) {
 			channels = new int[numberOfChannels];
 			for (int i = 0; i < numberOfChannels; i++)
@@ -125,7 +133,7 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 		return channels;
 	}
 
-	private int[] partition(KeyValuePair<K, V> pair, int numberOfChannels) {
+	private final int[] partition(KeyValuePair<K, V> pair, int numberOfChannels) {
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
 		}
@@ -133,7 +141,7 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 		return channels;
 	}
 
-	private int getPartition(K key, int numberOfChannels) {
+	private final int getPartition(K key, int numberOfChannels) {
 		int hash = 1315423911 ^ ((1315423911 << 5) + key.hashCode() + (1315423911 >> 2));
 
 		for (int i = 0; i < salt.length; i++) {

@@ -97,6 +97,7 @@ public abstract class CostEstimator {
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for the first input.");
 			case FORWARD:
+			case PARTITION_LOCAL_HASH:
 				globCost.setNetworkCost(0);
 				globCost.setSecondaryStorageCost(0);
 				break;
@@ -129,6 +130,7 @@ public abstract class CostEstimator {
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for the second input.");
 			case FORWARD:
+			case PARTITION_LOCAL_HASH:
 				secCost.setNetworkCost(0);
 				secCost.setSecondaryStorageCost(0);
 				break;

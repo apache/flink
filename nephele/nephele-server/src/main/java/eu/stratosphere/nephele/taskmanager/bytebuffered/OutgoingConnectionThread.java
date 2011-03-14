@@ -48,8 +48,6 @@ public class OutgoingConnectionThread extends Thread {
 
 	private final Map<OutgoingConnection, Long> connectionsToClose = new HashMap<OutgoingConnection, Long>();
 
-	private final Object synchronizationObject = new Object();
-
 	public OutgoingConnectionThread() throws IOException {
 		super("Outgoing Connection Thread");
 
@@ -64,9 +62,10 @@ public class OutgoingConnectionThread extends Thread {
 
 		while (!isInterrupted()) {
 
-			synchronized (this.synchronizationObject) {
+			synchronized (this.pendingConnectionRequests) {
 
 				if (!this.pendingConnectionRequests.isEmpty()) {
+
 					final OutgoingConnection outgoingConnection = this.pendingConnectionRequests.poll();
 					try {
 						final SocketChannel socketChannel = SocketChannel.open();
@@ -78,6 +77,9 @@ public class OutgoingConnectionThread extends Thread {
 						outgoingConnection.reportConnectionProblem(ioe);
 					}
 				}
+			}
+
+			synchronized (this.pendingWriteEventSubscribeRequests) {
 
 				if (!this.pendingWriteEventSubscribeRequests.isEmpty()) {
 					final SelectionKey oldSelectionKey = this.pendingWriteEventSubscribeRequests.poll();
@@ -93,6 +95,9 @@ public class OutgoingConnectionThread extends Thread {
 						outgoingConnection.reportTransmissionProblem(ioe);
 					}
 				}
+			}
+
+			synchronized (this.connectionsToClose) {
 
 				final Iterator<Map.Entry<OutgoingConnection, Long>> closeIt = this.connectionsToClose.entrySet()
 					.iterator();
@@ -212,7 +217,7 @@ public class OutgoingConnectionThread extends Thread {
 
 	public void triggerConnect(OutgoingConnection outgoingConnection) {
 
-		synchronized (this.synchronizationObject) {
+		synchronized (this.pendingConnectionRequests) {
 			this.pendingConnectionRequests.add(outgoingConnection);
 		}
 	}
@@ -226,15 +231,17 @@ public class OutgoingConnectionThread extends Thread {
 		newSelectionKey.attach(outgoingConnection);
 		outgoingConnection.setSelectionKey(newSelectionKey);
 
-		synchronized (this.synchronizationObject) {
+		synchronized (this.connectionsToClose) {
 			this.connectionsToClose.put(outgoingConnection, Long.valueOf(System.currentTimeMillis()));
 		}
 	}
 
 	public void subscribeToWriteEvent(SelectionKey selectionKey) {
 
-		synchronized (this.synchronizationObject) {
+		synchronized (this.pendingWriteEventSubscribeRequests) {
 			this.pendingWriteEventSubscribeRequests.add(selectionKey);
+		}
+		synchronized (this.connectionsToClose) {
 			this.connectionsToClose.remove((OutgoingConnection) selectionKey.attachment());
 		}
 

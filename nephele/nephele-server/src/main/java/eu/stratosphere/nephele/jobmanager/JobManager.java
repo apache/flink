@@ -78,6 +78,7 @@ import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -120,7 +121,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
+public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol,
+		JobStatusListener {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -933,6 +935,42 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			|| newJobStatus == InternalJobStatus.FINISHED) {
 			// Unregister job for Nephele's monitoring and optimization components
 			unregisterJob(executionGraph);
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logBufferUtilization(final JobID jobID) throws IOException {
+
+		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
+		if (eg == null) {
+			return;
+		}
+
+		final Set<AbstractInstance> allocatedInstance = new HashSet<AbstractInstance>();
+		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
+		while (it.hasNext()) {
+
+			final ExecutionVertex vertex = it.next();
+			final ExecutionState state = vertex.getExecutionState();
+			if (state == ExecutionState.RUNNING || state == ExecutionState.FINISHING) {
+				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+				if (instance instanceof DummyInstance) {
+					LOG.error("Found instance of type DummyInstance for vertex " + vertex.getName() + " (state "
+						+ state + ")");
+					continue;
+				}
+
+				allocatedInstance.add(instance);
+			}
+		}
+
+		final Iterator<AbstractInstance> it2 = allocatedInstance.iterator();
+		while (it2.hasNext()) {
+			it2.next().logBufferUtilization();
 		}
 	}
 }

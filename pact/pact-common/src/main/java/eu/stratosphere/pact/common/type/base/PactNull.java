@@ -57,7 +57,7 @@ public final class PactNull implements Key {
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-		// do nothing
+		in.readBoolean();
 	}
 
 	/*
@@ -66,7 +66,7 @@ public final class PactNull implements Key {
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		// do nothing
+		out.writeBoolean(false);
 	}
 
 	/*
@@ -97,7 +97,7 @@ public final class PactNull implements Key {
 	 */
 	@Override
 	public boolean equals(Object o) {
-		return (o.getClass() == PactNull.class);
+		return (o != null && o.getClass() == PactNull.class);
 	}
 
 	/*

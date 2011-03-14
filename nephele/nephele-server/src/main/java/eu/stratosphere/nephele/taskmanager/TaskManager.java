@@ -895,4 +895,13 @@ public class TaskManager implements TaskOperationProtocol {
 			this.checkpointManager.removeCheckpoint(it.next());
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logBufferUtilization() throws IOException {
+				
+		this.byteBufferedChannelManager.logBufferUtilization();
+	}
 }

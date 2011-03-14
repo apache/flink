@@ -739,17 +739,16 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		switch (connection.getShipStrategy()) {
 		case FORWARD:
+		case PARTITION_LOCAL_HASH:
 			channelType = ChannelType.INMEMORY;
 			break;
 		case PARTITION_HASH:
-			channelType = ChannelType.NETWORK;
-			break;
 		case BROADCAST:
-			channelType = ChannelType.NETWORK;
-			break;
 		case SFR:
 			channelType = ChannelType.NETWORK;
 			break;
+		default:
+			throw new IllegalArgumentException("Unsupported ship-strategy: " + connection.getShipStrategy().name());
 		}
 
 		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());

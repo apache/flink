@@ -24,7 +24,7 @@ import eu.stratosphere.pact.common.contract.Order;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class LocalProperties implements Cloneable {
-	private Order keyOrder; // order across all partitions
+	private Order keyOrder; // order inside a partition
 
 	private boolean keysGrouped = false; // flag indicating whether the keys are grouped
 
