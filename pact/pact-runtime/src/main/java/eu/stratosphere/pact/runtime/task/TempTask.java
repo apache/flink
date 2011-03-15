@@ -54,11 +54,11 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class TempTask extends AbstractTask {
 
-	// memory to be used for IO buffering
-	public int MEMORY_IO;
-
 	// obtain TempTask logger
 	private static final Log LOG = LogFactory.getLog(TempTask.class);
+	
+	// the minimal amount of memory required for the temp to work
+	private static final long MIN_REQUIRED_MEMORY = 512 * 1024;
 
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
@@ -67,14 +67,17 @@ public class TempTask extends AbstractTask {
 	private RecordWriter<KeyValuePair<Key, Value>> writer;
 
 	// stub implementation of preceding PACT
-	Stub stub;
+	private Stub stub;
 
 	// task configuration
 	private TaskConfig config;
 	
 	// spilling thread
-	SpillingResettableIterator<KeyValuePair<Key, Value>> tempIterator;
+	private SpillingResettableIterator<KeyValuePair<Key, Value>> tempIterator;
 
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 	
@@ -124,7 +127,7 @@ public class TempTask extends AbstractTask {
 		try {
 			// obtain SpillingResettableIterator to dump pairs to disk and read again
 			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, reader,
-				MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
+				this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
 				this);
 
 			LOG.debug("Start temping records: " + this.getEnvironment().getTaskName() + " ("
@@ -216,10 +219,14 @@ public class TempTask extends AbstractTask {
 	private void initPrecedingStub() throws RuntimeException {
 
 		// obtain task configuration
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// configure io buffer size using task config
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
+		this.availableMemory = this.config.getMemorySize();
+		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The temp task was initialized with too little memory: " + this.availableMemory +
+				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		}
 
 		// obtain stub implementation class
 		// this is required to obtain the data type of the keys and values.

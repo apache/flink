@@ -40,10 +40,8 @@ public class CoGroupTaskExternalITCase extends TaskTestBase {
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		

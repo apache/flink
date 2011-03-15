@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.resettable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,51 +42,53 @@ import eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator;
 public class BlockResettableIterator<T extends Record> implements MemoryBlockIterator<T> {
 
 	private static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
+	
+	private static final int MIN_BUFFER_SIZE = 16 * 1024;
+	
+	// ------------------------------------------------------------------------
 
-	protected MemoryManager memoryManager;
+	protected final MemoryManager memoryManager;
 
-	protected List<MemorySegment> buffers;
+	protected final List<MemorySegment> buffers;
+	
+	protected final BlockingQueue<MemorySegment> emptySegments;
 
-	protected T deserializationInstance = null;
+	protected final BlockingQueue<Buffer.Input> filledBuffers;
+	
+	protected final RecordDeserializer<T> deserializer;
 
-	protected boolean allRead = false;
+	private final BlockFetcher<T> blockFetcher;
 
-	protected int readingPosition = 0;
-
-	protected int limit = 0;
-
-	protected RecordDeserializer<T> deserializer = null;
-
-	protected Buffer.Input in;
-
-	protected BlockingQueue<MemorySegment> emptySegments;
-
-	protected BlockingQueue<Buffer.Input> filledBuffers;
-
-	protected BlockFetcher<T> blockFetcher;
-
-	protected Thread blockFetcherThread;
+	private Thread blockFetcherThread;
+	
+	private Buffer.Input in;
+	
+	private T deserializationInstance = null;
 	
 	private volatile boolean abortFlag = false;
 
+	// ------------------------------------------------------------------------
 	
-	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader, int availableMemory, int nrOfBuffers,
+	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader, long availableMemory, int nrOfBuffers,
 			RecordDeserializer<T> deserializer, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
 		this.deserializer = deserializer;
 		this.memoryManager = memoryManager;
+		
 		// allocate the queues
-		emptySegments = new LinkedBlockingQueue<MemorySegment>();
-		filledBuffers = new LinkedBlockingQueue<Buffer.Input>();
+		this.emptySegments = new LinkedBlockingQueue<MemorySegment>();
+		this.filledBuffers = new LinkedBlockingQueue<Buffer.Input>();
+		
 		// allocate the memory buffers
-		buffers = new ArrayList<MemorySegment>(nrOfBuffers);
-		for (int i = 0; i < nrOfBuffers; ++i)
-			buffers.add(memoryManager.allocate(ownerTask, availableMemory / nrOfBuffers));
+		this.buffers = this.memoryManager.allocate(ownerTask, availableMemory, nrOfBuffers, MIN_BUFFER_SIZE);
+		
 		// now append all memory segments to the workerQueue
-		emptySegments.addAll(buffers);
+		this.emptySegments.addAll(buffers);
+		
 		// create the writer thread
-		blockFetcher = new BlockFetcher<T>(emptySegments, filledBuffers, reader);
+		this.blockFetcher = new BlockFetcher<T>(emptySegments, filledBuffers, reader);
+		
 		LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
 	}
 
@@ -230,7 +231,6 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 			
 			finishedTasks.add(new Buffer.Input(request)); // null signals completion
 		}
-
 	}
 
 }

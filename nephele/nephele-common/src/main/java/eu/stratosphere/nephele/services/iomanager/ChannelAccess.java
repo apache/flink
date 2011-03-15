@@ -103,6 +103,13 @@ public abstract class ChannelAccess<T extends Buffer> {
 			throw new IOException("Channel to path '" + channelID.getPath() + "' could not be opened.", e);
 		}
 	}
+	
+	/**
+	 * Checks, whether this channel has been closed;
+	 * 
+	 * @return True, if the channel has been closed, false otherwise.
+	 */
+	public abstract boolean isClosed();
 
 	/**
 	 * Release resources and return the externally supplied memory segments. This method does not 

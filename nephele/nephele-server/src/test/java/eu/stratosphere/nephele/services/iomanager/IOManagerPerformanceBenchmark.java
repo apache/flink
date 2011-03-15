@@ -23,7 +23,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -52,7 +51,7 @@ public class IOManagerPerformanceBenchmark
 	
 	private static final AbstractInvokable memoryOwner = new DefaultMemoryManagerTest.DummyInvokable();
 	
-	private MemoryManager memManager;
+	private DefaultMemoryManager memManager;
 	
 	private IOManager ioManager;
 	

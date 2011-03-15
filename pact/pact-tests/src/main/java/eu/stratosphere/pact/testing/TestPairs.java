@@ -180,46 +180,11 @@ public class TestPairs<K extends Key, V extends Value> implements
 		return this;
 	}
 
-	private void assignMemory(final TaskConfig config, final int memSize) {
-		// this code currently has a very simple way of assigning space to the
-		// I/O and sort buffers
-		// in future releases, we plan to design the sort-component in a more
-		// adaptive fashion,
-		// making it distribute its memory among sort and merge space by itself
-
-		int ioMem, sortMem, numSortBuffers, sortBufferSize;
-
-		// decide how to divide the memory between sort and I/O space
-		if (memSize > 512)
-			ioMem = MAX_IO_BUFFER_SIZE;
-		else if (memSize > 64)
-			ioMem = memSize / 32;
-		else if (memSize > 32)
-			ioMem = 2;
-		else if (memSize > MIN_SORT_HEAP + MIN_IO_BUFFER_SIZE)
-			ioMem = MIN_IO_BUFFER_SIZE;
-		else
-			throw new OutOfMemoryError();
-		sortMem = memSize - ioMem;
-
-		// decide how to divide the sort memory among different buffers
-		if (sortMem > 3 * MAX_SORT_HEAP_BUFFER_SIZE) {
-			numSortBuffers = sortMem / MAX_SORT_HEAP_BUFFER_SIZE + 1;
-			// correct rounding loss
-			numSortBuffers = sortMem / (sortMem / numSortBuffers);
-		} else if (sortMem > 3 * 64)
-			numSortBuffers = 3;
-		else if (sortMem >= 2 * MIN_SORT_HEAP)
-			numSortBuffers = 2;
-		else
-			numSortBuffers = 1;
-		sortBufferSize = sortMem / numSortBuffers;
-
+	private void assignMemory(final TaskConfig config, final int memSize)
+	{
 		// set the config
-		config.setIOBufferSize(ioMem);
-		config.setMergeFactor(DEFAUTL_MERGE_FACTOR);
-		config.setNumSortBuffer(numSortBuffers);
-		config.setSortBufferSize(sortBufferSize);
+		config.setMemorySize(((long) memSize) * 1024L * 1024L);
+		config.setNumFilehandles(DEFAUTL_MERGE_FACTOR);
 	}
 
 	/**
@@ -235,10 +200,8 @@ public class TestPairs<K extends Key, V extends Value> implements
 		this.assignMemory(config, 10);
 
 		// set up memory and io parameters
-		final int NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		final int SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		final int MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		final int MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		final long totalMemory = config.getMemorySize();
+		final int numFileHandles = config.getNumFilehandles();
 
 		// create a key comparator
 		final Comparator<K> keyComparator = new Comparator<K>() {
@@ -260,8 +223,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 			@SuppressWarnings("rawtypes")
 			final UnilateralSortMerger<K, V> sortMerger = new UnilateralSortMerger<K, V>(
 					MockTaskManager.INSTANCE.getMemoryManager(),
-					MockTaskManager.INSTANCE.getIoManager(), NUM_SORT_BUFFERS,
-					SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES,
+					MockTaskManager.INSTANCE.getIoManager(), totalMemory, numFileHandles,
 					keySerialization, valSerialization, keyComparator,
 					new TestPairsReader(inputFileIterator, actualPair),
 					new ReduceTask());
@@ -457,14 +419,5 @@ public class TestPairs<K extends Key, V extends Value> implements
 		return stringBuilder.toString();
 	}
 
-	private static final int DEFAUTL_MERGE_FACTOR = 64; // the number of streams
-														// to merge at once
-
-	private static final int MAX_IO_BUFFER_SIZE = 16;
-
-	private static final int MAX_SORT_HEAP_BUFFER_SIZE = 2047;
-
-	private static final int MIN_IO_BUFFER_SIZE = 1;
-
-	private static final int MIN_SORT_HEAP = 4;
+	private static final int DEFAUTL_MERGE_FACTOR = 64; // the number of streams to merge at once
 }

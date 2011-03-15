@@ -17,7 +17,6 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
-import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
@@ -41,10 +40,8 @@ public class CombineTaskTest extends TaskTestBase {
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -81,10 +78,8 @@ public class CombineTaskTest extends TaskTestBase {
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
 		
@@ -111,10 +106,8 @@ public class CombineTaskTest extends TaskTestBase {
 		
 		final CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
 		

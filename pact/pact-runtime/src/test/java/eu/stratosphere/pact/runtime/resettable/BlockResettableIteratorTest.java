@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
@@ -107,6 +106,11 @@ public class BlockResettableIteratorTest
 		this.deserializer = null;
 		this.objects = null;
 		
+		// check that the memory manager got all segments back
+		if (!this.memman.verifyEmpty()) {
+			Assert.fail("A memory leak has occurred: Not all memory was properly returned to the memory manager.");
+		}
+		
 		this.memman.shutdown();
 		this.memman = null;
 	}
@@ -144,14 +148,6 @@ public class BlockResettableIteratorTest
 		Assert.assertEquals(1000, upper);
 		// close the iterator
 		iterator.close();
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(memOwner, memoryCapacity);
-			memman.release(test);
-		}
-		catch (Exception e) {
-			Assert.fail("Memory leak detected. BlockResettableIterator does not release all memory.");
-		}
 	}
 
 	@Test
@@ -186,14 +182,6 @@ public class BlockResettableIteratorTest
 		Assert.assertEquals(1000, upper);
 		// close the iterator
 		iterator.close();
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(memOwner, memoryCapacity);
-			memman.release(test);
-		}
-		catch (Exception e) {
-			Assert.fail("Memory leak detected. BlockResettableIterator does not release all memory.");
-		}
 	}
 
 	@Test
@@ -228,14 +216,6 @@ public class BlockResettableIteratorTest
 		Assert.assertEquals(1000, upper);
 		// close the iterator
 		iterator.close();
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(memOwner, memoryCapacity);
-			memman.release(test);
-		}
-		catch (Exception e) {
-			Assert.fail("Memory leak detected. BlockResettableIterator does not release all memory.");
-		}
 	}
 
 }

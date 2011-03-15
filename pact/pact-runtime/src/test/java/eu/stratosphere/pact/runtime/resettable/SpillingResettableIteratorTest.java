@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
@@ -115,8 +114,14 @@ public class SpillingResettableIteratorTest {
 		this.objects = null;
 
 		this.ioman.shutdown();
+		if (!this.ioman.isProperlyShutDown()) {
+			Assert.fail("I/O Manager Shutdown was not completed properly.");
+		}
 		this.ioman = null;
 
+		if (!this.memman.verifyEmpty()) {
+			Assert.fail("A memory leak has occurred: Not all memory was properly returned to the memory manager.");
+		}
 		this.memman.shutdown();
 		this.memman = null;
 	}
@@ -162,14 +167,6 @@ public class SpillingResettableIteratorTest {
 		}
 		// close the iterator
 		iterator.close();
-
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(new DummyInvokable(), memoryCapacity);
-			memman.release(test);
-		} catch (Exception e) {
-			Assert.fail("Memory leak detected. SpillingResettableIterator does not release all memory.");
-		}
 	}
 
 	/**
@@ -213,13 +210,6 @@ public class SpillingResettableIteratorTest {
 		}
 		// close the iterator
 		iterator.close();
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(new DummyInvokable(), memoryCapacity);
-			memman.release(test);
-		} catch (Exception e) {
-			Assert.fail("Memory leak detected. SpillingResettableIterator does not release all memory.");
-		}
 	}
 
 	/**

@@ -61,12 +61,12 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class CrossTask extends AbstractTask {
 
-	// memory to be used for IO buffering
-	public int MEMORY_IO;
-
 	// obtain CrossTask logger
 	private static final Log LOG = LogFactory.getLog(CrossTask.class);
 
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
+	
 	// reader for first input
 	private RecordReader<KeyValuePair<Key, Value>> reader1;
 
@@ -85,6 +85,9 @@ public class CrossTask extends AbstractTask {
 	// spilling resettable iterator for inner input
 	private SpillingResettableIterator<KeyValuePair<Key, Value>> spillingResetIt = null;
 	private BlockResettableIterator<KeyValuePair<Key, Value>> blockResetIt = null;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
 	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -200,8 +203,13 @@ public class CrossTask extends AbstractTask {
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
 
-		// set up memory and io parameters
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		
+		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The Cross task was initialized with too little memory: " + this.availableMemory +
+				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -355,7 +363,7 @@ public class CrossTask extends AbstractTask {
 				// obtain spilling iterator (inner side) for first input
 				try {
 					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-						innerReader, MEMORY_IO / 2, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
+						innerReader, this.availableMemory / 2, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 							.getFirstInValueType()), this);
 					spillingResetIt = innerInput;
 				} catch (MemoryAllocationException mae) {
@@ -364,7 +372,7 @@ public class CrossTask extends AbstractTask {
 				// obtain blocked iterator (outer side) for second input
 				try {
 					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
-						MEMORY_IO / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), 
+							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), 
 								stub.getSecondInValueType()), this);
 					blockResetIt = outerInput;
 				} catch (MemoryAllocationException mae) {
@@ -375,7 +383,7 @@ public class CrossTask extends AbstractTask {
 				// obtain spilling iterator (inner side) for second input
 				try {
 					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-						innerReader, MEMORY_IO / 2, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(),
+						innerReader, this.availableMemory / 2, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(),
 							stub.getSecondInValueType()), this);
 					spillingResetIt = innerInput;
 				} catch (MemoryAllocationException mae) {
@@ -384,7 +392,7 @@ public class CrossTask extends AbstractTask {
 				// obtain blocked iterator (outer side) for second input
 				try {
 					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
-						MEMORY_IO / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
+							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 							.getFirstInValueType()), this);
 					blockResetIt = outerInput;
 				} catch (MemoryAllocationException mae) {
@@ -564,7 +572,7 @@ public class CrossTask extends AbstractTask {
 		
 			try {
 				innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-					innerReader, MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
+					innerReader, this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 						.getFirstInValueType()), this);
 				spillingResetIt = innerInput;
 			} catch (MemoryAllocationException mae) {

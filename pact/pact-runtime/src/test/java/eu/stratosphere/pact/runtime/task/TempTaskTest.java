@@ -42,7 +42,7 @@ public class TempTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		TempTask testTask = new TempTask();
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, PrevStub.class);
 		
@@ -64,7 +64,7 @@ public class TempTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final TempTask testTask = new TempTask();
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, PrevStub.class);
 		

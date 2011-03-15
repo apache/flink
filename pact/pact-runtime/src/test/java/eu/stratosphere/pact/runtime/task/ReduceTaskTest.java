@@ -40,10 +40,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -75,10 +73,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -115,10 +111,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockFailingReduceStub.class);
 		
@@ -145,10 +139,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 		final ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -188,10 +180,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 		final ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockDelayingReduceStub.class);
 		
