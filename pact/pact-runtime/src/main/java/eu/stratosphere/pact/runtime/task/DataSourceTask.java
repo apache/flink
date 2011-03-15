@@ -46,7 +46,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @author Moritz Kaufmann
  * @author Fabian Hueske
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings( { "unchecked", "rawtypes" })
 public class DataSourceTask extends AbstractFileInputTask {
 
 	// Obtain DataSourceTask Logger
@@ -63,7 +63,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -104,10 +104,10 @@ public class DataSourceTask extends AbstractFileInputTask {
 		// for each assigned input split
 		for (int i = 0; i < splits.length; i++) {
 
-			if(this.taskCanceled) {
+			if (this.taskCanceled) {
 				break;
 			}
-			
+
 			// get start and end
 			FileInputSplit split = splits[i];
 			long start = split.getStart();
@@ -117,52 +117,80 @@ public class DataSourceTask extends AbstractFileInputTask {
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
-			// create line reader
-			FileSystem fs = FileSystem.get(split.getPath().toUri(), new org.apache.hadoop.conf.Configuration());
-			FSDataInputStream fdis = fs.open(new Path(split.getPath().toUri().toString()));
-
-			// set input stream of input format
-			format.setInput(new DistributedDataInputStream(fdis), start, length, (1024 * 1024));
-
-			// open input format
-			format.open();
-
-			LOG.debug("Starting reader on file " + split.getPath() + " : " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-			// create mutable pair once
-			if (!immutable) {
-				pair = format.createPair();
+			InputSplitOpenThread isot = new InputSplitOpenThread(split);
+			isot.start();
+			try {
+				isot.join();
+			} catch (InterruptedException ie) {
+				// task has been canceled
 			}
 
-			// as long as there is data to read
-			while (!format.reachedEnd() && !this.taskCanceled) {
+			if (!this.taskCanceled) {
 
-				// create immutable pair
-				if (immutable) {
-					pair = format.createPair();
-				}
+				try {
 
-				// build next pair
-				boolean valid = format.nextPair(pair);
+					// check if FSDataInputStream was obtained
+					if (!isot.fsDataInputStreamSuccessfullyObtained()) {
+						// forward exception
+						throw isot.getException();
+					}
 
-				// ship pair if it is valid
-				if (valid) {
-					output.collect(pair.getKey(), pair.getValue());
+					// get FSDataInputStream
+					FSDataInputStream fdis = isot.getFSDataInputStream();
+
+					// set input stream of input format
+					format.setInput(new DistributedDataInputStream(fdis), start, length, (1024 * 1024));
+
+					// open input format
+					format.open();
+
+					LOG.debug("Starting reader on file " + split.getPath() + " : "
+						+ this.getEnvironment().getTaskName() + " ("
+						+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+					// create mutable pair once
+					if (!immutable) {
+						pair = format.createPair();
+					}
+
+					// as long as there is data to read
+					while (!this.taskCanceled && !format.reachedEnd()) {
+
+						// create immutable pair
+						if (immutable) {
+							pair = format.createPair();
+						}
+
+						// build next pair
+						boolean valid = format.nextPair(pair);
+
+						// ship pair if it is valid
+						if (valid) {
+							output.collect(pair.getKey(), pair.getValue());
+						}
+					}
+
+					// close the input stream
+					format.close();
+
+					LOG.debug("Closing input split " + split.getPath() + " : " + this.getEnvironment().getTaskName()
+						+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+				} catch (Exception ex) {
+					// drop, if the task was canceled
+					if (!this.taskCanceled) {
+						LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+							+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+							+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+						throw ex;
+					}
 				}
 			}
-
-			// close the input stream
-			format.close();
-
-			LOG.debug("Closing input split " + split.getPath() + " : " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
 		}
 
-		if(!this.taskCanceled) {
+		if (!this.taskCanceled) {
 			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -173,13 +201,13 @@ public class DataSourceTask extends AbstractFileInputTask {
 		}
 
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception
-	{
+	public void cancel() throws Exception {
 		this.taskCanceled = true;
 		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -225,10 +253,10 @@ public class DataSourceTask extends AbstractFileInputTask {
 	private void initOutputCollector() {
 
 		boolean fwdCopyFlag = false;
-		
+
 		// create output collector
 		output = new OutputCollector<Key, Value>();
-		
+
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -237,7 +265,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			
+
 			// add writer to output collector
 			// the first writer does not need to send a copy
 			// all following must send copies
@@ -306,6 +334,53 @@ public class DataSourceTask extends AbstractFileInputTask {
 				}
 			}
 			return parameters;
+		}
+	}
+
+	/**
+	 * Obtains a DataInputStream in an thread that is not interrupted.
+	 * The HDFS client is very sensitive to InterruptedExceptions.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class InputSplitOpenThread extends Thread {
+
+		private FileInputSplit split;
+
+		private FSDataInputStream fdis = null;
+
+		private boolean success = true;
+
+		private Exception exception = null;
+
+		public InputSplitOpenThread(FileInputSplit split) {
+			this.split = split;
+		}
+
+		@Override
+		public void run() {
+			try {
+
+				FileSystem fs = FileSystem.get(split.getPath().toUri(), new org.apache.hadoop.conf.Configuration());
+
+				this.fdis = fs.open(new Path(split.getPath().toUri().toString()));
+
+			} catch (Exception t) {
+				this.success = false;
+				this.exception = t;
+			}
+		}
+
+		public FSDataInputStream getFSDataInputStream() {
+			return this.fdis;
+		}
+
+		public boolean fsDataInputStreamSuccessfullyObtained() {
+			return this.success;
+		}
+
+		public Exception getException() {
+			return this.exception;
 		}
 	}
 }
