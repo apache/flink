@@ -49,9 +49,9 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	private static final Log LOG = LogFactory.getLog(SpillingResettableIterator.class);
 
-	private static final int MINIMUM_NUMBER_OF_BUFFERS = 2;
+	public static final int MINIMUM_NUMBER_OF_BUFFERS = 2;
 	
-	private static final int MIN_BUFFER_SIZE = 256 * 1024;
+	public static final int MIN_BUFFER_SIZE = 16 * 1024;
 	
 	// ------------------------------------------------------------------------
 

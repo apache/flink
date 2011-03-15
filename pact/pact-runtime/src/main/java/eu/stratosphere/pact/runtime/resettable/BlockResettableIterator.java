@@ -43,7 +43,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 
 	private static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
 	
-	private static final int MIN_BUFFER_SIZE = 16 * 1024;
+	public static final int MIN_BUFFER_SIZE = 8 * 1024;
 	
 	// ------------------------------------------------------------------------
 
