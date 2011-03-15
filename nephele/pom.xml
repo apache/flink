@@ -93,7 +93,7 @@
 
     <modules>
       <module>nephele-common</module>
-	  <module>nephele-management</module>
+      <module>nephele-management</module>
       <module>nephele-profiling</module>
       <module>nephele-queuescheduler</module>
       <module>nephele-ec2cloudmanager</module>
