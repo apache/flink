@@ -57,23 +57,26 @@ public class ServerTestUtils {
 	}
 
 	/**
-	 * Creates a file with a random name in the directory for temporary files. The directory for temporary files is read
-	 * from the configuration. The file contains a sequence of integer numbers from 0 to <code>limit</code>. The
-	 * individual numbers are separated by a newline.
+	 * Creates a file with a random name in the given sub directory within the directory for temporary files. The
+	 * directory for temporary files is read from the configuration. The file contains a sequence of integer numbers
+	 * from 0 to <code>limit</code>. The individual numbers are separated by a newline.
 	 * 
+	 * @param subDirectory
+	 *        name of the sub directory to create the input file in
 	 * @param limit
 	 *        the upper bound for the sequence of integer numbers to generate
 	 * @return a {@link File} object referring to the created file
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while writing the file
 	 */
-	public static File createInputFile(int limit) throws IOException {
+	public static File createInputFile(String subDirectory, int limit) throws IOException {
 
 		if (limit < 0) {
 			throw new IllegalArgumentException("limit must be >= 0");
 		}
 
-		final File inputFile = new File(getTempDir() + File.separator + getRandomFilename());
+		final File inputFile = new File(getTempDir() + File.separator + subDirectory + File.separator
+			+ getRandomFilename());
 
 		if (inputFile.exists()) {
 			inputFile.delete();
@@ -88,6 +91,21 @@ public class ServerTestUtils {
 		fw.close();
 
 		return inputFile;
+	}
+
+	/**
+	 * Creates a file with a random name in the directory for temporary files. The directory for temporary files is read
+	 * from the configuration. The file contains a sequence of integer numbers from 0 to <code>limit</code>. The
+	 * individual numbers are separated by a newline.
+	 * 
+	 * @param limit
+	 *        the upper bound for the sequence of integer numbers to generate
+	 * @return a {@link File} object referring to the created file
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while writing the file
+	 */
+	public static File createInputFile(int limit) throws IOException {
+		return createInputFile("", limit);
 	}
 
 	/**

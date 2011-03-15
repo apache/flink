@@ -55,6 +55,11 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
  */
 public class JobManagerITCase {
 
+	/**
+	 * The name of the test directory some tests read their input from.
+	 */
+	private static final String INPUT_DIRECTORY = "testDirectory";
+
 	private static JobManagerThread jobManagerThread = null;
 
 	private static Configuration configuration;
@@ -192,6 +197,123 @@ public class JobManagerITCase {
 	@Test
 	public void testExecutionWithZeroSizeInputFile() {
 		test(0);
+	}
+
+	/**
+	 * Tests the execution of a job with a directory as input. The test directory contains files of different length.
+	 */
+	@Test
+	public void testExecutionWithDirectoryInput() {
+
+		// Define size of input
+		final int sizeOfInput = 100;
+
+		// Create test directory
+		final String testDirectory = ServerTestUtils.getTempDir() + File.separator + INPUT_DIRECTORY;
+		final File td = new File(testDirectory);
+		if (!td.exists()) {
+			td.mkdir();
+		}
+
+		File inputFile1 = null;
+		File inputFile2 = null;
+		File outputFile = null;
+		File jarFile = null;
+
+		try {
+			// Get name of the forward class
+			final String forwardClassName = ForwardTask.class.getSimpleName();
+
+			// Create input and jar files
+			inputFile1 = ServerTestUtils.createInputFile(INPUT_DIRECTORY, 0);
+			inputFile2 = ServerTestUtils.createInputFile(INPUT_DIRECTORY, sizeOfInput);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+				+ ServerTestUtils.getRandomFilename());
+			jarFile = ServerTestUtils.createJarFile(forwardClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph 1");
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + testDirectory));
+
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
+			t1.setTaskClass(ForwardTask.class);
+
+			// task vertex 2
+			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
+			t2.setTaskClass(ForwardTask.class);
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			t1.setVertexToShareInstancesWith(i1);
+			t2.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			try {
+				i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+				t1.connectTo(t2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+				t2.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			} catch (JobGraphDefinitionException e) {
+				e.printStackTrace();
+			}
+
+			// add jar
+			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
+
+			// Create job client and launch job
+			JobClient jobClient = new JobClient(jg, configuration);
+			jobClient.submitJobAndWait();
+
+			// Finally, compare output file to initial number sequence
+			final BufferedReader bufferedReader = new BufferedReader(new FileReader(outputFile));
+			for (int i = 0; i < sizeOfInput; i++) {
+				final String number = bufferedReader.readLine();
+				try {
+					assertEquals(i, Integer.parseInt(number));
+				} catch (NumberFormatException e) {
+					fail(e.getMessage());
+				}
+			}
+
+			bufferedReader.close();
+
+		} catch (NumberFormatException e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		} catch (JobExecutionException e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+			fail(ioe.getMessage());
+		} finally {
+			// Remove temporary files
+			if (inputFile1 != null) {
+				inputFile1.delete();
+			}
+			if (inputFile2 != null) {
+				inputFile2.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+
+			// Remove test directory
+			if (td != null) {
+				td.delete();
+			}
+		}
 	}
 
 	/**
