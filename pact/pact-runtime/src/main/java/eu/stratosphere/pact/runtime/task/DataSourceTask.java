@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,7 +47,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @author Moritz Kaufmann
  * @author Fabian Hueske
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class DataSourceTask extends AbstractFileInputTask {
 
 	// Obtain DataSourceTask Logger
@@ -63,7 +64,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -96,22 +97,22 @@ public class DataSourceTask extends AbstractFileInputTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// get file splits to read
-		FileInputSplit[] splits = getFileInputSplits();
+		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 
 		// set object creation policy to immutable
 		boolean immutable = config.getMutability() == Config.Mutability.IMMUTABLE;
 
 		// for each assigned input split
-		for (int i = 0; i < splits.length; i++) {
+		while (splitIterator.hasNext()) {
 
-			if(this.taskCanceled) {
+			if (this.taskCanceled) {
 				break;
 			}
-			
+
 			// get start and end
-			FileInputSplit split = splits[i];
-			long start = split.getStart();
-			long length = split.getLength();
+			final FileInputSplit split = splitIterator.next();
+			final long start = split.getStart();
+			final long length = split.getLength();
 
 			LOG.debug("Opening input split " + split.getPath() + " : " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -162,7 +163,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 
 		}
 
-		if(!this.taskCanceled) {
+		if (!this.taskCanceled) {
 			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -173,13 +174,13 @@ public class DataSourceTask extends AbstractFileInputTask {
 		}
 
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception
-	{
+	public void cancel() throws Exception {
 		this.taskCanceled = true;
 		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -225,10 +226,10 @@ public class DataSourceTask extends AbstractFileInputTask {
 	private void initOutputCollector() {
 
 		boolean fwdCopyFlag = false;
-		
+
 		// create output collector
 		output = new OutputCollector<Key, Value>();
-		
+
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -237,7 +238,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			
+
 			// add writer to output collector
 			// the first writer does not need to send a copy
 			// all following must send copies
