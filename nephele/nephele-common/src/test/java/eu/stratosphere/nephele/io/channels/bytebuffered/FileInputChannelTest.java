@@ -52,10 +52,10 @@ import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.types.StringRecord;
 
 /**
- * This class check the functionality of {@link FileInputChannel} class 
+ * This class check the functionality of {@link FileInputChannel} class
  * and thereby of the {@link AbstractByteBufferedInputChannel} and {@link AbstractChannel} class.
+ * 
  * @author marrus
- *
  */
 @RunWith(PowerMockRunner.class)
 @SuppressStaticInitializationFor("eu.stratosphere.nephele.io.channels.AbstractChannel")
@@ -64,9 +64,11 @@ public class FileInputChannelTest {
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	DeserializationBuffer deserializationBuffer;
+	DeserializationBuffer<StringRecord> deserializationBuffer;
+
 	@Mock
 	ChannelID id;
+
 	@Mock
 	ChannelID connected;
 
@@ -84,14 +86,15 @@ public class FileInputChannelTest {
 	}
 
 	/**
-	 * This test checks the getDecompressor() method 
+	 * This test checks the getDecompressor() method
 	 */
 	@Test
 	@PrepareForTest(GlobalConfiguration.class)
 	public void decompressorTest() {
 
-		InputGate<StringRecord> inGate = mock(InputGate.class);
-		ByteBufferedInputChannelBroker inputBroker = mock(ByteBufferedInputChannelBroker.class);
+		@SuppressWarnings("unchecked")
+		final InputGate<StringRecord> inGate = mock(InputGate.class);
+		final ByteBufferedInputChannelBroker inputBroker = mock(ByteBufferedInputChannelBroker.class);
 		FileInputChannel<StringRecord> fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1,
 			new DefaultRecordDeserializer<StringRecord>(), null, CompressionLevel.NO_COMPRESSION);
 		fileInputChannel.setInputChannelBroker(inputBroker);
@@ -122,7 +125,7 @@ public class FileInputChannelTest {
 		} else {
 
 			try {
-				Decompressor decompressorMock = mock(Decompressor.class);
+				// Decompressor decompressorMock = mock(Decompressor.class);
 
 				fileInputChannel.getDecompressor(0);
 				fail();
@@ -136,41 +139,45 @@ public class FileInputChannelTest {
 
 	/**
 	 * This test checks the functionality of the deserializeNextRecod() method
+	 * 
 	 * @throws IOException
 	 */
 	@Test
 	@PrepareForTest(CompressionLoader.class)
 	public void deserializeNextRecordTest() throws IOException {
-		StringRecord record = new StringRecord("abc");
+
+		final StringRecord record = new StringRecord("abc");
 		Decompressor decompressorMock = mock(Decompressor.class);
 		this.uncompressedDataBuffer = mock(Buffer.class);
 		BufferPairResponse bufferPair = new BufferPairResponse(this.uncompressedDataBuffer, this.uncompressedDataBuffer);
-		//BufferPairResponse bufferPair = mock(BufferPairResponse.class);
-		//when(bufferPair.getUncompressedDataBuffer()).thenReturn(this.uncompressedDataBuffer, this.uncompressedDataBuffer, null);
+		// BufferPairResponse bufferPair = mock(BufferPairResponse.class);
+		// when(bufferPair.getUncompressedDataBuffer()).thenReturn(this.uncompressedDataBuffer,
+		// this.uncompressedDataBuffer, null);
 
 		PowerMockito.mockStatic(CompressionLoader.class);
 		when(CompressionLoader.getDecompressorByCompressionLevel(Matchers.any(CompressionLevel.class))).thenReturn(
 			decompressorMock);
-		
-		InputGate<StringRecord> inGate = mock(InputGate.class);
-		ByteBufferedInputChannelBroker inputBroker = mock(ByteBufferedInputChannelBroker.class);
+
+		@SuppressWarnings("unchecked")
+		final InputGate<StringRecord> inGate = mock(InputGate.class);
+		final ByteBufferedInputChannelBroker inputBroker = mock(ByteBufferedInputChannelBroker.class);
 		when(inputBroker.getReadBufferToConsume()).thenReturn(bufferPair);
 		try {
 			when(this.deserializationBuffer.readData(Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
 		} catch (IOException e) {
-			
+
 		}
 		when(this.uncompressedDataBuffer.remaining()).thenReturn(0);
-		
-		//setup test-object
-		FileInputChannel<StringRecord> fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1, this.deserializer,
+
+		// setup test-object
+		final FileInputChannel<StringRecord> fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1,
+			this.deserializer,
 			null, CompressionLevel.NO_COMPRESSION);
 		fileInputChannel.setInputChannelBroker(inputBroker);
 
-		Whitebox.setInternalState(fileInputChannel, "deserializationBuffer",this.deserializationBuffer);
-	
+		Whitebox.setInternalState(fileInputChannel, "deserializationBuffer", this.deserializationBuffer);
 
-		//correct run
+		// correct run
 		try {
 			fileInputChannel.readRecord();
 		} catch (IOException e) {
@@ -180,10 +187,10 @@ public class FileInputChannelTest {
 
 		// Close Channel to test EOFException
 		fileInputChannel.close();
-		//No acknowledgment from consumer yet so the channel should still be open
+		// No acknowledgment from consumer yet so the channel should still be open
 		assertEquals(false, fileInputChannel.isClosed());
 		fileInputChannel.processEvent(new ByteBufferedChannelCloseEvent());
-		//Received acknowledgment the channel should be closed now
+		// Received acknowledgment the channel should be closed now
 		assertEquals(true, fileInputChannel.isClosed());
 		try {
 			fileInputChannel.readRecord();
