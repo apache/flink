@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -554,11 +553,7 @@ public class MatchTask extends AbstractTask {
 				throw new RuntimeException(e);
 			} finally {
 				if(v1ResettableIterator != null) {
-					try {
-						v1ResettableIterator.close();
-					} catch (ServiceException e) {
-						LOG.warn(e);
-					}
+					v1ResettableIterator.close();
 				}
 			}
 					

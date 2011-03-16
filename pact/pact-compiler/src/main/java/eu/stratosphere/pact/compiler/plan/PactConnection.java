@@ -167,18 +167,19 @@ public class PactConnection {
 		if (strategy == ShipStrategy.FORWARD && sourcePact.getDegreeOfParallelism() < targetPact.getDegreeOfParallelism()) {
 			// check, whether we have an interesting property on partitioning. if so, make sure that we use a
 			// forward strategy that preserves that partitioning by locally routing the keys correctly
-			for (InterestingProperties props : this.interestingProps) {
-				PartitionProperty pp = props.getGlobalProperties().getPartitioning();
-				if (pp == PartitionProperty.HASH_PARTITIONED || pp == PartitionProperty.ANY) {
-					strategy = ShipStrategy.PARTITION_LOCAL_HASH;
-					break;
-				}
-				else if (pp == PartitionProperty.RANGE_PARTITIONED) {
-					throw new CompilerException("Range partitioning during forwards with changing degree " +
-							"of parallelism is currently not handled!");
+			if (this.interestingProps != null) {
+				for (InterestingProperties props : this.interestingProps) {
+					PartitionProperty pp = props.getGlobalProperties().getPartitioning();
+					if (pp == PartitionProperty.HASH_PARTITIONED || pp == PartitionProperty.ANY) {
+						strategy = ShipStrategy.PARTITION_LOCAL_HASH;
+						break;
+					}
+					else if (pp == PartitionProperty.RANGE_PARTITIONED) {
+						throw new CompilerException("Range partitioning during forwards with changing degree " +
+								"of parallelism is currently not handled!");
+					}
 				}
 			}
-			
 		}
 		
 		this.shipStrategy = strategy;

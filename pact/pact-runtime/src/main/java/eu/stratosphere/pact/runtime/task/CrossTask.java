@@ -181,7 +181,7 @@ public class CrossTask extends AbstractTask {
 		if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST || 
 				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
 			if(this.spillingResetIt != null) this.spillingResetIt.abort();
-			if(this.blockResetIt != null) this.blockResetIt.abort();
+			if(this.blockResetIt != null) this.blockResetIt.close();
 		} else if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST || 
 				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
 			if(this.spillingResetIt != null) this.spillingResetIt.abort();
@@ -478,22 +478,31 @@ public class CrossTask extends AbstractTask {
 				throw ex;
 			}
 			
-		} finally {
-			ServiceException se1 = null, se2 = null;
+		}
+		finally {
+			Throwable t1 = null, t2 = null;
 			try {
-				if(innerInput != null) innerInput.close();
-			} catch (ServiceException se) {
-				LOG.warn(se);
-				se1 = se;
+				if(innerInput != null) {
+					innerInput.close();
+				}
 			}
+			catch (Throwable t) {
+				LOG.warn(t);
+				t1 = t;
+			}
+			
 			try {
-				if(outerInput != null) outerInput.close();
-			} catch (ServiceException se) {
-				LOG.warn(se);
-				se2 = se;
+				if(outerInput != null) {
+					outerInput.close();
+				}
 			}
-			if(se1 != null) throw new RuntimeException("Unable to close SpillingResettableIterator.", se1);
-			if(se2 != null) throw new RuntimeException("Unable to close BlockResettableIterator.", se2);
+			catch (Throwable t) {
+				LOG.warn(t);
+				t2 = t;
+			}
+			
+			if(t1 != null) throw new RuntimeException("Error closing SpillingResettableIterator.", t1);
+			if(t2 != null) throw new RuntimeException("Error closung BlockResettableIterator.", t2);
 		}
 	}
 
@@ -643,13 +652,11 @@ public class CrossTask extends AbstractTask {
 				throw ex;
 			}
 
-		} finally {
-			try {
-				// close spilling resettable iterator
-				if(innerInput != null) innerInput.close();
-			} catch (ServiceException se) {
-				LOG.warn(se);
-				throw new RuntimeException("Unable to close SpillingResettable iterator", se);
+		}
+		finally {
+			// close spilling resettable iterator
+			if(innerInput != null) {
+				innerInput.close();
 			}
 		}
 	}
