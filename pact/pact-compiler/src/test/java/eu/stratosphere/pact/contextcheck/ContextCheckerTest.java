@@ -21,19 +21,25 @@ import org.junit.Test;
 
 public class ContextCheckerTest extends TestCase {
 
+	/*
 	@Test
 	public void testCheckDataSink() {
 		
 	}
+	*/
 	
+	/*
 	@Test
 	public void testCheckSingleInputContract() {
 		
 	}
+	*/
 	
+	/*
 	@Test
 	public void testCheckDualInputContract() {
 		
 	}
+	*/
 	
 }
