@@ -203,8 +203,11 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void transferEventToOutputChannel(AbstractEvent event) {
+	public void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException {
 
 		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(this.byteBufferedInputChannel.getID(),
 			this.byteBufferedInputChannel.getConnectedChannelID(), new TransferEnvelopeProcessingLog(true, false));

@@ -15,20 +15,23 @@
 
 package eu.stratosphere.nephele.io.compression.library.dynamic;
 
-/**
- * A simple Decision Model for the Dynamic Compressor which tries to maximize the
- * achievable data rate.
- * TODO: Add decision tree here
- * 
- * @author akli
- */
-public class DataRateDecisionModel implements DecisionModel {
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 
-	private static final int GRANULARITY = 400;
+/**
+ * The decision model for dynamic compression as described in Hovestadt et al.
+ * "Evaluating Adaptive Compression to Mitigate the Effects of Shared I/O in Clouds", DataCloud 2011, 2011.
+ * 
+ * @author warneke
+ */
+public final class DataRateDecisionModel implements DecisionModel {
+
+	private final int GRANULARITY;
 
 	private final int numberOfAvailableCompressionLibraries;
 
 	private final int[] backoff;
+
+	private int sumOfTimeStamps = 0;
 
 	private boolean increasedCompressionLevel = true;
 
@@ -36,17 +39,13 @@ public class DataRateDecisionModel implements DecisionModel {
 
 	private double lastDataRate = -1.0f;
 
-	private int bufferCount = 0;
+	private int callCount = 0;
 
 	private int sumOfTransferDurations = 0;
 
 	private long sumOfBufferSizes = 0;
 
-	private double DELTA = 0.15f;
-
-	private final DecisionLogger decisionLogger;
-
-	private boolean loggerInitialized = false;
+	private final double DELTA = 0.2f;
 
 	public DataRateDecisionModel(int numberOfAvailableCompressionLibraries) {
 		this.numberOfAvailableCompressionLibraries = numberOfAvailableCompressionLibraries;
@@ -55,7 +54,7 @@ public class DataRateDecisionModel implements DecisionModel {
 			this.backoff[i] = 0;
 		}
 
-		this.decisionLogger = new DecisionLogger("compressionDecision");
+		this.GRANULARITY = GlobalConfiguration.getInteger("granularity", 2000);
 	}
 
 	/**
@@ -64,9 +63,11 @@ public class DataRateDecisionModel implements DecisionModel {
 	@Override
 	public int getCompressionLevelForNextBuffer(int sizeOfLastUncompressedBuffer, int durationOfLastBufferTransfer) {
 
-		if (++this.bufferCount % GRANULARITY != 0) {
+		this.sumOfTimeStamps += durationOfLastBufferTransfer;
+		if (this.sumOfTimeStamps < GRANULARITY) {
 			this.sumOfBufferSizes += sizeOfLastUncompressedBuffer;
-			this.sumOfTransferDurations += durationOfLastBufferTransfer;
+			this.sumOfTransferDurations += durationOfLastBufferTransfer; // TODO: Remove possible redundancy with
+																			// sumOfTimeStamps
 		} else {
 
 			// Calculate data rate
@@ -76,7 +77,6 @@ public class DataRateDecisionModel implements DecisionModel {
 				this.lastDataRate = currentDataRate;
 			}
 
-			this.decisionLogger.log(System.currentTimeMillis(), currentDataRate, this.currentSelection);
 			final int nextCompressionLevel = selectNextCompressionLevel(currentDataRate);
 			final int diff = nextCompressionLevel - this.currentSelection;
 			if (diff > 0) {
@@ -86,45 +86,28 @@ public class DataRateDecisionModel implements DecisionModel {
 			}
 
 			this.currentSelection = nextCompressionLevel;
-			System.out.println("Next compression level " + this.currentSelection);
-			System.out.println("Backoff level for compression level " + this.currentSelection + ": "
-				+ this.backoff[this.currentSelection]);
 			this.lastDataRate = currentDataRate;
 
 			this.sumOfBufferSizes = 0;
 			this.sumOfTransferDurations = 0;
-		}
-
-		if (!this.loggerInitialized) {
-			this.decisionLogger.log(System.currentTimeMillis(), 0.0, this.currentSelection);
-			this.loggerInitialized = true;
+			this.sumOfTimeStamps = 0;
 		}
 
 		return this.currentSelection;
 	}
 
-	private int count = 0;
-
 	private int selectNextCompressionLevel(double currentDataRate) {
 
 		int nextCompressionLevel = this.currentSelection;
+		this.callCount++;
 
 		final double diff = currentDataRate - this.lastDataRate;
 		final boolean diffIsPositive = (diff > 0);
 		final boolean diffWithinBounds = Math.abs(diff) < (DELTA * this.lastDataRate);
 
-		System.out.println("++++++ " + (++count) + ". decision (" + (this.increasedCompressionLevel ? "up" : "down")
-			+ ") current compression level: " + this.currentSelection + " ++++");
-		System.out.println("Current data rate: " + currentDataRate + "(" + this.sumOfBufferSizes + " / "
-			+ this.sumOfTransferDurations + ")");
-
 		if (diffWithinBounds) { // No change in data rate
 
-			System.out.println("No change: " + diff);
-
-			if (this.bufferCount >= (int) (Math.pow(2.0f, this.backoff[this.currentSelection]) * GRANULARITY)) {
-				System.out.println("Buffer count is " + this.bufferCount + ", current selection "
-					+ this.currentSelection + ", backoff: " + this.backoff[this.currentSelection]);
+			if (this.callCount >= (int) (Math.pow(2.0f, this.backoff[this.currentSelection]))) {
 
 				if (this.currentSelection == 0) {
 					this.increasedCompressionLevel = true;
@@ -139,22 +122,16 @@ public class DataRateDecisionModel implements DecisionModel {
 				} else {
 					--nextCompressionLevel;
 				}
-				this.bufferCount = 0;
-			} else {
-				System.out.println("Backoff: buffer count is " + this.bufferCount);
+				this.callCount = 0;
 			}
 
 		} else {
 
 			if (diffIsPositive) { // Improvement in data rate
 
-				System.out.println("Improvement: " + diff);
-
 				this.backoff[nextCompressionLevel]++;
 
 			} else { // Degradation of data rate
-
-				System.out.println("Degradation: " + diff);
 
 				this.backoff[nextCompressionLevel] = 0;
 				if (this.increasedCompressionLevel) {
@@ -164,7 +141,7 @@ public class DataRateDecisionModel implements DecisionModel {
 				}
 			}
 
-			this.bufferCount = 0;
+			this.callCount = 0;
 		}
 
 		// Check bounds

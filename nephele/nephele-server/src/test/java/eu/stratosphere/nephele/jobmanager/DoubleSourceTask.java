@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.library;
+package eu.stratosphere.nephele.jobmanager;
 
 import java.util.Iterator;
 
@@ -25,14 +25,11 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
 import eu.stratosphere.nephele.types.StringRecord;
 
-/**
- * A file line reader reads the associated file input splits line by line and outputs the lines as string records.
- * 
- * @author warneke
- */
-public class FileLineReader extends AbstractFileInputTask {
+public class DoubleSourceTask extends AbstractFileInputTask {
 
-	private RecordWriter<StringRecord> output = null;
+	private RecordWriter<StringRecord> output1 = null;
+
+	private RecordWriter<StringRecord> output2 = null;
 
 	@Override
 	public void invoke() throws Exception {
@@ -43,8 +40,8 @@ public class FileLineReader extends AbstractFileInputTask {
 
 			final FileInputSplit split = splitIterator.next();
 
-			long start = split.getStart();
-			long length = split.getLength();
+			final long start = split.getStart();
+			final long length = split.getLength();
 
 			final FileSystem fs = FileSystem.get(split.getPath().toUri());
 
@@ -61,7 +58,8 @@ public class FileLineReader extends AbstractFileInputTask {
 				str.set(line);
 
 				// Send out string
-				output.emit(str);
+				output1.emit(str);
+				output2.emit(str);
 
 				line = lineReader.readLine();
 			}
@@ -73,7 +71,8 @@ public class FileLineReader extends AbstractFileInputTask {
 
 	@Override
 	public void registerInputOutput() {
-		output = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 
 }

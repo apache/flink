@@ -570,6 +570,7 @@ public class Environment implements Runnable, IOReadableWritable {
 				throw new IOException("Class " + gateClassName + " not found in one of the supplied jar files: "
 					+ StringUtils.stringifyException(cnfe));
 			}
+			@SuppressWarnings("rawtypes")
 			final OutputGate<? extends Record> eog = new OutputGate(c, i);
 			eog.read(in);
 			this.outputGates.add(eog);
@@ -582,6 +583,7 @@ public class Environment implements Runnable, IOReadableWritable {
 		for (int i = 0; i < numInputGates; i++) {
 
 			// TODO (erik) : gate.read(...) deserializes the type c anyway ...
+			@SuppressWarnings("rawtypes")
 			final InputGate<? extends Record> eig = new InputGate(null /* c */, i, null);
 			eig.read(in);
 			this.inputGates.add(eig);
@@ -773,7 +775,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Closes all input gates which are not already closed.
 	 */
-	private void closeInputGates() throws IOException {
+	private void closeInputGates() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
 			final InputGate<? extends Record> eig = getInputGate(i);
@@ -804,11 +806,6 @@ public class Environment implements Runnable, IOReadableWritable {
 		this.inputSplits.add(inputSplit);
 	}
 
-	/**
-	 * Returns a list of input splits assigned to this environment.
-	 * 
-	 * @return a (possibly empty) list of input splits assigned to this environment
-	 */
 	public InputSplit[] getInputSplits() {
 
 		return this.inputSplits.toArray(new InputSplit[0]);
