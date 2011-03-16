@@ -696,7 +696,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @throws MemoryAllocationException Thrown, if the specified memory is insufficient to merge the channels
 	 *                                   or if the memory manager could not provide the requested memory.
 	 */
-	protected List<Channel.ID> mergeChannelList(final List<Channel.ID> channelIDs, final List<MemorySegment> writeBuffers,
+	protected final List<Channel.ID> mergeChannelList(final List<Channel.ID> channelIDs, final List<MemorySegment> writeBuffers,
 		final long memorySize)
 	throws IOException, MemoryAllocationException
 	{

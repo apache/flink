@@ -168,7 +168,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 	}
 	
-	public static class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	private static final class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
 		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
@@ -182,24 +182,34 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	private static final class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
 		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			PactInteger pi = null;
 			int sum = 0;
+			
 			while(values.hasNext()) {
-				sum+=values.next().getValue();
+				pi = values.next();
+				sum += pi.getValue();
 			}
-			out.collect(key, new PactInteger(sum-key.getValue()));			
+			
+			pi.setValue(sum-key.getValue());
+			out.collect(key, pi);
 		}
 		
 		@Override
 		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			PactInteger pi = null;
 			int sum = 0;
+			
 			while(values.hasNext()) {
-				sum+=values.next().getValue();
+				pi = values.next();
+				sum += pi.getValue();
 			}
-			out.collect(key, new PactInteger(sum));
+			
+			pi.setValue(sum);
+			out.collect(key, pi);
 		}
 		
 	}

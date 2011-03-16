@@ -221,10 +221,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		channelAccesses.add(writer);
 		
 		final WriterCollector<K, V> collector = new WriterCollector<K, V>(writer);
-
+		final ReduceStub<K, V, ?, ?> combineStub = this.combineStub;
+		
 		while (groupedIter.nextKey()) {
-			this.combineStub.combine(groupedIter.getKey(), groupedIter.getValues(), collector);
+			combineStub.combine(groupedIter.getKey(), groupedIter.getValues(), collector);
 		}
+		writer.close();
 
 		// all readers have finished, so they have closed themselves and deleted themselves
 		unregisterChannelsToBeRemovedAtShudown(channelAccesses);
@@ -556,7 +558,6 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 */
 		@Override
 		public void close() {
-			// does nothing
 		}
 
 	}

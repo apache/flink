@@ -447,7 +447,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ crossNode.getLocalStrategy());
 		}
 
-		crossConfig.setMemorySize(crossNode.getMemoryPerTask());
+		assignMemory(crossConfig, crossNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		crossConfig.setStubParameters(crossNode.getPactContract().getStubParameters());
@@ -581,7 +581,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set key and value classes
 		tempConfig.setStubClass(stubClass);
 
-		tempConfig.setMemorySize(2 * 1024 * 1024);
+		assignMemory(tempConfig, 2);
 
 		// set degree of parallelism
 		tempVertex.setNumberOfSubtasks(dop);
