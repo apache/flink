@@ -57,7 +57,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -93,7 +93,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -128,7 +128,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -163,7 +163,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -198,7 +198,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -233,7 +233,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -265,7 +265,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -306,7 +306,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -347,7 +347,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		

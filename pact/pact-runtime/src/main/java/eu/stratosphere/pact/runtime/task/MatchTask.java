@@ -378,10 +378,22 @@ public class MatchTask extends AbstractTask {
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (config.getLocalStrategy()) {
-		case SORTMERGE:
+		case SORT_BOTH_MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
 				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
-				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this);
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_FIRST_MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_SECOND_MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+		case MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
 //		case HYBRIDHASH_FIRST:
 //			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
 //				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, 
@@ -395,7 +407,7 @@ public class MatchTask extends AbstractTask {
 //		case MMHASH_SECOND:
 //			return new InMemoryHashMatchIterator(reader2, reader1);
 		default:
-			throw new RuntimeException("Unknown local strategy for MatchTask");
+			throw new RuntimeException("Unsupported local strategy for MatchTask: "+config.getLocalStrategy());
 		}
 	}
 	

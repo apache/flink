@@ -26,7 +26,7 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 public class TaskConfig {
 
 	public enum LocalStrategy {
-		SORTMERGE,
+		SORT_BOTH_MERGE,
 		SORT_FIRST_MERGE,
 		SORT_SECOND_MERGE,
 		MERGE,

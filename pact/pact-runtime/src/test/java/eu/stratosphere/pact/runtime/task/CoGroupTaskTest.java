@@ -57,7 +57,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -92,7 +92,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -127,7 +127,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -159,7 +159,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -201,7 +201,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -242,7 +242,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		

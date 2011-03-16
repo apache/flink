@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 
-import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -35,6 +35,8 @@ import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * @author Fabian Hueske
@@ -72,7 +74,9 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 
 	private SortMerger<K, V2> sortMerger2;
 
-	private AbstractTask parentTask;
+	private final LocalStrategy localStrategy;
+	
+	private final AbstractTask parentTask;
 
 	private K key;
 
@@ -93,7 +97,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	public SortMergeCoGroupIterator(MemoryManager memoryManager, IOManager ioManager,
 			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
 			Class<K> keyClass, Class<V1> valueClass1, Class<V2> valueClass2,
-			long memory, int maxNumFileHandles, AbstractTask parentTask)
+			long memory, int maxNumFileHandles, LocalStrategy localStrategy, AbstractTask parentTask)
 	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
@@ -104,6 +108,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 		this.reader2 = reader2;
 		this.memoryPerChannel = memory / 2;
 		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
+		this.localStrategy = localStrategy;
 		this.parentTask = parentTask;
 	}
 
@@ -131,6 +136,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 		// running in the background before this thread waits.
 		// ================================================================
 		
+		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_FIRST_MERGE)
 		{
 			// serialization
 			final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
@@ -142,6 +148,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 					valSerialization, keyComparator, this.reader1, this.parentTask);
 		}
 
+		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
 		{
 			// serialization
 			final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
@@ -155,8 +162,27 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 		
 		// =============== These calls freeze until the data is actually available ============
 
-		this.iterator1 = new KeyGroupedIterator<K, V1>(sortMerger1.getIterator());
-		this.iterator2 = new KeyGroupedIterator<K, V2>(sortMerger2.getIterator());
+		switch (this.localStrategy) {
+			case SORT_BOTH_MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(sortMerger1.getIterator());
+				this.iterator2 = new KeyGroupedIterator<K, V2>(sortMerger2.getIterator());
+				break;
+			case SORT_FIRST_MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(sortMerger1.getIterator());
+				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<K,V2>(reader2));
+				break;
+			case SORT_SECOND_MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<K,V1>(reader1));
+				this.iterator2 = new KeyGroupedIterator<K, V2>(sortMerger2.getIterator());
+				break;
+			case MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<K,V1>(reader1));
+				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<K,V2>(reader2));
+				break;
+			default:
+				throw new RuntimeException("Unsupported Local Strategy in SortMergeCoGroupIterator: "+this.localStrategy);
+		}
+		
 	}
 
 	@Override

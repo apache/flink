@@ -383,8 +383,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// set local strategy
 		switch (matchNode.getLocalStrategy()) {
-		case SORTMERGE:
-			matchConfig.setLocalStrategy(LocalStrategy.SORTMERGE);
+		case SORT_BOTH_MERGE:
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			break;
+		case SORT_FIRST_MERGE:
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			break;
+		case SORT_SECOND_MERGE:
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			break;
+		case MERGE:
+			matchConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		case HYBRIDHASH_FIRST:
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
@@ -473,8 +482,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// set local strategy
 		switch (coGroupNode.getLocalStrategy()) {
-		case SORTMERGE:
-			coGroupConfig.setLocalStrategy(LocalStrategy.SORTMERGE);
+		case SORT_BOTH_MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			break;
+		case SORT_FIRST_MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			break;
+		case SORT_SECOND_MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			break;
+		case MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		default:
 			throw new CompilerException("Invalid local strategy for 'CoGroup' (" + coGroupNode.getName() + "): "

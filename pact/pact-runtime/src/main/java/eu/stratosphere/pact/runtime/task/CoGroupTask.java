@@ -214,11 +214,20 @@ public class CoGroupTask extends AbstractTask
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (config.getLocalStrategy()) {
-		case SORTMERGE:
+		case SORT_BOTH_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
-				iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this);
+				iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_FIRST_MERGE:
+			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_SECOND_MERGE:
+			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+		case MERGE:
+			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
 		default:
-			throw new RuntimeException("Unknown local strategy for CoGroupTask");
+			throw new RuntimeException("Supported local strategy for CoGroupTask: "+config.getLocalStrategy());
 		}
 	}
 
