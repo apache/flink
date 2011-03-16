@@ -27,6 +27,9 @@ public class TaskConfig {
 
 	public enum LocalStrategy {
 		SORTMERGE,
+		SORT_FIRST_MERGE,
+		SORT_SECOND_MERGE,
+		MERGE,
 		SORT,
 		COMBININGSORT,
 		HYBRIDHASH_FIRST,
