@@ -44,6 +44,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
+import eu.stratosphere.pact.runtime.task.util.EmptyIterator;
 
 /**
  * The {@link UnilateralSortMerger} is part of a merge-sort implementation.
@@ -666,7 +667,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	throws IOException
 	{
 		// create one iterator per channel id
-		LOG.debug("Initialting merge of " + channelIDs.size() + " sorted streams.");
+		LOG.debug("Performing merge of " + channelIDs.size() + " sorted streams.");
 		final List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>(channelIDs.size());
 		
 		for (int i = 0; i < channelIDs.size(); i++) {
@@ -788,7 +789,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * 
 	 * @param target The list into which the lists with buffers for the channels are put.
 	 * @param totalReadMemory The total amount of memory to be divided among the channels.
-	 * @param numChannels The number of channels for which to allocate buffers.
+	 * @param numChannels The number of channels for which to allocate buffers. Must not be zero.
 	 * @return A list with all memory segments that were allocated.
 	 * @throws MemoryAllocationException Thrown, if the specified memory is insufficient to merge the channels
 	 *                                   or if the memory manager could not provide the requested memory.
@@ -1372,17 +1373,25 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				unregisterSegmentsToBeFreedAtShutdown(writeBuffers);
 				writeBuffers.clear();
 				
-				// allocate the memory for the final merging step
-				List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
-				
-				// allocate the read memory and register it to be released
-				List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
-				registerSegmentsToBeFreedAtShutdown(allBuffers);
-				
-				// get the readers and register them to be released
-				List<ChannelAccess<?>> readers = new ArrayList<ChannelAccess<?>>(channelIDs.size());
-				registerChannelsToBeRemovedAtShudown(readers);
-				setResultIterator(getMergingIterator(channelIDs, readBuffers, readers));
+				// check if we have spilled some data at all
+				if (channelIDs.isEmpty()) {
+					setResultIterator(EmptyIterator.<KeyValuePair<K, V>>get());
+				}
+				else {
+					LOG.debug("Beginning final merge.");
+					
+					// allocate the memory for the final merging step
+					List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
+					
+					// allocate the read memory and register it to be released
+					List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
+					registerSegmentsToBeFreedAtShutdown(allBuffers);
+					
+					// get the readers and register them to be released
+					List<ChannelAccess<?>> readers = new ArrayList<ChannelAccess<?>>(channelIDs.size());
+					registerChannelsToBeRemovedAtShudown(readers);
+					setResultIterator(getMergingIterator(channelIDs, readBuffers, readers));
+				}
 			}
 			catch (MemoryAllocationException maex) {
 				throw new IOException("Merging of sorted runs failed, because the memory for the I/O channels could not be allocated.", maex);

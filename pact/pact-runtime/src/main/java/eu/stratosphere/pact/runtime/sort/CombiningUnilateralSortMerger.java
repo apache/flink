@@ -42,6 +42,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
+import eu.stratosphere.pact.runtime.task.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 
 
@@ -402,25 +403,31 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				this.memoryManager.release(writeBuffers);
 				unregisterSegmentsToBeFreedAtShutdown(writeBuffers);
 
-				// allocate the memory for the final merging step
-				final List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
-				final List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
-				registerSegmentsToBeFreedAtShutdown(allBuffers);
-				
-				// get the readers and register them to be released
-				final List<ChannelAccess<?>> readers = new ArrayList<ChannelAccess<?>>(channelIDs.size());
-				registerChannelsToBeRemovedAtShudown(readers);
-				
-				final Iterator<KeyValuePair<K, V>> mergeIterator = getMergingIterator(channelIDs, readBuffers, readers);
-				
-				// set the target for the user iterator
-				// if the final merge combines, create a combining iterator around the merge iterator,
-				// otherwise not
-				if (CombiningUnilateralSortMerger.this.combineLastMerge) {
-					KeyGroupedIterator<K, V> iter = new KeyGroupedIterator<K, V>(mergeIterator);
-					setResultIterator(new CombiningIterator<K, V>(combineStub, iter));
-				} else {
-					setResultIterator(mergeIterator);
+				// check if we have spilled some data at all
+				if (channelIDs.isEmpty()) {
+					setResultIterator(EmptyIterator.<KeyValuePair<K, V>>get());
+				}
+				else {
+					// allocate the memory for the final merging step
+					final List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
+					final List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
+					registerSegmentsToBeFreedAtShutdown(allBuffers);
+					
+					// get the readers and register them to be released
+					final List<ChannelAccess<?>> readers = new ArrayList<ChannelAccess<?>>(channelIDs.size());
+					registerChannelsToBeRemovedAtShudown(readers);
+					
+					final Iterator<KeyValuePair<K, V>> mergeIterator = getMergingIterator(channelIDs, readBuffers, readers);
+					
+					// set the target for the user iterator
+					// if the final merge combines, create a combining iterator around the merge iterator,
+					// otherwise not
+					if (CombiningUnilateralSortMerger.this.combineLastMerge) {
+						KeyGroupedIterator<K, V> iter = new KeyGroupedIterator<K, V>(mergeIterator);
+						setResultIterator(new CombiningIterator<K, V>(combineStub, iter));
+					} else {
+						setResultIterator(mergeIterator);
+					}
 				}
 			}
 			catch (MemoryAllocationException maex) {
