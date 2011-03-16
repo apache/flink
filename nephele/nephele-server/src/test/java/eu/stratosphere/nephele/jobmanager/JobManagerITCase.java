@@ -45,6 +45,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
+import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
@@ -576,4 +577,96 @@ public class JobManagerITCase {
 			fail(ioe.getMessage());
 		}
 	}
+
+	/**
+	 * Tests the Nephele execution with a job that has two vertices, that are connected twice with each other with
+	 * different channel types.
+	 */
+	@Test
+	public void testExecutionDoubleConnection() {
+
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "doubleConnection.jar");
+
+		try {
+
+			inputFile = ServerTestUtils.createInputFile(0);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+							+ ServerTestUtils.getRandomFilename());
+
+			// Create required jar file
+			JarFileCreator jfc = new JarFileCreator(jarFile);
+			jfc.addClass(DoubleSourceTask.class);
+			jfc.addClass(DoubleTargetTask.class);
+			jfc.createJarFile();
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph for Double Connection Test");
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input with two Outputs", jg);
+			i1.setFileInputClass(DoubleSourceTask.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task with two Inputs", jg);
+			t1.setTaskClass(DoubleTargetTask.class);
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			t1.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			i1.connectTo(t1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// add jar
+			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+
+			// Create job client and launch job
+			final JobClient jobClient = new JobClient(jg, configuration);
+
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+
+				// Check if the correct error message is encapsulated in the exception
+				if (e.getMessage() == null) {
+					fail("JobExecutionException does not contain an error message");
+				}
+				if (!e.getMessage().contains(RuntimeExceptionTask.RUNTIME_EXCEPTION_MESSAGE)) {
+					fail("JobExecutionException does not contain the expected error message");
+				}
+
+				// Check if the correct error message is encapsulated in the exception
+				return;
+			}
+
+			fail("Expected exception but did not receive it");
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+		}
+	}
+
 }
