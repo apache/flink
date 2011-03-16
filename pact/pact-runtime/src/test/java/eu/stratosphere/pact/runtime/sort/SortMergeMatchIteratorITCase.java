@@ -50,19 +50,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
  */
 public class SortMergeMatchIteratorITCase {
 	// total memory
-	public static final int MEMORY_SIZE = 1024 * 1024 * 64;
-
-	// offset array used by sort-buffer
-	public static final float OFFSETS_PERCENTAGE = 0.1f;
-
-	// two sort-buffers per sortmerger
-	public static final int NUM_SORT_BUFFERS = 4;
-
-	// each sort-buffer is 8 mb
-	public static final int SIZE_SORT_BUFFER = 1024 * 1024 * 8;
-
-	// 512 kb io buffer for each sortmerger
-	public static final int MEMORY_IO = 1024 * 1024;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 128;
 
 	// the size of the left and right inputs
 	private static final int INPUT_1_SIZE = 20000;
@@ -100,6 +88,14 @@ public class SortMergeMatchIteratorITCase {
 
 	@AfterClass
 	public static void afterClass() {
+		if (ioManager != null) {
+			ioManager.shutdown();
+			if (!ioManager.isProperlyShutDown()) {
+				Assert.fail("I/O manager failed to properly shut down.");
+			}
+			ioManager = null;
+		}
+		
 	}
 
 	@Before
@@ -115,8 +111,12 @@ public class SortMergeMatchIteratorITCase {
 
 	@After
 	public void afterTest() {
-		if (memoryManager != null)
+		if (memoryManager != null) {
+			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
+				memoryManager.verifyEmpty());
 			memoryManager.shutdown();
+			memoryManager = null;
+		}
 	}
 
 	@Test
@@ -132,9 +132,11 @@ public class SortMergeMatchIteratorITCase {
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
-				memoryManager, ioManager, reader1, reader2, TestData.Key.class, TestData.Value.class, TestData.Value.class,
-				NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, 128, parentTask);
+			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
+						TestData.Value.class, TestData.Value.class,
+						MEMORY_SIZE, 64, parentTask);
 	
 			iterator.open();
 			while (iterator.next()) {

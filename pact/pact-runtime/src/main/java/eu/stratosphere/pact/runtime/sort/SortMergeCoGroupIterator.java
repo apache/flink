@@ -60,11 +60,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 
 	private final Class<V2> valueClass2;
 
-	private final int numSortBufferPerChannel;
-
-	private final int sizeSortBufferPerChannel;
-
-	private final int ioMemoryPerChannel;
+	private final long memoryPerChannel;
 
 	private final int fileHandlesPerChannel;
 
@@ -95,9 +91,9 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 
 
 	public SortMergeCoGroupIterator(MemoryManager memoryManager, IOManager ioManager,
-			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2, Class<K> keyClass,
-			Class<V1> valueClass1, Class<V2> valueClass2, int numSortBuffer, int sizeSortBuffer, int ioMemory,
-			int maxNumFileHandles, AbstractTask parentTask)
+			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
+			Class<K> keyClass, Class<V1> valueClass1, Class<V2> valueClass2,
+			long memory, int maxNumFileHandles, AbstractTask parentTask)
 	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
@@ -106,10 +102,8 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 		this.valueClass2 = valueClass2;
 		this.reader1 = reader1;
 		this.reader2 = reader2;
-		this.numSortBufferPerChannel = numSortBuffer / 2;
-		this.sizeSortBufferPerChannel = sizeSortBuffer;
-		this.ioMemoryPerChannel = ioMemory / 2;
-		this.fileHandlesPerChannel = (maxNumFileHandles / 2) == 1 ? 2 : (maxNumFileHandles / 2);
+		this.memoryPerChannel = memory / 2;
+		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
 		this.parentTask = parentTask;
 	}
 
@@ -143,9 +137,9 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 			final SerializationFactory<V1> valSerialization = new WritableSerializationFactory<V1>(valueClass1);
 
 			// merger
-			this.sortMerger1 = new UnilateralSortMerger<K, V1>(memoryManager, ioManager, numSortBufferPerChannel,
-				sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-				valSerialization, keyComparator, reader1, parentTask);
+			this.sortMerger1 = new UnilateralSortMerger<K, V1>(this.memoryManager, this.ioManager,
+					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
+					valSerialization, keyComparator, this.reader1, this.parentTask);
 		}
 
 		{
@@ -154,9 +148,9 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 			final SerializationFactory<V2> valSerialization = new WritableSerializationFactory<V2>(valueClass2);
 
 			// merger
-			this.sortMerger2 = new UnilateralSortMerger<K, V2>(memoryManager, ioManager, numSortBufferPerChannel,
-				sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-				valSerialization, keyComparator, reader2, parentTask);
+			this.sortMerger2 = new UnilateralSortMerger<K, V2>(this.memoryManager, this.ioManager, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
+					valSerialization, keyComparator, reader2, parentTask);
 		}
 		
 		// =============== These calls freeze until the data is actually available ============

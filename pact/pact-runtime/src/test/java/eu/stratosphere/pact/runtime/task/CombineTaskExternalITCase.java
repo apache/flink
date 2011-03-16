@@ -52,10 +52,8 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -92,10 +90,8 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		

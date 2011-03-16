@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Writer;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.types.IntegerRecord;
@@ -61,7 +60,7 @@ public class BufferSortableTest {
 
 	public static final float OFFSETS_PERCENTAGE = 0.2f;
 
-	private MemoryManager memoryManager;
+	private DefaultMemoryManager memoryManager;
 
 	@BeforeClass
 	public static void beforeClass() {

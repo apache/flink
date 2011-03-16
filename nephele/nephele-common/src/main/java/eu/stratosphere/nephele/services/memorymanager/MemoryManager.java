@@ -37,29 +37,21 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 public interface MemoryManager {
 	
 	/**
-	 * Tries to allocate a memory segment of the specified size.
 	 * 
-	 * @param task The task for which the memory is allocated.
-	 * @param segmentSize The size of the memory to be allocated.
-	 * @return The allocated memory segment.
 	 * 
-	 * @throws MemoryAllocationException Thrown, if not enough memory is available.
-	 * @throws IllegalArgumentException Thrown, if the size parameter is not a positive integer.
+	 * @param owner The task that owns the allocated segments. If {@link #releaseAll(AbstractInvokable) is called
+	 *              with this task as the parameter, the here allocated memory segments are freed.
+	 * @param totalMemory The total memory, in bytes, to be allocated.
+	 * @param minNumSegments The minimum number of segments to allocate.
+	 * @param minSegmentSize The minimum size that a segment may have.
+	 * @return A list of {@link MemorySegment}, at least <code>minNumSegments</code>, whose sizes sum up to
+	 *         <code>totalMemory</code>.
+	 * @throws MemoryAllocationException Thrown, if the total amount of memory requested is not available, of if
+	 *                                   allocating that much memory would require to create segments below the
+	 *                                   specified minimal segment size.
 	 */
-	MemorySegment allocate(AbstractInvokable task, int segmentSize) throws MemoryAllocationException;
-
-	/**
-	 * Tries to allocate a collection of <code>numberOfBuffers</code> memory
-	 * segments of the specified <code>segmentSize</code> and <code>segmentType</code>.
-	 * 
-	 * @param task The task for which the memory is allocated.
-	 * @param numberOfSegments The number of segments to allocate.
-	 * @param segmentSize The size of the memory segments to be allocated.
-	 * @return A collection of allocated memory segments.
-	 * 
-	 * @throws MemoryAllocationException Thrown, if the memory segments could not be allocated.
-	 */
-	List<MemorySegment> allocate(AbstractInvokable task, int numberOfSegments, int segmentSize) throws MemoryAllocationException;
+	List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
+	throws MemoryAllocationException;
 	
 	/**
 	 * Tries to release the memory for the specified segment. If the <code>segment</code> has already been released or

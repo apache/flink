@@ -72,14 +72,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	
 	private static final int DEFAUTL_MERGE_FACTOR = 64; // the number of streams to merge at once
 
-	private static final int MIN_IO_BUFFER_SIZE = 1;
-
-	private static final int MAX_IO_BUFFER_SIZE = 16;
-
-	private static final int MIN_SORT_HEAP = 4;
-
-	private static final int MAX_SORT_HEAP_BUFFER_SIZE = 2047;
-
 	// ------------------------------------------------------------------------
 
 	private JobGraph jobGraph; // the job that is currently built
@@ -455,7 +447,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ crossNode.getLocalStrategy());
 		}
 
-		crossConfig.setIOBufferSize(crossNode.getMemoryPerTask());
+		assignMemory(crossConfig, crossNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		crossConfig.setStubParameters(crossNode.getPactContract().getStubParameters());
@@ -589,7 +581,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set key and value classes
 		tempConfig.setStubClass(stubClass);
 
-		tempConfig.setIOBufferSize(2);
+		assignMemory(tempConfig, 2);
 
 		// set degree of parallelism
 		tempVertex.setNumberOfSubtasks(dop);
@@ -822,46 +814,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	// Assigning Memory
 	// ------------------------------------------------------------------------
 
-	private void assignMemory(TaskConfig config, int memSize) {
-		// this code currently has a very simple way of assigning space to the I/O and sort buffers
-		// in future releases, we plan to design the sort-component in a more adaptive fashion,
-		// making it distribute its memory among sort and merge space by itself
-
-		int ioMem, sortMem, numSortBuffers, sortBufferSize;
-
-		// decide how to divide the memory between sort and I/O space
-		if (memSize > 512) {
-			ioMem = MAX_IO_BUFFER_SIZE;
-		} else if (memSize > 64) {
-			ioMem = memSize / 32;
-		} else if (memSize > 32) {
-			ioMem = 2;
-		} else if (memSize > MIN_SORT_HEAP + MIN_IO_BUFFER_SIZE) {
-			ioMem = MIN_IO_BUFFER_SIZE;
-		} else {
-			throw new NotEnoughMemoryException();
-		}
-		sortMem = memSize - ioMem;
-
-		// decide how to divide the sort memory among different buffers
-		if (sortMem > 3 * MAX_SORT_HEAP_BUFFER_SIZE) {
-			numSortBuffers = sortMem / MAX_SORT_HEAP_BUFFER_SIZE + 1;
-			// correct rounding loss
-			numSortBuffers = sortMem / (sortMem / numSortBuffers);
-		} else if (sortMem > 3 * 16) {
-			numSortBuffers = 3;
-		} else if (sortMem >= 2 * MIN_SORT_HEAP) {
-			numSortBuffers = 2;
-		} else {
-			numSortBuffers = 1;
-		}
-		sortBufferSize = sortMem / numSortBuffers;
-
-		// set the config
-		config.setIOBufferSize(ioMem);
-		config.setMergeFactor(DEFAUTL_MERGE_FACTOR);
-		config.setNumSortBuffer(numSortBuffers);
-		config.setSortBufferSize(sortBufferSize);
+	private void assignMemory(TaskConfig config, int memSize)
+	{
+		config.setMemorySize(memSize * 1024L * 1024L);
+		config.setNumFilehandles(DEFAUTL_MERGE_FACTOR);
 	}
 
 	// ------------------------------------------------------------------------

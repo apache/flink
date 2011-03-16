@@ -56,22 +56,14 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.CoGroupStub
  * @author Fabian Hueske
  */
-public class CoGroupTask extends AbstractTask {
-	// number of sort buffers to use
-	private int NUM_SORT_BUFFERS;
-
-	// size of each sort buffer in MB
-	private int SIZE_SORT_BUFFER;
-
-	// memory to be used for IO buffering
-	private int MEMORY_IO;
-
-	// maximum number of file handles
-	private int MAX_NUM_FILEHANLDES;
-
+public class CoGroupTask extends AbstractTask
+{
 	// obtain CoGroupTask logger
 	private static final Log LOG = LogFactory.getLog(CoGroupTask.class);
-
+	
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 5 * 1024 * 1024;
+	
 	// reader of first input
 	private RecordReader<? extends Record> reader1;
 
@@ -86,6 +78,12 @@ public class CoGroupTask extends AbstractTask {
 
 	// task config including stub parameters
 	private TaskConfig config;
+
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// maximum number of file handles
+	private int maxFileHandles;
 	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -151,10 +149,13 @@ public class CoGroupTask extends AbstractTask {
 		config = new TaskConfig(getRuntimeConfiguration());
 
 		// set up memory and I/O parameters
-		NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		
+		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The CoGroup task was initialized with too little memory: " + this.availableMemory +
+				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -215,7 +216,7 @@ public class CoGroupTask extends AbstractTask {
 		switch (config.getLocalStrategy()) {
 		case SORTMERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
-				iv1Class, iv2Class, NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, this);
+				iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this);
 		default:
 			throw new RuntimeException("Unknown local strategy for CoGroupTask");
 		}

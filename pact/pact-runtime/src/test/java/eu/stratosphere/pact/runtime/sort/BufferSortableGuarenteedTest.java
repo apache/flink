@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Writer;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -62,7 +61,7 @@ public class BufferSortableGuarenteedTest {
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 16;
 
-	private MemoryManager memoryManager;
+	private DefaultMemoryManager memoryManager;
 
 	@SuppressWarnings("unused")
 	private static Level rootLevel, pkqLevel;
@@ -79,13 +78,19 @@ public class BufferSortableGuarenteedTest {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 	}
 
 	@After
 	public void afterTest() {
-		if (memoryManager != null)
-			memoryManager.shutdown();
+		if (!this.memoryManager.verifyEmpty()) {
+			Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
+		}
+		
+		if (this.memoryManager != null) {
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
+		}
 	}
 
 	private BufferSortableGuaranteed<TestData.Key, TestData.Value> newSortBuffer(MemorySegment memory)

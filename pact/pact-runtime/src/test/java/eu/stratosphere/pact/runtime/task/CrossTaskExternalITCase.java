@@ -56,7 +56,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -91,7 +91,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		

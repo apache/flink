@@ -51,17 +51,16 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 10;
 		int valCnt2 = 2;
 				
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -88,17 +87,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -125,17 +122,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -162,17 +157,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -199,17 +192,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -236,17 +227,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
 		
@@ -270,17 +259,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -313,17 +300,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -356,17 +341,15 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(4);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
