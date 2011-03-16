@@ -482,8 +482,13 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 * Immediately closes the input gate and all its input channels. The corresponding
 	 * output channels are notified. Any remaining records in any buffers or queue is considered
 	 * irrelevant and is discarded.
+	 * 
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the channels to be closed
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while closing the channels
 	 */
-	public void close() {
+	public void close() throws InterruptedException, IOException {
 
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);

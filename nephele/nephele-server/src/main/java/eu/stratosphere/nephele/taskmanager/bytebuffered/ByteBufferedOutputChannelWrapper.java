@@ -95,7 +95,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseWriteBuffers() {
+	public void releaseWriteBuffers() throws IOException, InterruptedException {
 
 		if (this.outgoingTransferEnvelope == null) {
 			LOG.error("Cannot find transfer envelope for channel with ID " + this.byteBufferedOutputChannel.getID());
@@ -203,7 +203,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void transferEventToInputChannel(AbstractEvent event) {
+	public void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException {
 
 		if (this.outgoingTransferEnvelope != null) {
 			this.outgoingTransferEnvelope.addEvent(event);
