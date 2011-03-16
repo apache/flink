@@ -632,24 +632,10 @@ public class JobManagerITCase {
 			// Create job client and launch job
 			final JobClient jobClient = new JobClient(jg, configuration);
 
-			try {
-				jobClient.submitJobAndWait();
-			} catch (JobExecutionException e) {
+			jobClient.submitJobAndWait();
 
-				// Check if the correct error message is encapsulated in the exception
-				if (e.getMessage() == null) {
-					fail("JobExecutionException does not contain an error message");
-				}
-				if (!e.getMessage().contains(RuntimeExceptionTask.RUNTIME_EXCEPTION_MESSAGE)) {
-					fail("JobExecutionException does not contain the expected error message");
-				}
-
-				// Check if the correct error message is encapsulated in the exception
-				return;
-			}
-
-			fail("Expected exception but did not receive it");
-
+		} catch (JobExecutionException e) {
+			fail(e.getMessage());
 		} catch (JobGraphDefinitionException jgde) {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
