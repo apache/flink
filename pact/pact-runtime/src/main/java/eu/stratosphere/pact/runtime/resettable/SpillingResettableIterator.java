@@ -250,7 +250,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		return out;
 	}
 
-	public void close() throws ServiceException {
+	public void close() {
 		if (!fitsIntoMem) {
 			try {
 				ioReader.close();
