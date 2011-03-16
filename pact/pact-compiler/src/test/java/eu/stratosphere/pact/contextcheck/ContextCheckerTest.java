@@ -13,18 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.util;
+package eu.stratosphere.pact.contextcheck;
 
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import junit.framework.TestCase;
 
+import org.junit.Test;
 
-@SameKey
-public final class IdentityMap extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
-	@Override
-	public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
-		out.collect(key, value);
+public class ContextCheckerTest extends TestCase {
+
+	@Test
+	public void testCheckDataSink() {
+		
 	}
+	
+	@Test
+	public void testCheckSingleInputContract() {
+		
+	}
+	
+	@Test
+	public void testCheckDualInputContract() {
+		
+	}
+	
 }
