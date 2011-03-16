@@ -88,6 +88,14 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
+	 */
+	@Override
+	public boolean isClosed() {
+		return this.closed;
+	}
+	
 	/**
 	 * Closes this writer. Sends a request to write the current buffer, makes sure all data is written out
 	 * and waits for all memory segments to come back.

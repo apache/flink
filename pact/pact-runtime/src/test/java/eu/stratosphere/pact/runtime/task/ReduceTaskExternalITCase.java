@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
@@ -37,10 +52,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -72,10 +85,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -107,10 +118,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -148,10 +157,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setNumSortBuffer(2);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(2);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -176,7 +183,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 	}
 	
-	public static class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	private static final class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
 		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
@@ -190,24 +197,34 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	private static final class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 
 		@Override
 		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			PactInteger pi = null;
 			int sum = 0;
+			
 			while(values.hasNext()) {
-				sum+=values.next().getValue();
+				pi = values.next();
+				sum += pi.getValue();
 			}
-			out.collect(key, new PactInteger(sum-key.getValue()));			
+			
+			pi.setValue(sum-key.getValue());
+			out.collect(key, pi);
 		}
 		
 		@Override
 		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+			PactInteger pi = null;
 			int sum = 0;
+			
 			while(values.hasNext()) {
-				sum+=values.next().getValue();
+				pi = values.next();
+				sum += pi.getValue();
 			}
-			out.collect(key, new PactInteger(sum));
+			
+			pi.setValue(sum);
+			out.collect(key, pi);
 		}
 		
 	}

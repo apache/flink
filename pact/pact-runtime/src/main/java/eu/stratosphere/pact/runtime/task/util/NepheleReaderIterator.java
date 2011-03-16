@@ -13,44 +13,55 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.hash;
+package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
+import java.util.Iterator;
 
-import junit.framework.TestCase;
 import eu.stratosphere.nephele.io.Reader;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.runtime.test.util.TestData;
-import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
-import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
+import eu.stratosphere.pact.common.type.Value;
 
-public class KeyValuePairHashMapTest extends TestCase {
-	// the size of the input
-	private static int input1Size = 50000;
+/**
+ * Wraps a Nephele KeyValuePair reader into a Java Iterator.
+ * 
+ * @see KeyValuePair
+ * @see Reader
+ * @see Iterator
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
+ * @param <K>
+ * @param <V>
+ */
+public class NepheleReaderIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>> {
 
-	// random seeds for the input data generator
-	private static long seed = 561349061987311L;
-
-	// input data generator and reader
-	private Generator generator;
-
-	private Reader<? extends KeyValuePair<TestData.Key, TestData.Value>> reader;
-
+	private Reader<KeyValuePair<K,V>> reader;
+	
+	public NepheleReaderIterator(Reader<KeyValuePair<K,V>> reader) {
+		this.reader = reader;
+	}
+	
 	@Override
-	public void setUp() {
-		generator = new Generator(seed, 500, 16);
-		reader = new RecordReaderMock(generator, input1Size);
+	public boolean hasNext() {
+		return reader.hasNext();
 	}
 
 	@Override
-	public void tearDown() {
-		generator = null;
-		reader = null;
-	}
-
-	public void testMap() throws IOException, InterruptedException {
-		while (reader.hasNext()) {
-			reader.next();
+	public KeyValuePair<K, V> next() {
+		try {
+			return reader.next();
+		} catch (IOException ioe) {
+			throw new RuntimeException(ioe);
+		} catch (InterruptedException ie) {
+			throw new RuntimeException(ie);
 		}
 	}
+
+	@Override
+	public void remove() {
+		throw new UnsupportedOperationException();
+	}
+
 }

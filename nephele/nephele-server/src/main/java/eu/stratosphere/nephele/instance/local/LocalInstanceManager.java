@@ -136,14 +136,7 @@ public class LocalInstanceManager implements InstanceManager {
 		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
 		this.localTaskManagerThread = new LocalTaskManagerThread(configDir);
-
-		if(this.localTaskManagerThread.isTaskManagerInitialized()) 
-		{
-			this.localTaskManagerThread.start();
-		} else {
-			LOG.fatal("TaskManager was not successfully initialized!");
-			throw new RuntimeException("TaskManager was not successfully initialized!");
-		}
+		this.localTaskManagerThread.start();
 	}
 
 	/**

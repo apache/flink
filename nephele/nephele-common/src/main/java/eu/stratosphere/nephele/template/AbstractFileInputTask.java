@@ -15,6 +15,10 @@
 
 package eu.stratosphere.nephele.template;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 import eu.stratosphere.nephele.fs.FileInputSplit;
 
 /**
@@ -27,20 +31,21 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 public abstract class AbstractFileInputTask extends AbstractInputTask {
 
 	/**
-	 * Returns an array of {@FileInputSplits} which have been assigned to this task.
+	 * Returns an iterator to a (possible empty) list of file input splits which is expected to be consumed by this
+	 * instance of the {@link AbstractFileInputTask}.
 	 * 
-	 * @return an array of file input splits which have been assigned to this task
+	 * @return an iterator to a (possible empty) list of file input splits.
 	 */
-	public FileInputSplit[] getFileInputSplits() {
+	public Iterator<FileInputSplit> getFileInputSplits() {
 
 		final InputSplit[] inputSplits = getEnvironment().getInputSplits();
 
-		final FileInputSplit[] fileInputSplits = new FileInputSplit[inputSplits.length];
+		final List<FileInputSplit> fileInputSplits = new ArrayList<FileInputSplit>();
 
-		for (int i = 0; i < fileInputSplits.length; i++) {
-			fileInputSplits[i] = (FileInputSplit) inputSplits[i];
+		for (int i = 0; i < inputSplits.length; i++) {
+			fileInputSplits.add((FileInputSplit) inputSplits[i]);
 		}
 
-		return fileInputSplits;
+		return fileInputSplits.iterator();
 	}
 }

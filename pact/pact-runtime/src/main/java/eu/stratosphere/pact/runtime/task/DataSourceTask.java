@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,7 +47,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @author Moritz Kaufmann
  * @author Fabian Hueske
  */
-@SuppressWarnings( { "unchecked", "rawtypes" })
+
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class DataSourceTask extends AbstractFileInputTask {
 
 	// Obtain DataSourceTask Logger
@@ -96,22 +98,22 @@ public class DataSourceTask extends AbstractFileInputTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// get file splits to read
-		FileInputSplit[] splits = getFileInputSplits();
+		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 
 		// set object creation policy to immutable
 		boolean immutable = config.getMutability() == Config.Mutability.IMMUTABLE;
 
 		// for each assigned input split
-		for (int i = 0; i < splits.length; i++) {
+		while (splitIterator.hasNext()) {
 
 			if (this.taskCanceled) {
 				break;
 			}
 
 			// get start and end
-			FileInputSplit split = splits[i];
-			long start = split.getStart();
-			long length = split.getLength();
+			final FileInputSplit split = splitIterator.next();
+			final long start = split.getStart();
+			final long length = split.getLength();
 
 			LOG.debug("Opening input split " + split.getPath() + " : " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"

@@ -50,7 +50,6 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
 
 public class ByteBufferedChannelManager {
 
@@ -489,7 +488,7 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	void queueOutgoingTransferEnvelope(TransferEnvelope transferEnvelope) {
+	void queueOutgoingTransferEnvelope(TransferEnvelope transferEnvelope) throws InterruptedException, IOException {
 
 		// Check to which host the transfer envelope shall be sent
 		InetSocketAddress connectionAddress = getPeerConnectionAddress(transferEnvelope.getSource());
@@ -565,7 +564,7 @@ public class ByteBufferedChannelManager {
 		return connection;
 	}
 
-	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) {
+	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) throws InterruptedException, IOException {
 
 		InetSocketAddress connectionAddress = null;
 
@@ -584,37 +583,28 @@ public class ByteBufferedChannelManager {
 			}
 
 			InstanceConnectionInfo ici = null;
-			try {
+			
+			while (!Thread.interrupted()) {
 
-				while (true) {
+				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+					channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
 
-					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
-						channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
-
-					if (lookupResponse.receiverNotFound()) {
-						throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
-							+ " does not appear to be running");
-					}
-
-					if (lookupResponse.receiverNotReady()) {
-						try {
-							Thread.sleep(500);
-						} catch (InterruptedException e) {
-							return null;
-						}
-						continue;
-					}
-
-					if (lookupResponse.receiverReady()) {
-						ici = lookupResponse.getInstanceConnectionInfo();
-						break;
-					}
+				if (lookupResponse.receiverNotFound()) {
+					throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
+						+ " does not appear to be running");
 				}
 
-			} catch (IOException e) {
-				LOG.error(StringUtils.stringifyException(e));
-				return null;
+				if (lookupResponse.receiverNotReady()) {
+					Thread.sleep(500);
+					continue;
+				}
+
+				if (lookupResponse.receiverReady()) {
+					ici = lookupResponse.getInstanceConnectionInfo();
+					break;
+				}
 			}
+
 			if (ici != null) {
 				connectionAddress = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
 				synchronized (this.connectionAddresses) {
@@ -626,7 +616,7 @@ public class ByteBufferedChannelManager {
 		return connectionAddress;
 	}
 
-	public int getNumberOfQueuedOutgoingEnvelopes(ChannelID sourceChannelID) {
+	public int getNumberOfQueuedOutgoingEnvelopes(ChannelID sourceChannelID) throws IOException, InterruptedException {
 
 		final InetSocketAddress socketAddress = getPeerConnectionAddress(sourceChannelID);
 		if (socketAddress == null) {

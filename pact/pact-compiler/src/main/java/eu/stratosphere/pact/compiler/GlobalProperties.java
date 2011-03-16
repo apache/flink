@@ -138,7 +138,7 @@ public final class GlobalProperties implements Cloneable {
 	 *        The output contract.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public boolean getPreservedAfterContract(OutputContract contract) {
+	public boolean filterByOutputContract(OutputContract contract) {
 		boolean nonTrivial = false;
 
 		// check, if the partitioning survives

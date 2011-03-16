@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
  * Tests for the {@link LocalInstanceManager}.
@@ -40,22 +41,15 @@ import eu.stratosphere.nephele.instance.InstanceType;
 public class LocalInstanceManagerTest {
 
 	/**
-	 * The system property key to retrieve the user directory.
-	 */
-	private static final String USER_DIR_KEY = "user.dir";
-
-	/**
-	 * The directory containing the correct configuration file to be used during the tests.
-	 */
-	private static final String CORRECT_CONF_DIR = "/correct-conf";
-
-	/**
 	 * Starts the discovery service before the tests.
 	 */
 	@BeforeClass
 	public static void startDiscoveryService() {
 		
-		final String configDir = System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR;
+		final String configDir = ServerTestUtils.getConfigDir();
+		if(configDir == null) {
+			fail("Cannot locate configuration directory");
+		}
 		
 		GlobalConfiguration.loadConfiguration(configDir);
 		
@@ -91,7 +85,10 @@ public class LocalInstanceManagerTest {
 	@Test
 	public void testInstanceTypeFromConfiguration() {
 
-		final String configDir = System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR;
+		final String configDir = ServerTestUtils.getConfigDir();
+		if(configDir == null) {
+			fail("Cannot locate configuration directory");
+		}
 		
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
 
