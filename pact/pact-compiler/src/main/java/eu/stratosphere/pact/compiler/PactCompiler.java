@@ -963,21 +963,55 @@ public class PactCompiler {
 			int inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
 			switch (conn.getTargetPact().getLocalStrategy()) {
 			case HYBRIDHASH_FIRST:
+				// first input is build side
 				if (inConnIdx == 1)
 					return true;
 				else
 					return false;
 			case HYBRIDHASH_SECOND:
+				// second input is build side
 				if (inConnIdx == 0)
 					return true;
 				else
 					return false;
 			case MMHASH_FIRST:
+				// first input is build side
 				if (inConnIdx == 1)
 					return true;
 				else
 					return false;
 			case MMHASH_SECOND:
+				// second input is build side
+				if (inConnIdx == 0)
+					return true;
+				else
+					return false;
+			case SORT_FIRST_MERGE:
+				// first input is sorted
+				if (inConnIdx == 1)
+					return true;
+				else
+					return false;
+			case SORT_SECOND_MERGE:
+				// second input is sorted
+				if (inConnIdx == 0)
+					return true;
+				else
+					return false;
+			default:
+				return false;
+			}
+		case Cogroup:
+			inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
+			switch (conn.getTargetPact().getLocalStrategy()) {
+			case SORT_FIRST_MERGE:
+				// first input is sorted
+				if (inConnIdx == 1)
+					return true;
+				else
+					return false;
+			case SORT_SECOND_MERGE:
+				// second input is sorted
 				if (inConnIdx == 0)
 					return true;
 				else
@@ -989,21 +1023,25 @@ public class PactCompiler {
 			inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
 			switch (conn.getTargetPact().getLocalStrategy()) {
 			case NESTEDLOOP_BLOCKED_OUTER_SECOND:
+				// first input is fully read before processing (inner side)
 				if (inConnIdx == 1)
 					return true;
 				else
 					return false;
 			case NESTEDLOOP_STREAMED_OUTER_SECOND:
+				// first input is fully read before processing (inner side)
 				if (inConnIdx == 1)
 					return true;
 				else
 					return false;
 			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
+				// second input is fully read before processing (inner side)
 				if (inConnIdx == 0)
 					return true;
 				else
 					return false;
 			case NESTEDLOOP_STREAMED_OUTER_FIRST:
+				// second input is fully read before processing (inner side)
 				if (inConnIdx == 0)
 					return true;
 				else
