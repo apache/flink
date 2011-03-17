@@ -70,14 +70,6 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 		TransferEnvelope transferEnvelope = null;
 
-		// TODO: Remove this
-		/*
-		 * int j = 0;
-		 * if(j == 0) {
-		 * return null;
-		 * }
-		 */
-
 		synchronized (this.queuedEnvelopes) {
 
 			if (this.queuedEnvelopes.isEmpty()) {
@@ -272,5 +264,34 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	public boolean isInputChannel() {
 
 		return this.byteBufferedInputChannel.isInputChannel();
+	}
+
+	public int getNumberOfQueuedEnvelopes() {
+
+		synchronized (this.queuedEnvelopes) {
+
+			return this.queuedEnvelopes.size();
+		}
+	}
+
+	public int getNumberOfQueuedMemoryBuffers() {
+
+		synchronized (this.queuedEnvelopes) {
+
+			int count = 0;
+
+			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
+			while (it.hasNext()) {
+
+				final TransferEnvelope envelope = it.next();
+				if (envelope.getBuffer() != null) {
+					if (envelope.getBuffer().isBackedByMemory()) {
+						++count;
+					}
+				}
+			}
+
+			return count;
+		}
 	}
 }

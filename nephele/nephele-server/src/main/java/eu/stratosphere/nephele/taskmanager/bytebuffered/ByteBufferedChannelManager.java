@@ -564,7 +564,8 @@ public class ByteBufferedChannelManager {
 		return connection;
 	}
 
-	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) throws InterruptedException, IOException {
+	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) throws InterruptedException,
+			IOException {
 
 		InetSocketAddress connectionAddress = null;
 
@@ -583,7 +584,7 @@ public class ByteBufferedChannelManager {
 			}
 
 			InstanceConnectionInfo ici = null;
-			
+
 			while (!Thread.interrupted()) {
 
 				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
@@ -775,15 +776,40 @@ public class ByteBufferedChannelManager {
 		}
 		synchronized (this.outgoingConnections) {
 
+			System.out.println("\tOutgoing connections:");
+
 			final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
 				.iterator();
 
 			while (it.hasNext()) {
 
 				final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
-				System.out.println("\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
+				System.out
+					.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
 			}
 		}
 
+		synchronized (this.registeredChannels) {
+
+			System.out.println("\tIncoming connections:");
+
+			final Iterator<Map.Entry<ChannelID, ByteBufferedChannelWrapper>> it = this.registeredChannels.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<ChannelID, ByteBufferedChannelWrapper> entry = it.next();
+				final ByteBufferedChannelWrapper wrapper = entry.getValue();
+				if (wrapper.isInputChannel()) {
+
+					final ByteBufferedInputChannelWrapper inputChannelWrapper = (ByteBufferedInputChannelWrapper) wrapper;
+					final int numberOfQueuedEnvelopes = inputChannelWrapper.getNumberOfQueuedEnvelopes();
+					final int numberOfQueuedMemoryBuffers = inputChannelWrapper.getNumberOfQueuedMemoryBuffers();
+
+					System.out.println("\t\t" + entry.getKey() + ": " + numberOfQueuedMemoryBuffers + " ("
+						+ numberOfQueuedEnvelopes + ")");
+				}
+			}
+		}
 	}
 }

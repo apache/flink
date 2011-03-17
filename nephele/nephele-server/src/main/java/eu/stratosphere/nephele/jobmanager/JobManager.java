@@ -968,9 +968,26 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			}
 		}
 
-		final Iterator<AbstractInstance> it2 = allocatedInstance.iterator();
-		while (it2.hasNext()) {
-			it2.next().logBufferUtilization();
-		}
+		// Send requests to task managers from separate thread
+		final Runnable requestRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				final Iterator<AbstractInstance> it2 = allocatedInstance.iterator();
+
+				try {
+					while (it2.hasNext()) {
+						it2.next().logBufferUtilization();
+					}
+				} catch (IOException ioe) {
+					LOG.error(StringUtils.stringifyException(ioe));
+				}
+
+			}
+		};
+
+		// Launch thread
+		new Thread(requestRunnable).start();
 	}
 }
