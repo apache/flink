@@ -15,9 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.EOFException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SelectionKey;
@@ -63,13 +61,8 @@ public class IncomingConnection {
 	 */
 	private final boolean readsFromCheckpoint;
 
-	private final IncomingConnectionID incomingConnectionID;
-
-	private boolean inactiveConnection = false;
-
-	public IncomingConnection(IncomingConnectionID incomingConnectionID,
-			ByteBufferedChannelManager byteBufferedChannelManager, ReadableByteChannel readableByteChannel) {
-		this.incomingConnectionID = incomingConnectionID;
+	public IncomingConnection(ByteBufferedChannelManager byteBufferedChannelManager,
+			ReadableByteChannel readableByteChannel) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.readsFromCheckpoint = (this.readableByteChannel instanceof FileChannel);
 		this.deserializer = new TransferEnvelopeDeserializer(byteBufferedChannelManager, readsFromCheckpoint);
@@ -103,27 +96,9 @@ public class IncomingConnection {
 		}
 
 		this.deserializer.reset();
-		// Unregister incoming connection
-		if (!this.inactiveConnection) {
-			this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID,
-				this.readableByteChannel);
-		}
 	}
 
-	public void read() throws IOException, EOFException {
-
-		if (this.inactiveConnection) {
-
-			final ByteBuffer buf = ByteBuffer.allocate(8);
-			final int bytesRead = this.readableByteChannel.read(buf);
-			if (bytesRead == 0) {
-				return;
-			} else if (bytesRead == -1) {
-				throw new EOFException();
-			} else {
-				throw new IOException("Read " + bytesRead + " bytes from inactive connection");
-			}
-		}
+	public void read() throws IOException, InterruptedException {
 
 		this.deserializer.read(this.readableByteChannel);
 
@@ -137,10 +112,6 @@ public class IncomingConnection {
 	public boolean isCloseUnexpected() {
 
 		return this.deserializer.hasUnfinishedData();
-	}
-
-	public void markConnectionAsInactive() {
-		this.inactiveConnection = true;
 	}
 
 	public ReadableByteChannel getReadableByteChannel() {
@@ -158,11 +129,6 @@ public class IncomingConnection {
 		// Cancel key
 		if (key != null) {
 			key.cancel();
-		}
-
-		if (!this.inactiveConnection) {
-			this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID,
-				this.readableByteChannel);
 		}
 	}
 }
