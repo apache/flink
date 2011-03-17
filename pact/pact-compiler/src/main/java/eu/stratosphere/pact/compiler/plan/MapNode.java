@@ -241,8 +241,8 @@ public class MapNode extends SingleInputNode {
 
 			ShipStrategy ss = input.getShipStrategy() == ShipStrategy.NONE ? ShipStrategy.FORWARD : input
 				.getShipStrategy();
-			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, ss);
-			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, ss);
+			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
+			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
 
 			// we take each input and add a mapper to it
 			// the properties of the inputs are copied
@@ -251,8 +251,8 @@ public class MapNode extends SingleInputNode {
 
 			// now, the properties (copied from the inputs) are filtered by the
 			// output contracts
-			nMap.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-			nMap.getLocalProperties().getPreservedAfterContract(getOutputContract());
+			nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
+			nMap.getLocalProperties().filterByOutputContract(getOutputContract());
 
 			// copy the cumulative costs and set the costs of the map itself to zero
 			estimator.costOperator(nMap);

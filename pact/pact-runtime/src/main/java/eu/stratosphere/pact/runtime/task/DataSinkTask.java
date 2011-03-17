@@ -46,7 +46,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.io.OutputFormat
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings( { "unchecked", "rawtypes" })
 public class DataSinkTask extends AbstractFileOutputTask {
 
 	// Obtain DataSinkTask Logger
@@ -60,6 +60,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 
 	// task configuration
 	private Config config;
+
+	// cancel flag
+	private volatile boolean taskCanceled = false;
 
 	/**
 	 * {@inheritDoc}
@@ -89,44 +92,89 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
+		final Path path = getFileOutputPath();
+
 		FSDataOutputStream fdos = null;
 
-		Path path = getFileOutputPath();
-		FileSystem fs = path.getFileSystem();
+		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
+		OutputPathOpenThread opot = new OutputPathOpenThread(path, this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		opot.start();
+		try {
+			opot.join();
+		} catch (InterruptedException ie) {
+			// this task has been canceled
+		}
+		;
 
-		if (fs.exists(path) && fs.getFileStatus(path).isDir()) {
-			// write output in directory
-			path = path.suffix("/" + (this.getEnvironment().getIndexInSubtaskGroup() + 1));
+		// check if task has been canceled
+		if (!this.taskCanceled) {
+
+			try {
+
+				// check if FSDataOutputStream was obtained
+				if (!opot.fsDataOutputStreamSuccessfullyObtained()) {
+					// forward exception
+					throw opot.getException();
+				}
+
+				// get FSDataOutputStream
+				fdos = opot.getFSDataOutputStream();
+
+				LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
+					+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+				format.setOutput(fdos);
+				format.open();
+
+				while (!this.taskCanceled && reader.hasNext()) {
+					KeyValuePair pair = reader.next();
+					format.writePair(pair);
+					// byte[] line = format.writeLine(pair);
+					// fdos.write(line, 0, line.length);
+				}
+
+				format.close();
+				fdos.close(); // Should this be done in the format?
+
+				if (fdos != null) {
+					fdos.close();
+				}
+
+			} catch (Exception ex) {
+				// drop, if the task was canceled
+				if (!this.taskCanceled) {
+					LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+						+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+					throw ex;
+				}
+			}
 		}
 
-		fdos = fs.create(path, true);
+		if (!this.taskCanceled) {
+			LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
+				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
-		LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		format.setOutput(fdos);
-		format.open();
-
-		while (reader.hasNext()) {
-			KeyValuePair pair = reader.next();
-			format.writePair(pair);
-			// byte[] line = format.writeLine(pair);
-			// fdos.write(line, 0, line.length);
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
+	}
 
-		format.close();
-		fdos.close(); // Should this be done in the format?l
-
-		LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		if (fdos != null) {
-			fdos.close();
-		}
-
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception {
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -225,6 +273,61 @@ public class DataSinkTask extends AbstractFileOutputTask {
 
 		public String getFilePath() {
 			return config.getString(FILE_PATH, null);
+		}
+	}
+
+	/**
+	 * Obtains a DataOutputStream in an thread that is not interrupted.
+	 * The HDFS client is very sensitive to InterruptedExceptions.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class OutputPathOpenThread extends Thread {
+
+		private Path path;
+
+		private int taskIndex;
+
+		private FSDataOutputStream fdos = null;
+
+		private boolean success = true;
+
+		private Exception exception = null;
+
+		public OutputPathOpenThread(Path path, int taskIndex) {
+			this.path = path;
+			this.taskIndex = taskIndex;
+		}
+
+		@Override
+		public void run() {
+			try {
+				FileSystem fs = path.getFileSystem();
+
+				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
+					// write output in directory
+					this.path = this.path.suffix("/" + this.taskIndex);
+				}
+
+				// create output file
+				this.fdos = fs.create(path, true);
+
+			} catch (Exception t) {
+				this.success = false;
+				this.exception = t;
+			}
+		}
+
+		public FSDataOutputStream getFSDataOutputStream() {
+			return this.fdos;
+		}
+
+		public boolean fsDataOutputStreamSuccessfullyObtained() {
+			return this.success;
+		}
+
+		public Exception getException() {
+			return this.exception;
 		}
 	}
 

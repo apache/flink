@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
@@ -15,7 +30,9 @@ import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 public class CrossTaskTest extends TaskTestBase {
@@ -40,7 +57,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -74,7 +91,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -108,7 +125,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockFailingCrossStub.class);
 		
@@ -142,7 +159,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -176,7 +193,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -212,7 +229,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, MockFailingCrossStub.class);
 		
@@ -227,6 +244,170 @@ public class CrossTaskTest extends TaskTestBase {
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
 		outList.clear();
+		
+	}
+
+	@Test
+	public void testCancelBlockCrossTaskInit() {
+		
+		int keyCnt = 10;
+		int valCnt = 1;
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(outList);
+		
+		final CrossTask testTask = new CrossTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		super.registerTask(testTask, MockCrossStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
+	@Test
+	public void testCancelBlockCrossTaskCrossing() {
+		
+		int keyCnt = 10;
+		int valCnt = 1;
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(outList);
+		
+		final CrossTask testTask = new CrossTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		super.registerTask(testTask, MockCrossStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
+	@Test
+	public void testCancelStreamCrossTaskInit() {
+		
+		int keyCnt = 10;
+		int valCnt = 1;
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(outList);
+		
+		final CrossTask testTask = new CrossTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		super.registerTask(testTask, MockCrossStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
+	@Test
+	public void testCancelStreamCrossTaskCrossing() {
+		
+		int keyCnt = 10;
+		int valCnt = 1;
+		
+		super.initEnvironment(1*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(outList);
+		
+		final CrossTask testTask = new CrossTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
+		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		super.registerTask(testTask, MockCrossStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
 		
 	}
 	

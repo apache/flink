@@ -60,7 +60,7 @@ public class MatchNode extends TwoInputNode {
 
 		if (localStrategy != null) {
 			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.SORTMERGE);
+				setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
 				setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
@@ -462,7 +462,7 @@ public class MatchNode extends TwoInputNode {
 							}
 						}
 					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is broadcast -> other side must be forward
@@ -507,7 +507,7 @@ public class MatchNode extends TwoInputNode {
 
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
 					gp2 = pred2.getGlobalProperties();
 
 					// 1) input 1 is broadcast -> other side must be forward
@@ -556,9 +556,9 @@ public class MatchNode extends TwoInputNode {
 						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator);
 					} else {
 						// they need to have an equal partitioning
-						gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
-						if (gp1.getPartitioning().isPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+						if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
 							// partitioning there and equal
 							createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator);
 						} else {
@@ -611,28 +611,26 @@ public class MatchNode extends TwoInputNode {
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
 		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
-		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
+		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
 
-		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, ss1);
-		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, ss2);
+		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
+		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
 
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
-		outGp.setPartitioning(gp1.getPartitioning().isPartitioned() ? gp1.getPartitioning() : gp2.getPartitioning());
+		outGp.setPartitioning(gp1.getPartitioning().isComputablyPartitioned() ? gp1.getPartitioning() : gp2.getPartitioning());
 		outGp.setKeyOrder(gp1.getKeyOrder().isOrdered() ? gp1.getKeyOrder() : gp2.getKeyOrder());
 
-		LocalProperties outLp = new LocalProperties();
-		outLp.setKeyOrder(lp1.getKeyOrder().isOrdered() && lp1.getKeyOrder() == lp2.getKeyOrder() ? lp1.getKeyOrder()
-			: Order.NONE);
-		outLp.setKeysGrouped(outLp.getKeyOrder().isOrdered());
-
 		// create alternatives for different local strategies
+		LocalProperties outLp = new LocalProperties();
 		LocalStrategy ls = getLocalStrategy();
+		
 		if (ls != LocalStrategy.NONE) {
 			// local strategy is fixed
+			
 			// set the local properties accordingly
-			if (ls == LocalStrategy.SORTMERGE) {
+			if (ls == LocalStrategy.SORT_BOTH_MERGE) {
 				outLp.setKeyOrder(Order.ASCENDING);
 				outLp.setKeysGrouped(true);
 			} else if (ls == LocalStrategy.HYBRIDHASH_FIRST || ls == LocalStrategy.HYBRIDHASH_SECOND
@@ -642,15 +640,7 @@ public class MatchNode extends TwoInputNode {
 			}
 
 			createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
-		} else if (outLp.getKeyOrder().isOrdered()) {
-			// create only the sort-merge variant
-			// the local strategy is none, because the data is pre-sorted
-			createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NONE, outGp, outLp, estimator);
-		} else if (lp1.getKeyOrder().isOrdered() || lp2.getKeyOrder().isOrdered()) {
-			// use sort-merge, because one of the sides is pre-sorted
-			outLp.setKeyOrder(lp1.getKeyOrder().isOrdered() ? lp1.getKeyOrder() : lp2.getKeyOrder());
-			outLp.setKeysGrouped(true);
-			createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORTMERGE, outGp, outLp, estimator);
+
 		} else {
 			// create the hash strategies only, if we have estimates for the input sized
 			if (pred1.estimatedOutputSize > 0 && pred2.estimatedOutputSize > 0)
@@ -664,10 +654,29 @@ public class MatchNode extends TwoInputNode {
 					outLp.createCopy(), estimator);
 			}
 
-			// create the first strategy, which is a sort-merge
+			// create sort merge strategy depending on pre-existing orders
 			outLp.setKeyOrder(Order.ASCENDING);
 			outLp.setKeysGrouped(true);
-			createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORTMERGE, outGp, outLp, estimator);
+			
+			// set local strategy according to pre-existing ordering
+			if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				// both inputs have ascending order
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.MERGE, outGp, outLp, estimator);
+				
+			} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				// input 2 has ascending order, input 1 does not
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_FIRST_MERGE, outGp, outLp, estimator);
+				
+			} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
+				// input 1 has ascending order, input 2 does not
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_SECOND_MERGE, outGp, outLp, estimator);
+				
+			} else {
+				// none of the inputs has ascending order
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, outGp, outLp, estimator);
+				
+			}
+			
 		}
 
 	}
@@ -706,8 +715,8 @@ public class MatchNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-		n.getLocalProperties().getPreservedAfterContract(getOutputContract());
+		n.getGlobalProperties().filterByOutputContract(getOutputContract());
+		n.getLocalProperties().filterByOutputContract(getOutputContract());
 
 		// compute the costs
 		estimator.costOperator(n);

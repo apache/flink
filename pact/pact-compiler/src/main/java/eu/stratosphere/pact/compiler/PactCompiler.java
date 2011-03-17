@@ -407,9 +407,64 @@ public class PactCompiler {
 	}
 
 	// ------------------------------------------------------------------------
-	// Compilation
+	//                               Compilation
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
+	 * and all channels have a shipping strategy assigned. The compiler connects to the job manager to obtain information
+	 * about the available instances and their memory and then chooses an instance type to schedule the execution on.
+	 * <p>
+	 * The compilation process itself goes through several phases:
+	 * <ol>
+	 * <li>Create <tt>OptimizerNode</tt> representations of the PACTs, assign parallelism and compute size estimates.</li>
+	 * <li>Compute interesting properties and auxiliary structures.</li>
+	 * <li>Enumerate plan alternatives. This cannot be done in the same step as the interesting property computation (as
+	 * opposed to the Database approaches), because we support plans that are not trees.</li>
+	 * </ol>
+	 * 
+	 * @param pactPlan The PACT plan to be translated.
+	 * @return The optimized plan.
+	 * @throws CompilerException
+	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
+	 *         situation during the compilation process.
+	 */
+	public OptimizedPlan compile(Plan pactPlan) throws CompilerException
+	{
+		// -------------------- try to get the connection to the job manager ----------------------
+		// --------------------------to obtain instance information --------------------------------
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Connecting compiler to JobManager to dertermine instance information.");
+		}
+		
+		// create the connection in a separate thread, such that this thread
+		// can abort, if an unsuccessful connection occurs.
+		Map<InstanceType, InstanceTypeDescription> instances = null;
+		
+		JobManagerConnector jmc = new JobManagerConnector(this.jobManagerAddress);
+		Thread connectorThread = new Thread(jmc, "Compiler - JobManager connector.");
+		connectorThread.setDaemon(true);
+		connectorThread.start();
+
+		// connect and get the result
+		try {
+			jmc.waitForCompletion();
+			instances = jmc.instances;
+			if (instances == null) {
+				throw new NullPointerException("Returned instance map is <null>");
+			}
+		}
+		catch (Throwable t) {
+			throw new CompilerException("Available instances could not be determined from job manager: " + 
+				t.getMessage(), t);
+		}
+
+		// determine which type to run on
+		InstanceTypeDescription type = getType(instances);
+		
+		return compile(pactPlan, type);
+	}
 	/**
 	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
 	 * and all channels have a shipping strategy assigned. The process goes through several phases:
@@ -420,49 +475,25 @@ public class PactCompiler {
 	 * opposed to the Database approaches), because we support plans that are not trees.</li>
 	 * </ol>
 	 * 
-	 * @param pactPlan
-	 *        The PACT plan to be translated.
+	 * @param pactPlan The PACT plan to be translated.
+	 * @param type The instance type to schedule the execution on. Used also to determine the amount of memory
+	 *             available to the tasks.
 	 * @return The optimized plan.
 	 * @throws CompilerException
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException
+	{
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
-
-		// -------------------- try to get the connection to the job manager ----------------------
-		// --------------------------to obtain instance information --------------------------------
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Connecting compiler to JobManager.");
-		}
-
-		Map<InstanceType, InstanceTypeDescription> instances = null;
-		ExtendedManagementProtocol jobManagerConnection = null;
-
-		try {
-			jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
-				jobManagerAddress, NetUtils.getSocketFactory());
-
-			instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
-			if (instances == null) {
-				throw new IOException();
-			}
-		} catch (IOException ioex) {
-			throw new CompilerException("Could not instantiate the connection to the job-manager", ioex);
-		} finally {
-			if (jobManagerConnection != null) {
-				try {
-					RPC.stopProxy(jobManagerConnection);
-				} catch (Throwable t) {
-					LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
-				}
-			}
-			jobManagerConnection = null;
-		}
-
+		
+		String instanceName = type.getInstanceType().getIdentifier();
+		long memoryPerInstance = type.getHardwareDescription().getSizeOfFreeMemory();
+		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
+		int numInstances = type.getMaximumNumberOfAvailableInstances();
+		
 		// determine the maximum number of machines to use
 		int maxMachinesJob = pactPlan.getMaxNumberMachines();
 
@@ -478,14 +509,6 @@ public class PactCompiler {
 
 			maxMachinesJob = Math.min(maxMachinesJob, this.maxMachines);
 		}
-
-		// determine which type to run on
-		InstanceTypeDescription type = getType(instances);
-
-		String instanceName = type.getInstanceType().getIdentifier();
-		long memoryPerInstance = type.getHardwareDescription().getSizeOfFreeMemory();
-		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
-		int numInstances = type.getMaximumNumberOfAvailableInstances();
 
 		// adjust the maximum number of machines the the number of available instances
 		if (maxMachinesJob < 1) {
@@ -567,7 +590,7 @@ public class PactCompiler {
 			this.costEstimator);
 		rootNode.accept(propsVisitor);
 
-		// the final step is not to generate the actual plan alternatives
+		// the final step is now to generate the actual plan alternatives
 		List<? extends OptimizerNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
 
 		if (bestPlan.size() != 1) {
@@ -1171,5 +1194,99 @@ public class PactCompiler {
 		}
 		
 		return retValue;
+	}
+	
+	/**
+	 * Utility class for an asynchronous connection to the job manager to determine the available instances.
+	 */
+	private static final class JobManagerConnector implements Runnable
+	{
+		private static final long MAX_MILLIS_TO_WAIT = 10000;
+		
+		private final InetSocketAddress jobManagerAddress;
+		
+		private final Object lock = new Object();
+		
+		private volatile Map<InstanceType, InstanceTypeDescription> instances;
+		
+		private volatile Throwable error;
+		
+		
+		private JobManagerConnector(InetSocketAddress jobManagerAddress)
+		{
+			this.jobManagerAddress = jobManagerAddress;
+		}
+		
+		
+		public void waitForCompletion() throws Throwable
+		{
+			long start = System.currentTimeMillis();
+			long remaining = MAX_MILLIS_TO_WAIT;
+			
+			if (this.error != null) {
+				throw this.error;
+			}
+			if (this.instances != null) {
+				return;
+			}
+			
+			do {
+				try {
+					synchronized (this.lock) {
+						this.lock.wait(remaining);
+					}
+				} catch (InterruptedException iex) {}
+			}
+			while (this.error == null && this.instances == null &&
+					(remaining = MAX_MILLIS_TO_WAIT + start - System.currentTimeMillis()) > 0);
+			
+			if (this.error != null) {
+				throw this.error;
+			}
+			if (this.instances != null) {
+				return;
+			}
+			
+			// try to forcefully shut this thread down
+			throw new IOException("Connection timed out.");
+		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Runnable#run()
+		 */
+		@Override
+		public void run()
+		{
+			ExtendedManagementProtocol jobManagerConnection = null;
+
+			try {
+				jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+					this.jobManagerAddress, NetUtils.getSocketFactory());
+
+				this.instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
+				if (this.instances == null) {
+					throw new IOException("Returned instance map was <null>");
+				}
+			}
+			catch (Throwable t) {
+				this.error = t;
+			}
+			finally {
+				// first of all, signal completion
+				synchronized (this.lock) {
+					this.lock.notifyAll();
+				}
+				
+				if (jobManagerConnection != null) {
+					try {
+						RPC.stopProxy(jobManagerConnection);
+					} catch (Throwable t) {
+						LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
+					}
+				}
+				jobManagerConnection = null;
+			}
+		}
+		
 	}
 }

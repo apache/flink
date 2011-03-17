@@ -24,7 +24,7 @@ bin=`cd "$bin"; pwd`
 . "$bin"/nephele-config.sh
 
 if [ "$EXECUTIONMODE" = "local" ]; then
-	JM_JHEAP=`echo $JM_JHEAP+$TM_JHEAP | bc`
+	NEPHELE_JM_HEAP=`echo $NEPHELE_JM_HEAP+$NEPHELE_TM_HEAP | bc`
 fi
 
 JVM_ARGS="$JVM_ARGS -Xms"$NEPHELE_JM_HEAP"m -Xmx"$NEPHELE_JM_HEAP"m"

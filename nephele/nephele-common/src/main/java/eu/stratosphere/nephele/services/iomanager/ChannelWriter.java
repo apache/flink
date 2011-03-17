@@ -88,6 +88,14 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
+	 */
+	@Override
+	public boolean isClosed() {
+		return this.closed;
+	}
+	
 	/**
 	 * Closes this writer. Sends a request to write the current buffer, makes sure all data is written out
 	 * and waits for all memory segments to come back.
@@ -152,6 +160,7 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			try {
 				this.currentBuffer = nextBuffer();
 				this.currentBuffer.rewind();
+				checkErroneous();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("IO channel corrupt. Writer was interrupted getting a new buffer.");

@@ -212,6 +212,9 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 					shipStrategy = "Partition (range)";
 					channelType = "network";
 					break;
+				case PARTITION_LOCAL_HASH:
+					shipStrategy = "Partition local";
+					channelType = "memory";
 				case SFR:
 					shipStrategy = "SFR";
 					channelType = "network";
@@ -272,8 +275,17 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			case NESTEDLOOP_STREAMED_OUTER_SECOND:
 				locString = "Nested Loops (Streamed Outer: " + child2name + ")";
 				break;
-			case SORTMERGE:
-				locString = "Sort-Merge";
+			case SORT_BOTH_MERGE:
+				locString = "Sort-Both-Merge";
+				break;
+			case SORT_FIRST_MERGE:
+				locString = "Sort-First-Merge";
+				break;
+			case SORT_SECOND_MERGE:
+				locString = "Sort-Second-Merge";
+				break;
+			case MERGE:
+				locString = "Merge";
 				break;
 			case SORT:
 				locString = "Sort";

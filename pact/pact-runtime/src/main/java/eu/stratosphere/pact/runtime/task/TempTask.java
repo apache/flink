@@ -51,13 +51,14 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * 
  * @author Fabian Hueske
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class TempTask extends AbstractTask {
-
-	// memory to be used for IO buffering
-	public int MEMORY_IO;
 
 	// obtain TempTask logger
 	private static final Log LOG = LogFactory.getLog(TempTask.class);
+	
+	// the minimal amount of memory required for the temp to work
+	private static final long MIN_REQUIRED_MEMORY = 512 * 1024;
 
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
@@ -66,12 +67,20 @@ public class TempTask extends AbstractTask {
 	private RecordWriter<KeyValuePair<Key, Value>> writer;
 
 	// stub implementation of preceding PACT
-	@SuppressWarnings("unchecked")
-	Stub stub;
+	private Stub stub;
 
 	// task configuration
 	private TaskConfig config;
+	
+	// spilling thread
+	private SpillingResettableIterator<KeyValuePair<Key, Value>> tempIterator;
 
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -98,7 +107,6 @@ public class TempTask extends AbstractTask {
 	/**
 	 * {@inheritDoc}
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
 	public void invoke() throws Exception {
 		// TODO: Replace SpillingResetableIterator by a strategy with a reading
@@ -115,11 +123,11 @@ public class TempTask extends AbstractTask {
 		// obtain task manager's io manager
 		final IOManager ioManager = getEnvironment().getIOManager();
 
-		SpillingResettableIterator<KeyValuePair<Key, Value>> tempIterator = null;
+		tempIterator = null;
 		try {
 			// obtain SpillingResettableIterator to dump pairs to disk and read again
 			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, reader,
-				MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
+				this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
 				this);
 
 			LOG.debug("Start temping records: " + this.getEnvironment().getTaskName() + " ("
@@ -129,7 +137,7 @@ public class TempTask extends AbstractTask {
 			// open SpillingResettableIterator
 			// all input pairs are consumed and written to disk.
 			tempIterator.open();
-
+			
 			LOG.debug("Finished temping records: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -139,16 +147,18 @@ public class TempTask extends AbstractTask {
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 			// all read pairs from SpillingResettableIterator (from disk)
-			while (tempIterator.hasNext()) {
+			while (tempIterator.hasNext() && !this.taskCanceled) {
 				// read next pair
 				KeyValuePair<Key, Value> pair = tempIterator.next();
 				// forward pair to output writer
 				writer.emit(pair);
 			}
 
-			LOG.debug("Finished serving records: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if(!this.taskCanceled) {
+				LOG.debug("Finished serving records: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			}
 
 		} catch (MemoryAllocationException mae) {
 			throw new RuntimeException("Unable to obtain SpillingResettableIterator for TempTask", mae);
@@ -156,15 +166,43 @@ public class TempTask extends AbstractTask {
 			throw new RuntimeException(se);
 		} catch (IOException ioe) {
 			throw new RuntimeException(ioe);
-		} catch (InterruptedException ie) {
-			throw new RuntimeException(ie);
+		} catch (Exception ie) {
+			if(!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ie;
+			}
 		} finally {
 
 			// close SpillingResettableIterator
 			tempIterator.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		// activate cancel flag
+		this.taskCanceled = true;
+		// abort temp iterator
+		if(tempIterator != null) {
+			tempIterator.abort();
+		}
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -178,14 +216,17 @@ public class TempTask extends AbstractTask {
 	 *         Thrown if instance of stub implementation can not be
 	 *         obtained.
 	 */
-	@SuppressWarnings("unchecked")
 	private void initPrecedingStub() throws RuntimeException {
 
 		// obtain task configuration
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// configure io buffer size using task config
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
+		this.availableMemory = this.config.getMemorySize();
+		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The temp task was initialized with too little memory: " + this.availableMemory +
+				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		}
 
 		// obtain stub implementation class
 		// this is required to obtain the data type of the keys and values.
@@ -214,7 +255,6 @@ public class TempTask extends AbstractTask {
 	 * @throws RuntimeException
 	 *         Thrown if an invalid input ship strategy was provided.
 	 */
-	@SuppressWarnings("unchecked")
 	private void initInputReader() {
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(stub
@@ -250,7 +290,6 @@ public class TempTask extends AbstractTask {
 	/**
 	 * Creates the TempTask's output writer
 	 */
-	@SuppressWarnings("unchecked")
 	private void initOutputWriter() {
 		// obtain output emitter
 		OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(0));

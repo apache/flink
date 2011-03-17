@@ -42,7 +42,6 @@ import eu.stratosphere.pact.common.type.base.PactList;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.compiler.PactCompiler;
 
 /**
  * Implementation of the triangle enumeration example Pact program.
@@ -148,9 +147,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			} else {
 				edge = new Edge(new PactString(rdfObj), new PactString(rdfSubj));
 			}
-
-			EdgeList edgeList = new EdgeList();
-			edgeList.add(edge);
 
 			pair.setKey(edge);
 			pair.setValue(new PactNull());
@@ -316,9 +312,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList> closeTriads = new MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList>(
 			CloseTriads.class, "Close Triads");
 		closeTriads.setDegreeOfParallelism(noSubTasks);
-		// TODO: remove enforced sort-merge strategy
-		closeTriads.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
-			PactCompiler.HINT_LOCAL_STRATEGY_SORT);
 
 		DataSinkContract<PactNull, EdgeList> triangles = new DataSinkContract<PactNull, EdgeList>(
 			EdgeListOutFormat.class, output);

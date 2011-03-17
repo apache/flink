@@ -67,8 +67,7 @@ public class UnilateralSortMergerITCase {
 
 	@BeforeClass
 	public static void beforeClass() {
-		Logger.getLogger(UnilateralSortMergerITCase.class).setLevel(Level.ALL);
-		//Logger.getLogger(UnilateralSortMerger.class).setLevel(Level.ALL);
+		
 	}
 
 	@AfterClass
@@ -83,10 +82,16 @@ public class UnilateralSortMergerITCase {
 
 	@After
 	public void afterTest() {
+		ioManager.shutdown();
+		if (!ioManager.isProperlyShutDown()) {
+			Assert.fail("I/O Manager was not properly shut down.");
+		}
+		
 		if (memoryManager != null) {
+			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 
+				memoryManager.verifyEmpty());
 			memoryManager.shutdown();
 			memoryManager = null;
-			System.gc();
 		}
 	}
 
@@ -105,13 +110,13 @@ public class UnilateralSortMergerITCase {
 		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
 
 		// merge iterator
-		LOG.debug("initializing sortmerger");
+		LOG.debug("Initializing sortmerger...");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 1, 1024 * 1024 * 4, 1024 * 1024 * 12, 2, keySerialization, valSerialization,
+			memoryManager, ioManager, 16 * 1024 * 1024, 1024 * 1024 * 4, 1, 2, keySerialization, valSerialization,
 			keyComparator, reader, parentTask);
 
 		// emit data
-		LOG.debug("emitting data");
+		LOG.debug("Emitting data...");
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
 		for (int i = 0; i < NUM_PAIRS; i++) {
@@ -122,7 +127,7 @@ public class UnilateralSortMergerITCase {
 		// check order
 		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
 		
-		LOG.debug("checking results");
+		LOG.debug("Checking results...");
 		int pairsEmitted = 0;
 		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
 		while (iterator.hasNext()) {
@@ -133,9 +138,9 @@ public class UnilateralSortMergerITCase {
 			}
 			pair1 = pair2;
 		}
-		merger.close();
-		
 		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
+		
+		merger.close();
 	}
 
 	@Test
@@ -203,14 +208,14 @@ public class UnilateralSortMergerITCase {
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 10, 1024 * 16, 1024 * 1024 * 12, 2, keySerialization, valSerialization,
+			memoryManager, ioManager, 1024 * 1024 * 42, 1024 * 1024 * 2, 10, 2, keySerialization, valSerialization,
 			keyComparator, reader, parentTask);
 
 		// emit data
 		LOG.debug("emitting data");
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
-		for (int i = 0; i < NUM_PAIRS; i++) {
+		for (int i = 0; i < NUM_PAIRS * 10; i++) {
 			reader.emit(generator.next());
 		}
 		reader.close();
@@ -227,11 +232,10 @@ public class UnilateralSortMergerITCase {
 			if (pair1 != null && pair2 != null) {
 				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
 			}
-			pair2 = pair1;
+			pair1 = pair2;
 		}
+		Assert.assertTrue(NUM_PAIRS * 10 == pairsEmitted);
 		merger.close();
-		
-		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 	}
 
 	@Test
@@ -254,7 +258,7 @@ public class UnilateralSortMergerITCase {
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 3, 1024 * 1024 * 64, 1024 * 1024 * 64, 16, keySerialization, valSerialization,
+			memoryManager, ioManager, 1024 * 1024 * 64, 16, keySerialization, valSerialization,
 			keyComparator, reader, parentTask);
 
 		// emit data
@@ -294,9 +298,8 @@ public class UnilateralSortMergerITCase {
 				LOG.debug("checked " + (int) (100.0 * pairsEmitted / PAIRS) + "% (" + pairsEmitted + " pairs)");
 			}
 		}
-		merger.close();
-		
 		Assert.assertTrue(PAIRS == pairsEmitted);
+		merger.close();
 
 		// throughput
 		long end = System.currentTimeMillis();

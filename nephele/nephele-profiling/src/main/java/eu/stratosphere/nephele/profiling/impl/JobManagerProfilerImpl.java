@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.profiling.impl;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +28,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -63,19 +63,19 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 
 	private final Map<JobID, JobProfilingData> registeredJobs = new HashMap<JobID, JobProfilingData>();
 
-	public JobManagerProfilerImpl()
-									throws ProfilingException {
+	public JobManagerProfilerImpl(InetAddress jobManagerbindAddress) throws ProfilingException {
 
 		// Start profiling IPC server
 		final int handlerCount = GlobalConfiguration.getInteger(RPC_NUM_HANDLER_KEY, DEFAULT_NUM_HANLDER);
 		final int rpcPort = GlobalConfiguration.getInteger(ProfilingUtils.JOBMANAGER_RPC_PORT_KEY,
 			ProfilingUtils.JOBMANAGER_DEFAULT_RPC_PORT);
-		final InetSocketAddress rpcServerAddress = new InetSocketAddress(DiscoveryService.getServiceAddress(), rpcPort);
+		
+		final InetSocketAddress rpcServerAddress = new InetSocketAddress(jobManagerbindAddress, rpcPort);
 		Server profilingServerTmp = null;
 		try {
 
 			profilingServerTmp = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-				handlerCount, false);
+				handlerCount);
 			profilingServerTmp.start();
 		} catch (IOException ioe) {
 			throw new ProfilingException("Cannot start profiling RPC server: " + StringUtils.stringifyException(ioe));

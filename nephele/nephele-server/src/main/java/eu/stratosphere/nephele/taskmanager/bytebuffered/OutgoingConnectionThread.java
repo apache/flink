@@ -21,7 +21,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Queue;
 
 import org.apache.commons.logging.Log;
@@ -31,14 +33,22 @@ import eu.stratosphere.nephele.util.StringUtils;
 
 public class OutgoingConnectionThread extends Thread {
 
+	/**
+	 * The minimum time a TCP connection must be idle it is closed.
+	 */
+	private static final long MIN_IDLE_TIME_BEFORE_CLOSE = 3000L; // 3 seconds
+
 	private static final Log LOG = LogFactory.getLog(OutgoingConnectionThread.class);
 
 	private final Selector selector;
 
-	private final Queue<OutgoingConnection> pendingOutgoingConnections = new ArrayDeque<OutgoingConnection>();
+	private final Queue<OutgoingConnection> pendingConnectionRequests = new ArrayDeque<OutgoingConnection>();
 
-	public OutgoingConnectionThread()
-										throws IOException {
+	private final Queue<SelectionKey> pendingWriteEventSubscribeRequests = new ArrayDeque<SelectionKey>();
+
+	private final Map<OutgoingConnection, Long> connectionsToClose = new HashMap<OutgoingConnection, Long>();
+
+	public OutgoingConnectionThread() throws IOException {
 		super("Outgoing Connection Thread");
 
 		this.selector = Selector.open();
@@ -52,10 +62,11 @@ public class OutgoingConnectionThread extends Thread {
 
 		while (!isInterrupted()) {
 
-			synchronized (this.pendingOutgoingConnections) {
+			synchronized (this.pendingConnectionRequests) {
 
-				if (!pendingOutgoingConnections.isEmpty()) {
-					final OutgoingConnection outgoingConnection = pendingOutgoingConnections.poll();
+				if (!this.pendingConnectionRequests.isEmpty()) {
+
+					final OutgoingConnection outgoingConnection = this.pendingConnectionRequests.poll();
 					try {
 						final SocketChannel socketChannel = SocketChannel.open();
 						socketChannel.configureBlocking(false);
@@ -63,21 +74,60 @@ public class OutgoingConnectionThread extends Thread {
 						socketChannel.connect(outgoingConnection.getConnectionAddress());
 						key.attach(outgoingConnection);
 					} catch (IOException ioe) {
-						outgoingConnection.reportConnectionProblem(null, null, ioe);
+						outgoingConnection.reportConnectionProblem(ioe);
 					}
 				}
 			}
 
+			synchronized (this.pendingWriteEventSubscribeRequests) {
+
+				if (!this.pendingWriteEventSubscribeRequests.isEmpty()) {
+					final SelectionKey oldSelectionKey = this.pendingWriteEventSubscribeRequests.poll();
+					final OutgoingConnection outgoingConnection = (OutgoingConnection) oldSelectionKey.attachment();
+					final SocketChannel socketChannel = (SocketChannel) oldSelectionKey.channel();
+
+					try {
+						final SelectionKey newSelectionKey = socketChannel.register(this.selector, SelectionKey.OP_READ
+							| SelectionKey.OP_WRITE);
+						newSelectionKey.attach(outgoingConnection);
+						outgoingConnection.setSelectionKey(newSelectionKey);
+					} catch (IOException ioe) {
+						outgoingConnection.reportTransmissionProblem(ioe);
+					}
+				}
+			}
+
+			synchronized (this.connectionsToClose) {
+
+				final Iterator<Map.Entry<OutgoingConnection, Long>> closeIt = this.connectionsToClose.entrySet()
+					.iterator();
+				final long now = System.currentTimeMillis();
+				while (closeIt.hasNext()) {
+
+					final Map.Entry<OutgoingConnection, Long> entry = closeIt.next();
+					if ((entry.getValue().longValue() + MIN_IDLE_TIME_BEFORE_CLOSE) < now) {
+						final OutgoingConnection outgoingConnection = entry.getKey();
+						closeIt.remove();
+						try {
+							outgoingConnection.closeConnection();
+						} catch (IOException ioe) {
+							outgoingConnection.reportTransmissionProblem(ioe);
+						}
+					}
+
+				}
+			}
+
 			try {
-				selector.select(500);
+				this.selector.select(500);
 			} catch (IOException e) {
 				LOG.error(e);
 			}
 
-			Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
+			final Iterator<SelectionKey> iter = this.selector.selectedKeys().iterator();
 
 			while (iter.hasNext()) {
-				SelectionKey key = iter.next();
+				final SelectionKey key = iter.next();
 
 				iter.remove();
 				if (key.isValid()) {
@@ -122,27 +172,27 @@ public class OutgoingConnectionThread extends Thread {
 
 			final SelectionKey channelKey = socketChannel.register(selector, SelectionKey.OP_WRITE
 				| SelectionKey.OP_READ);
+			outgoingConnection.setSelectionKey(channelKey);
 			channelKey.attach(outgoingConnection);
 
 		} catch (IOException ioe) {
-			outgoingConnection.reportConnectionProblem(socketChannel, key, ioe);
+			outgoingConnection.reportConnectionProblem(ioe);
 		}
 	}
 
 	private void doWrite(SelectionKey key) {
 
-		final SocketChannel socketChannel = (SocketChannel) key.channel();
 		final OutgoingConnection outgoingConnection = (OutgoingConnection) key.attachment();
 
 		try {
 
-			if (!outgoingConnection.write(socketChannel)) {
+			if (!outgoingConnection.write()) {
 				// Try to close the connection
-				outgoingConnection.closeConnection(socketChannel, key);
+				outgoingConnection.requestClose();
 			}
 
 		} catch (IOException ioe) {
-			outgoingConnection.reportTransmissionProblem(socketChannel, key, ioe);
+			outgoingConnection.reportTransmissionProblem(ioe);
 		}
 	}
 
@@ -155,20 +205,45 @@ public class OutgoingConnectionThread extends Thread {
 		try {
 
 			if (socketChannel.read(buf) == -1) {
-				outgoingConnection.reportTransmissionProblem(socketChannel, key, new IOException(
+				outgoingConnection.reportTransmissionProblem(new IOException(
 					"Read unexpected EOF from channel"));
 			} else {
 				LOG.error("Outgoing connection read real data from channel");
 			}
 		} catch (IOException ioe) {
-			outgoingConnection.reportTransmissionProblem(socketChannel, key, ioe);
+			outgoingConnection.reportTransmissionProblem(ioe);
 		}
 	}
 
 	public void triggerConnect(OutgoingConnection outgoingConnection) {
 
-		synchronized (this.pendingOutgoingConnections) {
-			this.pendingOutgoingConnections.add(outgoingConnection);
+		synchronized (this.pendingConnectionRequests) {
+			this.pendingConnectionRequests.add(outgoingConnection);
 		}
+	}
+
+	public void unsubscribeFromWriteEvent(SelectionKey selectionKey) throws IOException {
+
+		final SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
+		final OutgoingConnection outgoingConnection = (OutgoingConnection) selectionKey.attachment();
+
+		final SelectionKey newSelectionKey = socketChannel.register(this.selector, SelectionKey.OP_READ);
+		newSelectionKey.attach(outgoingConnection);
+		outgoingConnection.setSelectionKey(newSelectionKey);
+
+		synchronized (this.connectionsToClose) {
+			this.connectionsToClose.put(outgoingConnection, Long.valueOf(System.currentTimeMillis()));
+		}
+	}
+
+	public void subscribeToWriteEvent(SelectionKey selectionKey) {
+
+		synchronized (this.pendingWriteEventSubscribeRequests) {
+			this.pendingWriteEventSubscribeRequests.add(selectionKey);
+		}
+		synchronized (this.connectionsToClose) {
+			this.connectionsToClose.remove((OutgoingConnection) selectionKey.attachment());
+		}
+
 	}
 }

@@ -449,7 +449,7 @@ public class ExecutionVertex {
 
 			if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
 				// Set to canceled directly
-				setExecutionState(ExecutionState.CANCELLED);
+				setExecutionState(ExecutionState.CANCELED);
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
@@ -461,7 +461,7 @@ public class ExecutionVertex {
 
 			if (es != ExecutionState.RUNNING && es != ExecutionState.FINISHING) {
 				// Set to canceled directly
-				setExecutionState(ExecutionState.CANCELLED);
+				setExecutionState(ExecutionState.CANCELED);
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 

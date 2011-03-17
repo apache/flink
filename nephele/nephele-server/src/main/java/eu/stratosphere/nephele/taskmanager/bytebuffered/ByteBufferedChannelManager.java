@@ -50,7 +50,6 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
 
 public class ByteBufferedChannelManager {
 
@@ -447,8 +446,11 @@ public class ByteBufferedChannelManager {
 			// Find previous connection
 			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
 
-			// Set previous connection if there is any and set sequence number to expect
-			incomingConnection.setPreviousConnection(previousConnection);
+			if (previousConnection != null) {
+				LOG.warn("Found previous connection for " + incomingConnectionID);
+				previousConnection.markConnectionAsInactive();
+			}
+
 			this.incomingConnections.put(incomingConnectionID, incomingConnection);
 		}
 
@@ -464,6 +466,7 @@ public class ByteBufferedChannelManager {
 			ReadableByteChannel readableByteChannel) {
 
 		synchronized (this.incomingConnections) {
+
 			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
 			if (incomingConnection == null) {
 				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
@@ -485,7 +488,7 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	void queueOutgoingTransferEnvelope(TransferEnvelope transferEnvelope) {
+	void queueOutgoingTransferEnvelope(TransferEnvelope transferEnvelope) throws InterruptedException, IOException {
 
 		// Check to which host the transfer envelope shall be sent
 		InetSocketAddress connectionAddress = getPeerConnectionAddress(transferEnvelope.getSource());
@@ -561,7 +564,7 @@ public class ByteBufferedChannelManager {
 		return connection;
 	}
 
-	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) {
+	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) throws InterruptedException, IOException {
 
 		InetSocketAddress connectionAddress = null;
 
@@ -580,37 +583,28 @@ public class ByteBufferedChannelManager {
 			}
 
 			InstanceConnectionInfo ici = null;
-			try {
+			
+			while (!Thread.interrupted()) {
 
-				while (true) {
+				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+					channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
 
-					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
-						channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
-
-					if (lookupResponse.receiverNotFound()) {
-						throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
-							+ " does not appear to be running");
-					}
-
-					if (lookupResponse.receiverNotReady()) {
-						try {
-							Thread.sleep(500);
-						} catch (InterruptedException e) {
-							return null;
-						}
-						continue;
-					}
-
-					if (lookupResponse.receiverReady()) {
-						ici = lookupResponse.getInstanceConnectionInfo();
-						break;
-					}
+				if (lookupResponse.receiverNotFound()) {
+					throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
+						+ " does not appear to be running");
 				}
 
-			} catch (IOException e) {
-				LOG.error(StringUtils.stringifyException(e));
-				return null;
+				if (lookupResponse.receiverNotReady()) {
+					Thread.sleep(500);
+					continue;
+				}
+
+				if (lookupResponse.receiverReady()) {
+					ici = lookupResponse.getInstanceConnectionInfo();
+					break;
+				}
 			}
+
 			if (ici != null) {
 				connectionAddress = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
 				synchronized (this.connectionAddresses) {
@@ -622,7 +616,7 @@ public class ByteBufferedChannelManager {
 		return connectionAddress;
 	}
 
-	public int getNumberOfQueuedOutgoingEnvelopes(ChannelID sourceChannelID) {
+	public int getNumberOfQueuedOutgoingEnvelopes(ChannelID sourceChannelID) throws IOException, InterruptedException {
 
 		final InetSocketAddress socketAddress = getPeerConnectionAddress(sourceChannelID);
 		if (socketAddress == null) {
@@ -764,5 +758,32 @@ public class ByteBufferedChannelManager {
 
 	public FileBufferManager getFileBufferManager() {
 		return this.fileBufferManager;
+	}
+
+	/**
+	 * Triggers the byte buffer channel manager write the current utilization of its read and write buffers to the logs.
+	 * This method is primarily for debugging purposes.
+	 */
+	public void logBufferUtilization() {
+
+		System.out.println("Buffer utilization for at " + System.currentTimeMillis());
+		synchronized (this.emptyWriteBuffers) {
+			System.out.println("\tEmpty write buffers: " + this.emptyWriteBuffers.size());
+		}
+		synchronized (this.emptyReadBuffers) {
+			System.out.println("\tEmpty read buffers: " + this.emptyReadBuffers.size());
+		}
+		synchronized (this.outgoingConnections) {
+
+			final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
+				System.out.println("\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
+			}
+		}
+
 	}
 }

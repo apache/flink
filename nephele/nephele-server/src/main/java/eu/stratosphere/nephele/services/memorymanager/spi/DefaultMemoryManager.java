@@ -163,6 +163,8 @@ public class DefaultMemoryManager implements MemoryManager {
 				memory = null;
 				chunkSize = 0;
 				
+				freeSegments.clear();
+				
 				// go over all allocated segments and release them
 				for (ArrayList<DefaultMemorySegment> segments : allocatedSegments.values()) {
 					for (DefaultMemorySegment seg : segments) {
@@ -177,12 +179,41 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 	//                 MemoryManager interface implementation
 	// ------------------------------------------------------------------------
-
-	/*
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, int)
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, long, int, int)
 	 */
 	@Override
-	public synchronized MemorySegment allocate(AbstractInvokable owner, int segmentSize)
+	public List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
+	throws MemoryAllocationException
+	{
+		if (minSegmentSize > this.chunkSize) {
+			throw new MemoryAllocationException("The memory chunks of this MemoryManager are too small to serve " +
+					"segments of minimal size " + minSegmentSize);
+		}
+		
+		final long memPerSeg = totalMemory / minNumSegments;
+		final int segmentSize = (int) Math.min(memPerSeg, this.chunkSize);
+		
+		if (segmentSize < minSegmentSize) {
+			throw new IllegalArgumentException("The requested memory cannot be distributed across the required " +
+					"number of chunks without violating the requested minimal chunk size.");
+		}
+		
+		return this.allocate(owner, minNumSegments, segmentSize);
+	}
+	
+	/**
+	 * Tries to allocate a memory segment of the specified size.
+	 * 
+	 * @param task The task for which the memory is allocated.
+	 * @param segmentSize The size of the memory to be allocated.
+	 * @return The allocated memory segment.
+	 * 
+	 * @throws MemoryAllocationException Thrown, if not enough memory is available.
+	 * @throws IllegalArgumentException Thrown, if the size parameter is not a positive integer.
+	 */
+	public MemorySegment allocate(AbstractInvokable owner, int segmentSize)
 	throws MemoryAllocationException
 	{
 		if (segmentSize < 1) {
@@ -216,10 +247,21 @@ public class DefaultMemoryManager implements MemoryManager {
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, int, int)
+	/**
+	 * Tries to allocate a collection of <code>numberOfBuffers</code> memory
+	 * segments of the specified <code>segmentSize</code> and <code>segmentType</code>.
+	 * <p>
+	 * WARNING: The use of this method is restricted to tests. Because of fragmentation, caused by the fact
+	 * that the memory in java cannot be allocated in chunks lager than <code>Integer.MAX_VALUE</code>, this
+	 * method may fail with large memory sizes in the presence of concurrently active memory consumers.
+	 * 
+	 * @param task The task for which the memory is allocated.
+	 * @param numberOfSegments The number of segments to allocate.
+	 * @param segmentSize The size of the memory segments to be allocated.
+	 * @return A collection of allocated memory segments.
+	 * 
+	 * @throws MemoryAllocationException Thrown, if the memory segments could not be allocated.
 	 */
-	@Override
 	public List<MemorySegment> allocate(AbstractInvokable owner, int numberOfSegments, int segmentSize)
 	throws MemoryAllocationException
 	{

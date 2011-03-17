@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -41,9 +40,6 @@ import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.hash.HybridHashMatchIterator;
-import eu.stratosphere.pact.runtime.hash.InMemoryHashMatchIterator;
-import eu.stratosphere.pact.runtime.hash.HybridHashMatchIterator.InputRoles;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.serialization.ValueDeserializer;
@@ -66,25 +62,24 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.MatchStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class MatchTask extends AbstractTask {
-	// number of sort buffers to use
-	private int NUM_SORT_BUFFERS;
-
-	// size of each sort buffer in MB
-	private int SIZE_SORT_BUFFER;
-
-	// memory to be used for IO buffering
-	private int MEMORY_IO;
-
-	// maximum number of file handles
-	private int MAX_NUM_FILEHANLDES;
 	
-	// share ratio for resettable iterator
-	private double MEMORY_SHARE_RATIO = 0.05;
-
 	// obtain MatchTask logger
 	private static final Log LOG = LogFactory.getLog(MatchTask.class);
+
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+	
+	// share ratio for resettable iterator
+	private static final double MEMORY_SHARE_RATIO = 0.05;
+	
+	// copier for key and values
+	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
+	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
+	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
+	
+	
 
 	// reader of first input
 	private RecordReader<KeyValuePair<Key, Value>> reader1;
@@ -101,15 +96,21 @@ public class MatchTask extends AbstractTask {
 	// task config including stub parameters
 	private TaskConfig config;
 
-	// copier for key and values
-	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
-	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
-	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
-	
 	// serialization factories for key and values
 	private SerializationFactory<Key> keySerialization;
 	private SerializationFactory<Value> v1Serialization;
 	private SerializationFactory<Value> v2Serialization;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// maximum number of file handles
+	private int maxFileHandles;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * {@inheritDoc}
@@ -138,7 +139,7 @@ public class MatchTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() // throws Exception
+	public void invoke() throws Exception
 	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -149,20 +150,35 @@ public class MatchTask extends AbstractTask {
 		try {
 			matchIterator = getIterator(reader1, reader2);
 			
+			// open MatchTaskIterator
+			matchIterator.open();
+			
 			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-			
-			// open MatchTaskIterator
-			matchIterator.open();
 
 			// open match stub instance
 			matchStub.open();
 			
 			// for each distinct key that is contained in both inputs
-			while (matchIterator.next()) {
+			while (matchIterator.next() && !taskCanceled) {
 				// call run() method of match stub implementation
 				crossValues(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2());
+			}
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
+		finally {
+			// close MatchTaskIterator
+			if (matchIterator != null) {
+				matchIterator.close();
 			}
 			
 			// close stub implementation.
@@ -177,27 +193,35 @@ public class MatchTask extends AbstractTask {
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
 			}
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("An I/O error occured during processing MatchTask", ioe);
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
-		}
-		finally {
-			// close MatchTaskIterator
-			if (matchIterator != null) {
-				matchIterator.close();
-			}
 
 			// close output collector
 			output.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
+	
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Initializes the stub implementation and configuration.
@@ -209,13 +233,16 @@ public class MatchTask extends AbstractTask {
 	private void initStub() {
 
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
-		// set up memory and io parameters
-		NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		
+		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The CoGroup task was initialized with too little memory: " + this.availableMemory +
+				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -342,7 +369,7 @@ public class MatchTask extends AbstractTask {
 	 * @throws IllegalConfigurationException
 	 *         Thrown if the local strategy is not supported.
 	 */
-	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) throws RuntimeException {
+	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) {
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain task manager's IO manager
@@ -350,24 +377,36 @@ public class MatchTask extends AbstractTask {
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (config.getLocalStrategy()) {
-		case SORTMERGE:
+		case SORT_BOTH_MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
-				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), NUM_SORT_BUFFERS, SIZE_SORT_BUFFER,
-				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), MAX_NUM_FILEHANLDES, this);
-		case HYBRIDHASH_FIRST:
-			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
-				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, 
-				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
-		case HYBRIDHASH_SECOND:
-			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
-				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.PROBE_BUILD,
-				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
-		case MMHASH_FIRST:
-			return new InMemoryHashMatchIterator(reader1, reader2);
-		case MMHASH_SECOND:
-			return new InMemoryHashMatchIterator(reader2, reader1);
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_FIRST_MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_SECOND_MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+		case MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+//		case HYBRIDHASH_FIRST:
+//			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+//				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, 
+//				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
+//		case HYBRIDHASH_SECOND:
+//			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+//				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.PROBE_BUILD,
+//				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
+//		case MMHASH_FIRST:
+//			return new InMemoryHashMatchIterator(reader1, reader2);
+//		case MMHASH_SECOND:
+//			return new InMemoryHashMatchIterator(reader2, reader1);
 		default:
-			throw new RuntimeException("Unknown local strategy for MatchTask");
+			throw new RuntimeException("Unsupported local strategy for MatchTask: "+config.getLocalStrategy());
 		}
 	}
 	
@@ -422,7 +461,7 @@ public class MatchTask extends AbstractTask {
 			this.v1Copier.setCopy(firstV1);
 			
 			matchStub.match(key, firstV1, firstV2, output);
-			while (v2HasNext) {
+			while (v2HasNext && !this.taskCanceled) {
 				key = this.keySerialization.newInstance();
 				this.keyCopier.getCopy(key);
 				v1 = this.v1Serialization.newInstance();
@@ -433,7 +472,7 @@ public class MatchTask extends AbstractTask {
 				matchStub.match(key, v1, v2, output);
 			}
 
-		} else if (!v2HasNext) {
+		} else if (!v2HasNext && !this.taskCanceled) {
 			// only values2 contains only one value
 			this.v2Copier.setCopy(firstV2);
 			
@@ -484,13 +523,13 @@ public class MatchTask extends AbstractTask {
 				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
 				v1ResettableIterator = 
 						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
-								v1Reader, ((int)(MEMORY_IO*MEMORY_SHARE_RATIO)), v1Deserializer, this);
+								v1Reader, (long) (this.availableMemory * MEMORY_SHARE_RATIO), v1Deserializer, this);
 				v1ResettableIterator.open();
 				
 				this.v2Copier.setCopy(firstV2);
 				
 				// run through resettable iterator with firstV2
-				while (v1ResettableIterator.hasNext()) {
+				while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
 					key = this.keySerialization.newInstance();
 					this.keyCopier.getCopy(key);
 					v2 = this.v2Serialization.newInstance();
@@ -502,12 +541,12 @@ public class MatchTask extends AbstractTask {
 				v1ResettableIterator.reset();
 				
 				// run through resettable iterator for each v2
-				while(values2.hasNext()) {
+				while(values2.hasNext() && !this.taskCanceled) {
 					
 					v2 = values2.next();
 					this.v2Copier.setCopy(v2);
 					
-					while (v1ResettableIterator.hasNext()) {
+					while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
 						key = this.keySerialization.newInstance();
 						this.keyCopier.getCopy(key);
 						v2 = this.v2Serialization.newInstance();
@@ -519,18 +558,11 @@ public class MatchTask extends AbstractTask {
 					v1ResettableIterator.reset();
 				}
 				
-				// close resettable iterator and release memory
-				v1ResettableIterator.close();
-				
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			} finally {
 				if(v1ResettableIterator != null) {
-					try {
-						v1ResettableIterator.close();
-					} catch (ServiceException e) {
-						LOG.warn(e);
-					}
+					v1ResettableIterator.close();
 				}
 			}
 					

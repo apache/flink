@@ -20,7 +20,7 @@ import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 
 /**
  * This is a wrapper class for the {@link LocalScheduler} to receive
@@ -63,7 +63,7 @@ public class LocalExecutionListener implements ExecutionListener {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELLED
+		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 			|| newExecutionState == ExecutionState.FAILED) {
 			// Check if instance can be released
 			this.localScheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
@@ -78,9 +78,9 @@ public class LocalExecutionListener implements ExecutionListener {
 		}
 
 		final ExecutionGraph executionGraph = this.executionVertex.getExecutionGraph();
-		final JobStatus jobStatus = executionGraph.getJobStatus();
+		final InternalJobStatus jobStatus = executionGraph.getJobStatus();
 
-		if (jobStatus == JobStatus.FAILED || jobStatus == JobStatus.FINISHED || jobStatus == JobStatus.CANCELLED) {
+		if (jobStatus == InternalJobStatus.FAILED || jobStatus == InternalJobStatus.FINISHED || jobStatus == InternalJobStatus.CANCELED) {
 			this.localScheduler.removeJobFromSchedule(executionGraph);
 		}
 	}

@@ -41,13 +41,12 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobmanager.InputSplitAssigner;
-import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -121,6 +120,7 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  * 
  * @author Arvid Heise
  */
+@SuppressWarnings("deprecation")
 public class TestPlan implements Closeable {
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
@@ -211,12 +211,11 @@ public class TestPlan implements Closeable {
 	/**
 	 * Locally executes the {@link ExecutionGraph}.
 	 */
-	@SuppressWarnings("deprecation")
 	private void execute(final ExecutionGraph eg,
 			final LocalScheduler localScheduler)
 			throws ExecutionFailureException {
 		while (!eg.isExecutionFinished()
-				&& eg.getJobStatus() != JobStatus.FAILED) {
+				&& eg.getJobStatus() != InternalJobStatus.FAILED) {
 			// get the next executable vertices
 			final Set<ExecutionVertex> verticesReadyToBeExecuted = localScheduler
 					.getVerticesReadyToBeExecuted();
@@ -653,13 +652,7 @@ public class TestPlan implements Closeable {
 	public void run() {
 		try {
 			final ExecutionGraph eg = this.getExecutionGraph();
-			final LocalScheduler localScheduler = new LocalScheduler(
-					new SchedulingListener() {
-						@Override
-						public void jobRemovedFromScheduler(
-								final ExecutionGraph executionGraph) {
-						}
-					}, this.instanceManager);
+			final LocalScheduler localScheduler = new LocalScheduler(this.instanceManager);
 			localScheduler.schedulJob(eg);
 			this.execute(eg, localScheduler);
 		} catch (final Exception e) {

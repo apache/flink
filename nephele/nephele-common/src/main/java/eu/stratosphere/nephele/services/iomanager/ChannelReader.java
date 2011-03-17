@@ -94,6 +94,16 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			this.requestQueue.add(new IORequest<Buffer.Input>(this, buffer));
 		}
 	}
+	
+	
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
+	 */
+	@Override
+	public boolean isClosed() {
+		return this.closed;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#close()

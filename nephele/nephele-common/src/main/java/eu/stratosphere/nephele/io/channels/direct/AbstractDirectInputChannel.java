@@ -124,6 +124,23 @@ public abstract class AbstractDirectInputChannel<T extends Record> extends Abstr
 		}
 	}
 
+	/**
+	 * Called by the corresponding in-memory output channel to request flushing of the
+	 * records.
+	 */
+	void requestFlush() {
+
+		synchronized (this.synchronizationMontior) {
+			if (this.currentWriteBuffer != null) {
+
+				this.fullBuffers.add(this.currentWriteBuffer);
+				this.getInputGate().notifyRecordIsAvailable(getChannelIndex());
+				this.currentWriteBuffer = null;
+			}
+		}
+
+	}
+
 	public void initializeBuffers(int numberOfBuffersPerChannel, int bufferSizeInRecords) {
 
 		synchronized (this.synchronizationMontior) {

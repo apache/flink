@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SelectionKey;
@@ -64,7 +65,7 @@ public class IncomingConnection {
 
 	private final IncomingConnectionID incomingConnectionID;
 
-	private IncomingConnection previousConnection = null;
+	private boolean inactiveConnection = false;
 
 	public IncomingConnection(IncomingConnectionID incomingConnectionID,
 			ByteBufferedChannelManager byteBufferedChannelManager, ReadableByteChannel readableByteChannel) {
@@ -103,14 +104,25 @@ public class IncomingConnection {
 
 		this.deserializer.reset();
 		// Unregister incoming connection
-		this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
+		if (!this.inactiveConnection) {
+			this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID,
+				this.readableByteChannel);
+		}
 	}
 
 	public void read() throws IOException, EOFException {
 
-		if (!isActiveConnection()) {
-			System.out.println("Is not active connection");
-			return;
+		if (this.inactiveConnection) {
+
+			final ByteBuffer buf = ByteBuffer.allocate(8);
+			final int bytesRead = this.readableByteChannel.read(buf);
+			if (bytesRead == 0) {
+				return;
+			} else if (bytesRead == -1) {
+				throw new EOFException();
+			} else {
+				throw new IOException("Read " + bytesRead + " bytes from inactive connection");
+			}
 		}
 
 		this.deserializer.read(this.readableByteChannel);
@@ -127,35 +139,8 @@ public class IncomingConnection {
 		return this.deserializer.hasUnfinishedData();
 	}
 
-	public void setPreviousConnection(IncomingConnection previousConnection) {
-		this.previousConnection = previousConnection;
-	}
-
-	private boolean isActiveConnection() {
-
-		if (this.readsFromCheckpoint) {
-			return true;
-		}
-
-		// Channel is connected, if there is no previous connection, this is the active connection
-		if (this.previousConnection == null) {
-			return true;
-		}
-
-		// This cannot be the active connection if corresponding byte channel is closed
-		if (!this.readableByteChannel.isOpen()) {
-			return false;
-		}
-
-		// If the previous connection still considers itself as the active connection, wait for the previous connection
-		// to finish first
-		if (this.previousConnection.isActiveConnection()) {
-			return false;
-		} else {
-			this.previousConnection = null;
-		}
-
-		return true;
+	public void markConnectionAsInactive() {
+		this.inactiveConnection = true;
 	}
 
 	public ReadableByteChannel getReadableByteChannel() {
@@ -175,6 +160,9 @@ public class IncomingConnection {
 			key.cancel();
 		}
 
-		this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
+		if (!this.inactiveConnection) {
+			this.byteBufferedChannelManager.unregisterIncomingConnection(this.incomingConnectionID,
+				this.readableByteChannel);
+		}
 	}
 }

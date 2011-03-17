@@ -37,7 +37,9 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  */
 public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 
+	@SuppressWarnings("unused")
 	private static Logger LOGGER = Logger.getLogger(TPCHQuery1.class);
+	
 	private int degreeOfParallelism = 1;
 	private String lineItemInputPath;
 	private String outputPath;

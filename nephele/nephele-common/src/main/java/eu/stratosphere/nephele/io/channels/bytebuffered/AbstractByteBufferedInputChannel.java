@@ -214,7 +214,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void close() {
+	public void close() throws IOException, InterruptedException {
 
 		this.deserializationBuffer.clear();
 		if (this.uncompressedDataBuffer != null) {
@@ -271,8 +271,11 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void transferEvent(AbstractEvent event) {
+	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		this.inputChannelBroker.transferEventToOutputChannel(event);
 	}
