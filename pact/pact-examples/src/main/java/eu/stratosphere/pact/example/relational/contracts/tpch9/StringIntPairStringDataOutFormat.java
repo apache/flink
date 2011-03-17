@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2011 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,18 +13,19 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.util;
+package eu.stratosphere.pact.example.relational.contracts.tpch9;
 
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.example.relational.types.tpch9.StringIntPair;
 
+public class StringIntPairStringDataOutFormat extends TextOutputFormat<StringIntPair, PactString> {
 
-@SameKey
-public final class IdentityMap extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
 	@Override
-	public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
-		out.collect(key, value);
+	public byte[] writeLine(KeyValuePair<StringIntPair, PactString> pair) {
+		StringIntPair key = pair.getKey();
+		return (key.getFirst().toString() + "|" + key.getSecond().toString() + "|" + pair.getValue().toString() + "\n").getBytes();
 	}
+
 }

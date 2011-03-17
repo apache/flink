@@ -61,12 +61,12 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class CrossTask extends AbstractTask {
 
-	// memory to be used for IO buffering
-	public int MEMORY_IO;
-
 	// obtain CrossTask logger
 	private static final Log LOG = LogFactory.getLog(CrossTask.class);
 
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
+	
 	// reader for first input
 	private RecordReader<KeyValuePair<Key, Value>> reader1;
 
@@ -85,6 +85,9 @@ public class CrossTask extends AbstractTask {
 	// spilling resettable iterator for inner input
 	private SpillingResettableIterator<KeyValuePair<Key, Value>> spillingResetIt = null;
 	private BlockResettableIterator<KeyValuePair<Key, Value>> blockResetIt = null;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
 	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -178,7 +181,7 @@ public class CrossTask extends AbstractTask {
 		if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST || 
 				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
 			if(this.spillingResetIt != null) this.spillingResetIt.abort();
-			if(this.blockResetIt != null) this.blockResetIt.abort();
+			if(this.blockResetIt != null) this.blockResetIt.close();
 		} else if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST || 
 				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
 			if(this.spillingResetIt != null) this.spillingResetIt.abort();
@@ -200,8 +203,13 @@ public class CrossTask extends AbstractTask {
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
 
-		// set up memory and io parameters
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		
+		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The Cross task was initialized with too little memory: " + this.availableMemory +
+				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -355,7 +363,7 @@ public class CrossTask extends AbstractTask {
 				// obtain spilling iterator (inner side) for first input
 				try {
 					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-						innerReader, MEMORY_IO / 2, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
+						innerReader, this.availableMemory / 2, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 							.getFirstInValueType()), this);
 					spillingResetIt = innerInput;
 				} catch (MemoryAllocationException mae) {
@@ -364,7 +372,7 @@ public class CrossTask extends AbstractTask {
 				// obtain blocked iterator (outer side) for second input
 				try {
 					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
-						MEMORY_IO / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), 
+							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), 
 								stub.getSecondInValueType()), this);
 					blockResetIt = outerInput;
 				} catch (MemoryAllocationException mae) {
@@ -375,7 +383,7 @@ public class CrossTask extends AbstractTask {
 				// obtain spilling iterator (inner side) for second input
 				try {
 					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-						innerReader, MEMORY_IO / 2, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(),
+						innerReader, this.availableMemory / 2, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(),
 							stub.getSecondInValueType()), this);
 					spillingResetIt = innerInput;
 				} catch (MemoryAllocationException mae) {
@@ -384,7 +392,7 @@ public class CrossTask extends AbstractTask {
 				// obtain blocked iterator (outer side) for second input
 				try {
 					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
-						MEMORY_IO / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
+							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 							.getFirstInValueType()), this);
 					blockResetIt = outerInput;
 				} catch (MemoryAllocationException mae) {
@@ -422,41 +430,66 @@ public class CrossTask extends AbstractTask {
 			stub.open();
 	
 			boolean moreOuterBlocks = false;
-			do {
-				// loop over the spilled resettable iterator
-				while (innerInput.hasNext() && !this.taskCanceled) {
-					// get inner pair
-					Pair<Key, Value> innerPair = innerInput.next();
-					// loop over the pairs in the current memory block
-					while (outerInput.hasNext() && !this.taskCanceled) {
-						// get outer pair
-						Pair<Key, Value> outerPair = outerInput.next();
-	
-						// call cross() method of CrossStub depending on local
-						// strategy
-						if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
-							// call stub with inner pair (first input) and outer
-							// pair (second input)
-							stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(),
-								output);
-						} else {
-							// call stub with inner pair (second input) and outer
-							// pair (first input)
-							stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(),
-								output);
+
+			if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
+				
+				do {
+					// loop over the spilled resettable iterator
+					while (innerInput.hasNext() && !this.taskCanceled) {
+						// get inner pair
+						Pair<Key, Value> innerPair = innerInput.next();
+						// loop over the pairs in the current memory block
+						while (outerInput.hasNext() && !this.taskCanceled) {
+							// get outer pair
+							Pair<Key, Value> outerPair = outerInput.next();
+		
+							// call cross() method of CrossStub depending on local strategy
+							// call stub with inner pair (first input) and outer pair (second input)
+							stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(), output);
+
+							innerPair = innerInput.repeatLast();
 						}
-						innerPair = innerInput.repeatLast();
+						// reset the memory block iterator to the beginning of the
+						// current memory block (outer side)
+						outerInput.reset();
 					}
-					// reset the memory block iterator to the beginning of the
-					// current memory block (outer side)
-					outerInput.reset();
-				}
-				// reset the spilling resettable iterator (inner side)
-				moreOuterBlocks = outerInput.nextBlock();
-				if(moreOuterBlocks) {
-					innerInput.reset();
-				}
-			} while (moreOuterBlocks && !this.taskCanceled);
+					// reset the spilling resettable iterator (inner side)
+					moreOuterBlocks = outerInput.nextBlock();
+					if(moreOuterBlocks) {
+						innerInput.reset();
+					}
+				} while (moreOuterBlocks && !this.taskCanceled);
+				
+			} else {
+				
+				do {
+					// loop over the spilled resettable iterator
+					while (innerInput.hasNext() && !this.taskCanceled) {
+						// get inner pair
+						Pair<Key, Value> innerPair = innerInput.next();
+						// loop over the pairs in the current memory block
+						while (outerInput.hasNext() && !this.taskCanceled) {
+							// get outer pair
+							Pair<Key, Value> outerPair = outerInput.next();
+		
+							// call cross() method of CrossStub depending on local strategy
+							// call stub with inner pair (first input) and outer pair (second input)
+							stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(), output);
+
+							innerPair = innerInput.repeatLast();
+						}
+						// reset the memory block iterator to the beginning of the
+						// current memory block (outer side)
+						outerInput.reset();
+					}
+					// reset the spilling resettable iterator (inner side)
+					moreOuterBlocks = outerInput.nextBlock();
+					if(moreOuterBlocks) {
+						innerInput.reset();
+					}
+				} while (moreOuterBlocks && !this.taskCanceled);
+				
+			}
 	
 			// close stub implementation
 			stub.close();
@@ -470,22 +503,31 @@ public class CrossTask extends AbstractTask {
 				throw ex;
 			}
 			
-		} finally {
-			ServiceException se1 = null, se2 = null;
+		}
+		finally {
+			Throwable t1 = null, t2 = null;
 			try {
-				if(innerInput != null) innerInput.close();
-			} catch (ServiceException se) {
-				LOG.warn(se);
-				se1 = se;
+				if(innerInput != null) {
+					innerInput.close();
+				}
 			}
+			catch (Throwable t) {
+				LOG.warn(t);
+				t1 = t;
+			}
+			
 			try {
-				if(outerInput != null) outerInput.close();
-			} catch (ServiceException se) {
-				LOG.warn(se);
-				se2 = se;
+				if(outerInput != null) {
+					outerInput.close();
+				}
 			}
-			if(se1 != null) throw new RuntimeException("Unable to close SpillingResettableIterator.", se1);
-			if(se2 != null) throw new RuntimeException("Unable to close BlockResettableIterator.", se2);
+			catch (Throwable t) {
+				LOG.warn(t);
+				t2 = t;
+			}
+			
+			if(t1 != null) throw new RuntimeException("Error closing SpillingResettableIterator.", t1);
+			if(t2 != null) throw new RuntimeException("Error closung BlockResettableIterator.", t2);
 		}
 	}
 
@@ -564,7 +606,7 @@ public class CrossTask extends AbstractTask {
 		
 			try {
 				innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-					innerReader, MEMORY_IO, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
+					innerReader, this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 						.getFirstInValueType()), this);
 				spillingResetIt = innerInput;
 			} catch (MemoryAllocationException mae) {
@@ -592,34 +634,54 @@ public class CrossTask extends AbstractTask {
 			// open stub implementation
 			stub.open();
 	
-			// read streamed iterator of outer side
-			while (outerInput.hasNext() && !this.taskCanceled) {
-				// get outer pair
-				Pair outerPair = outerInput.next();
-	
-				// read spilled iterator of inner side
-				while (innerInput.hasNext() && !this.taskCanceled) {
-					// get inner pair
-					Pair innerPair = innerInput.next();
-	
-					// call cross() method of CrossStub depending on local
-					// strategy
-					if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
+			if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
+			
+				// read streamed iterator of outer side
+				while (outerInput.hasNext() && !this.taskCanceled) {
+					// get outer pair
+					Pair outerPair = outerInput.next();
+		
+					// read spilled iterator of inner side
+					while (innerInput.hasNext() && !this.taskCanceled) {
+						// get inner pair
+						Pair innerPair = innerInput.next();
+		
+						// call cross() method of CrossStub depending on local strategy
 						// call stub with inner pair (first input) and outer pair (second input)
-						stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(),
-							output);
-					} else {
-						// call stub with inner pair (second input) and outer pair (first input)
-						stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(),
-							output);
+						stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(), output);
+						
+						outerPair = outerInput.repeatLast();
 					}
-					
-					outerPair = outerInput.repeatLast();
+					// reset spilling resettable iterator of inner side
+					if(outerInput.hasNext() && !this.taskCanceled) {
+						innerInput.reset();
+					}
 				}
-				// reset spilling resettable iterator of inner side
-				if(outerInput.hasNext() && !this.taskCanceled) {
-					innerInput.reset();
+			
+			} else {
+				
+				// read streamed iterator of outer side
+				while (outerInput.hasNext() && !this.taskCanceled) {
+					// get outer pair
+					Pair outerPair = outerInput.next();
+		
+					// read spilled iterator of inner side
+					while (innerInput.hasNext() && !this.taskCanceled) {
+						// get inner pair
+						Pair innerPair = innerInput.next();
+		
+						// call cross() method of CrossStub depending on local strategy
+						// call stub with inner pair (second input) and outer pair (first input)
+						stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(), output);
+						
+						outerPair = outerInput.repeatLast();
+					}
+					// reset spilling resettable iterator of inner side
+					if(outerInput.hasNext() && !this.taskCanceled) {
+						innerInput.reset();
+					}
 				}
+				
 			}
 	
 			// close stub implementation
@@ -635,13 +697,11 @@ public class CrossTask extends AbstractTask {
 				throw ex;
 			}
 
-		} finally {
-			try {
-				// close spilling resettable iterator
-				if(innerInput != null) innerInput.close();
-			} catch (ServiceException se) {
-				LOG.warn(se);
-				throw new RuntimeException("Unable to close SpillingResettable iterator", se);
+		}
+		finally {
+			// close spilling resettable iterator
+			if(innerInput != null) {
+				innerInput.close();
 			}
 		}
 	}

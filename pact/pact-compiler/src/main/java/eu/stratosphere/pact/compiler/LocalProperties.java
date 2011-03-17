@@ -117,7 +117,7 @@ public final class LocalProperties implements Cloneable {
 	 *        The output contract.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public boolean getPreservedAfterContract(OutputContract contract) {
+	public boolean filterByOutputContract(OutputContract contract) {
 		boolean nonTrivial = false;
 
 		// check, whether the local order is preserved

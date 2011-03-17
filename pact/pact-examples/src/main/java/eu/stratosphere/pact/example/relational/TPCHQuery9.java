@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2011 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -37,12 +37,12 @@ import eu.stratosphere.pact.example.relational.contracts.tpch9.PartFilter;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.PartJoin;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.PartListJoin;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.PartsuppMap;
+import eu.stratosphere.pact.example.relational.contracts.tpch9.StringIntPairStringDataOutFormat;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.SupplierMap;
 import eu.stratosphere.pact.example.relational.contracts.tpch9.SuppliersJoin;
 import eu.stratosphere.pact.example.relational.types.tpch9.IntPair;
 import eu.stratosphere.pact.example.relational.types.tpch9.StringIntPair;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
@@ -76,7 +76,7 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * Match "filtered_parts" and "suppliers" on" suppkey" -> "partlist" with (nation, o_year) as key
  * Group "partlist" by (nation, o_year), calculate sum(amount)
  * 
- * TODO: implement the "order by nation, o_year desc"
+ * <b>Attention:</b> The "order by" part is not implemented!
  * 
  * @author Dennis Schneider <dschneid@informatik.hu-berlin.de>
  */
@@ -101,18 +101,29 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(String... args) throws IllegalArgumentException {
 
 		if (args.length != 8)
-			throw new IllegalArgumentException(
-				"Must provide all arguments: " + this.ARGUMENTS);
-
-		this.degreeOfParallelism = Integer.parseInt(args[0]);
-		this.partInputPath = args[1];
-		this.partSuppInputPath = args[2];
-		this.ordersInputPath = args[3];
-		this.lineItemInputPath = args[4];
-		this.supplierInputPath = args[5];
-		this.nationInputPath = args[6];
-		this.outputPath = args[7];
-
+		{
+			LOGGER.warn("number of arguments do not match!");
+			
+			this.degreeOfParallelism = 1;
+			this.partInputPath = "";
+			this.partSuppInputPath = "";
+			this.ordersInputPath = "";
+			this.lineItemInputPath = "";
+			this.supplierInputPath = "";
+			this.nationInputPath = "";
+			this.outputPath = "";
+		}else
+		{
+			this.degreeOfParallelism = Integer.parseInt(args[0]);
+			this.partInputPath = args[1];
+			this.partSuppInputPath = args[2];
+			this.ordersInputPath = args[3];
+			this.lineItemInputPath = args[4];
+			this.supplierInputPath = args[5];
+			this.nationInputPath = args[6];
+			this.outputPath = args[7];
+		}
+		
 		/* Create the 6 data sources: */
 		/* part: (partkey | name, mfgr, brand, type, size, container, retailprice, comment) */
 		DataSourceContract<PactInteger, Tuple> partInput = new DataSourceContract<PactInteger, Tuple>(
@@ -234,20 +245,19 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		filteredPartsJoin.setFirstInput(partsJoin);
 		filteredPartsJoin.setSecondInput(orderedPartsJoin);
 		partListJoin.setFirstInput(filteredPartsJoin);
-		partListJoin.setSecondInput(mapSupplier);
+		partListJoin.setSecondInput(suppliersJoin);
 
 		/* Connect aggregate: */
 		sumAmountAggregate.setInput(partListJoin);
 
 		/* Connect sink: */
-		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
-				StringTupleDataOutFormat.class, this.outputPath, "Results sink");
+		DataSinkContract<StringIntPair, PactString> result = new DataSinkContract<StringIntPair, PactString>(
+				StringIntPairStringDataOutFormat.class, this.outputPath, "Results sink");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		result.setInput(sumAmountAggregate);
 
 		return new Plan(result, "TPC-H query 9");
 	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.plan.PlanAssemblerDescription#getDescription()
