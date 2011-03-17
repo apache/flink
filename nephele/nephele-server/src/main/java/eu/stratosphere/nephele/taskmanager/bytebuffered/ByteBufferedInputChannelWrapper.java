@@ -47,6 +47,10 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 	private int nextExpectedSequenceNumber = 0;
 
+	private int numberOfMemoryBuffers = 0;
+
+	private int numberOfFileBuffers = 0;
+
 	/**
 	 * In case of compression this variable points to the uncompressed data buffer.
 	 */
@@ -166,6 +170,15 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			}
 
 			transferEnvelope = this.queuedEnvelopes.poll();
+
+			// Maintain buffer statistics
+			if (transferEnvelope.getBuffer() != null) {
+				if (transferEnvelope.getBuffer().isBackedByMemory()) {
+					--this.numberOfMemoryBuffers;
+				} else {
+					--this.numberOfFileBuffers;
+				}
+			}
 		}
 
 		final Buffer consumedBuffer = transferEnvelope.getBuffer();
@@ -225,17 +238,32 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			this.queuedEnvelopes.add(transferEnvelope);
 
 			++this.nextExpectedSequenceNumber;
+
+			// Maintain buffer statistics
+			if (transferEnvelope.getBuffer() != null) {
+				if (transferEnvelope.getBuffer().isBackedByMemory()) {
+					++this.numberOfMemoryBuffers;
+				} else {
+					++this.numberOfFileBuffers;
+				}
+			}
+
+			// TODO: Check if throttle event shall be sent
+			/*
+			 * if (this.numberOfFileBuffers > 0) {
+			 * final int totalNumberOfQueuedBuffers = this.numberOfFileBuffers + this.numberOfMemoryBuffers;
+			 * final float fileBuffersRatio = ((float) this.numberOfFileBuffers)
+			 * / ((float) totalNumberOfQueuedBuffers);
+			 * if (fileBuffersRatio > 0.8f) {
+			 * transferEventToOutputChannel(new NetworkThrottleEvent((int) (fileBuffersRatio * 1000.0f)));
+			 * }
+			 * }
+			 */
 		}
 
 		// Notify the channel about the new data
 		this.byteBufferedInputChannel.checkForNetworkEvents();
 	}
-
-	/*
-	 * private void startThrottling() {
-	 * transferEventToOutputChannel(new NetworkThrottleEvent(true));
-	 * }
-	 */
 
 	@Override
 	public void reportIOException(IOException ioe) {

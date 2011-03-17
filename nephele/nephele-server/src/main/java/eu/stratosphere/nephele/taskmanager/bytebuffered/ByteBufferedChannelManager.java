@@ -482,7 +482,7 @@ public class ByteBufferedChannelManager {
 		} else {
 
 			final ByteBufferedOutputChannelWrapper networkOutputChannelWrapper = (ByteBufferedOutputChannelWrapper) targetChannelWrapper;
-
+			
 			// In case of an output channel, we only expect events and no buffers
 			if (transferEnvelope.getBuffer() != null) {
 				LOG.error("Incoming transfer envelope for network output channel "
