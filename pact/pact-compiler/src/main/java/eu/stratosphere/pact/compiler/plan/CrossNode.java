@@ -483,8 +483,8 @@ public class CrossNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-		n.getLocalProperties().getPreservedAfterContract(getOutputContract());
+		n.getGlobalProperties().filterByOutputContract(getOutputContract());
+		n.getLocalProperties().filterByOutputContract(getOutputContract());
 
 		// compute the costs
 		estimator.costOperator(n);

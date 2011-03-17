@@ -167,7 +167,7 @@ public class PactConnection {
 		if (strategy == ShipStrategy.FORWARD && sourcePact.getDegreeOfParallelism() < targetPact.getDegreeOfParallelism()) {
 			// check, whether we have an interesting property on partitioning. if so, make sure that we use a
 			// forward strategy that preserves that partitioning by locally routing the keys correctly
-			if(this.interestingProps != null) {
+			if (this.interestingProps != null) {
 				for (InterestingProperties props : this.interestingProps) {
 					PartitionProperty pp = props.getGlobalProperties().getPartitioning();
 					if (pp == PartitionProperty.HASH_PARTITIONED || pp == PartitionProperty.ANY) {

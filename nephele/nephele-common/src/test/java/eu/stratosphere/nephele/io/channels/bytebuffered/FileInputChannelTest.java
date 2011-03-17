@@ -50,6 +50,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class check the functionality of {@link FileInputChannel} class
@@ -181,12 +182,17 @@ public class FileInputChannelTest {
 		try {
 			fileInputChannel.readRecord();
 		} catch (IOException e) {
-			fail();
-			e.printStackTrace();
+			fail(StringUtils.stringifyException(e));
 		}
 
 		// Close Channel to test EOFException
-		fileInputChannel.close();
+		try {
+			fileInputChannel.close();
+		} catch (IOException e) {
+			fail(StringUtils.stringifyException(e));
+		} catch (InterruptedException e) {
+			fail(StringUtils.stringifyException(e));
+		}
 		// No acknowledgment from consumer yet so the channel should still be open
 		assertEquals(false, fileInputChannel.isClosed());
 		fileInputChannel.processEvent(new ByteBufferedChannelCloseEvent());

@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
@@ -41,7 +40,9 @@ import junit.framework.Assert;
 
 public class BlockResettableIteratorTest
 {
-	private static final int memoryCapacity = 100000;
+	private static final int MEMORY_CAPACITY = 100000;
+	
+	private static final int NUM_VALUES = 20000;
 	
 	private MemoryManager memman;
 
@@ -50,6 +51,7 @@ public class BlockResettableIteratorTest
 	private List<PactInteger> objects;
 
 	private RecordDeserializer<PactInteger> deserializer;
+	
 
 	
 	
@@ -90,11 +92,11 @@ public class BlockResettableIteratorTest
 	@Before
 	public void startup() {
 		// set up IO and memory manager
-		this.memman = new DefaultMemoryManager(memoryCapacity);
+		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY);
 		
 		// create test objects
-		this.objects = new ArrayList<PactInteger>(1000);
-		for (int i = 0; i < 1000; ++i) {
+		this.objects = new ArrayList<PactInteger>(20000);
+		for (int i = 0; i < NUM_VALUES; ++i) {
 			PactInteger tmp = new PactInteger(i);
 			this.objects.add(tmp);
 		}
@@ -107,6 +109,11 @@ public class BlockResettableIteratorTest
 		this.deserializer = null;
 		this.objects = null;
 		
+		// check that the memory manager got all segments back
+		if (!this.memman.verifyEmpty()) {
+			Assert.fail("A memory leak has occurred: Not all memory was properly returned to the memory manager.");
+		}
+		
 		this.memman.shutdown();
 		this.memman = null;
 	}
@@ -118,8 +125,8 @@ public class BlockResettableIteratorTest
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader, 1000, 1,
-			deserializer, memOwner);
+		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader,
+				BlockResettableIterator.MIN_BUFFER_SIZE, 1, deserializer, memOwner);
 		// open the iterator
 		iterator.open();
 		
@@ -141,17 +148,9 @@ public class BlockResettableIteratorTest
 				Assert.assertEquals(upper - lower, count);
 			}
 		} while (iterator.nextBlock());
-		Assert.assertEquals(1000, upper);
+		Assert.assertEquals(NUM_VALUES, upper);
 		// close the iterator
 		iterator.close();
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(memOwner, memoryCapacity);
-			memman.release(test);
-		}
-		catch (Exception e) {
-			Assert.fail("Memory leak detected. BlockResettableIterator does not release all memory.");
-		}
 	}
 
 	@Test
@@ -161,7 +160,8 @@ public class BlockResettableIteratorTest
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader, 1000, 2,
+		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader,
+				2 * BlockResettableIterator.MIN_BUFFER_SIZE, 2,
 			deserializer, memOwner);
 		// open the iterator
 		iterator.open();
@@ -183,17 +183,9 @@ public class BlockResettableIteratorTest
 				Assert.assertEquals(upper - lower, count);
 			}
 		} while (iterator.nextBlock());
-		Assert.assertEquals(1000, upper);
+		Assert.assertEquals(NUM_VALUES, upper);
 		// close the iterator
 		iterator.close();
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(memOwner, memoryCapacity);
-			memman.release(test);
-		}
-		catch (Exception e) {
-			Assert.fail("Memory leak detected. BlockResettableIterator does not release all memory.");
-		}
 	}
 
 	@Test
@@ -203,8 +195,8 @@ public class BlockResettableIteratorTest
 		// create the reader
 		reader = new CollectionReader<PactInteger>(objects);
 		// create the resettable Iterator
-		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader, 1000, 3,
-			deserializer, memOwner);
+		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader, 
+				3 * BlockResettableIterator.MIN_BUFFER_SIZE, 3, deserializer, memOwner);
 		// open the iterator
 		iterator.open();
 		// now test walking through the iterator
@@ -225,17 +217,9 @@ public class BlockResettableIteratorTest
 				Assert.assertEquals(upper - lower, count);
 			}
 		} while (iterator.nextBlock());
-		Assert.assertEquals(1000, upper);
+		Assert.assertEquals(NUM_VALUES, upper);
 		// close the iterator
 		iterator.close();
-		// make sure there are no memory leaks
-		try {
-			MemorySegment test = memman.allocate(memOwner, memoryCapacity);
-			memman.release(test);
-		}
-		catch (Exception e) {
-			Assert.fail("Memory leak detected. BlockResettableIterator does not release all memory.");
-		}
 	}
 
 }

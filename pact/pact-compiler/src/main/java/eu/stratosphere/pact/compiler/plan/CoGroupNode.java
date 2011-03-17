@@ -567,29 +567,38 @@ public class CoGroupNode extends TwoInputNode {
 		GlobalProperties outGp = new GlobalProperties();
 		outGp.setPartitioning(gp1.getPartitioning());
 
-		LocalProperties outLp = new LocalProperties();
-		outLp.setKeyOrder(lp1.getKeyOrder().isOrdered() && lp1.getKeyOrder() == lp2.getKeyOrder() ? lp1.getKeyOrder()
-			: Order.NONE);
-		outLp.setKeysGrouped(outLp.getKeyOrder().isOrdered());
-
-		// create a new reduce node for this input
-		CoGroupNode n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, outLp);
+		// create a new cogroup node for this input
+		CoGroupNode n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, new LocalProperties());
 
 		n.input1.setShipStrategy(ss1);
 		n.input2.setShipStrategy(ss2);
 
-		// set sorting as the local strategy, if no pre-existing order can be assumed
-		if (outLp.getKeyOrder().isOrdered()) {
-			n.setLocalStrategy(LocalStrategy.NONE);
-		} else {
-			n.setLocalStrategy(LocalStrategy.SORTMERGE);
-			n.getLocalProperties().setKeyOrder(Order.ASCENDING);
-			n.getLocalProperties().setKeysGrouped(true);
+		// output will have ascending order
+		n.getLocalProperties().setKeyOrder(Order.ASCENDING);
+		n.getLocalProperties().setKeysGrouped(true);
+		
+		if(n.getLocalStrategy() == LocalStrategy.NONE) {
+			// local strategy was NOT set with compiler hint
+			
+			// set local strategy according to pre-existing ordering
+			if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				// both inputs have ascending order
+				n.setLocalStrategy(LocalStrategy.MERGE);
+			} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				// input 2 has ascending order, input 1 does not
+				n.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
+				// input 1 has ascending order, input 2 does not
+				n.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			} else {
+				// none of the inputs has ascending order
+				n.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			}
 		}
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-		n.getLocalProperties().getPreservedAfterContract(getOutputContract());
+		n.getGlobalProperties().filterByOutputContract(getOutputContract());
+		n.getLocalProperties().filterByOutputContract(getOutputContract());
 
 		// compute the costs
 		estimator.costOperator(n);

@@ -18,10 +18,11 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Set;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -47,9 +48,10 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 
 /**
- * @author Erik Nijkamp
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
-public class SortMergeMatchIteratorITCase {
+public class SortMergeCoGroupIteratorITCase {
+	
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 128;
 
@@ -113,7 +115,7 @@ public class SortMergeMatchIteratorITCase {
 			memoryManager = null;
 		}
 	}
-
+ 
 	@Test
 	public void testSortBothMerge() {
 		try {
@@ -127,15 +129,15 @@ public class SortMergeMatchIteratorITCase {
 			// collect expected data
 			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
 			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
 						MEMORY_SIZE, 64, LocalStrategy.SORT_BOTH_MERGE, parentTask);
@@ -145,40 +147,31 @@ public class SortMergeMatchIteratorITCase {
 				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
 	
 				// assert that each map is expected
 				Iterator<TestData.Value> iter1 = iterator.getValues1();
 				Iterator<TestData.Value> iter2 = iterator.getValues2();
 	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
+				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				while(iter1.hasNext()) {
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
 				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
+				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
+				
+				while(iter2.hasNext()) {
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
 				}
+				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
+				expectedCoGroupsMap.remove(key);
 			}
 			iterator.close();
 	
-			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
-			}
+			Assert.assertTrue("Expected key set not empty", expectedCoGroupsMap.isEmpty());
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -199,15 +192,15 @@ public class SortMergeMatchIteratorITCase {
 			// collect expected data
 			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
 			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
 						MEMORY_SIZE, 64, LocalStrategy.SORT_FIRST_MERGE, parentTask);
@@ -217,40 +210,30 @@ public class SortMergeMatchIteratorITCase {
 				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
 	
 				// assert that each map is expected
 				Iterator<TestData.Value> iter1 = iterator.getValues1();
 				Iterator<TestData.Value> iter2 = iterator.getValues2();
 	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
+				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				while(iter1.hasNext()) {
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
 				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
+				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
+				
+				while(iter2.hasNext()) {
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
 				}
+				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
+				expectedCoGroupsMap.remove(key);
 			}
 			iterator.close();
 	
-			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
-			}
+			Assert.assertTrue("Expected key set not empty", expectedCoGroupsMap.isEmpty());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -271,15 +254,15 @@ public class SortMergeMatchIteratorITCase {
 			// collect expected data
 			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
 			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
 						MEMORY_SIZE, 64, LocalStrategy.SORT_SECOND_MERGE, parentTask);
@@ -289,40 +272,30 @@ public class SortMergeMatchIteratorITCase {
 				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
 	
 				// assert that each map is expected
 				Iterator<TestData.Value> iter1 = iterator.getValues1();
 				Iterator<TestData.Value> iter2 = iterator.getValues2();
 	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
+				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				while(iter1.hasNext()) {
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
 				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
+				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
+				
+				while(iter2.hasNext()) {
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
 				}
+				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
+				expectedCoGroupsMap.remove(key);
 			}
 			iterator.close();
 	
-			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
-			}
+			Assert.assertTrue("Expected key set not empty", expectedCoGroupsMap.isEmpty());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -343,15 +316,15 @@ public class SortMergeMatchIteratorITCase {
 			// collect expected data
 			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
 			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
 						MEMORY_SIZE, 64, LocalStrategy.MERGE, parentTask);
@@ -361,40 +334,30 @@ public class SortMergeMatchIteratorITCase {
 				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
 	
 				// assert that each map is expected
 				Iterator<TestData.Value> iter1 = iterator.getValues1();
 				Iterator<TestData.Value> iter2 = iterator.getValues2();
 	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
+				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				while(iter1.hasNext()) {
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
 				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
+				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
+				
+				while(iter2.hasNext()) {
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
 				}
+				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
+				expectedCoGroupsMap.remove(key);
 			}
 			iterator.close();
 	
-			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
-			}
+			Assert.assertTrue("Expected key set not empty", expectedCoGroupsMap.isEmpty());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -402,28 +365,29 @@ public class SortMergeMatchIteratorITCase {
 		}
 	}
 
-	private Map<Key, Collection<Match>> matchValues(Map<Key, Collection<Value>> leftMap,
+	private Map<Key, List<Collection<Value>>> coGroupValues(Map<Key, Collection<Value>> leftMap,
 			Map<Key, Collection<Value>> rightMap) {
-		Map<Key, Collection<Match>> map = new HashMap<Key, Collection<Match>>();
+		Map<Key, List<Collection<Value>>> map = new HashMap<Key, List<Collection<Value>>>();
 
-		for (Key key : leftMap.keySet()) {
+		Set<Key> keySet = new HashSet<Key>(leftMap.keySet());
+		keySet.addAll(rightMap.keySet());
+		
+		for (Key key : keySet) {
 			Collection<Value> leftValues = leftMap.get(key);
 			Collection<Value> rightValues = rightMap.get(key);
 
+			map.put(key,new ArrayList<Collection<Value>>(2));
+			
+			if (leftValues == null) {
+				map.get(key).add(new ArrayList<Value>(0));
+			} else {
+				map.get(key).add(leftValues);
+			}
+			
 			if (rightValues == null) {
-				continue;
-			}
-
-			if (!map.containsKey(key)) {
-				map.put(key, new ArrayList<Match>());
-			}
-
-			Collection<Match> matchedValues = map.get(key);
-
-			for (Value leftValue : leftValues) {
-				for (Value rightValue : rightValues) {
-					matchedValues.add(new Match(leftValue, rightValue));
-				}
+				map.get(key).add(new ArrayList<Value>(0));
+			} else {
+				map.get(key).add(rightValues);
 			}
 		}
 
@@ -446,29 +410,5 @@ public class SortMergeMatchIteratorITCase {
 
 		return map;
 	}
-
-	/**
-	 * Private class used for storage of the expected matches in a hashmap.
-	 */
-	private static class Match {
-		private final Value left;
-
-		private final Value right;
-
-		public Match(Value left, Value right) {
-			this.left = left;
-			this.right = right;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			Match o = (Match) obj;
-			return this.left.equals(o.left) && this.right.equals(o.right);
-		}
-
-		@Override
-		public String toString() {
-			return left + ", " + right;
-		}
-	}
+	
 }

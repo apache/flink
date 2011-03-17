@@ -374,8 +374,8 @@ public class ReduceNode extends SingleInputNode {
 			n.setLocalStrategy(ls);
 
 			// compute, which of the properties survive, depending on the output contract
-			n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-			n.getLocalProperties().getPreservedAfterContract(getOutputContract());
+			n.getGlobalProperties().filterByOutputContract(getOutputContract());
+			n.getLocalProperties().filterByOutputContract(getOutputContract());
 
 			estimator.costOperator(n);
 

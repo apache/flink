@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.io.channels.bytebuffered;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 
 public interface ByteBufferedOutputChannelBroker {
@@ -32,15 +34,24 @@ public interface ByteBufferedOutputChannelBroker {
 	/**
 	 * Returns a filled write buffers to the broker. The broker will take care
 	 * of the buffers and transfer the one with the user data to the connected input channel on a best effort basis.
+	 * 
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the buffers to be released
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while releasing the buffers
 	 */
-	void releaseWriteBuffers();
+	void releaseWriteBuffers() throws IOException, InterruptedException;
 
 	/**
 	 * Forwards the given event to the connected network input channel on a best effort basis.
 	 * 
 	 * @param event
 	 *        the event to be transferred
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be transfered
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transfering the event
 	 */
-	void transferEventToInputChannel(AbstractEvent event);
+	void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException;
 
 }

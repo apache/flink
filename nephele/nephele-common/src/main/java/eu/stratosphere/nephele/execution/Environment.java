@@ -775,7 +775,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Closes all input gates which are not already closed.
 	 */
-	private void closeInputGates() throws IOException {
+	private void closeInputGates() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
 			final InputGate<? extends Record> eig = getInputGate(i);
@@ -806,7 +806,6 @@ public class Environment implements Runnable, IOReadableWritable {
 		this.inputSplits.add(inputSplit);
 	}
 
-	
 	public InputSplit[] getInputSplits() {
 
 		return this.inputSplits.toArray(new InputSplit[0]);

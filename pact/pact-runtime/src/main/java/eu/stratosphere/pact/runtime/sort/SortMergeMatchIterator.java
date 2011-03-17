@@ -33,6 +33,8 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * @author Erik Nijkamp
@@ -57,11 +59,7 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 	private final Class<V2> valueClass2;
 
-	private final int numSortBufferPerChannel;
-
-	private final int sizeSortBufferPerChannel;
-
-	private final int ioMemoryPerChannel;
+	private final long memoryPerChannel;
 
 	private final int fileHandlesPerChannel;
 
@@ -75,14 +73,17 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 	private K key;
 
-	private AbstractTask parentTask;
+	private final LocalStrategy localStrategy;
+	
+	private final AbstractTask parentTask;
 
 
 
 	public SortMergeMatchIterator(MemoryManager memoryManager, IOManager ioManager,
-			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2, Class<K> keyClass,
-			Class<V1> valueClass1, Class<V2> valueClass2, int numSortBuffer, int sizeSortBuffer, int ioMemory,
-			int maxNumFileHandles, AbstractTask parentTask) {
+			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
+			Class<K> keyClass, Class<V1> valueClass1, Class<V2> valueClass2,
+			long memory, int maxNumFileHandles, LocalStrategy localStrategy, AbstractTask parentTask)
+	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.keyClass = keyClass;
@@ -90,10 +91,9 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 		this.valueClass2 = valueClass2;
 		this.reader1 = reader1;
 		this.reader2 = reader2;
-		this.numSortBufferPerChannel = numSortBuffer / 2;
-		this.sizeSortBufferPerChannel = sizeSortBuffer;
-		this.ioMemoryPerChannel = ioMemory / 2;
-		this.fileHandlesPerChannel = (maxNumFileHandles / 2) == 1 ? 2 : (maxNumFileHandles / 2);
+		this.memoryPerChannel = memory / 2;
+		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
+		this.localStrategy = localStrategy;
 		this.parentTask = parentTask;
 	}
 
@@ -119,32 +119,53 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 		// ================================================================
 
 		// iterator 1
+		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_FIRST_MERGE)
 		{
 			// serialization
 			final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
 			final SerializationFactory<V1> valSerialization = new WritableSerializationFactory<V1>(valueClass1);
 
 			// merger
-			this.sortMerger1 = new UnilateralSortMerger<K, V1>(memoryManager, ioManager, numSortBufferPerChannel,
-				sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-				valSerialization, keyComparator, reader1, parentTask);
+			this.sortMerger1 = new UnilateralSortMerger<K, V1>(this.memoryManager, this.ioManager,
+					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
+				valSerialization, keyComparator, this.reader1, this.parentTask);
 		}
 
+		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
 		{
 			// serialization
 			final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
 			final SerializationFactory<V2> valSerialization = new WritableSerializationFactory<V2>(valueClass2);
 
 			// merger
-			this.sortMerger2 = new UnilateralSortMerger<K, V2>(memoryManager, ioManager, numSortBufferPerChannel,
-				sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-				valSerialization, keyComparator, reader2, parentTask);
+			this.sortMerger2 = new UnilateralSortMerger<K, V2>(this.memoryManager, this.ioManager, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
+				valSerialization, keyComparator, this.reader2, this.parentTask);
 		}
 			
 		// =============== These calls freeze until the data is actually available ============ 
 		
-		this.iterator1 = new KeyValueIterator<V1>(sortMerger1.getIterator());
-		this.iterator2 = new KeyValueIterator<V2>(sortMerger2.getIterator());
+		switch (this.localStrategy) {
+			case SORT_BOTH_MERGE:
+				this.iterator1 = new KeyValueIterator<V1>(sortMerger1.getIterator());
+				this.iterator2 = new KeyValueIterator<V2>(sortMerger2.getIterator());
+				break;
+			case SORT_FIRST_MERGE:
+				this.iterator1 = new KeyValueIterator<V1>(sortMerger1.getIterator());
+				this.iterator2 = new KeyValueIterator<V2>(new NepheleReaderIterator<K,V2>(reader2));
+				break;
+			case SORT_SECOND_MERGE:
+				this.iterator1 = new KeyValueIterator<V1>(new NepheleReaderIterator<K,V1>(reader1));
+				this.iterator2 = new KeyValueIterator<V2>(sortMerger2.getIterator());
+				break;
+			case MERGE:
+				this.iterator1 = new KeyValueIterator<V1>(new NepheleReaderIterator<K,V1>(reader1));
+				this.iterator2 = new KeyValueIterator<V2>(new NepheleReaderIterator<K,V2>(reader2));
+				break;
+			default:
+				throw new RuntimeException("Unsupported Local Strategy in SortMergeMatchIterator: "+this.localStrategy);
+		}
+		
 	}
 
 	@Override

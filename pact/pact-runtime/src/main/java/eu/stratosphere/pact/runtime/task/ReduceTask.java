@@ -65,21 +65,12 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class ReduceTask extends AbstractTask {
 
-	// number of sort buffers to use
-	private int NUM_SORT_BUFFERS;
-
-	// size of each sort buffer in MB
-	private int SIZE_SORT_BUFFER;
-
-	// memory to be used for IO buffering
-	private int MEMORY_IO;
-
-	// maximum number of file handles
-	private int MAX_NUM_FILEHANLDES;
-
 	// obtain ReduceTask logger
 	private static final Log LOG = LogFactory.getLog(ReduceTask.class);
 
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+	
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
 
@@ -91,6 +82,12 @@ public class ReduceTask extends AbstractTask {
 
 	// task config including stub parameters
 	private TaskConfig config;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// maximum number of file handles
+	private int maxFileHandles;
 	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -218,11 +215,14 @@ public class ReduceTask extends AbstractTask {
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
 
-		// set up memory and io parameters
-		NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		
+		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The CoGroup task was initialized with too little memory: " + this.availableMemory +
+				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -379,7 +379,7 @@ public class ReduceTask extends AbstractTask {
 			try {
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
-					NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
+					this.availableMemory, this.maxFileHandles, keySerialization,
 					valSerialization, keyComparator, reader, this);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
@@ -411,7 +411,7 @@ public class ReduceTask extends AbstractTask {
 			try {
 				// instantiate a combining sort-merger
 				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
-					ioManager, NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
+					ioManager, this.availableMemory, this.maxFileHandles, keySerialization,
 					valSerialization, keyComparator, reader, this, false);
 				// obtain and return a grouped iterator from the combining
 				// sort-merger

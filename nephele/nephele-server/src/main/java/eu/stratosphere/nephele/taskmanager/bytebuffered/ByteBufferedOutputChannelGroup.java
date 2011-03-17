@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
+import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
@@ -97,9 +98,13 @@ public class ByteBufferedOutputChannelGroup {
 	 *        the channel wrapper which called this method
 	 * @param outgoingTransferEnvelope
 	 *        the transfer envelope to be forwarded
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while processing the envelope
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
 	public void processEnvelope(ByteBufferedOutputChannelWrapper channelWrapper,
-			TransferEnvelope outgoingTransferEnvelope) {
+			TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
 
 		final TransferEnvelopeProcessingLog processingLog = outgoingTransferEnvelope.getProcessingLog();
 
