@@ -101,18 +101,29 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(String... args) throws IllegalArgumentException {
 
 		if (args.length != 8)
-			throw new IllegalArgumentException(
-				"Must provide all arguments: " + this.ARGUMENTS);
-
-		this.degreeOfParallelism = Integer.parseInt(args[0]);
-		this.partInputPath = args[1];
-		this.partSuppInputPath = args[2];
-		this.ordersInputPath = args[3];
-		this.lineItemInputPath = args[4];
-		this.supplierInputPath = args[5];
-		this.nationInputPath = args[6];
-		this.outputPath = args[7];
-
+		{
+			LOGGER.warn("number of arguments do not match!");
+			
+			this.degreeOfParallelism = 1;
+			this.partInputPath = "";
+			this.partSuppInputPath = "";
+			this.ordersInputPath = "";
+			this.lineItemInputPath = "";
+			this.supplierInputPath = "";
+			this.nationInputPath = "";
+			this.outputPath = "";
+		}else
+		{
+			this.degreeOfParallelism = Integer.parseInt(args[0]);
+			this.partInputPath = args[1];
+			this.partSuppInputPath = args[2];
+			this.ordersInputPath = args[3];
+			this.lineItemInputPath = args[4];
+			this.supplierInputPath = args[5];
+			this.nationInputPath = args[6];
+			this.outputPath = args[7];
+		}
+		
 		/* Create the 6 data sources: */
 		/* part: (partkey | name, mfgr, brand, type, size, container, retailprice, comment) */
 		DataSourceContract<PactInteger, Tuple> partInput = new DataSourceContract<PactInteger, Tuple>(
