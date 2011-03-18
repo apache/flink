@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.instance.cluster;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
@@ -84,12 +85,22 @@ public class ClusterManagerTest {
 	private static final long CLEAN_UP_INTERVAL = 5000L;
 
 	/**
+	 * The directory the configuration directory is expected in when test are executed using Eclipse.
+	 */
+	private static final String ECLIPSE_PATH_EXTENSION = "/src/test/resources";
+
+	/**
 	 * This test covers the parsing of instance types from the configuration and the default instance type.
 	 */
 	@Test
 	public void testInstanceConfiguration() {
 
-		GlobalConfiguration.loadConfiguration(System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR);
+		final String configDir = getConfigDir();
+		if (configDir == null) {
+			fail("Cannot find configuration directory for cluster manager test");
+		}
+
+		GlobalConfiguration.loadConfiguration(configDir);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
 		final ClusterManager cm = new ClusterManager();
@@ -125,7 +136,12 @@ public class ClusterManagerTest {
 	@Test
 	public void testInstanceMatching() {
 
-		GlobalConfiguration.loadConfiguration(System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR);
+		final String configDir = getConfigDir();
+		if (configDir == null) {
+			fail("Cannot find configuration directory for cluster manager test");
+		}
+
+		GlobalConfiguration.loadConfiguration(configDir);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
 		final ClusterManager cm = new ClusterManager();
@@ -215,7 +231,12 @@ public class ClusterManagerTest {
 	@Test
 	public void testAllocationDeallocation() {
 
-		GlobalConfiguration.loadConfiguration(System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR);
+		final String configDir = getConfigDir();
+		if (configDir == null) {
+			fail("Cannot find configuration directory for cluster manager test");
+		}
+
+		GlobalConfiguration.loadConfiguration(configDir);
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
 		final ClusterManager cm = new ClusterManager();
 		cm.setInstanceListener(testInstanceListener);
@@ -349,5 +370,27 @@ public class ClusterManagerTest {
 				cm.shutdown();
 			}
 		}
+	}
+
+	/**
+	 * Returns the directory containing the configuration files that shall be used for the test.
+	 * 
+	 * @return the directory containing the configuration files or <code>null</code> if the configuration directory
+	 *         could not be located
+	 */
+	private static String getConfigDir() {
+
+		// This is the correct path for Maven-based tests
+		String configDir = System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR;
+		if (new File(configDir).exists()) {
+			return configDir;
+		}
+
+		configDir = System.getProperty(USER_DIR_KEY) + ECLIPSE_PATH_EXTENSION + CORRECT_CONF_DIR;
+		if (new File(configDir).exists()) {
+			return configDir;
+		}
+
+		return null;
 	}
 }

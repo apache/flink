@@ -244,18 +244,23 @@ public class TPCHQuery10ITCase extends TestBase {
 	 */
 	@Override
 	protected void postSubmit() throws Exception {
-
 		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
+	}
 
+	@Override
+	public void stopCluster() throws Exception {
 		// clean up hdfs
 		getFilesystemProvider().delete(ordersPath, true);
 		getFilesystemProvider().delete(lineitemsPath, true);
 		getFilesystemProvider().delete(customersPath, true);
 		getFilesystemProvider().delete(nationsPath, true);
 		getFilesystemProvider().delete(resultPath, true);
-	}
 
+		super.stopCluster();
+	}
+	
+	
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 

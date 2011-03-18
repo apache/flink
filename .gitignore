@@ -8,3 +8,4 @@ target
 *.class
 filter.properties
 tmp/*
+pact/pact-tests/tmp/*

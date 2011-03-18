@@ -123,8 +123,14 @@ public class CrossNode extends TwoInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case NESTEDLOOP_BLOCKED_OUTER_FIRST:   return 1;
+			case NESTEDLOOP_BLOCKED_OUTER_SECOND:  return 1;
+			case NESTEDLOOP_STREAMED_OUTER_FIRST:  return 1;
+			case NESTEDLOOP_STREAMED_OUTER_SECOND: return 1;
+			default:	                           return 0;
+		}
 	}
 
 	/*

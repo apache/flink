@@ -85,21 +85,21 @@ public class ColorScheme {
 
 		this.VERTEXDEFAULTBACKGROUNDCOLOR = new Color(device, 162, 162, 162);
 		this.VERTEXRUNNINGBACKGROUNDCOLOR = new Color(device, 155, 187, 89);
-		this.VERTEXFINISHINGBACKGROUNDCOLOR = new Color(device, 247, 150, 70);
+		this.VERTEXFINISHINGBACKGROUNDCOLOR = new Color(device, 130, 190, 255);
 		this.VERTEXFINISHEDBACKGROUNDCOLOR = new Color(device, 93, 121, 246);
-		this.VERTEXCANCELBACKGROUNDCOLOR = new Color(device, 229, 36, 36);
+		this.VERTEXCANCELBACKGROUNDCOLOR = new Color(device, 247, 150, 70);
 		this.VERTEXFAILEDBACKGROUNDCOLOR = new Color(device, 229, 36, 36);
 
 		this.GATEDEFAULTBORDERCOLOR = new Color(device, 162, 162, 162);
 		this.GATEDEFAULTBACKGROUNDCOLOR = new Color(device, 104, 104, 104);
 		this.GATERUNNINGBORDERCOLOR = new Color(device, 155, 187, 89);
 		this.GATERUNNINGBACKGROUNDCOLOR = new Color(device, 95, 114, 54);
-		this.GATEFINISHINGBORDERCOLOR = new Color(device, 247, 150, 70);
-		this.GATEFINISHINGBACKGROUNDCOLOR = new Color(device, 178, 108, 50);
+		this.GATEFINISHINGBORDERCOLOR = new Color(device, 130, 190, 255);
+		this.GATEFINISHINGBACKGROUNDCOLOR = new Color(device, 95, 135, 250);
 		this.GATEFINISHEDBORDERCOLOR = new Color(device, 93, 121, 246);
 		this.GATEFINISHEDBACKGROUNDCOLOR = new Color(device, 48, 63, 128);
-		this.GATECANCELBORDERCOLOR = new Color(device, 229, 36, 36);
-		this.GATECANCELBACKGROUNDCOLOR = new Color(device, 166, 27, 27);
+		this.GATECANCELBORDERCOLOR = new Color(device, 247, 150, 70);
+		this.GATECANCELBACKGROUNDCOLOR = new Color(device, 178, 108, 50);
 		this.GATEFAILEDBORDERCOLOR = new Color(device, 229, 36, 36);
 		this.GATEFAILEDBACKGROUNDCOLOR = new Color(device, 166, 27, 27);
 

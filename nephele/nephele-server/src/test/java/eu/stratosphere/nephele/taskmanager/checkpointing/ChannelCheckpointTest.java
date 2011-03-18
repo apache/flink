@@ -24,11 +24,9 @@ import static org.mockito.Mockito.doThrow;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.nio.channels.ReadableByteChannel;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -37,7 +35,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeProcessingLog;
 import eu.stratosphere.nephele.util.ServerTestUtils;
@@ -173,14 +170,13 @@ public class ChannelCheckpointTest {
 
 		// Mock behavior of internal objects
 		when(this.byteBufferedChannelManager.getFileBufferManager()).thenReturn(this.fileBufferManager);
-		when(
-			this.byteBufferedChannelManager.registerIncomingConnection(Matchers.any(IncomingConnectionID.class),
-				Matchers.any(ReadableByteChannel.class))).thenReturn(this.incomingConnection);
 
 		try {
 			doThrow(new EOFException()).when(this.incomingConnection).read();
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException e) {
+			fail(e.getMessage());
 		}
 
 		try {

@@ -175,8 +175,10 @@ public class TempTask extends AbstractTask {
 			}
 		} finally {
 
-			// close SpillingResettableIterator
-			tempIterator.close();
+			if(tempIterator != null) {
+				// close SpillingResettableIterator
+				tempIterator.close();
+			}
 		}
 
 		if(!this.taskCanceled) {
