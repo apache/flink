@@ -103,7 +103,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * The thread executing the task in the environment.
 	 */
-	private Thread executingThread = null;
+	private volatile Thread executingThread = null;
 
 	/**
 	 * List of input splits assigned to this environment.
@@ -113,7 +113,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Current execution state of the task associated with this environment.
 	 */
-	private ExecutionState executionState = ExecutionState.CREATED;
+	private volatile ExecutionState executionState = ExecutionState.CREATED;
 
 	/**
 	 * The ID of the job this task belongs to.
@@ -342,6 +342,12 @@ public class Environment implements Runnable, IOReadableWritable {
 		// Now the actual program starts to run
 		changeExecutionState(ExecutionState.RUNNING, null);
 
+		// If the task has been canceled in the mean time, do not even start it
+		if (this.isCanceled) {
+			changeExecutionState(ExecutionState.CANCELED, null);
+			return;
+		}
+
 		try {
 			this.invokable.invoke();
 
@@ -498,7 +504,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	public void cancelExecution() {
 
 		if (this.executingThread == null) {
-			LOG.error("stopExecution called without having created an execution thread before");
+			LOG.error("cancelExecution called without having created an execution thread before");
 			return;
 		}
 
@@ -514,8 +520,22 @@ public class Environment implements Runnable, IOReadableWritable {
 			LOG.error(StringUtils.stringifyException(e));
 		}
 
-		// Interrupt the executing thread
-		this.executingThread.interrupt();
+		// Continuously interrupt the user thread until it changed to state CANCELED
+		while (true) {
+
+			this.executingThread.interrupt();
+
+			if (this.executionState == ExecutionState.CANCELED) {
+				break;
+			}
+
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
+
 	}
 
 	// TODO: See if type safety can be improved here

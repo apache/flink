@@ -28,8 +28,6 @@ import eu.stratosphere.nephele.util.StringUtils;
 
 public class InstanceProfiler {
 
-	static final String VAR_LOG_DMESG = "/var/log/dmesg";
-
 	static final String PROC_MEMINFO = "/proc/meminfo";
 
 	static final String PROC_STAT = "/proc/stat";
