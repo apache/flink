@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
  * 
  * @author warneke
  */
-public class QueueExecutionListener implements ExecutionListener {
+public final class QueueExecutionListener implements ExecutionListener {
 
 	/**
 	 * The instance of the {@link QueueScheduler}.
@@ -50,7 +50,7 @@ public class QueueExecutionListener implements ExecutionListener {
 	 * @param executionVertex
 	 *        the {@link ExecutionVertex} the received notification refer to
 	 */
-	public QueueExecutionListener(QueueScheduler localScheduler, ExecutionVertex executionVertex) {
+	public QueueExecutionListener(final QueueScheduler localScheduler, final ExecutionVertex executionVertex) {
 		this.queueScheduler = localScheduler;
 		this.executionVertex = executionVertex;
 	}
@@ -59,7 +59,8 @@ public class QueueExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void executionStateChanged(Environment ee, ExecutionState newExecutionState, String optionalMessage) {
+	public void executionStateChanged(final Environment ee, final ExecutionState newExecutionState,
+			final String optionalMessage) {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
@@ -82,7 +83,7 @@ public class QueueExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(Environment ee, Thread userThread) {
+	public void userThreadFinished(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
 
@@ -90,8 +91,7 @@ public class QueueExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(Environment ee, Thread userThread) {
+	public void userThreadStarted(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
-
 }

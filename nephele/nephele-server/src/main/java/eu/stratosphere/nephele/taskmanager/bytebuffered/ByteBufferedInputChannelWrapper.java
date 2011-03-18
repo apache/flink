@@ -43,11 +43,13 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
-	private final int minimumQueueLengthForThrottling;
-
-	private final int maximumQueueLengthForThrottling;
-
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
+
+	private int nextExpectedSequenceNumber = 0;
+
+	private int numberOfMemoryBuffers = 0;
+
+	private int numberOfFileBuffers = 0;
 
 	/**
 	 * In case of compression this variable points to the uncompressed data buffer.
@@ -55,12 +57,9 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	private Buffer uncompressedDataBuffer = null;
 
 	public ByteBufferedInputChannelWrapper(AbstractByteBufferedInputChannel<? extends Record> byteBufferedInputChannel,
-			ByteBufferedChannelManager byteBufferedChannelManager, int minimumQueueLengthForThrottling,
-			int maximumQueueLengthForThrottling) {
+			ByteBufferedChannelManager byteBufferedChannelManager) {
 		this.byteBufferedInputChannel = byteBufferedInputChannel;
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.minimumQueueLengthForThrottling = minimumQueueLengthForThrottling;
-		this.maximumQueueLengthForThrottling = maximumQueueLengthForThrottling;
 
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
 	}
@@ -69,14 +68,6 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	public BufferPairResponse getReadBufferToConsume() {
 
 		TransferEnvelope transferEnvelope = null;
-
-		// TODO: Remove this
-		/*
-		 * int j = 0;
-		 * if(j == 0) {
-		 * return null;
-		 * }
-		 */
 
 		synchronized (this.queuedEnvelopes) {
 
@@ -180,8 +171,13 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 			transferEnvelope = this.queuedEnvelopes.poll();
 
-			if (queuedEnvelopes.size() == (this.minimumQueueLengthForThrottling - 1)) {
-				stopThrottling();
+			// Maintain buffer statistics
+			if (transferEnvelope.getBuffer() != null) {
+				if (transferEnvelope.getBuffer().isBackedByMemory()) {
+					--this.numberOfMemoryBuffers;
+				} else {
+					--this.numberOfFileBuffers;
+				}
 			}
 		}
 
@@ -217,28 +213,56 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 		this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(ephemeralTransferEnvelope);
 	}
 
-	void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
+	void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
 		synchronized (this.queuedEnvelopes) {
+
+			final int sequenceNumber = transferEnvelope.getSequenceNumber();
+
+			if (sequenceNumber != this.nextExpectedSequenceNumber) {
+
+				if (sequenceNumber > this.nextExpectedSequenceNumber) {
+
+					// Wait for missing envelope to arrive
+					while (sequenceNumber > this.nextExpectedSequenceNumber) {
+						wait(100);
+					}
+
+				} else {
+					throw new IOException("Received envelope with sequence number " + sequenceNumber + ", but "
+						+ this.nextExpectedSequenceNumber + " is expected");
+				}
+
+			}
+
 			this.queuedEnvelopes.add(transferEnvelope);
 
-			if (this.queuedEnvelopes.size() == (this.maximumQueueLengthForThrottling + 1)) {
-				startThrottling();
+			++this.nextExpectedSequenceNumber;
+
+			// Maintain buffer statistics
+			if (transferEnvelope.getBuffer() != null) {
+				if (transferEnvelope.getBuffer().isBackedByMemory()) {
+					++this.numberOfMemoryBuffers;
+				} else {
+					++this.numberOfFileBuffers;
+				}
 			}
+
+			// TODO: Check if throttle event shall be sent
+			/*
+			 * if (this.numberOfFileBuffers > 0) {
+			 * final int totalNumberOfQueuedBuffers = this.numberOfFileBuffers + this.numberOfMemoryBuffers;
+			 * final float fileBuffersRatio = ((float) this.numberOfFileBuffers)
+			 * / ((float) totalNumberOfQueuedBuffers);
+			 * if (fileBuffersRatio > 0.8f) {
+			 * transferEventToOutputChannel(new NetworkThrottleEvent((int) (fileBuffersRatio * 1000.0f)));
+			 * }
+			 * }
+			 */
 		}
 
 		// Notify the channel about the new data
 		this.byteBufferedInputChannel.checkForNetworkEvents();
-	}
-
-	private void startThrottling() {
-
-		// transferEventToOutputChannel(new NetworkThrottleEvent(true));
-	}
-
-	private void stopThrottling() {
-
-		// transferEventToOutputChannel(new NetworkThrottleEvent(false));
 	}
 
 	@Override
@@ -247,7 +271,6 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 		this.byteBufferedInputChannel.reportIOException(ioe);
 		this.byteBufferedInputChannel.checkForNetworkEvents();
 		// Corresponding output channel might be throttled down, so make sure it will make up to process the IOException
-		stopThrottling();
 	}
 
 	@Override
@@ -272,5 +295,34 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	public boolean isInputChannel() {
 
 		return this.byteBufferedInputChannel.isInputChannel();
+	}
+
+	public int getNumberOfQueuedEnvelopes() {
+
+		synchronized (this.queuedEnvelopes) {
+
+			return this.queuedEnvelopes.size();
+		}
+	}
+
+	public int getNumberOfQueuedMemoryBuffers() {
+
+		synchronized (this.queuedEnvelopes) {
+
+			int count = 0;
+
+			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
+			while (it.hasNext()) {
+
+				final TransferEnvelope envelope = it.next();
+				if (envelope.getBuffer() != null) {
+					if (envelope.getBuffer().isBackedByMemory()) {
+						++count;
+					}
+				}
+			}
+
+			return count;
+		}
 	}
 }

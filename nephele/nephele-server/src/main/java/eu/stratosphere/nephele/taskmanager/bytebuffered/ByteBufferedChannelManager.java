@@ -19,8 +19,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -81,8 +79,6 @@ public class ByteBufferedChannelManager {
 
 	private final Map<InetSocketAddress, OutgoingConnection> outgoingConnections = new HashMap<InetSocketAddress, OutgoingConnection>();
 
-	private final Map<IncomingConnectionID, IncomingConnection> incomingConnections = new HashMap<IncomingConnectionID, IncomingConnection>();
-
 	private final Set<OutOfByteBuffersListener> registeredOutOfWriteBuffersListeners = new HashSet<OutOfByteBuffersListener>();
 
 	private final FileBufferManager fileBufferManager;
@@ -90,10 +86,6 @@ public class ByteBufferedChannelManager {
 	private final List<OutgoingConnectionThread> outgoingConnectionThreads = new ArrayList<OutgoingConnectionThread>();
 
 	private final List<IncomingConnectionThread> incomingConnectionThreads = new ArrayList<IncomingConnectionThread>();
-
-	private final int minimumQueueLengthForThrottling;
-
-	private final int maximumQueueLengthForThrottling;
 
 	private final int bufferSizeInBytes;
 
@@ -163,11 +155,6 @@ public class ByteBufferedChannelManager {
 			final ByteBuffer writeBuffer = ByteBuffer.allocateDirect(bufferSizeInBytes);
 			this.emptyWriteBuffers.add(writeBuffer);
 		}
-
-		this.minimumQueueLengthForThrottling = configuration.getInteger(
-			"channel.network.minimumQueueLengthForThrottling", 6);
-		this.maximumQueueLengthForThrottling = configuration.getInteger(
-			"channel.network.maximumQueueLengthForThrottling", 13);
 	}
 
 	/**
@@ -300,8 +287,7 @@ public class ByteBufferedChannelManager {
 			}
 
 			final ByteBufferedInputChannelWrapper networkInputChannelWrapper = new ByteBufferedInputChannelWrapper(
-				byteBufferedInputChannel, this, this.minimumQueueLengthForThrottling,
-				this.maximumQueueLengthForThrottling);
+				byteBufferedInputChannel, this);
 			this.registeredChannels.put(byteBufferedInputChannel.getID(), networkInputChannelWrapper);
 		}
 	}
@@ -435,56 +421,10 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	public IncomingConnection registerIncomingConnection(IncomingConnectionID incomingConnectionID,
-			ReadableByteChannel readableByteChannel) {
-
-		final IncomingConnection incomingConnection = new IncomingConnection(incomingConnectionID, this,
-			readableByteChannel);
-
-		synchronized (this.incomingConnections) {
-
-			// Find previous connection
-			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
-
-			if (previousConnection != null) {
-				LOG.warn("Found previous connection for " + incomingConnectionID);
-				previousConnection.markConnectionAsInactive();
-			}
-
-			this.incomingConnections.put(incomingConnectionID, incomingConnection);
-		}
-
-		// Register connection with an incoming connection thread if this is a network connection
-		if (readableByteChannel instanceof SocketChannel) {
-			getIncomingConnectionThread().addToPendingIncomingConnections(incomingConnection);
-		}
-
-		return incomingConnection;
-	}
-
-	public void unregisterIncomingConnection(IncomingConnectionID incomingConnectionID,
-			ReadableByteChannel readableByteChannel) {
-
-		synchronized (this.incomingConnections) {
-
-			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
-			if (incomingConnection == null) {
-				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
-			}
-		}
-	}
-
 	private OutgoingConnectionThread getOutgoingConnectionThread() {
 
 		synchronized (this.outgoingConnectionThreads) {
 			return this.outgoingConnectionThreads.get((int) (this.outgoingConnectionThreads.size() * Math.random()));
-		}
-	}
-
-	private IncomingConnectionThread getIncomingConnectionThread() {
-
-		synchronized (this.incomingConnectionThreads) {
-			return this.incomingConnectionThreads.get((int) (this.incomingConnectionThreads.size() * Math.random()));
 		}
 	}
 
@@ -511,7 +451,8 @@ public class ByteBufferedChannelManager {
 		outgoingConnection.queueEnvelope(transferEnvelope);
 	}
 
-	public void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
+	public void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException,
+			InterruptedException {
 
 		final ChannelID targetID = transferEnvelope.getTarget();
 		ByteBufferedChannelWrapper targetChannelWrapper = null;
@@ -541,7 +482,7 @@ public class ByteBufferedChannelManager {
 		} else {
 
 			final ByteBufferedOutputChannelWrapper networkOutputChannelWrapper = (ByteBufferedOutputChannelWrapper) targetChannelWrapper;
-
+			
 			// In case of an output channel, we only expect events and no buffers
 			if (transferEnvelope.getBuffer() != null) {
 				LOG.error("Incoming transfer envelope for network output channel "
@@ -564,7 +505,8 @@ public class ByteBufferedChannelManager {
 		return connection;
 	}
 
-	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) throws InterruptedException, IOException {
+	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) throws InterruptedException,
+			IOException {
 
 		InetSocketAddress connectionAddress = null;
 
@@ -583,7 +525,7 @@ public class ByteBufferedChannelManager {
 			}
 
 			InstanceConnectionInfo ici = null;
-			
+
 			while (!Thread.interrupted()) {
 
 				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
@@ -658,23 +600,16 @@ public class ByteBufferedChannelManager {
 		}
 
 		// Finally, do some consistency tests
-		synchronized (this.incomingConnections) {
-			if (!this.incomingConnections.isEmpty()) {
-				LOG.error("Detected inconsistency on shutdown: still " + this.incomingConnections.size()
-					+ " incoming connections registered");
-			}
-		}
-
 		synchronized (this.emptyReadBuffers) {
 			if (this.emptyReadBuffers.size() != this.numberOfReadBuffers) {
-				LOG.error("Missing " + (this.emptyReadBuffers.size() - this.numberOfReadBuffers)
+				LOG.error("Missing " + (this.numberOfReadBuffers - this.emptyReadBuffers.size())
 					+ " read buffers during shutdown");
 			}
 		}
 
 		synchronized (this.emptyWriteBuffers) {
 			if (this.emptyWriteBuffers.size() != this.numberOfWriteBuffers) {
-				LOG.error("Missing " + (this.emptyWriteBuffers.size() - this.numberOfWriteBuffers)
+				LOG.error("Missing " + (this.numberOfWriteBuffers - this.emptyWriteBuffers.size())
 					+ " write buffers during shutdown");
 			}
 		}
@@ -775,15 +710,40 @@ public class ByteBufferedChannelManager {
 		}
 		synchronized (this.outgoingConnections) {
 
+			System.out.println("\tOutgoing connections:");
+
 			final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
 				.iterator();
 
 			while (it.hasNext()) {
 
 				final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
-				System.out.println("\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
+				System.out
+					.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
 			}
 		}
 
+		synchronized (this.registeredChannels) {
+
+			System.out.println("\tIncoming connections:");
+
+			final Iterator<Map.Entry<ChannelID, ByteBufferedChannelWrapper>> it = this.registeredChannels.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<ChannelID, ByteBufferedChannelWrapper> entry = it.next();
+				final ByteBufferedChannelWrapper wrapper = entry.getValue();
+				if (wrapper.isInputChannel()) {
+
+					final ByteBufferedInputChannelWrapper inputChannelWrapper = (ByteBufferedInputChannelWrapper) wrapper;
+					final int numberOfQueuedEnvelopes = inputChannelWrapper.getNumberOfQueuedEnvelopes();
+					final int numberOfQueuedMemoryBuffers = inputChannelWrapper.getNumberOfQueuedMemoryBuffers();
+
+					System.out.println("\t\t" + entry.getKey() + ": " + numberOfQueuedMemoryBuffers + " ("
+						+ numberOfQueuedEnvelopes + ")");
+				}
+			}
+		}
 	}
 }

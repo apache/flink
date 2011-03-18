@@ -70,12 +70,10 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	/**
 	 * Constructs a new queue scheduler.
 	 * 
-	 * @param schedulingListener
-	 *        the listener object to receive notifications about scheduling events
 	 * @param instanceManager
 	 *        the instance manager to be used with this scheduler
 	 */
-	public QueueScheduler(InstanceManager instanceManager) {
+	public QueueScheduler(final InstanceManager instanceManager) {
 
 		this.instanceManager = instanceManager;
 		this.instanceManager.setInstanceListener(this);
@@ -133,7 +131,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 * @throws InstanceException
 	 *         thrown if the given execution graph is already processing its final stage
 	 */
-	private void requestInstances(ExecutionGraph executionGraph) throws InstanceException {
+	private void requestInstances(final ExecutionGraph executionGraph) throws InstanceException {
 
 		final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
 		executionGraph.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
@@ -142,15 +140,15 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 			return;
 		}
 
-		final Iterator<InstanceType> it = requiredInstances.keySet().iterator();
+		final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstances.entrySet().iterator();
 		while (it.hasNext()) {
 
-			final InstanceType type = it.next();
+			final Map.Entry<InstanceType, Integer> entry = it.next();
 
-			for (int i = 0; i < requiredInstances.get(type).intValue(); i++) {
-				LOG.info("Trying to allocate instance of type " + type.getIdentifier());
+			for (int i = 0; i < entry.getValue().intValue(); i++) {
+				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
 				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-					type);
+					entry.getKey());
 			}
 		}
 
@@ -166,7 +164,13 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 		}
 	}
 
-	void removeJobFromSchedule(ExecutionGraph executionGraphToRemove) {
+	/**
+	 * Removes the job represented by the given {@link ExecutionGraph} from the scheduler.
+	 * 
+	 * @param executionGraphToRemove
+	 *        the job to be removed
+	 */
+	void removeJobFromSchedule(final ExecutionGraph executionGraphToRemove) {
 
 		boolean removedFromQueue = false;
 
@@ -201,7 +205,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 * @param allocatedResource
 	 *        the allocated resource to check the assignment for
 	 */
-	void checkAndReleaseAllocatedResource(ExecutionGraph executionGraph, AllocatedResource allocatedResource) {
+	void checkAndReleaseAllocatedResource(final ExecutionGraph executionGraph, final AllocatedResource allocatedResource) {
 
 		synchronized (this.jobQueue) {
 
@@ -241,7 +245,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void schedulJob(ExecutionGraph executionGraph) throws SchedulingException {
+	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
 
 		// First, check if there are enough resources to run this job
 		final Map<InstanceType, InstanceTypeDescription> availableInstances = this.instanceManager
@@ -270,10 +274,10 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 				}
 			}
 		}
-		
+
 		// Subscribe to job status notifications
 		executionGraph.registerJobStatusListener(this);
-		
+
 		// Set state of each vertex for scheduled
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
 		while (it2.hasNext()) {
@@ -297,7 +301,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ExecutionGraph getExecutionGraphByID(JobID jobID) {
+	public ExecutionGraph getExecutionGraphByID(final JobID jobID) {
 
 		synchronized (this.jobQueue) {
 
@@ -318,7 +322,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void resourceAllocated(JobID jobID, AllocatedResource allocatedResource) {
+	public void resourceAllocated(final JobID jobID, final AllocatedResource allocatedResource) {
 
 		if (allocatedResource == null) {
 			LOG.error("Resource to lock is null!");
@@ -397,7 +401,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
+	public void allocatedResourceDied(final JobID jobID, final AllocatedResource allocatedResource) {
 		// TODO Auto-generated method stub
 
 	}
@@ -426,8 +430,8 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
-			String optionalMessage) {
+	public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
+			final String optionalMessage) {
 
 		if (newJobStatus == InternalJobStatus.FAILED || newJobStatus == InternalJobStatus.FINISHED
 			|| newJobStatus == InternalJobStatus.CANCELED) {

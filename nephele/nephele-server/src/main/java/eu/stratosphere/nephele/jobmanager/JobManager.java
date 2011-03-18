@@ -907,7 +907,12 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		// Delegate call to the instance manager
-		return this.instanceManager.getMapOfAvailableInstanceTypes();
+		if(this.instanceManager != null)
+		{
+			return this.instanceManager.getMapOfAvailableInstanceTypes();
+		}
+		
+		return null;
 	}
 
 	/**
@@ -968,9 +973,26 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			}
 		}
 
-		final Iterator<AbstractInstance> it2 = allocatedInstance.iterator();
-		while (it2.hasNext()) {
-			it2.next().logBufferUtilization();
-		}
+		// Send requests to task managers from separate thread
+		final Runnable requestRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				final Iterator<AbstractInstance> it2 = allocatedInstance.iterator();
+
+				try {
+					while (it2.hasNext()) {
+						it2.next().logBufferUtilization();
+					}
+				} catch (IOException ioe) {
+					LOG.error(StringUtils.stringifyException(ioe));
+				}
+
+			}
+		};
+
+		// Launch thread
+		new Thread(requestRunnable).start();
 	}
 }

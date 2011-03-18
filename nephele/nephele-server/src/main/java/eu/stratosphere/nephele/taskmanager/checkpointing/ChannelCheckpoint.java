@@ -32,9 +32,9 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnectionID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeSerializer;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public class ChannelCheckpoint {
 
@@ -194,11 +194,10 @@ public class ChannelCheckpoint {
 
 		this.fileChannel = fis.getChannel();
 
-		final IncomingConnectionID connectionID = new IncomingConnectionID(filename);
-
 		// Start recovering
-		final IncomingConnection incomingConnection = byteBufferedChannelManager
-			.registerIncomingConnection(connectionID, this.fileChannel);
+
+		final IncomingConnection incomingConnection = new IncomingConnection(byteBufferedChannelManager,
+			this.fileChannel);
 
 		try {
 			while (true) {
@@ -210,6 +209,8 @@ public class ChannelCheckpoint {
 			incomingConnection.reportTransmissionProblem(null, e);
 			// TODO: Unregister external data source
 			return;
+		} catch (InterruptedException e) {
+			LOG.info("Caught interrupted exception: " + StringUtils.stringifyException(e));
 		}
 
 		// TODO: Unregister external data source
