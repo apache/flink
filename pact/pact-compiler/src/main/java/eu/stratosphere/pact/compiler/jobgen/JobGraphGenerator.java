@@ -182,10 +182,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			default:
 				throw new Exception("Unknown PACT type: " + node.getPactType());
 			}
-		} catch (NotEnoughMemoryException nemex) {
-			throw new CompilerException("The available memory portion of " + node.getMemoryPerTask()
-				+ " megabytes is not sufficient for the task '" + node.toString()
-				+ "' Decrease the intra-node parallelism or use instances with more memory.");
 		} catch (Exception e) {
 			throw new CompilerException(
 				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
@@ -750,7 +746,15 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		switch (connection.getShipStrategy()) {
 		case FORWARD:
 		case PARTITION_LOCAL_HASH:
-			channelType = ChannelType.INMEMORY;
+			int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
+			int sourceInnerDOP = connection.getSourcePact().getInstancesPerMachine();
+			int sourceNumInstances = (int) Math.ceil((double) sourceDOP / (double) sourceInnerDOP);
+			
+			int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
+			int targetInnerDOP = connection.getTargetPact().getInstancesPerMachine();
+			int targetNumInstances = (int) Math.ceil((double) targetDOP / (double) targetInnerDOP);
+			
+			channelType = sourceNumInstances == targetNumInstances ? ChannelType.INMEMORY : ChannelType.NETWORK;
 			break;
 		case PARTITION_HASH:
 		case BROADCAST:
@@ -840,7 +844,4 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 	// ------------------------------------------------------------------------
 
-	private static final class NotEnoughMemoryException extends RuntimeException {
-		private static final long serialVersionUID = -1996018032841078865L;
-	}
 }

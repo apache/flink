@@ -192,6 +192,12 @@ public class DefaultMemoryManager implements MemoryManager {
 					"segments of minimal size " + minSegmentSize);
 		}
 		
+		if (LOG.isDebugEnabled() && owner.getEnvironment() != null) {
+			LOG.info("Allocating " + totalMemory + " bytes for " + owner.getEnvironment().getTaskName() + 
+					" (" + (owner.getEnvironment().getIndexInSubtaskGroup() + 1) + "/" +
+					owner.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+		
 		final long memPerSeg = totalMemory / minNumSegments;
 		final int segmentSize = (int) Math.min(memPerSeg, this.chunkSize);
 		
