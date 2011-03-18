@@ -68,8 +68,11 @@ public class CombinerNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case COMBININGSORT: return 1;
+			default:	        return 0;
+		}
 	}
 
 	@Override

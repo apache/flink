@@ -104,8 +104,14 @@ public class CoGroupNode extends TwoInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case SORT_BOTH_MERGE:   return 2;
+			case SORT_FIRST_MERGE:  return 1;
+			case SORT_SECOND_MERGE: return 1;
+			case MERGE:             return 0;
+			default:	            return 0;
+		}
 	}
 
 	/*
