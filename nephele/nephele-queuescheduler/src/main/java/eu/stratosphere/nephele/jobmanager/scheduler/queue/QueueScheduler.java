@@ -50,7 +50,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
  * 
  * @author warneke
  */
-public final class QueueScheduler implements Scheduler, JobStatusListener {
+public class QueueScheduler implements Scheduler, JobStatusListener {
 
 	/**
 	 * The LOG object to report events within the scheduler.
