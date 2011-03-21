@@ -278,7 +278,7 @@ public class MapTask extends AbstractTask {
 	 */
 	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out)
 	{
-		while (in.hasNext() && !this.taskCanceled) {
+		while (!this.taskCanceled && in.hasNext()) {
 			Pair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);
 		}

@@ -461,7 +461,7 @@ public class MatchTask extends AbstractTask {
 			this.v1Copier.setCopy(firstV1);
 			
 			matchStub.match(key, firstV1, firstV2, output);
-			while (v2HasNext && !this.taskCanceled) {
+			while (!this.taskCanceled && v2HasNext) {
 				key = this.keySerialization.newInstance();
 				this.keyCopier.getCopy(key);
 				v1 = this.v1Serialization.newInstance();
@@ -472,7 +472,7 @@ public class MatchTask extends AbstractTask {
 				matchStub.match(key, v1, v2, output);
 			}
 
-		} else if (!v2HasNext && !this.taskCanceled) {
+		} else if (!this.taskCanceled && !v2HasNext) {
 			// only values2 contains only one value
 			this.v2Copier.setCopy(firstV2);
 			
@@ -529,7 +529,7 @@ public class MatchTask extends AbstractTask {
 				this.v2Copier.setCopy(firstV2);
 				
 				// run through resettable iterator with firstV2
-				while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
+				while (!this.taskCanceled && v1ResettableIterator.hasNext()) {
 					key = this.keySerialization.newInstance();
 					this.keyCopier.getCopy(key);
 					v2 = this.v2Serialization.newInstance();
@@ -541,12 +541,12 @@ public class MatchTask extends AbstractTask {
 				v1ResettableIterator.reset();
 				
 				// run through resettable iterator for each v2
-				while(values2.hasNext() && !this.taskCanceled) {
+				while(!this.taskCanceled && values2.hasNext()) {
 					
 					v2 = values2.next();
 					this.v2Copier.setCopy(v2);
 					
-					while (v1ResettableIterator.hasNext() && !this.taskCanceled) {
+					while (!this.taskCanceled && v1ResettableIterator.hasNext()) {
 						key = this.keySerialization.newInstance();
 						this.keyCopier.getCopy(key);
 						v2 = this.v2Serialization.newInstance();

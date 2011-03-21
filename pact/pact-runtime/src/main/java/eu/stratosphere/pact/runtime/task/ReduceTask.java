@@ -442,7 +442,7 @@ public class ReduceTask extends AbstractTask {
 	 */
 	private final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
 		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
-		while (iter.nextKey() && !taskCanceled) {
+		while (!this.taskCanceled && iter.nextKey()) {
 			this.stub.reduce(iter.getKey(), iter.getValues(), out);
 		}
 	}
