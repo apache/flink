@@ -59,8 +59,14 @@ public class MatchNode extends TwoInputNode {
 		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
 
 		if (localStrategy != null) {
-			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT.equals(localStrategy)) {
+			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy)) {
 				setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.MERGE);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
 				setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
