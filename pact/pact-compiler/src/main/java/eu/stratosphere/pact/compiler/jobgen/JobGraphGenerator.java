@@ -38,6 +38,7 @@ import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.CombinerNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
@@ -70,8 +71,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	
 	public static final Log LOG = LogFactory.getLog(JobGraphGenerator.class);
 	
-	private static final int DEFAUTL_MERGE_FACTOR = 64; // the number of streams to merge at once
-
+	private static final int DEFAULT_MERGE_FACTOR = 64; // the number of streams to merge at once
+	
 	// ------------------------------------------------------------------------
 
 	private JobGraph jobGraph; // the job that is currently built
@@ -595,7 +596,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set key and value classes
 		tempConfig.setStubClass(stubClass);
 
-		assignMemory(tempConfig, 2);
+		assignMemory(tempConfig, PactCompiler.DEFAULT_TEMP_TASK_MEMORY);
 
 		// set degree of parallelism
 		tempVertex.setNumberOfSubtasks(dop);
@@ -839,7 +840,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private void assignMemory(TaskConfig config, int memSize)
 	{
 		config.setMemorySize(memSize * 1024L * 1024L);
-		config.setNumFilehandles(DEFAUTL_MERGE_FACTOR);
+		config.setNumFilehandles(DEFAULT_MERGE_FACTOR);
 	}
 
 	// ------------------------------------------------------------------------

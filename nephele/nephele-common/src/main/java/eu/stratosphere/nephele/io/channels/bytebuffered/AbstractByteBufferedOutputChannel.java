@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -75,6 +76,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * The compressor used to compress the outgoing data.
 	 */
 	private Compressor compressor = null;
+
+	/**
+	 * Indicates the period of time this output channel shall throttle down so that the consumer can catch up.
+	 */
+	private long throttelingDuration = 0L;
 
 	/**
 	 * Buffer for the uncompressed data.
@@ -188,14 +194,21 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		// Get a write buffer from the broker
 		if (this.uncompressedDataBuffer == null) {
 
-			requestWriteBuffersFromBroker();
-
 			synchronized (this.synchronisationObject) {
 
 				if (this.ioException != null) {
 					throw this.ioException;
 				}
+
+				if (this.throttelingDuration > 0L) {
+					// Temporarily, stop producing data
+					this.synchronisationObject.wait(this.throttelingDuration);
+					// Reset throttling duration
+					this.throttelingDuration = 0L;
+				}
 			}
+
+			requestWriteBuffersFromBroker();
 		}
 
 		if (this.closeRequested) {
@@ -267,12 +280,21 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (event instanceof AbstractTaskEvent) {
 			getOutputGate().deliverEvent((AbstractTaskEvent) event);
+		} else if (event instanceof NetworkThrottleEvent) {
+			if (getType() == ChannelType.FILE) {
+				LOG.error("FileChannel " + getID() + " received NetworkThrottleEvent");
+			} else {
+				synchronized (this.synchronisationObject) {
+					final NetworkThrottleEvent nte = (NetworkThrottleEvent) event;
+					this.throttelingDuration = nte.getDuration();
+				}
+			}
 		} else if (event instanceof ByteBufferedChannelCloseEvent) {
 			synchronized (this.synchronisationObject) {
 				this.closeAcknowledgementReceived = true;
 			}
 		} else {
-			System.out.println("Received unknown event: " + event);
+			LOG.error("Channel " + getID() + " received unknown event " + event);
 		}
 	}
 

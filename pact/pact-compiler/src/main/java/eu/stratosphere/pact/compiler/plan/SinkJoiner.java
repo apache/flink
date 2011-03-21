@@ -136,8 +136,8 @@ public class SinkJoiner extends TwoInputNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
+	public int getMemoryConsumerCount() {
+		return 0;
 	}
 	
 	public void getDataSinks(List<DataSinkNode> target)

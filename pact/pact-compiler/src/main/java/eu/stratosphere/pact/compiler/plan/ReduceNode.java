@@ -131,8 +131,13 @@ public class ReduceNode extends SingleInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case SORT:          return 1;
+			case COMBININGSORT: return 1;
+			case NONE:          return 0;
+			default:	        return 0;
+		}
 	}
 
 	/*

@@ -94,8 +94,8 @@ public class MapNode extends SingleInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
+	public int getMemoryConsumerCount() {
+		return 0;
 	}
 
 	/*

@@ -303,7 +303,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return True, if this node contains logic that requires memory usage, false otherwise.
 	 */
-	public abstract boolean isMemoryConsumer();
+	public abstract int getMemoryConsumerCount();
 
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
