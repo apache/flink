@@ -54,7 +54,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
 		
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -102,7 +102,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
 		
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -149,7 +149,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.addOutput(outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -177,7 +177,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -217,7 +217,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		

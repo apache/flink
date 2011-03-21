@@ -366,7 +366,7 @@ public class SelfMatchTask extends AbstractTask {
 		// local strategy is NONE
 		// input is already grouped, an iterator that wraps the reader is
 		// created and returned
-		case NONE: {
+		case SELF_NESTEDLOOP: {
 			// iterator wraps input reader
 			Iterator<KeyValuePair<Key, Value>> iter = new Iterator<KeyValuePair<Key, Value>>() {
 
@@ -396,7 +396,7 @@ public class SelfMatchTask extends AbstractTask {
 			// local strategy is SORT
 			// The input is grouped using a sort-merge strategy.
 			// An iterator on the sorted pairs is created and returned.
-		case SORT: {
+		case SORT_SELF_NESTEDLOOP: {
 			// create a key comparator
 			final Comparator<Key> keyComparator = new Comparator<Key>() {
 				@Override
