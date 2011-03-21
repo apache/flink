@@ -57,7 +57,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * implementation.
  * <p>
  * The ReduceTask creates a iterator over all key-value pairs of its input. The iterator returns all k-v pairs grouped
- * by their key. The iterator is handed to the <code>run()</code> method of the MapStub.
+ * by their key. The iterator is handed to the <code>reduce()</code> method of the ReduceStub.
  * 
  * @see eu.stratosphere.pact.common.stub.ReduceStub
  * @author Fabian Hueske
