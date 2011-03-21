@@ -431,11 +431,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			matchVertex.setTaskClass(SelfMatchTask.class);
 			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+			break;
 		case SELF_NESTEDLOOP:
 			// set task class
 			matchVertex.setTaskClass(SelfMatchTask.class);
 			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
+			break;
 		default:
 			throw new CompilerException("Invalid local strategy for 'Match' (" + matchNode.getName() + "): "
 				+ matchNode.getLocalStrategy());
