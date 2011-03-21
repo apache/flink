@@ -99,6 +99,8 @@ public class ByteBufferedChannelManager {
 
 	private final int numberOfWriteBuffers;
 
+	private int flushThreshold = 0;
+
 	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService, InetAddress incomingDataAddress,
 			int incomingDataPort, String tmpDir)
 												throws IOException {
@@ -186,11 +188,14 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	BufferPairResponse requestEmptyWriteBuffers(BufferPairRequest bufferPairRequest) throws InterruptedException {
+	BufferPairResponse requestEmptyWriteBuffers(WriteBufferRequestor requestor, BufferPairRequest bufferPairRequest)
+			throws InterruptedException {
 
 		synchronized (this.emptyWriteBuffers) {
 
 			while (this.emptyWriteBuffers.size() < bufferPairRequest.getNumberOfRequestedByteBuffers()) {
+
+				requestor.outOfWriteBuffers();
 
 				/*
 				 * synchronized(this.registeredOutOfWriteBuffersListeners) {
@@ -482,7 +487,7 @@ public class ByteBufferedChannelManager {
 		} else {
 
 			final ByteBufferedOutputChannelWrapper networkOutputChannelWrapper = (ByteBufferedOutputChannelWrapper) targetChannelWrapper;
-			
+
 			// In case of an output channel, we only expect events and no buffers
 			if (transferEnvelope.getBuffer() != null) {
 				LOG.error("Incoming transfer envelope for network output channel "
@@ -744,6 +749,20 @@ public class ByteBufferedChannelManager {
 						+ numberOfQueuedEnvelopes + ")");
 				}
 			}
+		}
+	}
+
+	public void setFlushThreshold(final int flushThreshold) {
+
+		synchronized (this.emptyWriteBuffers) {
+			this.flushThreshold = flushThreshold;
+		}
+	}
+
+	public int getFlushThreshold() {
+
+		synchronized (this.emptyWriteBuffers) {
+			return this.flushThreshold;
 		}
 	}
 }
