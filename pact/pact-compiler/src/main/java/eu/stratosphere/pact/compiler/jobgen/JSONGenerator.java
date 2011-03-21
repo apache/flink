@@ -293,6 +293,12 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			case COMBININGSORT:
 				locString = "Sort with Combiner";
 				break;
+			case SORT_SELF_NESTEDLOOP:
+				locString = "Sort Self-Nested-Loops";
+				break;
+			case SELF_NESTEDLOOP:
+				locString = "Self-Nested-Loops";
+				break;
 			default:
 				throw new CompilerException("Unknown local strategy '" + visitable.getLocalStrategy().name()
 					+ "' in JSON generator.");
