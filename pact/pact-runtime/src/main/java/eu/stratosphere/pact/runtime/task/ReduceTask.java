@@ -57,7 +57,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * implementation.
  * <p>
  * The ReduceTask creates a iterator over all key-value pairs of its input. The iterator returns all k-v pairs grouped
- * by their key. The iterator is handed to the <code>run()</code> method of the MapStub.
+ * by their key. The iterator is handed to the <code>reduce()</code> method of the ReduceStub.
  * 
  * @see eu.stratosphere.pact.common.stub.ReduceStub
  * @author Fabian Hueske
@@ -220,7 +220,7 @@ public class ReduceTask extends AbstractTask {
 		this.maxFileHandles = config.getNumFilehandles();
 		
 		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new RuntimeException("The CoGroup task was initialized with too little memory: " + this.availableMemory +
+			throw new RuntimeException("The Reduce task was initialized with too little memory: " + this.availableMemory +
 				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
 		}
 
@@ -442,7 +442,7 @@ public class ReduceTask extends AbstractTask {
 	 */
 	private final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
 		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
-		while (iter.nextKey() && !taskCanceled) {
+		while (!this.taskCanceled && iter.nextKey()) {
 			this.stub.reduce(iter.getKey(), iter.getValues(), out);
 		}
 	}

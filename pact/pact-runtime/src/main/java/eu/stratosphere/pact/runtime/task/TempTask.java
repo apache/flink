@@ -147,7 +147,7 @@ public class TempTask extends AbstractTask {
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 			// all read pairs from SpillingResettableIterator (from disk)
-			while (tempIterator.hasNext() && !this.taskCanceled) {
+			while (!this.taskCanceled && tempIterator.hasNext()) {
 				// read next pair
 				KeyValuePair<Key, Value> pair = tempIterator.next();
 				// forward pair to output writer

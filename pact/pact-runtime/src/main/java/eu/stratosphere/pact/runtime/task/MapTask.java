@@ -45,8 +45,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * input and one or multiple outputs. It is provided with a MapStub
  * implementation.
  * <p>
- * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>run()</code> method
- * of the MapStub.
+ * The MapTask creates an iterator over all key-value pairs of its input and hands that 
+ * to the <code>map()</code> method of the MapStub.
  * 
  * @see eu.stratosphere.pact.common.stub.MapStub
  * @author Fabian Hueske
@@ -278,7 +278,7 @@ public class MapTask extends AbstractTask {
 	 */
 	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out)
 	{
-		while (in.hasNext() && !this.taskCanceled) {
+		while (!this.taskCanceled && in.hasNext()) {
 			Pair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);
 		}

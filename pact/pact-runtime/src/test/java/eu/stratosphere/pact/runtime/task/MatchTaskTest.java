@@ -43,7 +43,7 @@ public class MatchTaskTest extends TaskTestBase {
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
-	public void testSort1MatchTask() {
+	public void testSortBoth1MatchTask() {
 
 		int keyCnt1 = 20;
 		int valCnt1 = 1;
@@ -52,8 +52,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 2;
 				
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -79,7 +79,7 @@ public class MatchTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testSort2MatchTask() {
+	public void testSortBoth2MatchTask() {
 
 		int keyCnt1 = 20;
 		int valCnt1 = 1;
@@ -88,8 +88,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -114,7 +114,7 @@ public class MatchTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testSort3MatchTask() {
+	public void testSortBoth3MatchTask() {
 
 		int keyCnt1 = 20;
 		int valCnt1 = 1;
@@ -123,8 +123,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -149,7 +149,7 @@ public class MatchTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testSort4MatchTask() {
+	public void testSortBoth4MatchTask() {
 
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
@@ -158,8 +158,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -184,7 +184,7 @@ public class MatchTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testSort5MatchTask() {
+	public void testSortBoth5MatchTask() {
 
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
@@ -193,12 +193,117 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testSortFirstMatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 20;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 20;
+		
+		super.initEnvironment(5 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testSortSecondMatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 20;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 20;
+		
+		super.initEnvironment(5 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testMergeMatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 20;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 20;
+		
+		super.initEnvironment(5 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -228,8 +333,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -261,7 +366,7 @@ public class MatchTaskTest extends TaskTestBase {
 		
 		super.initEnvironment(5 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
@@ -301,7 +406,7 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(new NirvanaOutputList());
 		
@@ -342,8 +447,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();

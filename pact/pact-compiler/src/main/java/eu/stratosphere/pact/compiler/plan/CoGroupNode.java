@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -29,6 +30,7 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.OutputContract;
+import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -51,7 +53,26 @@ public class CoGroupNode extends TwoInputNode {
 	 */
 	public CoGroupNode(CoGroupContract<?, ?, ?, ?, ?> pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
+		
+		// see if an internal hint dictates the strategy to use
+		Configuration conf = getPactContract().getStubParameters();
+		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+
+		if (localStrategy != null) {
+			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.MERGE);
+			} else {
+				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
+			}
+		} else {
+			setLocalStrategy(LocalStrategy.NONE);
+		}
 	}
 
 	/**
