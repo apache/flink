@@ -435,17 +435,22 @@ public class CrossNode extends TwoInputNode {
 			}
 
 			createCrossAlternative(target, pred1, pred2, ss1, ss2, ls, gp, lp, estimator);
-		} else {
-			if (isFirst) {
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-					gp, lp, estimator);
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-					gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
-			} else {
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-					gp, lp, estimator);
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-					gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+		}
+		else {
+			// we generate the streamed nested-loops only, when we have size estimates. otherwise, we generate
+			// only the block nested-loops variants, as they are more robust.
+			if (pred1.getEstimatedOutputSize() > 0 && pred2.getEstimatedOutputSize() > 0) {
+				if (isFirst) {
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+						gp, lp, estimator);
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+				} else {
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+						gp, lp, estimator);
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+				}
 			}
 
 			createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST,
