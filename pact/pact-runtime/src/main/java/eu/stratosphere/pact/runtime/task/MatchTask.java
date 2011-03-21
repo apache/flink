@@ -240,7 +240,7 @@ public class MatchTask extends AbstractTask {
 		this.maxFileHandles = config.getNumFilehandles();
 		
 		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new RuntimeException("The CoGroup task was initialized with too little memory: " + this.availableMemory +
+			throw new RuntimeException("The Match task was initialized with too little memory: " + this.availableMemory +
 				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
 		}
 
