@@ -49,7 +49,7 @@ public class MapTaskTest extends TaskTestBase {
 		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		MapTask testTask = new MapTask();
@@ -75,7 +75,7 @@ public class MapTaskTest extends TaskTestBase {
 		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		MapTask testTask = new MapTask();

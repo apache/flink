@@ -47,7 +47,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		CombineTask testTask = new CombineTask();
@@ -85,7 +85,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		CombineTask testTask = new CombineTask();

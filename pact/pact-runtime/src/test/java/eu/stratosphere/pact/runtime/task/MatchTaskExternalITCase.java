@@ -49,8 +49,8 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();

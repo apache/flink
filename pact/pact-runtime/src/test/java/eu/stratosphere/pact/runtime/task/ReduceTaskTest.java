@@ -44,17 +44,50 @@ public class ReduceTaskTest extends TaskTestBase {
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
-	public void testReduceTask() {
+	public void testSortReduceTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockReduceStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		
+		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
+		}
+		
+		outList.clear();
+				
+	}
+	
+	@Test
+	public void testNoneReduceTask() {
+
+		int keyCnt = 100;
+		int valCnt = 20;
+		
+		super.initEnvironment(3*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true));
+		super.addOutput(outList);
+		
+		ReduceTask testTask = new ReduceTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -83,7 +116,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();
@@ -121,7 +154,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();
@@ -190,7 +223,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		final int valCnt = 2;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final ReduceTask testTask = new ReduceTask();

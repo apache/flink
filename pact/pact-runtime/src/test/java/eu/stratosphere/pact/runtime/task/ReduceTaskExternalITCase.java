@@ -47,7 +47,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();
@@ -80,7 +80,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();
@@ -113,7 +113,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();
@@ -152,7 +152,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();

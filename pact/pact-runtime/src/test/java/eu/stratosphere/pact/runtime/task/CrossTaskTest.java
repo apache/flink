@@ -51,8 +51,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -85,8 +85,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -119,8 +119,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -153,8 +153,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -187,8 +187,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -223,8 +223,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -254,7 +254,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(outList);
 		
@@ -295,7 +295,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(outList);
 		
@@ -336,7 +336,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(outList);
 		
@@ -377,7 +377,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(outList);
 		
