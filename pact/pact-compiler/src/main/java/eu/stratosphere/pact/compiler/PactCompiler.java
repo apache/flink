@@ -59,8 +59,10 @@ import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
-import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
+import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
+import eu.stratosphere.pact.compiler.plan.TwoInputNode;
+import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -147,12 +149,60 @@ public class PactCompiler {
 
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort based</b> local strategy.
-	 * For example, a <i>Reduce</i> contract will sort the data to group it, a <i>Match</i> contract
-	 * will use a sort-merge strategy to find pairs of matching keys.
+	 * For example, a <i>Reduce</i> contract will sort the data to group it.
 	 * 
 	 * @see #HINT_LOCAL_STRATEGY
 	 */
 	public static final String HINT_LOCAL_STRATEGY_SORT = "LOCAL_STRATEGY_SORT";
+	
+	/**
+	 * Value for the local strategy compiler hint that enforces a <b>sort based</b> local strategy.
+	 * During sorting a combine method is repeatedly applied to reduce the data volume.
+	 * For example, a <i>Reduce</i> contract will sort the data to group it.
+	 * 
+	 * @see #HINT_LOCAL_STRATEGY
+	 */
+	public static final String HINT_LOCAL_STRATEGY_COMBINING_SORT = "LOCAL_STRATEGY_COMBINING_SORT";
+	
+	/**
+	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy on both
+	 * inputs with subsequent merging of inputs. 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a sort-merge strategy to find pairs 
+	 * of matching keys.
+	 * 
+	 * @see #HINT_LOCAL_STRATEGY
+	 */
+	public static final String HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE = "LOCAL_STRATEGY_SORT_BOTH_MERGE";
+	
+	/**
+	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy.
+	 * The the first input is sorted, the second input is assumed to be sorted. After sorting both inputs are merged. 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a sort-merge strategy to find pairs 
+	 * of matching keys.
+	 * 
+	 * @see #HINT_LOCAL_STRATEGY
+	 */
+	public static final String HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE = "LOCAL_STRATEGY_SORT_FIRST_MERGE";
+	
+	/**
+	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy.
+	 * The the second input is sorted, the first input is assumed to be sorted. After sorting both inputs are merged. 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a sort-merge strategy to find pairs 
+	 * of matching keys.
+	 * 
+	 * @see #HINT_LOCAL_STRATEGY
+	 */
+	public static final String HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE = "LOCAL_STRATEGY_SORT_SECOND_MERGE";
+	
+	/**
+	 * Value for the local strategy compiler hint that enforces a <b>merge based</b> local strategy.
+	 * Both inputs are assumed to be sorted and are merged. 
+	 * For example, a <i>Match</i> or <i>CoGroup</i> contract will use a merge strategy to find pairs 
+	 * of matching keys.
+	 * 
+	 * @see #HINT_LOCAL_STRATEGY
+	 */
+	public static final String HINT_LOCAL_STRATEGY_MERGE = "LOCAL_STRATEGY_MERGE";
 
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>hash based</b> local strategy.
@@ -611,13 +661,13 @@ public class PactCompiler {
 			((SinkJoiner) bestPlanRoot).getDataSinks(bestPlanSinks);
 		}
 		
-		NodeConnector nodeConnector = new NodeConnector();
-		nodeConnector.connectNodes(bestPlanSinks);
+		// connect nodes bidirectional
+		new NodeConnector().connectNodes(bestPlanSinks);
 
 		// insert temporary dams, as they may be necessary in non-tree graphs to prevent deadlocks
 		Configuration config = GlobalConfiguration.getConfiguration();
-		insertTempConnection(new ArrayList<OptimizerNode>(bestPlanSinks), new HashSet<OptimizerNode>(), config.getBoolean("channel.network.allowSpilling",true));
-		
+		new DeadlockResolver(config.getBoolean("channel.network.allowSpilling",true)).resolveDeadlocks(bestPlanSinks);
+
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
 		plan.setInstanceTypeName(instanceName);
@@ -1001,364 +1051,440 @@ public class PactCompiler {
 		}
 	}
 
-	// ------------------------------------------------------------------------
-	// Inserting dams to break pipeline deadlocks in non-tree graphs
-	// ------------------------------------------------------------------------
-
 	/**
-	 * Inserts temping connections where it is necessary.
+	 * Utility class to resolve pipeline deadlocks in non-tree graphs.
+	 * Deadlocks can be resolved by inserting artificial dams (temping connections) or duplicating parts of the program.
 	 * 
-	 * @param nodesToVisit List of nodes that are visited in this recursive call. To process all nodes of the plan, 
-	 *                     the method must be called with a list of all DataSinkNodes.
-	 * @param visitedNodes Set of nodes that have already been visited. To process all nodes of the plan, 
-	 *                     the method must be called with an empty set. 
-	 * @param spillingActivated Flag that indicates whether the Nephele system was started with network spilling or not.
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 */
-	// TODO: this should be integrated into the optimization and not done as a postprocessing
-	private void insertTempConnection(List<OptimizerNode> nodesToVisit, HashSet<OptimizerNode> visitedNodes, boolean spillingActivated) {
-
-		for(OptimizerNode node : nodesToVisit) {
+	private static final class DeadlockResolver implements Visitor<OptimizerNode> {
+		
+		// TODO: deadlock resolving should be integrated into the optimization and not done as a postprocessing
+		
+		private final boolean spillingActivated;
+		private final HashSet<OptimizerNode> visitedNodes;
+		
+		private final List<PactConnection> deadlockConnection;
+		
+		public DeadlockResolver(boolean spillingActivated) {
+			this.spillingActivated = spillingActivated;
+			this.visitedNodes = new HashSet<OptimizerNode>();
 			
-			if(visitedNodes.contains(node))
-				// node was already visited
-				break;
-			else {
-				// node was not visited yet
-				
-				// mark that we have been here
-				visitedNodes.add(node);
-				
-				// check if temp task is required
-				for (PactConnection inConn : node.getIncomingConnections()) {
-					// check if inConn is a blocked connection
-					if (isBlockedConnection(inConn, spillingActivated)) {
-						// check if inConn needs to be temped
-						if (needsToBeTemped(inConn)) {
-							// temp inConn
-							// TODO: decide smarter where to put temp (sender/receiver, connection)
-							inConn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+			this.deadlockConnection = new ArrayList<PactConnection>();
+		}
+		
+		public void resolveDeadlocks(List<DataSinkNode> sinks) {
+			
+			// traverse the graph
+			for (DataSinkNode node : sinks) {
+				node.accept(this);
+			}
+
+			for(PactConnection conn : deadlockConnection) {
+				// unmark connection
+				conn.setTempMode(TempMode.NONE);
+				// resolve deadlock for connection
+				resolveDeadlock(conn);
+			}
+			
+		}
+
+		/**
+		 * Inserts temping connections where it is necessary.
+		 * 
+		 * @param nodesToVisit List of nodes that are visited in this recursive call. To process all nodes of the plan, 
+		 *                     the method must be called with a list of all DataSinkNodes.
+		 * @param visitedNodes Set of nodes that have already been visited. To process all nodes of the plan, 
+		 *                     the method must be called with an empty set. 
+		 */
+		@Override
+		public boolean preVisit(OptimizerNode node) {
+			
+			if(visitedNodes.contains(node)) 
+				return false; 
+			
+			// mark that we have been here
+			visitedNodes.add(node);
+			
+			// check if temp task is required
+			for (PactConnection inConn : node.getIncomingConnections()) {
+				// check if inConn is a blocked connection
+				if (isBlockedConnection(inConn)) {
+					// check if inConn needs to be temped
+					if (mayCauseDeadlock(inConn)) {
+						// mark connection as temped
+						inConn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+						// insert connection into temp connection list
+						deadlockConnection.add(inConn);
+					}
+				}
+			}
+			
+			return true;
+		}
+
+		@Override
+		public void postVisit(OptimizerNode visitable) {
+			// do nothing
+		}
+
+		/**
+		 * Checks whether a connection is blocked (waiting for other connection to be fully read).
+		 * Blocked connections are:
+		 * - Connection to Match PACTs that probe a HashTable
+		 * - Connection to Match PACTs that provide sorted input
+		 * - Connection to CoGroup PACTs that provide sorted input
+		 * - Connection to Cross PACTs that are the outer loop of the nested-loop strategy
+		 * Connections that are explicitly temping are never blocked!
+		 * If the Nephele system was started with activated network spilling, data that cannot be forwarded to 
+		 * the task is written to disk and later forwarded. 
+		 * Hence, network channels are never blocking if network spilling is activated. 
+		 * 
+		 * @param conn
+		 *        Connection that is checked for being a blocked connection.
+		 * @return True if the connection is blocked, False otherwise.
+		 */
+		private boolean isBlockedConnection(PactConnection conn) {
+			if (conn.getTempMode() != TempMode.NONE) {
+				return false;
+			}
+			
+			if (this.spillingActivated &&
+					(
+					conn.getShipStrategy() == ShipStrategy.BROADCAST ||
+					conn.getShipStrategy() == ShipStrategy.PARTITION_HASH || 
+					conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE || 
+					conn.getShipStrategy() == ShipStrategy.SFR
+					)
+				) {
+				// network spilling is activated and shipping strategy will use network channels
+				return false;
+			}
+
+			switch (conn.getTargetPact().getPactType()) {
+			case Match:
+				// test if hash strategy is used
+				int inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
+				switch (conn.getTargetPact().getLocalStrategy()) {
+				case HYBRIDHASH_FIRST:
+					// first input is build side
+					if (inConnIdx == 1)
+						return true;
+					else
+						return false;
+				case HYBRIDHASH_SECOND:
+					// second input is build side
+					if (inConnIdx == 0)
+						return true;
+					else
+						return false;
+				case MMHASH_FIRST:
+					// first input is build side
+					if (inConnIdx == 1)
+						return true;
+					else
+						return false;
+				case MMHASH_SECOND:
+					// second input is build side
+					if (inConnIdx == 0)
+						return true;
+					else
+						return false;
+				case SORT_FIRST_MERGE:
+					// first input is sorted
+					if (inConnIdx == 1)
+						return true;
+					else
+						return false;
+				case SORT_SECOND_MERGE:
+					// second input is sorted
+					if (inConnIdx == 0)
+						return true;
+					else
+						return false;
+				default:
+					return false;
+				}
+			case Cogroup:
+				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
+				switch (conn.getTargetPact().getLocalStrategy()) {
+				case SORT_FIRST_MERGE:
+					// first input is sorted
+					if (inConnIdx == 1)
+						return true;
+					else
+						return false;
+				case SORT_SECOND_MERGE:
+					// second input is sorted
+					if (inConnIdx == 0)
+						return true;
+					else
+						return false;
+				default:
+					return false;
+				}
+			case Cross:
+				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
+				switch (conn.getTargetPact().getLocalStrategy()) {
+				case NESTEDLOOP_BLOCKED_OUTER_SECOND:
+					// first input is fully read before processing (inner side)
+					if (inConnIdx == 1)
+						return true;
+					else
+						return false;
+				case NESTEDLOOP_STREAMED_OUTER_SECOND:
+					// first input is fully read before processing (inner side)
+					if (inConnIdx == 1)
+						return true;
+					else
+						return false;
+				case NESTEDLOOP_BLOCKED_OUTER_FIRST:
+					// second input is fully read before processing (inner side)
+					if (inConnIdx == 0)
+						return true;
+					else
+						return false;
+				case NESTEDLOOP_STREAMED_OUTER_FIRST:
+					// second input is fully read before processing (inner side)
+					if (inConnIdx == 0)
+						return true;
+					else
+						return false;
+				default:
+					return false;
+				}
+			default:
+				return false;
+			}
+		}
+
+		/**
+		 * Checks whether a connection is temping (consuming all records before processing).
+		 * Temping connections are:
+		 * - Connections to Reduce PACTs
+		 * - Connections to CoGroup PACTs
+		 * - Connections to Match PACTs with MergeSort LocalStrategy
+		 * - Connections to Match PACTs that build a HashTable
+		 * - Connections to Cross PACTs that are read into the resetable iterator
+		 * - Connections that are explicitly tempings
+		 * 
+		 * @param conn
+		 *        Connection that is checked for temping
+		 * @return True if the connection is temping, False otherwise
+		 */
+		private boolean isTempingConnection(PactConnection conn) {
+			if (conn.getTempMode() != TempMode.NONE) {
+				return true;
+			}
+
+			switch (conn.getTargetPact().getPactType()) {
+			case Reduce:
+				switch (conn.getTargetPact().getLocalStrategy()) {
+				case SORT: 
+					// sort reads everything before processing
+					return true;
+				}
+				return true;
+			case Match:
+				int inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
+				switch (conn.getTargetPact().getLocalStrategy()) {
+				case SORT_BOTH_MERGE:
+					// sort reads everything before processing
+					return true;
+				case SORT_FIRST_MERGE:
+					if (inConnIdx == 0)
+						// input is sorted
+						return true;
+					else
+						// input is NOT sorted
+						return false;
+				case SORT_SECOND_MERGE:
+					if (inConnIdx == 1)
+						// input is sorted
+						return true;
+					else
+						// input is NOT sorted
+						return false;
+				case HYBRIDHASH_FIRST:
+					if (inConnIdx == 0)
+						// input is put into hashtable
+						return true;
+					else
+						// input is NOT put into hashtable
+						return false;
+				case HYBRIDHASH_SECOND:
+					if (inConnIdx == 1)
+						// input is put into hashtable
+						return true;
+					else
+						// input is NOT put into hashtable
+						return false;
+				case MMHASH_FIRST:
+					if (inConnIdx == 0)
+						// input is put into hashtable
+						return true;
+					else
+						// input is NOT put into hashtable
+						return false;
+				case MMHASH_SECOND:
+					if (inConnIdx == 1)
+						// input is put into hashtable
+						return true;
+					else
+						// input is NOT put into hashtable
+						return false;
+				default:
+					return false;
+				}
+			case Cross:
+				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
+				switch (conn.getTargetPact().getLocalStrategy()) {
+				case NESTEDLOOP_BLOCKED_OUTER_SECOND:
+					if (inConnIdx == 0)
+						// input is put read into resettable iterator
+						return true;
+					else
+						// input is put block-wise streamed over resettable iterator
+						return false;
+				case NESTEDLOOP_STREAMED_OUTER_SECOND:
+					if (inConnIdx == 0)
+						// input is put read into resettable iterator
+						return true;
+					else
+						// input is put block-wise streamed over resettable iterator
+						return false;
+				case NESTEDLOOP_BLOCKED_OUTER_FIRST:
+					if (inConnIdx == 1)
+						// input is put read into resettable iterator
+						return true;
+					else
+						// input is put block-wise streamed over resettable iterator
+						return false;
+				case NESTEDLOOP_STREAMED_OUTER_FIRST:
+					if (inConnIdx == 1)
+						// input is put read into resettable iterator
+						return true;
+					else
+						// input is put block-wise streamed over resettable iterator
+						return false;
+				}
+			case Cogroup:
+				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
+				switch (conn.getTargetPact().getLocalStrategy()) {
+				case SORT_BOTH_MERGE:
+					// sort reads everything before processing
+					return true;
+				case SORT_FIRST_MERGE:
+					if (inConnIdx == 0)
+						// input is sorted
+						return true;
+					else
+						// input is NOT sorted
+						return false;
+				case SORT_SECOND_MERGE:
+					if (inConnIdx == 1)
+						// input is sorted
+						return true;
+					else
+						// input is NOT sorted
+						return false;
+				}
+			default:
+				return false;
+			}
+		}
+
+		/**
+		 * Checks whether a blocked connection may cause a deadlock.
+		 * A blocked connection is a dam since it has to wait until the input of the other connection is fully read
+		 * (probe-side for hash strategies, streaming-side for nested-loop strategy, etc.).
+		 * The dam becomes critical if the blocking connection is fed by a node, that has multiple outputs.
+		 * Since the other targets of the multi-output-node have to wait for the blocked connection to flow.
+		 * This might cause following problems:
+		 * 1) Deadlocks
+		 * 2) Performance decrease due to time to wait for blocking connections
+		 * The problem vanishes if a temping node (a node that consumes all tuples before processing) lies on the path
+		 * from the multi-output-node to the blocked connection.
+		 * This method checks if a blocked connection is fed by a multi-output-node and whether a temping node exists on the
+		 * path.
+		 * If the blocked connection is not fed by a multi-output node it does not need be be temped.
+		 * Otherwise, it needs to be temped if there are no temping nodes on the path.
+		 * 
+		 * @param conn
+		 *        Blocked connection that should be checked for deadlock potential
+		 * @return True if the blocked connection may cause a deadlock, False otherwise.
+		 */
+		private boolean mayCauseDeadlock(PactConnection conn) {
+			if (isTempingConnection(conn)) {
+				return false;
+			} else {
+				if (conn.getSourcePact().getOutgoingConnections().size() > 1) {
+					return true;
+				} else {
+					for (PactConnection inConn : conn.getSourcePact().getIncomingConnections()) {
+						if (mayCauseDeadlock(inConn) == true) {
+							return true;
 						}
 					}
+					return false;
 				}
-				
-				// collect all predecessors
-				ArrayList<OptimizerNode> predecessors = new ArrayList<OptimizerNode>();
-				for(PactConnection conn : node.getIncomingConnections()) {
-					predecessors.add(conn.getSourcePact());
-				}
-				
-				// insert temp connections in all predecessors of the current node
-				this.insertTempConnection(predecessors, visitedNodes, spillingActivated);
-				
 			}
+		}
+
+		private void resolveDeadlock(PactConnection conn) {
+			// TODO: decide smarter where to put temp (sender/receiver, connection)
 			
-		}
-		
-	}
-
-	/**
-	 * Checks whether a connection is blocked (waiting for other connection to be fully read).
-	 * Blocked connections are:
-	 * - Connection to Match PACTs that probe a HashTable
-	 * - Connection to Match PACTs that provide sorted input
-	 * - Connection to CoGroup PACTs that provide sorted input
-	 * - Connection to Cross PACTs that are the outer loop of the nested-loop strategy
-	 * Connections that are explicitly temping are never blocked!
-	 * If the Nephele system was started with activated network spilling, data that cannot be forwarded to 
-	 * the task is written to disk and later forwarded. 
-	 * Hence, network channels are never blocking if network spilling is activated. 
-	 * 
-	 * @param conn
-	 *        Connection that is checked for being a blocked connection.
-	 * @param spillingActivated
-	 * 		  true if Nephele's network spilling is activated, false otherwise
-	 * @return True if the connection is blocked, False otherwise.
-	 */
-	private boolean isBlockedConnection(PactConnection conn, boolean spillingActivated) {
-		if (conn.getTempMode() != TempMode.NONE) {
-			return false;
-		}
-		
-		if (spillingActivated &&
-				(
-				conn.getShipStrategy() == ShipStrategy.BROADCAST ||
-				conn.getShipStrategy() == ShipStrategy.PARTITION_HASH || 
-				conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE || 
-				conn.getShipStrategy() == ShipStrategy.SFR
-				)
-			) {
-			// network spilling is activated and shipping strategy will use network channels
-			return false;
-		}
-
-		switch (conn.getTargetPact().getPactType()) {
-		case Match:
-			// test if hash strategy is used
-			int inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-			switch (conn.getTargetPact().getLocalStrategy()) {
-			case HYBRIDHASH_FIRST:
-				// first input is build side
-				if (inConnIdx == 1)
-					return true;
-				else
-					return false;
-			case HYBRIDHASH_SECOND:
-				// second input is build side
-				if (inConnIdx == 0)
-					return true;
-				else
-					return false;
-			case MMHASH_FIRST:
-				// first input is build side
-				if (inConnIdx == 1)
-					return true;
-				else
-					return false;
-			case MMHASH_SECOND:
-				// second input is build side
-				if (inConnIdx == 0)
-					return true;
-				else
-					return false;
-			case SORT_FIRST_MERGE:
-				// first input is sorted
-				if (inConnIdx == 1)
-					return true;
-				else
-					return false;
-			case SORT_SECOND_MERGE:
-				// second input is sorted
-				if (inConnIdx == 0)
-					return true;
-				else
-					return false;
-			default:
-				return false;
-			}
-		case Cogroup:
-			inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-			switch (conn.getTargetPact().getLocalStrategy()) {
-			case SORT_FIRST_MERGE:
-				// first input is sorted
-				if (inConnIdx == 1)
-					return true;
-				else
-					return false;
-			case SORT_SECOND_MERGE:
-				// second input is sorted
-				if (inConnIdx == 0)
-					return true;
-				else
-					return false;
-			default:
-				return false;
-			}
-		case Cross:
-			inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-			switch (conn.getTargetPact().getLocalStrategy()) {
-			case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-				// first input is fully read before processing (inner side)
-				if (inConnIdx == 1)
-					return true;
-				else
-					return false;
-			case NESTEDLOOP_STREAMED_OUTER_SECOND:
-				// first input is fully read before processing (inner side)
-				if (inConnIdx == 1)
-					return true;
-				else
-					return false;
-			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-				// second input is fully read before processing (inner side)
-				if (inConnIdx == 0)
-					return true;
-				else
-					return false;
-			case NESTEDLOOP_STREAMED_OUTER_FIRST:
-				// second input is fully read before processing (inner side)
-				if (inConnIdx == 0)
-					return true;
-				else
-					return false;
-			default:
-				return false;
-			}
-		default:
-			return false;
-		}
-	}
-
-	/**
-	 * Checks whether a connection is temping (consuming all records before processing).
-	 * Temping connections are:
-	 * - Connections to Reduce PACTs
-	 * - Connections to CoGroup PACTs
-	 * - Connections to Match PACTs with MergeSort LocalStrategy
-	 * - Connections to Match PACTs that build a HashTable
-	 * - Connections to Cross PACTs that are read into the resetable iterator
-	 * - Connections that are explicitly tempings
-	 * 
-	 * @param conn
-	 *        Connection that is checked for temping
-	 * @return True if the connection is temping, False otherwise
-	 */
-	private boolean isTempingConnection(PactConnection conn) {
-		if (conn.getTempMode() != TempMode.NONE) {
-			return true;
-		}
-
-		switch (conn.getTargetPact().getPactType()) {
-		case Reduce:
-			switch (conn.getTargetPact().getLocalStrategy()) {
-			case SORT: 
-				// sort reads everything before processing
-				return true;
-			}
-			return true;
-		case Match:
-			int inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-			switch (conn.getTargetPact().getLocalStrategy()) {
-			case SORT_BOTH_MERGE:
-				// sort reads everything before processing
-				return true;
-			case SORT_FIRST_MERGE:
-				if (inConnIdx == 0)
-					// input is sorted
-					return true;
-				else
-					// input is NOT sorted
-					return false;
-			case SORT_SECOND_MERGE:
-				if (inConnIdx == 1)
-					// input is sorted
-					return true;
-				else
-					// input is NOT sorted
-					return false;
-			case HYBRIDHASH_FIRST:
-				if (inConnIdx == 0)
-					// input is put into hashtable
-					return true;
-				else
-					// input is NOT put into hashtable
-					return false;
-			case HYBRIDHASH_SECOND:
-				if (inConnIdx == 1)
-					// input is put into hashtable
-					return true;
-				else
-					// input is NOT put into hashtable
-					return false;
-			case MMHASH_FIRST:
-				if (inConnIdx == 0)
-					// input is put into hashtable
-					return true;
-				else
-					// input is NOT put into hashtable
-					return false;
-			case MMHASH_SECOND:
-				if (inConnIdx == 1)
-					// input is put into hashtable
-					return true;
-				else
-					// input is NOT put into hashtable
-					return false;
-			default:
-				return false;
-			}
-		case Cross:
-			inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-			switch (conn.getTargetPact().getLocalStrategy()) {
-			case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-				if (inConnIdx == 0)
-					// input is put read into resettable iterator
-					return true;
-				else
-					// input is put block-wise streamed over resettable iterator
-					return false;
-			case NESTEDLOOP_STREAMED_OUTER_SECOND:
-				if (inConnIdx == 0)
-					// input is put read into resettable iterator
-					return true;
-				else
-					// input is put block-wise streamed over resettable iterator
-					return false;
-			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-				if (inConnIdx == 1)
-					// input is put read into resettable iterator
-					return true;
-				else
-					// input is put block-wise streamed over resettable iterator
-					return false;
-			case NESTEDLOOP_STREAMED_OUTER_FIRST:
-				if (inConnIdx == 1)
-					// input is put read into resettable iterator
-					return true;
-				else
-					// input is put block-wise streamed over resettable iterator
-					return false;
-			}
-		case Cogroup:
-			inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
-			switch (conn.getTargetPact().getLocalStrategy()) {
-			case SORT_BOTH_MERGE:
-				// sort reads everything before processing
-				return true;
-			case SORT_FIRST_MERGE:
-				if (inConnIdx == 0)
-					// input is sorted
-					return true;
-				else
-					// input is NOT sorted
-					return false;
-			case SORT_SECOND_MERGE:
-				if (inConnIdx == 1)
-					// input is sorted
-					return true;
-				else
-					// input is NOT sorted
-					return false;
-			}
-		default:
-			return false;
-		}
-	}
-
-	/**
-	 * Checks whether a blocked connection needs to be temped.
-	 * A blocked connection is a dam since it has to wait until the input of the other connection is fully read
-	 * (probe-side for hash strategies, streaming-side for nested-loop strategy).
-	 * The dam becomes critical if the blocking connection is fed by a node, that has multiple outputs.
-	 * Since the other targets of the multi-output-node have to wait for the blocked connection to flow.
-	 * This might cause following problems:
-	 * 1) Deadlocks
-	 * 2) Performance decrease due to time to wait for blocking connections
-	 * The problem vanishes if a temping node (a node that consumes all tuples before processing) lies on the path
-	 * from the multi-output-node to the blocked connection.
-	 * This method checks if a blocked connection is fed by a multi-output-node and whether a temping node exists on the
-	 * path.
-	 * If the blocked connection is not fed by a multi-output node it does not need be be temped.
-	 * Otherwise, it needs to be temped if there are no temping nodes on the path.
-	 * 
-	 * @param conn
-	 *        Blocked connection that should be checked for temping
-	 * @return True if the blocked connection must be temped, False otherwise.
-	 */
-	private boolean needsToBeTemped(PactConnection conn) {
-		if (isTempingConnection(conn)) {
-			return false;
-		} else {
-			if (conn.getSourcePact().getOutgoingConnections().size() > 1) {
-				return true;
-			} else {
-				for (PactConnection inConn : conn.getSourcePact().getIncomingConnections()) {
-					if (needsToBeTemped(inConn) == true) {
-						return true;
+			OptimizerNode sourcePact = conn.getSourcePact();
+			OptimizerNode targetPact = conn.getTargetPact();
+			
+			if(sourcePact instanceof DataSourceNode) {
+				// instead of temping connection duplicate DataSourceNode
+				
+				// duplicate DataSourceNode
+				DataSourceNode duplicateDataSource = new DataSourceNode((DataSourceContract)sourcePact.getPactContract());
+				// create new connection
+				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
+				
+				// remove connection from original DataSourceNode
+				sourcePact.getOutgoingConnections().remove(conn);
+				// add new connection to new DataSourceNode
+				duplicateDataSource.addOutgoingConnection(newConn);
+				// replace old connection with new connection
+				if(targetPact instanceof SingleInputNode) {
+					((SingleInputNode)targetPact).setInputConnection(newConn);
+				} else if(targetPact instanceof TwoInputNode) {
+					if(((TwoInputNode)targetPact).getFirstInputConnection() == conn) {
+						((TwoInputNode)targetPact).setFirstInputConnection(newConn);
+					} else {
+						((TwoInputNode)targetPact).setSecondInputConnection(newConn);
 					}
 				}
-				return false;
+				
+			} else if(sourcePact.getIncomingConnections().size() > 1) {
+				// node has more than one incoming connection
+				// can't push temp further down, insert temping here
+				conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+			} else if(sourcePact.getOutgoingConnections().size() > 1) {
+				// node has more than one outgoing connection
+				// this is the reason for the temp, insert temping here
+				conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+			} else {
+				PactConnection predConn = sourcePact.getIncomingConnections().get(0); 
+				long curSize = sourcePact.getEstimatedOutputSize();
+				long predSize = predConn.getSourcePact().getEstimatedOutputSize();
+				
+				if(curSize < predSize) {
+					// this conn will ship less data than the preceding conn
+					// insert temping here
+					conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+				} else {
+					// this conn ships same or more data than preceding conn
+					// insert temp further ahead
+					resolveDeadlock(predConn);
+				}
 			}
 		}
+		
 	}
 
 	// ------------------------------------------------------------------------
