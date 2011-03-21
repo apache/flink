@@ -43,7 +43,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 
 	@Test
-	public void testSort1CoGroupTask() {
+	public void testSortBoth1CoGroupTask() {
 
 		int keyCnt1 = 100;
 		int valCnt1 = 2;
@@ -52,8 +52,8 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
@@ -78,7 +78,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testSort2CoGroupTask() {
+	public void testSortBoth2CoGroupTask() {
 
 		int keyCnt1 = 200;
 		int valCnt1 = 2;
@@ -87,12 +87,117 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockCoGroupStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+				
+	}
+	
+	@Test
+	public void testSortFirstCoGroupTask() {
+
+		int keyCnt1 = 200;
+		int valCnt1 = 2;
+		
+		int keyCnt2 = 200;
+		int valCnt2 = 4;
+		
+		super.initEnvironment(5*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true));
+		super.addOutput(outList);
+		
+		CoGroupTask testTask = new CoGroupTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockCoGroupStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+				
+	}
+	
+	@Test
+	public void testSortSecondCoGroupTask() {
+
+		int keyCnt1 = 200;
+		int valCnt1 = 2;
+		
+		int keyCnt2 = 200;
+		int valCnt2 = 4;
+		
+		super.initEnvironment(5*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		CoGroupTask testTask = new CoGroupTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockCoGroupStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+				
+	}
+	
+	@Test
+	public void testMergeCoGroupTask() {
+
+		int keyCnt1 = 200;
+		int valCnt1 = 2;
+		
+		int keyCnt2 = 200;
+		int valCnt2 = 4;
+		
+		super.initEnvironment(5*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true));
+		super.addOutput(outList);
+		
+		CoGroupTask testTask = new CoGroupTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
@@ -122,8 +227,8 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
@@ -154,7 +259,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt = 2;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new DelayingInfinitiveInputIterator(1000));
 		super.addOutput(new NirvanaOutputList());
 		
@@ -197,7 +302,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		super.initEnvironment(5*1024*1024);
 		super.addInput(new DelayingInfinitiveInputIterator(1000));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();
@@ -237,8 +342,8 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt = 5;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();

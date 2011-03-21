@@ -435,11 +435,11 @@ public class CrossTask extends AbstractTask {
 				
 				do {
 					// loop over the spilled resettable iterator
-					while (innerInput.hasNext() && !this.taskCanceled) {
+					while (!this.taskCanceled && innerInput.hasNext()) {
 						// get inner pair
 						Pair<Key, Value> innerPair = innerInput.next();
 						// loop over the pairs in the current memory block
-						while (outerInput.hasNext() && !this.taskCanceled) {
+						while (!this.taskCanceled && outerInput.hasNext()) {
 							// get outer pair
 							Pair<Key, Value> outerPair = outerInput.next();
 		
@@ -458,17 +458,17 @@ public class CrossTask extends AbstractTask {
 					if(moreOuterBlocks) {
 						innerInput.reset();
 					}
-				} while (moreOuterBlocks && !this.taskCanceled);
+				} while (!this.taskCanceled && moreOuterBlocks);
 				
 			} else {
 				
 				do {
 					// loop over the spilled resettable iterator
-					while (innerInput.hasNext() && !this.taskCanceled) {
+					while (!this.taskCanceled && innerInput.hasNext()) {
 						// get inner pair
 						Pair<Key, Value> innerPair = innerInput.next();
 						// loop over the pairs in the current memory block
-						while (outerInput.hasNext() && !this.taskCanceled) {
+						while (!this.taskCanceled && outerInput.hasNext()) {
 							// get outer pair
 							Pair<Key, Value> outerPair = outerInput.next();
 		
@@ -487,7 +487,7 @@ public class CrossTask extends AbstractTask {
 					if(moreOuterBlocks) {
 						innerInput.reset();
 					}
-				} while (moreOuterBlocks && !this.taskCanceled);
+				} while (!this.taskCanceled && moreOuterBlocks);
 				
 			}
 	
@@ -637,12 +637,12 @@ public class CrossTask extends AbstractTask {
 			if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
 			
 				// read streamed iterator of outer side
-				while (outerInput.hasNext() && !this.taskCanceled) {
+				while (!this.taskCanceled && outerInput.hasNext()) {
 					// get outer pair
 					Pair outerPair = outerInput.next();
 		
 					// read spilled iterator of inner side
-					while (innerInput.hasNext() && !this.taskCanceled) {
+					while (!this.taskCanceled && innerInput.hasNext()) {
 						// get inner pair
 						Pair innerPair = innerInput.next();
 		
@@ -653,7 +653,7 @@ public class CrossTask extends AbstractTask {
 						outerPair = outerInput.repeatLast();
 					}
 					// reset spilling resettable iterator of inner side
-					if(outerInput.hasNext() && !this.taskCanceled) {
+					if(!this.taskCanceled && outerInput.hasNext()) {
 						innerInput.reset();
 					}
 				}
@@ -661,12 +661,12 @@ public class CrossTask extends AbstractTask {
 			} else {
 				
 				// read streamed iterator of outer side
-				while (outerInput.hasNext() && !this.taskCanceled) {
+				while (!this.taskCanceled && outerInput.hasNext()) {
 					// get outer pair
 					Pair outerPair = outerInput.next();
 		
 					// read spilled iterator of inner side
-					while (innerInput.hasNext() && !this.taskCanceled) {
+					while (!this.taskCanceled && innerInput.hasNext()) {
 						// get inner pair
 						Pair innerPair = innerInput.next();
 		
@@ -677,7 +677,7 @@ public class CrossTask extends AbstractTask {
 						outerPair = outerInput.repeatLast();
 					}
 					// reset spilling resettable iterator of inner side
-					if(outerInput.hasNext() && !this.taskCanceled) {
+					if(!this.taskCanceled && outerInput.hasNext()) {
 						innerInput.reset();
 					}
 				}

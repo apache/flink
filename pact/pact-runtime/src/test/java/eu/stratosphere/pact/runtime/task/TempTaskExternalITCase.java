@@ -50,7 +50,7 @@ public class TempTaskExternalITCase extends TaskTestBase {
 		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1024*1024*1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		TempTask testTask = new TempTask();
