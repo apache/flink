@@ -204,7 +204,7 @@ public class CoGroupITCase extends TestBase
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT, };
+		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE};
 
 		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION, };
 
