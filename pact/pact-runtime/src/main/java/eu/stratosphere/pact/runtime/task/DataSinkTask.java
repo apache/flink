@@ -88,6 +88,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 */
 	@Override
 	public void invoke() throws Exception {
+		
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -103,6 +104,10 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			opot.join();
 		} catch (InterruptedException ie) {
 			// this task has been canceled
+			if(opot.getFSDataOutputStream() != null) {
+				// close file stream
+				opot.getFSDataOutputStream().close();
+			}
 		}
 		;
 
@@ -130,15 +135,6 @@ public class DataSinkTask extends AbstractFileOutputTask {
 				while (!this.taskCanceled && reader.hasNext()) {
 					KeyValuePair pair = reader.next();
 					format.writePair(pair);
-					// byte[] line = format.writeLine(pair);
-					// fdos.write(line, 0, line.length);
-				}
-
-				format.close();
-				fdos.close(); // Should this be done in the format?
-
-				if (fdos != null) {
-					fdos.close();
 				}
 
 			} catch (Exception ex) {
@@ -148,6 +144,18 @@ public class DataSinkTask extends AbstractFileOutputTask {
 						+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 					throw ex;
+				}
+				
+			} finally {
+				
+				if (format != null) {
+					// close format
+					format.close();
+				}
+				
+				if (fdos != null) {
+					// close file stream
+					fdos.close();
 				}
 			}
 		}
@@ -301,6 +309,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 
 		@Override
 		public void run() {
+			
 			try {
 				FileSystem fs = path.getFileSystem();
 

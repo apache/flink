@@ -104,11 +104,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 		boolean immutable = config.getMutability() == Config.Mutability.IMMUTABLE;
 
 		// for each assigned input split
-		while (splitIterator.hasNext()) {
-
-			if (this.taskCanceled) {
-				break;
-			}
+		while (!this.taskCanceled && splitIterator.hasNext()) {
 
 			// get start and end
 			final FileInputSplit split = splitIterator.next();
@@ -119,12 +115,18 @@ public class DataSourceTask extends AbstractFileInputTask {
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
+			FSDataInputStream fdis = null;
+			
 			InputSplitOpenThread isot = new InputSplitOpenThread(split);
 			isot.start();
 			try {
 				isot.join();
 			} catch (InterruptedException ie) {
 				// task has been canceled
+				if(isot.getFSDataInputStream() != null) {
+					// close file input stream
+					isot.getFSDataInputStream().close();
+				}
 			}
 
 			if (!this.taskCanceled) {
@@ -138,7 +140,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 					}
 
 					// get FSDataInputStream
-					FSDataInputStream fdis = isot.getFSDataInputStream();
+					fdis = isot.getFSDataInputStream();
 
 					// set input stream of input format
 					format.setInput(new DistributedDataInputStream(fdis), start, length, (1024 * 1024));
@@ -173,9 +175,6 @@ public class DataSourceTask extends AbstractFileInputTask {
 						}
 					}
 
-					// close the input stream
-					format.close();
-
 					LOG.debug("Closing input split " + split.getPath() + " : " + this.getEnvironment().getTaskName()
 						+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -187,6 +186,21 @@ public class DataSourceTask extends AbstractFileInputTask {
 							+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 							+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 						throw ex;
+					}
+					
+				} finally {
+					
+					if(format != null) {
+						// close the input
+						format.closeInput();
+						// close the format
+						format.close();
+					}
+					
+					
+					if(fdis != null) {
+						// close file input stream
+						fdis.close();
 					}
 				}
 			}

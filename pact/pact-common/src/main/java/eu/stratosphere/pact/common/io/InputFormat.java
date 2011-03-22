@@ -93,5 +93,15 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 		this.length = length;
 		this.bufferSize = bufferSize;
 	}
+	
+	/**
+	 * Closes the input stream of the input format.
+	 */
+	public void closeInput() {
+		if(this.stream != null) {
+			// close input stream
+			this.stream.close();
+		}
+	}
 
 }
