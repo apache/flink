@@ -556,7 +556,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		sourceVertex.setFilePath(new Path(contract.getFilePath()));
 
 		// get task configuration object
-		DataSourceTask.Config sourceConfig = new DataSourceTask.Config(sourceVertex.getConfiguration());
+		DataSourceTask.DataSourceConfig sourceConfig = new DataSourceTask.DataSourceConfig(sourceVertex.getConfiguration());
 		// set user code class
 		sourceConfig.setStubClass(contract.getStubClass());
 		// set format parameter
@@ -592,7 +592,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		sinkVertex.setFilePath(new Path(((DataSinkContract<?, ?>) sinkNode.getPactContract()).getFilePath()));
 
 		// get task configuration object
-		DataSinkTask.Config sinkConfig = new DataSinkTask.Config(sinkVertex.getConfiguration());
+		DataSinkTask.DataSinkConfig sinkConfig = new DataSinkTask.DataSinkConfig(sinkVertex.getConfiguration());
 		// set user code class
 		sinkConfig.setStubClass(((DataSinkContract<?, ?>) sinkNode.getPactContract()).getStubClass());
 		// set format parameter
