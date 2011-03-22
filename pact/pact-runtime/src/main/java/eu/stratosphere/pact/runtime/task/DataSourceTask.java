@@ -61,7 +61,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	private InputFormat<Key, Value> format;
 
 	// Task configuration
-	private Config config;
+	private DataSourceConfig config;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -91,6 +91,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 */
 	@Override
 	public void invoke() throws Exception {
+		
 		KeyValuePair<Key, Value> pair = null;
 
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
@@ -101,14 +102,10 @@ public class DataSourceTask extends AbstractFileInputTask {
 		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 
 		// set object creation policy to immutable
-		boolean immutable = config.getMutability() == Config.Mutability.IMMUTABLE;
+		boolean immutable = config.getMutability() == DataSourceConfig.Mutability.IMMUTABLE;
 
 		// for each assigned input split
-		while (splitIterator.hasNext()) {
-
-			if (this.taskCanceled) {
-				break;
-			}
+		while (!this.taskCanceled && splitIterator.hasNext()) {
 
 			// get start and end
 			final FileInputSplit split = splitIterator.next();
@@ -119,12 +116,18 @@ public class DataSourceTask extends AbstractFileInputTask {
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
+			FSDataInputStream fdis = null;
+			
 			InputSplitOpenThread isot = new InputSplitOpenThread(split);
 			isot.start();
 			try {
 				isot.join();
 			} catch (InterruptedException ie) {
 				// task has been canceled
+				if(isot.getFSDataInputStream() != null) {
+					// close file input stream
+					isot.getFSDataInputStream().close();
+				}
 			}
 
 			if (!this.taskCanceled) {
@@ -138,7 +141,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 					}
 
 					// get FSDataInputStream
-					FSDataInputStream fdis = isot.getFSDataInputStream();
+					fdis = isot.getFSDataInputStream();
 
 					// set input stream of input format
 					format.setInput(new DistributedDataInputStream(fdis), start, length, (1024 * 1024));
@@ -173,9 +176,6 @@ public class DataSourceTask extends AbstractFileInputTask {
 						}
 					}
 
-					// close the input stream
-					format.close();
-
 					LOG.debug("Closing input split " + split.getPath() + " : " + this.getEnvironment().getTaskName()
 						+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -187,6 +187,26 @@ public class DataSourceTask extends AbstractFileInputTask {
 							+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 							+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 						throw ex;
+					}
+					
+				} finally {
+					
+					if(format != null) {
+						try {
+							// close the input
+							format.closeInput();
+						} catch (IOException ioe) {
+							LOG.error("Exception caught while closing input of InputFormat");
+							throw ioe;
+						}
+						
+						try {
+							// close the format
+							format.close();
+						} catch (IOException ioe) {
+							LOG.error("Exception caught while closing InputFormat");
+							throw ioe;
+						}
 					}
 				}
 			}
@@ -226,7 +246,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	private void initInputFormat() {
 
 		// obtain task configuration (including stub parameters)
-		config = new Config(getRuntimeConfiguration());
+		config = new DataSourceConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
 		try {
@@ -282,7 +302,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 * Specialized configuration object that holds parameters specific to the
 	 * data-source configuration.
 	 */
-	public static final class Config extends TaskConfig {
+	public static final class DataSourceConfig extends TaskConfig {
 		public enum Mutability {
 			MUTABLE, IMMUTABLE
 		};
@@ -293,7 +313,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 
 		private static final String KEY_FORMAT_PREFIX = "pact.datasource.format.";
 
-		public Config(Configuration config) {
+		public DataSourceConfig(Configuration config) {
 			super(config);
 		}
 
