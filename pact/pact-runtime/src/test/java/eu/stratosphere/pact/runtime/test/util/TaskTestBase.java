@@ -31,10 +31,16 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.task.DataSinkTask.DataSinkConfig;
+import eu.stratosphere.pact.runtime.task.DataSourceTask.DataSourceConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
@@ -83,6 +89,24 @@ public abstract class TaskTestBase {
 	public void registerTask(AbstractTask task) {
 		task.setEnvironment(mockEnv);
 		task.registerInputOutput();
+	}
+	
+	public void registerTask(AbstractOutputTask outTask, Class<? extends OutputFormat<PactInteger, PactInteger>> stubClass, String outPath) {
+		new DataSinkConfig(mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
+		new DataSinkConfig(mockEnv.getRuntimeConfiguration()).setFilePath(outPath);
+		outTask.setEnvironment(mockEnv);
+		outTask.registerInputOutput();
+	}
+	
+	public void registerTask(AbstractInputTask inTask, Class<? extends InputFormat<PactInteger, PactInteger>> stubClass, String inPath, String delimiter) {
+		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
+		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).setFilePath(inPath);
+		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).getFormatParameters().setString("delimiter", delimiter);
+		
+		mockEnv.setInputSplits(inPath, 5);
+		
+		inTask.setEnvironment(mockEnv);
+		inTask.registerInputOutput();
 	}
 	
 	public MemoryManager getMemoryManager() {

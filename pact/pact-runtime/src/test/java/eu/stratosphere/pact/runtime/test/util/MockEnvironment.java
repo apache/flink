@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -22,12 +23,15 @@ import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -39,6 +43,8 @@ public class MockEnvironment extends Environment {
 	private IOManager ioManager;
 	
 	private Configuration config;
+	
+	private InputSplit[] inputSplits;
 
 	private List<InputGate<KeyValuePair<PactInteger, PactInteger>>> inputs;
 	private List<OutputGate<KeyValuePair<PactInteger, PactInteger>>> outputs;
@@ -99,6 +105,32 @@ public class MockEnvironment extends Environment {
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
+	}
+	
+	public void setInputSplits(String path, int noSplits) {
+		this.inputSplits = new InputSplit[noSplits];
+		String[] hosts = {"localhost"};
+		
+		String localPath = path.substring(7,path.length());
+		File inFile = new File(localPath);
+
+		long splitLength = inFile.length() / noSplits;
+		long pos = 0;		
+		
+		for(int i=0;i<noSplits-1;i++) {
+			this.inputSplits[i] =
+				new FileInputSplit(new Path(path), pos, splitLength, hosts);
+			pos += splitLength;
+		}
+		
+		this.inputSplits[noSplits-1] =
+			new FileInputSplit(new Path(path), pos, inFile.length()-pos, hosts);
+	
+	}
+	
+	@Override
+	public InputSplit[] getInputSplits() {
+		return this.inputSplits;
 	}
 
 	private static class MockInputGate<T extends Record> extends InputGate<T> {

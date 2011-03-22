@@ -59,7 +59,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	private OutputFormat format;
 
 	// task configuration
-	private Config config;
+	private DataSinkConfig config;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -197,7 +197,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	private void initOutputFormat() throws RuntimeException {
 
 		// obtain task configuration (including stub parameters)
-		config = new Config(getRuntimeConfiguration());
+		config = new DataSinkConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
 		ClassLoader cl;
@@ -249,13 +249,13 @@ public class DataSinkTask extends AbstractFileOutputTask {
 
 	}
 
-	public static class Config extends TaskConfig {
+	public static class DataSinkConfig extends TaskConfig {
 
 		private static final String FORMAT_CLASS = "formatClass";
 
 		private static final String FILE_PATH = "outputPath";
 
-		public Config(Configuration config) {
+		public DataSinkConfig(Configuration config) {
 			super(config);
 		}
 

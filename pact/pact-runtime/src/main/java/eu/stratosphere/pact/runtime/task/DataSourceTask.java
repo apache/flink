@@ -61,7 +61,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	private InputFormat<Key, Value> format;
 
 	// Task configuration
-	private Config config;
+	private DataSourceConfig config;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -102,7 +102,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 
 		// set object creation policy to immutable
-		boolean immutable = config.getMutability() == Config.Mutability.IMMUTABLE;
+		boolean immutable = config.getMutability() == DataSourceConfig.Mutability.IMMUTABLE;
 
 		// for each assigned input split
 		while (!this.taskCanceled && splitIterator.hasNext()) {
@@ -246,7 +246,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	private void initInputFormat() {
 
 		// obtain task configuration (including stub parameters)
-		config = new Config(getRuntimeConfiguration());
+		config = new DataSourceConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
 		try {
@@ -302,7 +302,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 * Specialized configuration object that holds parameters specific to the
 	 * data-source configuration.
 	 */
-	public static final class Config extends TaskConfig {
+	public static final class DataSourceConfig extends TaskConfig {
 		public enum Mutability {
 			MUTABLE, IMMUTABLE
 		};
@@ -313,7 +313,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 
 		private static final String KEY_FORMAT_PREFIX = "pact.datasource.format.";
 
-		public Config(Configuration config) {
+		public DataSourceConfig(Configuration config) {
 			super(config);
 		}
 
