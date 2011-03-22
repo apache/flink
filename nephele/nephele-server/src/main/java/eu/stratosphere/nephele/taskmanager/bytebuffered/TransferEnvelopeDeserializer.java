@@ -253,13 +253,16 @@ public class TransferEnvelopeDeserializer {
 				this.buffer = this.byteBufferedChannelManager.requestEmptyReadBuffer(this.sizeOfBuffer,
 					this.transferEnvelope.getSource());
 
-				/*
-				 * if(buffer == null) {
-				 * this.byteBufferedChannelManager.dumpMemoryReadBuffersToDisk();
-				 * }
-				 */
-
 				if (this.buffer == null) {
+
+					try {
+						Thread.sleep(100);
+						// Wait for 100 milliseconds, so the NIO thread won't do busy
+						// waiting...
+					} catch (InterruptedException e) {
+						return true;
+					}
+
 					return true;
 				}
 			}

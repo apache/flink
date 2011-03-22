@@ -28,6 +28,7 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.FileUtils;
 
@@ -52,9 +53,33 @@ public class FileBufferManager {
 	 */
 	private static final Log LOG = LogFactory.getLog(FileBufferManager.class);
 
+	/**
+	 * Stores the location of the directory for temporary files.
+	 */
 	private final String tmpDir;
 
+	/**
+	 * The key to configure the maximum number of simultaneously opened files.
+	 */
+	private static final String FILE_LIMIT_KEY = "channel.network.spillLimit";
+
+	/**
+	 * The default for the maximum number of simultaneously opened files.
+	 */
+	private static final int DEFAULT_FILE_LIMIT = 32;
+
+	/**
+	 * The maximum number of simultaneously opened files allowed.
+	 */
+	private final int maximumNumberOfOpenedFiles;
+
+	/**
+	 * This enumeration indicates the possible states of the write channel.
+	 * 
+	 * @author warneke
+	 */
 	private static enum FileEntryStatus {
+
 		CLOSED, WRITING, WRITING_BUT_READ_REQUESTED
 	};
 
@@ -66,8 +91,11 @@ public class FileBufferManager {
 	 * 
 	 * @author warneke
 	 */
-	private class FileBufferManagerEntry {
+	private static final class FileBufferManagerEntry {
 
+		/**
+		 * Current state of the write channel.
+		 */
 		private FileEntryStatus status = FileEntryStatus.CLOSED;
 
 		/**
@@ -92,6 +120,11 @@ public class FileBufferManager {
 		 */
 		private final Deque<File> filesForReading = new ArrayDeque<File>();
 
+		/**
+		 * The location of directory for temporary files.
+		 */
+		private final String tmpDir;
+
 		private File currentFileForWriting = null;
 
 		/**
@@ -100,10 +133,13 @@ public class FileBufferManager {
 		 * @param isTemporaryFile
 		 *        <code>true</code> if the files created by this object are
 		 *        temporary and can be deleted after being read once, <code>false</code> otherwise
+		 * @param tmpDir
+		 *        the location of directory for temporary files
 		 */
-		private FileBufferManagerEntry(boolean isTemporaryFile) {
+		private FileBufferManagerEntry(final boolean isTemporaryFile, final String tmpDir) {
 
 			this.isTemporaryFile = isTemporaryFile;
+			this.tmpDir = tmpDir;
 		}
 
 		/**
@@ -128,8 +164,10 @@ public class FileBufferManager {
 		 * @return the channel object to consume data from the file
 		 * @throws IOException
 		 *         thrown if an error occurs while creating the channel object
+		 * @throws InterruptedException
+		 *         thrown if the thread is interrupted while waiting for the file resources to become available
 		 */
-		private synchronized FileChannel getFileChannelForReading() throws IOException {
+		private synchronized FileChannel getFileChannelForReading() throws IOException, InterruptedException {
 
 			if (this.fileChannelForReading != null) {
 				return this.fileChannelForReading;
@@ -169,7 +207,7 @@ public class FileBufferManager {
 				this.currentFileForWriting = null;
 			}
 		}
-		
+
 		/**
 		 * Returns the channel the writing thread is supposed to use to
 		 * write data to the file.
@@ -177,8 +215,10 @@ public class FileBufferManager {
 		 * @return the channel object the writing thread is supposed to use
 		 * @throws IOException
 		 *         thrown if an error occurs while creating the channel object
+		 * @throws InterruptedException
+		 *         thrown if the thread is interrupted while waiting for the file resources to become available
 		 */
-		private synchronized FileChannel getFileChannelForWriting() throws IOException {
+		private synchronized FileChannel getFileChannelForWriting() throws IOException, InterruptedException {
 
 			if (this.fileChannelForWriting == null) {
 				final String filename = tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
@@ -195,11 +235,12 @@ public class FileBufferManager {
 		 * Checks whether the end of the current output file is reached
 		 * and potentially deletes the file.
 		 * 
+		 * @return <code>true</code> if the object can be removed from the data source map, <code>false</code> otherwise
 		 * @throws IOException
 		 *         thrown if an error occurs while checking for
 		 *         end-of-file or deleting it
 		 */
-		private synchronized void checkForEndOfFile() throws IOException {
+		private synchronized boolean checkForEndOfFile() throws IOException {
 
 			if (this.fileChannelForReading.position() >= this.fileSizeForReading) {
 				// Close the file
@@ -212,7 +253,15 @@ public class FileBufferManager {
 					// System.out.println("Deleting " + file.getPath());
 					file.delete();
 				}
+
+				// Check if entry can be removed
+				if (this.fileChannelForWriting == null && this.filesForReading.isEmpty()
+					&& this.status == FileEntryStatus.CLOSED) {
+					return true;
+				}
 			}
+
+			return false;
 		}
 
 		private synchronized void reportEndOfWritePhase() throws IOException {
@@ -233,6 +282,7 @@ public class FileBufferManager {
 
 	public FileBufferManager(String tmpDir) {
 		this.tmpDir = tmpDir;
+		this.maximumNumberOfOpenedFiles = GlobalConfiguration.getInteger(FILE_LIMIT_KEY, DEFAULT_FILE_LIMIT);
 	}
 
 	public void registerExternalDataSourceForChannel(ChannelID sourceChannelID, String filename) throws IOException {
@@ -246,42 +296,41 @@ public class FileBufferManager {
 			throw new IOException("External data source " + file + " does not exist");
 		}
 
-		FileBufferManagerEntry fbme;
+		FileBufferManagerEntry fbme = null;
 		synchronized (this.dataSources) {
-
 			fbme = this.dataSources.get(sourceChannelID);
 			if (fbme == null) {
-				fbme = new FileBufferManagerEntry(false);
+				fbme = new FileBufferManagerEntry(false, this.tmpDir);
 				this.dataSources.put(sourceChannelID, fbme);
 			}
 		}
+
 		fbme.addFileForReading(file);
 	}
 
-	public FileChannel getFileChannelForReading(ChannelID sourceChannelID) throws IOException {
+	public FileChannel getFileChannelForReading(ChannelID sourceChannelID) throws IOException, InterruptedException {
 
-		FileBufferManagerEntry fbme;
+		FileBufferManagerEntry fbme = null;
 		synchronized (this.dataSources) {
-
 			fbme = this.dataSources.get(sourceChannelID);
-			if (fbme == null) {
-				final IOException ioe = new IOException("Cannot find data source for channel " + sourceChannelID);
-				LOG.error(ioe);
-				throw ioe;
-			}
-
 		}
+
+		if (fbme == null) {
+			final IOException ioe = new IOException("Cannot find data source for channel " + sourceChannelID);
+			LOG.error(ioe);
+			throw ioe;
+		}
+
 		return fbme.getFileChannelForReading();
 	}
 
-	public FileChannel getFileChannelForWriting(ChannelID sourceChannelID) throws IOException {
+	public FileChannel getFileChannelForWriting(ChannelID sourceChannelID) throws IOException, InterruptedException {
 
-		FileBufferManagerEntry fbme;
+		FileBufferManagerEntry fbme = null;
 		synchronized (this.dataSources) {
-
 			fbme = this.dataSources.get(sourceChannelID);
 			if (fbme == null) {
-				fbme = new FileBufferManagerEntry(true);
+				fbme = new FileBufferManagerEntry(true, this.tmpDir);
 				this.dataSources.put(sourceChannelID, fbme);
 			}
 		}
@@ -292,34 +341,30 @@ public class FileBufferManager {
 	public void reportFileBufferAsConsumed(ChannelID sourceChannelID) {
 
 		FileBufferManagerEntry fbme = null;
-		synchronized (this.dataSources) {
 
+		// It is important to call checkForEndOfFile from data source synchronized block
+		synchronized (this.dataSources) {
 			fbme = this.dataSources.get(sourceChannelID);
 
-			// Clean up
-			// TODO: Fix this
-			/*
-			 * if(fbme.cleanUpPossible()) {
-			 * this.dataSources.remove(sourceChannelID);
-			 * }
-			 */
-		}
-		
-		if (fbme == null) {
-			LOG.error("Cannot find data source for channel " + sourceChannelID + " to mark buffer as consumed");
-			return;
-		}
-		
-		try {
-			fbme.checkForEndOfFile();
-		} catch (IOException ioe) {
-			LOG.error(ioe);
+			if (fbme == null) {
+				LOG.error("Cannot find data source for channel " + sourceChannelID + " to mark buffer as consumed");
+				return;
+			}
+
+			try {
+				if (fbme.checkForEndOfFile()) {
+					this.dataSources.remove(sourceChannelID);
+				}
+			} catch (IOException ioe) {
+				LOG.error(ioe);
+			}
 		}
 	}
 
 	public void reportEndOfWritePhase(ChannelID sourceChannelID) throws IOException {
 
-		FileBufferManagerEntry fbme;
+		FileBufferManagerEntry fbme = null;
+
 		synchronized (this.dataSources) {
 			fbme = this.dataSources.get(sourceChannelID);
 		}
@@ -329,5 +374,12 @@ public class FileBufferManager {
 		}
 
 		fbme.reportEndOfWritePhase();
+	}
+
+	public boolean hasResourcesAvailable(final ChannelID sourceChannelID) {
+
+		synchronized (this.dataSources) {
+			return (this.dataSources.size() < (this.maximumNumberOfOpenedFiles / 2));
+		}
 	}
 }
