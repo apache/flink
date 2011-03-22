@@ -46,9 +46,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	@Test
 	public void testSortSelfMatchTask() {
 
-		int keyCnt = 100;
-		// int valCnt = 50;
-		int valCnt = 14;
+		int keyCnt = 10;
+		int valCnt = 35;
 				
 		super.initEnvironment(3 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));

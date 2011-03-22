@@ -467,9 +467,15 @@ public class SelfMatchTask extends AbstractTask {
 		
 		// cross values in buffer
 		for(int i=0;i<bufferValCnt;i++) {
+			// check if task was canceled
+			if(this.taskCanceled) return;
+			
 			this.outerValCopier.setCopy(valBuffer[i]);
 			
 			for(int j=0;j<bufferValCnt;j++) {
+				// check if task was canceled
+				if(this.taskCanceled) return;
+				
 				this.innerValCopier.setCopy(valBuffer[j]);
 
 				// get copies of key and values
@@ -486,7 +492,7 @@ public class SelfMatchTask extends AbstractTask {
 			
 		}
 		
-		if(values.hasNext()) {
+		if(!this.taskCanceled && values.hasNext()) {
 			// there are still value in the reader
 
 			// wrap value iterator in a reader
@@ -526,11 +532,11 @@ public class SelfMatchTask extends AbstractTask {
 						Value innerVal;
 						
 						// set value copy
-						outerValCopier.setCopy(nextVal);
+						innerValCopier.setCopy(nextVal);
 						
 						for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
 							
-							innerValCopier.setCopy(valBuffer[i]);
+							outerValCopier.setCopy(valBuffer[i]);
 							
 							copyKey = keySerialization.newInstance();
 							keyCopier.getCopy(copyKey);
@@ -549,76 +555,111 @@ public class SelfMatchTask extends AbstractTask {
 			};
 			
 			SpillingResettableIterator<Value> innerValResettableIterator = null;
+			SpillingResettableIterator<Value> outerValResettableIterator = null;
 			try {
 				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(stub.getFirstInValueType());
+				
+				// read values into inner resettable iterator
 				innerValResettableIterator = 
 						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
 								valReader, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
 				innerValResettableIterator.open();
 
-				long readCnt = VALUE_BUFFER_SIZE;
 				long cnt = 0;
-
 				// forward the iterator to the next value to cross with
-				while(!this.taskCanceled && cnt < readCnt && innerValResettableIterator.hasNext()) {
+				while(!this.taskCanceled && cnt < VALUE_BUFFER_SIZE && innerValResettableIterator.hasNext()) {
 					innerValResettableIterator.next();
 					cnt++;
 				}
-
+				
+				// fill buffer with next elements
+				for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
+					if(this.taskCanceled || !innerValResettableIterator.hasNext()) {
+						break;
+					}
+					valBuffer[bufferValCnt] = innerValResettableIterator.next();
+				}
+				
+				// read remaining values into outer resettable iterator
+				if(!this.taskCanceled && innerValResettableIterator.hasNext()) {
+					outerValResettableIterator =
+						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(),
+								innerValResettableIterator, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+					outerValResettableIterator.open();
+				}
+				
+				// cross buffer with inner resettable iterator
+				innerValResettableIterator.reset();
 				while(!this.taskCanceled && innerValResettableIterator.hasNext()) {
 					
-					// fill value buffer
-					for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
-						if(!innerValResettableIterator.hasNext()) {
-							break;
-						}
-						valBuffer[bufferValCnt] = innerValResettableIterator.next();
-					}
-					readCnt += bufferValCnt;
+					innerVal = innerValResettableIterator.next();
 					
-					// reset value iterator
-					innerValResettableIterator.reset();
-					
-					// cross buffer with all values
-					while(!this.taskCanceled && innerValResettableIterator.hasNext()) {
+					for(int i=0;i<bufferValCnt;i++) {
 						
-						// set copy
-						outerValCopier.setCopy(innerValResettableIterator.next());
+						// set inner copy
+						outerValCopier.setCopy(valBuffer[i]);
 						
-						for(int i=0;i<bufferValCnt;i++) {
-							
-							// set inner copy
-							innerValCopier.setCopy(valBuffer[i]);
-							
-							// get copies
-							copyKey = keySerialization.newInstance();
-							keyCopier.getCopy(copyKey);
-							outerVal = valSerialization.newInstance();
-							outerValCopier.getCopy(outerVal);
-							innerVal = valSerialization.newInstance();
-							innerValCopier.getCopy(innerVal);
-							
-							stub.match(copyKey, outerVal, innerVal, out);
-						}
-
-					}
-					
-					// reset value itertor and forward it to the next value to cross with
-					innerValResettableIterator.reset();
-					cnt = 0;
-					while(!this.taskCanceled && cnt < readCnt && innerValResettableIterator.hasNext()) {
-						innerValResettableIterator.next();
-						cnt++;
+						// get copies
+						copyKey = keySerialization.newInstance();
+						keyCopier.getCopy(copyKey);
+						outerVal = valSerialization.newInstance();
+						outerValCopier.getCopy(outerVal);
+						
+						stub.match(copyKey, outerVal, innerVal, out);
+						
+						if(i < bufferValCnt - 1)
+							// read innerVal again from resettable iterator
+							innerVal = innerValResettableIterator.repeatLast();
 					}
 					
 				}
 				
+				// cross remaining values
+				if(outerValResettableIterator != null) {
+					while(!this.taskCanceled && outerValResettableIterator.hasNext()) {
+						
+						// fill buffer with next elements from outer resettable iterator
+						bufferValCnt = 0;
+						while(!this.taskCanceled && outerValResettableIterator.hasNext() && bufferValCnt < VALUE_BUFFER_SIZE) {
+							valBuffer[bufferValCnt++] = outerValResettableIterator.next();
+						}
+						if(bufferValCnt == 0) break;
+						
+						// cross buffer with inner iterator
+						innerValResettableIterator.reset();
+						while(!this.taskCanceled && innerValResettableIterator.hasNext()) {
+							
+							// read inner value
+							innerVal = innerValResettableIterator.next();
+							
+							for(int i=0;i<bufferValCnt;i++) {
+								
+								// set inner copy
+								outerValCopier.setCopy(valBuffer[i]);
+								
+								// get copies
+								copyKey = keySerialization.newInstance();
+								keyCopier.getCopy(copyKey);
+								outerVal = valSerialization.newInstance();
+								outerValCopier.getCopy(outerVal);
+								
+								stub.match(copyKey, outerVal, innerVal, out);
+								
+								if(i < bufferValCnt - 1)
+									innerVal = innerValResettableIterator.repeatLast();
+							}
+						}
+					}
+				}
 				
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			} finally {
 				if(innerValResettableIterator != null) {
 					innerValResettableIterator.close();
+				}
+				if(outerValResettableIterator != null) {
+					outerValResettableIterator.close();
 				}
 			}
 			
