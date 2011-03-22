@@ -22,6 +22,7 @@ import java.io.UTFDataFormatException;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
+
 public final class DefaultDataInputView extends DefaultMemorySegmentView implements DataInputView
 {
 	/**
@@ -48,6 +49,15 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 		this.position = this.offset;
 		this.end = descriptor.end;
 	}
+	
+	// ------------------------------------------------------------------------------------------------------
+	// WARNING: Any code for range checking must take care to avoid integer overflows. The position
+	// integer may go up to <code>Integer.MAX_VALUE</tt>. Range checks that work after the principle
+	// <code>position + 3 &lt; end</code> may fail because <code>position + 3</code> becomes negative.
+	// A safe solution is to subtract the delta from the limit, for example
+	// <code>position &lt; end - 3</code>. Since all indices are always positive, and the integer domain
+	// has one more negative value than positive values, this can never cause an underflow.
+	// ------------------------------------------------------------------------------------------------------
 
 	// -------------------------------------------------------------------------
 	// DataInputView
@@ -55,24 +65,31 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public int getPosition() {
-		return position - this.offset;
+		return this.position - this.offset;
 	}
 
 	@Override
 	public DataInputView setPosition(int position) {
+		if (position < 0 | position > this.size) {
+			throw new IndexOutOfBoundsException("The given position is out of range [0," + this.size + ").");
+		}
 		this.position = position + this.offset;
 		return this;
 	}
 
 	@Override
-	public DataInputView skip(int size) {
-		position += size;
+	public DataInputView skip(int size) throws EOFException {
+		final int newPos = this.position + size;
+		if (newPos < 0 || newPos > this.end) {
+			throw new EOFException();
+		}
+		this.position = newPos;
 		return this;
 	}
 
 	@Override
 	public DataInputView reset() {
-		position = this.offset;
+		this.position = this.offset;
 		return this;
 	}
 
@@ -82,8 +99,8 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public boolean readBoolean() throws IOException {
-		if (position < this.end) {
-			return this.memory[position++] != 0;
+		if (this.position < this.end) {
+			return this.memory[this.position++] != 0;
 		} else {
 			throw new EOFException();
 		}
@@ -91,8 +108,8 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public byte readByte() throws IOException {
-		if (position < this.end) {
-			return this.memory[position++];
+		if (this.position < this.end) {
+			return this.memory[this.position++];
 		} else {
 			throw new EOFException();
 		}
@@ -100,8 +117,8 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public char readChar() throws IOException {
-		if (position + 1 < this.end) {
-			return (char) (((this.memory[position++] & 0xff) << 8) | ((this.memory[position++] & 0xff) << 0));
+		if (this.position < this.end - 1) {
+			return (char) (((this.memory[this.position++] & 0xff) << 8) | ((this.memory[this.position++] & 0xff) << 0));
 		} else {
 			throw new EOFException();
 		}
@@ -124,7 +141,7 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public void readFully(byte[] b, int off, int len) throws IOException {
-		if (position < this.end && position + len <= this.end && off + len <= b.length) {
+		if (this.position < this.end && this.position <= this.end - len && off <= b.length - len) {
 			System.arraycopy(this.memory, position, b, off, len);
 			position += len;
 		} else {
@@ -134,7 +151,7 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public int readInt() throws IOException {
-		if (position >= 0 && position + 3 < this.end) {
+		if (this.position >= 0 && this.position < this.end - 3) {
 			return ((this.memory[position++] & 0xff) << 24) | ((this.memory[position++] & 0xff) << 16)
 				| ((this.memory[position++] & 0xff) << 8) | ((this.memory[position++] & 0xff) << 0);
 		} else {
@@ -144,7 +161,7 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public String readLine() throws IOException {
-		if (position < this.end) {
+		if (this.position < this.end) {
 			// read until a newline is found
 			char curr = readChar();
 			while (position < this.end && curr != '\n') {
@@ -168,7 +185,7 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public long readLong() throws IOException {
-		if (position >= 0 && position + 7 < this.end) {
+		if (position >= 0 && position < this.end - 7) {
 			return (((long) this.memory[position++] & 0xff) << 56)
 				| (((long) this.memory[position++] & 0xff) << 48)
 				| (((long) this.memory[position++] & 0xff) << 40)
@@ -184,7 +201,7 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public short readShort() throws IOException {
-		if (position >= 0 && position + 1 < this.end) {
+		if (position >= 0 && position < this.end - 1) {
 			return (short) ((((this.memory[position++]) & 0xff) << 8) | (((this.memory[position++]) & 0xff) << 0));
 		} else {
 			throw new EOFException();
@@ -259,8 +276,8 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public int readUnsignedByte() throws IOException {
-		if (position < this.end) {
-			return (this.memory[position++] & 0xff);
+		if (this.position < this.end) {
+			return (this.memory[this.position++] & 0xff);
 		} else {
 			throw new EOFException();
 		}
@@ -268,8 +285,8 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public int readUnsignedShort() throws IOException {
-		if (position + 1 < this.end) {
-			return ((this.memory[position++] & 0xff) << 8) | ((this.memory[position++] & 0xff) << 0);
+		if (this.position < this.end - 1) {
+			return ((this.memory[this.position++] & 0xff) << 8) | ((this.memory[this.position++] & 0xff) << 0);
 		} else {
 			throw new EOFException();
 		}
@@ -277,12 +294,12 @@ public final class DefaultDataInputView extends DefaultMemorySegmentView impleme
 
 	@Override
 	public int skipBytes(int n) throws IOException {
-		if (position + n <= this.end) {
-			position += n;
+		if (this.position <= this.end - n) {
+			this.position += n;
 			return n;
 		} else {
-			n = this.end - position;
-			position = this.end;
+			n = this.end - this.position;
+			this.position = this.end;
 			return n;
 		}
 	}
