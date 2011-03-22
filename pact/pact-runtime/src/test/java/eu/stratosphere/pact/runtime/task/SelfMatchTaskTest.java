@@ -47,7 +47,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	public void testSortSelfMatchTask() {
 
 		int keyCnt = 100;
-		int valCnt = 5;
+		// int valCnt = 50;
+		int valCnt = 14;
 				
 		super.initEnvironment(3 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
@@ -81,9 +82,10 @@ public class SelfMatchTaskTest extends TaskTestBase {
 				keyValCntMap.put(key, keyValCntMap.get(key)+1);
 			}
 		}
+		
 		for(Integer key : keyValCntMap.keySet()) {
-			Assert.assertTrue("Invalid value count. Value count was: "+keyValCntMap.get(key)+
-				" Expected was "+(valCnt*valCnt), keyValCntMap.get(key) != (valCnt*valCnt));
+			Assert.assertTrue("Invalid value count for key: "+key+". Value count was: "+keyValCntMap.get(key)+
+				" Expected was: "+(valCnt*valCnt), keyValCntMap.get(key).intValue() == (valCnt*valCnt));
 		}
 		
 		outList.clear();
@@ -131,7 +133,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		}
 		for(Integer key : keyValCntMap.keySet()) {
 			Assert.assertTrue("Invalid value count. Value count was: "+keyValCntMap.get(key)+
-				" Expected was "+(valCnt*valCnt), keyValCntMap.get(key) != (valCnt*valCnt));
+				" Expected was "+(valCnt*valCnt), keyValCntMap.get(key) == (valCnt*valCnt));
 		}
 		
 		outList.clear();
