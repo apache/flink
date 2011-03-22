@@ -248,10 +248,15 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 				
 				try {
 					// write buffer to the specified channel
-					request.buffer.writeToChannel(request.channel.fileChannel);
+					if (!request.buffer.memory.isFree()) {
+						request.buffer.writeToChannel(request.channel.fileChannel);
+					}
 				}
 				catch (IOException e) {
 					ioex = e;
+				}
+				catch (Throwable t) {
+					ioex = new IOException("The buffer could not be written: " + t.getMessage(), t);
 				}
 
 				// invoke the processed buffer handler of the request issuing writer object

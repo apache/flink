@@ -489,10 +489,15 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 
 				try {
 					// read buffer from the specified channel
-					request.buffer.readFromChannel(request.channel.fileChannel);
+					if (!request.buffer.memory.isFree()) {
+						request.buffer.readFromChannel(request.channel.fileChannel);
+					}
 				}
 				catch (IOException e) {
 					ioex = e;
+				}
+				catch (Throwable t) {
+					ioex = new IOException("The buffer could not be read: " + t.getMessage(), t);
 				}
 
 				// invoke the processed buffer handler of the request issuing reader object
