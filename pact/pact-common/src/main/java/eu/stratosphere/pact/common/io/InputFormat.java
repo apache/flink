@@ -97,7 +97,7 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 	/**
 	 * Closes the input stream of the input format.
 	 */
-	public void closeInput() {
+	public void closeInput() throws IOException {
 		if(this.stream != null) {
 			// close input stream
 			this.stream.close();

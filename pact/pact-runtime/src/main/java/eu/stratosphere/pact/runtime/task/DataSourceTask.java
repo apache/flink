@@ -91,6 +91,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 */
 	@Override
 	public void invoke() throws Exception {
+		
 		KeyValuePair<Key, Value> pair = null;
 
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
@@ -191,16 +192,21 @@ public class DataSourceTask extends AbstractFileInputTask {
 				} finally {
 					
 					if(format != null) {
-						// close the input
-						format.closeInput();
-						// close the format
-						format.close();
-					}
-					
-					
-					if(fdis != null) {
-						// close file input stream
-						fdis.close();
+						try {
+							// close the input
+							format.closeInput();
+						} catch (IOException ioe) {
+							LOG.error("Exception caught while closing input of InputFormat");
+							throw ioe;
+						}
+						
+						try {
+							// close the format
+							format.close();
+						} catch (IOException ioe) {
+							LOG.error("Exception caught while closing InputFormat");
+							throw ioe;
+						}
 					}
 				}
 			}
