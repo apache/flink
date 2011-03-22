@@ -46,7 +46,7 @@ import eu.stratosphere.nephele.util.FileUtils;
  * 
  * @author warneke
  */
-public final class FileBufferManager {
+public class FileBufferManager {
 
 	/**
 	 * The logging object.
