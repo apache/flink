@@ -56,7 +56,11 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+			} catch (InterruptedException e) {
+				return -1;
+			}
 		}
 
 		if (this.totalBytesRead >= this.bufferSize) {
@@ -78,7 +82,11 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+			} catch (InterruptedException e) {
+				return -1;
+			}
 			this.offset = this.fileChannel.position();
 		}
 
@@ -114,7 +122,11 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			} catch (InterruptedException e) {
+				return 0;
+			}
 			this.offset = this.fileChannel.position();
 		}
 
@@ -137,7 +149,11 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			} catch (InterruptedException e) {
+				return 0;
+			}
 		}
 
 		if (this.totalBytesWritten >= this.bufferSize) {

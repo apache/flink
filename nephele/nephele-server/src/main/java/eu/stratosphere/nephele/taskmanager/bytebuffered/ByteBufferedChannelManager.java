@@ -264,15 +264,8 @@ public class ByteBufferedChannelManager {
 					this.emptyReadBuffers);
 			}
 
-			if (this.isSpillingAllowed) {
+			if (this.isSpillingAllowed && this.fileBufferManager.hasResourcesAvailable(sourceChannelID)) {
 				return BufferFactory.createFromFile(minimumSizeOfBuffer, sourceChannelID, this.fileBufferManager);
-			}
-
-			try {
-				this.emptyReadBuffers.wait(100); // Wait for 100 milliseconds, so the NIO thread won't do busy
-				// waiting...
-			} catch (InterruptedException e) {
-				LOG.error(e);
 			}
 		}
 
