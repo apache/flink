@@ -74,6 +74,9 @@ public class MatchTask extends AbstractTask {
 	// share ratio for resettable iterator
 	private static final double MEMORY_SHARE_RATIO = 0.05;
 	
+	// size of value buffer in elements
+	private static final int VALUE_BUFFER_SIZE = 10;
+	
 	// copier for key and values
 	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
 	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
@@ -540,20 +543,38 @@ public class MatchTask extends AbstractTask {
 				}
 				v1ResettableIterator.reset();
 				
+				SerializationCopier<Value>[] valBuffer = new SerializationCopier[VALUE_BUFFER_SIZE];
+				for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
+					valBuffer[i] = new SerializationCopier<Value>();
+				}
+				
 				// run through resettable iterator for each v2
 				while(!this.taskCanceled && values2.hasNext()) {
 					
-					v2 = values2.next();
-					this.v2Copier.setCopy(v2);
+					// fill buffer
+					int valBufferCnt = 0;
+					while(!this.taskCanceled && values2.hasNext() && valBufferCnt < VALUE_BUFFER_SIZE) {
+						valBuffer[valBufferCnt++].setCopy(values2.next());
+					}
 					
 					while (!this.taskCanceled && v1ResettableIterator.hasNext()) {
-						key = this.keySerialization.newInstance();
-						this.keyCopier.getCopy(key);
-						v2 = this.v2Serialization.newInstance();
-						this.v2Copier.getCopy(v2);
 						
 						v1 = v1ResettableIterator.next();
-						matchStub.match(key, v1, v2, output);
+						
+						// cross with buffer
+						for(int i=0;i<valBufferCnt;i++) {
+							key = this.keySerialization.newInstance();
+							this.keyCopier.getCopy(key);
+							v2 = this.v2Serialization.newInstance();
+							valBuffer[i].getCopy(v2);
+							
+							// match
+							matchStub.match(key, v1, v2, output);
+							
+							if(i < valBufferCnt - 1)
+								v1 = v1ResettableIterator.repeatLast();
+						}
+						
 					}
 					v1ResettableIterator.reset();
 				}
