@@ -47,6 +47,10 @@ public abstract class CostEstimator {
 	public abstract void getLocalMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2,
 			Costs costs);
 	
+	public abstract void getLocalSortSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs);
+
+	public abstract void getLocalSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs);
+	
 	public abstract void getHybridHashCosts(OptimizerNode node, OptimizerNode buildSideInput,
 			OptimizerNode probeSideInput, Costs costs);
 
@@ -180,6 +184,12 @@ public abstract class CostEstimator {
 			break;
 		case MERGE:
 			getLocalMergeCost(n, primIn, secIn, locCost);
+			break;
+		case SORT_SELF_NESTEDLOOP:
+			getLocalSortSelfNestedLoopCost(n, primIn, locCost);
+			break;
+		case SELF_NESTEDLOOP:
+			getLocalSelfNestedLoopCost(n, primIn, locCost);
 			break;
 		case HYBRIDHASH_FIRST:
 			getHybridHashCosts(n, primIn, secIn, locCost);

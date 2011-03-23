@@ -101,11 +101,11 @@ public class FallbackCostEstimator extends CostEstimator {
 	 * .plan.OptimizedNode, eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalSortCost(OptimizerNode node, OptimizerNode output, Costs costs) {
+	public void getLocalSortCost(OptimizerNode node, OptimizerNode input, Costs costs) {
 		costs.setNetworkCost(0);
 
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block
-		long s = output.getEstimatedOutputSize();
+		long s = input.getEstimatedOutputSize();
 		costs.setSecondaryStorageCost(s == -1 ? -1 : 2 * s);
 	}
 
@@ -157,6 +157,44 @@ public class FallbackCostEstimator extends CostEstimator {
 
 		// inputs are sorted. No network and secondary storage costs produced
 		costs.setSecondaryStorageCost(0);
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.costs.CostEstimator#getLocalSortSelfNestedLoopCost(
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void getLocalSortSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs) {
+		
+		costs.setNetworkCost(0);
+
+		// we assume a two phase merge sort, so all in all 2 I/O operations per block
+		// plus I/O for the SpillingResettableIterator
+		long is = input.getEstimatedOutputSize();
+		long oc = input.getEstimatedNumRecords();
+		
+		costs.setSecondaryStorageCost(is == -1 ? -1 : 2 + oc * is);
+		
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.costs.CostEstimator#getSelfNestedLoopCost(
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void getLocalSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs) {
+		
+		long is = input.getEstimatedOutputSize();
+		long oc = input.getEstimatedNumRecords();
+		
+		costs.setSecondaryStorageCost(is == -1 ? -1 : oc * is);
+		
 	}
 	
 	/*
