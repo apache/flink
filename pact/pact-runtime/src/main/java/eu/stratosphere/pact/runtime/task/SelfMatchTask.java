@@ -95,7 +95,6 @@ public class SelfMatchTask extends AbstractTask {
 
 	// copier for key and values
 	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
-	private final SerializationCopier<Value> outerValCopier = new SerializationCopier<Value>();
 	private final SerializationCopier<Value> innerValCopier = new SerializationCopier<Value>();
 	
 	// serialization factories for key and values
@@ -445,7 +444,7 @@ public class SelfMatchTask extends AbstractTask {
 	private final void crossValues(Key key, final Iterator<Value> values, final Collector<Key, Value> out) {
 		
 		// allocate buffer
-		final Value[] valBuffer = new Value[VALUE_BUFFER_SIZE];
+		final SerializationCopier<Value>[] valBuffer = new SerializationCopier[VALUE_BUFFER_SIZE];
 		
 		// set key copy
 		this.keyCopier.setCopy(key);
@@ -459,7 +458,8 @@ public class SelfMatchTask extends AbstractTask {
 		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
 			if(values.hasNext()) {
 				// read value into buffer
-				valBuffer[bufferValCnt] = values.next();
+				valBuffer[bufferValCnt] = new SerializationCopier<Value>();
+				valBuffer[bufferValCnt].setCopy(values.next());
 			} else {
 				break;
 			}
@@ -470,21 +470,17 @@ public class SelfMatchTask extends AbstractTask {
 			// check if task was canceled
 			if(this.taskCanceled) return;
 			
-			this.outerValCopier.setCopy(valBuffer[i]);
-			
 			for(int j=0;j<bufferValCnt;j++) {
 				// check if task was canceled
 				if(this.taskCanceled) return;
 				
-				this.innerValCopier.setCopy(valBuffer[j]);
-
 				// get copies of key and values
 				copyKey = keySerialization.newInstance();
 				this.keyCopier.getCopy(copyKey);
 				outerVal = valSerialization.newInstance();
-				this.outerValCopier.getCopy(outerVal);
+				valBuffer[i].getCopy(outerVal);
 				innerVal = valSerialization.newInstance();
-				this.innerValCopier.getCopy(innerVal);
+				valBuffer[j].getCopy(innerVal);
  
 				// match
 				stub.match(copyKey, outerVal, innerVal, out);
@@ -498,8 +494,6 @@ public class SelfMatchTask extends AbstractTask {
 			// wrap value iterator in a reader
 			Reader<Value> valReader = new Reader<Value>() {
 
-				int bufferIdx = 0;
-				
 				@Override
 				public List<AbstractInputChannel<Value>> getInputChannels() {
 					throw new UnsupportedOperationException();
@@ -511,122 +505,76 @@ public class SelfMatchTask extends AbstractTask {
 					if(taskCanceled) 
 						return false;
 					
-					if(bufferIdx < VALUE_BUFFER_SIZE) 
-						return true;
-					
 					return values.hasNext();
 				}
 
 				@Override
 				public Value next() throws IOException, InterruptedException {
-					if(bufferIdx < VALUE_BUFFER_SIZE) {
-						return valBuffer[bufferIdx++];
-					} else {
 						
-						// get next value
-						Value nextVal = values.next();
-						
-						// cross with value buffer
-						Key copyKey;
-						Value outerVal;
-						Value innerVal;
-						
-						// set value copy
-						innerValCopier.setCopy(nextVal);
-						
-						for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
-							
-							outerValCopier.setCopy(valBuffer[i]);
-							
-							copyKey = keySerialization.newInstance();
-							keyCopier.getCopy(copyKey);
-							outerVal = valSerialization.newInstance();
-							outerValCopier.getCopy(outerVal);
-							innerVal = valSerialization.newInstance();
-							innerValCopier.getCopy(innerVal);
-							
-							stub.match(copyKey,outerVal,innerVal,out);
-						}
-						
-						// return value
-						return nextVal;
-					}
-				}
-			};
-			
-			SpillingResettableIterator<Value> innerValResettableIterator = null;
-			SpillingResettableIterator<Value> outerValResettableIterator = null;
-			try {
-				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(stub.getFirstInValueType());
-				
-				// read values into inner resettable iterator
-				innerValResettableIterator = 
-						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
-								valReader, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
-				innerValResettableIterator.open();
-
-				long cnt = 0;
-				// forward the iterator to the next value to cross with
-				while(!this.taskCanceled && cnt < VALUE_BUFFER_SIZE && innerValResettableIterator.hasNext()) {
-					innerValResettableIterator.next();
-					cnt++;
-				}
-				
-				// fill buffer with next elements
-				for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
-					if(this.taskCanceled || !innerValResettableIterator.hasNext()) {
-						break;
-					}
-					valBuffer[bufferValCnt] = innerValResettableIterator.next();
-				}
-				
-				// read remaining values into outer resettable iterator
-				if(!this.taskCanceled && innerValResettableIterator.hasNext()) {
-					outerValResettableIterator =
-						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(),
-								innerValResettableIterator, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
-					outerValResettableIterator.open();
-				}
-				
-				// cross buffer with inner resettable iterator
-				innerValResettableIterator.reset();
-				while(!this.taskCanceled && innerValResettableIterator.hasNext()) {
+					// get next value
+					Value nextVal = values.next();
 					
-					innerVal = innerValResettableIterator.next();
+					// cross with value buffer
+					Key copyKey;
+					Value outerVal;
+					Value innerVal;
 					
-					for(int i=0;i<bufferValCnt;i++) {
+					// set value copy
+					innerValCopier.setCopy(nextVal);
+					
+					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
 						
-						// set inner copy
-						outerValCopier.setCopy(valBuffer[i]);
-						
-						// get copies
 						copyKey = keySerialization.newInstance();
 						keyCopier.getCopy(copyKey);
 						outerVal = valSerialization.newInstance();
-						outerValCopier.getCopy(outerVal);
+						valBuffer[i].getCopy(outerVal);
+						innerVal = valSerialization.newInstance();
+						innerValCopier.getCopy(innerVal);
 						
-						stub.match(copyKey, outerVal, innerVal, out);
-						
-						if(i < bufferValCnt - 1)
-							// read innerVal again from resettable iterator
-							innerVal = innerValResettableIterator.repeatLast();
+						stub.match(copyKey,outerVal,innerVal,out);
 					}
 					
+					// return value
+					return nextVal;
 				}
+			};
+			
+			SpillingResettableIterator<Value> outerValResettableIterator = null;
+			SpillingResettableIterator<Value> innerValResettableIterator = null;
+			
+			try {
+				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(stub.getFirstInValueType());
 				
-				// cross remaining values
-				if(outerValResettableIterator != null) {
+				// read values into outer resettable iterator
+				outerValResettableIterator = 
+						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
+								valReader, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+				outerValResettableIterator.open();
+
+				// iterator returns first buffer than outer resettable iterator (all values of the incoming iterator)
+				BufferIncludingIterator bii = new BufferIncludingIterator(valBuffer, outerValResettableIterator);
+				
+				// read remaining values into inner resettable iterator
+				if(!this.taskCanceled && outerValResettableIterator.hasNext()) {
+					innerValResettableIterator =
+						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(),
+								bii, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+					innerValResettableIterator.open();
+					
+					// reset outer iterator
+					outerValResettableIterator.reset();
+				
+					// cross remaining values
 					while(!this.taskCanceled && outerValResettableIterator.hasNext()) {
 						
 						// fill buffer with next elements from outer resettable iterator
 						bufferValCnt = 0;
 						while(!this.taskCanceled && outerValResettableIterator.hasNext() && bufferValCnt < VALUE_BUFFER_SIZE) {
-							valBuffer[bufferValCnt++] = outerValResettableIterator.next();
+							valBuffer[bufferValCnt++].setCopy(outerValResettableIterator.next());
 						}
 						if(bufferValCnt == 0) break;
 						
 						// cross buffer with inner iterator
-						innerValResettableIterator.reset();
 						while(!this.taskCanceled && innerValResettableIterator.hasNext()) {
 							
 							// read inner value
@@ -634,14 +582,11 @@ public class SelfMatchTask extends AbstractTask {
 							
 							for(int i=0;i<bufferValCnt;i++) {
 								
-								// set inner copy
-								outerValCopier.setCopy(valBuffer[i]);
-								
 								// get copies
 								copyKey = keySerialization.newInstance();
 								keyCopier.getCopy(copyKey);
 								outerVal = valSerialization.newInstance();
-								outerValCopier.getCopy(outerVal);
+								valBuffer[i].getCopy(outerVal);
 								
 								stub.match(copyKey, outerVal, innerVal, out);
 								
@@ -649,6 +594,7 @@ public class SelfMatchTask extends AbstractTask {
 									innerVal = innerValResettableIterator.repeatLast();
 							}
 						}
+						innerValResettableIterator.reset();
 					}
 				}
 				
@@ -666,5 +612,46 @@ public class SelfMatchTask extends AbstractTask {
 		}
 		
 	}
+	
+	private final class BufferIncludingIterator implements Iterator<Value> {
+
+		int bufferIdx = 0;
+		
+		private SerializationCopier<Value>[] valBuffer;
+		private Iterator<Value> valIterator;
+		
+		public BufferIncludingIterator(SerializationCopier<Value>[] valBuffer, Iterator<Value> valIterator) {
+			this.valBuffer = valBuffer;
+			this.valIterator = valIterator;
+		}
+		
+		@Override
+		public boolean hasNext() {
+			if(taskCanceled) 
+				return false;
+			
+			if(bufferIdx < VALUE_BUFFER_SIZE) 
+				return true;
+			
+			return valIterator.hasNext();
+		}
+
+		@Override
+		public Value next() {
+			if(bufferIdx < VALUE_BUFFER_SIZE) {
+				Value outVal = valSerialization.newInstance();
+				valBuffer[bufferIdx++].getCopy(outVal);
+				return outVal;
+			} else {
+				return valIterator.next();
+			}
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+		
+	};
 		
 }
