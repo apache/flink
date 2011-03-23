@@ -156,6 +156,14 @@ public class FileBufferManager {
 		}
 
 		/**
+		 * Sets the entry's internal state to WRITING to indicate that
+		 * a write process is about to start
+		 */
+		private synchronized void setStateToWriting() {
+			this.status = FileEntryStatus.WRITING;
+		}
+		
+		/**
 		 * Returns the channel object the reading thread is supposed to use
 		 * to consume data from the file.
 		 * <p>
@@ -333,6 +341,8 @@ public class FileBufferManager {
 				fbme = new FileBufferManagerEntry(true, this.tmpDir);
 				this.dataSources.put(sourceChannelID, fbme);
 			}
+			
+			fbme.setStateToWriting();
 		}
 
 		return fbme.getFileChannelForWriting();
