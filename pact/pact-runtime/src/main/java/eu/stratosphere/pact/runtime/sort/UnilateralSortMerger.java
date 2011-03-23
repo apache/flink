@@ -401,7 +401,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @see java.io.Closeable#close()
 	 */
 	@Override
-	public void close()
+	public synchronized void close()
 	{
 		// check if the sorter has been closed before
 		if (this.closed) {
