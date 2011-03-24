@@ -720,8 +720,6 @@ public class TaskManager implements TaskOperationProtocol {
 			this.memoryManager.releaseAll(environment.getInvokable());
 		}
 
-		// TODO: Unregister from IO manager here
-
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
