@@ -26,7 +26,6 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.pact.common.io.InputFormat;
@@ -79,11 +78,6 @@ public class TestPairs<K extends Key, V extends Value> implements
 				final KeyValuePair<K, V> actualPair) {
 			this.inputFileIterator = inputFileIterator;
 			this.currentPair = actualPair;
-		}
-
-		@Override
-		public List<AbstractInputChannel<KeyValuePair<K, V>>> getInputChannels() {
-			return null;
 		}
 
 		@Override

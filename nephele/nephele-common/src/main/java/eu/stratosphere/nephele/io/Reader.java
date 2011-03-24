@@ -16,9 +16,7 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -32,6 +30,4 @@ public interface Reader<T extends Record> {
 	boolean hasNext();
 
 	T next() throws IOException, InterruptedException;
-
-	List<AbstractInputChannel<T>> getInputChannels();
 }
