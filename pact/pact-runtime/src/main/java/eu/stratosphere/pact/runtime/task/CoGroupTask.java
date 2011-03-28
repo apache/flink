@@ -62,7 +62,7 @@ public class CoGroupTask extends AbstractTask
 	private static final Log LOG = LogFactory.getLog(CoGroupTask.class);
 	
 	// the minimal amount of memory for the task to operate
-	private static final long MIN_REQUIRED_MEMORY = 5 * 1024 * 1024;
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 	
 	// reader of first input
 	private RecordReader<? extends Record> reader1;

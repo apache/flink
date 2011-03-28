@@ -61,6 +61,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
@@ -94,6 +95,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
@@ -127,6 +129,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expSum = 0;
@@ -166,6 +169,7 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expSum = 0;

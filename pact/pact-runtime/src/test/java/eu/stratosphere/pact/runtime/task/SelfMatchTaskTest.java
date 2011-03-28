@@ -49,14 +49,14 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int keyCnt = 10;
 		int valCnt = 35;
 				
-		super.initEnvironment(3 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
 		
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -65,6 +65,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = keyCnt*(valCnt*valCnt);
@@ -114,6 +115,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = keyCnt*(valCnt*valCnt);
@@ -145,13 +147,13 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(3 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
@@ -173,13 +175,13 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	@Test
 	public void testCancelSelfMatchTaskWhileSorting() {
 		
-		super.initEnvironment(3 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -213,13 +215,13 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(3 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);

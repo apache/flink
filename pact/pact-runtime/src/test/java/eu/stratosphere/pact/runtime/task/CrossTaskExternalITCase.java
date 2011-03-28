@@ -64,6 +64,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
@@ -99,6 +100,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;

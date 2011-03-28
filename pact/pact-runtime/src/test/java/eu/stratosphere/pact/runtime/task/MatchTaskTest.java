@@ -51,7 +51,7 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 10;
 		int valCnt2 = 2;
 				
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
@@ -59,7 +59,7 @@ public class MatchTaskTest extends TaskTestBase {
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -68,6 +68,7 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -87,14 +88,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -103,6 +104,7 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -122,14 +124,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -138,6 +140,7 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -157,14 +160,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -173,6 +176,7 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -192,14 +196,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -208,6 +212,7 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -243,6 +248,8 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -278,6 +285,8 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -297,14 +306,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(3 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -313,6 +322,7 @@ public class MatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -332,14 +342,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
@@ -364,14 +374,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -405,14 +415,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -446,14 +456,14 @@ public class MatchTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		super.initEnvironment(5 * 1024 * 1024);
+		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
