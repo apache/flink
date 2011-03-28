@@ -25,7 +25,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.Channel;
@@ -132,11 +131,6 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.recordReader = new Reader<T>() {
-
-			@Override
-			public List<AbstractInputChannel<T>> getInputChannels() {
-				throw new UnsupportedOperationException();
-			}
 
 			@Override
 			public boolean hasNext() {

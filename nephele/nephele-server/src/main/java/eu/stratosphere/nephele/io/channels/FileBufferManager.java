@@ -16,31 +16,31 @@
 package eu.stratosphere.nephele.io.channels;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.FileUtils;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * The file buffer manager is required to manage the mapping between {@link FileBuffer} objects
- * and the concrete files that back the respective buffers. By means of the file buffer manager
- * a sequence of potentially small {@link FileBuffer} objects can be backed by the single potentially
- * larger file. As a result, the system does not need to work a large set of small files but can write to
- * or read from a single file instead. This is potentially more efficient.
- * <p>
- * The file buffer manager continues to append the content of {@link FileBuffer} objects to the same file until the
- * first requires to read data from that file. At that point the file is closed and a new file is opened for writing.
+ * The file buffer manager manages the physical files which may be used to store the output or input of
+ * {@link AbstractByteBufferedOutputChannel} or {@link AbstractByteBufferedInputChannel} objects, respectively. It is
+ * designed as a singleton object.
  * <p>
  * This class is thread-safe.
  * 
@@ -54,342 +54,229 @@ public class FileBufferManager {
 	private static final Log LOG = LogFactory.getLog(FileBufferManager.class);
 
 	/**
+	 * The singleton instance of the file buffer manager.
+	 */
+	private static FileBufferManager singletonInstance;
+
+	/**
 	 * Stores the location of the directory for temporary files.
 	 */
 	private final String tmpDir;
 
-	/**
-	 * The key to configure the maximum number of simultaneously opened files.
-	 */
-	private static final String FILE_LIMIT_KEY = "channel.network.spillLimit";
+	private final Map<ChannelID, Object> channelGroupMap = new ConcurrentHashMap<ChannelID, Object>();
 
-	/**
-	 * The default for the maximum number of simultaneously opened files.
-	 */
-	private static final int DEFAULT_FILE_LIMIT = 32;
+	private final Map<Object, WritableSpillingFile> writableSpillingFileMap = new HashMap<Object, WritableSpillingFile>();
 
-	/**
-	 * The maximum number of simultaneously opened files allowed.
-	 */
-	private final int maximumNumberOfOpenedFiles;
+	private final Map<Object, Queue<ReadableSpillingFile>> readableSpillingFileMap = new HashMap<Object, Queue<ReadableSpillingFile>>();
 
-	/**
-	 * This enumeration indicates the possible states of the write channel.
-	 * 
-	 * @author warneke
-	 */
-	private static enum FileEntryStatus {
+	public static synchronized FileBufferManager getInstance() {
 
-		CLOSED, WRITING, WRITING_BUT_READ_REQUESTED
-	};
-
-	/**
-	 * Objects of this class store management information of each channel
-	 * pair that uses file buffers.
-	 * <p>
-	 * This class is thread-safe.
-	 * 
-	 * @author warneke
-	 */
-	private static final class FileBufferManagerEntry {
-
-		/**
-		 * Current state of the write channel.
-		 */
-		private FileEntryStatus status = FileEntryStatus.CLOSED;
-
-		/**
-		 * Stores whether the data written to disk by this
-		 * channel are temporary and can be deleted after the
-		 * first read.
-		 */
-		private final boolean isTemporaryFile;
-
-		private FileChannel fileChannelForReading = null;
-
-		private FileChannel fileChannelForWriting = null;
-
-		/**
-		 * The size of the file from which is reading thread
-		 * currently reads in bytes.
-		 */
-		private long fileSizeForReading = -1;
-
-		/**
-		 * A list of output files ready to be read.
-		 */
-		private final Deque<File> filesForReading = new ArrayDeque<File>();
-
-		/**
-		 * The location of directory for temporary files.
-		 */
-		private final String tmpDir;
-
-		private File currentFileForWriting = null;
-
-		/**
-		 * Constructs a new entry object.
-		 * 
-		 * @param isTemporaryFile
-		 *        <code>true</code> if the files created by this object are
-		 *        temporary and can be deleted after being read once, <code>false</code> otherwise
-		 * @param tmpDir
-		 *        the location of directory for temporary files
-		 */
-		private FileBufferManagerEntry(final boolean isTemporaryFile, final String tmpDir) {
-
-			this.isTemporaryFile = isTemporaryFile;
-			this.tmpDir = tmpDir;
+		if (singletonInstance == null) {
+			singletonInstance = new FileBufferManager();
 		}
 
-		/**
-		 * Adds an already existing output file to the list
-		 * of files which are ready to be read.
-		 * 
-		 * @param file
-		 *        the file to be added to the output file list
-		 */
-		private synchronized void addFileForReading(File file) {
+		return singletonInstance;
+	}
 
-			this.filesForReading.add(file);
-			notify();
+	private FileBufferManager() {
+
+		this.tmpDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+	}
+
+	private Object getGroupObject(final ChannelID sourceChannelID) throws IOException {
+
+		final Object groupObject = this.channelGroupMap.get(sourceChannelID);
+		if (groupObject == null) {
+			throw new IOException("Cannot find input gate for source channel ID " + sourceChannelID);
 		}
 
-		/**
-		 * Sets the entry's internal state to WRITING to indicate that
-		 * a write process is about to start
-		 */
-		private synchronized void setStateToWriting() {
-			this.status = FileEntryStatus.WRITING;
+		return groupObject;
+	}
+
+	public FileChannel getFileChannelForReading(final ChannelID sourceChannelID) throws IOException,
+			InterruptedException {
+
+		final Object groupObject = getGroupObject(sourceChannelID);
+		
+		Queue<ReadableSpillingFile> queue = null;
+		synchronized (this.readableSpillingFileMap) {
+			queue = this.readableSpillingFileMap.get(groupObject);
+			if (queue == null) {
+				queue = new ArrayDeque<ReadableSpillingFile>(1);
+				this.readableSpillingFileMap.put(groupObject, queue);
+			}
+		}
+
+		ReadableSpillingFile readableSpillingFile = null;
+		synchronized (queue) {
+
+			while (queue.isEmpty()) {
+				
+				synchronized (this.writableSpillingFileMap) {
+					WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(groupObject);
+					if (writableSpillingFile != null) {
+						writableSpillingFile.requestReadAccess();
+
+						if (writableSpillingFile.isSafeToClose()) {
+							writableSpillingFile.close();
+							this.writableSpillingFileMap.remove(groupObject);
+							queue.add(new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
+						}
+					}
+				}
+
+				if (queue.isEmpty()) {
+					queue.wait(WritableSpillingFile.MAXIMUM_TIME_WITHOUT_WRITE_ACCESS);
+				}
+			}
+
+			readableSpillingFile = queue.peek();
+		}
+
+		return readableSpillingFile.lockReadableFileChannel(sourceChannelID);
+	}
+
+	public void reportFileBufferAsConsumed(final ChannelID sourceChannelID) {
+
+		try {
+			final Object groupObject = getGroupObject(sourceChannelID);
+
+			Queue<ReadableSpillingFile> queue = null;
+			synchronized (this.readableSpillingFileMap) {
+				queue = this.readableSpillingFileMap.get(groupObject);
+				if (queue == null) {
+					throw new IOException("Cannot find readable spilling file queue for group object " + groupObject);
+				}
+
+				ReadableSpillingFile readableSpillingFile = null;
+				synchronized (queue) {
+					readableSpillingFile = queue.peek();
+					readableSpillingFile.unlockReadableFileChannel(sourceChannelID);
+					if (readableSpillingFile.checkForEndOfFile()) {
+						queue.poll();
+						if (queue.isEmpty()) {
+							this.readableSpillingFileMap.remove(groupObject);
+						}
+					}
+				}
+			}
+
+		} catch (IOException ioe) {
+			LOG.error(StringUtils.stringifyException(ioe));
+		}
+	}
+
+	/**
+	 * Locks and returns a file channel from a {@link WritableSpillingFile}.
+	 * 
+	 * @param sourceChannelID
+	 *        the ID of the {@link AbstractByteBufferedOutputChannel} the file channel shall be locked for
+	 * @return the file channel object if the lock could be acquired or <code>null</code> if the locking operation
+	 *         failed
+	 * @throws IOException
+	 *         thrown if no spilling for the given channel ID could be allocated
+	 */
+	public FileChannel getFileChannelForWriting(final ChannelID sourceChannelID) throws IOException {
+
+		final Object groupObject = getGroupObject(sourceChannelID);
+
+		synchronized (this.writableSpillingFileMap) {
+
+			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(groupObject);
+			if (writableSpillingFile == null) {
+				final String filename = this.tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
+				writableSpillingFile = new WritableSpillingFile(new File(filename));
+				this.writableSpillingFileMap.put(groupObject, writableSpillingFile);
+			}
+
+			return writableSpillingFile.lockWritableFileChannel();
+		}
+	}
+
+	/**
+	 * Returns the lock for a file channel of a {@link WritableSpillingFile}.
+	 * 
+	 * @param sourceChannelID
+	 *        the ID of the {@link AbstractByteBufferedOutputChannel} the lock has been acquired for
+	 * @param currentFileSize
+	 *        the size of the file after the last write operation using the locked file channel
+	 * @throws IOException
+	 *         thrown if the lock could not be released
+	 */
+	public void reportEndOfWritePhase(final ChannelID sourceChannelID, final long currentFileSize) throws IOException {
+
+		final Object groupObject = getGroupObject(sourceChannelID);
+
+		WritableSpillingFile writableSpillingFile = null;
+		boolean removed = false;
+		synchronized (this.writableSpillingFileMap) {
+
+			writableSpillingFile = this.writableSpillingFileMap.get(groupObject);
+			if (writableSpillingFile == null) {
+				throw new IOException("Cannot find writable spilling file for group object " + groupObject);
+			}
+
+			writableSpillingFile.unlockWritableFileChannel(currentFileSize);
+
+			if (writableSpillingFile.isReadRequested() && writableSpillingFile.isSafeToClose()) {
+				this.writableSpillingFileMap.remove(groupObject);
+				removed = true;
+			}
+		}
+
+		if (removed) {
+			writableSpillingFile.close();
+			Queue<ReadableSpillingFile> queue = null;
+			synchronized (this.readableSpillingFileMap) {
+				queue = this.readableSpillingFileMap.get(groupObject);
+				if (queue == null) {
+					queue = new ArrayDeque<ReadableSpillingFile>(1);
+					this.readableSpillingFileMap.put(groupObject, queue);
+				}
+			}
+			synchronized (queue) {
+				queue.add(new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
+				queue.notify();
+			}
+		}
+	}
+
+	public void registerExternalDataSourceForChannel(final ChannelID sourceChannelID, final String filename)
+			throws IOException {
+		
+		Object groupObject = getGroupObject(sourceChannelID);
+		
+		Queue<ReadableSpillingFile> queue = null;
+		synchronized(this.readableSpillingFileMap) {
+			
+			queue = this.readableSpillingFileMap.get(groupObject);
+			if (queue == null) {
+				queue = new ArrayDeque<ReadableSpillingFile>(1);
+				this.readableSpillingFileMap.put(groupObject, queue);
+			}
 		}
 		
-		/**
-		 * Returns the channel object the reading thread is supposed to use
-		 * to consume data from the file.
-		 * <p>
-		 * This method may block until at least one file to read from is available.
-		 * 
-		 * @return the channel object to consume data from the file
-		 * @throws IOException
-		 *         thrown if an error occurs while creating the channel object
-		 * @throws InterruptedException
-		 *         thrown if the thread is interrupted while waiting for the file resources to become available
-		 */
-		private synchronized FileChannel getFileChannelForReading() throws IOException, InterruptedException {
-
-			if (this.fileChannelForReading != null) {
-				return this.fileChannelForReading;
-			}
-
-			try {
-
-				if (this.status == FileEntryStatus.CLOSED) {
-					closeCurrentWriteFile();
-				}
-
-				while (this.filesForReading.isEmpty()) {
-					this.status = FileEntryStatus.WRITING_BUT_READ_REQUESTED;
-					this.wait();
-				}
-
-				final File file = this.filesForReading.peek();
-				this.fileSizeForReading = file.length();
-				final FileInputStream fis = new FileInputStream(file);
-				this.fileChannelForReading = fis.getChannel();
-			} catch (InterruptedException e) {
-				LOG.error(e);
-			}
-
-			return this.fileChannelForReading;
-		}
-
-		private void closeCurrentWriteFile() throws IOException {
-
-			if (this.fileChannelForWriting != null) {
-
-				this.fileChannelForWriting.close();
-				this.fileChannelForWriting = null;
-
-				this.filesForReading.add(this.currentFileForWriting);
-				this.notify();
-				this.currentFileForWriting = null;
-			}
-		}
-
-		/**
-		 * Returns the channel the writing thread is supposed to use to
-		 * write data to the file.
-		 * 
-		 * @return the channel object the writing thread is supposed to use
-		 * @throws IOException
-		 *         thrown if an error occurs while creating the channel object
-		 * @throws InterruptedException
-		 *         thrown if the thread is interrupted while waiting for the file resources to become available
-		 */
-		private synchronized FileChannel getFileChannelForWriting() throws IOException, InterruptedException {
-
-			if (this.fileChannelForWriting == null) {
-				final String filename = tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
-				this.currentFileForWriting = new File(filename);
-				final FileOutputStream fos = new FileOutputStream(this.currentFileForWriting);
-				this.fileChannelForWriting = fos.getChannel();
-			}
-
-			this.status = FileEntryStatus.WRITING;
-			return this.fileChannelForWriting;
-		}
-
-		/**
-		 * Checks whether the end of the current output file is reached
-		 * and potentially deletes the file.
-		 * 
-		 * @return <code>true</code> if the object can be removed from the data source map, <code>false</code> otherwise
-		 * @throws IOException
-		 *         thrown if an error occurs while checking for
-		 *         end-of-file or deleting it
-		 */
-		private synchronized boolean checkForEndOfFile() throws IOException {
-
-			if (this.fileChannelForReading.position() >= this.fileSizeForReading) {
-				// Close the file
-				this.fileChannelForReading.close();
-				this.fileChannelForReading = null;
-				this.fileSizeForReading = -1;
-
-				final File file = this.filesForReading.pop();
-				if (this.isTemporaryFile) {
-					// System.out.println("Deleting " + file.getPath());
-					file.delete();
-				}
-
-				// Check if entry can be removed
-				if (this.fileChannelForWriting == null && this.filesForReading.isEmpty()
-					&& this.status == FileEntryStatus.CLOSED) {
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		private synchronized void reportEndOfWritePhase() throws IOException {
-
-			if (this.status == FileEntryStatus.CLOSED) {
-				throw new IOException("reportEndOfWritePhase is called, but file entry status is CLOSED");
-			}
-
-			if (this.status == FileEntryStatus.WRITING_BUT_READ_REQUESTED) {
-				closeCurrentWriteFile();
-			}
-
-			this.status = FileEntryStatus.CLOSED;
+		synchronized(queue) {
+			queue.add(new ReadableSpillingFile(new File(filename)));
+			queue.notify();
 		}
 	}
 
-	private Map<ChannelID, FileBufferManagerEntry> dataSources = new HashMap<ChannelID, FileBufferManagerEntry>();
+	public void registerChannelToGateMapping(final ChannelID sourceChannelID,
+			final InputGate<? extends Record> inputGate) {
 
-	public FileBufferManager(String tmpDir) {
-		this.tmpDir = tmpDir;
-		this.maximumNumberOfOpenedFiles = GlobalConfiguration.getInteger(FILE_LIMIT_KEY, DEFAULT_FILE_LIMIT);
-	}
-
-	public void registerExternalDataSourceForChannel(ChannelID sourceChannelID, String filename) throws IOException {
-
-		registerExternalDataSourceForChannel(sourceChannelID, new File(filename));
-	}
-
-	public void registerExternalDataSourceForChannel(ChannelID sourceChannelID, File file) throws IOException {
-
-		if (!file.exists()) {
-			throw new IOException("External data source " + file + " does not exist");
-		}
-
-		FileBufferManagerEntry fbme = null;
-		synchronized (this.dataSources) {
-			fbme = this.dataSources.get(sourceChannelID);
-			if (fbme == null) {
-				fbme = new FileBufferManagerEntry(false, this.tmpDir);
-				this.dataSources.put(sourceChannelID, fbme);
-			}
-		}
-
-		fbme.addFileForReading(file);
-	}
-
-	public FileChannel getFileChannelForReading(ChannelID sourceChannelID) throws IOException, InterruptedException {
-
-		FileBufferManagerEntry fbme = null;
-		synchronized (this.dataSources) {
-			fbme = this.dataSources.get(sourceChannelID);
-		}
-
-		if (fbme == null) {
-			final IOException ioe = new IOException("Cannot find data source for channel " + sourceChannelID);
-			LOG.error(ioe);
-			throw ioe;
-		}
-
-		return fbme.getFileChannelForReading();
-	}
-
-	public FileChannel getFileChannelForWriting(ChannelID sourceChannelID) throws IOException, InterruptedException {
-
-		FileBufferManagerEntry fbme = null;
-		synchronized (this.dataSources) {
-			fbme = this.dataSources.get(sourceChannelID);
-			if (fbme == null) {
-				fbme = new FileBufferManagerEntry(true, this.tmpDir);
-				this.dataSources.put(sourceChannelID, fbme);
-			}
-			
-			fbme.setStateToWriting();
-		}
-
-		return fbme.getFileChannelForWriting();
-	}
-
-	public void reportFileBufferAsConsumed(ChannelID sourceChannelID) {
-
-		FileBufferManagerEntry fbme = null;
-
-		// It is important to call checkForEndOfFile from data source synchronized block
-		synchronized (this.dataSources) {
-			fbme = this.dataSources.get(sourceChannelID);
-
-			if (fbme == null) {
-				LOG.error("Cannot find data source for channel " + sourceChannelID + " to mark buffer as consumed");
-				return;
-			}
-
-			try {
-				if (fbme.checkForEndOfFile()) {
-					this.dataSources.remove(sourceChannelID);
-				}
-			} catch (IOException ioe) {
-				LOG.error(ioe);
-			}
+		final Object previousGate = this.channelGroupMap.put(sourceChannelID, inputGate);
+		if (previousGate != null) {
+			LOG.error("Source channel ID has been previously registered to input gate " + inputGate.getJobID() + ", "
+				+ inputGate.getIndex());
 		}
 	}
 
-	public void reportEndOfWritePhase(ChannelID sourceChannelID) throws IOException {
+	public void unregisterChannelToGateMapping(final ChannelID sourceChannelID) {
 
-		FileBufferManagerEntry fbme = null;
-
-		synchronized (this.dataSources) {
-			fbme = this.dataSources.get(sourceChannelID);
-		}
-
-		if (fbme == null) {
-			throw new IOException("Cannot find file buffer manager entry for source channel " + sourceChannelID);
-		}
-
-		fbme.reportEndOfWritePhase();
-	}
-
-	public boolean hasResourcesAvailable(final ChannelID sourceChannelID) {
-
-		synchronized (this.dataSources) {
-			return (this.dataSources.size() < (this.maximumNumberOfOpenedFiles / 2));
+		if (this.channelGroupMap.remove(sourceChannelID) == null) {
+			LOG.error("Source channel ID has not been registered with any input gate");
 		}
 	}
 }

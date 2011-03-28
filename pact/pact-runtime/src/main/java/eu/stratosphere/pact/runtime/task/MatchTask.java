@@ -17,7 +17,6 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -30,7 +29,6 @@ import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -620,11 +618,6 @@ public class MatchTask extends AbstractTask {
 				return it.next();
 			}
 				
-		}
-		
-		@Override
-		public List<AbstractInputChannel<Value>> getInputChannels() {
-			throw new UnsupportedOperationException();
 		}
 	}
 
