@@ -86,4 +86,4 @@ log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/
 export NEPHELE_CONF_DIR
 
 echo starting PACT Job
-$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $CLASSPATH eu.stratosphere.pact.client.CliFrontend $*
+$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $PACT_CC_CLASSPATH eu.stratosphere.pact.client.CliFrontend $*
