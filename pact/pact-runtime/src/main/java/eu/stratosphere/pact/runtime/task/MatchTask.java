@@ -587,11 +587,6 @@ public class MatchTask extends AbstractTask {
 			}
 				
 		}
-		
-		@Override
-		public List<AbstractInputChannel<Value>> getInputChannels() {
-			throw new UnsupportedOperationException();
-		}
 	}
 
 }
