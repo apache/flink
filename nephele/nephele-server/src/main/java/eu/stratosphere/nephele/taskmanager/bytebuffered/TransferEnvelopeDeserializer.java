@@ -193,6 +193,11 @@ public class TransferEnvelopeDeserializer {
 					throw new IOException("Deserialization error: Expected at least "
 						+ this.existanceBuffer.remaining() + " more bytes to follow");
 				}
+			} else if(bytesRead == 0) {
+				try {
+					Thread.sleep(50);
+				} catch(InterruptedException e) {
+				}
 			}
 
 			if (!this.existanceBuffer.hasRemaining()) {

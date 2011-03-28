@@ -56,6 +56,7 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
@@ -375,9 +376,11 @@ public class TaskManager implements TaskOperationProtocol {
 			if (eic instanceof NetworkInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				FileBufferManager.getInstance().registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
 			} else if (eic instanceof FileInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				FileBufferManager.getInstance().registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
 				// Start recovery of the checkpoint
 				this.checkpointManager.recoverChannelCheckpoint(eic.getConnectedChannelID());
 			} else if (eic instanceof InMemoryInputChannel<?>) {
@@ -436,9 +439,11 @@ public class TaskManager implements TaskOperationProtocol {
 			if (eic instanceof NetworkInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				FileBufferManager.getInstance().unregisterChannelToGateMapping(eic.getConnectedChannelID());
 			} else if (eic instanceof FileInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				FileBufferManager.getInstance().unregisterChannelToGateMapping(eic.getConnectedChannelID());
 			} else if (eic instanceof InMemoryInputChannel<?>) {
 				this.directChannelManager
 					.unregisterDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
