@@ -1441,7 +1441,7 @@ public class PactCompiler {
 				// instead of temping connection duplicate DataSourceNode
 				
 				// duplicate DataSourceNode
-				DataSourceNode duplicateDataSource = new DataSourceNode((DataSourceContract)sourcePact.getPactContract());
+				DataSourceNode duplicateDataSource = new DataSourceNode((DataSourceContract<?, ?>)sourcePact.getPactContract());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				

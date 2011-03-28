@@ -32,12 +32,12 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
- * @param <K>
- * @param <V>
+ * @param <K> The type of the Key.
+ * @param <V> The type of the Value.
  */
-public class NepheleReaderIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>> {
+public final class NepheleReaderIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>> {
 
-	private Reader<KeyValuePair<K,V>> reader;
+	private final Reader<KeyValuePair<K,V>> reader;
 	
 	public NepheleReaderIterator(Reader<KeyValuePair<K,V>> reader) {
 		this.reader = reader;
