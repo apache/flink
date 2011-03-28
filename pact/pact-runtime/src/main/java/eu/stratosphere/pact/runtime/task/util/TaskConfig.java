@@ -41,6 +41,10 @@ public class TaskConfig {
 		SORT_SECOND_MERGE,
 		// both (already sorted) inputs are merged
 		MERGE,
+		// input is sorted, within a key values are crossed in a nested loop fashion
+		SORT_SELF_NESTEDLOOP,
+		// already grouped input, within a key values are crossed in a nested loop fasion
+		SELF_NESTEDLOOP,
 		// the input is sorted
 		SORT,
 		// the input is sorted, during sorting a combiner is applied

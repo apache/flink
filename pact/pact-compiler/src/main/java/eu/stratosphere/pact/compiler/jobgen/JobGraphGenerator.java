@@ -53,6 +53,7 @@ import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapTask;
 import eu.stratosphere.pact.runtime.task.MatchTask;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
+import eu.stratosphere.pact.runtime.task.SelfMatchTask;
 import eu.stratosphere.pact.runtime.task.TempTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -370,39 +371,72 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private JobTaskVertex generateMatchVertex(OptimizerNode matchNode) throws CompilerException {
 		// create task vertex
 		JobTaskVertex matchVertex = new JobTaskVertex(matchNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		matchVertex.setTaskClass(MatchTask.class);
 
 		// get task configuration object
 		TaskConfig matchConfig = new TaskConfig(matchVertex.getConfiguration());
 		// set user code class
 		matchConfig.setStubClass(matchNode.getPactContract().getStubClass());
 
-		// set local strategy
 		switch (matchNode.getLocalStrategy()) {
 		case SORT_BOTH_MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 			break;
 		case SORT_FIRST_MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 			break;
 		case SORT_SECOND_MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 			break;
 		case MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		case HYBRIDHASH_FIRST:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			break;
 		case HYBRIDHASH_SECOND:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 			break;
 		case MMHASH_FIRST:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_FIRST);
 			break;
 		case MMHASH_SECOND:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_SECOND);
+			break;
+		case SORT_SELF_NESTEDLOOP:
+			// set task class
+			matchVertex.setTaskClass(SelfMatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+			break;
+		case SELF_NESTEDLOOP:
+			// set task class
+			matchVertex.setTaskClass(SelfMatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
 			break;
 		default:
 			throw new CompilerException("Invalid local strategy for 'Match' (" + matchNode.getName() + "): "
@@ -522,7 +556,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		sourceVertex.setFilePath(new Path(contract.getFilePath()));
 
 		// get task configuration object
-		DataSourceTask.Config sourceConfig = new DataSourceTask.Config(sourceVertex.getConfiguration());
+		DataSourceTask.DataSourceConfig sourceConfig = new DataSourceTask.DataSourceConfig(sourceVertex.getConfiguration());
 		// set user code class
 		sourceConfig.setStubClass(contract.getStubClass());
 		// set format parameter
@@ -558,7 +592,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		sinkVertex.setFilePath(new Path(((DataSinkContract<?, ?>) sinkNode.getPactContract()).getFilePath()));
 
 		// get task configuration object
-		DataSinkTask.Config sinkConfig = new DataSinkTask.Config(sinkVertex.getConfiguration());
+		DataSinkTask.DataSinkConfig sinkConfig = new DataSinkTask.DataSinkConfig(sinkVertex.getConfiguration());
 		// set user code class
 		sinkConfig.setStubClass(((DataSinkContract<?, ?>) sinkNode.getPactContract()).getStubClass());
 		// set format parameter

@@ -38,6 +38,7 @@ import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.serialization.ValueDeserializer;
@@ -488,77 +489,108 @@ public class MatchTask extends AbstractTask {
 
 		} else {
 			// both sides contain more than one value
-			// TODO: Decide which side to store!
+			// TODO: Decide which side to store and which to block!
 			
-			Reader<Value> v1Reader = new Reader<Value>() {
-
-				boolean firstValue = true;
-				
-				@Override
-				public boolean hasNext() {
-					if(firstValue) return true;
-					return values1.hasNext();
-				}
-
-				@Override
-				public Value next() throws IOException, InterruptedException {
-					if(firstValue) {
-						firstValue = false;
-						return firstV1;
-					}
-					return values1.next();
-				}
-				
-			};
-			
-			SpillingResettableIterator<Value> v1ResettableIterator = null;
+			SpillingResettableIterator<Value> v1ResettableIt = null;
+			BlockResettableIterator<Value> v2BlockedIt = null;
 			try {
+				// create block iterator on second input
+				ValueIncludingIteratorReader v2Reader = new ValueIncludingIteratorReader(firstV2, values2);
+				ValueDeserializer<Value> v2Deserializer = new ValueDeserializer<Value>(matchStub.getSecondInValueType());
+				v2BlockedIt = new BlockResettableIterator<Value>(getEnvironment().getMemoryManager(), 
+						v2Reader, (long)(this.availableMemory * (MEMORY_SHARE_RATIO/2)), 2, v2Deserializer, this);
+				v2BlockedIt.open();
+				
+				// TODO: check if v2 has more than one block to read from
+				
+				// create spilling iterator on first input
+				ValueIncludingIteratorReader v1Reader = new ValueIncludingIteratorReader(firstV1, values1);
 				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
-				v1ResettableIterator = 
+				v1ResettableIt = 
 						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
-								v1Reader, (long) (this.availableMemory * MEMORY_SHARE_RATIO), v1Deserializer, this);
-				v1ResettableIterator.open();
+								v1Reader, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+				v1ResettableIt.open();
 				
-				this.v2Copier.setCopy(firstV2);
-				
-				// run through resettable iterator with firstV2
-				while (!this.taskCanceled && v1ResettableIterator.hasNext()) {
-					key = this.keySerialization.newInstance();
-					this.keyCopier.getCopy(key);
-					v2 = this.v2Serialization.newInstance();
-					this.v2Copier.getCopy(v2);
+				// as long as there are blocks of second input 
+				do {
 					
-					v1 = v1ResettableIterator.next();
-					matchStub.match(key, v1, v2, output);
-				}
-				v1ResettableIterator.reset();
-				
-				// run through resettable iterator for each v2
-				while(!this.taskCanceled && values2.hasNext()) {
-					
-					v2 = values2.next();
-					this.v2Copier.setCopy(v2);
-					
-					while (!this.taskCanceled && v1ResettableIterator.hasNext()) {
-						key = this.keySerialization.newInstance();
-						this.keyCopier.getCopy(key);
-						v2 = this.v2Serialization.newInstance();
-						this.v2Copier.getCopy(v2);
+					// cross block values (second input) with resettable values (first input)
+					while(!this.taskCanceled && v1ResettableIt.hasNext()) {
 						
-						v1 = v1ResettableIterator.next();
-						matchStub.match(key, v1, v2, output);
+						// get value from resettable iterator
+						v1 = v1ResettableIt.next();
+						
+						// cross value with block values
+						while(!this.taskCanceled && v2BlockedIt.hasNext()) {
+							
+							// get instances of key and block value
+							key = this.keySerialization.newInstance();
+							this.keyCopier.getCopy(key);
+							v2 = v2BlockedIt.next();
+							
+							// match
+							matchStub.match(key, v1, v2, output);
+							
+							// get new instance of resettable value
+							if(v2BlockedIt.hasNext())
+								v1 = v1ResettableIt.repeatLast();
+						}
+						// reset block iterator
+						v2BlockedIt.reset();
 					}
-					v1ResettableIterator.reset();
-				}
+					// reset v1 iterator
+					v1ResettableIt.reset();
+					
+					// move to next block
+				} while (!this.taskCanceled && v2BlockedIt.nextBlock());
 				
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			} finally {
-				if(v1ResettableIterator != null) {
-					v1ResettableIterator.close();
+				if(v2BlockedIt != null) {
+					v2BlockedIt.close();
+				}
+				if(v1ResettableIt != null) {
+					v1ResettableIt.close();
 				}
 			}
 					
+		}
+	}
+	
+	private static final class ValueIncludingIteratorReader implements Reader<Value> {
+
+		private Value v;
+		private Iterator<Value> it;
+		private boolean first = true;
+		
+		public ValueIncludingIteratorReader(Value v, Iterator<Value> it) {
+			this.v = v;
+			this.it = it;
+		}
+		
+		@Override
+		public boolean hasNext() {
+			if(first) 
+				return true;
+			else
+				return it.hasNext();
+		}
+
+		@Override
+		public Value next() throws IOException, InterruptedException {
+			if(first) {
+				first = false;
+				return v;
+			} else {
+				return it.next();
+			}
+				
+		}
+		
+		@Override
+		public List<AbstractInputChannel<Value>> getInputChannels() {
+			throw new UnsupportedOperationException();
 		}
 	}
 
