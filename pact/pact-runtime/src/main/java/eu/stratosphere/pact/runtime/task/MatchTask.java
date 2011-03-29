@@ -494,10 +494,10 @@ public class MatchTask extends AbstractTask {
 
 		} else {
 			// both sides contain more than one value
-			// TODO: Decide which side to store and which to block!
-			
 			ValueIncludingReader v1Reader = new ValueIncludingReader(firstV1, values1);
 			ValueIncludingReader v2Reader = new ValueIncludingReader(firstV2, values2);
+
+			// TODO: Decide which side to spill and which to block!
 			crossMwithNValues(key, v2Reader, v1Reader, true);
 		}
 	}
@@ -529,19 +529,24 @@ public class MatchTask extends AbstractTask {
 		// for each of N values
 		while (!this.taskCanceled && valsN.hasNext()) {
 			
-			// get copies
+			// get key copy
 			key = this.keySerialization.newInstance();
 			this.keyCopier.getCopy(key);
-			v1 = this.v1Serialization.newInstance();
-			this.v1Copier.getCopy(v1);
 		
 			// get N value
 			vN = valsN.next();
 			
-			// match
 			if(firstInputNValues) {
+				// get value copy
+				v1 = this.v2Serialization.newInstance();
+				this.v1Copier.getCopy(v1);
+				// match
 				matchStub.match(key, vN, v1, output);
 			} else {
+				// get value copy
+				v1 = this.v1Serialization.newInstance();
+				this.v1Copier.getCopy(v1);
+				// match
 				matchStub.match(key, v1, vN, output);
 			}
 			
