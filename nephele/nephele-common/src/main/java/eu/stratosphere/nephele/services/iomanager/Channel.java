@@ -60,7 +60,7 @@ public final class Channel {
 	}
 
 	public static final class Enumerator {
-		private static final String format = "%s.%05d.channel";
+		private static final String format = "%s.%06d.channel";
 
 		private final String pathPrefix;
 

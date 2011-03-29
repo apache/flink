@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 
 /**
  * An abstract base class for IO buffers.
@@ -280,15 +279,12 @@ public abstract class Buffer {
 		}
 
 		/**
-		 * Tries to write the provided {@link IOReadableWritable} to the
-		 * underlying memory segment by calling the object's {@link IOReadableWritable#read(DataInput)} operation with
-		 * the backing
-		 * memory {@link DataInputView}.
+		 * Tries to write the provided {@link IOReadableWritable} to the underlying memory segment by calling
+		 * the object's {@link IOReadableWritable#write(DataOutput)} operation with the backing memory
+		 * {@link DataOutputView}.
 		 * 
-		 * @param object
-		 *        to write out to the buffer
-		 * @return a boolean value indicating whether the write was successful
-		 * @throws UnboundMemoryBackedException
+		 * @param object Object to be written out to the buffer.
+		 * @return A boolean value indicating whether the write was successful.
 		 */
 		public boolean write(IOReadableWritable object) {
 			final int pos = this.outView.getPosition();
