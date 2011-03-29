@@ -238,9 +238,41 @@ public class MatchTask extends AbstractTask {
 		this.availableMemory = config.getMemorySize();
 		this.maxFileHandles = config.getNumFilehandles();
 		
-		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new RuntimeException("The Match task was initialized with too little memory: " + this.availableMemory +
-				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case SORT_BOTH_MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY*2;
+				break;
+			case SORT_FIRST_MERGE: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case SORT_SECOND_MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case HYBRIDHASH_FIRST:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case HYBRIDHASH_SECOND:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MMHASH_FIRST:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MMHASH_SECOND:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The Match task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
 		try {

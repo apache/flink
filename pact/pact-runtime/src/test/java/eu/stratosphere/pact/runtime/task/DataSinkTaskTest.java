@@ -69,7 +69,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
-			Assert.fail();
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		File tempTestFile = new File(tempTestPath);

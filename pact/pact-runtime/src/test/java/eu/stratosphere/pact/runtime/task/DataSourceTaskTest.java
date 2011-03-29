@@ -83,7 +83,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
-			Assert.fail();
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue("Invalid output size. Expected: "+(keyCnt*valCnt)+" Actual: "+outList.size(),

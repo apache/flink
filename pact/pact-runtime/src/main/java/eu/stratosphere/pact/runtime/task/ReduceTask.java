@@ -219,9 +219,26 @@ public class ReduceTask extends AbstractTask {
 		this.availableMemory = config.getMemorySize();
 		this.maxFileHandles = config.getNumFilehandles();
 		
-		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new RuntimeException("The Reduce task was initialized with too little memory: " + this.availableMemory +
-				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case SORT:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case COMBININGSORT: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case NONE:
+				strategyMinMem = 0;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The Reduce task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
 		try {

@@ -62,7 +62,7 @@ public class CoGroupTask extends AbstractTask
 	private static final Log LOG = LogFactory.getLog(CoGroupTask.class);
 	
 	// the minimal amount of memory for the task to operate
-	private static final long MIN_REQUIRED_MEMORY = 5 * 1024 * 1024;
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 	
 	// reader of first input
 	private RecordReader<? extends Record> reader1;
@@ -152,9 +152,29 @@ public class CoGroupTask extends AbstractTask
 		this.availableMemory = config.getMemorySize();
 		this.maxFileHandles = config.getNumFilehandles();
 		
-		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new RuntimeException("The CoGroup task was initialized with too little memory: " + this.availableMemory +
-				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case SORT_BOTH_MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY*2;
+				break;
+			case SORT_FIRST_MERGE: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case SORT_SECOND_MERGE: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MERGE: 
+				strategyMinMem = 0;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The CoGroup task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
 		try {

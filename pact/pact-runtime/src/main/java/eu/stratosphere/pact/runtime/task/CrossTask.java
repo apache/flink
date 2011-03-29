@@ -206,9 +206,29 @@ public class CrossTask extends AbstractTask {
 		// set up memory and I/O parameters
 		this.availableMemory = config.getMemorySize();
 		
-		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new RuntimeException("The Cross task was initialized with too little memory: " + this.availableMemory +
-				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case NESTEDLOOP_BLOCKED_OUTER_SECOND: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case NESTEDLOOP_STREAMED_OUTER_FIRST: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case NESTEDLOOP_STREAMED_OUTER_SECOND: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The Cross task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
 		try {

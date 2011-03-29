@@ -60,6 +60,7 @@ public class MapTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue(outList.size() == keyCnt*valCnt);
