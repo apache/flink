@@ -273,4 +273,27 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			this.ioException = ioe;
 		}
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+		
+		synchronized(this.synchronisationObject) {
+			this.brokerAggreedToCloseChannel = true;
+		}
+		
+		this.deserializationBuffer.clear();
+		
+		if(this.compressedDataBuffer != null) {
+			this.compressedDataBuffer.recycleBuffer();
+			this.compressedDataBuffer = null;
+		}
+		
+		if(this.uncompressedDataBuffer != null) {
+			this.uncompressedDataBuffer.recycleBuffer();
+			this.uncompressedDataBuffer = null;
+		}
+	}
 }

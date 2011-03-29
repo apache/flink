@@ -178,6 +178,9 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
@@ -188,6 +191,9 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 		this.connectedDirectInputChannel.processEvent(event);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void flush() throws IOException, InterruptedException {
 		if (this.connectedDirectInputChannel == null) {
@@ -195,5 +201,14 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 		}
 
 		this.connectedDirectInputChannel.requestFlush();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		this.closeRequested = true;
 	}
 }
