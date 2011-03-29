@@ -401,15 +401,17 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @see java.io.Closeable#close()
 	 */
 	@Override
-	public synchronized void close()
+	public void close()
 	{
 		// check if the sorter has been closed before
-		if (this.closed) {
-			return;
+		synchronized(this) {
+			if (this.closed) {
+				return;
+			}
+			
+			// mark as closed
+			this.closed = true;
 		}
-		
-		// mark as closed
-		this.closed = true;
 		
 		// from here on, the code is in a try block, because even through errors might be thrown in this block,
 		// we need to make sure that all the memory is released.
