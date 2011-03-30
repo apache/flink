@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.mortbay.log.Log;
+
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
@@ -39,15 +41,18 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
+import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.executiongraph.VertexAssignmentListener;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
+import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.profiling.ProfilingListener;
 import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
+import eu.stratosphere.nephele.topology.NetworkTopology;
 
 /**
  * The event collector collects events which occurred during the execution of a job and prepares them
@@ -56,7 +61,7 @@ import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
  * 
  * @author warneke
  */
-public class EventCollector extends TimerTask implements ProfilingListener {
+public final class EventCollector extends TimerTask implements ProfilingListener {
 
 	/**
 	 * The execution listener wrapper is an auxiliary class. It is required
@@ -186,24 +191,26 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
 				String optionalMessage) {
 
+			final JobID jobID = executionGraph.getJobID();
+
 			if (newJobStatus == InternalJobStatus.SCHEDULED) {
-				this.eventCollector.createRunningJobEvent(executionGraph.getJobID(), this.jobName,
-					this.isProfilingAvailable);
+
+				final ManagementGraph managementGraph = ManagementGraphFactory.fromExecutionGraph(executionGraph);
+				this.eventCollector.addManagementGraph(jobID, managementGraph);
+
+				this.eventCollector.createNewJobEvent(jobID, this.jobName, this.isProfilingAvailable);
 			}
 
-			if (newJobStatus == InternalJobStatus.FAILED || newJobStatus == InternalJobStatus.CANCELED
-				|| newJobStatus == InternalJobStatus.FINISHED) {
-				this.eventCollector.removeRunningJobEvent(executionGraph.getJobID());
-			}
+			// Update time stamp of last received event
+			this.eventCollector.updateTimeStampOfLastJobEvent(jobID);
 
 			final JobStatus jobStatus = InternalJobStatus.toJobStatus(newJobStatus);
 			if (jobStatus != null) {
 
-				this.eventCollector.addEvent(executionGraph.getJobID(), new JobEvent(System.currentTimeMillis(),
-					jobStatus, optionalMessage));
+				this.eventCollector.addEvent(jobID,
+					new JobEvent(System.currentTimeMillis(), jobStatus, optionalMessage));
 			}
 		}
-
 	}
 
 	/**
@@ -261,7 +268,69 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		}
 	}
 
-	private final long TIMERTASKINTERVAL;
+	/**
+	 * Auxiliary class to store the {@link NewJobEvent} event of a recently started job together with the time stamp of
+	 * the last received job status change.
+	 * <p>
+	 * This class is not thread-safe.
+	 * 
+	 * @author warneke
+	 */
+	private static final class RecentJobValue {
+
+		/**
+		 * The new job event.
+		 */
+		private final NewJobEvent newJobEvent;
+
+		/**
+		 * The time stamp of the last received job status change.
+		 */
+		private long timeStamp;
+
+		/**
+		 * Creates a new recent job value.
+		 * 
+		 * @param newJobEvent
+		 *        the new job event
+		 * @param timeStamp
+		 *        the time stamp of the last received job status change
+		 */
+		private RecentJobValue(final NewJobEvent newJobEvent, final long timeStamp) {
+			this.newJobEvent = newJobEvent;
+			this.timeStamp = timeStamp;
+		}
+
+		/**
+		 * Returns the new job event.
+		 * 
+		 * @return the new job event
+		 */
+		private NewJobEvent getNewJobEvent() {
+			return this.newJobEvent;
+		}
+
+		/**
+		 * Returns the time stamp of the last received job status change.
+		 * 
+		 * @return the time stamp of the last received job status change
+		 */
+		private long getTimeStamp() {
+			return this.timeStamp;
+		}
+
+		/**
+		 * Sets the time stamp of the last received job status change.
+		 * 
+		 * @param timeStamp
+		 *        the new time stamp of the last received job status change
+		 */
+		private void setTimeStamp(final long timeStamp) {
+			this.timeStamp = timeStamp;
+		}
+	}
+
+	private final long timerTaskInterval;
 
 	/**
 	 * The map which stores all collected events until they are either
@@ -270,9 +339,13 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	private final Map<JobID, List<AbstractEvent>> collectedEvents = new HashMap<JobID, List<AbstractEvent>>();
 
 	/**
-	 * A list of events which point to currently running jobs.
+	 * Map of recently started jobs with the time stamp of the last received job event.
 	 */
-	private final Map<JobID, NewJobEvent> runningJobs = new HashMap<JobID, NewJobEvent>();
+	private final Map<JobID, RecentJobValue> recentJobs = new HashMap<JobID, RecentJobValue>();
+
+	private final Map<JobID, ManagementGraph> recentManagementGraphs = new HashMap<JobID, ManagementGraph>();
+
+	private final Map<JobID, NetworkTopology> recentNetworkTopologies = new HashMap<JobID, NetworkTopology>();
 
 	/**
 	 * The timer used to trigger the cleanup routine.
@@ -286,16 +359,28 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * @param clientQueryInterval
 	 *        the interval with which clients query for events
 	 */
-	public EventCollector(int clientQueryInterval) {
+	public EventCollector(final int clientQueryInterval) {
 
-		this.TIMERTASKINTERVAL = clientQueryInterval * 1000 * 2; // Double the interval, clients will take care of
+		this.timerTaskInterval = clientQueryInterval * 1000L * 2L; // Double the interval, clients will take care of
 		// duplicate notifications
 
-		timer = new Timer();
-		timer.schedule(this, TIMERTASKINTERVAL, TIMERTASKINTERVAL);
+		this.timer = new Timer();
+		this.timer.schedule(this, this.timerTaskInterval, this.timerTaskInterval);
 	}
 
-	public void getEventsForJob(JobID jobID, List<AbstractEvent> eventList, boolean includeManagementEvents) {
+	/**
+	 * Retrieves and adds the collected events for the job with the given job ID to the provided list.
+	 * 
+	 * @param jobID
+	 *        the ID of the job to retrieve the events for
+	 * @param eventList
+	 *        the list to which the events shall be added
+	 * @param includeManagementEvents
+	 *        <code>true</code> if {@link ManagementEvent} objects shall be added to the list as well,
+	 *        <code>false</code> otherwise
+	 */
+	public void getEventsForJob(final JobID jobID, final List<AbstractEvent> eventList,
+			final boolean includeManagementEvents) {
 
 		synchronized (this.collectedEvents) {
 
@@ -317,11 +402,11 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 
 	public void getNewJobs(List<NewJobEvent> eventList) {
 
-		synchronized (this.runningJobs) {
+		synchronized (this.recentJobs) {
 
-			final Iterator<NewJobEvent> it = this.runningJobs.values().iterator();
+			final Iterator<RecentJobValue> it = this.recentJobs.values().iterator();
 			while (it.hasNext()) {
-				eventList.add(it.next());
+				eventList.add(it.next().getNewJobEvent());
 			}
 		}
 	}
@@ -335,6 +420,10 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 		// Clear event map
 		synchronized (this.collectedEvents) {
 			this.collectedEvents.clear();
+		}
+
+		synchronized (this.recentJobs) {
+			this.recentJobs.clear();
 		}
 
 		// Cancel the timer for the cleanup routine
@@ -364,8 +453,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	}
 
 	/**
-	 * Creates a {@link NewJobEvent} and adds it to the list
-	 * of currently running jobs.
+	 * Creates a {@link NewJobEvent} and adds it to the list of recent jobs.
 	 * 
 	 * @param jobID
 	 *        the ID of the new job
@@ -374,26 +462,34 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * @param isProfilingEnabled
 	 *        <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise
 	 */
-	private void createRunningJobEvent(JobID jobID, String jobName, boolean isProfilingEnabled) {
+	private void createNewJobEvent(final JobID jobID, final String jobName, final boolean isProfilingEnabled) {
 
-		final NewJobEvent newJobEvent = new NewJobEvent(jobID, jobName, isProfilingEnabled, System.currentTimeMillis());
+		final long currentTime = System.currentTimeMillis();
+		final NewJobEvent newJobEvent = new NewJobEvent(jobID, jobName, isProfilingEnabled, currentTime);
+		final RecentJobValue recentJobValue = new RecentJobValue(newJobEvent, currentTime);
 
-		synchronized (this.runningJobs) {
-			this.runningJobs.put(jobID, newJobEvent);
+		synchronized (this.recentJobs) {
+			this.recentJobs.put(jobID, recentJobValue);
 		}
 	}
 
 	/**
-	 * Removes the {@link NewJobEvent} from the list of
-	 * currently running jobs.
+	 * Updates the time stamp of the last event received for the job with the given ID.
 	 * 
 	 * @param jobID
-	 *        the ID of the job to be removed
+	 *        the ID of the job to update the time stamp for
 	 */
-	private void removeRunningJobEvent(JobID jobID) {
+	private void updateTimeStampOfLastJobEvent(final JobID jobID) {
 
-		synchronized (this.runningJobs) {
-			this.runningJobs.remove(jobID);
+		final long currentTime = System.currentTimeMillis();
+
+		synchronized (this.recentJobs) {
+			final RecentJobValue recentJobValue = this.recentJobs.get(jobID);
+			if (recentJobValue == null) {
+				Log.warn("Cannot find recent job value for job " + jobID);
+				return;
+			}
+			recentJobValue.setTimeStamp(currentTime);
 		}
 	}
 
@@ -409,7 +505,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 	 * @param profilingAvailable
 	 *        indicates if profiling data is available for this job
 	 */
-	public void registerJob(ExecutionGraph executionGraph, boolean profilingAvailable) {
+	public void registerJob(final ExecutionGraph executionGraph, final boolean profilingAvailable) {
 
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
 
@@ -457,7 +553,7 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 
 					final AbstractEvent event = it2.next();
 					// If the event is older than TIMERTASKINTERVAL, remove it
-					if ((event.getTimestamp() + TIMERTASKINTERVAL) < currentTime) {
+					if ((event.getTimestamp() + this.timerTaskInterval) < currentTime) {
 						it2.remove();
 					}
 				}
@@ -466,6 +562,26 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 					it.remove();
 				}
 			}
+		}
+
+		synchronized (this.recentJobs) {
+
+			final Iterator<Map.Entry<JobID, RecentJobValue>> it = this.recentJobs.entrySet().iterator();
+			while (it.hasNext()) {
+
+				final Map.Entry<JobID, RecentJobValue> entry = it.next();
+				if ((entry.getValue().getTimeStamp() + this.timerTaskInterval) < currentTime) {
+					it.remove();
+					synchronized (this.recentManagementGraphs) {
+						this.recentManagementGraphs.remove(entry.getValue());
+					}
+					synchronized (this.recentNetworkTopologies) {
+						this.recentNetworkTopologies.remove(entry.getValue());
+					}
+				}
+
+			}
+
 		}
 	}
 
@@ -477,5 +593,35 @@ public class EventCollector extends TimerTask implements ProfilingListener {
 
 		// Simply add profiling events to the job's event queue
 		addEvent(profilingEvent.getJobID(), profilingEvent);
+	}
+
+	/**
+	 * Adds a {@link ManagementGraph} to the map of recently created management graphs.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the management graph belongs to
+	 * @param managementGraph
+	 *        the management graph to be added
+	 */
+	void addManagementGraph(final JobID jobID, final ManagementGraph managementGraph) {
+
+		synchronized (this.recentManagementGraphs) {
+			this.recentManagementGraphs.put(jobID, managementGraph);
+		}
+	}
+
+	/**
+	 * Returns the {@link ManagementGraph} object for the job with the given ID from the map of recently created
+	 * management graphs.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the management graph shall be retrieved for
+	 * @return the management graph for the job with the given ID or <code>null</code> if no such graph exists
+	 */
+	public ManagementGraph getManagementGraph(final JobID jobID) {
+
+		synchronized (this.recentManagementGraphs) {
+			return this.recentManagementGraphs.get(jobID);
+		}
 	}
 }
