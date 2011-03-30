@@ -572,7 +572,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
-		Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
+		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
 		while (it.hasNext()) {
 			it.next().transferEvent(event);
 		}
@@ -587,5 +587,17 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	public void deliverEvent(AbstractTaskEvent event) {
 
 		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseAllChannelResources() {
+
+		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
+		while (it.hasNext()) {
+			it.next().releaseResources();
+		}
 	}
 }

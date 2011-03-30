@@ -64,6 +64,7 @@ public class ReduceTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
@@ -82,13 +83,13 @@ public class ReduceTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		super.initEnvironment(3*1024*1024);
+		super.initEnvironment(1);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true));
 		super.addOutput(outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(0);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockReduceStub.class);
@@ -97,6 +98,7 @@ public class ReduceTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
@@ -130,6 +132,7 @@ public class ReduceTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expSum = 0;

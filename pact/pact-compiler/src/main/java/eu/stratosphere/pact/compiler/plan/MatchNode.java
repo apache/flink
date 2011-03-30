@@ -75,6 +75,10 @@ public class MatchNode extends TwoInputNode {
 				setLocalStrategy(LocalStrategy.MMHASH_FIRST);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_INMEM_HASH_BUILD_SECOND.equals(localStrategy)) {
 				setLocalStrategy(LocalStrategy.MMHASH_SECOND);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_SELF_NESTEDLOOP.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SELF_NESTEDLOOP.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
 			} else {
 				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
 			}
@@ -135,15 +139,17 @@ public class MatchNode extends TwoInputNode {
 	@Override
 	public int getMemoryConsumerCount() {
 		switch(this.localStrategy) {
-			case SORT_BOTH_MERGE:   return 2;
-			case SORT_FIRST_MERGE:  return 1;
-			case SORT_SECOND_MERGE: return 1;
-			case MERGE:             return 0;
-			case HYBRIDHASH_FIRST:  return 1;
-			case HYBRIDHASH_SECOND: return 1;
-			case MMHASH_FIRST:      return 1;
-			case MMHASH_SECOND:     return 1;
-			default:                return 0;
+			case SORT_BOTH_MERGE:      return 2;
+			case SORT_FIRST_MERGE:     return 1;
+			case SORT_SECOND_MERGE:    return 1;
+			case MERGE:                return 1;
+			case HYBRIDHASH_FIRST:     return 1;
+			case HYBRIDHASH_SECOND:    return 1;
+			case MMHASH_FIRST:         return 1;
+			case MMHASH_SECOND:        return 1;
+			case SORT_SELF_NESTEDLOOP: return 2;
+			case SELF_NESTEDLOOP:      return 1;
+			default:                   return 0;
 		}
 	}
 
@@ -342,6 +348,42 @@ public class MatchNode extends TwoInputNode {
 				// check, whether the two children have the same
 				// sub-plan in the common part before the branches
 				if (!areBranchCompatible(pred1, pred2)) {
+					continue;
+				}
+				
+				// check for self match
+				if (pred1.equals(pred2)) {
+					// we have a self match
+					
+					ShipStrategy ss1 = input1.getShipStrategy();
+					ShipStrategy ss2 = input2.getShipStrategy();
+					
+					if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && ss1.equals(ss2)) {
+						// ShipStrategy is forced on both inputs
+						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator);
+					} else if (ss1 != ShipStrategy.NONE && ss2 == ShipStrategy.NONE) {
+						// ShipStrategy is forced on first input
+						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator);
+					} else if (ss1 == ShipStrategy.NONE && ss2 != ShipStrategy.NONE) {
+						// ShipStrategy is forced on second input
+						createLocalAlternatives(outputPlans, pred1, pred2, ss2, ss2, estimator);
+					} else if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && !ss1.equals(ss2)) {
+						// incompatible ShipStrategies enforced
+						continue;
+					}
+					
+					GlobalProperties gp = pred1.getGlobalProperties();
+					
+					if(gp.getPartitioning().equals(PartitionProperty.NONE)) {
+						// we need to partition
+						// TODO: include range partitioning
+						createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator);
+					} else {
+						// input is already partitioned
+						createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator);
+					}
+					
+					// check next alternative
 					continue;
 				}
 
@@ -646,53 +688,88 @@ public class MatchNode extends TwoInputNode {
 			// local strategy is fixed
 			
 			// set the local properties accordingly
-			if (ls == LocalStrategy.SORT_BOTH_MERGE) {
+			if (ls == LocalStrategy.SORT_BOTH_MERGE || ls == LocalStrategy.SORT_FIRST_MERGE 
+				|| ls == LocalStrategy.SORT_SECOND_MERGE || ls == LocalStrategy.MERGE) {
 				outLp.setKeyOrder(Order.ASCENDING);
 				outLp.setKeysGrouped(true);
+				
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
 			} else if (ls == LocalStrategy.HYBRIDHASH_FIRST || ls == LocalStrategy.HYBRIDHASH_SECOND
 				|| ls == LocalStrategy.MMHASH_FIRST || ls == LocalStrategy.MMHASH_SECOND) {
 				outLp.setKeyOrder(Order.NONE);
 				outLp.setKeysGrouped(false);
+				
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
+			} else if (ls == LocalStrategy.SORT_SELF_NESTEDLOOP) {
+				outLp.setKeyOrder(Order.ASCENDING);
+				outLp.setKeysGrouped(true);
+				
+				createMatchAlternative(target, pred1, null, ss1, null, ls, outGp, outLp, estimator);
+			} else if (ls == LocalStrategy.SELF_NESTEDLOOP) {
+				outLp.setKeyOrder(lp1.getKeyOrder());
+				outLp.setKeysGrouped(true);
+				
+				createMatchAlternative(target, pred1, null, ss1, null, ls, outGp, outLp, estimator);
 			}
-
-			createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
 
 		} else {
-			// create the hash strategies only, if we have estimates for the input sized
-			if (pred1.estimatedOutputSize > 0 && pred2.estimatedOutputSize > 0)
-			{
-				// create the hybrid-hash strategy where the first input is the building side
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
-					outLp.createCopy(), estimator);
-	
-				// create the hybrid-hash strategy where the second input is the building side
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, outGp.createCopy(),
-					outLp.createCopy(), estimator);
-			}
-
-			// create sort merge strategy depending on pre-existing orders
-			outLp.setKeyOrder(Order.ASCENDING);
-			outLp.setKeysGrouped(true);
+			if (!pred1.equals(pred2)) {
+				// this is not a self match
 			
-			// set local strategy according to pre-existing ordering
-			if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
-				// both inputs have ascending order
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.MERGE, outGp, outLp, estimator);
+				// create the hash strategies only, if we have estimates for the input sized
+				if (pred1.estimatedOutputSize > 0 && pred2.estimatedOutputSize > 0)
+				{
+					// create the hybrid-hash strategy where the first input is the building side
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
+						outLp.createCopy(), estimator);
+		
+					// create the hybrid-hash strategy where the second input is the building side
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, outGp.createCopy(),
+						outLp.createCopy(), estimator);
+				}
+	
+				// create sort merge strategy depending on pre-existing orders
+				outLp.setKeyOrder(Order.ASCENDING);
+				outLp.setKeysGrouped(true);
 				
-			} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
-				// input 2 has ascending order, input 1 does not
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_FIRST_MERGE, outGp, outLp, estimator);
-				
-			} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
-				// input 1 has ascending order, input 2 does not
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_SECOND_MERGE, outGp, outLp, estimator);
+				// set local strategy according to pre-existing ordering
+				if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+					// both inputs have ascending order
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.MERGE, outGp, outLp, estimator);
+					
+				} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+					// input 2 has ascending order, input 1 does not
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_FIRST_MERGE, outGp, outLp, estimator);
+					
+				} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
+					// input 1 has ascending order, input 2 does not
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_SECOND_MERGE, outGp, outLp, estimator);
+					
+				} else {
+					// none of the inputs has ascending order
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, outGp, outLp, estimator);
+					
+				}
 				
 			} else {
-				// none of the inputs has ascending order
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, outGp, outLp, estimator);
+				// this is a self match
+
+				// will always be grouped by key
+				outLp.setKeysGrouped(true);
+				
+				if(lp1.areKeysGrouped()) {
+					// output will have order of input
+					outLp.setKeyOrder(lp1.getKeyOrder());
+					// self match without sorting
+					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SELF_NESTEDLOOP, outGp, outLp, estimator);
+				} else {
+					// output will be ascendingly sorted
+					outLp.setKeyOrder(Order.ASCENDING);
+					// self match with sorting
+					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SORT_SELF_NESTEDLOOP, outGp, outLp, estimator);
+				}
 				
 			}
-			
 		}
 
 	}
@@ -726,8 +803,12 @@ public class MatchNode extends TwoInputNode {
 		// create a new reduce node for this input
 		MatchNode n = new MatchNode(this, pred1, pred2, input1, input2, outGp, outLp);
 
-		n.input1.setShipStrategy(ss1);
-		n.input2.setShipStrategy(ss2);
+		if(n.input1 != null) {
+			n.input1.setShipStrategy(ss1);
+		}
+		if(n.input2 != null) {
+			n.input2.setShipStrategy(ss2);
+		}
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract

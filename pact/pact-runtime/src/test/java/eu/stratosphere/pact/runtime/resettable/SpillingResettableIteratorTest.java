@@ -28,7 +28,6 @@ import org.junit.Test;
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -82,13 +81,6 @@ public class SpillingResettableIteratorTest {
 			}
 			return null;
 		}
-
-		@Override
-		public List<AbstractInputChannel<T>> getInputChannels() {
-			// do nothing
-			return null;
-		}
-
 	}
 
 	@Before

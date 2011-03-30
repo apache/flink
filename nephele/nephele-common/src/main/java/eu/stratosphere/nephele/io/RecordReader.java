@@ -16,12 +16,10 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
@@ -35,7 +33,6 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be read from this record reader
  */
 
-// FIXME added Writer<T> to make this at least mock-able ... still requires refactoring (en)
 public class RecordReader<T extends Record> implements Reader<T> {
 
 	/**
@@ -304,15 +301,6 @@ public class RecordReader<T extends Record> implements Reader<T> {
 		}
 
 		return retVal;
-	}
-
-	/**
-	 * Returns the list of InputChannels that feed this RecordReader.
-	 * 
-	 * @return the list of InputChannels that feed this RecordReader
-	 */
-	public List<AbstractInputChannel<T>> getInputChannels() {
-		return this.inputGate.getInputChannels();
 	}
 
 	/**

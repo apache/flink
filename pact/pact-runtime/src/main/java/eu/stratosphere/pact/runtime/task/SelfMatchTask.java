@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
@@ -35,41 +36,51 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.serialization.ValueDeserializer;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
- * Reduce task which is executed by a Nephele task manager. The task has a
- * single input and one or multiple outputs. It is provided with a ReduceStub
+ * SelfMatch task which is executed by a Nephele task manager. The task has a
+ * single input and one or multiple outputs. It is provided with a MatchStub
  * implementation.
  * <p>
- * The ReduceTask creates a iterator over all key-value pairs of its input. The iterator returns all k-v pairs grouped
- * by their key. The iterator is handed to the <code>reduce()</code> method of the ReduceStub.
+ * The SelfMatchTask creates a iterator over all key-value pairs of its input. 
+ * The iterator returns all k-v pairs grouped by their key. A Cartesian product is build 
+ * over pairs that share the same key. Each element of these Cartesian products is handed 
+ * to the <code>match()</code> method of the MatchStub.
  * 
- * @see eu.stratosphere.pact.common.stub.ReduceStub
+ * @see eu.stratosphere.pact.common.stub.MatchStub
  * @author Fabian Hueske
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class ReduceTask extends AbstractTask {
+public class SelfMatchTask extends AbstractTask {
 
-	// obtain ReduceTask logger
-	private static final Log LOG = LogFactory.getLog(ReduceTask.class);
+	// obtain SelfMatchTask logger
+	private static final Log LOG = LogFactory.getLog(SelfMatchTask.class);
 
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+	
+	// share ratio for resettable iterator
+	private static final double MEMORY_SHARE_RATIO = 0.10;
+	
+	// size of value buffer in elements
+	private static final int VALUE_BUFFER_SIZE = 10;
 	
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
@@ -77,9 +88,17 @@ public class ReduceTask extends AbstractTask {
 	// output collector
 	private OutputCollector output;
 
-	// reduce stub implementation instance
-	private ReduceStub stub;
+	// match stub implementation instance
+	private MatchStub stub;
 
+	// copier for key and values
+	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
+	private final SerializationCopier<Value> innerValCopier = new SerializationCopier<Value>();
+	
+	// serialization factories for key and values
+	private SerializationFactory<Key> keySerialization;
+	private SerializationFactory<Value> valSerialization;
+	
 	// task config including stub parameters
 	private TaskConfig config;
 	
@@ -143,8 +162,12 @@ public class ReduceTask extends AbstractTask {
 			// open stub implementation
 			stub.open();
 			
-			// run stub implementation
-			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
+			// cross pairs with identical keys
+			KeyGroupedIterator<Key, Value> it = new KeyGroupedIterator<Key, Value>(sortedInputProvider.getIterator());
+			while(!this.taskCanceled && it.nextKey()) {
+				// cross all value of a certain key
+				crossValues(it.getKey(), it.getValues(), output);
+			}
 
 		}
 		catch (Exception ex) {
@@ -168,7 +191,7 @@ public class ReduceTask extends AbstractTask {
 				stub.close();
 			}
 			catch (Throwable t) {
-				LOG.error("Error while closing the Reduce user function " 
+				LOG.error("Error while closing the Match user function " 
 					+ this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
@@ -223,20 +246,17 @@ public class ReduceTask extends AbstractTask {
 		long strategyMinMem = 0;
 		
 		switch (config.getLocalStrategy()) {
-			case SORT:
-				strategyMinMem = MIN_REQUIRED_MEMORY;
+			case SORT_SELF_NESTEDLOOP:
+				strategyMinMem = MIN_REQUIRED_MEMORY*2;
 				break;
-			case COMBININGSORT: 
+			case SELF_NESTEDLOOP: 
 				strategyMinMem = MIN_REQUIRED_MEMORY;
-				break;
-			case NONE:
-				strategyMinMem = 0;
 				break;
 		}
 		
 		if (this.availableMemory < strategyMinMem) {
 			throw new RuntimeException(
-					"The Reduce task was initialized with too little memory for local strategy "+
+					"The SelfMatch task was initialized with too little memory for local strategy "+
 					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
@@ -244,11 +264,16 @@ public class ReduceTask extends AbstractTask {
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends ReduceStub> stubClass = config.getStubClass(ReduceStub.class, cl);
+			Class<? extends MatchStub> stubClass = config.getStubClass(MatchStub.class, cl);
 			// obtain stub implementation instance
 			stub = stubClass.newInstance();
 			// configure stub instance
 			stub.configure(config.getStubParameters());
+			
+			// initialize key and value serializer
+			this.keySerialization = new WritableSerializationFactory<Key>(stub.getFirstInKeyType());
+			this.valSerialization  = new WritableSerializationFactory<Value>(stub.getFirstInValueType());
+			
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -261,7 +286,7 @@ public class ReduceTask extends AbstractTask {
 	}
 
 	/**
-	 * Initializes the input reader of the ReduceTask.
+	 * Initializes the input reader of the SelfMatchTask.
 	 * 
 	 * @throws RuntimeException
 	 *         Thrown if no input ship strategy was provided.
@@ -269,8 +294,9 @@ public class ReduceTask extends AbstractTask {
 	private void initInputReader() throws RuntimeException {
 
 		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(stub.getInKeyType(),
-			stub.getInValueType());
+		// we need only one since both inputs are the same
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(stub.getFirstInKeyType(),
+			stub.getFirstInValueType());
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
@@ -284,7 +310,8 @@ public class ReduceTask extends AbstractTask {
 			dp = new BipartiteDistributionPattern();
 			break;
 		default:
-			throw new RuntimeException("No input ship strategy provided for ReduceTask.");
+			throw new RuntimeException("No valid input ship strategy provided for SelfMatchTask: " + 
+				config.getInputShipStrategy(0));
 		}
 
 		// create reader
@@ -323,7 +350,7 @@ public class ReduceTask extends AbstractTask {
 	}
 
 	/**
-	 * Returns an iterator over all k-v pairs of the ReduceTasks input. The
+	 * Returns an iterator over all k-v pairs of the SelfMatchTasks input. The
 	 * pairs which are returned by the iterator are grouped by their keys.
 	 * 
 	 * @return A key-grouped iterator over all input key-value pairs.
@@ -339,9 +366,9 @@ public class ReduceTask extends AbstractTask {
 		final IOManager ioManager = getEnvironment().getIOManager();
 
 		// obtain input key type
-		final Class<Key> keyClass = stub.getInKeyType();
+		final Class<Key> keyClass = stub.getFirstInKeyType();
 		// obtain input value type
-		final Class<Value> valueClass = stub.getInValueType();
+		final Class<Value> valueClass = stub.getFirstInValueType();
 
 		// obtain key serializer
 		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
@@ -354,7 +381,7 @@ public class ReduceTask extends AbstractTask {
 		// local strategy is NONE
 		// input is already grouped, an iterator that wraps the reader is
 		// created and returned
-		case NONE: {
+		case SELF_NESTEDLOOP: {
 			// iterator wraps input reader
 			Iterator<KeyValuePair<Key, Value>> iter = new Iterator<KeyValuePair<Key, Value>>() {
 
@@ -384,7 +411,7 @@ public class ReduceTask extends AbstractTask {
 			// local strategy is SORT
 			// The input is grouped using a sort-merge strategy.
 			// An iterator on the sorted pairs is created and returned.
-		case SORT: {
+		case SORT_SELF_NESTEDLOOP: {
 			// create a key comparator
 			final Comparator<Key> keyComparator = new Comparator<Key>() {
 				@Override
@@ -396,71 +423,242 @@ public class ReduceTask extends AbstractTask {
 			try {
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
-					this.availableMemory, this.maxFileHandles, keySerialization,
+					(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, keySerialization,
 					valSerialization, keyComparator, reader, this);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
 			} catch (MemoryAllocationException mae) {
 				throw new RuntimeException(
-					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
+					"MemoryManager is not able to provide the required amount of memory for SelfMatchTask", mae);
 			} catch (IOException ioe) {
-				throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
-			}
-		}
-
-			// local strategy is COMBININGSORT
-			// The Input is grouped using a sort-merge strategy. Before spilling
-			// on disk, the data volume is reduced using the combine() method of
-			// the ReduceStub.
-			// This strategy applies only to those ReduceTasks that have a
-			// combining ReduceStub.
-			// An iterator on the sorted and grouped pairs is created and
-			// returned
-		case COMBININGSORT: {
-			// create a comparator
-			final Comparator<Key> keyComparator = new Comparator<Key>() {
-				@Override
-				public int compare(Key k1, Key k2) {
-					return k1.compareTo(k2);
-				}
-			};
-
-			try {
-				// instantiate a combining sort-merger
-				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
-					ioManager, this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, false);
-				// obtain and return a grouped iterator from the combining
-				// sort-merger
-				return sortMerger;
-			} catch (MemoryAllocationException mae) {
-				throw new RuntimeException(
-					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
-			} catch (IOException ioe) {
-				throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
+				throw new RuntimeException("IOException caught when obtaining SortMerger for SelfMatchTask", ioe);
 			}
 		}
 		default:
-			throw new RuntimeException("Invalid local strategy provided for ReduceTask.");
+			throw new RuntimeException("Invalid local strategy provided for SelfMatchTask: " +
+				config.getLocalStrategy());
 		}
 
 	}
 	
 	/**
-	 * This method goes over all keys and values that are to be processed by this ReduceTask and calls 
-	 * {@link ReduceStub#reduce(Key, Iterator, Collector)} for each key with the key and an iterator over all 
-	 * corresponding values. 
+	 * Crosses the values of all pairs that have the same key.
+	 * The {@link MatchStub#match(Key, Iterator, Collector)} method is called for each element of the 
+	 * Cartesian product. 
 	 * 
-	 * @param in
-	 *        An iterator over all key/value pairs processed by this instance of the reducing code.
-	 *        The pairs are grouped by key, such that equal keys are always in a contiguous sequence.
+	 * @param key 
+	 *        The key of all values in the iterator.
+	 * @param vals 
+	 *        An iterator over values that share the same key.
 	 * @param out
 	 *        The collector to write the results to.
 	 */
-	private final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
-		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
-		while (!this.taskCanceled && iter.nextKey()) {
-			this.stub.reduce(iter.getKey(), iter.getValues(), out);
+	private final void crossValues(Key key, final Iterator<Value> values, final Collector<Key, Value> out) {
+		
+		// allocate buffer
+		final SerializationCopier<Value>[] valBuffer = new SerializationCopier[VALUE_BUFFER_SIZE];
+		
+		// set key copy
+		this.keyCopier.setCopy(key);
+		
+		Key copyKey;
+		Value outerVal;
+		Value innerVal;
+		
+		// fill value buffer for the first time
+		int bufferValCnt;
+		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
+			if(values.hasNext()) {
+				// read value into buffer
+				valBuffer[bufferValCnt] = new SerializationCopier<Value>();
+				valBuffer[bufferValCnt].setCopy(values.next());
+			} else {
+				break;
+			}
 		}
+		
+		// cross values in buffer
+		for(int i=0;i<bufferValCnt;i++) {
+			// check if task was canceled
+			if(this.taskCanceled) return;
+			
+			for(int j=0;j<bufferValCnt;j++) {
+				// check if task was canceled
+				if(this.taskCanceled) return;
+				
+				// get copies of key and values
+				copyKey = keySerialization.newInstance();
+				this.keyCopier.getCopy(copyKey);
+				outerVal = valSerialization.newInstance();
+				valBuffer[i].getCopy(outerVal);
+				innerVal = valSerialization.newInstance();
+				valBuffer[j].getCopy(innerVal);
+ 
+				// match
+				stub.match(copyKey, outerVal, innerVal, out);
+			}
+			
+		}
+		
+		if(!this.taskCanceled && values.hasNext()) {
+			// there are still value in the reader
+
+			// wrap value iterator in a reader
+			Reader<Value> valReader = new Reader<Value>() {
+
+				@Override
+				public boolean hasNext() {
+					
+					if(taskCanceled) 
+						return false;
+					
+					return values.hasNext();
+				}
+
+				@Override
+				public Value next() throws IOException, InterruptedException {
+						
+					// get next value
+					Value nextVal = values.next();
+					
+					// cross with value buffer
+					Key copyKey;
+					Value outerVal;
+					Value innerVal;
+					
+					// set value copy
+					innerValCopier.setCopy(nextVal);
+					
+					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
+						
+						copyKey = keySerialization.newInstance();
+						keyCopier.getCopy(copyKey);
+						outerVal = valSerialization.newInstance();
+						valBuffer[i].getCopy(outerVal);
+						innerVal = valSerialization.newInstance();
+						innerValCopier.getCopy(innerVal);
+						
+						stub.match(copyKey,outerVal,innerVal,out);
+					}
+					
+					// return value
+					return nextVal;
+				}
+			};
+			
+			SpillingResettableIterator<Value> outerValResettableIterator = null;
+			SpillingResettableIterator<Value> innerValResettableIterator = null;
+			
+			try {
+				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(stub.getFirstInValueType());
+				
+				// read values into outer resettable iterator
+				outerValResettableIterator = 
+						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
+								valReader, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+				outerValResettableIterator.open();
+
+				// iterator returns first buffer than outer resettable iterator (all values of the incoming iterator)
+				BufferIncludingIterator bii = new BufferIncludingIterator(valBuffer, outerValResettableIterator);
+				
+				// read remaining values into inner resettable iterator
+				if(!this.taskCanceled && outerValResettableIterator.hasNext()) {
+					innerValResettableIterator =
+						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(),
+								bii, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+					innerValResettableIterator.open();
+					
+					// reset outer iterator
+					outerValResettableIterator.reset();
+				
+					// cross remaining values
+					while(!this.taskCanceled && outerValResettableIterator.hasNext()) {
+						
+						// fill buffer with next elements from outer resettable iterator
+						bufferValCnt = 0;
+						while(!this.taskCanceled && outerValResettableIterator.hasNext() && bufferValCnt < VALUE_BUFFER_SIZE) {
+							valBuffer[bufferValCnt++].setCopy(outerValResettableIterator.next());
+						}
+						if(bufferValCnt == 0) break;
+						
+						// cross buffer with inner iterator
+						while(!this.taskCanceled && innerValResettableIterator.hasNext()) {
+							
+							// read inner value
+							innerVal = innerValResettableIterator.next();
+							
+							for(int i=0;i<bufferValCnt;i++) {
+								
+								// get copies
+								copyKey = keySerialization.newInstance();
+								keyCopier.getCopy(copyKey);
+								outerVal = valSerialization.newInstance();
+								valBuffer[i].getCopy(outerVal);
+								
+								stub.match(copyKey, outerVal, innerVal, out);
+								
+								if(i < bufferValCnt - 1)
+									innerVal = innerValResettableIterator.repeatLast();
+							}
+						}
+						innerValResettableIterator.reset();
+					}
+				}
+				
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			} finally {
+				if(innerValResettableIterator != null) {
+					innerValResettableIterator.close();
+				}
+				if(outerValResettableIterator != null) {
+					outerValResettableIterator.close();
+				}
+			}
+			
+		}
+		
 	}
+	
+	private final class BufferIncludingIterator implements Iterator<Value> {
+
+		int bufferIdx = 0;
+		
+		private SerializationCopier<Value>[] valBuffer;
+		private Iterator<Value> valIterator;
+		
+		public BufferIncludingIterator(SerializationCopier<Value>[] valBuffer, Iterator<Value> valIterator) {
+			this.valBuffer = valBuffer;
+			this.valIterator = valIterator;
+		}
+		
+		@Override
+		public boolean hasNext() {
+			if(taskCanceled) 
+				return false;
+			
+			if(bufferIdx < VALUE_BUFFER_SIZE) 
+				return true;
+			
+			return valIterator.hasNext();
+		}
+
+		@Override
+		public Value next() {
+			if(bufferIdx < VALUE_BUFFER_SIZE) {
+				Value outVal = valSerialization.newInstance();
+				valBuffer[bufferIdx++].getCopy(outVal);
+				return outVal;
+			} else {
+				return valIterator.next();
+			}
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+		
+	};
+		
 }

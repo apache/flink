@@ -45,7 +45,7 @@ public class TempTaskExternalITCase extends TaskTestBase {
 	public void testTempTask() {
 
 		int keyCnt = 16384;
-		int valCnt = 16;
+		int valCnt = 32;
 		
 		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
@@ -62,6 +62,7 @@ public class TempTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue(outList.size() == keyCnt*valCnt);

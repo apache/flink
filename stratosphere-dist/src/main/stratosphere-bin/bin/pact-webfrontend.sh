@@ -33,6 +33,76 @@ fi
 
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
+# auxilliary function to construct a lightweight classpath for the
+# PACT Webfrontend
+constructPactWebFrontendClassPath() {
+
+	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
+
+		add=0
+
+		if [[ "$jarfile" =~ 'nephele-server' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-clients' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-compiler' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'log4j' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jackson-core-asl' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jackson-mapper-asl' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-fileupload' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-io' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jetty-continuation' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jetty-http' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jetty-io' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jetty-security' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jetty-server' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jetty-servlet' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jetty-util' ]]; then
+			add=1			
+		elif [[ "$jarfile" =~ 'servlet-api' ]]; then
+			add=1
+		fi
+
+		if [[ "$add" = "1" ]]; then
+			if [[ $PACT_WF_CLASSPATH = "" ]]; then
+				PACT_WF_CLASSPATH=$jarfile;
+			else
+				PACT_WF_CLASSPATH=$PACT_WF_CLASSPATH:$jarfile
+			fi
+		fi
+	done
+
+	echo $PACT_WF_CLASSPATH
+}
+
+PACT_WF_CLASSPATH=$(constructPactWebFrontendClassPath)
+
 log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-pact-web-$HOSTNAME.log
 pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-pact-web.pid
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/log4j.properties"
@@ -48,7 +118,7 @@ case $STARTSTOP in
                         fi
                 fi
                 echo starting PACT Webfrontend
-		$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR &
+		$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $PACT_WF_CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR &
 		echo $! > $pid
 	;;
 

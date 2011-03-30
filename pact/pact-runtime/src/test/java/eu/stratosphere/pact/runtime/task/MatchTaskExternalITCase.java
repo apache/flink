@@ -42,20 +42,20 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 	@Test
 	public void testExternalSort1MatchTask() {
 
-		int keyCnt1 = 16384;
+		int keyCnt1 = 16384*2;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 8192;
-		int valCnt2 = 4;
+		int valCnt2 = 4*2;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(6*1024*1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
@@ -64,6 +64,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);

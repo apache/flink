@@ -71,19 +71,14 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 	public abstract boolean readLine(KeyValuePair<K, V> pair, byte[] record);
 
 	@Override
-	public boolean nextPair(KeyValuePair<K, V> pair) {
+	public boolean nextPair(KeyValuePair<K, V> pair) throws IOException {
 		// TODO: Check whether it is closed or was openend
-		try {
-			byte[] line = readLine();
-			if (line == null) {
-				end = true;
-				return false;
-			} else {
-				return readLine(pair, line);
-			}
-		} catch (IOException e) {
-			LOG.error(e);
+		byte[] line = readLine();
+		if (line == null) {
+			end = true;
 			return false;
+		} else {
+			return readLine(pair, line);
 		}
 	}
 
