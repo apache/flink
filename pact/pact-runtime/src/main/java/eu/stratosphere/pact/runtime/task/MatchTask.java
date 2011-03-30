@@ -44,6 +44,7 @@ import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.serialization.ValueDeserializer;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
+import eu.stratosphere.pact.runtime.task.util.IteratorNepheleReader;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
@@ -75,10 +76,7 @@ public class MatchTask extends AbstractTask {
 	
 	// copier for key and values
 	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
-	private final SerializationCopier<Value> v1Copier = new SerializationCopier<Value>();
-	private final SerializationCopier<Value> v2Copier = new SerializationCopier<Value>();
-	
-	
+	private final SerializationCopier<Value> valCopier = new SerializationCopier<Value>();
 
 	// reader of first input
 	private RecordReader<KeyValuePair<Key, Value>> reader1;
@@ -494,8 +492,8 @@ public class MatchTask extends AbstractTask {
 
 		} else {
 			// both sides contain more than one value
-			ValueIncludingReader v1Reader = new ValueIncludingReader(firstV1, values1);
-			ValueIncludingReader v2Reader = new ValueIncludingReader(firstV2, values2);
+			IteratorNepheleReader v1Reader = new IteratorNepheleReader(new ValueIncludingIterator(firstV1, values1));
+			IteratorNepheleReader v2Reader = new IteratorNepheleReader(new ValueIncludingIterator(firstV2, values2));
 
 			// TODO: Decide which side to spill and which to block!
 			crossMwithNValues(key, v2Reader, v1Reader, true);
@@ -524,7 +522,7 @@ public class MatchTask extends AbstractTask {
 		
 		// set copies
 		keyCopier.setCopy(key);
-		this.v1Copier.setCopy(val1);
+		this.valCopier.setCopy(val1);
 		
 		// for each of N values
 		while (!this.taskCanceled && valsN.hasNext()) {
@@ -539,13 +537,13 @@ public class MatchTask extends AbstractTask {
 			if(firstInputNValues) {
 				// get value copy
 				v1 = this.v2Serialization.newInstance();
-				this.v1Copier.getCopy(v1);
+				this.valCopier.getCopy(v1);
 				// match
 				matchStub.match(key, vN, v1, output);
 			} else {
 				// get value copy
 				v1 = this.v1Serialization.newInstance();
-				this.v1Copier.getCopy(v1);
+				this.valCopier.getCopy(v1);
 				// match
 				matchStub.match(key, v1, vN, output);
 			}
@@ -631,38 +629,7 @@ public class MatchTask extends AbstractTask {
 		}
 		
 	}
-	
-	private static final class ValueIncludingReader implements Reader<Value> {
-
-		private Value v;
-		private Iterator<Value> it;
-		private boolean first = true;
 		
-		public ValueIncludingReader(Value v, Iterator<Value> it) {
-			this.v = v;
-			this.it = it;
-		}
-		
-		@Override
-		public boolean hasNext() {
-			if(first) 
-				return true;
-			else
-				return it.hasNext();
-		}
-
-		@Override
-		public Value next() throws IOException, InterruptedException {
-			if(first) {
-				first = false;
-				return v;
-			} else {
-				return it.next();
-			}
-				
-		}
-	}
-	
 	private static final class ValueIncludingIterator implements Iterator<Value> {
 
 		private Value v;
