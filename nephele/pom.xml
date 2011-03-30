@@ -101,9 +101,6 @@
       <module>nephele-hdfs</module>
       <module>nephele-visualization</module>
       <module>nephele-server</module>
-      <!--
-      <module>nephele-compression</module>
-      -->
       <module>nephele-examples</module>
     </modules>
 </project>
