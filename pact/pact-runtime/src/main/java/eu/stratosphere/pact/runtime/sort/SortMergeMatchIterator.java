@@ -152,15 +152,15 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 				break;
 			case SORT_FIRST_MERGE:
 				this.iterator1 = new KeyValueIterator<V1>(sortMerger1.getIterator());
-				this.iterator2 = new KeyValueIterator<V2>(new NepheleReaderIterator<K,V2>(reader2));
+				this.iterator2 = new KeyValueIterator<V2>(new NepheleReaderIterator<KeyValuePair<K,V2>>(reader2));
 				break;
 			case SORT_SECOND_MERGE:
-				this.iterator1 = new KeyValueIterator<V1>(new NepheleReaderIterator<K,V1>(reader1));
+				this.iterator1 = new KeyValueIterator<V1>(new NepheleReaderIterator<KeyValuePair<K,V1>>(reader1));
 				this.iterator2 = new KeyValueIterator<V2>(sortMerger2.getIterator());
 				break;
 			case MERGE:
-				this.iterator1 = new KeyValueIterator<V1>(new NepheleReaderIterator<K,V1>(reader1));
-				this.iterator2 = new KeyValueIterator<V2>(new NepheleReaderIterator<K,V2>(reader2));
+				this.iterator1 = new KeyValueIterator<V1>(new NepheleReaderIterator<KeyValuePair<K,V1>>(reader1));
+				this.iterator2 = new KeyValueIterator<V2>(new NepheleReaderIterator<KeyValuePair<K,V2>>(reader2));
 				break;
 			default:
 				throw new RuntimeException("Unsupported Local Strategy in SortMergeMatchIterator: "+this.localStrategy);
