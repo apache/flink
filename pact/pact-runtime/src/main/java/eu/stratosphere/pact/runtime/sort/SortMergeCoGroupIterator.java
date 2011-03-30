@@ -169,15 +169,15 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 				break;
 			case SORT_FIRST_MERGE:
 				this.iterator1 = new KeyGroupedIterator<K, V1>(sortMerger1.getIterator());
-				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<K,V2>(reader2));
+				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<KeyValuePair<K,V2>>(reader2));
 				break;
 			case SORT_SECOND_MERGE:
-				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<K,V1>(reader1));
+				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<KeyValuePair<K,V1>>(reader1));
 				this.iterator2 = new KeyGroupedIterator<K, V2>(sortMerger2.getIterator());
 				break;
 			case MERGE:
-				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<K,V1>(reader1));
-				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<K,V2>(reader2));
+				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<KeyValuePair<K,V1>>(reader1));
+				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<KeyValuePair<K,V2>>(reader2));
 				break;
 			default:
 				throw new RuntimeException("Unsupported Local Strategy in SortMergeCoGroupIterator: "+this.localStrategy);
