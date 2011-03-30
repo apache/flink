@@ -275,12 +275,6 @@ public class CompressionLoader {
 		}
 	}
 
-	/*
-	 * public static boolean isThroughputAnalyzerLoaded(){
-	 * return throughputAnalyzer != null;
-	 * }
-	 */
-
 	public static synchronized int getUncompressedBufferSize(int compressedBufferSize, CompressionLevel cl) {
 
 		final CompressionLibrary c = compressionLibraries.get(cl);
