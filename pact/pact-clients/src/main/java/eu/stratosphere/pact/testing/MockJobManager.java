@@ -48,7 +48,7 @@ final class MockJobManager implements ExtendedManagementProtocol {
 	}
 
 	@Override
-	public List<NewJobEvent> getNewJobs() throws IOException {
+	public List<NewJobEvent> getRecentJobs() throws IOException {
 		return null;
 	}
 

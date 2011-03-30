@@ -101,7 +101,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private long lastClickTime = 0;
 
-	private Map<JobID, GraphVisualizationData> visualizableJobs = new HashMap<JobID, GraphVisualizationData>();
+	private Map<JobID, GraphVisualizationData> recentJobs = new HashMap<JobID, GraphVisualizationData>();
 
 	/**
 	 * Set to filter duplicate events received from the job manager.
@@ -138,7 +138,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		horizontalSash.setLayoutData(new GridData(GridData.FILL_BOTH));
 
 		final Group jobGroup = new Group(horizontalSash, SWT.NONE);
-		jobGroup.setText("Visualizable Jobs");
+		jobGroup.setText("Recent Jobs");
 		jobGroup.setLayout(new FillLayout());
 
 		this.jobTree = new Tree(jobGroup, SWT.SINGLE | SWT.BORDER);
@@ -395,7 +395,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		try {
 
 			// Check for new jobs
-			final List<NewJobEvent> newJobs = this.jobManager.getNewJobs();
+			final List<NewJobEvent> newJobs = this.jobManager.getRecentJobs();
 			if (!newJobs.isEmpty()) {
 				final Iterator<NewJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
@@ -405,9 +405,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			}
 
 			// Check for all other events
-			synchronized (this.visualizableJobs) {
+			synchronized (this.recentJobs) {
 
-				final Iterator<JobID> it = this.visualizableJobs.keySet().iterator();
+				final Iterator<JobID> it = this.recentJobs.keySet().iterator();
 				while (it.hasNext()) {
 
 					final JobID jobID = it.next();
@@ -423,7 +423,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 							}
 						}
 
-						final GraphVisualizationData graphVisualizationData = this.visualizableJobs.get(jobID);
+						final GraphVisualizationData graphVisualizationData = this.recentJobs.get(jobID);
 
 						final Iterator<AbstractEvent> eventIt = events.iterator();
 						while (eventIt.hasNext()) {
@@ -475,9 +475,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable) throws IOException {
 
-		synchronized (this.visualizableJobs) {
+		synchronized (this.recentJobs) {
 
-			if (this.visualizableJobs.containsKey(jobID)) {
+			if (this.recentJobs.containsKey(jobID)) {
 				// We already know this job
 				return;
 			}
@@ -526,7 +526,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			jobItem.setText(jobName + " (" + jobID.toString() + ")");
 			jobItem.setData(graphVisualizationData);
 
-			this.visualizableJobs.put(jobID, graphVisualizationData);
+			this.recentJobs.put(jobID, graphVisualizationData);
 		}
 	}
 

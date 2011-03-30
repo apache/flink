@@ -776,14 +776,14 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ManagementGraph getManagementGraph(JobID jobID) throws IOException {
+	public ManagementGraph getManagementGraph(final JobID jobID) throws IOException {
 
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
-		if (eg == null) {
+		final ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
+		if (mg == null) {
 			throw new IOException("Cannot find job with ID " + jobID);
 		}
 
-		return ManagementGraphFactory.fromExecutionGraph(eg);
+		return mg;
 	}
 
 	/**
@@ -812,7 +812,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<NewJobEvent> getNewJobs() throws IOException {
+	public List<NewJobEvent> getRecentJobs() throws IOException {
 
 		final List<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
 

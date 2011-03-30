@@ -64,13 +64,13 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	NetworkTopology getNetworkTopology(JobID jobID) throws IOException;
 
 	/**
-	 * Retrieves a list of new jobs which arrived during the last query interval.
+	 * Retrieves a list of jobs which have recently been started.
 	 * 
-	 * @return a (possibly) empty list of new jobs
+	 * @return a (possibly) empty list of recent jobs
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the job list
 	 */
-	List<NewJobEvent> getNewJobs() throws IOException;
+	List<NewJobEvent> getRecentJobs() throws IOException;
 
 	/**
 	 * Retrieves the collected events for the job with the given job ID.
