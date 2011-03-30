@@ -196,33 +196,6 @@ public class CompressionLoader {
 		return compressionLibrary;
 	}
 
-	/*
-	 * private static boolean initWithTrainingset(String fileName){
-	 * File f = new File(fileName);
-	 * if (f.exists() && f.isFile()){
-	 * FileInputStream fis;
-	 * ObjectInputStream ois;
-	 * try {
-	 * fis = new FileInputStream(f);
-	 * ois = new ObjectInputStream(fis);
-	 * trainingSet = (TrainingResults) ois.readObject();
-	 * ois.close();
-	 * return true;
-	 * } catch (FileNotFoundException e1) {
-	 * // TODO Auto-generated catch block
-	 * e1.printStackTrace();
-	 * } catch (IOException e2) {
-	 * // TODO Auto-generated catch block
-	 * e2.printStackTrace();
-	 * } catch (ClassNotFoundException e3) {
-	 * // TODO Auto-generated catch block
-	 * e3.printStackTrace();
-	 * }
-	 * }
-	 * return false;
-	 * }
-	 */
-
 	public static synchronized CompressionLibrary getCompressionLibraryByCompressionLevel(CompressionLevel level) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
@@ -346,48 +319,4 @@ public class CompressionLoader {
 			return uncompressedBufferSize;
 		}
 	}
-
-	/*
-	 * public static void reportDatapackageSend(int compressorID, int dataID, int bytes, int uncompressedBytes, int
-	 * uncompressedBufferSize, int compressionLevel){
-	 * if (throughputAnalyzer != null)
-	 * throughputAnalyzer.reportDatapackageSend(new IntegerRecord(compressorID), new IntegerRecord(dataID), new
-	 * IntegerRecord(bytes), new IntegerRecord(uncompressedBytes), new IntegerRecord(uncompressedBufferSize), new
-	 * IntegerRecord(compressionLevel));
-	 * }
-	 * public static void reportDatapackageReceive(int dataID){
-	 * if (throughputAnalyzer != null)
-	 * throughputAnalyzer.reportDatapackageReceive(new IntegerRecord(dataID));
-	 * }
-	 * public static ThroughputAnalyzerResult getAverageCommunicationTimeForCompressor(int compressorID){
-	 * if (throughputAnalyzer != null)
-	 * return throughputAnalyzer.getAverageCommunicationTimeForCompressor(new IntegerRecord(compressorID));
-	 * else{
-	 * return new ThroughputAnalyzerResult();
-	 * }
-	 * }
-	 * public static double getCurrentBandwidthInBytesPerNS(ChannelType type){
-	 * switch(type){
-	 * case FILE:
-	 * return 0.042; //0.084Byte/ns = 83886.08Byte/ms = 83886080Byte/s = 80MByte/s (assumed average read and write
-	 * performance is 80MByte/s - result divided by 2 because we have to write and read)
-	 * case NETWORK:
-	 * InternalInstanceProfilingDataCompression pc =
-	 * profiler.generateProfilingDataCompression(System.currentTimeMillis());
-	 * if (pc.getGoodput() == 0){
-	 * LOG.warn("Could not determine speed of network connection. Using 100MBit/s" );
-	 * return 0.0131*0.8; //0.0131Byte/ns = 13107.2Byte/ms = 13107200Byte/s = 100MBit/s (more than 80% are not
-	 * realistic)
-	 * }else
-	 * return pc.getGoodput()/1000000000; //getGoodput gives speed per second in bytes, we need per nanosecond
-	 * //return 0.131*0.8; //0.131Byte/ns = 131072Byte/ms = 131072000Byte/s = 1000MBit/s (more than 80% are not
-	 * realistic)
-	 * case INMEMORY:
-	 * return 1;
-	 * }
-	 * LOG.error("Unknown Channel Type! " + type);
-	 * return 1;
-	 * }
-	 */
-
 }
