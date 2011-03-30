@@ -316,6 +316,7 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 				@Override
 				public V next() {
+					if(first) first = false;
 					nextCalled = true;
 					return next.getValue();
 				}

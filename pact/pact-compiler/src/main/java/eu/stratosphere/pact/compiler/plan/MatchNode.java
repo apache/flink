@@ -142,7 +142,7 @@ public class MatchNode extends TwoInputNode {
 			case SORT_BOTH_MERGE:      return 2;
 			case SORT_FIRST_MERGE:     return 1;
 			case SORT_SECOND_MERGE:    return 1;
-			case MERGE:                return 0;
+			case MERGE:                return 1;
 			case HYBRIDHASH_FIRST:     return 1;
 			case HYBRIDHASH_SECOND:    return 1;
 			case MMHASH_FIRST:         return 1;
