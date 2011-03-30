@@ -469,9 +469,9 @@ public class MatchTask extends AbstractTask {
 		if (firstV1 == null || firstV2 == null) {
 			return;
 		}
-
-		boolean v1HasNext = values1.hasNext();
-		boolean v2HasNext = values2.hasNext();
+		
+		final boolean v1HasNext = values1.hasNext();
+		final boolean v2HasNext = values2.hasNext();
 
 		// check if one side is already empty
 		// this check could be omitted if we put this in MatchTask.
@@ -482,121 +482,163 @@ public class MatchTask extends AbstractTask {
 			return;
 		}
 		
-		Value v1;
-		Value v2;
-		
-		keyCopier.setCopy(key);
-		
-		if (!v1HasNext) {
+		if (!this.taskCanceled && !v1HasNext) {
 			// only values1 contains only one value
-			this.v1Copier.setCopy(firstV1);
-			
-			matchStub.match(key, firstV1, firstV2, output);
-			while (!this.taskCanceled && v2HasNext) {
-				key = this.keySerialization.newInstance();
-				this.keyCopier.getCopy(key);
-				v1 = this.v1Serialization.newInstance();
-				this.v1Copier.getCopy(v1);
-				
-				v2 = values2.next();
-				v2HasNext = values2.hasNext();
-				matchStub.match(key, v1, v2, output);
-			}
+			ValueIncludingIterator v2Iterator = new ValueIncludingIterator(firstV2, values2);
+			cross1withNValues(key, firstV1, v2Iterator, false);
 
 		} else if (!this.taskCanceled && !v2HasNext) {
 			// only values2 contains only one value
-			this.v2Copier.setCopy(firstV2);
-			
-			matchStub.match(key, firstV1, firstV2, output);
-			while (v1HasNext) {
-				key = this.keySerialization.newInstance();
-				this.keyCopier.getCopy(key);
-				v2 = this.v2Serialization.newInstance();
-				this.v2Copier.getCopy(v2);
-				
-				v1 = values1.next();
-				v1HasNext = values1.hasNext();
-				matchStub.match(key, v1, v2, output);
-			}
+			ValueIncludingIterator v1Iterator = new ValueIncludingIterator(firstV1, values1);
+			cross1withNValues(key, firstV2, v1Iterator, true);
 
 		} else {
 			// both sides contain more than one value
-			// TODO: Decide which side to store and which to block!
-			
-			SpillingResettableIterator<Value> v1ResettableIt = null;
-			BlockResettableIterator<Value> v2BlockedIt = null;
-			try {
-				// create block iterator on second input
-				ValueIncludingIteratorReader v2Reader = new ValueIncludingIteratorReader(firstV2, values2);
-				ValueDeserializer<Value> v2Deserializer = new ValueDeserializer<Value>(matchStub.getSecondInValueType());
-				v2BlockedIt = new BlockResettableIterator<Value>(getEnvironment().getMemoryManager(), 
-						v2Reader, (long)(this.availableMemory * (MEMORY_SHARE_RATIO/2)), 2, v2Deserializer, this);
-				v2BlockedIt.open();
-				
-				// TODO: check if v2 has more than one block to read from
-				
-				// create spilling iterator on first input
-				ValueIncludingIteratorReader v1Reader = new ValueIncludingIteratorReader(firstV1, values1);
-				ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
-				v1ResettableIt = 
-						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
-								v1Reader, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
-				v1ResettableIt.open();
-				
-				// as long as there are blocks of second input 
-				do {
-					
-					// cross block values (second input) with resettable values (first input)
-					while(!this.taskCanceled && v1ResettableIt.hasNext()) {
-						
-						// get value from resettable iterator
-						v1 = v1ResettableIt.next();
-						
-						// cross value with block values
-						while(!this.taskCanceled && v2BlockedIt.hasNext()) {
-							
-							// get instances of key and block value
-							key = this.keySerialization.newInstance();
-							this.keyCopier.getCopy(key);
-							v2 = v2BlockedIt.next();
-							
-							// match
-							matchStub.match(key, v1, v2, output);
-							
-							// get new instance of resettable value
-							if(v2BlockedIt.hasNext())
-								v1 = v1ResettableIt.repeatLast();
-						}
-						// reset block iterator
-						v2BlockedIt.reset();
-					}
-					// reset v1 iterator
-					v1ResettableIt.reset();
-					
-					// move to next block
-				} while (!this.taskCanceled && v2BlockedIt.nextBlock());
-				
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			} finally {
-				if(v2BlockedIt != null) {
-					v2BlockedIt.close();
-				}
-				if(v1ResettableIt != null) {
-					v1ResettableIt.close();
-				}
-			}
-					
+			ValueIncludingReader v1Reader = new ValueIncludingReader(firstV1, values1);
+			ValueIncludingReader v2Reader = new ValueIncludingReader(firstV2, values2);
+
+			// TODO: Decide which side to spill and which to block!
+			crossMwithNValues(key, v2Reader, v1Reader, true);
 		}
 	}
 	
-	private static final class ValueIncludingIteratorReader implements Reader<Value> {
+	/**
+	 * Crosses a single value with N values all sharing a common key.
+	 * 
+	 * @param key 
+	 * 			The key shared by all values
+	 * @param val1
+	 *          The single value
+	 * @param valsN
+	 *          Iterator over N values
+	 * @param firstInputNValues
+	 *          Set to true if the first input in N-value side, false otherwise.
+	 *          
+	 * @throws RuntimeException
+	 *          Forwards all exceptions thrown by the stub.
+	 */
+	private void cross1withNValues(Key key, Value val1, Iterator<Value> valsN, final boolean firstInputNValues) throws RuntimeException {
+		
+		Value v1;
+		Value vN;
+		
+		// set copies
+		keyCopier.setCopy(key);
+		this.v1Copier.setCopy(val1);
+		
+		// for each of N values
+		while (!this.taskCanceled && valsN.hasNext()) {
+			
+			// get key copy
+			key = this.keySerialization.newInstance();
+			this.keyCopier.getCopy(key);
+		
+			// get N value
+			vN = valsN.next();
+			
+			if(firstInputNValues) {
+				// get value copy
+				v1 = this.v2Serialization.newInstance();
+				this.v1Copier.getCopy(v1);
+				// match
+				matchStub.match(key, vN, v1, output);
+			} else {
+				// get value copy
+				v1 = this.v1Serialization.newInstance();
+				this.v1Copier.getCopy(v1);
+				// match
+				matchStub.match(key, v1, vN, output);
+			}
+			
+		}
+		
+	}
+	
+	private void crossMwithNValues(Key key, Reader<Value> blockVals, Reader<Value> spillVals, final boolean spillFirstInput) throws RuntimeException {
+		
+		Value spillVal;
+		Value blockVal;
+		
+		keyCopier.setCopy(key);
+		
+		SpillingResettableIterator<Value> spillIt = null;
+		BlockResettableIterator<Value> blockIt = null;
+		
+		try {
+			// create block iterator on second input
+			
+			ValueDeserializer<Value> v2Deserializer = new ValueDeserializer<Value>(matchStub.getSecondInValueType());
+			blockIt = new BlockResettableIterator<Value>(getEnvironment().getMemoryManager(), 
+					blockVals, (long)(this.availableMemory * (MEMORY_SHARE_RATIO/2)), 2, v2Deserializer, this);
+			blockIt.open();
+			
+			// TODO: check if v2 has more than one block to read from
+			
+			// create spilling iterator on first input
+			
+			ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
+			spillIt = 
+					new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
+							spillVals, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+			spillIt.open();
+			
+			// as long as there are blocks of second input 
+			do {
+				
+				// cross block values (second input) with resettable values (first input)
+				while(!this.taskCanceled && spillIt.hasNext()) {
+					
+					// get value from resettable iterator
+					spillVal = spillIt.next();
+					
+					// cross value with block values
+					while(!this.taskCanceled && blockIt.hasNext()) {
+						
+						// get instances of key and block value
+						key = this.keySerialization.newInstance();
+						this.keyCopier.getCopy(key);
+						blockVal = blockIt.next();
+						
+						// match
+						if(spillFirstInput) {
+							matchStub.match(key, spillVal, blockVal, output);
+						} else {
+							matchStub.match(key, blockVal, spillVal, output);
+						}
+						
+						// get new instance of resettable value
+						if(blockIt.hasNext())
+							spillVal = spillIt.repeatLast();
+					}
+					// reset block iterator
+					blockIt.reset();
+				}
+				// reset v1 iterator
+				spillIt.reset();
+				
+				// move to next block
+			} while (!this.taskCanceled && blockIt.nextBlock());
+			
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		} finally {
+			if(blockIt != null) {
+				blockIt.close();
+			}
+			if(spillIt != null) {
+				spillIt.close();
+			}
+		}
+		
+	}
+	
+	private static final class ValueIncludingReader implements Reader<Value> {
 
 		private Value v;
 		private Iterator<Value> it;
 		private boolean first = true;
 		
-		public ValueIncludingIteratorReader(Value v, Iterator<Value> it) {
+		public ValueIncludingReader(Value v, Iterator<Value> it) {
 			this.v = v;
 			this.it = it;
 		}
@@ -618,6 +660,42 @@ public class MatchTask extends AbstractTask {
 				return it.next();
 			}
 				
+		}
+	}
+	
+	private static final class ValueIncludingIterator implements Iterator<Value> {
+
+		private Value v;
+		private Iterator<Value> it;
+		private boolean first = true;
+		
+		public ValueIncludingIterator(Value v, Iterator<Value> it) {
+			this.v = v;
+			this.it = it;
+		}
+		
+		@Override
+		public boolean hasNext() {
+			if(first) 
+				return true;
+			else
+				return it.hasNext();
+		}
+
+		@Override
+		public Value next() {
+			if(first) {
+				first = false;
+				return v;
+			} else {
+				return it.next();
+			}
+				
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
 		}
 	}
 
