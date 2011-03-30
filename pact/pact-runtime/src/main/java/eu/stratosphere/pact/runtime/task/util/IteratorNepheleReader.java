@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.types.Record;
 
 /**
- * Wraps a Nephele reader into a Java Iterator.
+ * Wraps a Java Iterator into a Nephele reader.
  * 
  * @see Reader
  * @see Iterator
@@ -30,33 +30,24 @@ import eu.stratosphere.nephele.types.Record;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class NepheleReaderIterator<T extends Record> implements Iterator<T> {
+public class IteratorNepheleReader<T extends Record> implements Reader<T> {
 
-	private Reader<T> reader;
+	private final Iterator<T> it;
 	
-	public NepheleReaderIterator(Reader<T> reader) {
-		this.reader = reader;
+	public IteratorNepheleReader(Iterator<T> it) {
+		this.it = it;
 	}
 	
 	@Override
 	public boolean hasNext() {
-		return reader.hasNext();
+		return it.hasNext();
 	}
 
 	@Override
-	public T next() {
-		try {
-			return reader.next();
-		} catch (IOException ioe) {
-			throw new RuntimeException(ioe);
-		} catch (InterruptedException ie) {
-			throw new RuntimeException(ie);
-		}
+	public T next() throws IOException,
+			InterruptedException {
+		return it.next();
 	}
 
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
-
+	
 }

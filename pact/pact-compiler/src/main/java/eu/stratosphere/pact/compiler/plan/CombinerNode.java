@@ -56,6 +56,13 @@ public class CombinerNode extends OptimizerNode {
 			this.estimatedNumRecords = predecessor.estimatedNumRecords;
 			this.estimatedOutputSize = predecessor.estimatedOutputSize;
 		}
+		
+		// copy the child's branch-plan map
+		if (this.branchPlan == null) {
+			this.branchPlan = predecessor.branchPlan;
+		} else if (predecessor.branchPlan != null) {
+			this.branchPlan.putAll(predecessor.branchPlan);
+		}
 	}
 
 	@Override
