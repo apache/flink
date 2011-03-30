@@ -160,12 +160,19 @@ public class HashJoin<K extends Key, V extends Value>
 
 	
 	// ------------------------------------------------------------------------
-	//                       Hash Tabel Building
+	//                       Hash Table Building
 	// ------------------------------------------------------------------------
 	
 	
 	public void buildInitialTable(final Iterator<KeyValuePair<K, V>> input)
 	{
+		// create the partitions
+		int partitionFanOut = getPartitioningFanOutNoEstimates(this.availableMemory.size());
+		createPartitions(partitionFanOut);
+		
+		// set up the table structure
+		
+		
 		// go over the complete input
 		while (input.hasNext())
 		{
@@ -179,6 +186,26 @@ public class HashJoin<K extends Key, V extends Value>
 			// write the pair in the current partition buffer
 		}
 	}
+	
+	
+	private void createPartitions(int numPartitions)
+	{
+		// sanity check
+		if (this.availableMemory.size() < numPartitions) {
+			throw new RuntimeException("Bug in Hybrid Hash Join: Cannot create more partisions than number of available buffers.");
+		}
+		
+		this.currentEnumerator = this.ioManager.createChannelEnumerator();
+		
+		this.partitionsBeingBuilt.clear();
+		for (int i = 0; i < numPartitions; i++) {
+			Partition p = new Partition(
+				this.availableMemory.remove(this.availableMemory.size() - 1),
+				this.writeBehindBuffers);
+			this.partitionsBeingBuilt.add(p);
+		}
+	}
+	
 	
 	private final void insertIntoTable(final KeyValuePair<K, V> pair, int hashCode)
 	throws IOException
@@ -331,6 +358,21 @@ public class HashJoin<K extends Key, V extends Value>
 	}
 	
 	/**
+	 * Gets the number of partitions to be used for an initial hash-table, when no estimates are
+	 * available.
+	 * <p>
+	 * The current logic makes sure that there are always between 10 and 100 partitions, and close
+	 * to 0.1 of the number of buffers.
+	 * 
+	 * @param numBuffers The number of buffers available.
+	 * @return The number of partitions to use.
+	 */
+	public static final int getPartitioningFanOutNoEstimates(int numBuffers)
+	{
+		return Math.max(10, Math.min(numBuffers / 10, 100));
+	}
+	
+	/**
 	 * This function hashes an integer value to ensure most uniform distribution across the
 	 * integer spectrum. The code is adapted from Bob Jenkins' hash code (http://www.burtleburtle.net/bob/c/lookup3.c),
 	 * specifically from the <code>final()</code> function.
@@ -411,15 +453,14 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @param initialBuffer The initial buffer for this partition.
 		 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 		 */
-		private Partition(Buffer.Output initialBuffer, LinkedBlockingQueue<MemorySegment> writeBehindBuffers)
+		private Partition(MemorySegment initialBuffer, LinkedBlockingQueue<MemorySegment> writeBehindBuffers)
 		{
 			this.partitionBuffers = new ArrayList<Buffer.Output>(4);
-			this.partitionBuffers.add(initialBuffer);
-			
 			this.writeBehindBuffers = writeBehindBuffers;
-			
 			this.recordCounter = 0;
-			this.blockCounter = 1;
+			this.blockCounter = 0;
+			
+			addBuffer(initialBuffer);
 		}
 		
 		/**
