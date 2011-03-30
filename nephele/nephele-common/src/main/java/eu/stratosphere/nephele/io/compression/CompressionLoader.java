@@ -180,16 +180,16 @@ public class CompressionLoader {
 		try {
 			compressionLibrary = constructor.newInstance(getNativeLibraryPath());
 		} catch (IllegalArgumentException e) {
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		} catch (InstantiationException e) {
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		} catch (IllegalAccessException e) {
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		} catch (InvocationTargetException e) {
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		}
 
