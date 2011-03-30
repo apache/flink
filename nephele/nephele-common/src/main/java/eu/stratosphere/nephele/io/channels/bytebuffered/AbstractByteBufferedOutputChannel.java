@@ -371,4 +371,29 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.synchronisationObject.notify();
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		this.closeRequested = true;
+
+		synchronized (this.synchronisationObject) {
+			this.closeAcknowledgementReceived = true;
+		}
+
+		this.serializationBuffer.clear();
+
+		if (this.compressedDataBuffer != null) {
+			this.compressedDataBuffer.recycleBuffer();
+			this.compressedDataBuffer = null;
+		}
+
+		if (this.uncompressedDataBuffer != null) {
+			this.uncompressedDataBuffer.recycleBuffer();
+			this.uncompressedDataBuffer = null;
+		}
+	}
 }

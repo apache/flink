@@ -98,7 +98,7 @@ public class InstanceProfiler {
 
 		try {
 
-			FileReader memReader = new FileReader(PROC_MEMINFO);
+			final FileReader memReader = new FileReader(PROC_MEMINFO);
 			final BufferedReader in = new BufferedReader(memReader);
 
 			long freeMemory = 0;

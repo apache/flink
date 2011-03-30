@@ -43,6 +43,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -141,6 +143,8 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	private final int recommendedClientPollingInterval;
 
 	private final Set<ExecutionVertex> verticesReadyToRun = new HashSet<ExecutionVertex>();
+
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 	private final static int SLEEPINTERVAL = 1000;
 
@@ -347,6 +351,12 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			this.jobManagerServer.stop();
 		}
 
+		// Stop the executor service
+		if (this.executorService != null) {
+			this.executorService.shutdown();
+
+		}
+
 		// Stop and clean up the job progress collector
 		if (this.eventCollector != null) {
 			this.eventCollector.shutdown();
@@ -538,11 +548,21 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
+	public void sendHeartbeat(final InstanceConnectionInfo instanceConnectionInfo,
+			final HardwareDescription hardwareDescription) {
 
 		// Delegate call to instance manager
 		if (this.instanceManager != null) {
-			this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+
+			final Runnable heartBeatRunnable = new Runnable() {
+
+				@Override
+				public void run() {
+					instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+				}
+			};
+
+			this.executorService.execute(heartBeatRunnable);
 		}
 	}
 
@@ -605,7 +625,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void updateTaskExecutionState(TaskExecutionState executionState) throws IOException {
+	public void updateTaskExecutionState(final TaskExecutionState executionState) throws IOException {
 
 		// Ignore calls with executionResult == null
 		if (executionState == null) {
@@ -627,9 +647,19 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return;
 		}
 
-		// The registered listeners of the vertex will make sure the appropriate actions are taken
-		vertex.getEnvironment().changeExecutionState(executionState.getExecutionState(),
-			executionState.getDescription());
+		final Runnable taskStateChangeRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				// The registered listeners of the vertex will make sure the appropriate actions are taken
+				vertex.getEnvironment().changeExecutionState(executionState.getExecutionState(),
+					executionState.getDescription());
+			}
+		};
+
+		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
+		this.executorService.execute(taskStateChangeRunnable);
 	}
 
 	/**
@@ -907,11 +937,10 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		// Delegate call to the instance manager
-		if(this.instanceManager != null)
-		{
+		if (this.instanceManager != null) {
 			return this.instanceManager.getMapOfAvailableInstanceTypes();
 		}
-		
+
 		return null;
 	}
 
@@ -992,7 +1021,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			}
 		};
 
-		// Launch thread
-		new Thread(requestRunnable).start();
+		// Hand over to the executor service
+		this.executorService.execute(requestRunnable);
 	}
 }

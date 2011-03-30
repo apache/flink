@@ -16,15 +16,15 @@
 package eu.stratosphere.pact.runtime.test.util;
 
 import junit.framework.Assert;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
 public class TaskCancelThread extends Thread {
 
 	final private int cancelTimeout;
 	final private Thread interruptedThread;
-	final private AbstractTask canceledTask;
+	final private AbstractInvokable canceledTask;
 	
-	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractTask canceledTask) {
+	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractInvokable canceledTask) {
 		this.cancelTimeout = cancelTimeout;
 		this.interruptedThread = interruptedThread;
 		this.canceledTask = canceledTask;

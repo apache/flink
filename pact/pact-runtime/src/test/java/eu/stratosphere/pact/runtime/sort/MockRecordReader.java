@@ -18,14 +18,11 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -46,11 +43,6 @@ public class MockRecordReader<T extends Record> implements Reader<T> {
 	private final BlockingQueue<Record> queue = new ArrayBlockingQueue<Record>(64, false);
 
 	private T next;
-
-	@Override
-	public List<AbstractInputChannel<T>> getInputChannels() {
-		return Collections.emptyList();
-	}
 
 	@SuppressWarnings("unchecked")
 	@Override

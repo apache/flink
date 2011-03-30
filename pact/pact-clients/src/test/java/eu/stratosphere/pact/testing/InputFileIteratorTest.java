@@ -15,9 +15,6 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.FormatUtil;
-import eu.stratosphere.pact.testing.AssertUtil;
-import eu.stratosphere.pact.testing.InputFileIterator;
-import eu.stratosphere.pact.testing.TestPlan;
 
 /**
  * Tests {@link InputFileIterator}.
@@ -65,7 +62,7 @@ public class InputFileIteratorTest {
 	@Test
 	public void emptyIteratorIfInputFileDoesNotExists() throws IOException {
 		String testPlanFile = TestPlan.getTestPlanFile("fileIteratorTest");
-		SequentialInputFormat<Key, Value> inputFormat = FormatUtil.createInputFormat(
+		SequentialInputFormat<Key, Value> inputFormat = (SequentialInputFormat<Key, Value>) FormatUtil.createInputFormat(
 			SequentialInputFormat.class, testPlanFile, null);
 		InputFileIterator<Key, Value> inputFileIterator = new InputFileIterator<Key, Value>(true, inputFormat);
 
@@ -128,7 +125,7 @@ public class InputFileIteratorTest {
 		for (KeyValuePair keyValuePair : pairs)
 			output.writePair(keyValuePair);
 		output.close();
-		SequentialInputFormat<Key, Value> inputFormat = FormatUtil.createInputFormat(
+		SequentialInputFormat<Key, Value> inputFormat = (SequentialInputFormat<Key, Value>) FormatUtil.createInputFormat(
 			SequentialInputFormat.class, testPlanFile, null);
 		InputFileIterator<Key, Value> inputFileIterator = new InputFileIterator<Key, Value>(reusePairs, inputFormat);
 		return inputFileIterator;

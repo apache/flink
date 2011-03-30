@@ -43,19 +43,19 @@ public class CoGroupTaskExternalITCase extends TaskTestBase {
 	public void testExternalSortCoGroupTask() {
 
 		int keyCnt1 = 16384;
-		int valCnt1 = 4;
+		int valCnt1 = 4*2;
 		
-		int keyCnt2 = 65536;
+		int keyCnt2 = 65536*2;
 		int valCnt2 = 1;
 		
-		super.initEnvironment(5*1024*1024);
+		super.initEnvironment(6*1024*1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
@@ -64,6 +64,7 @@ public class CoGroupTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);

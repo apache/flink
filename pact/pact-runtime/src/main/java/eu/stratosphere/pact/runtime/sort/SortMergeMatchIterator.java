@@ -283,8 +283,8 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 		public Iterator<V> getValues() {
 			return new Iterator<V>() {
 				boolean first = true;
-
 				boolean last = false;
+				boolean nextCalled = true;
 
 				@Override
 				public boolean hasNext() {
@@ -294,24 +294,30 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 					} else if (last) {
 						return false;
 					} else {
-						if (!iterator.hasNext()) {
-							return false;
-						}
-
-						KeyValuePair<K, V> prev = next;
-						next = iterator.next();
-						if (next.getKey().compareTo(prev.getKey()) == 0) {
-							return true;
+						if(nextCalled) {
+							if (!iterator.hasNext()) {
+								return false;
+							}
+							nextCalled = false;
+							KeyValuePair<K, V> prev = next;
+							next = iterator.next();
+							if (next.getKey().compareTo(prev.getKey()) == 0) {
+								return true;
+							} else {
+								last = true;
+								nextKey = true;
+								return false;
+							}
 						} else {
-							last = true;
-							nextKey = true;
-							return false;
+							return true;
 						}
 					}
 				}
 
 				@Override
 				public V next() {
+					if(first) first = false;
+					nextCalled = true;
 					return next.getValue();
 				}
 

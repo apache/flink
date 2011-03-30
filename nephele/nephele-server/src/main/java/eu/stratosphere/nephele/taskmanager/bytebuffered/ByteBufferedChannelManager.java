@@ -20,12 +20,10 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -61,10 +59,6 @@ public class ByteBufferedChannelManager {
 
 	private static final boolean DEFAULT_ALLOW_SPILLING = true;
 
-	private static final int DEFAULT_NUMBER_OF_OUTGOING_CONNECTION_THREADS = 1;
-
-	private static final int DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS = 1;
-
 	private static final int DEFAULT_NUMBER_OF_CONNECTION_RETRIES = 10;
 
 	private final Deque<ByteBuffer> emptyReadBuffers = new ArrayDeque<ByteBuffer>();
@@ -83,9 +77,9 @@ public class ByteBufferedChannelManager {
 
 	private final FileBufferManager fileBufferManager;
 
-	private final List<OutgoingConnectionThread> outgoingConnectionThreads = new ArrayList<OutgoingConnectionThread>();
+	private final OutgoingConnectionThread outgoingConnectionThread;
 
-	private final List<IncomingConnectionThread> incomingConnectionThreads = new ArrayList<IncomingConnectionThread>();
+	private final IncomingConnectionThread incomingConnectionThread;
 
 	private final int bufferSizeInBytes;
 
@@ -99,13 +93,13 @@ public class ByteBufferedChannelManager {
 
 	private final int numberOfWriteBuffers;
 
+	private int flushThreshold = 0;
+
 	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService, InetAddress incomingDataAddress,
 			int incomingDataPort, String tmpDir)
 												throws IOException {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
-
-		this.fileBufferManager = new FileBufferManager(tmpDir);
 
 		this.numberOfReadBuffers = configuration.getInteger("channel.network.numberOfReadBuffers",
 			DEFAULT_NUMBER_OF_READ_BUFFERS);
@@ -116,27 +110,13 @@ public class ByteBufferedChannelManager {
 
 		this.channelLookupService = channelLookupService;
 
+		this.fileBufferManager = FileBufferManager.getInstance();
+		
 		// Start the connection threads
-		final int numberOfOutgoingConnectionThreads = configuration.getInteger(
-			"channel.network.numberOfOutgoingConnectionThreads", DEFAULT_NUMBER_OF_OUTGOING_CONNECTION_THREADS);
-		synchronized (this.outgoingConnectionThreads) {
-			for (int i = 0; i < numberOfOutgoingConnectionThreads; i++) {
-				final OutgoingConnectionThread outgoingConnectionThread = new OutgoingConnectionThread();
-				outgoingConnectionThread.start();
-				this.outgoingConnectionThreads.add(outgoingConnectionThread);
-			}
-		}
-
-		final int numberOfIncomingConnectionThreads = configuration.getInteger(
-			"channel.network.numgerOfIncomingConnectionThreads", DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS);
-		synchronized (this.incomingConnectionThreads) {
-			for (int i = 0; i < numberOfIncomingConnectionThreads; i++) {
-				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(this, (i == 0),
-					new InetSocketAddress(incomingDataAddress, incomingDataPort));
-				incomingConnectionThread.start();
-				this.incomingConnectionThreads.add(incomingConnectionThread);
-			}
-		}
+		this.outgoingConnectionThread = new OutgoingConnectionThread();
+		this.outgoingConnectionThread.start();
+		this.incomingConnectionThread = new IncomingConnectionThread(this, true, new InetSocketAddress(incomingDataAddress, incomingDataPort));
+		this.incomingConnectionThread.start();
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
@@ -186,11 +166,14 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	BufferPairResponse requestEmptyWriteBuffers(BufferPairRequest bufferPairRequest) throws InterruptedException {
+	BufferPairResponse requestEmptyWriteBuffers(WriteBufferRequestor requestor, BufferPairRequest bufferPairRequest)
+			throws InterruptedException {
 
 		synchronized (this.emptyWriteBuffers) {
 
 			while (this.emptyWriteBuffers.size() < bufferPairRequest.getNumberOfRequestedByteBuffers()) {
+
+				requestor.outOfWriteBuffers();
 
 				/*
 				 * synchronized(this.registeredOutOfWriteBuffersListeners) {
@@ -261,13 +244,6 @@ public class ByteBufferedChannelManager {
 
 			if (this.isSpillingAllowed) {
 				return BufferFactory.createFromFile(minimumSizeOfBuffer, sourceChannelID, this.fileBufferManager);
-			}
-
-			try {
-				this.emptyReadBuffers.wait(100); // Wait for 100 milliseconds, so the NIO thread won't do busy
-				// waiting...
-			} catch (InterruptedException e) {
-				LOG.error(e);
 			}
 		}
 
@@ -423,9 +399,7 @@ public class ByteBufferedChannelManager {
 
 	private OutgoingConnectionThread getOutgoingConnectionThread() {
 
-		synchronized (this.outgoingConnectionThreads) {
-			return this.outgoingConnectionThreads.get((int) (this.outgoingConnectionThreads.size() * Math.random()));
-		}
+		return this.outgoingConnectionThread;
 	}
 
 	void queueOutgoingTransferEnvelope(TransferEnvelope transferEnvelope) throws InterruptedException, IOException {
@@ -482,7 +456,7 @@ public class ByteBufferedChannelManager {
 		} else {
 
 			final ByteBufferedOutputChannelWrapper networkOutputChannelWrapper = (ByteBufferedOutputChannelWrapper) targetChannelWrapper;
-			
+
 			// In case of an output channel, we only expect events and no buffers
 			if (transferEnvelope.getBuffer() != null) {
 				LOG.error("Incoming transfer envelope for network output channel "
@@ -585,19 +559,8 @@ public class ByteBufferedChannelManager {
 		LOG.info("Shutting down network channel manager");
 
 		// Interrupt the threads we started
-		synchronized (this.incomingConnectionThreads) {
-			final Iterator<IncomingConnectionThread> it = this.incomingConnectionThreads.iterator();
-			while (it.hasNext()) {
-				it.next().interrupt();
-			}
-		}
-
-		synchronized (this.outgoingConnectionThreads) {
-			final Iterator<OutgoingConnectionThread> it = this.outgoingConnectionThreads.iterator();
-			while (it.hasNext()) {
-				it.next().interrupt();
-			}
-		}
+		this.incomingConnectionThread.interrupt();
+		this.outgoingConnectionThread.interrupt();
 
 		// Finally, do some consistency tests
 		synchronized (this.emptyReadBuffers) {
@@ -744,6 +707,20 @@ public class ByteBufferedChannelManager {
 						+ numberOfQueuedEnvelopes + ")");
 				}
 			}
+		}
+	}
+
+	public void setFlushThreshold(final int flushThreshold) {
+
+		synchronized (this.emptyWriteBuffers) {
+			this.flushThreshold = flushThreshold;
+		}
+	}
+
+	public int getFlushThreshold() {
+
+		synchronized (this.emptyWriteBuffers) {
+			return this.flushThreshold;
 		}
 	}
 }

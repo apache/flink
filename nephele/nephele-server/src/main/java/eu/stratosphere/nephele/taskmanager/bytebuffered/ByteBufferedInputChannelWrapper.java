@@ -225,7 +225,7 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 					// Wait for missing envelope to arrive
 					while (sequenceNumber > this.nextExpectedSequenceNumber) {
-						wait(100);
+						this.queuedEnvelopes.wait(100);
 					}
 
 				} else {

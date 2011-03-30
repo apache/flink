@@ -154,9 +154,20 @@ public abstract class AbstractChannel implements IOReadableWritable {
 	 */
 	public abstract JobID getJobID();
 
+	/**
+	 * Returns <code>true</code> if this channel is an input channel, <code>false</code> otherwise.
+	 * 
+	 * @return <code>true</code> if this channel is an input channel, <code>false</code> otherwise
+	 */
 	public abstract boolean isInputChannel();
 
 	public abstract void transferEvent(AbstractEvent event) throws IOException, InterruptedException;
 
 	public abstract void processEvent(AbstractEvent event);
+
+	/**
+	 * Releases all resources (especially buffers) which are currently allocated by this channel. This method should be
+	 * called in case of a task error or as a result of a cancel operation.
+	 */
+	public abstract void releaseResources();
 }

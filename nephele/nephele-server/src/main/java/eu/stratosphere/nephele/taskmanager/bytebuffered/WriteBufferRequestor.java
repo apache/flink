@@ -13,21 +13,9 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.IOException;
+public interface WriteBufferRequestor {
 
-import eu.stratosphere.nephele.types.Record;
-
-/**
- * A reader interface which is implemented by record reader.
- * 
- * @author nijkamp
- * @param <T>
- *        the type of the record that can be emitted with this record writer
- */
-public interface Reader<T extends Record> {
-	boolean hasNext();
-
-	T next() throws IOException, InterruptedException;
+	void outOfWriteBuffers() throws InterruptedException;
 }

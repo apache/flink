@@ -91,7 +91,7 @@ public class SWTGateToolTip extends SWTToolTip {
 		this.channelTypeLabel = new Label(tableComposite, SWT.NONE);
 		this.channelTypeLabel.setText(channelType.toString());
 
-		new Label(tableComposite, SWT.NONE).setText("Tramsmitted record type:");
+		new Label(tableComposite, SWT.NONE).setText("Transmitted record type:");
 		this.recordTypeLabel = new Label(tableComposite, SWT.NONE);
 		this.recordTypeLabel.setText(managementGate.getRecordType());
 

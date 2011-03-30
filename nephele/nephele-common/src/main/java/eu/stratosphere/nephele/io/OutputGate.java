@@ -373,12 +373,11 @@ public class OutputGate<T extends Record> extends Gate<T> {
 
 		super.read(in);
 
-		// TODO (en)
 		try {
-			String classNameSelector = StringRecord.readString(in);
+			final String classNameSelector = StringRecord.readString(in);
 			final ClassLoader cl = LibraryCacheManager.getClassLoader(getJobID());
-			channelSelector = (ChannelSelector<T>) Class.forName(classNameSelector, true, cl).newInstance();
-			channelSelector.read(in);
+			this.channelSelector = (ChannelSelector<T>) Class.forName(classNameSelector, true, cl).newInstance();
+			this.channelSelector.read(in);
 		} catch (InstantiationException e) {
 			LOG.error(e);
 		} catch (IllegalAccessException e) {
@@ -579,6 +578,18 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			for (int i = 0; i < this.outputGateListeners.length; ++i) {
 				this.outputGateListeners[i].channelCapacityExhausted(channelIndex);
 			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseAllChannelResources() {
+
+		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
+		while (it.hasNext()) {
+			it.next().releaseResources();
 		}
 	}
 }

@@ -56,7 +56,16 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+			} catch (InterruptedException e) {
+				return -1;
+			}
+			if (this.fileChannel.position() != this.offset) {
+				System.out.println("Expected offset " + this.offset + ", but channel position is "
+					+ this.fileChannel.position());
+				this.fileChannel.position(this.offset);
+			}
 		}
 
 		if (this.totalBytesRead >= this.bufferSize) {
@@ -78,8 +87,16 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
-			this.offset = this.fileChannel.position();
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+			} catch (InterruptedException e) {
+				return -1;
+			}
+			if (this.fileChannel.position() != this.offset) {
+				System.out.println("Expected offset " + this.offset + ", but channel position is "
+					+ this.fileChannel.position());
+				this.fileChannel.position(this.offset);
+			}
 		}
 
 		if (this.totalBytesRead >= this.bufferSize) {
@@ -115,6 +132,9 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			if (this.fileChannel == null) {
+				return 0;
+			}
 			this.offset = this.fileChannel.position();
 		}
 
@@ -138,6 +158,9 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			if (this.fileChannel == null) {
+				return 0;
+			}
 		}
 
 		if (this.totalBytesWritten >= this.bufferSize) {
@@ -189,13 +212,14 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.writeMode) {
 
-			this.fileChannel.position(this.offset + this.totalBytesWritten);
+			final long currentFileSize = this.offset + this.totalBytesWritten;
+			this.fileChannel.position(currentFileSize);
 			this.fileChannel = null;
 			this.bufferSize = this.totalBytesWritten;
 			// System.out.println("Buffer size: " + this.bufferSize);
 			// TODO: Check synchronization
 			this.writeMode = false;
-			this.fileBufferManager.reportEndOfWritePhase(this.channelID);
+			this.fileBufferManager.reportEndOfWritePhase(this.channelID, currentFileSize);
 		}
 
 	}

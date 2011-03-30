@@ -368,15 +368,8 @@ public class Environment implements Runnable, IOReadableWritable {
 				}
 			}
 
-			// Request closing of input and output gates, but don't wait for it
-			/*
-			 * try { //TODO: Fix this
-			 * closeInputGates();
-			 * requestAllOutputGatesToClose();
-			 * } catch (IOException ioe) {
-			 * LOG.error(StringUtils.stringifyException(ioe));
-			 * }
-			 */
+			// Release all resources that may currently be allocated by the individual channels
+			releaseAllChannelResources();
 
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
@@ -1036,15 +1029,33 @@ public class Environment implements Runnable, IOReadableWritable {
 		}
 
 		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.FAILED) {
+			/**
+			 * This is a regular transition in case of a task error.
+			 */
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.FINISHING && newExecutionState == ExecutionState.FAILED) {
+			/**
+			 * This is a regular transition in case of a task error.
+			 */
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.CANCELING) {
+			/**
+			 * This is a regular transition as a result of a cancel operation.
+			 */
+			unexpectedStateChange = false;
+		}
+		if (this.executionState == ExecutionState.FINISHING && newExecutionState == ExecutionState.CANCELING) {
+			/**
+			 * This is a regular transition as a result of a cancel operation.
+			 */
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.CANCELING && newExecutionState == ExecutionState.CANCELED) {
+			/**
+			 * This is a regular transition as a result of a cancel operation.
+			 */
 			unexpectedStateChange = false;
 		}
 
@@ -1114,5 +1125,21 @@ public class Environment implements Runnable, IOReadableWritable {
 				it.next().userThreadFinished(this, userThread);
 			}
 		}
+	}
+
+	/**
+	 * Releases the allocated resources (particularly buffer) of input and output channels attached to this task. This
+	 * method should only be called in case of a task error as a result of a cancel operation.
+	 */
+	private void releaseAllChannelResources() {
+
+		for (int i = 0; i < getNumberOfInputGates(); i++) {
+			this.getInputGate(i).releaseAllChannelResources();
+		}
+
+		for (int i = 0; i < getNumberOfOutputGates(); i++) {
+			this.getOutputGate(i).releaseAllChannelResources();
+		}
+
 	}
 }

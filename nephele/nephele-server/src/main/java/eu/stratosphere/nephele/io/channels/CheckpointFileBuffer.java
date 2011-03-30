@@ -62,7 +62,11 @@ public class CheckpointFileBuffer implements InternalBuffer {
 	public int read(ByteBuffer dst) throws IOException {
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.sourceChannelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.sourceChannelID);
+			} catch (InterruptedException e) {
+				return -1;
+			}
 			if (this.fileChannel.position() > this.offset) {
 				throw new IOException("Offset of CheckpointFileBuffer is smaller than current file pointer!");
 			}

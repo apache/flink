@@ -157,7 +157,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 		}
 
 		final BufferPairResponse bufferResponse = this.byteBufferedOutputChannelGroup
-			.requestEmptyWriteBuffers(byteBufferPair);
+			.requestEmptyWriteBuffers(this, byteBufferPair);
 
 		// Put the buffer into the transfer envelope
 		if (compressionLevel == CompressionLevel.NO_COMPRESSION) {
@@ -277,5 +277,43 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	@Override
 	public void outOfByteBuffers() {
 		this.byteBufferedOutputChannel.channelCapacityExhausted();
+	}
+
+	/**
+	 * Triggers the encapsulated output channel to flush and release its internal working buffers.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while flushing the buffers
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the channel to flush
+	 */
+	public void flush() throws IOException, InterruptedException {
+
+		this.byteBufferedOutputChannel.flush();
+	}
+
+	/**
+	 * Returns the number of remaining bytes that can be written to encapsulated channel's working buffer. This method
+	 * must not be called from any thread than the task thread itself.
+	 * 
+	 * @return the number of remaining bytes that can written to the encapsulated channel's working buffer or
+	 *         <code>-1</code> if the channel currently has no working buffer allocated
+	 */
+	public int getRemainingBytesOfWorkingBuffer() {
+
+		if (this.byteBufferedOutputChannel.getCompressionLevel() == CompressionLevel.NO_COMPRESSION) {
+			if (this.outgoingTransferEnvelope != null) {
+				final Buffer writeBuffer = this.outgoingTransferEnvelope.getBuffer();
+				if (writeBuffer != null) {
+					return writeBuffer.remaining();
+				}
+			}
+		} else {
+			if (this.uncompressedDataBuffer != null) {
+				return this.uncompressedDataBuffer.remaining();
+			}
+		}
+
+		return -1;
 	}
 }

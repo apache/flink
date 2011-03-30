@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -103,6 +104,47 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.recordReader = reader;
+		this.deserializer = deserializer;
+
+		// allocate memory segments and open IO Buffers on them
+		this.memorySegments = this.memoryManager.allocate(parentTask, availableMemory, MINIMUM_NUMBER_OF_BUFFERS, MIN_BUFFER_SIZE);
+		this.numBuffers = this.memorySegments.size();
+		
+		this.currentBuffer = 0;
+		
+		LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
+	}
+	
+	/**
+	 * Constructs a new <tt>ResettableIterator</tt>
+	 * 
+	 * @param memoryManager
+	 * @param ioManager
+	 * @param reader
+	 * @param availableMemory
+	 * @throws MemoryAllocationException
+	 */
+	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager, final Iterator<T> it,
+			long availableMemory, RecordDeserializer<T> deserializer, AbstractInvokable parentTask)
+	throws MemoryAllocationException
+	{
+		this.memoryManager = memoryManager;
+		this.ioManager = ioManager;
+		this.recordReader = new Reader<T>() {
+
+			@Override
+			public boolean hasNext() {
+				return it.hasNext();
+			}
+
+			@Override
+			public T next() throws IOException, InterruptedException {
+				T next = it.next();
+				return next;
+			}
+			
+		};
+		
 		this.deserializer = deserializer;
 
 		// allocate memory segments and open IO Buffers on them
@@ -217,8 +259,11 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 					// switch to next buffer
 					inputBuffers.get(currentBuffer).rewind(); // reset the old buffer
 					currentBuffer++;
-					if (currentBuffer == usedBuffers) // we are depleted
+					if (currentBuffer == usedBuffers) { 
+						// we are depleted
+						this.next = null;
 						return false;
+					}
 					
 					// read the next element from the new buffer
 					inputBuffers.get(currentBuffer).read(this.next);
@@ -226,7 +271,12 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				return true;
 			} else {
 				try {
-					return ioReader.read(this.next);
+					if(ioReader.read(this.next)) {
+						return true;
+					} else {
+						this.next = null;
+						return false;
+					}
 				}
 				catch (IOException ioex) {
 					throw new RuntimeException(ioex);
