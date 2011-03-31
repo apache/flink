@@ -293,16 +293,16 @@ public class CoGroupNode extends TwoInputNode {
 		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
 		p.getLocalProperties().setKeyOrder(Order.ANY);
 
-		estimator.getHashPartitioningCost(this, input.getSourcePact(), p.getMaximalCosts());
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		Costs c = new Costs();
-		estimator.getLocalSortCost(this, input.getSourcePact(), c);
+		estimator.getLocalSortCost(this, input, c);
 		p.getMaximalCosts().addCosts(c);
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 
 		// partition only
 		p = new InterestingProperties();
 		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-		estimator.getHashPartitioningCost(this, input.getSourcePact(), p.getMaximalCosts());
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 	}
 

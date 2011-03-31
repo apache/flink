@@ -287,15 +287,15 @@ public class ReduceNode extends SingleInputNode {
 		InterestingProperties ip1 = new InterestingProperties();
 		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
 		ip1.getLocalProperties().setKeysGrouped(true);
-		estimator.getHashPartitioningCost(this, this.input.getSourcePact(), ip1.getMaximalCosts());
+		estimator.getHashPartitioningCost(this.input, ip1.getMaximalCosts());
 		Costs c = new Costs();
-		estimator.getLocalSortCost(this, this.input.getSourcePact(), c);
+		estimator.getLocalSortCost(this, this.input, c);
 		ip1.getMaximalCosts().addCosts(c);
 
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
 		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-		estimator.getHashPartitioningCost(this, this.input.getSourcePact(), ip2.getMaximalCosts());
+		estimator.getHashPartitioningCost(this.input, ip2.getMaximalCosts());
 
 		InterestingProperties.mergeUnionOfInterestingProperties(props, ip1);
 		InterestingProperties.mergeUnionOfInterestingProperties(props, ip2);
