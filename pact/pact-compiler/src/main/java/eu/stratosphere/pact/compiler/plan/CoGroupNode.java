@@ -182,28 +182,17 @@ public class CoGroupNode extends TwoInputNode {
 			this.estimatedNumRecords = -1;
 			if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
 				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-			} else {
-				// multiply the selectivity (if any, otherwise 1) to the input size
-				// the input size is depending on the keys/value of the inputs.
-				float vpk1 = -1.0f, vpk2 = -1.0f;
-				if (pred1.estimatedNumRecords != -1 && pred1.estimatedKeyCardinality != -1) {
-					vpk1 = pred1.estimatedNumRecords / ((float) pred1.estimatedKeyCardinality);
-				}
-				if (pred2.estimatedNumRecords != -1 && pred2.estimatedKeyCardinality != -1) {
-					vpk2 = pred2.estimatedNumRecords / ((float) pred2.estimatedKeyCardinality);
-				}
-				if (vpk1 >= 1.0f && vpk2 >= 1.0f) {
-					// new values per key is the product of the values per key
-					long numInKeys = Math.max(pred1.estimatedKeyCardinality, pred2.estimatedKeyCardinality);
-					this.estimatedNumRecords = (long) (numInKeys * vpk1 * vpk2) + 1;
-					if (hints.getSelectivity() >= 0.0f) {
-						this.estimatedNumRecords = (long) (this.estimatedNumRecords * hints.getSelectivity()) + 1;
-					}
+			} else if (pred1.estimatedKeyCardinality >= 0 || pred2.estimatedKeyCardinality >= 0){
+				
+				// estimate the number of stub calls
+				long estNumStubCalls = Math.max(pred1.estimatedKeyCardinality, pred2.estimatedKeyCardinality);
+				
+				// estimate the number of output records  
+				this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
 
-					// if we have the records and a values/key hints, use that to reversely estimate the number of keys
-					if (this.estimatedKeyCardinality == -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
-						this.estimatedKeyCardinality = (long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) + 1;
-					}
+				// if we have the records and a values/key hints, use that to reversely estimate the number of keys
+				if (this.estimatedKeyCardinality == -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
+					this.estimatedKeyCardinality = (long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) + 1;
 				}
 			}
 

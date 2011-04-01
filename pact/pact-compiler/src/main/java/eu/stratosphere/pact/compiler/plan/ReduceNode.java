@@ -203,10 +203,13 @@ public class ReduceNode extends SingleInputNode {
 			this.estimatedNumRecords = -1;
 			if (hints.getKeyCardinality() > 0 && hints.getAvgNumValuesPerKey() >= 1.0f) {
 				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-			} else if (pred.estimatedNumRecords != -1 && hints.getSelectivity() > 0.0f) {
-				this.estimatedNumRecords = (long) (pred.estimatedNumRecords * hints.getSelectivity()) + 1;
-			} else if (pred.estimatedKeyCardinality != -1) {
-				this.estimatedNumRecords = pred.estimatedKeyCardinality;
+			} else if (pred.estimatedKeyCardinality >= 0) {
+				// estimate number of stub calls
+				long estNumStubCalls = pred.estimatedKeyCardinality;
+				
+				// estimate number of records
+				this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
+
 			}
 
 			// if the key cardinality is missing and the number of rows and the values/key hint is known
