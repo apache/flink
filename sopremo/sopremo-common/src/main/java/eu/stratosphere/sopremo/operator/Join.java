@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.operator;
 
-import java.util.Collection;
+import java.util.List;
 
 import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Operator;
@@ -12,7 +12,7 @@ public class Join extends ConditionalOperator {
 		super(transformation, condition, inputs);
 	}
 
-	public Join(Transformation transformation, Condition condition, Collection<Operator> inputs) {
+	public Join(Transformation transformation, Condition condition, List<Operator> inputs) {
 		super(transformation, condition, inputs);
 	}
 

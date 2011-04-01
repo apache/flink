@@ -34,7 +34,7 @@ public class Plan {
 
 	@Override
 	public String toString() {
-		return new PlanPrinter(this).toString(50);
+		return new PlanPrinter(this).toString(80);
 	}
 
 	private Collection<Operator> getAllNodes() {

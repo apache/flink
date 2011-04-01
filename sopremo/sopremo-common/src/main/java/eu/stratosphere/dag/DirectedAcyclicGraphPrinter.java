@@ -17,7 +17,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-
 /**
  * Utility class to pretty print arbitrary directed acyclic graphs. It needs a {@link Navigator} to traverse form the
  * start nodes through the graph and optionally a {@link NodePrinter} to format the nodes.
@@ -341,14 +340,16 @@ public class DirectedAcyclicGraphPrinter<Node> {
 			Level level = levels.get(levelIndex);
 			List<Object> levelNodes = level.getLevelNodes();
 
-			for (int index = 0; index < levelNodes.size(); index++) {
-				Object node = levelNodes.get(index);
+			int placeHolderIndex = 0;
+			for (int nodeIndex = 0; nodeIndex < levelNodes.size(); nodeIndex++) {
+				Object node = levelNodes.get(nodeIndex);
 
 				List<Object> inputs = level.getLinks(node);
 
-				for (Object input : inputs) {
+				for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++, placeHolderIndex++) {
+					Object input = inputs.get(inputIndex);
 					if (levels.get(levelIndex - 1).indexOf(input) == -1) {
-						Object placeholder = levels.get(levelIndex - 1).addPlaceholder(index, input);
+						Object placeholder = levels.get(levelIndex - 1).addPlaceholder(placeHolderIndex, input);
 						level.updateLink(node, input, placeholder);
 					}
 				}

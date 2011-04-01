@@ -21,7 +21,7 @@ $earmark_sponsors = $earmarks -> group by name = [$.sponsor.firstName, $.sponsor
 
 $congress_members = read(hdfs('UsCongress.json')) -> filter $.name != '';
 
-$persons = join member in $congress_members, preserve sponsor in $earmark_sponsors
+$persons = join sponsor in $earmark_sponsors, member in $congress_members 
 	where member.lastName == sponsor.lastName and member.firstName == sponsor.firstName
 	into {
 	member.firstName,

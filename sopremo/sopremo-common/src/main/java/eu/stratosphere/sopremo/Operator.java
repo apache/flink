@@ -2,9 +2,10 @@ package eu.stratosphere.sopremo;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 public class Operator {
-	private Collection<Operator> inputs;
+	private List<Operator> inputs;
 
 	private Transformation transformation;
 
@@ -21,18 +22,18 @@ public class Operator {
 	}
 
 	protected Operator(Transformation transformation,
-			Collection<Operator> inputs) {
+			List<Operator> inputs) {
 		this(null, transformation, inputs);
 	}
 
 	public Operator(String name, Transformation transformation,
-			Collection<Operator> inputs) {
+			List<Operator> inputs) {
 		this.inputs = inputs;
 		this.name = name == null ? this.getClass().getSimpleName() : name;
 		this.transformation = transformation;
 	}
 
-	public Collection<Operator> getInputs() {
+	public List<Operator> getInputs() {
 		return this.inputs;
 	}
 
@@ -60,9 +61,9 @@ public class Operator {
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder(this.name);
-		if (this.transformation != Transformation.IDENTITY)
-			builder.append(", ").append(this.transformation);
+		StringBuilder builder = new StringBuilder(this.getName());
+		if (this.getTransformation() != Transformation.IDENTITY)
+			builder.append(" to ").append(this.getTransformation());
 		return builder.toString();
 	}
 

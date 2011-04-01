@@ -1,6 +1,14 @@
 package eu.stratosphere.sopremo;
 
-public class JsonPath {
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import eu.stratosphere.dag.Navigator;
+import eu.stratosphere.reflect.TypeHandler;
+import eu.stratosphere.reflect.TypeSpecificHandler;
+
+public class JsonPath implements Cloneable {
 	private JsonPath selector;
 
 	public JsonPath(JsonPath selector) {
@@ -15,15 +23,74 @@ public class JsonPath {
 		this.selector = selector;
 	}
 
+	public JsonPath getSelector() {
+		return selector;
+	}
+
 	protected void toString(StringBuilder builder) {
-		if (selector != null)
-			selector.toString(builder);
+		if (this.selector != null)
+			this.selector.toString(builder);
+	}
+
+	private static TypeSpecificHandler<JsonPath, JsonPath, TypeHandler<JsonPath, JsonPath>> PathReplacer = new TypeSpecificHandler<JsonPath, JsonPath, TypeHandler<JsonPath, JsonPath>>();
+
+	static {
+		PathReplacer.register(JsonPath.class, new TypeHandler<JsonPath, JsonPath>() {
+			public JsonPath replace(JsonPath path, List<Mapping> mapping, JsonPath toReplace,
+					JsonPath replaceFragment) {
+				if (path.isPrefix(toReplace)) {
+					JsonPath newPath = replaceFragment.clone();
+					newPath.setSelector(path.getSelector(toReplace.getDepth()));
+					return newPath;
+				}
+				return path;
+			}
+		});
+	}
+
+	public static JsonPath replace(JsonPath start, JsonPath toReplace, JsonPath replaceFragment) {
+		return PathReplacer.handleRecursively(new JsonPathNavigator(), start, toReplace, replaceFragment);
+	}
+
+	public boolean isPrefix(JsonPath prefix) {
+		if (!equals(prefix))
+			return false;
+		if (getSelector() == null)
+			return prefix.getSelector() == null;
+		if (prefix.getSelector() == null)
+			return true;
+		return getSelector().isPrefix(prefix.getSelector());
+	}
+
+	public int getDepth() {
+		if (getSelector() == null)
+			return 1;
+		return 1 + getSelector().getDepth();
+	}
+
+	public JsonPath getSelector(int distance) {
+		if (distance < 0)
+			distance += getDepth();
+		if (distance == 0)
+			return this;
+		if (getSelector() == null)
+			return null;
+		return getSelector().getSelector(distance - 1);
+	}
+
+	@Override
+	public JsonPath clone() {
+		try {
+			return (JsonPath) super.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new IllegalStateException("should never happen", e);
+		}
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		toString(builder);
+		this.toString(builder);
 		return builder.toString();
 	}
 
@@ -36,9 +103,53 @@ public class JsonPath {
 
 		@Override
 		protected void toString(StringBuilder builder) {
-			builder.append(identifier);
+			builder.append(this.identifier);
 			super.toString(builder);
 		}
+
+		@Override
+		public int hashCode() {
+			return 31 + identifier.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return identifier.equals(((IdentifierAccess) obj).identifier);
+		}
+
+	}
+
+	public static class Input extends JsonPath {
+		private int index;
+
+		public Input(int index) {
+			this.index = index;
+		}
+
+		public int getIndex() {
+			return index;
+		}
+
+		@Override
+		protected void toString(StringBuilder builder) {
+			builder.append("in").append(this.index + 1);
+			super.toString(builder);
+		}
+
+		@Override
+		public int hashCode() {
+			return 37 + index;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return index == ((Input) obj).index;
+		}
+
 	}
 
 	public static class Constant extends JsonPath {
@@ -48,13 +159,35 @@ public class JsonPath {
 			this.constant = constant;
 		}
 
+		public String asString() {
+			return this.constant.toString();
+		}
+
+		public int asInt() {
+			if (this.constant instanceof Number)
+				return ((Number) this.constant).intValue();
+			return Integer.parseInt(this.constant.toString());
+		}
+
 		@Override
 		protected void toString(StringBuilder builder) {
-			if (constant instanceof CharSequence)
-				builder.append("\'").append(constant).append("\'");
+			if (this.constant instanceof CharSequence)
+				builder.append("\'").append(this.constant).append("\'");
 			else
-				builder.append(constant);
+				builder.append(this.constant);
 			super.toString(builder);
+		}
+
+		@Override
+		public int hashCode() {
+			return 41 + constant.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return constant.equals(((Constant) obj).constant);
 		}
 	}
 
@@ -69,8 +202,20 @@ public class JsonPath {
 		@Override
 		protected void toString(StringBuilder builder) {
 			builder.append('.');
-			builder.append(field);
+			builder.append(this.field);
 			super.toString(builder);
+		}
+
+		@Override
+		public int hashCode() {
+			return 43 + field.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return field.equals(((FieldAccess) obj).field);
 		}
 	}
 
@@ -87,16 +232,70 @@ public class JsonPath {
 			this(index, index);
 		}
 
+		public ArrayAccess() {
+			this(0, -1);
+		}
+
+		public boolean isSelectingAll() {
+			return startIndex == 0 && endIndex == -1;
+		}
+
 		@Override
 		protected void toString(StringBuilder builder) {
 			builder.append('[');
-			builder.append(startIndex);
-			if (startIndex != endIndex) {
-				builder.append(':');
-				builder.append(endIndex);
+			if (isSelectingAll())
+				builder.append('*');
+			else {
+				builder.append(this.startIndex);
+				if (this.startIndex != this.endIndex) {
+					builder.append(':');
+					builder.append(this.endIndex);
+				}
 			}
 			builder.append(']');
 			super.toString(builder);
+		}
+
+		@Override
+		public int hashCode() {
+			return (47 + startIndex) * 47 + endIndex;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return startIndex == ((ArrayAccess) obj).startIndex && endIndex == ((ArrayAccess) obj).endIndex;
+		}
+	}
+
+	public static class ArrayCreation extends JsonPath {
+		private JsonPath[] elements;
+
+		public ArrayCreation(JsonPath... elements) {
+			this.elements = elements;
+		}
+
+		public ArrayCreation(List<JsonPath> elements) {
+			this.elements = elements.toArray(new JsonPath[elements.size()]);
+		}
+
+		@Override
+		protected void toString(StringBuilder builder) {
+			builder.append(Arrays.toString(elements));
+			super.toString(builder);
+		}
+
+		@Override
+		public int hashCode() {
+			return 53 + Arrays.hashCode(elements);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return Arrays.equals(elements, ((ArrayCreation) obj).elements);
 		}
 	}
 
@@ -113,14 +312,26 @@ public class JsonPath {
 
 		@Override
 		protected void toString(StringBuilder builder) {
-			builder.append(name);
+			builder.append(this.name);
 			builder.append('(');
-			for (int index = 0; index < params.length; index++) {
-				builder.append(params[index]);
-				if (index < params.length - 1)
+			for (int index = 0; index < this.params.length; index++) {
+				builder.append(this.params[index]);
+				if (index < this.params.length - 1)
 					builder.append(", ");
 			}
 			builder.append(')');
+		}
+
+		@Override
+		public int hashCode() {
+			return (53 + name.hashCode()) * 53 + Arrays.hashCode(params);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return name.equals(((Function) obj).name) && Arrays.equals(params, ((Function) obj).params);
 		}
 	}
 
@@ -136,7 +347,7 @@ public class JsonPath {
 
 			@Override
 			public String toString() {
-				return sign;
+				return this.sign;
 			}
 		}
 
@@ -152,11 +363,35 @@ public class JsonPath {
 
 		@Override
 		protected void toString(StringBuilder builder) {
-			builder.append(op1);
+			builder.append(this.op1);
 			builder.append(' ');
-			builder.append(operator);
+			builder.append(this.operator);
 			builder.append(' ');
-			builder.append(op2);
+			builder.append(this.op2);
+		}
+
+		@Override
+		public int hashCode() {
+			return ((59 + op1.hashCode()) * 59 + operator.hashCode()) * 59 + op2.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return op1.equals(((Arithmetic) obj).op1) && operator.equals(((Arithmetic) obj).operator)
+				&& op2.equals(((Arithmetic) obj).op2);
+		}
+	}
+
+	private static final class JsonPathNavigator implements Navigator<JsonPath> {
+		private static final Iterable<JsonPath> EMPTY = new ArrayList<JsonPath>();
+
+		@Override
+		public Iterable<JsonPath> getConnectedNodes(JsonPath node) {
+			if (node.getSelector() == null)
+				return EMPTY;
+			return Arrays.asList(node.getSelector());
 		}
 	}
 }

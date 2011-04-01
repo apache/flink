@@ -19,7 +19,7 @@ public class Condition {
 
 	@Override
 	public String toString() {
-		if (this.combination == null)
+		if (this.condition == null)
 			return this.comparison.toString();
 		return String.format("%s %s %s", this.comparison, this.combination, this.condition);
 	}
