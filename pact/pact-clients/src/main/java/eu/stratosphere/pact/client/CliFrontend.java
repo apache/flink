@@ -368,8 +368,7 @@ public class CliFrontend {
 			}
 			
 			if (descr != null) {
-				System.out.println("--------------------------------------------------------------");
-				System.out.println("PACT Program Description:");
+				System.out.println("------------------ PACT Program Description ------------------");
 				System.out.println(descr);
 				System.out.println("--------------------------------------------------------------");
 			} else {
@@ -389,8 +388,7 @@ public class CliFrontend {
 			}
 			
 			if(jsonPlan != null) {
-				System.out.println("--------------------------------------------------------------");
-				System.out.println("PACT Execution Plan:");
+				System.out.println("-------------------- PACT Execution Plan ---------------------");
 				System.out.println(jsonPlan);
 				System.out.println("--------------------------------------------------------------");
 			} else {
@@ -472,8 +470,7 @@ public class CliFrontend {
 							}
 					);
 					
-					System.out.println("--------------------------------------------------------------");
-					System.out.println("Running Jobs: ");
+					System.out.println("------------------------ Running Jobs ------------------------");
 					for(NewJobEvent je : runningJobs) {
 						System.out.println(df.format(new Date(je.getTimestamp()))+" : "+je.getJobID().toString()+" : "+je.getJobName());
 					}
@@ -494,8 +491,7 @@ public class CliFrontend {
 							}
 					);
 					
-					System.out.println("--------------------------------------------------------------");
-					System.out.println("Scheduled Jobs: ");
+					System.out.println("----------------------- Scheduled Jobs -----------------------");
 					for(NewJobEvent je : scheduledJobs) {
 						System.out.println(df.format(new Date(je.getTimestamp()))+" : "+je.getJobID().toString()+" : "+je.getJobName());
 					}
