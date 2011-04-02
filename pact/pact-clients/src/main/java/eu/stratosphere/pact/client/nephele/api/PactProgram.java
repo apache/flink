@@ -30,6 +30,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.contextcheck.ContextChecker;
 
@@ -120,6 +121,18 @@ public class PactProgram {
 		Plan plan = getPlan();
 		if(plan != null) {
 			return PactCompiler.createPreOptimizedPlan(plan);
+		} else {
+			return null;
+		}
+	}
+	
+	public String getJSONPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
+		Plan plan = getPlan();
+		if(plan != null) {
+			PactCompiler pc = new PactCompiler();
+			JSONGenerator jsonGen = new JSONGenerator();
+			
+			return jsonGen.compilePlanToJSON(pc.compile(plan));
 		} else {
 			return null;
 		}
