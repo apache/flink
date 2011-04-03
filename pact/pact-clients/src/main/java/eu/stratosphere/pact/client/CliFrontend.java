@@ -621,6 +621,7 @@ public class CliFrontend {
 	 * 
 	 * @param e the exception to display.
 	 */
+	@SuppressWarnings({"unchecked"})
 	private void handleError(Throwable t) {
 		if(t instanceof UnrecognizedOptionException) {
 			
