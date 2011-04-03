@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -36,6 +37,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.NewJobEvent;
@@ -567,8 +569,8 @@ public class CliFrontend {
 	 */
 	private ExtendedManagementProtocol getJMConnection() throws IOException {
 		Configuration config = getConfiguration();
-		String jmHost = config.getString("jobmanager.rpc.address", null);
-		String jmPort = config.getString("jobmanager.rpc.port", null);
+		String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		String jmPort = config.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, null);
 		
 		if(jmHost == null) {
 			handleError(new Exception("JobManager address could not be determined."));
@@ -621,8 +623,16 @@ public class CliFrontend {
 	 */
 	private void handleError(Throwable t) {
 		if(t instanceof UnrecognizedOptionException) {
-			if(t.getMessage().startsWith("Unrecognized option: -h") || 
-					t.getMessage().startsWith("Unrecognized option: -v")) {
+			
+			Options generalOptions = this.options.get(GENERAL_OPTS);
+			boolean generalOption = false;
+			for(Option o : (Collection<Option>)generalOptions.getOptions()) {
+				if(t.getMessage().startsWith("Unrecognized option: -"+o.getOpt()) || 
+						t.getMessage().contains("Unrecognized option: -"+o.getLongOpt())) {
+					generalOption = true;
+				}
+			}
+			if(generalOption) {
 				System.err.println("ERROR: General args must be placed directly after action.");
 			} else {
 				System.err.println("ERROR: "+t.getMessage());
