@@ -65,7 +65,9 @@ public class CompressionLoader {
 					continue;
 				}
 
-				LOG.debug("Trying to load compression library " + libraryClass);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Trying to load compression library " + libraryClass);
+				}
 				final CompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
 				if (compressionLibrary == null) {
 					LOG.error("Cannot load " + libraryClass);
@@ -82,9 +84,11 @@ public class CompressionLoader {
 	/**
 	 * Returns the path to the native libraries or <code>null</code> if an error occurred.
 	 * 
+	 * @param libraryClass
+	 *        the name of this compression library's wrapper class including full package name
 	 * @return the path to the native libraries or <code>null</code> if an error occurred
 	 */
-	private static String getNativeLibraryPath() {
+	private static String getNativeLibraryPath(final String libraryClass) {
 
 		final ClassLoader cl = ClassLoader.getSystemClassLoader();
 		if (cl == null) {
@@ -92,11 +96,10 @@ public class CompressionLoader {
 			return null;
 		}
 
-		final String classLocation = "eu/stratosphere/nephele/io/compression/library/zlib/ZlibLibrary.class"; // TODO:
-		// Use
-		// other
-		// class
-		// here
+		final String classLocation = libraryClass.replace('.', '/') + ".class";
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Class location is " + classLocation);
+		}
 
 		final URL location = cl.getResource(classLocation);
 		if (location == null) {
@@ -105,7 +108,6 @@ public class CompressionLoader {
 		}
 
 		final String locationString = location.toString();
-		// System.out.println("LOCATION: " + locationString);
 		if (locationString.contains(".jar!")) { // Class if inside of a deployed jar file
 
 			// Create and return path to native library cache
@@ -178,7 +180,7 @@ public class CompressionLoader {
 		CompressionLibrary compressionLibrary;
 
 		try {
-			compressionLibrary = constructor.newInstance(getNativeLibraryPath());
+			compressionLibrary = constructor.newInstance(getNativeLibraryPath(libraryClass));
 		} catch (IllegalArgumentException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			return null;
