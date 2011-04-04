@@ -92,4 +92,14 @@ public class DynamicDecompressor implements Decompressor {
 		this.selectedDecompressor = index;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void shutdown() {
+
+		for (int i = 0; i < this.decompressors.length; i++) {
+			this.decompressors[i].shutdown();
+		}
+	}
 }

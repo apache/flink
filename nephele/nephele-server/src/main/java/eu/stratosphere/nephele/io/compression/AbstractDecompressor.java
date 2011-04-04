@@ -157,4 +157,12 @@ public abstract class AbstractDecompressor implements Decompressor {
 		throw new IllegalStateException(
 			"setCurrentInternalDecompressionLibraryIndex called with wrong compression level activated");
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void shutdown() {
+		// The default implementation of this method does nothing
+	}
 }

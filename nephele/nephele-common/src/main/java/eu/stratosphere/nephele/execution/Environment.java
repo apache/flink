@@ -367,7 +367,7 @@ public class Environment implements Runnable, IOReadableWritable {
 					LOG.error(StringUtils.stringifyException(e2));
 				}
 			}
-
+			
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
 
@@ -397,6 +397,9 @@ public class Environment implements Runnable, IOReadableWritable {
 			waitForOutputChannelsToBeClosed();
 		} catch (Exception e) {
 
+			// Release all resources that may currently be allocated by the individual channels
+			releaseAllChannelResources();
+			
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
@@ -406,6 +409,9 @@ public class Environment implements Runnable, IOReadableWritable {
 			return;
 		}
 
+		// Release all resources that may currently be allocated by the individual channels
+		releaseAllChannelResources();
+		
 		// Finally, switch execution state to FINISHED and report to job manager
 		changeExecutionState(ExecutionState.FINISHED, null);
 	}

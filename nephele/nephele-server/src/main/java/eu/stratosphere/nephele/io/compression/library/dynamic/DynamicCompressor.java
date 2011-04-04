@@ -110,4 +110,15 @@ public class DynamicCompressor implements Compressor {
 
 		return oldVal;
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void shutdown() {
+
+		for (int i = 0; i < this.compressors.length; i++) {
+			this.compressors[i].shutdown();
+		}
+	}
 }

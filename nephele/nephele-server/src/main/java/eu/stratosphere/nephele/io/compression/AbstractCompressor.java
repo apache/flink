@@ -43,7 +43,7 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer getCompressedDataBuffer() {
+	public final Buffer getCompressedDataBuffer() {
 
 		return this.compressedBuffer;
 	}
@@ -52,7 +52,7 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer getUncompresssedDataBuffer() {
+	public final Buffer getUncompresssedDataBuffer() {
 
 		return this.uncompressedBuffer;
 	}
@@ -81,7 +81,7 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setCompressedDataBuffer(Buffer buffer) {
+	public final void setCompressedDataBuffer(Buffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
@@ -98,7 +98,7 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setUncompressedDataBuffer(Buffer buffer) {
+	public final void setUncompressedDataBuffer(Buffer buffer) {
 
 		if (buffer == null) {
 			this.uncompressedBuffer = null;
@@ -112,7 +112,7 @@ public abstract class AbstractCompressor implements Compressor {
 	}
 
 	@Override
-	public void compress() throws IOException {
+	public final void compress() throws IOException {
 		this.compressedDataBuffer.clear();
 		this.uncompressedDataBufferLength = this.uncompressedDataBuffer.position();
 
@@ -133,8 +133,17 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getCurrentInternalCompressionLibraryIndex() {
+	public final int getCurrentInternalCompressionLibraryIndex() {
 
 		return 0;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void shutdown() {
+	
+		// The default implementation of this method does nothing
 	}
 }
