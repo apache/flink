@@ -263,6 +263,9 @@ public class DefaultMemoryManager implements MemoryManager
 	public List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
 	throws MemoryAllocationException
 	{
+		if (owner == null) {
+			throw new IllegalArgumentException("The owner of a memory segment must not be null.");
+		}
 		if (minSegmentSize > this.chunkSize) {
 			throw new MemoryAllocationException("The memory chunks of this MemoryManager are too small to serve " +
 					"segments of minimal size " + minSegmentSize);

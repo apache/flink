@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -41,11 +42,27 @@ import eu.stratosphere.pact.common.type.Value;
 public class HashJoin<K extends Key, V extends Value>
 {
 	// ------------------------------------------------------------------------
-	//                             Constants
+	//                         Internal Constants
 	// ------------------------------------------------------------------------
 	
 	private static final int MIN_NUM_MEMORY_SEGMENTS = 33;
-
+	
+	private static final int MAX_NUM_PARTITIONS = Byte.MAX_VALUE;
+	
+	private static final int NUM_INTRA_BUCKET_BITS = 10;
+	
+	private static final int HASH_BUCKET_SIZE = 0x1 << NUM_INTRA_BUCKET_BITS;
+	
+	private static final int BUCKET_HEADER_LENGTH = 14;
+	
+	private static final int BUCKET_STATUS_SPILLED = 1;
+	
+	private static final int BUCKET_STATUS_IN_MEMORY = 0;
+	
+	private static final int DEFAULT_RECORD_LEN = 100;
+	
+	private static final int RECORD_OVERHEAD_BYTES = 12;
+	
 	
 	// ------------------------------------------------------------------------
 	//                              Members
@@ -77,6 +94,24 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	private final IOManager ioManager;
 	
+	/**
+	 * The size of the segments used by the hash join buckets. All segments must be of equal size to ease offset computations.
+	 */
+	private final int segmentSize;
+	
+	/**
+	 * The number of hash table buckets in a single memory segment. Because memory segments can be comparatively large, we
+	 * fit multiple buckets into one memory segment.
+	 */
+	private final int bucketsPerSegment;
+	
+	/**
+	 * The number of bits that describe the position of a bucket in a memory segment. Computed as log2(bucketsPerSegment).
+	 */
+	private final int bucketsPerSegmentBits;
+	
+	
+	
 	// ------------------------------------------------------------------------
 	
 	/**
@@ -89,6 +124,13 @@ public class HashJoin<K extends Key, V extends Value>
 	 * channels for the spill partitions it requires.
 	 */
 	private Channel.Enumerator currentEnumerator;
+	
+	private ArrayList<RandomAccessView> overflowBuckets;
+	
+	private RandomAccessView[] buckets;
+	
+	
+
 	
 	/**
 	 * The number of buffers in the write behind queue that are actually not write behind buffers,
@@ -120,6 +162,18 @@ public class HashJoin<K extends Key, V extends Value>
 		this.availableMemory = memorySegments;
 		this.ioManager = ioManager;
 		
+		// check the size of the first buffer and record it. all further buffers must have the same size.
+		// the size must also be a power of 2
+		this.segmentSize = memorySegments.get(0).size();
+		if ( (this.segmentSize & this.segmentSize - 1) != 0) {
+			throw new IllegalArgumentException("Hash Table requires buffers whose size is a power of 2.");
+		}
+		this.bucketsPerSegment = this.segmentSize >> NUM_INTRA_BUCKET_BITS;
+		if (this.bucketsPerSegment == 0) {
+			throw new IllegalArgumentException("Hash Table requires buffers of at least " + HASH_BUCKET_SIZE + " bytes.");
+		}
+		this.bucketsPerSegmentBits = log2floor(this.bucketsPerSegment);
+		
 		// take away the write behind buffers
 		this.writeBehindBuffers = new LinkedBlockingQueue<MemorySegment>();
 		for (int i = getNumWriteBehindBuffers(memorySegments.size()); i > 0; --i)
@@ -127,7 +181,7 @@ public class HashJoin<K extends Key, V extends Value>
 			this.writeBehindBuffers.add(memorySegments.remove(memorySegments.size() - 1));
 		}
 		
-		//
+		// create the list that tracks which partitions are currently created
 		this.partitionsBeingBuilt = new ArrayList<HashJoin.Partition>();
 	}
 	
@@ -139,8 +193,7 @@ public class HashJoin<K extends Key, V extends Value>
 	public void open() throws IOException
 	{
 		// open builds the initial table by consuming the build-side input
-		
-		// first thing is to determine the initial fan-out of the hash join
+		buildInitialTable(probeSideInput);
 	}
 	
 	public void next() throws IOException
@@ -170,14 +223,14 @@ public class HashJoin<K extends Key, V extends Value>
 		int partitionFanOut = getPartitioningFanOutNoEstimates(this.availableMemory.size());
 		createPartitions(partitionFanOut);
 		
-		// set up the table structure
+		// set up the table structure. the write behind buffers are taken away, as are one buffer per partition
 		
 		
 		// go over the complete input
 		while (input.hasNext())
 		{
 			final KeyValuePair<K, V> pair = input.next();
-			final int hashCode = hash2(pair.getKey().hashCode());
+			final int hashCode = hash(pair.getKey().hashCode(), 0);
 			
 			
 			
@@ -210,9 +263,22 @@ public class HashJoin<K extends Key, V extends Value>
 	private final void insertIntoTable(final KeyValuePair<K, V> pair, int hashCode)
 	throws IOException
 	{
-		final Partition p = null;
+		// get the bucket for the given hash code
+		final int bucketArrayPos = hashCode >> this.bucketsPerSegmentBits;
+		final int bucketInSegmentPos = (hashCode & (this.bucketsPerSegmentBits - 1)) << NUM_INTRA_BUCKET_BITS;
+		final RandomAccessView bucket = this.buckets[bucketArrayPos];
 		
-		// Step 1: Get the partition for this pair and put the pair into the buffer
+		// get the basic characteristics of the bucket
+		final int partitionNumber = bucket.get(bucketInSegmentPos);
+		final int bucketStatus = bucket.getInt(bucketInSegmentPos + 1);
+		
+		// get the partition descriptor for the bucket
+		if (partitionNumber < 0 || partitionNumber >= this.partitionsBeingBuilt.size()) {
+			throw new RuntimeException("Error: Hash structures in Hash-Join are corrupt. Invalid partition number for bucket.");
+		}
+		final Partition p = this.partitionsBeingBuilt.get(partitionNumber);
+		
+		// --------- Step 1: Get the partition for this pair and put the pair into the buffer ---------
 		long pointer = p.insertIntoBuffer(pair);
 		if (pointer == -1) {
 			// element was not written because the buffer was full. get the next buffer.
@@ -238,7 +304,34 @@ public class HashJoin<K extends Key, V extends Value>
 			}
 		}
 		
-		// Step 2: Add the pointer and the hash code to the hash bucket
+		// --------- Step 2: Add the pointer and the hash code to the hash bucket ---------
+		
+		if (p.isInMemory()) {
+			// in-memory partition: add the pointer and the hash-value to the list
+			// find the position to put the hash code and pointer
+			final int nextPos = bucket.getInt(bucketInSegmentPos + 2);
+			if (nextPos == -1) {
+				// bucket full, we need to go to the overflow buckets
+			}
+			else if (nextPos + 12 > HASH_BUCKET_SIZE) {
+				// we need to create our first overflow bucket
+			}
+			else {
+				// we are good in our current bucket
+				bucket.putInt(bucketInSegmentPos + nextPos, hashCode);
+				bucket.putLong(bucketInSegmentPos + nextPos + 4, pointer);
+				bucket.putInt(bucketInSegmentPos + 2, nextPos + 12);
+			}
+		}
+		else {
+			// spilled partition. check if this already transformed into a bit-vector
+			if (bucketStatus == BUCKET_STATUS_IN_MEMORY) {
+				// first access to the bucket since its partition was spilled. turn the bucket into a bit-vector
+			}
+			
+			
+			throw new RuntimeException("Spilled buckets are not supported at the moment.");
+		}
 	}
 	
 	/**
@@ -326,18 +419,7 @@ public class HashJoin<K extends Key, V extends Value>
 		return largestPartNum;
 	}
 	
-	public static int getInitialTableSize(int numBuffers)
-	{
-		// each slot needs at least two buffers: one for the data, one for the hash structure
-		// further more, we want to keep some buffers for asynchronous writes and to extend
-		// the pools for some buckets
-		
-		// determine the free memory
-		Runtime r = Runtime.getRuntime();
-		long freeMemory = r.freeMemory() + (r.maxMemory() - r.totalMemory());
-		
-		return 0;
-	}
+
 	
 	// ------------------------------------------------------------------------
 	//                  Utility Computational Functions
@@ -372,6 +454,33 @@ public class HashJoin<K extends Key, V extends Value>
 		return Math.max(10, Math.min(numBuffers / 10, 100));
 	}
 	
+	public static int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes)
+	{
+		// ----------------------------------------------------------------------------------------
+		// the following observations hold:
+		// 1) If the records are assumed to be very large, then many buffers need to go to the partitions
+		//    and fewer to the table
+		// 2) If the records are small, then comparatively many have to go to the buckets, and fewer to the
+		//    partitions
+		// 3) If the bucket-table is chosen too small, we will eventually get many collisions and will grow the
+		//    hash table, incrementally adding buffers.
+		// 4) If the bucket-table is chosen to be large and we actually need more buffers for the partitions, we
+		//    cannot subtract them afterwards from the table
+		//
+		// ==> We start with a comparatively small hash-table. We aim for a 200% utilization of the bucket table
+		//     when all the partition buffers are full. Most likely, that will cause some buckets to be re-hashed
+		//     and grab additional buffers away from the partitions.
+		// NOTE: This decision may be subject to changes after conclusive experiments!
+		// ----------------------------------------------------------------------------------------
+		
+		final long totalSize = ((long) bufferSize) * numBuffers;
+		final long numRecordsStorable = totalSize / (recordLenBytes + RECORD_OVERHEAD_BYTES);
+		final long bucketBytes = numRecordsStorable / RECORD_OVERHEAD_BYTES;
+		final long numBuckets = bucketBytes / HASH_BUCKET_SIZE + 1;
+		
+		return numBuckets > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) numBuckets;
+	}
+	
 	/**
 	 * This function hashes an integer value to ensure most uniform distribution across the
 	 * integer spectrum. The code is adapted from Bob Jenkins' hash code (http://www.burtleburtle.net/bob/c/lookup3.c),
@@ -380,7 +489,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 * @param code The integer to be hashed.
 	 * @return The hash code for the integer.
 	 */
-	public static final int hash1(int code)
+	public static final int partition(int code, int level)
 	{
 		int a = (code & 0xff) + ((code >>> 8) & 0xff) + ((code >>> 16) & 0xff) + ((code >>> 24) & 0xff);
 		int b = 0x9e3779b1;
@@ -413,7 +522,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 * @param code The integer to be hashed.
 	 * @return The hash code for the integer.
 	 */
-	public static final int hash2(int code)
+	public static final int hash(int code, int level)
 	{
 		code = (code + 0x7ed55d16) + (code << 12);
 		code = (code ^ 0xc761c23c) ^ (code >>> 19);
@@ -422,6 +531,30 @@ public class HashJoin<K extends Key, V extends Value>
 		code = (code + 0xfd7046c5) + (code << 3);
 		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
 		return code;
+	}
+	
+	/**
+	 * Computes the logarithm of the given value to the base of 2, rounded down. It corresponds to the
+	 * position of the highest non-zero bit. The position is counted, starting with 0 from the least
+	 * significant bit to the most significant bit. For example, <code>log2floor(16) = 4</code>, and
+	 * <code>log2floor(10) = 3</code>.
+	 * 
+	 * @param value The value to compute the logarithm for.
+	 * @return The logarithm (rounded down) to the base of 2.
+	 * @throws ArithmeticException Thrown, if the given value is zero.
+	 */
+	public static final int log2floor(int value) throws ArithmeticException
+	{
+		if (value == 0) {
+			throw new ArithmeticException("Logarithm of zero is undefined.");
+		}
+		
+		int log = 0;
+		while ((value = value >>> 1) != 0) {
+			log++;
+		}
+		
+		return log;
 	}
 
 	

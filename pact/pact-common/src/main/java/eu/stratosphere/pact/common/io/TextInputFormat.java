@@ -55,6 +55,7 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 
 	private boolean end;
 
+	@SuppressWarnings("unused")
 	private static final Log LOG = LogFactory.getLog(TextInputFormat.class);
 
 	/**
@@ -72,7 +73,7 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends In
 
 	@Override
 	public boolean nextPair(KeyValuePair<K, V> pair) throws IOException {
-		// TODO: Check whether it is closed or was openend
+		// TODO: Check whether it is closed or was opened
 		byte[] line = readLine();
 		if (line == null) {
 			end = true;
