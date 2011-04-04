@@ -77,7 +77,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
-import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
@@ -666,7 +665,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public JobCancelResult cancelJob(JobID jobID) throws IOException {
+	public JobCancelResult cancelJob(final JobID jobID) throws IOException {
 
 		LOG.info("Trying to cancel job with ID " + jobID);
 
@@ -675,11 +674,17 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return new JobCancelResult(ReturnCode.ERROR, "Cannot find job with ID " + jobID);
 		}
 
-		final TaskCancelResult errorResult = cancelJob(eg);
-		if (errorResult != null) {
-			LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
-			return new JobCancelResult(AbstractJobResult.ReturnCode.ERROR, errorResult.getDescription());
-		}
+		final Runnable cancelJobRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+				final TaskCancelResult errorResult = cancelJob(eg);
+				if (errorResult != null) {
+					LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
+				}
+			}
+		};
+		this.executorService.execute(cancelJobRunnable);
 
 		LOG.info("Cancel of job " + jobID + " successfully triggered");
 
