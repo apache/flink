@@ -67,4 +67,9 @@ public interface Decompressor {
 	 *        the current internal decompression library index
 	 */
 	void setCurrentInternalDecompressionLibraryIndex(int index);
+
+	/**
+	 * Stops the decompressor and releases all allocated internal resources.
+	 */
+	void shutdown();
 }

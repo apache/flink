@@ -21,12 +21,15 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 
 /**
@@ -296,15 +299,15 @@ public class OutgoingConnection {
 				this.isConnected = true;
 				this.isSubscribedToWriteEvent = true;
 			}
+		}
 
-			// We must assume the current envelope is corrupted so we notify the task which created it.
-			if (this.currentEnvelope != null) {
-				this.byteBufferedChannelManager
-					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
-				if (this.currentEnvelope.getBuffer() != null) {
-					this.currentEnvelope.getBuffer().recycleBuffer();
-					this.currentEnvelope = null;
-				}
+		// We must assume the current envelope is corrupted so we notify the task which created it.
+		if (this.currentEnvelope != null) {
+			this.byteBufferedChannelManager
+				.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
+			if (this.currentEnvelope.getBuffer() != null) {
+				this.currentEnvelope.getBuffer().recycleBuffer();
+				this.currentEnvelope = null;
 			}
 		}
 	}
@@ -475,6 +478,8 @@ public class OutgoingConnection {
 	 */
 	public void dropAllQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
 
+		List<Buffer> buffersToRecycle = new ArrayList<Buffer>();
+
 		synchronized (this.queuedEnvelopes) {
 
 			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
@@ -483,10 +488,16 @@ public class OutgoingConnection {
 				if ((source && channelID.equals(te.getSource())) || (!source && channelID.equals(te.getTarget()))) {
 					it.remove();
 					if (te.getBuffer() != null) {
-						te.getBuffer().recycleBuffer();
+						buffersToRecycle.add(te.getBuffer());
 					}
 				}
 			}
+		}
+		
+		// Recycle buffer outside of queuedEnvelopes monitor, otherwise dead locks might occur
+		final Iterator<Buffer> it = buffersToRecycle.iterator();
+		while(it.hasNext()) {
+			it.next().recycleBuffer();
 		}
 	}
 
@@ -534,18 +545,18 @@ public class OutgoingConnection {
 
 		int retVal = 0;
 
-		synchronized(this.queuedEnvelopes) {
-			
+		synchronized (this.queuedEnvelopes) {
+
 			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
-			while(it.hasNext()) {
-				
+			while (it.hasNext()) {
+
 				final TransferEnvelope envelope = it.next();
-				if(envelope.getBuffer() != null) {
+				if (envelope.getBuffer() != null) {
 					++retVal;
 				}
 			}
 		}
-		
+
 		return retVal;
 	}
 }

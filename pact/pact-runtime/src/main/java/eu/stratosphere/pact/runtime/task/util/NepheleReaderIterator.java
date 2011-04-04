@@ -19,27 +19,22 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * Wraps a Nephele KeyValuePair reader into a Java Iterator.
+ * Wraps a Nephele reader into a Java Iterator.
  * 
- * @see KeyValuePair
  * @see Reader
  * @see Iterator
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
- * @param <K> The type of the Key.
- * @param <V> The type of the Value.
  */
-public final class NepheleReaderIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>> {
+public class NepheleReaderIterator<T extends Record> implements Iterator<T> {
 
-	private final Reader<KeyValuePair<K,V>> reader;
+	private Reader<T> reader;
 	
-	public NepheleReaderIterator(Reader<KeyValuePair<K,V>> reader) {
+	public NepheleReaderIterator(Reader<T> reader) {
 		this.reader = reader;
 	}
 	
@@ -49,7 +44,7 @@ public final class NepheleReaderIterator<K extends Key, V extends Value> impleme
 	}
 
 	@Override
-	public KeyValuePair<K, V> next() {
+	public T next() {
 		try {
 			return reader.next();
 		} catch (IOException ioe) {
