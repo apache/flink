@@ -48,6 +48,8 @@ import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.swt.widgets.Widget;
 
+import eu.stratosphere.nephele.client.AbstractJobResult;
+import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
@@ -166,6 +168,23 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			public void widgetSelected(SelectionEvent arg0) {
 				shell.close();
 				display.dispose();
+			}
+		});
+
+		final MenuItem jobMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
+		jobMenuItem.setText("&Job");
+
+		final Menu jobMenu = new Menu(this.shell, SWT.DROP_DOWN);
+		jobMenuItem.setMenu(jobMenu);
+
+		final MenuItem cancelJobItem = new MenuItem(jobMenu, SWT.PUSH);
+		cancelJobItem.setText("&Cancel job");
+		cancelJobItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(SelectionEvent arg0) {
+				cancelJob();
+				shell.setMenuBar(null);
 			}
 		});
 
@@ -675,7 +694,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			} catch (IOException ioe) {
 				final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
 				msgBox.setText("Logging failed for job " + visualizationData.getJobID());
-				msgBox.setText("Logging of buffer utilization failed for job " + visualizationData.getJobID()
+				msgBox.setMessage("Logging of buffer utilization failed for job " + visualizationData.getJobID()
 					+ ":\r\n\r\n" + ioe.getMessage());
 			}
 		}
@@ -696,5 +715,57 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	private void viewJavaDoc() {
 
 		org.eclipse.swt.program.Program.launch(JAVA_DOC_URL);
+	}
+
+	private void cancelJob() {
+
+		if (this.jobTree.getItemCount() == 0) {
+			final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+			msgBox.setText("No job available");
+			msgBox.setMessage("No job to cancel.");
+			msgBox.open();
+			return;
+		}
+
+		final TreeItem[] selectedItems = this.jobTree.getSelection();
+		if (selectedItems.length == 0) {
+			final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_INFORMATION);
+			msgBox.setText("No job selected");
+			msgBox.setMessage("Please select at least one job to cancel.");
+			msgBox.open();
+			return;
+		}
+
+		for (int i = 0; i < selectedItems.length; i++) {
+
+			final TreeItem selectedItem = selectedItems[i];
+			final GraphVisualizationData visualizationData = (GraphVisualizationData) selectedItem.getData();
+			if (visualizationData == null) {
+				continue;
+			}
+
+			try {
+				final JobCancelResult cjr = this.jobManager.cancelJob(visualizationData.getJobID());
+
+				if (cjr.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
+					final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+					msgBox.setText("Canceling job " + visualizationData.getJobID() + " failed");
+					msgBox.setMessage("Canceling job " + visualizationData.getJobID()
+						+ " failed:\r\n\r\n" + cjr.getDescription());
+				}
+
+			} catch (IOException ioe) {
+				final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+				msgBox.setText("Canceling job " + visualizationData.getJobID() + " failed");
+				msgBox.setMessage("Canceling job " + visualizationData.getJobID()
+					+ " failed:\r\n\r\n" + ioe.getMessage());
+			}
+		}
+
+		final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_INFORMATION);
+		msgBox.setText("Job(s) succesfully canceled");
+		msgBox.setMessage("The selected jobs have been successfully canceled.");
+		msgBox.open();
+
 	}
 }
