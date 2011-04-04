@@ -75,6 +75,7 @@ public class CliFrontend {
 	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Pact program JAR file");
 	private static final Option CLASS_OPTION = new Option("c", "class", true, "Pact program assembler class");
 	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Pact program arguments");
+	private static final Option WAIT_OPTION = new Option("w", "wait", false, "Wait until program finishes");
 	
 	// info options
 	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show argument description of pact program");
@@ -144,6 +145,8 @@ public class CliFrontend {
 		ARGS_OPTION.setArgName("programArgs");
 		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
 		options.addOption(ARGS_OPTION);
+		WAIT_OPTION.setRequired(false);
+		options.addOption(WAIT_OPTION);
 		
 		return options;
 	}
@@ -221,6 +224,7 @@ public class CliFrontend {
 		File jarFile = null;
 		String assemblerClass = null;
 		String[] programArgs = null;
+		boolean wait = false;
 		
 		// Parse command line options
 		CommandLine line = null;
@@ -261,6 +265,9 @@ public class CliFrontend {
 			programArgs = line.getOptionValues(ARGS_OPTION.getOpt());
 		}
 		
+		// get wait flag
+		wait = line.hasOption(WAIT_OPTION.getOpt());
+		
 		// Try to get load plan
 		PactProgram program = null;
 		try {
@@ -276,7 +283,7 @@ public class CliFrontend {
 		Configuration configuration = getConfiguration();
 		Client client = new Client(configuration);
 		try {
-			client.run(program);
+			client.run(program, wait);
 		} catch (ProgramInvocationException e) {
 			handleError(e);
 		} catch (ErrorInPlanAssemblerException e) {
@@ -587,25 +594,25 @@ public class CliFrontend {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		
-		System.out.println("./pact-client [ACTION] [GeneralArgs] [ActionArgs]");
+		System.out.println("./pact-client [ACTION] [GENERAL_OPTIONS] [ACTION_ARGUMENTS]");
 		
-		formatter.setSyntaxPrefix("  general args:");
+		formatter.setSyntaxPrefix("  general options:");
 		formatter.printHelp(" ",this.options.get(GENERAL_OPTS));
 		
 		System.out.println("\nAction \"run\" compiles and submits a PACT program.");
-		formatter.setSyntaxPrefix("  \"run\" action args:");
+		formatter.setSyntaxPrefix("  \"run\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_RUN));
 		
 		System.out.println("\nAction \"info\" displays information about a PACT program.");
-		formatter.setSyntaxPrefix("  \"info\" action args:");
+		formatter.setSyntaxPrefix("  \"info\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_INFO));
 		
 		System.out.println("\nAction \"list\" lists submitted PACT programs.");
-		formatter.setSyntaxPrefix("  \"list\" action args:");
+		formatter.setSyntaxPrefix("  \"list\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_LIST));
 		
 		System.out.println("\nAction \"cancel\" cancels a submitted PACT program.");
-		formatter.setSyntaxPrefix("  \"cancel\" action args:");
+		formatter.setSyntaxPrefix("  \"cancel\" action arguments:");
 		formatter.printHelp(" ", this.options.get(ACTION_CANCEL));
 		
 	}
