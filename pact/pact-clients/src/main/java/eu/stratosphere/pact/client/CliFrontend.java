@@ -374,18 +374,21 @@ public class CliFrontend {
 				System.out.println(descr);
 				System.out.println("--------------------------------------------------------------");
 			} else {
-				System.out.println("No description available for this plan.");
+				System.err.println("No description available for this plan.");
 			}
-			System.exit(0);
 		}
 		
 		// check for json plan request
 		if (plan) {
 			String jsonPlan = null;
 			
+			Configuration configuration = getConfiguration();
+			Client client = new Client(configuration);
 			try {
-				jsonPlan = program.getJSONPlan();
-			} catch (Exception e) {
+				jsonPlan = client.getJSONPlan(program);
+			} catch (ProgramInvocationException e) {
+				handleError(e);
+			} catch (ErrorInPlanAssemblerException e) {
 				handleError(e);
 			}
 			
@@ -394,7 +397,7 @@ public class CliFrontend {
 				System.out.println(jsonPlan);
 				System.out.println("--------------------------------------------------------------");
 			} else {
-				System.out.println("JSON plan could not be compiled.");
+				System.err.println("JSON plan could not be compiled.");
 			}
 		}
 		
@@ -456,21 +459,20 @@ public class CliFrontend {
 				}
 			}
 			
-			SimpleDateFormat df = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
+			SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+			Comparator<NewJobEvent> njec = new Comparator<NewJobEvent>(){
+				
+				@Override
+				public int compare(NewJobEvent o1, NewJobEvent o2) {
+					return (int)(o1.getTimestamp()-o2.getTimestamp());
+				}
+			};
+			
 			if(running) {
 				if(runningJobs.size() == 0) {
 					System.out.println("No running jobs.");
 				} else {
-				
-					Collections.sort(runningJobs, 
-							new Comparator<NewJobEvent>(){
-	
-								@Override
-								public int compare(NewJobEvent o1, NewJobEvent o2) {
-									return (int)(o1.getTimestamp()-o2.getTimestamp());
-								}
-							}
-					);
+					Collections.sort(runningJobs, njec);
 					
 					System.out.println("------------------------ Running Jobs ------------------------");
 					for(NewJobEvent je : runningJobs) {
@@ -483,15 +485,7 @@ public class CliFrontend {
 				if(scheduledJobs.size() == 0) {
 					System.out.println("No scheduled jobs.");
 				} else {
-					Collections.sort(scheduledJobs, 
-							new Comparator<NewJobEvent>(){
-	
-								@Override
-								public int compare(NewJobEvent o1, NewJobEvent o2) {
-									return (int)(o1.getTimestamp()-o2.getTimestamp());
-								}
-							}
-					);
+					Collections.sort(runningJobs, njec);
 					
 					System.out.println("----------------------- Scheduled Jobs -----------------------");
 					for(NewJobEvent je : scheduledJobs) {

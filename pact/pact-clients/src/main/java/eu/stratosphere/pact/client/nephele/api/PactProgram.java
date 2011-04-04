@@ -126,18 +126,6 @@ public class PactProgram {
 		}
 	}
 	
-	public String getJSONPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		Plan plan = getPlan();
-		if(plan != null) {
-			PactCompiler pc = new PactCompiler();
-			JSONGenerator jsonGen = new JSONGenerator();
-			
-			return jsonGen.compilePlanToJSON(pc.compile(plan));
-		} else {
-			return null;
-		}
-	}
-
 	/**
 	 * Returns the File object of the jar file that is used as base for the
 	 * pact program.
