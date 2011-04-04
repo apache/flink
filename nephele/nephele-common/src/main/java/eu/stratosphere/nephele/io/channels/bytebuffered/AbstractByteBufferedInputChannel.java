@@ -295,5 +295,9 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			this.uncompressedDataBuffer.recycleBuffer();
 			this.uncompressedDataBuffer = null;
 		}
+		
+		if(this.decompressor != null) {
+			this.decompressor.shutdown();
+		}
 	}
 }
