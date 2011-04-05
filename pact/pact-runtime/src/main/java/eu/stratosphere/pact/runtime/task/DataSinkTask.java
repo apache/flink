@@ -109,7 +109,6 @@ public class DataSinkTask extends AbstractFileOutputTask {
 				opot.getFSDataOutputStream().close();
 			}
 		}
-		;
 
 		// check if task has been canceled
 		if (!this.taskCanceled) {
