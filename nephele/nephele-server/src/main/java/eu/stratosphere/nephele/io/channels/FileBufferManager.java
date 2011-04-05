@@ -119,7 +119,7 @@ public class FileBufferManager {
 			readableSpillingFile = queue.peek();
 		}
 
-		return readableSpillingFile.lockReadableFileChannel(sourceChannelID);
+		return readableSpillingFile.lockReadableFileChannel();
 	}
 
 	public void reportFileBufferAsConsumed(final ChannelID sourceChannelID) {
@@ -138,7 +138,11 @@ public class FileBufferManager {
 			synchronized (this.readableSpillingFileMap) {
 				queue = this.readableSpillingFileMap.get(groupObject);
 				if (queue == null) {
-					throw new IOException("Cannot find readable spilling file queue for group object " + groupObject);
+					if(this.canceledChannels.contains(sourceChannelID)) {
+						return;
+					} else {
+						throw new IOException("Cannot find readable spilling file queue for group object " + groupObject);
+					}
 				}
 
 				ReadableSpillingFile readableSpillingFile = null;
@@ -153,7 +157,7 @@ public class FileBufferManager {
 						}
 					}
 					try {
-						readableSpillingFile.unlockReadableFileChannel(sourceChannelID);
+						readableSpillingFile.unlockReadableFileChannel();
 						if (readableSpillingFile.checkForEndOfFile()) {
 							queue.poll();
 							if (queue.isEmpty()) {
@@ -304,8 +308,69 @@ public class FileBufferManager {
 
 	public void unregisterChannelToGateMapping(final ChannelID sourceChannelID) {
 
-		if (this.channelGroupMap.remove(sourceChannelID) == null) {
+		final Object groupObject = this.channelGroupMap.remove(sourceChannelID);
+		if (groupObject == null) {
 			LOG.error("Source channel ID has not been registered with any input gate");
+		}
+
+		boolean canceled = this.canceledChannels.contains(sourceChannelID);
+
+		WritableSpillingFile writableSpillingFile = null;
+		synchronized (this.writableSpillingFileMap) {
+			writableSpillingFile = this.writableSpillingFileMap.remove(groupObject);
+		}
+
+		if (writableSpillingFile != null) {
+			if (canceled) {
+				try {
+					writableSpillingFile.close();
+					File file = writableSpillingFile.getPhysicalFile();
+					if (file != null) {
+						file.delete();
+					}
+				} catch (IOException ioe) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ioe));
+					}
+				}
+			} else {
+				LOG.error("There is still a writable spilling file for source channel " + sourceChannelID);
+			}
+		}
+
+		Queue<ReadableSpillingFile> queue = null;
+		synchronized (this.readableSpillingFileMap) {
+			queue = this.readableSpillingFileMap.remove(groupObject);
+		}
+
+		if (queue != null) {
+			if (canceled) {
+				try {
+					while (!queue.isEmpty()) {
+						final ReadableSpillingFile rsf = queue.poll();
+						if (rsf.isReadableChannelLocked()) {
+							rsf.unlockReadableFileChannel();
+						}
+						final FileChannel fc = rsf.lockReadableFileChannel();
+						fc.close();
+						final File file = rsf.getPhysicalFile();
+						if (file != null) {
+							file.delete();
+						}
+					}
+				} catch (IOException ioe) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ioe));
+					}
+				} catch (InterruptedException ie) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ie));
+					}
+				}
+			} else {
+				LOG.error("There is still " + queue.size() + " readable spilling file(s) for source channel "
+					+ sourceChannelID);
+			}
 		}
 	}
 }

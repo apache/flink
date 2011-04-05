@@ -346,8 +346,6 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			this.uncompressedDataBuffer = null;
 		}
 		
-		LOG.info("Recycling " + buffersToRecycle.size() + " buffers");
-		
 		while(!buffersToRecycle.isEmpty()) {
 			buffersToRecycle.poll().recycleBuffer();
 		}

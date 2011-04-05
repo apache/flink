@@ -47,7 +47,7 @@ public final class ReadableSpillingFile {
 		return this.physicalFile;
 	}
 
-	public synchronized FileChannel lockReadableFileChannel(final ChannelID sourceChannelID)
+	public synchronized FileChannel lockReadableFileChannel()
 			throws InterruptedException {
 
 		while (this.readableChannelLocked) {
@@ -69,7 +69,7 @@ public final class ReadableSpillingFile {
 		return this.readableFileChannel;
 	}
 
-	public synchronized void unlockReadableFileChannel(final ChannelID sourceChannelID) throws IOException {
+	public synchronized void unlockReadableFileChannel() throws IOException {
 
 		if (!this.readableChannelLocked) {
 			return;
