@@ -215,6 +215,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param keyComparator The comparator used to define the order among the keys.
 	 * @param reader The reader from which the input is drawn that will be sorted.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
+	 *                              actually begins spilling data to disk.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
@@ -225,11 +227,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator,
 			Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask)
+			AbstractTask parentTask,
+			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, keySerialization,
-			valueSerialization, keyComparator, reader, parentTask);
+			valueSerialization, keyComparator, reader, parentTask, startSpillingFraction);
 	}
 	
 	/**
@@ -249,6 +252,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param keyComparator The comparator used to define the order among the keys.
 	 * @param reader The reader from which the input is drawn that will be sorted.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
+	 *                              actually begins spilling data to disk.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
@@ -258,7 +263,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			long totalMemory, long ioMemory,
 			int numSortBuffers, int maxNumFileHandles, SerializationFactory<K> keySerialization,
 			SerializationFactory<V> valueSerialization, Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask)
+			AbstractTask parentTask,
+			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
@@ -366,7 +372,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		};
 
 		// start the thread that reads the input channels
-		this.readThread = getReadingThread(exceptionHandler, reader, circularQueues, parentTask);
+		this.readThread = getReadingThread(exceptionHandler, reader, circularQueues, parentTask, startSpillingFraction);
 
 		// start the thread that sorts the buffers
 		this.sortThread = getSortingThread(exceptionHandler, circularQueues, parentTask);
@@ -546,7 +552,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask)
+			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask,
+			float startSpillingFraction)
 	{
 		return new ReadingThread(exceptionHandler, reader, queues, parentTask);
 	}
@@ -840,7 +847,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	protected final CircularElement SENTINEL = new CircularElement();
 
 	/**
-	 * Class representing buffers that circulate between the reading, sorting and spilling thead.
+	 * The element that is passed as marker for signal beginning of spilling.
+	 */
+	protected final CircularElement SPILLING_MARKER = new CircularElement();
+	
+	/**
+	 * Class representing buffers that circulate between the reading, sorting and spilling thread.
 	 */
 	protected final class CircularElement {
 		final int id;

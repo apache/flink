@@ -104,6 +104,9 @@ public class MatchTask extends AbstractTask {
 	// maximum number of file handles
 	private int maxFileHandles;
 	
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
+	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 
@@ -235,6 +238,7 @@ public class MatchTask extends AbstractTask {
 		// set up memory and I/O parameters
 		this.availableMemory = config.getMemorySize();
 		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
@@ -409,19 +413,23 @@ public class MatchTask extends AbstractTask {
 		case SORT_BOTH_MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
 				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
-				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
 		case SORT_FIRST_MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
 				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
-				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
 		case SORT_SECOND_MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
 				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
-				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
 		case MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
 				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
-				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, config.getLocalStrategy(), this);
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
 //		case HYBRIDHASH_FIRST:
 //			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
 //				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, 

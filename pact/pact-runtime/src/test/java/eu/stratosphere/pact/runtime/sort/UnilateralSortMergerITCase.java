@@ -111,7 +111,7 @@ public class UnilateralSortMergerITCase {
 		LOG.debug("Initializing sortmerger...");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
 			memoryManager, ioManager, 16 * 1024 * 1024, 1024 * 1024 * 4, 1, 2, keySerialization, valSerialization,
-			keyComparator, reader, parentTask);
+			keyComparator, reader, parentTask, 0.7f);
 
 		// emit data
 		LOG.debug("Emitting data...");
@@ -159,7 +159,7 @@ public class UnilateralSortMergerITCase {
 		LOG.debug("Initializing sortmerger...");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
 			memoryManager, ioManager, 1024 * 1024 * 42, 1024 * 1024 * 2, 10, 2, keySerialization, valSerialization,
-			keyComparator, reader, parentTask);
+			keyComparator, reader, parentTask, 0.7f);
 
 		// emit data
 		LOG.debug("Emitting data...");
@@ -209,7 +209,7 @@ public class UnilateralSortMergerITCase {
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
 			memoryManager, ioManager, 1024 * 1024 * 64, 16, keySerialization, valSerialization,
-			keyComparator, reader, parentTask);
+			keyComparator, reader, parentTask, 0.7f);
 
 		// emit data
 		long start = System.currentTimeMillis();
