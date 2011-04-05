@@ -196,6 +196,7 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 
 		if (this.uncompressedDataBuffer != null) {
 			this.uncompressedDataBuffer.recycleBuffer();
+			this.uncompressedDataBuffer = null;
 		}
 	}
 
@@ -323,6 +324,32 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			}
 
 			return count;
+		}
+	}
+
+	public void releaseAllResources() {
+
+		final Queue<Buffer> buffersToRecycle = new ArrayDeque<Buffer>();
+		
+		synchronized (this.queuedEnvelopes) {
+						
+			while(!this.queuedEnvelopes.isEmpty()) {
+				final TransferEnvelope envelope = this.queuedEnvelopes.poll();
+				if(envelope.getBuffer() != null) {
+					buffersToRecycle.add(envelope.getBuffer());
+				}
+			}
+		}
+
+		if(this.uncompressedDataBuffer != null) {
+			buffersToRecycle.add(this.uncompressedDataBuffer);
+			this.uncompressedDataBuffer = null;
+		}
+		
+		LOG.info("Recycling " + buffersToRecycle.size() + " buffers");
+		
+		while(!buffersToRecycle.isEmpty()) {
+			buffersToRecycle.poll().recycleBuffer();
 		}
 	}
 }

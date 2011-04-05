@@ -131,7 +131,11 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			} catch (ChannelCanceledException cce) {
+				return writeContentForCanceledChannel(readableByteChannel);
+			}
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -149,6 +153,43 @@ public class FileBuffer implements InternalBuffer {
 		return (int) bytesWritten;
 	}
 
+	private int writeContentForCanceledChannel(final ReadableByteChannel readableByteChannel) throws IOException {
+
+		final ByteBuffer tmpBuffer = ByteBuffer.allocate(128);
+		long bytesWritten = 0;
+
+		long diff = this.bufferSize - this.totalBytesWritten;
+		if (diff <= 0) {
+			return 0;
+		}
+
+		while (diff > 0) {
+
+			// Make sure we don't read too much data from the stream
+			if (diff < tmpBuffer.remaining()) {
+				tmpBuffer.limit(tmpBuffer.position() + (int) diff);
+			}
+
+			final long b = readableByteChannel.read(tmpBuffer);
+			if (b == 0) {
+				break;
+			}
+			if (b == -1) {
+				throw new IOException("Read unexception -1 from stream");
+			}
+
+			if (!tmpBuffer.hasRemaining()) {
+				tmpBuffer.clear();
+			}
+
+			bytesWritten += b;
+			this.totalBytesWritten += bytesWritten;
+			diff = this.bufferSize - this.totalBytesWritten;
+		}
+
+		return (int) bytesWritten;
+	}
+
 	@Override
 	public int write(ByteBuffer src) throws IOException {
 
@@ -157,7 +198,11 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+			} catch (ChannelCanceledException e) {
+				throw new IOException("Received unexpected ChannelCanceledException");
+			}
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -213,7 +258,10 @@ public class FileBuffer implements InternalBuffer {
 		if (this.writeMode) {
 
 			final long currentFileSize = this.offset + this.totalBytesWritten;
-			this.fileChannel.position(currentFileSize);
+			// If the input channel this buffer belongs to is already canceled, fileChannel may be null
+			if (this.fileChannel != null) {
+				this.fileChannel.position(currentFileSize);
+			}
 			this.fileChannel = null;
 			this.bufferSize = this.totalBytesWritten;
 			// System.out.println("Buffer size: " + this.bufferSize);

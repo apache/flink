@@ -316,4 +316,14 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 
 		return -1;
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		// Forward call to byte buffered output channel group
+		this.byteBufferedOutputChannelGroup.releaseResources(this.byteBufferedOutputChannel.getID());
+	}
 }

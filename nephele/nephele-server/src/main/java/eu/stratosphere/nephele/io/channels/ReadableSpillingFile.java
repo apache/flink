@@ -29,7 +29,7 @@ public final class ReadableSpillingFile {
 	private final long fileSize;
 
 	private long lastPosition = 0;
-	
+
 	private final FileChannel readableFileChannel;
 
 	public ReadableSpillingFile(final File physicalFile) throws IOException {
@@ -47,41 +47,44 @@ public final class ReadableSpillingFile {
 		return this.physicalFile;
 	}
 
-	public synchronized FileChannel lockReadableFileChannel(final ChannelID sourceChannelID) throws InterruptedException {
+	public synchronized FileChannel lockReadableFileChannel(final ChannelID sourceChannelID)
+			throws InterruptedException {
 
 		while (this.readableChannelLocked) {
 
-			System.out.println("Waiting for lock on " + this.readableFileChannel);
 			this.wait();
 		}
 
 		this.readableChannelLocked = true;
-		
-		/*try {
-			System.out.println("---- Locking read channel at position " + this.readableFileChannel.position() + " for " + sourceChannelID);
-		} catch(IOException ioe) {
-			ioe.printStackTrace();
-		}*/
-		
+
+		/*
+		 * try {
+		 * System.out.println("---- Locking read channel at position " + this.readableFileChannel.position() + " for " +
+		 * sourceChannelID);
+		 * } catch(IOException ioe) {
+		 * ioe.printStackTrace();
+		 * }
+		 */
+
 		return this.readableFileChannel;
 	}
 
-	public synchronized void unlockReadableFileChannel(final ChannelID sourceChannelID) {
+	public synchronized void unlockReadableFileChannel(final ChannelID sourceChannelID) throws IOException {
+
+		if (!this.readableChannelLocked) {
+			return;
+		}
 
 		this.readableChannelLocked = false;
 		this.notify();
-		
-		try {
-			if(this.readableFileChannel.position() < this.lastPosition) {
-				System.out.println("READ Invalid position " + this.readableFileChannel.position() + ", last was" + this.lastPosition);
-			}
-			this.lastPosition = this.readableFileChannel.position();
-			//System.out.println("---- Unlocking read channel at position " + this.lastPosition  + " for " + sourceChannelID);
-			} catch(IOException e) {
-				e.printStackTrace();
-			}
-			
-			
+
+		if (this.readableFileChannel.position() < this.lastPosition) {
+			System.out.println("READ Invalid position " + this.readableFileChannel.position() + ", last was"
+				+ this.lastPosition);
+		}
+		this.lastPosition = this.readableFileChannel.position();
+		// System.out.println("---- Unlocking read channel at position " + this.lastPosition + " for " +
+		// sourceChannelID);
 	}
 
 	public synchronized boolean checkForEndOfFile() throws IOException {
@@ -93,7 +96,7 @@ public final class ReadableSpillingFile {
 			this.physicalFile.delete();
 			return true;
 		}
-
+		
 		return false;
 	}
 
