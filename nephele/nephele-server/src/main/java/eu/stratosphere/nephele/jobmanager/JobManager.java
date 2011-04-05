@@ -86,6 +86,8 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
+import eu.stratosphere.nephele.io.channels.AbstractChannel;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -109,6 +111,7 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -745,7 +748,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID targetChannelID) {
+	public ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID sourceChannelID) {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 		if (eg == null) {
@@ -753,12 +756,23 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
 
+		AbstractChannel sourceChannel = eg.getOutputChannelByID(sourceChannelID);
+		if(sourceChannel == null) {
+			sourceChannel = eg.getInputChannelByID(sourceChannelID);
+			if(sourceChannel == null) {
+				LOG.error("Cannot find source channel with ID " + sourceChannelID);
+				return ConnectionInfoLookupResponse.createReceiverNotFound();
+			}
+		}
+		
+		final ChannelID targetChannelID = sourceChannel.getConnectedChannelID();
+		
 		final ExecutionVertex vertex = eg.getVertexByChannelID(targetChannelID);
 		if (vertex == null) {
-			LOG.debug("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
+			LOG.error("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
-
+		
 		final ExecutionState executionState = vertex.getExecutionState();
 		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
 			return ConnectionInfoLookupResponse.createReceiverNotReady();

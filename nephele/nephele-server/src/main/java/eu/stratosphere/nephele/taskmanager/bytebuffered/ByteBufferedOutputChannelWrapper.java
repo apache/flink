@@ -23,6 +23,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
@@ -323,7 +324,9 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	@Override
 	public void releaseResources() {
 
-		// Forward call to byte buffered output channel group
-		this.byteBufferedOutputChannelGroup.releaseResources(this.byteBufferedOutputChannel.getID());
+		// Forward call to byte buffered output channel group if network channel
+		if (this.byteBufferedOutputChannel.getType() == ChannelType.NETWORK) {
+			this.byteBufferedOutputChannelGroup.releaseResources(this.byteBufferedOutputChannel.getID());
+		}
 	}
 }

@@ -311,8 +311,9 @@ public class ByteBufferedChannelManager {
 		ByteBufferedInputChannelWrapper channelWrapper;
 		synchronized (this.registeredChannels) {
 
-			channelWrapper = (ByteBufferedInputChannelWrapper) this.registeredChannels.remove(byteBufferedInputChannel.getID());
-			if(channelWrapper == null) {
+			channelWrapper = (ByteBufferedInputChannelWrapper) this.registeredChannels.remove(byteBufferedInputChannel
+				.getID());
+			if (channelWrapper == null) {
 				LOG.error("Cannot find byte buffered input channel " + byteBufferedInputChannel.getID()
 					+ " to unregister");
 				return;
@@ -379,7 +380,7 @@ public class ByteBufferedChannelManager {
 		// Check to which host the transfer envelope shall be sent
 		final InetSocketAddress connectionAddress = getPeerConnectionAddress(transferEnvelope.getSource());
 		if (connectionAddress == null) {
-			LOG.fatal("Cannot resolve channel ID to a connection address: " + transferEnvelope.getTarget());
+			LOG.fatal("Cannot resolve channel ID to a connection address: " + transferEnvelope.getSource());
 			return;
 		}
 
@@ -481,7 +482,7 @@ public class ByteBufferedChannelManager {
 			while (!Thread.interrupted()) {
 
 				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
-					channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
+					channelWrapper.getJobID(), sourceChannelID);
 
 				if (lookupResponse.receiverNotFound()) {
 					throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
@@ -508,24 +509,6 @@ public class ByteBufferedChannelManager {
 		}
 
 		return connectionAddress;
-	}
-
-	public int getNumberOfQueuedOutgoingEnvelopes(ChannelID sourceChannelID) throws IOException, InterruptedException {
-
-		final InetSocketAddress socketAddress = getPeerConnectionAddress(sourceChannelID);
-		if (socketAddress == null) {
-			return 0;
-		}
-
-		synchronized (this.outgoingConnections) {
-
-			final OutgoingConnection outgoingConnection = this.outgoingConnections.get(socketAddress);
-			if (outgoingConnection == null) {
-				return 0;
-			}
-
-			return outgoingConnection.getNumberOfQueuedEnvelopesForChannel(sourceChannelID, true);
-		}
 	}
 
 	/**
