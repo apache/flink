@@ -493,10 +493,10 @@ public class OutgoingConnection {
 				}
 			}
 		}
-		
+
 		// Recycle buffer outside of queuedEnvelopes monitor, otherwise dead locks might occur
 		final Iterator<Buffer> it = buffersToRecycle.iterator();
-		while(it.hasNext()) {
+		while (it.hasNext()) {
 			it.next().recycleBuffer();
 		}
 	}

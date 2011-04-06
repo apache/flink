@@ -60,7 +60,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private boolean brokerAggreedToCloseChannel = false;
 
 	private T bufferedRecord = null;
-	
+
 	/**
 	 * The Decompressor-Object to decompress incoming data
 	 */
@@ -104,12 +104,12 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 */
 	private T deserializeNextRecord() throws IOException {
 
-		if(this.bufferedRecord != null) {
+		if (this.bufferedRecord != null) {
 			final T record = this.bufferedRecord;
 			this.bufferedRecord = null;
 			return record;
 		}
-		
+
 		if (this.uncompressedDataBuffer == null) {
 
 			synchronized (this.synchronisationObject) {
@@ -273,30 +273,22 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			this.ioException = ioe;
 		}
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void releaseResources() {
-		
-		synchronized(this.synchronisationObject) {
+
+		synchronized (this.synchronisationObject) {
 			this.brokerAggreedToCloseChannel = true;
 		}
-		
+
 		this.deserializationBuffer.clear();
-		
-		if(this.compressedDataBuffer != null) {
-			this.compressedDataBuffer.recycleBuffer();
-			this.compressedDataBuffer = null;
-		}
-		
-		if(this.uncompressedDataBuffer != null) {
-			this.uncompressedDataBuffer.recycleBuffer();
-			this.uncompressedDataBuffer = null;
-		}
-		
-		if(this.decompressor != null) {
+
+		// The buffers are recycled by the input channel wrapper
+
+		if (this.decompressor != null) {
 			this.decompressor.shutdown();
 		}
 	}

@@ -54,7 +54,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
 import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -414,11 +414,11 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		try {
 
 			// Check for new jobs
-			final List<NewJobEvent> newJobs = this.jobManager.getRecentJobs();
+			final List<RecentJobEvent> newJobs = this.jobManager.getRecentJobs();
 			if (!newJobs.isEmpty()) {
-				final Iterator<NewJobEvent> it = newJobs.iterator();
+				final Iterator<RecentJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
-					final NewJobEvent newJobEvent = it.next();
+					final RecentJobEvent newJobEvent = it.next();
 					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable());
 				}
 			}

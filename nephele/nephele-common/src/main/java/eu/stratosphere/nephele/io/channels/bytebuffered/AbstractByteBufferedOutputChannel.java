@@ -399,5 +399,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if(this.compressor != null) {
 			this.compressor.shutdown();
 		}
+		
+		if(this.outputChannelBroker != null) {
+			this.outputChannelBroker.releaseResources();
+		}
 	}
 }

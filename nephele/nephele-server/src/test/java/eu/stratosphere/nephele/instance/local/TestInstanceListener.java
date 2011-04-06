@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public class TestInstanceListener implements InstanceListener {
+public final class TestInstanceListener implements InstanceListener {
 
 	/**
 	 * Stores the resources allocates

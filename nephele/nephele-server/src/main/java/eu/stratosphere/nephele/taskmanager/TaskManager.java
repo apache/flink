@@ -369,6 +369,8 @@ public class TaskManager implements TaskOperationProtocol {
 	// This method is called by the RPC server thread
 	private void registerInputChannels(InputGate<? extends Record> eig) throws ChannelSetupException {
 
+		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
+
 		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
 
 			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
@@ -376,11 +378,11 @@ public class TaskManager implements TaskOperationProtocol {
 			if (eic instanceof NetworkInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				FileBufferManager.getInstance().registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
+				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
 			} else if (eic instanceof FileInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				FileBufferManager.getInstance().registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
+				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
 				// Start recovery of the checkpoint
 				this.checkpointManager.recoverChannelCheckpoint(eic.getConnectedChannelID());
 			} else if (eic instanceof InMemoryInputChannel<?>) {
@@ -433,17 +435,19 @@ public class TaskManager implements TaskOperationProtocol {
 	// This method is called by the respective task thread
 	private void unregisterInputChannels(InputGate<? extends Record> eig) {
 
+		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
+
 		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
 			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
 
 			if (eic instanceof NetworkInputChannel<?>) {
 				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				FileBufferManager.getInstance().unregisterChannelToGateMapping(eic.getConnectedChannelID());
+				.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());				
 			} else if (eic instanceof FileInputChannel<?>) {
 				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				FileBufferManager.getInstance().unregisterChannelToGateMapping(eic.getConnectedChannelID());
+				.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
 			} else if (eic instanceof InMemoryInputChannel<?>) {
 				this.directChannelManager
 					.unregisterDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
@@ -506,6 +510,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Check the status of the task threads to detect unexpected thread terminations
 			checkTaskExecution();
+
+			// Clean up set of canceled channels
+			this.byteBufferedChannelManager.cleanUpCanceledChannelSet();
 		}
 
 		// Shutdown the individual components of the task manager
@@ -538,6 +545,31 @@ public class TaskManager implements TaskOperationProtocol {
 
 			@Override
 			public void run() {
+
+				// Mark all input channels as canceled
+				for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
+					final InputGate<?> inputGate = environment.getInputGate(i);
+					for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+						final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
+						if (inputChannel.getType() != ChannelType.INMEMORY) {
+							// Note that we always use the ID of the source channel
+							byteBufferedChannelManager.markChannelAsCanceled(inputChannel.getConnectedChannelID());
+						}
+					}
+				}
+
+				// Mark all output channels as canceled
+				for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+					final OutputGate<?> outputGate = environment.getOutputGate(i);
+					for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+						final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
+						if (outputChannel.getType() != ChannelType.INMEMORY) {
+							byteBufferedChannelManager.markChannelAsCanceled(outputChannel.getID());
+						}
+					}
+				}
+
+				// Finally, request user code to cancel
 				environment.cancelExecution();
 			}
 		});
