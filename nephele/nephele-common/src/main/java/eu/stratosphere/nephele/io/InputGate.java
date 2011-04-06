@@ -406,34 +406,34 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 			} catch (ClassNotFoundException e) {
 				LOG.error(e);
 			}
-			
-			if(c == null) {
+
+			if (c == null) {
 				throw new IOException("Class is null!");
 			}
-			
+
 			AbstractInputChannel<T> eic = null;
-				try {
-					final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
+			try {
+				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
 						.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
 							CompressionLevel.class);
-					if (constructor == null) {
-						throw new IOException("Constructor is null!");
-					}
-					constructor.setAccessible(true);
-					eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
-				} catch (SecurityException e) {
-					LOG.error(e);
-				} catch (NoSuchMethodException e) {
-					LOG.error(e);
-				} catch (IllegalArgumentException e) {
-					LOG.error(e);
-				} catch (InstantiationException e) {
-					LOG.error(e);
-				} catch (IllegalAccessException e) {
-					LOG.error(e);
-				} catch (InvocationTargetException e) {
-					LOG.error(e);
+				if (constructor == null) {
+					throw new IOException("Constructor is null!");
 				}
+				constructor.setAccessible(true);
+				eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
+			} catch (SecurityException e) {
+				LOG.error(e);
+			} catch (NoSuchMethodException e) {
+				LOG.error(e);
+			} catch (IllegalArgumentException e) {
+				LOG.error(e);
+			} catch (InstantiationException e) {
+				LOG.error(e);
+			} catch (IllegalAccessException e) {
+				LOG.error(e);
+			} catch (InvocationTargetException e) {
+				LOG.error(e);
+			}
 			if (eic == null) {
 				throw new IOException("Created input channel is null!");
 			}
@@ -482,8 +482,13 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 * Immediately closes the input gate and all its input channels. The corresponding
 	 * output channels are notified. Any remaining records in any buffers or queue is considered
 	 * irrelevant and is discarded.
+	 * 
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the channels to be closed
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while closing the channels
 	 */
-	public void close() {
+	public void close() throws InterruptedException, IOException {
 
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
@@ -561,11 +566,13 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 *        the event to be published
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
-		Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
+		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
 		while (it.hasNext()) {
 			it.next().transferEvent(event);
 		}
@@ -580,5 +587,17 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	public void deliverEvent(AbstractTaskEvent event) {
 
 		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseAllChannelResources() {
+
+		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
+		while (it.hasNext()) {
+			it.next().releaseResources();
+		}
 	}
 }

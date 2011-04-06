@@ -21,7 +21,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ExecutionFailureException;
-import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.fs.FileInputSplit;
@@ -221,8 +220,9 @@ public class InputSplitAssigner {
 		final String[] splitLocations = inputSplit.getHostNames();
 
 		// check that the split has at least one location
-		if (splitLocations.length == 0)
+		if (splitLocations.length == 0 && inputSplit.getLength() > 0) {
 			throw new ExecutionFailureException("No known location for input splits " + inputSplit);
+		}
 
 		boolean added = false;
 		// temp PriorityQueue

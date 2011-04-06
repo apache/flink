@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.Order;
@@ -29,6 +30,7 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.OutputContract;
+import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -53,7 +55,22 @@ public class ReduceNode extends SingleInputNode {
 	 */
 	public ReduceNode(ReduceContract<?, ?, ?, ?> pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
+		
+		// see if an internal hint dictates the strategy to use
+		Configuration conf = getPactContract().getStubParameters();
+		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+
+		if (localStrategy != null) {
+			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_COMBINING_SORT.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.COMBININGSORT);
+			} else {
+				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
+			}
+		} else {
+			setLocalStrategy(LocalStrategy.NONE);
+		}
 	}
 
 	/**
@@ -131,8 +148,13 @@ public class ReduceNode extends SingleInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case SORT:          return 1;
+			case COMBININGSORT: return 1;
+			case NONE:          return 0;
+			default:	        return 0;
+		}
 	}
 
 	/*
@@ -320,12 +342,12 @@ public class ReduceNode extends SingleInputNode {
 					// ss2 = ShipStrategy.PARTITION_RANGE;
 				}
 
-				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(pred, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
 			} else {
 				// fixed strategy
-				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(pred, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
 
 				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
 					// the shipping strategy is fixed to a value that does not leave us with
@@ -374,8 +396,8 @@ public class ReduceNode extends SingleInputNode {
 			n.setLocalStrategy(ls);
 
 			// compute, which of the properties survive, depending on the output contract
-			n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-			n.getLocalProperties().getPreservedAfterContract(getOutputContract());
+			n.getGlobalProperties().filterByOutputContract(getOutputContract());
+			n.getLocalProperties().filterByOutputContract(getOutputContract());
 
 			estimator.costOperator(n);
 

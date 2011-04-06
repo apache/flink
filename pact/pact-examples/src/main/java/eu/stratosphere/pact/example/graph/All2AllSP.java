@@ -376,7 +376,7 @@ public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
 			int hopCnt = Integer.parseInt(st.nextToken());
 			
 			// remaining tokens must be hops
-			if (st.countTokens() != hopCnt+4) return false;
+			if (st.countTokens() != hopCnt) return false;
 			
 			// create hop list array. Use larger array to avoid reallocation.
 			String[] hops = new String[hopCnt*2];

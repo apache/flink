@@ -25,7 +25,3 @@ ENC Technology Software Unrestricted (TSU) exception (see the BIS
 Export Administration Regulations, Section 740.13) for both object 
 code and source code.
 
-The following provides more details on the included cryptographic
-software:
-  Hadoop Core uses the SSL libraries from the Jetty project written 
-by mortbay.org.

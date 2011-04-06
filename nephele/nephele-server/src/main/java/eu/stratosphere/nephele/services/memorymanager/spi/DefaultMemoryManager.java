@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * <ul>
  * <li>arbitrary segment sizes (smaller than 2GB)</li>
  * <li>{@code allocate()} and {@code release()} calls in arbitrary order are supported</li>
- * <li>allocation data is stored as an array list in a dedicated structure</li>
+ * <li>allocation data is stored in a dedicated structure</li>
  * <li>first-fit selection strategy</li>
  * <li>automatic re-integration of released segments</li>
  * </ul>
@@ -51,13 +51,27 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public class DefaultMemoryManager implements MemoryManager {
+public class DefaultMemoryManager implements MemoryManager
+{
+	/**
+	 * An enumeration describing the allocation strategy of the memory manager.
+	 */
+	public enum AllocationStrategy {
+		COMPACT;
+	}
+	
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * Logging.
 	 */
 	private static final Log LOG = LogFactory.getLog(DefaultMemoryManager.class);
 
+	/**
+	 * The minimal chunk size, 16 KiBytes.
+	 */
+	private static final int MIN_CHUNK_SIZE = 16 * 1024;
+	
 	/**
 	 * Maximal memory chunk size.
 	 */
@@ -86,6 +100,11 @@ public class DefaultMemoryManager implements MemoryManager {
 	private final long totalSize;
 
 	/**
+	 * The strategy used by the memory manager.
+	 */
+	private AllocationStrategy strategy;
+	
+	/**
 	 * The allocated memory for this memoryManager instance.
 	 */
 	private byte[][] memory;
@@ -105,29 +124,57 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Default chunk size constructor.
+	 * Creates a memory manager with the given capacity, using the default chunk size and
+	 * the default allocation strategy.
+	 * 
+	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 */
 	public DefaultMemoryManager(long memorySize) {
 		this(memorySize, MAX_CHUNK_SIZE);
 	}
 
 	/**
-	 * Full options constructor.
+	 * Creates a memory manager with the given capacity and given chunk size.
+	 * The default allocation strategy is used.
 	 * 
-	 * @param memorySize
-	 * @param chunkSize
+	 * @param memorySize The total size of the memory to be managed by this memory manager.
+	 * @param chunkSize The size of the chunks in which the memory manager allocates its memory.
 	 */
 	public DefaultMemoryManager(long memorySize, int chunkSize)
 	{
+		this(memorySize, chunkSize, AllocationStrategy.COMPACT);
+	}
+
+	/**
+	 * Creates a memory manager with the given capacity and given chunk size.
+	 * The default allocation strategy is used.
+	 * 
+	 * @param memorySize The total size of the memory to be managed by this memory manager.
+	 * @param chunkSize The size of the chunks in which the memory manager allocates its memory.
+	 */
+	public DefaultMemoryManager(long memorySize, int chunkSize, AllocationStrategy allocationStrategy)
+	{
+		// sanity checks
+		if (memorySize <= 0) {
+			throw new IllegalArgumentException("Size of total memory must be positive.");
+		}
+		if (chunkSize <= MIN_CHUNK_SIZE) {
+			throw new IllegalArgumentException("The chunk size must be at least " + MIN_CHUNK_SIZE + " bytes.");
+		}
+		if (allocationStrategy == null) {
+			throw new IllegalArgumentException("The allocation strategy must not be null.");
+		}
+		
 		this.totalSize = memorySize;
 		
 		// initialize the free segments and allocated segments tracking structures
 		this.freeSegments = new LinkedList<FreeSegmentEntry>();
 		this.allocatedSegments = new HashMap<AbstractInvokable, ArrayList<DefaultMemorySegment>>();
+		this.strategy = allocationStrategy;
 
 		// calculate the number of required memory chunks and the length of the last chunk
-		int numberOfFullChunks = (int) (memorySize / chunkSize);
-		int lastChunkSize = (int) (memorySize % chunkSize);
+		int numberOfFullChunks = checkedDownCast(memorySize / chunkSize);
+		int lastChunkSize = checkedDownCast(memorySize % chunkSize);
 		
 		int numberOfChunks = lastChunkSize == 0 ? numberOfFullChunks : numberOfFullChunks + 1;
 
@@ -138,23 +185,27 @@ public class DefaultMemoryManager implements MemoryManager {
 		// add the full chunks
 		for (int i = 0; i < numberOfFullChunks; i++) {
 			// allocate memory of the specified size
-			memory[i] = new byte[chunkSize];
-			freeSegments.add(new FreeSegmentEntry(i, i * ((long) this.chunkSize), i * ((long) this.chunkSize) + memory[i].length));
+			this.memory[i] = new byte[chunkSize];
+			this.freeSegments.add(new FreeSegmentEntry(i, i * ((long) this.chunkSize), i * ((long) this.chunkSize) + this.memory[i].length));
 		}
 		
 		// add the last chunk
 		if (lastChunkSize > 0) {
 			// allocate memory of the specified size
-			memory[numberOfFullChunks] = new byte[lastChunkSize];
-			freeSegments.add(new FreeSegmentEntry(numberOfFullChunks, numberOfFullChunks * ((long) this.chunkSize), numberOfFullChunks * ((long) this.chunkSize) + lastChunkSize));
+			this.memory[numberOfFullChunks] = new byte[lastChunkSize];
+			this.freeSegments.add(new FreeSegmentEntry(numberOfFullChunks, numberOfFullChunks * ((long) this.chunkSize), numberOfFullChunks * ((long) this.chunkSize) + lastChunkSize));
 		}
 	}
 
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#shutdown()
+	 */
 	@Override
-	public void shutdown() {
+	public void shutdown()
+	{
+		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (this.lock) {
-			
 			if (!isShutDown) {
 				LOG.debug("Shutting down MemoryManager instance " + toString());
 	
@@ -163,6 +214,8 @@ public class DefaultMemoryManager implements MemoryManager {
 				memory = null;
 				chunkSize = 0;
 				
+				freeSegments.clear();
+				
 				// go over all allocated segments and release them
 				for (ArrayList<DefaultMemorySegment> segments : allocatedSegments.values()) {
 					for (DefaultMemorySegment seg : segments) {
@@ -170,19 +223,96 @@ public class DefaultMemoryManager implements MemoryManager {
 					}
 				}
 			}
-			
 		}
+		// -------------------- END CRITICAL SECTION -------------------
+	}
+	
+	/**
+	 * Gets the memory allocation strategy from this Memory Manager.
+	 * <p>
+	 * See {@link eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.AllocationStrategy} for
+	 * a description of the allocation strategies.
+	 * 
+	 * @return The the memory allocation strategy.
+	 */
+	public AllocationStrategy getStrategy() {
+		return strategy;
+	}
+
+	
+	/**
+	 * Sets the memory allocation strategy for the Memory Manager.
+	 * <p>
+	 * See {@link eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.AllocationStrategy} for
+	 * a description of the allocation strategies.
+	 *
+	 * @param strategy The memory allocation to set.
+	 */
+	public void setStrategy(AllocationStrategy strategy) {
+		this.strategy = strategy;
 	}
 
 	// ------------------------------------------------------------------------
 	//                 MemoryManager interface implementation
 	// ------------------------------------------------------------------------
-
-	/*
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, int)
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, long, int, int)
 	 */
 	@Override
-	public synchronized MemorySegment allocate(AbstractInvokable owner, int segmentSize)
+	public List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
+	throws MemoryAllocationException
+	{
+		if (minSegmentSize > this.chunkSize) {
+			throw new MemoryAllocationException("The memory chunks of this MemoryManager are too small to serve " +
+					"segments of minimal size " + minSegmentSize);
+		}
+		if (LOG.isDebugEnabled() && owner.getEnvironment() != null) {
+			LOG.info("Allocating " + totalMemory + " bytes in at least " + minNumSegments + " buffers for " + 
+					owner.getEnvironment().getTaskName() + 
+					" (" + (owner.getEnvironment().getIndexInSubtaskGroup() + 1) + "/" +
+					owner.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+		
+		final ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(minNumSegments + 1);
+		
+		// -------------------- BEGIN CRITICAL SECTION -------------------
+		synchronized (this.lock)
+		{
+			if (isShutDown) {
+				throw new IllegalStateException("Memory Manager has been shut down.");
+			}
+			
+			// get the list to store the allocated segment for this owner
+			ArrayList<DefaultMemorySegment> segsByThisOwner = allocatedSegments.get(owner);
+			if (segsByThisOwner == null) {
+				segsByThisOwner = new ArrayList<DefaultMemorySegment>();
+				allocatedSegments.put(owner, segsByThisOwner);
+			}
+			segsByThisOwner.ensureCapacity(segsByThisOwner.size() + minNumSegments + 1);
+			
+			// allocate depending on the selected allocation strategy
+			if (this.strategy == AllocationStrategy.COMPACT) {
+				internalAllocateCompact(owner, segments, segsByThisOwner, totalMemory, minNumSegments, minSegmentSize);
+			}
+			
+		}
+		// -------------------- END CRITICAL SECTION -------------------
+		
+		return segments;
+	}
+	
+	/**
+	 * Tries to allocate a memory segment of the specified size.
+	 * 
+	 * @param task The task for which the memory is allocated.
+	 * @param segmentSize The size of the memory to be allocated.
+	 * @return The allocated memory segment.
+	 * 
+	 * @throws MemoryAllocationException Thrown, if not enough memory is available.
+	 * @throws IllegalArgumentException Thrown, if the size parameter is not a positive integer.
+	 */
+	public MemorySegment allocate(AbstractInvokable owner, int segmentSize)
 	throws MemoryAllocationException
 	{
 		if (segmentSize < 1) {
@@ -199,7 +329,7 @@ public class DefaultMemoryManager implements MemoryManager {
 				throw new IllegalStateException("Memory Manager has been shut down.");
 			}
 
-			DefaultMemorySegment segment = internalAllocate(owner, segmentSize);
+			DefaultMemorySegment segment = internalAllocateStrict(owner, segmentSize);
 					
 			// store the allocated segment for this owner
 			ArrayList<DefaultMemorySegment> segsByThisOwner = allocatedSegments.get(owner);
@@ -216,10 +346,21 @@ public class DefaultMemoryManager implements MemoryManager {
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, int, int)
+	/**
+	 * Tries to allocate a collection of <code>numberOfBuffers</code> memory
+	 * segments of the specified <code>segmentSize</code> and <code>segmentType</code>.
+	 * <p>
+	 * WARNING: The use of this method is restricted to tests. Because of fragmentation, caused by the fact
+	 * that the memory in java cannot be allocated in chunks lager than <code>Integer.MAX_VALUE</code>, this
+	 * method may fail with large memory sizes in the presence of concurrently active memory consumers.
+	 * 
+	 * @param task The task for which the memory is allocated.
+	 * @param numberOfSegments The number of segments to allocate.
+	 * @param segmentSize The size of the memory segments to be allocated.
+	 * @return A collection of allocated memory segments.
+	 * 
+	 * @throws MemoryAllocationException Thrown, if the memory segments could not be allocated.
 	 */
-	@Override
 	public List<MemorySegment> allocate(AbstractInvokable owner, int numberOfSegments, int segmentSize)
 	throws MemoryAllocationException
 	{
@@ -251,7 +392,7 @@ public class DefaultMemoryManager implements MemoryManager {
 			{
 				// try to allocate all the segments
 				for (int i = 0; i < numberOfSegments; i++) {
-					DefaultMemorySegment segment = internalAllocate(owner, segmentSize);
+					DefaultMemorySegment segment = internalAllocateStrict(owner, segmentSize);
 					segments.add(segment);
 					segsByThisOwner.add(segment);
 				}
@@ -290,7 +431,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * @return The allocated memory segment.
 	 * @throws MemoryAllocationException Thrown, if not enough memory is available.
 	 */
-	private final DefaultMemorySegment internalAllocate(AbstractInvokable owner, int segmentSize)
+	private final DefaultMemorySegment internalAllocateStrict(AbstractInvokable owner, int segmentSize)
 	throws MemoryAllocationException
 	{
 		// traverse the free list to find first fitting segment
@@ -302,8 +443,8 @@ public class DefaultMemoryManager implements MemoryManager {
 			// check if there is enough space in the segment
 			if (segmentSize <= entry.end - entry.start) {
 				// construct a descriptor for the new segment
-				int chunk = (int) (entry.start / chunkSize);
-				int start = (int) (entry.start % chunkSize);
+				int chunk = checkedDownCast(entry.start / chunkSize);
+				int start = checkedDownCast(entry.start % chunkSize);
 				
 				MemorySegmentDescriptor descriptor = new MemorySegmentDescriptor(owner, memory[chunk], chunk, start, start + segmentSize);
 
@@ -322,7 +463,214 @@ public class DefaultMemoryManager implements MemoryManager {
 		
 		throw new MemoryAllocationException();
 	}
+	
 
+	/**
+	 * 
+	 * <p>
+	 * WARNING: This method does not do any synchronization and hence requires synchronization by
+	 *          its caller.
+	 * 
+	 * @param owner
+	 * @param target
+	 * @param segsByThisOwner
+	 * @param totalMemory
+	 * @param minNumSegments
+	 * @param minSegmentSize
+	 * @throws MemoryAllocationException Thrown, if the required amount of memory could no be gathered without
+	 *                                   creating chunks smaller than <tt>minSegmentSize</tt>.
+	 */
+	private final void internalAllocateCompact(AbstractInvokable owner,
+					ArrayList<MemorySegment> target,
+					ArrayList<DefaultMemorySegment> segsByThisOwner,
+					final long totalMemory, final int minNumSegments, final int minSegmentSize)
+	throws MemoryAllocationException
+	{	
+		final int avgSegmentSize = checkedDownCast(Math.min(totalMemory / minNumSegments, this.chunkSize));
+		final int minSizeForSegmentInFirstPass = Math.max(minSegmentSize, (int) (0.65f * avgSegmentSize));
+		final long limitForMultipleSegs = 2L * minSizeForSegmentInFirstPass;
+		
+		if (avgSegmentSize < minSegmentSize) {
+			throw new IllegalArgumentException("The requested memory cannot be distributed across the required " +
+					"number of chunks without violating the requested minimal chunk size.");
+		}
+		
+		long memoryLeft = totalMemory;
+		int numMoreSegments = minNumSegments;
+		
+		// from now on, we need to make sure that every failure results in a release of the segments
+		boolean success = false;
+		try {
+			// ----------------------------------------------------------------------------------------
+			// We make two passes over the segments.
+			// 1) In the first, we collect only larger buffers, which are larger than the average buffer
+			//    size. We fit as many segments into them as possible without creating buffers that are
+			//    less than two-third of the average size.
+			// 2) The second one collects all segments above the minimal limit, if there is still
+			//    space missing.
+			// ----------------------------------------------------------------------------------------
+			
+			// ------------------ FIRST PASS ------------------
+			
+			// traverse the free list to find first fitting segment
+			ListIterator<FreeSegmentEntry> freeSegs = this.freeSegments.listIterator();
+			while (memoryLeft > 0 && freeSegs.hasNext())
+			{
+				FreeSegmentEntry entry = freeSegs.next();
+				int size = checkedDownCast(entry.end - entry.start);
+	
+				// check if there is enough space in the segment to either
+				// - fit all requested memory in
+				// - allocate this complete segment to produce multiple result segments
+				// - allocate one result segment of average size and 
+				if (size >= memoryLeft) {
+					// we can do it all in this segment.
+					final int numSegmentsToFit = numMoreSegments > 0 ? numMoreSegments : 1;
+					final int segSize = checkedDownCast(memoryLeft / numSegmentsToFit);
+					
+					// make sure the capacities are there in the array lists to hold the segments
+					target.ensureCapacity(target.size() + numSegmentsToFit);
+					
+					// create all except the last result segment, because the last one gets in addition the
+					// bytes that were lost due to rounding errors
+					if (numSegmentsToFit > 1) {
+						for (int i = 0; i < numSegmentsToFit - 1; i++) {
+							final MemorySegmentDescriptor descr = createDescriptor(owner, entry, segSize);
+							final DefaultMemorySegment newSeg = factory(descr);
+							target.add(newSeg);
+							segsByThisOwner.add(newSeg);
+						}
+						memoryLeft -= (numSegmentsToFit - 1) * segSize;
+					}
+					
+					// the last one gets the remainder, including the bytes lost due to rounding errors.
+					final MemorySegmentDescriptor descr = createDescriptor(owner, entry, checkedDownCast(memoryLeft));
+					final DefaultMemorySegment newSeg = factory(descr);
+					target.add(newSeg);
+					segsByThisOwner.add(newSeg);
+					
+					// we are done
+					memoryLeft = 0;
+					numMoreSegments = 0;
+				}
+				else if (size >= limitForMultipleSegs) {
+					// we use the complete remaining space and fit multiple segments in
+					// check how many we will fit in and what size they will be
+					int numSegmentsToFit = (int) Math.ceil(size / ((double) avgSegmentSize));
+					int segSize = size / numSegmentsToFit;
+					
+					// if allocating the remainder of this chunk would leave a very small last segment, adjust the size
+					if (memoryLeft < size + segSize) {
+						segSize = checkedDownCast(memoryLeft / (numSegmentsToFit + 1));
+					}
+					target.ensureCapacity(target.size() + numSegmentsToFit);
+					
+					for (int i = 0; i < numSegmentsToFit - 1; i++) {
+						final MemorySegmentDescriptor descr = createDescriptor(owner, entry, segSize);
+						final DefaultMemorySegment newSeg = factory(descr);
+						target.add(newSeg);
+						segsByThisOwner.add(newSeg);
+					}
+					
+					// the last one gets the remainder, including the bytes lost due to rounding errors.
+					final MemorySegmentDescriptor descr = createDescriptor(owner, entry, checkedDownCast(entry.end - entry.start));
+					final DefaultMemorySegment newSeg = factory(descr);
+					target.add(newSeg);
+					segsByThisOwner.add(newSeg);
+					
+					memoryLeft -= size;
+					numMoreSegments -= numSegmentsToFit;
+				}
+				else if (size >= avgSegmentSize) {
+					// we'll fit one segment in
+					int sizeForSegment = (memoryLeft >= 2 * avgSegmentSize) ? avgSegmentSize : (int) (memoryLeft / 2);
+					
+					// allocate the segment and add it to the lists
+					target.ensureCapacity(target.size() + 1);
+					final MemorySegmentDescriptor descr = createDescriptor(owner, entry, sizeForSegment);
+					final DefaultMemorySegment newSeg = factory(descr);
+					target.add(newSeg);
+					segsByThisOwner.add(newSeg);
+					
+					// decrease the memory size that we still need to allocate
+					memoryLeft -= sizeForSegment;
+					numMoreSegments--;
+				}
+	
+				// remove the free segment entry from the list if the remaining size is zero
+				if (entry.start == entry.end) {
+					freeSegs.remove();
+				}
+			}
+			
+			// ------------------ SECOND PASS ------------------
+			if (memoryLeft > 0) {
+				// this pass only happens, if the first one did not get enough buffers.
+				// the logic is simple: take whatever free segment remains that is larger than the
+				// requested minimal segment size
+				freeSegs = this.freeSegments.listIterator();
+				while (memoryLeft > 0 && freeSegs.hasNext())
+				{
+					FreeSegmentEntry entry = freeSegs.next();
+					int size = checkedDownCast(entry.end - entry.start);
+		
+					// check if there is enough space in the segment to either
+					// - fit all requested memory in
+					// - allocate this complete segment to produce multiple result segments
+					// - allocate one result segment of average size and 
+					if (size >= minSegmentSize) {
+						// allocate everything as a segment.
+						int segSize = checkedDownCast(Math.min(size, memoryLeft));
+						
+						target.ensureCapacity(target.size() + 1);
+						final MemorySegmentDescriptor descr = createDescriptor(owner, entry, segSize);
+						final DefaultMemorySegment newSeg = factory(descr);
+						target.add(newSeg);
+						segsByThisOwner.add(newSeg);
+						
+						// decrease the memory size that we still need to allocate
+						memoryLeft -= segSize;
+						
+						// remove the free segment entry from the list if the remaining size is zero
+						if (entry.start == entry.end) {
+							freeSegs.remove();
+						}
+					}
+				}
+			}
+			
+			// check whether we got all we wanted
+			if (memoryLeft > 0) {
+				throw new MemoryAllocationException();
+			}
+			
+			success = true;
+			return;
+		}
+		finally {
+			// check if we were successful. if not, release all yet allocated memory
+			if (!success) {
+				for (int i = 0; i < target.size(); i++) {
+					internalRelease((DefaultMemorySegment) target.get(i));
+				}
+				
+				segsByThisOwner.removeAll(target);
+				target.clear();
+			}
+		}
+	}
+
+	private final MemorySegmentDescriptor createDescriptor(AbstractInvokable owner, FreeSegmentEntry entry, int size)
+	{
+		// compute chunk and offset
+		final int chunk = checkedDownCast(entry.start / this.chunkSize);
+		final int start = checkedDownCast(entry.start % this.chunkSize);
+
+		// adapt the free segment entry
+		entry.start += size;
+		
+		return new MemorySegmentDescriptor(owner, memory[chunk], chunk, start, start + size);
+	}
 	
 	// ------------------------------------------------------------------------
 	
@@ -463,7 +811,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	/**
 	 * Releases the memory segment, making the memory portion available again, clearing all references
 	 * in the views. It does not remove the segment from the map of allocated segments.
-	 * 
+	 * <p>
 	 * WARNING: This method does not do any synchronization and hence requires synchronization by
 	 *          its caller.
 	 * 
@@ -563,17 +911,35 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------	
 	
 	/**
-	 * Factory method for MemorySegment implementations.
+	 * Factory method for MemorySegment implementations. Creates the views and returns a 
+	 * <tt>DefaultMemorySegment</tt> representation of the given memory segment.
 	 * 
-	 * @param descriptor
-	 * @return
+	 * @param descriptor The memory segment to create the representation for.
+	 * @return A <tt>DefaultMemorySegment</tt> representation of the given memory segment.
 	 */
-	private static DefaultMemorySegment factory(MemorySegmentDescriptor descriptor) {
+	private static final DefaultMemorySegment factory(MemorySegmentDescriptor descriptor) {
 		DefaultRandomAccessView randomAccessView = new DefaultRandomAccessView(descriptor);
 		DefaultDataInputView inputView = new DefaultDataInputView(descriptor);
 		DefaultDataOutputView outputView = new DefaultDataOutputView(descriptor);
 
 		return new DefaultMemorySegment(descriptor, randomAccessView, inputView, outputView);
+	}
+	
+	/**
+	 * Casts the given value to an integer, if it can be safely done. If the cast would change the numeric
+	 * value, this method raises an exception.
+	 * <p>
+	 * This method is a protection in places where one expects to be able to safely case, but where unexpected
+	 * situations could make the cast unsafe and would cause hidden problems that are hard to track down.
+	 * 
+	 * @param value The value to be cast to an integer.
+	 * @return The given value as an integer.
+	 */
+	private static final int checkedDownCast(long value) {
+		if (value > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.");
+		}
+		return (int) value;
 	}
 
 	/**
@@ -623,69 +989,4 @@ public class DefaultMemoryManager implements MemoryManager {
 			this.size = end - start;
 		}
 	}
-
-
-//	// ------------------------------------------------------------------------
-//
-//	/**
-//	 * Instantiates a memory manager that allocates a given fraction of the total memory.
-//	 * It will however only allocate so much memory such that at least a given amount of memory remains.
-//	 * 
-//	 * @param fraction
-//	 *        The fraction of the current free space to allocate.
-//	 * @param minUnreserved The amount of memory that should not be allocated by the memory manager.
-//	 * @param minSize The minimal size the memory manager must have.
-//	 * 
-//	 * @return An instance of the MemoryManager with the given amount of memory.
-//	 */
-//	public static DefaultMemoryManager getWithHeapFraction(float fraction, long minUnreserved, long minSize) {
-//		// first, get the basic memory statistics from the runtime
-//		// the free memory is the currently free memory (in the current committed block), plus
-//		// the memory that is currently virtual and uncommitted (max - total)
-//		Runtime r = Runtime.getRuntime();
-//		long maximum = r.maxMemory();
-//		long free = maximum - r.totalMemory() + r.freeMemory();
-//		long bytes = 0;
-//		long tenuredFree = -1;
-//
-//		// in order to prevent allocations of arrays that are too big for the JVM's different memory pools,
-//		// make sure that the maximum segment size is 70% of the currently free tenure heap
-//		List<MemoryPoolMXBean> poolBeans = ManagementFactory.getMemoryPoolMXBeans();
-//		for (MemoryPoolMXBean bean : poolBeans) {
-//			if (bean.getName().equals("Tenured Gen")) {
-//				// found the tenured pool
-//				MemoryUsage usage = bean.getUsage();
-//				tenuredFree = usage.getMax() - usage.getUsed();
-//				break;
-//			}
-//		}
-//
-//		long maxSegSize = (tenuredFree == -1) ? Integer.MAX_VALUE : (long) (tenuredFree * 0.8);
-//		if (maxSegSize > Integer.MAX_VALUE) {
-//			maxSegSize = Integer.MAX_VALUE;
-//		}
-//
-//		if (minUnreserved + minSize < free) {
-//			LOG
-//				.warn("System has low memory. Allocating the minimal memory manager will leave little memory. Expect performance degradation.");
-//			bytes = MIN_MEMORY_SIZE;
-//		} else {
-//			bytes = (long) (maximum * fraction);
-//
-//			if (free - bytes < minUnreserved) {
-//				bytes = free - minUnreserved;
-//				LOG.warn("Memory manager attempt to allocate " + (long) (maximum * fraction)
-//					+ " bytes would leave less than " + minUnreserved + " bytes free. Decreasing allocated memory to "
-//					+ bytes + " bytes.");
-//			} else if (bytes < MIN_MEMORY_SIZE) {
-//				bytes = MIN_MEMORY_SIZE;
-//				LOG.warn("Increasing memory manager space to the minimum of " + (MIN_MEMORY_SIZE / 1024) + "K.");
-//			}
-//		}
-//
-//		LOG.info("Instantiating memory manager with a size of " + bytes + " bytes and a maximal chunk size of "
-//			+ maxSegSize + " bytes.");
-//
-//		return new DefaultMemoryManager(bytes, (int) maxSegSize);
-//	}
 }

@@ -15,27 +15,25 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
- * A base class for reading from / writing to a file system file.
+ * A base class for readers and writers that read data from I/O manager channels, or write data to them.
+ * Requests handled by channels that inherit from this class are executed asynchronously, which allows
+ * write-behind for writers and pre-fetching for readers.
  * 
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  * 
  * @param <T> The buffer type used for the underlying IO operations.
  */
-public abstract class ChannelAccess<T extends Buffer> {
-	
+public abstract class ChannelAccess<T extends Buffer>
+{
 	/**
 	 * The ID of the underlying channel.
 	 */
@@ -53,85 +51,69 @@ public abstract class ChannelAccess<T extends Buffer> {
 	protected final RequestQueue<IORequest<T>> requestQueue;
 	
 	/**
-	 * The queue containing the empty buffers that are ready to be reused.
-	 */
-	protected final ArrayBlockingQueue<T> returnBuffers;
-	
-	/**
 	 * An exception that was encountered by the asynchronous request handling thread.
 	 */
-	private volatile IOException exception;
+	protected volatile IOException exception;
 	
-	/**
-	 * The number of buffers that this channel worked with.
-	 */
-	private final int numBuffers;
-
 	
-	// -------------------------------------------------------------------------
-	//                  Constructors / Destructors
-	// -------------------------------------------------------------------------
-
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Creates a new channel to the path indicated by the given ID. The channel hands IO requests to
 	 * the given request queue to be processed.
 	 * 
 	 * @param channelID The id describing the path of the file that the channel accessed.
 	 * @param requestQueue The queue that this channel hands its IO requests to.
+	 * @param writeEnabled Flag describing whether the channel should be opened in read/write mode, rather
+	 *                     than in read-only mode.
+	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
-	protected ChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue,
-			Collection<T> buffers)
+	protected ChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue, boolean writeEnabled)
 	throws IOException
 	{
-		if (channelID == null || requestQueue == null || buffers == null) {
-			throw new IllegalArgumentException();
-		}
-		if (buffers.isEmpty()) {
-			throw new IllegalArgumentException();
+		if (channelID == null || requestQueue == null) {
+			throw new NullPointerException();
 		}
 		
 		this.id = channelID;
-		this.numBuffers = buffers.size();
 		this.requestQueue = requestQueue;
-		this.returnBuffers = new ArrayBlockingQueue<T>(buffers.size(), false);
 		
 		try {
-			RandomAccessFile file = new RandomAccessFile(id.getPath(), "rw");
+			RandomAccessFile file = new RandomAccessFile(id.getPath(), writeEnabled ? "rw" : "r");
 			this.fileChannel = file.getChannel();
 		}
 		catch (IOException e) {
 			throw new IOException("Channel to path '" + channelID.getPath() + "' could not be opened.", e);
 		}
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Release resources and return the externally supplied memory segments. This method does not 
-	 * necessarily return the memory segments, in the case when an exception occurred. 
+	 * Checks, whether this channel has been closed;
 	 * 
-	 * @throws IOException Thrown, if an exception occurred while processing remaining requests.
+	 * @return True, if the channel has been closed, false otherwise.
 	 */
-	public List<MemorySegment> close() throws IOException
+	public abstract boolean isClosed();
+	
+	/**
+	 * This method is invoked by the asynchronous I/O thread to return a buffer after the I/O request
+	 * completed.
+	 * 
+	 * @param buffer The buffer to be returned.
+	 */
+	protected abstract void returnBuffer(T buffer); 
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the channel ID of this channel.
+	 * 
+	 * @return This channel's ID.
+	 */
+	public final Channel.ID getChannelID()
 	{
-		// list to collect segments in
-		final ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(this.numBuffers);
-		
-		// get all segments from the return buffer queue
-		try {
-			while (segments.size() < this.numBuffers) {
-				final T buffer = this.returnBuffers.take();
-				segments.add(buffer.dispose());
-			
-				// check the error state of this channel after each segment and raise the exception in case
-				checkErroneous();
-			}
-		}
-		catch (InterruptedException iex) {
-			// when the process of waiting for the empty segments is interrupted, we call for an exception
-			throw new IOException("The channel closing was interrupted. " +
-					"Its not guaranteed that all buffers have been properly written.");
-		}
-		
-		return segments;
+		return this.id;
 	}
 	
 	/**
@@ -152,37 +134,23 @@ public abstract class ChannelAccess<T extends Buffer> {
 		} catch (Throwable t) {}
 	}
 	
-	
-	//  -----------------------------------------------------------------------
-	//                          Buffer handling
-	//  -----------------------------------------------------------------------
-
 	/**
-	 * Handle a processed {@code buffer}. This method is invoked by the
+	 * Handles a processed <tt>Buffer</tt>. This method is invoked by the
 	 * asynchronous IO worker threads upon completion of the IO request with the
-	 * provided {@code buffer}.
+	 * provided buffer and/or an exception that occurred while processing the request
+	 * for that buffer.
 	 * 
 	 * @param buffer The buffer to be processed.
 	 */
-	public void handleProcessedBuffer(T buffer, IOException ex) {
+	final void handleProcessedBuffer(T buffer, IOException ex) {
 		
 		if (ex != null && this.exception == null) {
 			this.exception = ex;
 		}
 		
-		this.returnBuffers.add(buffer);
+		returnBuffer(buffer);
 	}
 	
-	/**
-	 * Gets the next input buffer from the empty buffers queue.
-	 * 
-	 * @return the next output buffer from the empty buffer queue
-	 */
-	protected final T nextBuffer() throws InterruptedException
-	{
-		return returnBuffers.take();
-	}
-
 	/**
 	 * Checks the exception state of this channel. The channel is erroneous, if one of its requests could not
 	 * be processed correctly.
@@ -197,13 +165,12 @@ public abstract class ChannelAccess<T extends Buffer> {
 		}
 	}
 	
-	
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * An wrapper class for submitting IO requests to a centralized asynchronous
 	 * IO worker thread. A request consists of an IO buffer to be processed and
-	 * a reference to the {@link ChannelAccess} object submitting the request.
+	 * a reference to the {@link StreamChannelAccess} object submitting the request.
 	 * 
 	 * @author Alexander Alexandrov
 	 * @param <T> The buffer type for this request.
@@ -220,4 +187,5 @@ public abstract class ChannelAccess<T extends Buffer> {
 		}
 		
 	}
+
 }

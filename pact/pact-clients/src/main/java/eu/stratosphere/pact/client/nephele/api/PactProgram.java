@@ -63,9 +63,9 @@ public class PactProgram {
 	 */
 	public PactProgram(File jarFile, String... args)
 													throws ProgramInvocationException {
-		this.assemblerClass = getPactAssemblerFromJar(jarFile);
 		this.jarFile = jarFile;
 		this.args = args;
+		this.assemblerClass = getPactAssemblerFromJar(jarFile);
 	}
 
 	/**

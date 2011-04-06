@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.services.memorymanager;
 
 
 import java.io.DataInput;
+import java.io.EOFException;
 
 
 /**
@@ -45,7 +46,7 @@ public interface DataInputView extends DataInput
 	/**
 	 * Skips {@code size} memory.
 	 */
-	public DataInputView skip(int size);
+	public DataInputView skip(int size) throws EOFException;
 
 	/**
 	 * Resets the write position to zero.

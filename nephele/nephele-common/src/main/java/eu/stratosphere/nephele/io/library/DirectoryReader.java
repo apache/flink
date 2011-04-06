@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.io.library;
 
+import java.util.Iterator;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -43,12 +45,12 @@ public class DirectoryReader extends AbstractFileInputTask {
 	@Override
 	public void invoke() throws Exception {
 
-		final FileInputSplit[] splits = getFileInputSplits();
+		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 		FileRecord fr = null;
 
-		for (int i = 0; i < splits.length; i++) {
+		while (splitIterator.hasNext()) {
 
-			final FileInputSplit split = splits[i];
+			final FileInputSplit split = splitIterator.next();
 
 			final long start = split.getStart();
 			final long end = start + split.getLength();

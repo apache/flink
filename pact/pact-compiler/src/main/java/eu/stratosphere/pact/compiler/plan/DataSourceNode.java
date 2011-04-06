@@ -42,7 +42,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class DataSourceNode extends OptimizerNode {
-	List<DataSourceNode> cachedPlans; // the cache in case there are multiple outputs;
+	private List<DataSourceNode> cachedPlans; // the cache in case there are multiple outputs;
 
 	private long fileSize = -1; // the size of the input file. unknown by default.
 
@@ -69,6 +69,7 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	protected DataSourceNode(DataSourceNode template, GlobalProperties gp, LocalProperties lp) {
 		super(template, gp, lp);
+		this.fileSize = template.fileSize;
 	}
 
 	/*
@@ -122,8 +123,8 @@ public class DataSourceNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
+	public int getMemoryConsumerCount() {
+		return 0;
 	}
 
 	/*

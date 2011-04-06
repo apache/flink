@@ -134,7 +134,7 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalSortMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2, Costs target) {
+	public void getLocalDoubleSortMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2, Costs target) {
 		target.setNetworkCost(0);
 
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block for both sides
@@ -142,6 +142,76 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 		long s2 = input2.getEstimatedOutputSize();
 
 		target.setSecondaryStorageCost(s1 == -1 || s2 == -1 ? -1 : 2 * (s1 + s2));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see 
+	 * eu.stratosphere.pact.compiler.costs.CostEstimator#getLocalSingleSortMergeCost(eu.stratosphere.pact
+	 * .compiler.plan.OptimizerNode, eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 * eu.stratosphere.pact.compiler.plan.OptimizerNode, eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void getLocalSingleSortMergeCost(OptimizerNode node, OptimizerNode unsortedInput, OptimizerNode sortedInput, Costs costs) {
+		costs.setNetworkCost(0);
+		
+		// we assume a two phase merge sort, so all in all 2 I/O operations per block for the unsorted input
+		long s1 = unsortedInput.getEstimatedOutputSize();
+		
+		costs.setSecondaryStorageCost(s1 == -1 ? -1 : 2 * s1);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see 
+	 * eu.stratosphere.pact.compiler.costs.CostEstimator#getLocalMergeCost(eu.stratosphere.pact
+	 * .compiler.plan.OptimizerNode, eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 * eu.stratosphere.pact.compiler.plan.OptimizerNode, eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void getLocalMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2, Costs costs) {
+		costs.setNetworkCost(0);
+
+		// inputs are sorted. No network and secondary storage costs produced
+		costs.setSecondaryStorageCost(0);
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.costs.CostEstimator#getLocalSortSelfNestedLoopCost(
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void getLocalSortSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs) {
+		
+		costs.setNetworkCost(0);
+
+		// we assume a two phase merge sort, so all in all 2 I/O operations per block
+		// plus I/O for the SpillingResettableIterator
+		long is = input.getEstimatedOutputSize();
+		long oc = input.getEstimatedNumRecords();
+		
+		costs.setSecondaryStorageCost(is == -1 ? -1 : 2 + oc * is);
+		
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.costs.CostEstimator#getSelfNestedLoopCost(
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.plan.OptimizerNode, 
+	 *   eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void getLocalSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs) {
+		
+		long is = input.getEstimatedOutputSize();
+		long oc = input.getEstimatedNumRecords();
+		
+		costs.setSecondaryStorageCost(is == -1 ? -1 : oc * is);
+		
 	}
 
 	/*

@@ -43,7 +43,7 @@ public class StringRecordTest {
 		try {
 
 			final StringRecord copy = (StringRecord) CommonTestUtils.createCopy(orig);
-
+			
 			assertEquals(orig.getLength(), copy.getLength());
 			assertEquals(orig.toString(), copy.toString());
 			assertEquals(orig, copy);

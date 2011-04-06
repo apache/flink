@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
@@ -50,19 +51,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
  */
 public class SortMergeMatchIteratorITCase {
 	// total memory
-	public static final int MEMORY_SIZE = 1024 * 1024 * 64;
-
-	// offset array used by sort-buffer
-	public static final float OFFSETS_PERCENTAGE = 0.1f;
-
-	// two sort-buffers per sortmerger
-	public static final int NUM_SORT_BUFFERS = 4;
-
-	// each sort-buffer is 8 mb
-	public static final int SIZE_SORT_BUFFER = 1024 * 1024 * 8;
-
-	// 512 kb io buffer for each sortmerger
-	public static final int MEMORY_IO = 1024 * 1024;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 128;
 
 	// the size of the left and right inputs
 	private static final int INPUT_1_SIZE = 20000;
@@ -100,28 +89,41 @@ public class SortMergeMatchIteratorITCase {
 
 	@AfterClass
 	public static void afterClass() {
+		if (ioManager != null) {
+			ioManager.shutdown();
+			if (!ioManager.isProperlyShutDown()) {
+				Assert.fail("I/O manager failed to properly shut down.");
+			}
+			ioManager = null;
+		}
+		
 	}
 
 	@Before
 	public void beforeTest() {
 		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
-
-		generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-		generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-
-		reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
-		reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
 	}
 
 	@After
 	public void afterTest() {
-		if (memoryManager != null)
+		if (memoryManager != null) {
+			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
+				memoryManager.verifyEmpty());
 			memoryManager.shutdown();
+			memoryManager = null;
+		}
 	}
 
 	@Test
-	public void testIterator() {
+	public void testSortBothMerge() {
 		try {
+			
+			generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+
+			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
+			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+			
 			// collect expected data
 			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
 			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
@@ -132,9 +134,227 @@ public class SortMergeMatchIteratorITCase {
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
-				memoryManager, ioManager, reader1, reader2, TestData.Key.class, TestData.Value.class, TestData.Value.class,
-				NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, 128, parentTask);
+			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
+						TestData.Value.class, TestData.Value.class,
+						MEMORY_SIZE, 64, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+	
+			iterator.open();
+			while (iterator.next()) {
+				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+	
+				// assert that matches for this key exist
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+	
+				// assert that each map is expected
+				Iterator<TestData.Value> iter1 = iterator.getValues1();
+				Iterator<TestData.Value> iter2 = iterator.getValues2();
+	
+				// clone add memorize
+				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
+				while (iter1.hasNext()) {
+					values1.add(new TestData.Value(iter1.next().getValue()));
+				}
+	
+				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
+				while (iter2.hasNext()) {
+					values2.add(new TestData.Value(iter2.next().getValue()));
+				}
+	
+				// compare
+				for (Value value1 : values1) {
+					for (Value value2 : values2) {
+						Collection<Match> expectedValues = expectedMatchesMap.get(key);
+						Match match = new Match(value1, value2);
+						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
+						expectedValues.remove(match);
+					}
+				}
+	
+			}
+			iterator.close();
+	
+			// assert that each expected match was seen
+			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("An exception occurred during the test: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSortFirstMerge() {
+		try {
+			
+			generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+
+			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
+			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+
+			// collect expected data
+			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+	
+			// reset the generators
+			generator1.reset();
+			generator2.reset();
+	
+			// compare with iterator values
+			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
+						TestData.Value.class, TestData.Value.class,
+						MEMORY_SIZE, 64, LocalStrategy.SORT_FIRST_MERGE, parentTask);
+	
+			iterator.open();
+			while (iterator.next()) {
+				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+	
+				// assert that matches for this key exist
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+	
+				// assert that each map is expected
+				Iterator<TestData.Value> iter1 = iterator.getValues1();
+				Iterator<TestData.Value> iter2 = iterator.getValues2();
+	
+				// clone add memorize
+				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
+				while (iter1.hasNext()) {
+					values1.add(new TestData.Value(iter1.next().getValue()));
+				}
+	
+				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
+				while (iter2.hasNext()) {
+					values2.add(new TestData.Value(iter2.next().getValue()));
+				}
+	
+				// compare
+				for (Value value1 : values1) {
+					for (Value value2 : values2) {
+						Collection<Match> expectedValues = expectedMatchesMap.get(key);
+						Match match = new Match(value1, value2);
+						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
+						expectedValues.remove(match);
+					}
+				}
+	
+			}
+			iterator.close();
+	
+			// assert that each expected match was seen
+			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("An exception occurred during the test: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSortSecondMerge() {
+		try {
+			
+			generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+			generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+
+			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
+			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+
+			// collect expected data
+			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+	
+			// reset the generators
+			generator1.reset();
+			generator2.reset();
+	
+			// compare with iterator values
+			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
+						TestData.Value.class, TestData.Value.class,
+						MEMORY_SIZE, 64, LocalStrategy.SORT_SECOND_MERGE, parentTask);
+	
+			iterator.open();
+			while (iterator.next()) {
+				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+	
+				// assert that matches for this key exist
+				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
+	
+				// assert that each map is expected
+				Iterator<TestData.Value> iter1 = iterator.getValues1();
+				Iterator<TestData.Value> iter2 = iterator.getValues2();
+	
+				// clone add memorize
+				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
+				while (iter1.hasNext()) {
+					values1.add(new TestData.Value(iter1.next().getValue()));
+				}
+	
+				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
+				while (iter2.hasNext()) {
+					values2.add(new TestData.Value(iter2.next().getValue()));
+				}
+	
+				// compare
+				for (Value value1 : values1) {
+					for (Value value2 : values2) {
+						Collection<Match> expectedValues = expectedMatchesMap.get(key);
+						Match match = new Match(value1, value2);
+						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
+						expectedValues.remove(match);
+					}
+				}
+	
+			}
+			iterator.close();
+	
+			// assert that each expected match was seen
+			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("An exception occurred during the test: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testMerge() {
+		try {
+			
+			generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+			generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+
+			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
+			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+
+			// collect expected data
+			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+	
+			// reset the generators
+			generator1.reset();
+			generator2.reset();
+	
+			// compare with iterator values
+			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
+				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
+						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
+						TestData.Value.class, TestData.Value.class,
+						MEMORY_SIZE, 64, LocalStrategy.MERGE, parentTask);
 	
 			iterator.open();
 			while (iterator.next()) {

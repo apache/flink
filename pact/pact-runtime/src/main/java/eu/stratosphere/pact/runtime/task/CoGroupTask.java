@@ -56,22 +56,14 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.CoGroupStub
  * @author Fabian Hueske
  */
-public class CoGroupTask extends AbstractTask {
-	// number of sort buffers to use
-	private int NUM_SORT_BUFFERS;
-
-	// size of each sort buffer in MB
-	private int SIZE_SORT_BUFFER;
-
-	// memory to be used for IO buffering
-	private int MEMORY_IO;
-
-	// maximum number of file handles
-	private int MAX_NUM_FILEHANLDES;
-
+public class CoGroupTask extends AbstractTask
+{
 	// obtain CoGroupTask logger
 	private static final Log LOG = LogFactory.getLog(CoGroupTask.class);
-
+	
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+	
 	// reader of first input
 	private RecordReader<? extends Record> reader1;
 
@@ -86,6 +78,17 @@ public class CoGroupTask extends AbstractTask {
 
 	// task config including stub parameters
 	private TaskConfig config;
+
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// maximum number of file handles
+	private int maxFileHandles;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * {@inheritDoc}
@@ -119,6 +122,20 @@ public class CoGroupTask extends AbstractTask {
 		typedInvoke(coGroup.getFirstInKeyType(), coGroup.getFirstInValueType(), coGroup.getSecondInValueType(), coGroup
 			.getOutKeyType(), coGroup.getSecondInValueType());
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	}
+	
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Initializes the stub implementation and configuration. Takes the stub class from the configuration,
@@ -132,10 +149,33 @@ public class CoGroupTask extends AbstractTask {
 		config = new TaskConfig(getRuntimeConfiguration());
 
 		// set up memory and I/O parameters
-		NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case SORT_BOTH_MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY*2;
+				break;
+			case SORT_FIRST_MERGE: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case SORT_SECOND_MERGE: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MERGE: 
+				strategyMinMem = 0;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The CoGroup task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -194,11 +234,20 @@ public class CoGroupTask extends AbstractTask {
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (config.getLocalStrategy()) {
-		case SORTMERGE:
+		case SORT_BOTH_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
-				iv1Class, iv2Class, NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, this);
+				iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_FIRST_MERGE:
+			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+		case SORT_SECOND_MERGE:
+			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+		case MERGE:
+			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
 		default:
-			throw new RuntimeException("Unknown local strategy for CoGroupTask");
+			throw new RuntimeException("Supported local strategy for CoGroupTask: "+config.getLocalStrategy());
 		}
 	}
 
@@ -333,6 +382,7 @@ public class CoGroupTask extends AbstractTask {
 	 */
 	private <IK extends Key, IV1 extends Value, IV2 extends Value, OK extends Key, OV extends Value> void typedInvoke(
 			Class<IK> ikClass, Class<IV1> iv1Class, Class<IV2> iv2Class, Class<OK> okClass, Class<OV> ovClass)
+	throws Exception
 	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -346,12 +396,12 @@ public class CoGroupTask extends AbstractTask {
 		try {
 			coGroupIterator = getIterator(ikClass, iv1Class, iv2Class);
 			
+			// open CoGroupTaskIterator
+			coGroupIterator.open();
+			
 			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-			
-			// open CoGroupTaskIterator
-			coGroupIterator.open();
 
 			LOG.debug("Start processing: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -361,10 +411,26 @@ public class CoGroupTask extends AbstractTask {
 			coGroup.open();
 			
 			// for each distinct key in both inputs (not necessarily shared by both inputs)
-			while (coGroupIterator.next()) {
+			while (coGroupIterator.next() && !taskCanceled) {
 				// call coGroup() method of stub implementation
 				coGroup.coGroup(coGroupIterator.getKey(), coGroupIterator.getValues1(), coGroupIterator.getValues2(),
 					collector);
+			}
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
+		finally {
+			// close CoGroupTaskIterator
+			// this is important to release the memory segments
+			if (coGroupIterator != null) {
+				coGroupIterator.close();
 			}
 			
 			// close stub implementation.
@@ -379,27 +445,20 @@ public class CoGroupTask extends AbstractTask {
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
 			}
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("An IO error occured during processing CoGroupTask", ioe);
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("An unclassified error occured during processing CoGroupTask", t);
-		}
-		finally {
-			// close CoGroupTaskIterator
-			// this is important to release the memory segments
-			if (coGroupIterator != null) {
-				coGroupIterator.close();
-			}
 			
 			// close output collector
 			collector.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
 	}
 
 	// ------------------------------------------------------------------------

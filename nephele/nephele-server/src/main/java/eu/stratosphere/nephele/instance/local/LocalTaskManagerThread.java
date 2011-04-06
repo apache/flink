@@ -27,7 +27,7 @@ public class LocalTaskManagerThread extends Thread {
 	/**
 	 * The task manager to run in this thread.
 	 */
-	private TaskManager taskManager;
+	private final TaskManager taskManager;
 
 	/**
 	 * Constructs a new thread to run the task manager in Nephele's local mode.
@@ -36,12 +36,14 @@ public class LocalTaskManagerThread extends Thread {
 	 *        the configuration directory to pass on to the task manager instance
 	 */
 	public LocalTaskManagerThread(String configDir) {
+
+		TaskManager tmpTaskManager = null;
 		try {
-			this.taskManager = new TaskManager(configDir);
+			tmpTaskManager = new TaskManager(configDir);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
-		catch (Exception e) {
-			throw new RuntimeException("Could not start local TaskManager: " + e.getMessage(), e);
-		}
+		this.taskManager = tmpTaskManager;
 	}
 
 	/**
@@ -55,7 +57,6 @@ public class LocalTaskManagerThread extends Thread {
 		// Wait until the task manager is shut down
 		while (!this.taskManager.isShutDown()) {
 			try {
-				System.out.println("WAITING FOR SHUTDOWN OF TASK MANAGER");
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
 				break;
@@ -72,4 +73,15 @@ public class LocalTaskManagerThread extends Thread {
 
 		return this.taskManager.isShutDown();
 	}
+
+	/**
+	 * Returns true if the TaskManager was successfully initialized.
+	 * 
+	 * @return true if the TaskManager was successfully initialized, false otherwise.
+	 */
+	/*
+	 * public boolean isTaskManagerInitialized() {
+	 * return this.taskManagerSuccessfullyInitialized;
+	 * }
+	 */
 }

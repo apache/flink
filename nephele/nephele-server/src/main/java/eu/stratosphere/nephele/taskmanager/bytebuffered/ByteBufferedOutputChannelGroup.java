@@ -15,7 +15,10 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
+import java.io.IOException;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
@@ -37,7 +40,7 @@ import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
  * 
  * @author warneke
  */
-public class ByteBufferedOutputChannelGroup {
+public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 
 	/**
 	 * The byte buffered channel manager.
@@ -53,6 +56,11 @@ public class ByteBufferedOutputChannelGroup {
 	 * The common channel type of all of the task's output channels, possibly <code>null</code>.
 	 */
 	private final ChannelType commonChannelType;
+
+	/**
+	 * Stores those channels which current hold at least one write buffer
+	 */
+	private final Set<ByteBufferedOutputChannelWrapper> channelsWithWriteBuffers = new HashSet<ByteBufferedOutputChannelWrapper>();
 
 	/**
 	 * Constructs a new byte buffered output channel group object.
@@ -97,9 +105,13 @@ public class ByteBufferedOutputChannelGroup {
 	 *        the channel wrapper which called this method
 	 * @param outgoingTransferEnvelope
 	 *        the transfer envelope to be forwarded
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while processing the envelope
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
 	public void processEnvelope(ByteBufferedOutputChannelWrapper channelWrapper,
-			TransferEnvelope outgoingTransferEnvelope) {
+			TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
 
 		final TransferEnvelopeProcessingLog processingLog = outgoingTransferEnvelope.getProcessingLog();
 
@@ -133,6 +145,10 @@ public class ByteBufferedOutputChannelGroup {
 		// Check if the provided envelope must be sent via the network
 		if (processingLog.mustBeSentViaNetwork()) {
 			this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(outgoingTransferEnvelope);
+		}
+
+		if (outgoingTransferEnvelope.getBuffer() != null) {
+			this.channelsWithWriteBuffers.remove(channelWrapper);
 		}
 	}
 
@@ -184,8 +200,67 @@ public class ByteBufferedOutputChannelGroup {
 	 * @throws InterruptedException
 	 *         thrown if the task thread is interrupted while waiting for the buffers
 	 */
-	public BufferPairResponse requestEmptyWriteBuffers(BufferPairRequest byteBufferPair) throws InterruptedException {
+	public BufferPairResponse requestEmptyWriteBuffers(ByteBufferedOutputChannelWrapper wrapper,
+			BufferPairRequest byteBufferPair) throws InterruptedException {
 
-		return this.byteBufferedChannelManager.requestEmptyWriteBuffers(byteBufferPair);
+		final BufferPairResponse bufferPairResponse = this.byteBufferedChannelManager
+			.requestEmptyWriteBuffers(this, byteBufferPair);
+
+		if (bufferPairResponse.getCompressedDataBuffer() != null
+			|| bufferPairResponse.getUncompressedDataBuffer() != null) {
+
+			this.channelsWithWriteBuffers.add(wrapper);
+		}
+
+		return bufferPairResponse;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void outOfWriteBuffers() throws InterruptedException {
+
+		final Iterator<ByteBufferedOutputChannelWrapper> it = this.channelsWithWriteBuffers.iterator();
+		int minRemaining = -1;
+		ByteBufferedOutputChannelWrapper minWrapper = null;
+
+		while (it.hasNext()) {
+
+			final ByteBufferedOutputChannelWrapper wrapper = it.next();
+			final int remaining = wrapper.getRemainingBytesOfWorkingBuffer();
+			if (remaining > 0) {
+
+				if (minWrapper == null) {
+					minWrapper = wrapper;
+					minRemaining = remaining;
+				} else {
+					if (remaining < minRemaining) {
+						minRemaining = remaining;
+						minWrapper = wrapper;
+					}
+				}
+			}
+		}
+
+		if (minWrapper != null) {
+
+			try {
+				minWrapper.flush();
+			} catch (IOException ioe) {
+				minWrapper.reportIOException(ioe);
+			}
+		}
+	}
+
+	/**
+	 * Releases all resources associated with the output channel with the given channel ID. This method should only be
+	 * called after the respective task has stopped running.
+	 * 
+	 * @param sourceChannelID the ID of the output channel to release the resources for.
+	 */
+	public void releaseResources(final ChannelID sourceChannelID) {
+
+		this.byteBufferedChannelManager.releaseOutputChannelResources(sourceChannelID);
 	}
 }

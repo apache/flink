@@ -45,13 +45,13 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * input and one or multiple outputs. It is provided with a MapStub
  * implementation.
  * <p>
- * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>run()</code> method
- * of the MapStub.
+ * The MapTask creates an iterator over all key-value pairs of its input and hands that 
+ * to the <code>map()</code> method of the MapStub.
  * 
  * @see eu.stratosphere.pact.common.stub.MapStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class MapTask extends AbstractTask {
 
 	// obtain MapTask logger
@@ -69,6 +69,9 @@ public class MapTask extends AbstractTask {
 	// task configuration (including stub parameters)
 	private TaskConfig config;
 
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -131,18 +134,45 @@ public class MapTask extends AbstractTask {
 
 		// open stub implementation
 		stub.open();
-		// run stub implementation
-		callStub(input, output);
+		try {
+			// run stub implementation
+			callStub(input, output);
+		} catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
 		// close output collector
 		output.close();
 		// close stub implementation
 		stub.close();
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception {
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
-
+	
 	/**
 	 * Initializes the stub implementation and configuration.
 	 * 
@@ -246,8 +276,9 @@ public class MapTask extends AbstractTask {
 	 * @param out
 	 *        A collector for the output of the map() function.
 	 */
-	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out) {
-		while (in.hasNext()) {
+	private void callStub(Iterator<Pair<Key, Value>> in, Collector<Key, Value> out)
+	{
+		while (!this.taskCanceled && in.hasNext()) {
 			Pair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);
 		}

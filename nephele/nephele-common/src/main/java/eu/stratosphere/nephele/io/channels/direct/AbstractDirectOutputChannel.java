@@ -17,9 +17,6 @@ package eu.stratosphere.nephele.io.channels.direct;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -29,8 +26,6 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
 public abstract class AbstractDirectOutputChannel<T extends Record> extends AbstractOutputChannel<T> {
-
-	private static final Log LOG = LogFactory.getLog(AbstractDirectOutputChannel.class);
 
 	/**
 	 * The connected direct input channel.
@@ -128,7 +123,7 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestClose() {
+	public void requestClose() throws InterruptedException {
 
 		this.closeRequested = true;
 		if (this.connectedDirectInputChannel == null) {
@@ -150,7 +145,7 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 	}
 
 	@SuppressWarnings("unchecked")
-	private AbstractDirectInputChannel<T> getConnectedInputChannel() throws IOException {
+	private AbstractDirectInputChannel<T> getConnectedInputChannel() throws IOException, InterruptedException {
 
 		AbstractDirectInputChannel<T> directInputChannel = null;
 
@@ -165,12 +160,7 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 				return directInputChannel;
 			}
 
-			try {
-				Thread.sleep(CONNECTION_SLEEP_INTERVAL);
-			} catch (InterruptedException e) {
-				// We need to finish this operation, otherwise the proper shutdown of the consumer is at risk
-				LOG.error(e);
-			}
+			Thread.sleep(CONNECTION_SLEEP_INTERVAL);
 		}
 
 		throw new IOException("Cannot find corresponding in-memory input channel for in-memory output channel "
@@ -188,8 +178,11 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void transferEvent(AbstractEvent event) throws IOException {
+	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		if (this.connectedDirectInputChannel == null) {
 			this.connectedDirectInputChannel = getConnectedInputChannel();
@@ -198,12 +191,24 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 		this.connectedDirectInputChannel.processEvent(event);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void flush() throws IOException{
+	public void flush() throws IOException, InterruptedException {
 		if (this.connectedDirectInputChannel == null) {
 			this.connectedDirectInputChannel = getConnectedInputChannel();
 		}
 
 		this.connectedDirectInputChannel.requestFlush();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		this.closeRequested = true;
 	}
 }

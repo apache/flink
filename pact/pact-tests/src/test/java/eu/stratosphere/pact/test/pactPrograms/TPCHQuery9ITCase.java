@@ -107,7 +107,7 @@ public class TPCHQuery9ITCase extends TestBase {
 	private static final String PARTSUPP = ""
 		+ "1|2|3325|771.64|, even theodolites. regular, final theodolites eat after the carefully pending foxes. furiously regular deposits sleep slyly. carefully bold realms above the ironic dependencies haggle careful|\n"
 		+ "1|252|8076|993.49|ven ideas. quickly even packages print. pending multipliers must have to are fluff|\n"
-		+ "1|502|3956|337.09|after the fluffily ironic deposits? blithely special dependencies integrate furiously even excuses. blithely silent theodolites could have to haggle pending, express requests; fu|\n"
+		+ "19|502|3956|337.09|after the fluffily ironic deposits? blithely special dependencies integrate furiously even excuses. blithely silent theodolites could have to haggle pending, express requests; fu|\n"
 		+ "1|752|4069|357.84|al, regular dependencies serve carefully after the quickly final pinto beans. furiously even deposits sleep quickly final, silent pinto beans. fluffily reg|\n"
 		+ "2|3|8895|378.49|nic accounts. final accounts sleep furiously about the ironic, bold packages. regular, regular accounts|\n"
 		+ "2|253|4969|915.27|ptotes. quickly pending dependencies integrate furiously. fluffily ironic ideas impress blithely above the express accounts. furiously even epitaphs need to wak|\n"
@@ -133,7 +133,7 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "7|258|2770|149.66|hould have to nag after the blithely final asymptotes. fluffily spe|\n"
 		+ "7|508|3377|68.77|usly against the daring asymptotes. slyly regular platelets sleep quickly blithely regular deposits. boldly regular deposits wake blithely ironic accounts|\n"
 		+ "7|758|9460|299.58|. furiously final ideas hinder slyly among the ironic, final packages. blithely ironic dependencies cajole pending requests: blithely even packa|\n"
-		+ "8|9|6834|249.63|lly ironic accounts solve express, unusual theodolites. special packages use quickly. quickly fin|\n"
+		+ "19|9|6834|249.63|lly ironic accounts solve express, unusual theodolites. special packages use quickly. quickly fin|\n"
 		+ "8|259|396|957.34|r accounts. furiously pending dolphins use even, regular platelets. final|\n"
 		+ "8|509|9845|220.62|s against the fluffily special packages snooze slyly slyly regular p|\n"
 		+ "8|759|8126|916.91|final accounts around the blithely special asymptotes wake carefully beyond the bold dugouts. regular ideas haggle furiously after|\n"
@@ -141,12 +141,12 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "9|260|7542|811.84|ate after the final pinto beans. express requests cajole express packages. carefully bold ideas haggle furiously. blithely express accounts eat carefully among the evenly busy accounts. carefully un|\n"
 		+ "9|510|9583|381.31|d foxes. final, even braids sleep slyly slyly regular ideas. unusual ideas above|\n"
 		+ "9|760|3063|291.84| the blithely ironic instructions. blithely express theodolites nag furiously. carefully bold requests shall have to use slyly pending requests. carefully regular instr|\n"
-		+ "10|11|2952|996.12| bold foxes wake quickly even, final asymptotes. blithely even depe|\n"
+		+ "19|11|2952|996.12| bold foxes wake quickly even, final asymptotes. blithely even depe|\n"
 		+ "10|261|3335|673.27|s theodolites haggle according to the fluffily unusual instructions. silent realms nag carefully ironic theodolites. furiously unusual instructions would detect fu|\n"
 		+ "10|511|5691|164.00|r, silent instructions sleep slyly regular pinto beans. furiously unusual gifts use. silently ironic theodolites cajole final deposits! express dugouts are furiously. packages sleep |\n"
 		+ "10|761|841|374.02|refully above the ironic packages. quickly regular packages haggle foxes. blithely ironic deposits a|\n"
 		+ "11|12|4540|709.87|thely across the blithely unusual requests. slyly regular instructions wake slyly ironic theodolites. requests haggle blithely above the blithely brave p|\n"
-		+ "11|262|4729|894.90|ters wake. sometimes bold packages cajole sometimes blithely final instructions. carefully ironic foxes after the furiously unusual foxes cajole carefully acr|\n"
+		+ "45|27|4729|894.90|ters wake. sometimes bold packages cajole sometimes blithely final instructions. carefully ironic foxes after the furiously unusual foxes cajole carefully acr|\n"
 		+ "11|512|3708|818.74|inal accounts nag quickly slyly special frays; bold, final theodolites play slyly after the furiously pending packages. f|\n"
 		+ "11|762|3213|471.98|nusual, regular requests use carefully. slyly final packages haggle quickly. slyly express packages impress blithely across the blithely regular ideas. regular depe|\n"
 		+ "12|13|3610|659.73|jole bold theodolites. final packages haggle! carefully regular deposits play furiously among the special ideas. quickly ironic packages detect quickly carefully final|\n"
@@ -160,7 +160,7 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "14|15|5278|650.07|e quickly among the furiously ironic accounts. special, final sheaves against the|\n"
 		+ "14|265|5334|889.50|ss dependencies are furiously silent excuses. blithely ironic pinto beans affix quickly according to the slyly ironic asymptotes. final packag|\n"
 		+ "14|515|3676|893.39|sits are according to the fluffily silent asymptotes. final ideas are slyly above the regular instructions. furiousl|\n"
-		+ "14|765|4947|310.13| final deposits boost slyly regular packages; carefully pending theodolites |\n";
+		+ "45|765|4947|310.13| final deposits boost slyly regular packages; carefully pending theodolites |\n";
 	
 	private static final String ORDERS = ""
 		+ "1|3691|O|194029.55|1996-01-02|5-LOW|Clerk#000000951|0|nstructions sleep furiously among |\n"
@@ -221,58 +221,58 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "224|248|F|232428.88|1994-06-18|4-NOT SPECIFIED|Clerk#000000642|0|r the quickly thin courts. carefully|\n";
 	
 	private static final String LINEITEM = ""
-		+ "1|15519|785|1|17|24386.67|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
+		+ "1|19|785|1|17|24386.67|0.04|0.02|N|O|1996-03-13|1996-02-12|1996-03-22|DELIVER IN PERSON|TRUCK|egular courts above the|\n"
 		+ "1|6731|732|2|36|58958.28|0.09|0.06|N|O|1996-04-12|1996-02-28|1996-04-20|TAKE BACK RETURN|MAIL|ly final dependencies: slyly bold |\n"
-		+ "1|6370|371|3|8|10210.96|0.10|0.02|N|O|1996-01-29|1996-03-05|1996-01-31|TAKE BACK RETURN|REG AIR|riously. regular, express dep|\n"
+		+ "1|45|27|3|8|10210.96|0.10|0.02|N|O|1996-01-29|1996-03-05|1996-01-31|TAKE BACK RETURN|REG AIR|riously. regular, express dep|\n"
 		+ "1|214|465|4|28|31197.88|0.09|0.06|N|O|1996-04-21|1996-03-30|1996-05-16|NONE|AIR|lites. fluffily even de|\n"
 		+ "1|2403|160|5|24|31329.60|0.10|0.04|N|O|1996-03-30|1996-03-14|1996-04-01|NONE|FOB| pending foxes. slyly re|\n"
 		+ "1|1564|67|6|32|46897.92|0.07|0.02|N|O|1996-01-30|1996-02-07|1996-02-03|DELIVER IN PERSON|MAIL|arefully slyly ex|\n"
 		+ "2|10617|138|1|38|58049.18|0.00|0.05|N|O|1997-01-28|1997-01-14|1997-02-02|TAKE BACK RETURN|RAIL|ven requests. deposits breach a|\n"
-		+ "3|430|181|1|45|59869.35|0.06|0.00|R|F|1994-02-02|1994-01-04|1994-02-23|NONE|AIR|ongside of the furiously brave acco|\n"
-		+ "3|1904|658|2|49|88489.10|0.10|0.00|R|F|1993-11-09|1993-12-20|1993-11-24|TAKE BACK RETURN|RAIL| unusual accounts. eve|\n"
+		+ "3|19|9|1|45|59869.35|0.06|0.00|R|F|1994-02-02|1994-01-04|1994-02-23|NONE|AIR|ongside of the furiously brave acco|\n"
+		+ "3|19|11|2|49|88489.10|0.10|0.00|R|F|1993-11-09|1993-12-20|1993-11-24|TAKE BACK RETURN|RAIL| unusual accounts. eve|\n"
 		+ "3|12845|370|3|27|47461.68|0.06|0.07|A|F|1994-01-16|1993-11-22|1994-01-23|DELIVER IN PERSON|SHIP|nal foxes wake. |\n"
-		+ "3|2938|191|4|2|3681.86|0.01|0.06|A|F|1993-12-04|1994-01-07|1994-01-01|NONE|TRUCK|y. fluffily pending d|\n"
-		+ "3|18310|115|5|28|34392.68|0.04|0.00|R|F|1993-12-14|1994-01-10|1994-01-01|TAKE BACK RETURN|FOB|ages nag slyly pending|\n"
+		+ "3|45|502|4|2|3681.86|0.01|0.06|A|F|1993-12-04|1994-01-07|1994-01-01|NONE|TRUCK|y. fluffily pending d|\n"
+		+ "3|45|765|5|28|34392.68|0.04|0.00|R|F|1993-12-14|1994-01-10|1994-01-01|TAKE BACK RETURN|FOB|ages nag slyly pending|\n"
 		+ "3|6215|984|6|26|29151.46|0.10|0.02|A|F|1993-10-29|1993-12-18|1993-11-04|TAKE BACK RETURN|RAIL|ges sleep after the caref|\n"
 		+ "4|8804|579|1|30|51384.00|0.03|0.08|N|O|1996-01-10|1995-12-14|1996-01-18|DELIVER IN PERSON|REG AIR|- quickly regular packages sleep. idly|\n"
 		+ "5|10857|858|1|15|26517.75|0.02|0.04|R|F|1994-10-31|1994-08-31|1994-11-20|NONE|AIR|ts wake furiously |\n"
 		+ "5|12393|394|2|26|33940.14|0.07|0.08|R|F|1994-10-16|1994-09-25|1994-10-19|NONE|FOB|sts use slyly quickly special instruc|\n"
-		+ "5|3754|8|3|50|82887.50|0.08|0.03|A|F|1994-08-08|1994-10-13|1994-08-26|DELIVER IN PERSON|AIR|eodolites. fluffily unusual|\n"
-		+ "6|13964|228|1|37|69484.52|0.08|0.03|A|F|1992-04-27|1992-05-15|1992-05-02|TAKE BACK RETURN|TRUCK|p furiously special foxes|\n"
-		+ "7|18206|11|1|12|13490.40|0.07|0.03|N|O|1996-05-07|1996-03-13|1996-06-03|TAKE BACK RETURN|FOB|ss pinto beans wake against th|\n"
-		+ "7|14525|790|2|9|12955.68|0.08|0.08|N|O|1996-02-01|1996-03-02|1996-02-19|TAKE BACK RETURN|SHIP|es. instructions|\n"
+		+ "5|19|8|3|50|82887.50|0.08|0.03|A|F|1994-08-08|1994-10-13|1994-08-26|DELIVER IN PERSON|AIR|eodolites. fluffily unusual|\n"
+		+ "6|45|27|1|37|69484.52|0.08|0.03|A|F|1992-04-27|1992-05-15|1992-05-02|TAKE BACK RETURN|TRUCK|p furiously special foxes|\n"
+		+ "7|45|27|1|12|13490.40|0.07|0.03|N|O|1996-05-07|1996-03-13|1996-06-03|TAKE BACK RETURN|FOB|ss pinto beans wake against th|\n"
+		+ "7|19|9|2|9|12955.68|0.08|0.08|N|O|1996-02-01|1996-03-02|1996-02-19|TAKE BACK RETURN|SHIP|es. instructions|\n"
 		+ "7|9478|997|3|46|63823.62|0.10|0.07|N|O|1996-01-15|1996-03-27|1996-02-03|COLLECT COD|MAIL| unusual reques|\n"
 		+ "7|16308|309|4|28|34280.40|0.03|0.04|N|O|1996-03-21|1996-04-08|1996-04-20|NONE|FOB|. slyly special requests haggl|\n"
-		+ "7|15190|986|5|38|41997.22|0.08|0.01|N|O|1996-02-11|1996-02-24|1996-02-18|DELIVER IN PERSON|TRUCK|ns haggle carefully ironic deposits. bl|\n"
+		+ "7|19|11|5|38|41997.22|0.08|0.01|N|O|1996-02-11|1996-02-24|1996-02-18|DELIVER IN PERSON|TRUCK|ns haggle carefully ironic deposits. bl|\n"
 		+ "7|7926|184|6|35|64187.20|0.06|0.03|N|O|1996-01-16|1996-02-23|1996-01-22|TAKE BACK RETURN|FOB|jole. excuses wake carefully alongside of |\n"
-		+ "7|15724|255|7|5|8198.60|0.04|0.02|N|O|1996-02-10|1996-03-26|1996-02-13|NONE|FOB|ithely regula|\n"
-		+ "32|8271|788|1|28|33019.56|0.05|0.08|N|O|1995-10-23|1995-08-27|1995-10-26|TAKE BACK RETURN|TRUCK|sleep quickly. req|\n"
+		+ "7|45|765|7|5|8198.60|0.04|0.02|N|O|1996-02-10|1996-03-26|1996-02-13|NONE|FOB|ithely regula|\n"
+		+ "32|45|765|1|28|33019.56|0.05|0.08|N|O|1995-10-23|1995-08-27|1995-10-26|TAKE BACK RETURN|TRUCK|sleep quickly. req|\n"
 		+ "32|19793|63|2|32|54809.28|0.02|0.00|N|O|1995-08-14|1995-10-07|1995-08-27|COLLECT COD|AIR|lithely regular deposits. fluffily |\n"
-		+ "32|4417|672|3|2|2642.82|0.09|0.02|N|O|1995-08-07|1995-10-07|1995-08-23|DELIVER IN PERSON|AIR| express accounts wake according to the|\n"
+		+ "32|19|502|3|2|2642.82|0.09|0.02|N|O|1995-08-07|1995-10-07|1995-08-23|DELIVER IN PERSON|AIR| express accounts wake according to the|\n"
 		+ "32|275|776|4|4|4701.08|0.09|0.03|N|O|1995-08-04|1995-10-01|1995-09-03|NONE|REG AIR|e slyly final pac|\n"
-		+ "32|8582|841|5|44|65585.52|0.05|0.06|N|O|1995-08-28|1995-08-20|1995-09-14|DELIVER IN PERSON|AIR|symptotes nag according to the ironic depo|\n"
+		+ "32|19|11|5|44|65585.52|0.05|0.06|N|O|1995-08-28|1995-08-20|1995-09-14|DELIVER IN PERSON|AIR|symptotes nag according to the ironic depo|\n"
 		+ "32|1162|414|6|6|6378.96|0.04|0.03|N|O|1995-07-21|1995-09-23|1995-07-25|COLLECT COD|RAIL| gifts cajole carefully.|\n"
 		+ "33|6134|903|1|31|32244.03|0.09|0.04|A|F|1993-10-29|1993-12-19|1993-11-08|COLLECT COD|TRUCK|ng to the furiously ironic package|\n"
 		+ "33|6052|565|2|32|30657.60|0.02|0.05|A|F|1993-12-09|1994-01-04|1993-12-28|COLLECT COD|MAIL|gular theodolites|\n"
 		+ "33|13747|11|3|5|8303.70|0.05|0.03|A|F|1993-12-09|1993-12-25|1993-12-23|TAKE BACK RETURN|AIR|. stealthily bold exc|\n"
-		+ "33|3392|393|4|41|53110.99|0.09|0.00|R|F|1993-11-09|1994-01-24|1993-11-11|TAKE BACK RETURN|MAIL|unusual packages doubt caref|\n"
-		+ "34|8837|96|1|13|22695.79|0.00|0.07|N|O|1998-10-23|1998-09-14|1998-11-06|NONE|REG AIR|nic accounts. deposits are alon|\n"
-		+ "34|8942|201|2|22|40720.68|0.08|0.06|N|O|1998-10-09|1998-10-16|1998-10-12|NONE|FOB|thely slyly p|\n"
+		+ "33|19|9|4|41|53110.99|0.09|0.00|R|F|1993-11-09|1994-01-24|1993-11-11|TAKE BACK RETURN|MAIL|unusual packages doubt caref|\n"
+		+ "34|8837|92|1|13|22695.79|0.00|0.07|N|O|1998-10-23|1998-09-14|1998-11-06|NONE|REG AIR|nic accounts. deposits are alon|\n"
+		+ "34|45|502|2|22|40720.68|0.08|0.06|N|O|1998-10-09|1998-10-16|1998-10-12|NONE|FOB|thely slyly p|\n"
 		+ "34|16955|488|3|6|11231.70|0.02|0.06|N|O|1998-10-30|1998-09-20|1998-11-05|NONE|FOB|ar foxes sleep |\n"
 		+ "35|45|296|1|24|22680.96|0.02|0.00|N|O|1996-02-21|1996-01-03|1996-03-18|TAKE BACK RETURN|FOB|, regular tithe|\n"
-		+ "35|16194|461|2|34|37746.46|0.06|0.08|N|O|1996-01-22|1996-01-06|1996-01-27|DELIVER IN PERSON|RAIL|s are carefully against the f|\n"
+		+ "35|19|765|2|34|37746.46|0.06|0.08|N|O|1996-01-22|1996-01-06|1996-01-27|DELIVER IN PERSON|RAIL|s are carefully against the f|\n"
 		+ "35|12090|877|3|7|7014.63|0.06|0.04|N|O|1996-01-19|1995-12-22|1996-01-29|NONE|MAIL| the carefully regular |\n"
 		+ "35|8518|777|4|25|35662.75|0.06|0.05|N|O|1995-11-26|1995-12-25|1995-12-21|DELIVER IN PERSON|SHIP| quickly unti|\n"
-		+ "35|11992|515|5|34|64735.66|0.08|0.06|N|O|1995-11-08|1996-01-15|1995-11-26|COLLECT COD|MAIL|. silent, unusual deposits boost|\n"
+		+ "35|45|765|5|34|64735.66|0.08|0.06|N|O|1995-11-08|1996-01-15|1995-11-26|COLLECT COD|MAIL|. silent, unusual deposits boost|\n"
 		+ "35|3077|331|6|28|27441.96|0.03|0.02|N|O|1996-02-01|1995-12-24|1996-02-28|COLLECT COD|RAIL|ly alongside of |\n"
 		+ "36|11977|978|1|42|79336.74|0.09|0.00|N|O|1996-02-03|1996-01-21|1996-02-23|COLLECT COD|SHIP| careful courts. special |\n"
 		+ "37|2263|516|1|40|46610.40|0.09|0.03|A|F|1992-07-21|1992-08-01|1992-08-15|NONE|REG AIR|luffily regular requests. slyly final acco|\n"
 		+ "37|12679|204|2|39|62075.13|0.05|0.02|A|F|1992-07-02|1992-08-18|1992-07-28|TAKE BACK RETURN|RAIL|the final requests. ca|\n"
-		+ "37|1291|543|3|43|51268.47|0.05|0.08|A|F|1992-07-10|1992-07-06|1992-08-02|DELIVER IN PERSON|TRUCK|iously ste|\n"
+		+ "37|19|9|3|43|51268.47|0.05|0.08|A|F|1992-07-10|1992-07-06|1992-08-02|DELIVER IN PERSON|TRUCK|iously ste|\n"
 		+ "38|17584|119|1|44|66069.52|0.04|0.02|N|O|1996-09-29|1996-11-17|1996-09-30|COLLECT COD|MAIL|s. blithely unusual theodolites am|\n"
 		+ "39|232|983|1|44|49818.12|0.09|0.06|N|O|1996-11-14|1996-12-15|1996-12-12|COLLECT COD|RAIL|eodolites. careful|\n"
 		+ "39|18659|464|2|26|41018.90|0.08|0.04|N|O|1996-11-04|1996-10-20|1996-11-20|NONE|FOB|ckages across the slyly silent|\n"
-		+ "39|6784|553|3|46|77775.88|0.06|0.08|N|O|1996-09-26|1996-12-19|1996-10-26|DELIVER IN PERSON|AIR|he carefully e|\n"
+		+ "39|45|27|3|46|77775.88|0.06|0.08|N|O|1996-09-26|1996-12-19|1996-10-26|DELIVER IN PERSON|AIR|he carefully e|\n"
 		+ "39|2059|312|4|32|30753.60|0.07|0.05|N|O|1996-10-02|1996-12-19|1996-10-14|COLLECT COD|MAIL|heodolites sleep silently pending foxes. ac|\n"
 		+ "39|5452|963|5|43|58370.35|0.01|0.01|N|O|1996-10-17|1996-11-14|1996-10-26|COLLECT COD|MAIL|yly regular i|\n"
 		+ "39|9437|697|6|40|53857.20|0.06|0.05|N|O|1996-12-08|1996-10-22|1997-01-01|COLLECT COD|AIR|quickly ironic fox|\n";
@@ -344,9 +344,17 @@ public class TPCHQuery9ITCase extends TestBase {
 		+ "21|VIETNAM|2|hely enticingly express accounts. even, final |\n"
 		+ "22|RUSSIA|3| requests against the platelets use never according to the quickly regular pint|\n"
 		+ "23|UNITED KINGDOM|3|eans boost carefully special requests. accounts are. carefull|\n"
-	+ "24|UNITED STATES|1|y final packages. slow foxes cajole quickly. quickly silent platelets breach ironic accounts. unusual pinto be|\n";
+		+ "24|UNITED STATES|1|y final packages. slow foxes cajole quickly. quickly silent platelets breach ironic accounts. unusual pinto be|\n";
 	
-	String EXPECTED_RESULT = "5|0|147827|\n" + "66|0|99187|\n";
+	String EXPECTED_RESULT = ""
+		+ "CHINA|1992|30814.46\n"
+		+ "CHINA|1993|30830.309\n"
+		+ "CHINA|1995|18476.965\n"
+		+ "CHINA|1996|36566.742\n"
+		+ "IRAN|1992|37970.953\n"
+		+ "IRAN|1993|83140.0\n"
+		+ "IRAN|1996|9672.556\n";
+		
 
 	public TPCHQuery9ITCase(Configuration config) {
 		super(config);
@@ -377,7 +385,8 @@ public class TPCHQuery9ITCase extends TestBase {
 
 		TPCHQuery9 tpch9 = new TPCHQuery9();
 		Plan plan = tpch9.getPlan(
-				config.getString("TPCHQuery3Test#NoSubtasks", "1"), 
+
+				config.getString("TPCHQuery9ITCase#NoSubtasks", "1"),
 				getFilesystemProvider().getURIPrefix()+partInputPath,
 				getFilesystemProvider().getURIPrefix()+partSuppInputPath,
 				getFilesystemProvider().getURIPrefix()+ordersInputPath,
@@ -399,6 +408,10 @@ public class TPCHQuery9ITCase extends TestBase {
 		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 
+	}
+	
+	@Override
+	public void stopCluster() throws Exception {
 		// clean up hdfs
 		getFilesystemProvider().delete(partInputPath, true);
 		getFilesystemProvider().delete(partSuppInputPath, true);
@@ -407,7 +420,7 @@ public class TPCHQuery9ITCase extends TestBase {
 		getFilesystemProvider().delete(supplierInputPath, true);
 		getFilesystemProvider().delete(nationInputPath, true);
 		getFilesystemProvider().delete(resultPath, true);
-
+		super.stopCluster();
 	}
 
 	@Parameters
@@ -416,7 +429,8 @@ public class TPCHQuery9ITCase extends TestBase {
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		Configuration config = new Configuration();
-		config.setInteger("TPCHQuery3Test#NoSubtasks", 4);
+
+		config.setInteger("TPCHQuery9ITCase#NoSubtasks", 4);
 		tConfigs.add(config);
 
 		return toParameterList(tConfigs);

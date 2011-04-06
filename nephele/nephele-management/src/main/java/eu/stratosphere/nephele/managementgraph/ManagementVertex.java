@@ -268,7 +268,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 * @param instanceName
 	 *        the name of the instance this vertex currently runs on
 	 */
-	public void setInstanceName(String instanceName) {
+	public void setInstanceName(final String instanceName) {
 		this.instanceName = instanceName;
 	}
 
@@ -278,7 +278,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 * @param instanceType
 	 *        the type of instance this vertex currently runs on
 	 */
-	public void setInstanceType(String instanceType) {
+	public void setInstanceType(final String instanceType) {
 		this.instanceType = instanceType;
 	}
 

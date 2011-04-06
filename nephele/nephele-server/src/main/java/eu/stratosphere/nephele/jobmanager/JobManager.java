@@ -43,6 +43,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -64,7 +66,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -75,15 +77,16 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
-import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
+import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -120,7 +123,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
+public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol,
+		JobStatusListener {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -134,11 +138,13 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 	private final Scheduler scheduler;
 
-	private final InstanceManager instanceManager;
+	private InstanceManager instanceManager;
 
 	private final int recommendedClientPollingInterval;
 
 	private final Set<ExecutionVertex> verticesReadyToRun = new HashSet<ExecutionVertex>();
+
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 	private final static int SLEEPINTERVAL = 1000;
 
@@ -189,7 +195,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		try {
 			final int handlerCount = GlobalConfiguration.getInteger("jobmanager.rpc.numhandler", 3);
 			this.jobManagerServer = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-				handlerCount, false);
+				handlerCount);
 			this.jobManagerServer.start();
 		} catch (IOException ioe) {
 			LOG.error("Cannot start RPC server: " + StringUtils.stringifyException(ioe));
@@ -207,7 +213,12 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			} catch (IOException e) {
 				LOG.error(e);
 			}
-			this.instanceManager = new LocalInstanceManager(configDir);
+			try {
+				this.instanceManager = new LocalInstanceManager(configDir);
+			} catch (RuntimeException rte) {
+				LOG.fatal(rte);
+				System.exit(FAILURERETURNCODE);
+			}
 		} else {
 			final String instanceManagerClassName = JobManagerUtils.getInstanceManagerClassName(executionMode);
 			LOG.info("Trying to load " + instanceManagerClassName + " as instance manager");
@@ -338,6 +349,12 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		// Stop RPC server
 		if (this.jobManagerServer != null) {
 			this.jobManagerServer.stop();
+		}
+
+		// Stop the executor service
+		if (this.executorService != null) {
+			this.executorService.shutdown();
+
 		}
 
 		// Stop and clean up the job progress collector
@@ -531,11 +548,21 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
+	public void sendHeartbeat(final InstanceConnectionInfo instanceConnectionInfo,
+			final HardwareDescription hardwareDescription) {
 
 		// Delegate call to instance manager
 		if (this.instanceManager != null) {
-			this.instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+
+			final Runnable heartBeatRunnable = new Runnable() {
+
+				@Override
+				public void run() {
+					instanceManager.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
+				}
+			};
+
+			this.executorService.execute(heartBeatRunnable);
 		}
 	}
 
@@ -598,7 +625,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void updateTaskExecutionState(TaskExecutionState executionState) throws IOException {
+	public void updateTaskExecutionState(final TaskExecutionState executionState) throws IOException {
 
 		// Ignore calls with executionResult == null
 		if (executionState == null) {
@@ -620,16 +647,26 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return;
 		}
 
-		// The registered listeners of the vertex will make sure the appropriate actions are taken
-		vertex.getEnvironment().changeExecutionState(executionState.getExecutionState(),
-			executionState.getDescription());
+		final Runnable taskStateChangeRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				// The registered listeners of the vertex will make sure the appropriate actions are taken
+				vertex.getEnvironment().changeExecutionState(executionState.getExecutionState(),
+					executionState.getDescription());
+			}
+		};
+
+		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
+		this.executorService.execute(taskStateChangeRunnable);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public JobCancelResult cancelJob(JobID jobID) throws IOException {
+	public JobCancelResult cancelJob(final JobID jobID) throws IOException {
 
 		LOG.info("Trying to cancel job with ID " + jobID);
 
@@ -638,11 +675,17 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return new JobCancelResult(ReturnCode.ERROR, "Cannot find job with ID " + jobID);
 		}
 
-		final TaskCancelResult errorResult = cancelJob(eg);
-		if (errorResult != null) {
-			LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
-			return new JobCancelResult(AbstractJobResult.ReturnCode.ERROR, errorResult.getDescription());
-		}
+		final Runnable cancelJobRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+				final TaskCancelResult errorResult = cancelJob(eg);
+				if (errorResult != null) {
+					LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
+				}
+			}
+		};
+		this.executorService.execute(cancelJobRunnable);
 
 		LOG.info("Cancel of job " + jobID + " successfully triggered");
 
@@ -671,7 +714,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 			final ExecutionVertex vertex = it.next();
 			final ExecutionState state = vertex.getExecutionState();
-			if (state == ExecutionState.RUNNING) {
+			if (state != ExecutionState.FAILED) {
 				final TaskCancelResult result = vertex.cancelTask();
 				if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
 					errorResult = result;
@@ -703,7 +746,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID targetChannelID) {
+	public ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID sourceChannelID) {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 		if (eg == null) {
@@ -711,12 +754,23 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
 
+		AbstractChannel sourceChannel = eg.getOutputChannelByID(sourceChannelID);
+		if(sourceChannel == null) {
+			sourceChannel = eg.getInputChannelByID(sourceChannelID);
+			if(sourceChannel == null) {
+				LOG.error("Cannot find source channel with ID " + sourceChannelID);
+				return ConnectionInfoLookupResponse.createReceiverNotFound();
+			}
+		}
+		
+		final ChannelID targetChannelID = sourceChannel.getConnectedChannelID();
+		
 		final ExecutionVertex vertex = eg.getVertexByChannelID(targetChannelID);
 		if (vertex == null) {
-			LOG.debug("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
+			LOG.error("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
-
+		
 		final ExecutionState executionState = vertex.getExecutionState();
 		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
 			return ConnectionInfoLookupResponse.createReceiverNotReady();
@@ -739,14 +793,14 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ManagementGraph getManagementGraph(JobID jobID) throws IOException {
+	public ManagementGraph getManagementGraph(final JobID jobID) throws IOException {
 
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
-		if (eg == null) {
+		final ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
+		if (mg == null) {
 			throw new IOException("Cannot find job with ID " + jobID);
 		}
 
-		return ManagementGraphFactory.fromExecutionGraph(eg);
+		return mg;
 	}
 
 	/**
@@ -775,15 +829,15 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<NewJobEvent> getNewJobs() throws IOException {
+	public List<RecentJobEvent> getRecentJobs() throws IOException {
 
-		final List<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
+		final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
 		}
 
-		this.eventCollector.getNewJobs(eventList);
+		this.eventCollector.getRecentJobs(eventList);
 
 		return eventList;
 	}
@@ -900,7 +954,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		// Delegate call to the instance manager
-		return this.instanceManager.getMapOfAvailableInstanceTypes();
+		if (this.instanceManager != null) {
+			return this.instanceManager.getMapOfAvailableInstanceTypes();
+		}
+
+		return null;
 	}
 
 	/**
@@ -929,5 +987,58 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			// Unregister job for Nephele's monitoring and optimization components
 			unregisterJob(executionGraph);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logBufferUtilization(final JobID jobID) throws IOException {
+
+		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
+		if (eg == null) {
+			return;
+		}
+
+		final Set<AbstractInstance> allocatedInstance = new HashSet<AbstractInstance>();
+		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
+		while (it.hasNext()) {
+
+			final ExecutionVertex vertex = it.next();
+			final ExecutionState state = vertex.getExecutionState();
+			if (state == ExecutionState.RUNNING || state == ExecutionState.FINISHING) {
+				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+				if (instance instanceof DummyInstance) {
+					LOG.error("Found instance of type DummyInstance for vertex " + vertex.getName() + " (state "
+						+ state + ")");
+					continue;
+				}
+
+				allocatedInstance.add(instance);
+			}
+		}
+
+		// Send requests to task managers from separate thread
+		final Runnable requestRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				final Iterator<AbstractInstance> it2 = allocatedInstance.iterator();
+
+				try {
+					while (it2.hasNext()) {
+						it2.next().logBufferUtilization();
+					}
+				} catch (IOException ioe) {
+					LOG.error(StringUtils.stringifyException(ioe));
+				}
+
+			}
+		};
+
+		// Hand over to the executor service
+		this.executorService.execute(requestRunnable);
 	}
 }

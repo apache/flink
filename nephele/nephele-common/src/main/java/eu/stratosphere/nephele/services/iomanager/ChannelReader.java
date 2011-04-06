@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public final class ChannelReader extends ChannelAccess<Buffer.Input> implements Reader
+public final class ChannelReader extends StreamChannelAccess<Buffer.Input> implements Reader
 {
 	/**
 	 * The input wrapper, which manages reads that span the border of two buffers.
@@ -83,7 +83,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			Collection<Buffer.Input> buffers, boolean deleteWhenDone)
 	throws IOException
 	{
-		super(channelID, requestQueue, buffers);
+		super(channelID, requestQueue, buffers, false);
 		
 		this.inputWrapper = new InputWrapper(64);
 		this.inputWrapperReader = new DataInputStream(this.inputWrapper);
@@ -93,6 +93,16 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 		for (Buffer.Input buffer : buffers) {
 			this.requestQueue.add(new IORequest<Buffer.Input>(this, buffer));
 		}
+	}
+	
+	
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
+	 */
+	@Override
+	public boolean isClosed() {
+		return this.closed;
 	}
 
 	/* (non-Javadoc)
@@ -152,6 +162,7 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	 * @param readable The object reading from the current input buffer.
 	 * @return A boolean flag indicating the success of the read operation.
 	 */
+	@Override
 	public boolean read(IOReadableWritable readable) throws IOException
 	{
 		// cache the buffer to avoid to many member variable accesses
@@ -321,14 +332,15 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#handleProcessedBuffer(eu.stratosphere.nephele.services.iomanager.Buffer, java.io.IOException)
 	 */
-	public void handleProcessedBuffer(Buffer.Input buffer, IOException ex) {
+	@Override
+	public void returnBuffer(Buffer.Input buffer) {
 		// set flag such that no further requests are issued
 		if (buffer.getRemainingBytes() == 0 && !this.allRead) {
 			this.allRead = true;
 		}
 		
 		// handle buffer as we had it
-		super.handleProcessedBuffer(buffer, ex);
+		super.returnBuffer(buffer);
 	}
 	
 	
@@ -399,97 +411,5 @@ public final class ChannelReader extends ChannelAccess<Buffer.Input> implements 
 			}
 		}
 	}
-	
-	
-	
-	// ========================================================================
-	// ========================================================================
-
-	/**
-	 * A worker thread for asynchronous read.
-	 * 
-	 * @author Alexander Alexandrov
-	 */
-	protected static class ReaderThread extends Thread
-	{
-		protected final RequestQueue<IORequest<Buffer.Input>> requestQueue;
-
-		private volatile boolean alive;
-
-		// ---------------------------------------------------------------------
-		// Constructors / Destructors
-		// ---------------------------------------------------------------------
-
-		protected ReaderThread() {
-			this.requestQueue = new RequestQueue<IORequest<Buffer.Input>>();
-			this.alive = true;
-		}
-		
-		/**
-		 * Shuts the thread down. This operation does not wait for all pending requests to be served, halts the thread
-		 * immediately. All buffers of pending requests are handed back to their channel readers and an exception is
-		 * reported to them, declaring their request queue as closed.
-		 */
-		protected void shutdown() {
-			if (alive) {
-				// shut down the thread
-				try {
-					this.alive = false;
-					this.requestQueue.close();
-					this.interrupt();
-				}
-				catch (Throwable t) {}
-				
-				// notify all pending write requests that the thread has been shut down
-				IOException ioex = new IOException("Reading thread has been closed.");
-				
-				while (!this.requestQueue.isEmpty()) {
-					IORequest<Buffer.Input> request = this.requestQueue.poll();
-					request.channel.handleProcessedBuffer(request.buffer, ioex);
-				}
-			}
-		}
-
-		// ---------------------------------------------------------------------
-		//                             Main loop
-		// ---------------------------------------------------------------------
-
-		@Override
-		public void run()
-		{
-			while (this.alive)
-			{
-				
-				// get the next buffer. ignore interrupts that are not due to a shutdown.
-				IORequest<Buffer.Input> request = null;
-				while (request == null) {
-					try {
-						request = this.requestQueue.take();
-					}
-					catch (InterruptedException iex) {
-						if (!this.alive) {
-							// exit
-							return;
-						}
-					}
-				}
-				
-				// remember any IO exception that occurs, so it can be reported to the writer
-				IOException ioex = null;
-
-				try {
-					// read buffer from the specified channel
-					request.buffer.readFromChannel(request.channel.fileChannel);
-				}
-				catch (IOException e) {
-					ioex = e;
-				}
-
-				// invoke the processed buffer handler of the request issuing reader object
-				request.channel.handleProcessedBuffer(request.buffer, ioex);
-			} // end while alive
-		}
-		
-	} // end reading thread
 	
 }

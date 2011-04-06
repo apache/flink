@@ -66,4 +66,9 @@ public interface Compressor {
 	 *         or <code>0</code> for any other compression level.
 	 */
 	int getCurrentInternalCompressionLibraryIndex();
+	
+	/**
+	 * Stops the compressor and releases all allocated internal resources.
+	 */
+	void shutdown();
 }

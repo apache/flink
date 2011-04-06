@@ -25,18 +25,47 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  */
 public class TaskConfig {
 
+	/**
+	 * Enumeration of all available local strategies for Pact tasks. 
+	 * 
+	 * @author Stephan Ewen  (stephan.ewen@tu-berlin.de)
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
 	public enum LocalStrategy {
-		SORTMERGE,
+		// both inputs are sorted and merged
+		SORT_BOTH_MERGE,
+		// the first input is sorted and merged with the (already sorted) second input
+		SORT_FIRST_MERGE,
+		// the second input is sorted and merged with the (already sorted) first input
+		SORT_SECOND_MERGE,
+		// both (already sorted) inputs are merged
+		MERGE,
+		// input is sorted, within a key values are crossed in a nested loop fashion
+		SORT_SELF_NESTEDLOOP,
+		// already grouped input, within a key values are crossed in a nested loop fasion
+		SELF_NESTEDLOOP,
+		// the input is sorted
 		SORT,
+		// the input is sorted, during sorting a combiner is applied
 		COMBININGSORT,
+		// the first input is build side, the second side is probe side of a hybrid hash table
 		HYBRIDHASH_FIRST,
+		// the second input is build side, the first side is probe side of a hybrid hash table
 		HYBRIDHASH_SECOND,
+		// the first input is build side, the second side is probe side of an in-memory hash table
 		MMHASH_FIRST,
+		// the second input is build side, the first side is probe side of an in-memory hash table
 		MMHASH_SECOND,
+		// the second input is inner loop, the first input is outer loop and block-wise processed
 		NESTEDLOOP_BLOCKED_OUTER_FIRST,
+		// the first input is inner loop, the second input is outer loop and block-wise processed
 		NESTEDLOOP_BLOCKED_OUTER_SECOND,
+		// the second input is inner loop, the first input is outer loop and stream-processed
 		NESTEDLOOP_STREAMED_OUTER_FIRST,
+		// the first input is inner loop, the second input is outer loop and stream-processed
 		NESTEDLOOP_STREAMED_OUTER_SECOND,
+		// no special local strategy is applied
 		NONE
 	}
 
@@ -60,13 +89,9 @@ public class TaskConfig {
 
 	private static final String NUM_OUTPUTS = "pact.outputs.number";
 
-	private static final String NUM_SORT_BUFFER = "pact.sortbuffer.number";
+	private static final String SIZE_MEMORY = "pact.memory.size";
 
-	private static final String SIZE_SORT_BUFFER = "pact.sortbuffer.size";
-
-	private static final String SIZE_IO_BUFFER = "pact.iobuffer.size";
-
-	private static final String MERGE_FACTOR = "pact.merge.factor";
+	private static final String NUM_FILEHANDLES = "pact.filehandles.num";
 
 	protected final Configuration config;
 
@@ -156,58 +181,39 @@ public class TaskConfig {
 	}
 
 	/**
-	 * Sets the number of sort buffers to use by task
+	 * Sets the amount of memory dedicated to the task's input preparation (sorting / hashing).
 	 * 
-	 * @param numSortBuffers
-	 *        number of sort buffers to use by task
+	 * @param memSize The memory size in bytes.
 	 */
-	public void setNumSortBuffer(int numSortBuffers) {
-		config.setInteger(NUM_SORT_BUFFER, numSortBuffers);
+	public void setMemorySize(long memorySize) {
+		config.setLong(SIZE_MEMORY, memorySize);
 	}
 
 	/**
-	 * Sets the size of one sort buffer
+	 * Sets the maximum number of open files.
 	 * 
-	 * @param sizeSortBuffers
-	 *        size of one sort buffer in MB
+	 * @param numFileHandles Maximum number of open files.
 	 */
-	public void setSortBufferSize(int sizeSortBuffers) {
-		config.setInteger(SIZE_SORT_BUFFER, sizeSortBuffers);
+	public void setNumFilehandles(int numFileHandles) {
+		config.setInteger(NUM_FILEHANDLES, numFileHandles);
 	}
 
 	/**
-	 * Sets the memory to be used for IO buffering
+	 * Gets the amount of memory dedicated to the task's input preparation (sorting / hashing).
+	 * Returns <tt>-1</tt> if the value is not specified.
 	 * 
-	 * @param sizeIOBuffer
-	 *        size of memory to be used in MB
+	 * @return The memory size in bytes.
 	 */
-	public void setIOBufferSize(int sizeIOBuffer) {
-		config.setInteger(SIZE_IO_BUFFER, sizeIOBuffer);
+	public long getMemorySize() {
+		return config.getLong(SIZE_MEMORY, -1);
 	}
 
 	/**
-	 * Sets the maximum number of files to be merged in merge phase.
+	 * Gets the maximum number of open files. Returns <tt>-1</tt>, if the value has not been set.
 	 * 
-	 * @param mergeFactor
-	 *        maximum number of files to be merged
+	 * @return Maximum number of open files.
 	 */
-	public void setMergeFactor(int mergeFactor) {
-		config.setInteger(MERGE_FACTOR, mergeFactor);
-	}
-
-	public int getNumSortBuffer() {
-		return config.getInteger(NUM_SORT_BUFFER, -1);
-	}
-
-	public int getSortBufferSize() {
-		return config.getInteger(SIZE_SORT_BUFFER, -1);
-	}
-
-	public int getIOBufferSize() {
-		return config.getInteger(SIZE_IO_BUFFER, -1);
-	}
-
-	public int getMergeFactor() {
-		return config.getInteger(MERGE_FACTOR, -1);
+	public int getNumFilehandles() {
+		return config.getInteger(NUM_FILEHANDLES, -1);
 	}
 }

@@ -26,7 +26,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 
@@ -38,7 +37,7 @@ public class DefaultRandomAccessSegmentTest {
 
 	public static final int SEGMENT_SIZE = 1024 * 512;
 
-	private MemoryManager manager;
+	private DefaultMemoryManager manager;
 
 	private MemorySegment segment;
 

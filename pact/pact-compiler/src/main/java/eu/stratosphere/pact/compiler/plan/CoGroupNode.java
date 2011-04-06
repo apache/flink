@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -29,6 +30,7 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.OutputContract;
+import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -51,7 +53,26 @@ public class CoGroupNode extends TwoInputNode {
 	 */
 	public CoGroupNode(CoGroupContract<?, ?, ?, ?, ?> pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
+		
+		// see if an internal hint dictates the strategy to use
+		Configuration conf = getPactContract().getStubParameters();
+		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+
+		if (localStrategy != null) {
+			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy)) {
+				setLocalStrategy(LocalStrategy.MERGE);
+			} else {
+				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
+			}
+		} else {
+			setLocalStrategy(LocalStrategy.NONE);
+		}
 	}
 
 	/**
@@ -104,8 +125,14 @@ public class CoGroupNode extends TwoInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case SORT_BOTH_MERGE:   return 2;
+			case SORT_FIRST_MERGE:  return 1;
+			case SORT_SECOND_MERGE: return 1;
+			case MERGE:             return 0;
+			default:	            return 0;
+		}
 	}
 
 	/*
@@ -332,7 +359,7 @@ public class CoGroupNode extends TwoInputNode {
 						if (gp2.getPartitioning().isComputablyPartitioned()) {
 							// input is partitioned
 							// check, whether that partitioning is the same as the one of input one!
-							if ((!gp1.getPartitioning().isPartitioned())
+							if ((!gp1.getPartitioning().isComputablyPartitioned())
 								|| gp1.getPartitioning() == gp2.getPartitioning()) {
 								ss2 = ShipStrategy.FORWARD;
 							} else {
@@ -426,7 +453,7 @@ public class CoGroupNode extends TwoInputNode {
 							// ShipStrategy.PARTITION_RANGE, estimator);
 						}
 					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
@@ -466,7 +493,7 @@ public class CoGroupNode extends TwoInputNode {
 
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
 					gp2 = pred2.getGlobalProperties();
 
 					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
@@ -505,9 +532,9 @@ public class CoGroupNode extends TwoInputNode {
 				} else {
 					// both are fixed
 					// check, if they produce a valid plan. for that, we need to have an equal partitioning
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
-					if (gp1.getPartitioning().isPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+					gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
 						// partitioning there and equal
 						createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
 					} else {
@@ -558,38 +585,47 @@ public class CoGroupNode extends TwoInputNode {
 	private void createCoGroupAlternative(List<CoGroupNode> target, OptimizerNode pred1, OptimizerNode pred2,
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator) {
 		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
+		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
 
-		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, ss1);
-		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, ss2);
+		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
+		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
 
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
 		outGp.setPartitioning(gp1.getPartitioning());
 
-		LocalProperties outLp = new LocalProperties();
-		outLp.setKeyOrder(lp1.getKeyOrder().isOrdered() && lp1.getKeyOrder() == lp2.getKeyOrder() ? lp1.getKeyOrder()
-			: Order.NONE);
-		outLp.setKeysGrouped(outLp.getKeyOrder().isOrdered());
-
-		// create a new reduce node for this input
-		CoGroupNode n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, outLp);
+		// create a new cogroup node for this input
+		CoGroupNode n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, new LocalProperties());
 
 		n.input1.setShipStrategy(ss1);
 		n.input2.setShipStrategy(ss2);
 
-		// set sorting as the local strategy, if no pre-existing order can be assumed
-		if (outLp.getKeyOrder().isOrdered()) {
-			n.setLocalStrategy(LocalStrategy.NONE);
-		} else {
-			n.setLocalStrategy(LocalStrategy.SORTMERGE);
-			n.getLocalProperties().setKeyOrder(Order.ASCENDING);
-			n.getLocalProperties().setKeysGrouped(true);
+		// output will have ascending order
+		n.getLocalProperties().setKeyOrder(Order.ASCENDING);
+		n.getLocalProperties().setKeysGrouped(true);
+		
+		if(n.getLocalStrategy() == LocalStrategy.NONE) {
+			// local strategy was NOT set with compiler hint
+			
+			// set local strategy according to pre-existing ordering
+			if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				// both inputs have ascending order
+				n.setLocalStrategy(LocalStrategy.MERGE);
+			} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				// input 2 has ascending order, input 1 does not
+				n.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
+				// input 1 has ascending order, input 2 does not
+				n.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			} else {
+				// none of the inputs has ascending order
+				n.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			}
 		}
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-		n.getLocalProperties().getPreservedAfterContract(getOutputContract());
+		n.getGlobalProperties().filterByOutputContract(getOutputContract());
+		n.getLocalProperties().filterByOutputContract(getOutputContract());
 
 		// compute the costs
 		estimator.costOperator(n);

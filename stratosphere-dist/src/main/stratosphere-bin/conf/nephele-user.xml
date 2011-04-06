@@ -18,6 +18,29 @@
 <configuration>
 
 	<!--  ========================================================================
+                                     Addresses and Ports 
+              ======================================================================== -->
+
+        <!-- the address of the job manager -->
+        <property>
+                <key>jobmanager.rpc.address</key>
+                <value>localhost</value>
+        </property>
+
+        <!-- the IPC port of the job manager -->
+        <property>
+                <key>jobmanager.rpc.port</key>
+                <value>6123</value>
+        </property>
+
+        <!-- the IPC port of the task manager -->
+        <property>
+                <key>taskmanager.rpc.port</key>
+                <value>6122</value>
+        </property>
+
+
+        <!--  ========================================================================
 	                           Instance and Memory Management 
 	      ======================================================================== -->
 	      
@@ -112,7 +135,7 @@
 	      ======================================================================== -->
 	<property>
 		<key>channel.compression.lightClass</key> 
-		<value>eu.stratosphere.nephele.io.compression.library.lzo.LzoLibrary</value> 
+		<value>eu.stratosphere.nephele.io.compression.library.quicklz.QuicklzLibrary</value> 
 	</property>
 	<property>
 		<key>channel.compression.mediumClass</key> 
@@ -120,7 +143,7 @@
 	</property>
 	<property>
 		<key>channel.compression.heavyClass</key> 
-		<value>eu.stratosphere.nephele.io.compression.library.bzip2.Bzip2Library</value> 
+		<value>eu.stratosphere.nephele.io.compression.library.lzma.LzmaLibrary</value> 
 	</property>
 	<property>
 		<key>channel.compression.dynamicClass</key> 

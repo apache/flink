@@ -181,12 +181,16 @@ public class TPCHQuery3ITCase extends TestBase {
 		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 
-		// clean up hdfs
+	}
+	
+	@Override
+	public void stopCluster() throws Exception {
 		getFilesystemProvider().delete(ordersPath, true);
 		getFilesystemProvider().delete(lineitemsPath, true);
 		getFilesystemProvider().delete(resultPath, true);
-
+		super.stopCluster();
 	}
+	
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {

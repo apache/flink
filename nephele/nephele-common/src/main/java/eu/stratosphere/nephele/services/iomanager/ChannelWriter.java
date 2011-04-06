@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements Writer
+public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> implements Writer
 {
 	/**
 	 * The current buffer that write requests go to.
@@ -59,7 +59,7 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			Collection<Buffer.Output> buffers, boolean filledBuffers)
 	throws IOException
 	{
-		super(channelID, requestQueue, buffers);
+		super(channelID, requestQueue, buffers, true);
 
 		try {
 			this.fileChannel.truncate(0);
@@ -88,11 +88,19 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
+	 */
+	@Override
+	public boolean isClosed() {
+		return this.closed;
+	}
+	
 	/**
 	 * Closes this writer. Sends a request to write the current buffer, makes sure all data is written out
 	 * and waits for all memory segments to come back.
 	 * 
-	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#close()
+	 * @see eu.stratosphere.nephele.services.iomanager.StreamChannelAccess#close()
 	 */
 	@Override
 	public synchronized List<MemorySegment> close() throws IOException
@@ -115,7 +123,9 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 		final List<MemorySegment> segments = super.close();
 		
 		// flush contents to the underlying channel and close the file
-		this.fileChannel.close();
+		if (this.fileChannel.isOpen()) {
+			this.fileChannel.close();
+		}
 		
 		return segments;
 	}
@@ -152,6 +162,7 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			try {
 				this.currentBuffer = nextBuffer();
 				this.currentBuffer.rewind();
+				checkErroneous();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("IO channel corrupt. Writer was interrupted getting a new buffer.");
@@ -166,89 +177,4 @@ public final class ChannelWriter extends ChannelAccess<Buffer.Output> implements
 			}
 		}
 	}
-
-	/**
-	 * A worker thread that asynchronously writes the buffers to disk.
-	 */
-	protected static final class WriterThread extends Thread
-	{
-		protected final RequestQueue<IORequest<Buffer.Output>> requestQueue;
-
-		private volatile boolean alive;
-
-		// ---------------------------------------------------------------------
-		// Constructors / Destructors
-		// ---------------------------------------------------------------------
-
-		protected WriterThread() {
-			this.requestQueue = new RequestQueue<IORequest<Buffer.Output>>();
-			this.alive = true;
-		}
-
-		/**
-		 * Shuts the thread down. This operation does not wait for all pending requests to be served, halts the thread
-		 * immediately. All buffers of pending requests are handed back to their channel writers and an exception is
-		 * reported to them, declaring their request queue as closed.
-		 */
-		protected void shutdown() {
-			if (alive) {
-				// shut down the thread
-				try {
-					this.alive = false;
-					this.requestQueue.close();
-					this.interrupt();
-				}
-				catch (Throwable t) {}
-				
-				// notify all pending write requests that the thread has been shut down
-				IOException ioex = new IOException("Writer thread has been closed.");
-				
-				while (!this.requestQueue.isEmpty()) {
-					IORequest<Buffer.Output> request = this.requestQueue.poll();
-					request.channel.handleProcessedBuffer(request.buffer, ioex);
-				}
-			}
-		}
-
-		// ---------------------------------------------------------------------
-		// Main loop
-		// ---------------------------------------------------------------------
-
-		@Override
-		public void run()
-		{
-			while (this.alive) {
-				
-				IORequest<Buffer.Output> request = null;
-				
-				// get the next buffer. ignore interrupts that are not due to a shutdown.
-				while (request == null) {
-					try {
-						request = requestQueue.take();
-					}
-					catch (InterruptedException iex) {
-						if (!this.alive) {
-							// exit
-							return;
-						}
-					}
-				}
-				
-				// remember any IO exception that occurs, so it can be reported to the writer
-				IOException ioex = null;
-				
-				try {
-					// write buffer to the specified channel
-					request.buffer.writeToChannel(request.channel.fileChannel);
-				}
-				catch (IOException e) {
-					ioex = e;
-				}
-
-				// invoke the processed buffer handler of the request issuing writer object
-				request.channel.handleProcessedBuffer(request.buffer, ioex);
-			} // end while alive
-		}
-		
-	}; // end writer thread
 }

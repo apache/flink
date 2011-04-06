@@ -38,9 +38,19 @@ public abstract class CostEstimator {
 
 	public abstract void getLocalSortCost(OptimizerNode node, OptimizerNode input, Costs costs);
 
-	public abstract void getLocalSortMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2,
+	public abstract void getLocalDoubleSortMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2,
 			Costs costs);
 
+	public abstract void getLocalSingleSortMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2,
+			Costs costs);
+	
+	public abstract void getLocalMergeCost(OptimizerNode node, OptimizerNode input1, OptimizerNode input2,
+			Costs costs);
+	
+	public abstract void getLocalSortSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs);
+
+	public abstract void getLocalSelfNestedLoopCost(OptimizerNode node, OptimizerNode input, Costs costs);
+	
 	public abstract void getHybridHashCosts(OptimizerNode node, OptimizerNode buildSideInput,
 			OptimizerNode probeSideInput, Costs costs);
 
@@ -97,6 +107,7 @@ public abstract class CostEstimator {
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for the first input.");
 			case FORWARD:
+			case PARTITION_LOCAL_HASH:
 				globCost.setNetworkCost(0);
 				globCost.setSecondaryStorageCost(0);
 				break;
@@ -129,6 +140,7 @@ public abstract class CostEstimator {
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for the second input.");
 			case FORWARD:
+			case PARTITION_LOCAL_HASH:
 				secCost.setNetworkCost(0);
 				secCost.setSecondaryStorageCost(0);
 				break;
@@ -161,8 +173,23 @@ public abstract class CostEstimator {
 		case SORT:
 			getLocalSortCost(n, primIn, locCost);
 			break;
-		case SORTMERGE:
-			getLocalSortMergeCost(n, primIn, secIn, locCost);
+		case SORT_BOTH_MERGE:
+			getLocalDoubleSortMergeCost(n, primIn, secIn, locCost);
+			break;
+		case SORT_FIRST_MERGE:
+			getLocalSingleSortMergeCost(n, primIn, secIn, locCost);
+			break;
+		case SORT_SECOND_MERGE:
+			getLocalSingleSortMergeCost(n, secIn, primIn, locCost);
+			break;
+		case MERGE:
+			getLocalMergeCost(n, primIn, secIn, locCost);
+			break;
+		case SORT_SELF_NESTEDLOOP:
+			getLocalSortSelfNestedLoopCost(n, primIn, locCost);
+			break;
+		case SELF_NESTEDLOOP:
+			getLocalSelfNestedLoopCost(n, primIn, locCost);
 			break;
 		case HYBRIDHASH_FIRST:
 			getHybridHashCosts(n, primIn, secIn, locCost);

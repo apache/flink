@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2011 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -39,10 +39,8 @@ public class PartJoin extends MatchStub<PactInteger, PactNull, Tuple, IntPair, P
 			Collector<IntPair, PactString> output) {
 		
 		try {
-			IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(1))));
-			String supplyCost = partSuppValue.getStringValueAt(0);
-			LOGGER.info("new Parts key: (" +  partKey + ", " + partSuppValue.getLongValueAt(1) + ")");
-			LOGGER.info("Parts supplycost: " + supplyCost);
+			IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(0))));
+			String supplyCost = partSuppValue.getStringValueAt(1);
 		
 			output.collect(newKey, new PactString(supplyCost));
 		} catch(Exception e) {

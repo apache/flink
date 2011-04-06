@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -77,11 +78,16 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private Compressor compressor = null;
 
 	/**
+	 * Indicates the period of time this output channel shall throttle down so that the consumer can catch up.
+	 */
+	private long throttelingDuration = 0L;
+
+	/**
 	 * Buffer for the uncompressed data.
 	 */
 	private Buffer uncompressedDataBuffer = null;
 
-	private static final Log LOG=LogFactory.getLog(AbstractByteBufferedInputChannel.class);
+	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedInputChannel.class);
 
 	/**
 	 * Creates a new byte buffered output channel.
@@ -129,7 +135,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestClose() throws IOException {
+	public void requestClose() throws IOException, InterruptedException {
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
@@ -161,8 +167,13 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	/**
 	 * Returns the filled buffers to the framework and triggers
 	 * further processing.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error while releasing the buffers
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the buffers to be released
 	 */
-	private void releaseWriteBuffers() {
+	private void releaseWriteBuffers() throws IOException, InterruptedException {
 
 		if (getCompressionLevel() == CompressionLevel.DYNAMIC_COMPRESSION) {
 			this.outputChannelBroker.transferEventToInputChannel(new CompressionEvent(this.compressor
@@ -183,14 +194,21 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		// Get a write buffer from the broker
 		if (this.uncompressedDataBuffer == null) {
 
-			requestWriteBuffersFromBroker();
-
 			synchronized (this.synchronisationObject) {
 
 				if (this.ioException != null) {
 					throw this.ioException;
 				}
+
+				if (this.throttelingDuration > 0L) {
+					// Temporarily, stop producing data
+					this.synchronisationObject.wait(this.throttelingDuration);
+					// Reset throttling duration
+					this.throttelingDuration = 0L;
+				}
 			}
+
+			requestWriteBuffersFromBroker();
 		}
 
 		if (this.closeRequested) {
@@ -262,12 +280,21 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (event instanceof AbstractTaskEvent) {
 			getOutputGate().deliverEvent((AbstractTaskEvent) event);
+		} else if (event instanceof NetworkThrottleEvent) {
+			if (getType() == ChannelType.FILE) {
+				LOG.error("FileChannel " + getID() + " received NetworkThrottleEvent");
+			} else {
+				synchronized (this.synchronisationObject) {
+					final NetworkThrottleEvent nte = (NetworkThrottleEvent) event;
+					this.throttelingDuration = nte.getDuration();
+				}
+			}
 		} else if (event instanceof ByteBufferedChannelCloseEvent) {
 			synchronized (this.synchronisationObject) {
 				this.closeAcknowledgementReceived = true;
 			}
 		} else {
-			System.out.println("Received unknown event: " + event);
+			LOG.error("Channel " + getID() + " received unknown event " + event);
 		}
 	}
 
@@ -275,7 +302,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void transferEvent(AbstractEvent event) throws IOException {
+	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		this.outputChannelBroker.transferEventToInputChannel(event);
 		flush();
@@ -285,7 +312,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 
 		// Get rid of remaining data in the serialization buffer
 		while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
@@ -342,6 +369,39 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.ioException = ioe;
 			// Wake up thread if it has been throttled down
 			this.synchronisationObject.notify();
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		this.closeRequested = true;
+
+		synchronized (this.synchronisationObject) {
+			this.closeAcknowledgementReceived = true;
+		}
+
+		this.serializationBuffer.clear();
+
+		if (this.compressedDataBuffer != null) {
+			this.compressedDataBuffer.recycleBuffer();
+			this.compressedDataBuffer = null;
+		}
+
+		if (this.uncompressedDataBuffer != null) {
+			this.uncompressedDataBuffer.recycleBuffer();
+			this.uncompressedDataBuffer = null;
+		}
+		
+		if(this.compressor != null) {
+			this.compressor.shutdown();
+		}
+		
+		if(this.outputChannelBroker != null) {
+			this.outputChannelBroker.releaseResources();
 		}
 	}
 }
