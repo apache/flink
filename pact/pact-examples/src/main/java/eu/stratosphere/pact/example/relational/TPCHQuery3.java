@@ -302,7 +302,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> joinLiO = new MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple>(
 			JoinLiO.class, "JoinLiO");
 		joinLiO.setDegreeOfParallelism(noSubtasks);
-		joinLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(64);
 		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
 
