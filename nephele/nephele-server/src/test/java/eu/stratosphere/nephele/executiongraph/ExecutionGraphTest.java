@@ -1032,16 +1032,13 @@ public class ExecutionGraphTest {
 			assertEquals(crossGroupVertex.getGroupMember(3).getAllocatedResource(), outputGroupVertex.getGroupMember(3)
 				.getAllocatedResource());
 
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
-			while(it.hasNext()) {
-				
-				System.out.println(it.next().getAllocatedResource().getInstance());
-				
-			}
-			
 			// Check that all subtasks on different pipelines run on different instances
 			assertFalse(inputGroupVertex.getGroupMember(0).getAllocatedResource()
 				.equals(inputGroupVertex.getGroupMember(1).getAllocatedResource()));
+			assertFalse(inputGroupVertex.getGroupMember(1).getAllocatedResource()
+				.equals(inputGroupVertex.getGroupMember(2).getAllocatedResource()));
+			assertFalse(inputGroupVertex.getGroupMember(2).getAllocatedResource()
+				.equals(inputGroupVertex.getGroupMember(3).getAllocatedResource()));
 			
 			
 		} catch (GraphConversionException e) {
