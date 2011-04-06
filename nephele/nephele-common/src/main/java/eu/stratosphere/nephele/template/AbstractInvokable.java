@@ -50,7 +50,7 @@ public abstract class AbstractInvokable {
 	 * @param environment
 	 *        the environment of this task
 	 */
-	public void setEnvironment(Environment environment) {
+	public final void setEnvironment(Environment environment) {
 		this.environment = environment;
 	}
 
@@ -59,7 +59,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the environment of this task or <code>null</code> if the environment has not yet been set
 	 */
-	public Environment getEnvironment() {
+	public final Environment getEnvironment() {
 		return this.environment;
 	}
 
@@ -102,7 +102,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the current number of subtasks the respective task is split into
 	 */
-	public int getCurrentNumberOfSubtasks() {
+	public final int getCurrentNumberOfSubtasks() {
 
 		return this.environment.getCurrentNumberOfSubtasks();
 	}
@@ -112,7 +112,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the index of this subtask in the subtask group
 	 */
-	public int getIndexInSubtaskGroup() {
+	public final int getIndexInSubtaskGroup() {
 
 		return this.environment.getIndexInSubtaskGroup();
 	}
@@ -122,7 +122,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the runtime configuration object which was attached to the original {@link JobVertex}
 	 */
-	public Configuration getRuntimeConfiguration() {
+	public final Configuration getRuntimeConfiguration() {
 
 		return this.environment.getRuntimeConfiguration();
 	}
@@ -134,7 +134,7 @@ public abstract class AbstractInvokable {
 	 * @param userThread
 	 *        the user thread which has been started
 	 */
-	public void userThreadStarted(Thread userThread) {
+	public final void userThreadStarted(Thread userThread) {
 
 		if (this.environment != null) {
 			this.environment.userThreadStarted(userThread);
@@ -149,7 +149,7 @@ public abstract class AbstractInvokable {
 	 * @param userThread
 	 *        the user thread which has finished
 	 */
-	public void userThreadFinished(Thread userThread) {
+	public final void userThreadFinished(Thread userThread) {
 
 		if (this.environment != null) {
 			this.environment.userThreadFinished(userThread);
