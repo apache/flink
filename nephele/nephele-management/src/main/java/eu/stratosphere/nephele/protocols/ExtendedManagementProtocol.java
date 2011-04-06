@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -64,13 +64,13 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	NetworkTopology getNetworkTopology(JobID jobID) throws IOException;
 
 	/**
-	 * Retrieves a list of jobs which have recently been started.
+	 * Retrieves a list of jobs which have either running or have been started recently.
 	 * 
 	 * @return a (possibly) empty list of recent jobs
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the job list
 	 */
-	List<NewJobEvent> getRecentJobs() throws IOException;
+	List<RecentJobEvent> getRecentJobs() throws IOException;
 
 	/**
 	 * Retrieves the collected events for the job with the given job ID.

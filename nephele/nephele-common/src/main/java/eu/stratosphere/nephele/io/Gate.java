@@ -172,7 +172,7 @@ public abstract class Gate<T extends Record> implements IOReadableWritable {
 
 	/**
 	 * Releases the allocated resources (particularly buffer) of all channels attached to this gate. This method
-	 * should only be called in case of a task error as a result of a cancel operation.
+	 * should only be called after the respected task has stopped running.
 	 */
 	public abstract void releaseAllChannelResources();
 }

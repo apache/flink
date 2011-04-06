@@ -367,10 +367,10 @@ public class Environment implements Runnable, IOReadableWritable {
 					LOG.error(StringUtils.stringifyException(e2));
 				}
 			}
-			
+
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
-
+			
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
@@ -399,7 +399,7 @@ public class Environment implements Runnable, IOReadableWritable {
 
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
-			
+
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
@@ -411,7 +411,7 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		// Release all resources that may currently be allocated by the individual channels
 		releaseAllChannelResources();
-		
+
 		// Finally, switch execution state to FINISHED and report to job manager
 		changeExecutionState(ExecutionState.FINISHED, null);
 	}
@@ -534,7 +534,6 @@ public class Environment implements Runnable, IOReadableWritable {
 				break;
 			}
 		}
-
 	}
 
 	// TODO: See if type safety can be improved here
@@ -1135,7 +1134,7 @@ public class Environment implements Runnable, IOReadableWritable {
 
 	/**
 	 * Releases the allocated resources (particularly buffer) of input and output channels attached to this task. This
-	 * method should only be called in case of a task error as a result of a cancel operation.
+	 * method should only be called after the respected task has stopped running.
 	 */
 	private void releaseAllChannelResources() {
 
@@ -1146,6 +1145,5 @@ public class Environment implements Runnable, IOReadableWritable {
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
 			this.getOutputGate(i).releaseAllChannelResources();
 		}
-
 	}
 }

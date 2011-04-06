@@ -20,14 +20,16 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
- * A {@link NewJobEvent} can be used to notify other objects about the arrival of a new Nephele job.
+ * A {@link RecentJobEvent} provides a summary of a job which is either currently running or has been running recently.
  * 
  * @author warneke
  */
-public final class NewJobEvent extends AbstractEvent implements ManagementEvent {
+public final class RecentJobEvent extends AbstractEvent implements ManagementEvent {
 
 	/**
 	 * The ID of the new job.
@@ -38,6 +40,11 @@ public final class NewJobEvent extends AbstractEvent implements ManagementEvent 
 	 * The name of the new job.
 	 */
 	private String jobName;
+
+	/**
+	 * The last known status of the job.
+	 */
+	private JobStatus jobStatus;
 
 	/**
 	 * <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise.
@@ -51,23 +58,31 @@ public final class NewJobEvent extends AbstractEvent implements ManagementEvent 
 	 *        the ID of the new job
 	 * @param jobName
 	 *        the name of the new job
+	 * @param jobStatus
+	 *        the status of the job
 	 * @param isProfilingEnabled
 	 *        <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise
 	 * @param timestamp
 	 *        the time stamp of the event
 	 */
-	public NewJobEvent(final JobID jobID, final String jobName, final boolean isProfilingEnabled, final long timestamp) {
+	public RecentJobEvent(final JobID jobID, final String jobName, final JobStatus jobStatus,
+			final boolean isProfilingEnabled, final long timestamp) {
 		super(timestamp);
+
+		if (jobStatus == null) {
+			throw new IllegalArgumentException("job status must not be null");
+		}
 
 		this.jobID = jobID;
 		this.jobName = jobName;
+		this.jobStatus = jobStatus;
 		this.isProfilingEnabled = isProfilingEnabled;
 	}
 
 	/**
 	 * Constructor for serialization/deserialization. Should not be called on other occasions.
 	 */
-	public NewJobEvent() {
+	public RecentJobEvent() {
 		super();
 	}
 
@@ -99,6 +114,15 @@ public final class NewJobEvent extends AbstractEvent implements ManagementEvent 
 	}
 
 	/**
+	 * Returns the last known status of the job.
+	 * 
+	 * @return the last known status of the job
+	 */
+	public JobStatus getJobStatus() {
+		return this.jobStatus;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -111,6 +135,9 @@ public final class NewJobEvent extends AbstractEvent implements ManagementEvent 
 
 		// Read the job name
 		this.jobName = StringRecord.readString(in);
+
+		// Read the job status
+		this.jobStatus = EnumUtils.readEnum(in, JobStatus.class);
 
 		// Read if profiling is enabled
 		this.isProfilingEnabled = in.readBoolean();
@@ -129,6 +156,9 @@ public final class NewJobEvent extends AbstractEvent implements ManagementEvent 
 		// Write the job name
 		StringRecord.writeString(out, this.jobName);
 
+		// Writes the job status
+		EnumUtils.writeEnum(out, this.jobStatus);
+
 		// Write out if profiling is enabled
 		out.writeBoolean(this.isProfilingEnabled);
 	}
@@ -143,11 +173,11 @@ public final class NewJobEvent extends AbstractEvent implements ManagementEvent 
 			return false;
 		}
 
-		if (!(obj instanceof NewJobEvent)) {
+		if (!(obj instanceof RecentJobEvent)) {
 			return false;
 		}
 
-		final NewJobEvent newJobEvent = (NewJobEvent) obj;
+		final RecentJobEvent newJobEvent = (RecentJobEvent) obj;
 
 		if (!this.jobID.equals(newJobEvent.getJobID())) {
 			return false;
