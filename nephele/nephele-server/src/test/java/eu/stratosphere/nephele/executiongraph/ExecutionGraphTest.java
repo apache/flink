@@ -932,7 +932,131 @@ public class ExecutionGraphTest {
 				} catch (IOException e) {
 				}
 			}
+		}
+	}
 
+	/**
+	 * Tests the conversion of a job graph representing a self cross to an execution graph.
+	 */
+	@Test
+	public void testConvertSelfCross() {
+
+		final String inputTaskName = "Self Cross Input";
+		final String crossTaskName = "Self Cross Task";
+		final String outputTaskName = "Self Cross Output";
+		final int degreeOfParallelism = 4;
+		File inputFile1 = null;
+		JobID jobID = null;
+
+		try {
+
+			inputFile1 = ServerTestUtils.createInputFile(0);
+
+			// create job graph
+			final JobGraph jg = new JobGraph("Self Cross Test Job");
+			jobID = jg.getJobID();
+
+			// input vertex
+			final JobFileInputVertex input = new JobFileInputVertex(inputTaskName, jg);
+			input.setFileInputClass(SelfCrossInputTask.class);
+			input.setFilePath(new Path("file://" + inputFile1.getAbsolutePath()));
+			input.setNumberOfSubtasks(degreeOfParallelism);
+
+			// cross vertex
+			final JobTaskVertex cross = new JobTaskVertex(crossTaskName, jg);
+			cross.setTaskClass(SelfCrossForwardTask.class);
+			cross.setNumberOfSubtasks(degreeOfParallelism);
+
+			// output vertex
+			final JobFileOutputVertex output = new JobFileOutputVertex(outputTaskName, jg);
+			output.setFileOutputClass(FileLineWriter.class);
+			output.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			output.setNumberOfSubtasks(degreeOfParallelism);
+
+			// connect vertices
+			input.connectTo(cross, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0);
+			input.connectTo(cross, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, 1, 1);
+			cross.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0);
+
+			LibraryCacheManager.register(jobID, new String[0]);
+
+			// now convert job graph to execution graph
+			final ExecutionGraph eg = new ExecutionGraph(jg, INSTANCE_MANAGER);
+
+			assertEquals(1, eg.getNumberOfStages());
+
+			final ExecutionStage stage = eg.getStage(0);
+
+			assertEquals(3, stage.getNumberOfStageMembers());
+
+			ExecutionGroupVertex inputGroupVertex = null;
+			ExecutionGroupVertex crossGroupVertex = null;
+			ExecutionGroupVertex outputGroupVertex = null;
+			final ExecutionGroupVertexIterator groupIt = new ExecutionGroupVertexIterator(eg, true, -1);
+			while (groupIt.hasNext()) {
+
+				ExecutionGroupVertex gv = groupIt.next();
+				if (inputTaskName.equals(gv.getName())) {
+					inputGroupVertex = gv;
+				} else if (crossTaskName.equals(gv.getName())) {
+					crossGroupVertex = gv;
+				} else if (outputTaskName.equals(gv.getName())) {
+					outputGroupVertex = gv;
+				}
+			}
+
+			assertNotNull(inputGroupVertex);
+			assertNotNull(crossGroupVertex);
+			assertNotNull(outputGroupVertex);
+
+			assertEquals(degreeOfParallelism, inputGroupVertex.getCurrentNumberOfGroupMembers());
+			assertEquals(degreeOfParallelism, crossGroupVertex.getCurrentNumberOfGroupMembers());
+			assertEquals(degreeOfParallelism, outputGroupVertex.getCurrentNumberOfGroupMembers());
+
+			// Check that all subtasks on a pipeline share the same instance
+			assertEquals(inputGroupVertex.getGroupMember(0).getAllocatedResource(), crossGroupVertex.getGroupMember(0)
+				.getAllocatedResource());
+			assertEquals(inputGroupVertex.getGroupMember(1).getAllocatedResource(), crossGroupVertex.getGroupMember(1)
+				.getAllocatedResource());
+			assertEquals(inputGroupVertex.getGroupMember(2).getAllocatedResource(), crossGroupVertex.getGroupMember(2)
+				.getAllocatedResource());
+			assertEquals(inputGroupVertex.getGroupMember(3).getAllocatedResource(), crossGroupVertex.getGroupMember(3)
+				.getAllocatedResource());
+
+			assertEquals(crossGroupVertex.getGroupMember(0).getAllocatedResource(), outputGroupVertex.getGroupMember(0)
+				.getAllocatedResource());
+			assertEquals(crossGroupVertex.getGroupMember(1).getAllocatedResource(), outputGroupVertex.getGroupMember(1)
+				.getAllocatedResource());
+			assertEquals(crossGroupVertex.getGroupMember(2).getAllocatedResource(), outputGroupVertex.getGroupMember(2)
+				.getAllocatedResource());
+			assertEquals(crossGroupVertex.getGroupMember(3).getAllocatedResource(), outputGroupVertex.getGroupMember(3)
+				.getAllocatedResource());
+
+			// Check that all subtasks on different pipelines run on different instances
+			assertFalse(inputGroupVertex.getGroupMember(0).getAllocatedResource()
+				.equals(inputGroupVertex.getGroupMember(1).getAllocatedResource()));
+			assertFalse(inputGroupVertex.getGroupMember(1).getAllocatedResource()
+				.equals(inputGroupVertex.getGroupMember(2).getAllocatedResource()));
+			assertFalse(inputGroupVertex.getGroupMember(2).getAllocatedResource()
+				.equals(inputGroupVertex.getGroupMember(3).getAllocatedResource()));
+			
+			
+		} catch (GraphConversionException e) {
+			fail(e.getMessage());
+		} catch (JobGraphDefinitionException e) {
+			fail(e.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+			if (inputFile1 != null) {
+				inputFile1.delete();
+			}
+			if (jobID != null) {
+				try {
+					LibraryCacheManager.unregister(jobID);
+				} catch (IOException e) {
+				}
+			}
 		}
 	}
 }
