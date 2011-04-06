@@ -66,7 +66,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -87,7 +87,6 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -111,7 +110,6 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -831,15 +829,15 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<NewJobEvent> getRecentJobs() throws IOException {
+	public List<RecentJobEvent> getRecentJobs() throws IOException {
 
-		final List<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
+		final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
 		}
 
-		this.eventCollector.getNewJobs(eventList);
+		this.eventCollector.getRecentJobs(eventList);
 
 		return eventList;
 	}

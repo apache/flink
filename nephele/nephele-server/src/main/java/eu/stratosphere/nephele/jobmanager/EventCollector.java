@@ -23,13 +23,11 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.mortbay.log.Log;
-
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.ManagementEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
 import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.Environment;
@@ -147,7 +145,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * The job status listener wrapper is an auxiliary class. It is required
 	 * because the job name cannot be accessed from the data provided by the <code>jobStatusHasChanged</code> callback
 	 * method. However, this job name
-	 * is needed to create the construct the {@link NewJobEvent}.
+	 * is needed to create the construct the {@link RecentJobEvent}.
 	 * 
 	 * @author warneke
 	 */
@@ -197,15 +195,12 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 				final ManagementGraph managementGraph = ManagementGraphFactory.fromExecutionGraph(executionGraph);
 				this.eventCollector.addManagementGraph(jobID, managementGraph);
-
-				this.eventCollector.createNewJobEvent(jobID, this.jobName, this.isProfilingAvailable);
 			}
 
-			// Update time stamp of last received event
-			this.eventCollector.updateTimeStampOfLastJobEvent(jobID);
-
+			// Update recent job event
 			final JobStatus jobStatus = InternalJobStatus.toJobStatus(newJobStatus);
 			if (jobStatus != null) {
+				this.eventCollector.updateRecentJobEvent(jobID, this.jobName, this.isProfilingAvailable, jobStatus);
 
 				this.eventCollector.addEvent(jobID,
 					new JobEvent(System.currentTimeMillis(), jobStatus, optionalMessage));
@@ -268,68 +263,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		}
 	}
 
-	/**
-	 * Auxiliary class to store the {@link NewJobEvent} event of a recently started job together with the time stamp of
-	 * the last received job status change.
-	 * <p>
-	 * This class is not thread-safe.
-	 * 
-	 * @author warneke
-	 */
-	private static final class RecentJobValue {
-
-		/**
-		 * The new job event.
-		 */
-		private final NewJobEvent newJobEvent;
-
-		/**
-		 * The time stamp of the last received job status change.
-		 */
-		private long timeStamp;
-
-		/**
-		 * Creates a new recent job value.
-		 * 
-		 * @param newJobEvent
-		 *        the new job event
-		 * @param timeStamp
-		 *        the time stamp of the last received job status change
-		 */
-		private RecentJobValue(final NewJobEvent newJobEvent, final long timeStamp) {
-			this.newJobEvent = newJobEvent;
-			this.timeStamp = timeStamp;
-		}
-
-		/**
-		 * Returns the new job event.
-		 * 
-		 * @return the new job event
-		 */
-		private NewJobEvent getNewJobEvent() {
-			return this.newJobEvent;
-		}
-
-		/**
-		 * Returns the time stamp of the last received job status change.
-		 * 
-		 * @return the time stamp of the last received job status change
-		 */
-		private long getTimeStamp() {
-			return this.timeStamp;
-		}
-
-		/**
-		 * Sets the time stamp of the last received job status change.
-		 * 
-		 * @param timeStamp
-		 *        the new time stamp of the last received job status change
-		 */
-		private void setTimeStamp(final long timeStamp) {
-			this.timeStamp = timeStamp;
-		}
-	}
-
 	private final long timerTaskInterval;
 
 	/**
@@ -341,7 +274,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	/**
 	 * Map of recently started jobs with the time stamp of the last received job event.
 	 */
-	private final Map<JobID, RecentJobValue> recentJobs = new HashMap<JobID, RecentJobValue>();
+	private final Map<JobID, RecentJobEvent> recentJobs = new HashMap<JobID, RecentJobEvent>();
 
 	private final Map<JobID, ManagementGraph> recentManagementGraphs = new HashMap<JobID, ManagementGraph>();
 
@@ -400,13 +333,13 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		}
 	}
 
-	public void getNewJobs(List<NewJobEvent> eventList) {
+	public void getRecentJobs(List<RecentJobEvent> eventList) {
 
 		synchronized (this.recentJobs) {
 
-			final Iterator<RecentJobValue> it = this.recentJobs.values().iterator();
+			final Iterator<RecentJobEvent> it = this.recentJobs.values().iterator();
 			while (it.hasNext()) {
-				eventList.add(it.next().getNewJobEvent());
+				eventList.add(it.next());
 			}
 		}
 	}
@@ -453,7 +386,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	}
 
 	/**
-	 * Creates a {@link NewJobEvent} and adds it to the list of recent jobs.
+	 * Creates a {@link RecentJobEvent} and adds it to the list of recent jobs.
 	 * 
 	 * @param jobID
 	 *        the ID of the new job
@@ -461,35 +394,18 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 *        the name of the new job
 	 * @param isProfilingEnabled
 	 *        <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise
+	 * @param initialJobStatus
+	 *        the initial status of the job
 	 */
-	private void createNewJobEvent(final JobID jobID, final String jobName, final boolean isProfilingEnabled) {
+	private void updateRecentJobEvent(final JobID jobID, final String jobName, final boolean isProfilingEnabled,
+			final JobStatus jobStatus) {
 
 		final long currentTime = System.currentTimeMillis();
-		final NewJobEvent newJobEvent = new NewJobEvent(jobID, jobName, isProfilingEnabled, currentTime);
-		final RecentJobValue recentJobValue = new RecentJobValue(newJobEvent, currentTime);
+		final RecentJobEvent recentJobEvent = new RecentJobEvent(jobID, jobName, jobStatus, isProfilingEnabled,
+			currentTime);
 
 		synchronized (this.recentJobs) {
-			this.recentJobs.put(jobID, recentJobValue);
-		}
-	}
-
-	/**
-	 * Updates the time stamp of the last event received for the job with the given ID.
-	 * 
-	 * @param jobID
-	 *        the ID of the job to update the time stamp for
-	 */
-	private void updateTimeStampOfLastJobEvent(final JobID jobID) {
-
-		final long currentTime = System.currentTimeMillis();
-
-		synchronized (this.recentJobs) {
-			final RecentJobValue recentJobValue = this.recentJobs.get(jobID);
-			if (recentJobValue == null) {
-				Log.warn("Cannot find recent job value for job " + jobID);
-				return;
-			}
-			recentJobValue.setTimeStamp(currentTime);
+			this.recentJobs.put(jobID, recentJobEvent);
 		}
 	}
 
@@ -566,11 +482,20 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 		synchronized (this.recentJobs) {
 
-			final Iterator<Map.Entry<JobID, RecentJobValue>> it = this.recentJobs.entrySet().iterator();
+			final Iterator<Map.Entry<JobID, RecentJobEvent>> it = this.recentJobs.entrySet().iterator();
 			while (it.hasNext()) {
 
-				final Map.Entry<JobID, RecentJobValue> entry = it.next();
-				if ((entry.getValue().getTimeStamp() + this.timerTaskInterval) < currentTime) {
+				final Map.Entry<JobID, RecentJobEvent> entry = it.next();
+				final JobStatus jobStatus = entry.getValue().getJobStatus();
+
+				// Only remove jobs from the list which have stopped running
+				if (jobStatus != JobStatus.FINISHED && jobStatus != JobStatus.CANCELED
+					&& jobStatus != JobStatus.FINISHED) {
+					continue;
+				}
+
+				// Check time stamp of last job status update
+				if ((entry.getValue().getTimestamp() + this.timerTaskInterval) < currentTime) {
 					it.remove();
 					synchronized (this.recentManagementGraphs) {
 						this.recentManagementGraphs.remove(entry.getValue());

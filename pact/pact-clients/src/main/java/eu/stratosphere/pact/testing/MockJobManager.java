@@ -8,7 +8,7 @@ import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -48,7 +48,7 @@ final class MockJobManager implements ExtendedManagementProtocol {
 	}
 
 	@Override
-	public List<NewJobEvent> getRecentJobs() throws IOException {
+	public List<RecentJobEvent> getRecentJobs() throws IOException {
 		return null;
 	}
 
