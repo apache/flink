@@ -40,9 +40,10 @@ import org.apache.commons.cli.UnrecognizedOptionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -442,35 +443,32 @@ public class CliFrontend {
 		try {
 			
 			jmConn = getJMConnection();
-			List<NewJobEvent> recentJobs = jmConn.getRecentJobs();
+			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
 			
-			ArrayList<NewJobEvent> runningJobs = null;
-			ArrayList<NewJobEvent> scheduledJobs = null;
+			ArrayList<RecentJobEvent> runningJobs = null;
+			ArrayList<RecentJobEvent> scheduledJobs = null;
 			if(running) {
-				runningJobs = new ArrayList<NewJobEvent>();
+				runningJobs = new ArrayList<RecentJobEvent>();
 			}
 			if(scheduled) {
-				scheduledJobs = new ArrayList<NewJobEvent>();
+				scheduledJobs = new ArrayList<RecentJobEvent>();
 			}
 			
-			for(NewJobEvent je : recentJobs) {
+			for(RecentJobEvent rje : recentJobs) {
 				
-				if(running) {
-					// check if job is running
-					// TODO
+				if(running && rje.getJobStatus().equals(JobStatus.RUNNING)) {
+					runningJobs.add(rje);
 				}
-				if(scheduled) {
-					// check if job is scheduled
-					// TODO
-					scheduledJobs.add(je);
+				if(scheduled && rje.getJobStatus().equals(JobStatus.SCHEDULED)) {
+					scheduledJobs.add(rje);
 				}
 			}
 			
 			SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-			Comparator<NewJobEvent> njec = new Comparator<NewJobEvent>(){
+			Comparator<RecentJobEvent> njec = new Comparator<RecentJobEvent>(){
 				
 				@Override
-				public int compare(NewJobEvent o1, NewJobEvent o2) {
+				public int compare(RecentJobEvent o1, RecentJobEvent o2) {
 					return (int)(o1.getTimestamp()-o2.getTimestamp());
 				}
 			};
@@ -482,7 +480,7 @@ public class CliFrontend {
 					Collections.sort(runningJobs, njec);
 					
 					System.out.println("------------------------ Running Jobs ------------------------");
-					for(NewJobEvent je : runningJobs) {
+					for(RecentJobEvent je : runningJobs) {
 						System.out.println(df.format(new Date(je.getTimestamp()))+" : "+je.getJobID().toString()+" : "+je.getJobName());
 					}
 					System.out.println("--------------------------------------------------------------");
@@ -495,7 +493,7 @@ public class CliFrontend {
 					Collections.sort(runningJobs, njec);
 					
 					System.out.println("----------------------- Scheduled Jobs -----------------------");
-					for(NewJobEvent je : scheduledJobs) {
+					for(RecentJobEvent je : scheduledJobs) {
 						System.out.println(df.format(new Date(je.getTimestamp()))+" : "+je.getJobID().toString()+" : "+je.getJobName());
 					}
 					System.out.println("--------------------------------------------------------------");
