@@ -19,6 +19,8 @@ public class TreeNode {
 	
 	private final LinkedList<ChannelID> localTargets;
 	
+	private final LinkedList<InstanceConnectionInfo> remoteTargets = new LinkedList<InstanceConnectionInfo>();
+	
 	public TreeNode(InstanceConnectionInfo nodeConnectionInfo, LinkedList<ChannelID> localTargets){
 		this.nodeConnectionInfo = nodeConnectionInfo;
 		this.localTargets = localTargets;
@@ -31,6 +33,14 @@ public class TreeNode {
 	
 	public void addLocalTarget(ChannelID channel){
 		this.localTargets.add(channel);
+	}
+	
+	public void addRemoteTarget(InstanceConnectionInfo target){
+		this.remoteTargets.add(target);
+	}
+	
+	public LinkedList<InstanceConnectionInfo> getRemoteTargets(){
+		return this.remoteTargets;
 	}
 	
 	public LinkedList<ChannelID> getLocalTargets(){

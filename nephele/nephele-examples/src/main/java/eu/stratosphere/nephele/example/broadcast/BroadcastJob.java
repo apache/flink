@@ -61,16 +61,6 @@ public class BroadcastJob {
 			jobManagerAddress = args[0];
 		}
 
-		if (jobManagerAddress == null) {
-			jobManagerAddress = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		}
-
-		if (jobManagerAddress == null) {
-			LOG.error("Cannot determine job manager RPC address");
-			return;
-		}
-
-		LOG.info("Trying to send job to " + jobManagerAddress);
 		
 		// Construct job graph
 		final JobGraph jobGraph = new JobGraph("Broadcast Job");
@@ -101,12 +91,14 @@ public class BroadcastJob {
 
 		try {
 			jarFileCreator.createJarFile();
+			System.out.println("done creating!!");
 		} catch (IOException ioe) {
 
 			if (jarFile.exists()) {
 				jarFile.delete();
 			}
 
+			System.out.println("ERROR creating jar");
 			LOG.error(ioe);
 			return;
 		}
@@ -114,17 +106,15 @@ public class BroadcastJob {
 		jobGraph.addJar(new Path("file://" + jarFile.getAbsolutePath()));
 
 		// Submit job
-		final Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress);
-		final int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-		conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ipcPort);
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
+		conf.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, "6123");
 
 		try {
 			final JobClient jobClient = new JobClient(jobGraph, conf);
-
+			System.out.println("submitting");
 			jobClient.submitJobAndWait();
-
+			System.out.println("done.");
 		} catch (IOException e) {
 			LOG.error(e);
 		} catch (JobExecutionException e) {

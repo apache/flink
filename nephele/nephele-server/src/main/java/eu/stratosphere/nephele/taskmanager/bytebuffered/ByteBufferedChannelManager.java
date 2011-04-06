@@ -86,7 +86,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void registerByteBufferedInputChannel(
 			AbstractByteBufferedInputChannel<? extends Record> byteBufferedInputChannel) {
 
-		LOG.debug("Registering byte buffered input channel " + byteBufferedInputChannel.getID());
+		LOG.info("Registering byte buffered input channel " + byteBufferedInputChannel.getID());
 
 		synchronized (this.registeredChannels) {
 
@@ -111,7 +111,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			AbstractByteBufferedOutputChannel<? extends Record> byteBufferedOutputChannel,
 			ByteBufferedOutputChannelGroup channelGroup) {
 
-		LOG.debug("Registering byte buffered output channel " + byteBufferedOutputChannel.getID());
+		LOG.info("Registering byte buffered output channel " + byteBufferedOutputChannel.getID());
 
 		synchronized (this.registeredChannels) {
 
