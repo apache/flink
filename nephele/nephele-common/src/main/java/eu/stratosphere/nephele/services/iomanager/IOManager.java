@@ -272,7 +272,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @return A block channel writer that writes to the given channel.
 	 * @throws IOException Thrown, if the channel for the writer could not be opened.
 	 */
-	public BlockChannelWriter createBlockChannWriter(Channel.ID channelID,
+	public BlockChannelWriter createBlockChannelWriter(Channel.ID channelID,
 										LinkedBlockingQueue<MemorySegment> returnQueue)
 	throws IOException
 	{
