@@ -50,8 +50,8 @@ public class LocalDataInputStream extends FSDataInputStream {
 	public LocalDataInputStream(File file)
 											throws IOException {
 
-		fis = new FileInputStream(file);
-		position = 0;
+		this.fis = new FileInputStream(file);
+		this.position = 0;
 	}
 
 	/**
@@ -60,8 +60,8 @@ public class LocalDataInputStream extends FSDataInputStream {
 	@Override
 	public void seek(long desired) throws IOException {
 
-		fis.getChannel().position(desired);
-		position = desired;
+		this.fis.getChannel().position(desired);
+		this.position = desired;
 	}
 
 	/**
@@ -70,7 +70,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	@Override
 	public int read() throws IOException {
 
-		final int value = fis.read();
+		final int value = this.fis.read();
 		if (value >= 0) {
 			this.position++;
 		}
@@ -84,7 +84,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	@Override
 	public int read(byte[] buffer, int offset, int length) throws IOException {
 
-		final int value = fis.read(buffer, offset, length);
+		final int value = this.fis.read(buffer, offset, length);
 		if (value > 0) {
 			this.position += value;
 		}
@@ -98,7 +98,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	@Override
 	public void close() throws IOException {
 
-		fis.close();
+		this.fis.close();
 	}
 
 	/**
@@ -106,7 +106,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	 */
 	@Override
 	public int available() throws IOException {
-		return fis.available();
+		return this.fis.available();
 	}
 
 	/**
@@ -114,7 +114,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	 */
 	@Override
 	public long skip(long n) throws IOException {
-		return fis.skip(n);
+		return this.fis.skip(n);
 	}
 
 }
