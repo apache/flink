@@ -454,7 +454,7 @@ public class ExecutionVertex {
 			}
 
 			final ExecutionState es = this.environment.getExecutionState();
-			if (es == ExecutionState.FINISHED) {
+			if (es == ExecutionState.FINISHED || es == ExecutionState.FAILED) {
 				// Ignore this call
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}

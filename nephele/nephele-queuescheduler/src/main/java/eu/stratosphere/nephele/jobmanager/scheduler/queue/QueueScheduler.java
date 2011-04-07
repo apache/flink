@@ -207,6 +207,15 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 */
 	void checkAndReleaseAllocatedResource(final ExecutionGraph executionGraph, final AllocatedResource allocatedResource) {
 
+		if(allocatedResource.getInstance() == null) {
+			LOG.error("Instance of allocated resource is null");
+			return;
+		}
+		
+		if(allocatedResource.getInstance() instanceof DummyInstance) {
+			return;
+		}
+		
 		synchronized (this.jobQueue) {
 
 			final List<ExecutionVertex> assignedVertices = executionGraph
