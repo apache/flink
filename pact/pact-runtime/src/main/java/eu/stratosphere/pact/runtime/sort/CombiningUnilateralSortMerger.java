@@ -188,7 +188,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			AbstractTask parentTask, int buffersToKeepBeforeSpilling)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, writeMemSize, readMemSize,
 			parentTask);
