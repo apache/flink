@@ -490,7 +490,7 @@ public class CliFrontend {
 				if(scheduledJobs.size() == 0) {
 					System.out.println("No scheduled jobs.");
 				} else {
-					Collections.sort(runningJobs, njec);
+					Collections.sort(scheduledJobs, njec);
 					
 					System.out.println("----------------------- Scheduled Jobs -----------------------");
 					for(RecentJobEvent je : scheduledJobs) {
