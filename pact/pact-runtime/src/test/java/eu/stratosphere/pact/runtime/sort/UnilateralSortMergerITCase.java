@@ -22,8 +22,6 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -156,11 +154,11 @@ public class UnilateralSortMergerITCase {
 
 		// reader
 		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
-
+		
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 15, 1024 * 1024 * 4, 1024 * 1024 * 12, 2, keySerialization, valSerialization,
+			memoryManager, ioManager, 40 * 1024 * 1024, 1024 * 1024 * 1, 10, 2, keySerialization, valSerialization,
 			keyComparator, reader, parentTask);
 
 		// emit data
