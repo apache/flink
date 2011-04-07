@@ -53,10 +53,4 @@ public interface ByteBufferedOutputChannelBroker {
 	 *         thrown if an I/O error occurs while transfering the event
 	 */
 	void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException;
-
-	/**
-	 * Releases all resources associated with the attached output channel. This method
-	 * should only be called after the respected task has stopped running.
-	 */
-	void releaseResources();
 }
