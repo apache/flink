@@ -292,7 +292,6 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		MatchContract<PactString, Tuple, PactNull, PactString, Tuple> joinDocsRanks = new MatchContract<PactString, Tuple, PactNull, PactString, Tuple>(
 				JoinDocRanks.class, "Join DocRanks");
 		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
-		joinDocsRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
