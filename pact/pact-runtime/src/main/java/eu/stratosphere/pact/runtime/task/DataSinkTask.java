@@ -94,68 +94,63 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		final Path path = getFileOutputPath();
-
-		FSDataOutputStream fdos = null;
+		final RecordReader<KeyValuePair<Key, Value>> reader = this.reader;
+		final OutputFormat format = this.format;
 
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(path, this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		OutputPathOpenThread opot = new OutputPathOpenThread(path, 
+			this.getEnvironment().getIndexInSubtaskGroup() + 1, 10000);
 		opot.start();
+		
+		FSDataOutputStream fdos = null;
+		
 		try {
-			opot.join();
-		} catch (InterruptedException ie) {
-			// this task has been canceled
-			if(opot.getFSDataOutputStream() != null) {
-				// close file stream
-				opot.getFSDataOutputStream().close();
+			// get FSDataOutputStream
+			fdos = opot.getFSDataOutputStream();
+
+			// check if task has been canceled
+			if (this.taskCanceled) {
+				return;
+			}
+
+			LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
+				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+			format.setOutput(fdos);
+			format.open();
+
+			while (!this.taskCanceled && reader.hasNext()) {
+				KeyValuePair pair = reader.next();
+				format.writePair(pair);
 			}
 		}
-
-		// check if task has been canceled
-		if (!this.taskCanceled) {
-
-			try {
-
-				// check if FSDataOutputStream was obtained
-				if (!opot.fsDataOutputStreamSuccessfullyObtained()) {
-					// forward exception
-					throw opot.getException();
-				}
-
-				// get FSDataOutputStream
-				fdos = opot.getFSDataOutputStream();
-
-				LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
-					+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-				format.setOutput(fdos);
-				format.open();
-
-				while (!this.taskCanceled && reader.hasNext()) {
-					KeyValuePair pair = reader.next();
-					format.writePair(pair);
-				}
-
-			} catch (Exception ex) {
-				// drop, if the task was canceled
-				if (!this.taskCanceled) {
-					LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-						+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-					throw ex;
-				}
+				throw ex;
+			}
 				
-			} finally {
-				
-				if (format != null) {
-					// close format
-					format.close();
+		}
+		finally {
+			
+			if (this.format != null) {
+				// close format
+				try {
+					this.format.close();
 				}
+				catch (Throwable t) {}
+			}
 				
-				if (fdos != null) {
-					// close file stream
+			if (fdos != null) {
+				// close file stream
+				try {
 					fdos.close();
 				}
+				catch (Throwable t) {}
 			}
 		}
 
@@ -204,9 +199,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			Class<? extends OutputFormat> formatClass = config.getStubClass(OutputFormat.class, cl);
 			// obtain instance of stub implementation
-			format = formatClass.newInstance();
+			this.format = formatClass.newInstance();
 			// configure stub implementation
-			format.configure(config.getStubParameters());
+			this.format.configure(this.config.getStubParameters());
 
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
@@ -239,12 +234,12 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			dp = new PointwiseDistributionPattern();
 			break;
 		default:
-			throw new RuntimeException("No valid input ship strategy provided for MapTask.");
+			throw new RuntimeException("No valid input ship strategy provided for DataSinkTask.");
 		}
 
 		// create reader
 		// map has only one input, so we create one reader (id=0).
-		reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
 
 	}
 
@@ -291,18 +286,24 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 */
 	public static class OutputPathOpenThread extends Thread {
 
-		private Path path;
+		private final Object lock = new Object();
+		
+		private final Path path;
+		
+		private final long timeoutMillies;
 
-		private int taskIndex;
+		private final int taskIndex;
 
-		private FSDataOutputStream fdos = null;
+		private volatile FSDataOutputStream fdos;
 
-		private boolean success = true;
+		private volatile Exception exception;
+		
+		private volatile boolean canceled = false;
+		
 
-		private Exception exception = null;
-
-		public OutputPathOpenThread(Path path, int taskIndex) {
+		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
 			this.path = path;
+			this.timeoutMillies = timeoutMillies;
 			this.taskIndex = taskIndex;
 		}
 
@@ -310,32 +311,84 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		public void run() {
 			
 			try {
-				FileSystem fs = path.getFileSystem();
-
+				final FileSystem fs = path.getFileSystem();
+				Path p = this.path;
+				
 				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
 					// write output in directory
-					this.path = this.path.suffix("/" + this.taskIndex);
+					p = this.path.suffix("/" + this.taskIndex);
 				}
+				
+				final FSDataOutputStream stream = fs.create(p, true);
 
 				// create output file
-				this.fdos = fs.create(path, true);
-
-			} catch (Exception t) {
-				this.success = false;
-				this.exception = t;
+				synchronized (this.lock) {
+					this.lock.notifyAll();
+					
+					if (!this.canceled) {
+						this.fdos = stream;
+					}
+					else {
+						this.fdos = null;
+						stream.close();
+					}
+				}
+			}
+			catch (Exception t) {
+				synchronized (this.lock) {
+					this.canceled = true;
+					this.exception = t;
+				}
 			}
 		}
 
-		public FSDataOutputStream getFSDataOutputStream() {
-			return this.fdos;
-		}
-
-		public boolean fsDataOutputStreamSuccessfullyObtained() {
-			return this.success;
-		}
-
-		public Exception getException() {
-			return this.exception;
+		public FSDataOutputStream getFSDataOutputStream()
+		throws Exception
+		{
+			long start = System.currentTimeMillis();
+			long remaining = this.timeoutMillies;
+			
+			if (this.exception != null) {
+				throw this.exception;
+			}
+			if (this.fdos != null) {
+				return this.fdos;
+			}
+			
+			synchronized (this.lock) {
+				do {
+					try {
+						this.lock.wait(remaining);
+					}
+					catch (InterruptedException iex) {
+						this.canceled = true;
+						if (this.fdos != null) {
+							try  {
+								this.fdos.close();
+							} catch (Throwable t) {}
+						}
+						throw new Exception("Output Path Opener was interrupted.");
+					}
+				}
+				while (this.exception == null && this.fdos == null &&
+						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
+			
+				if (this.exception != null) {
+					if (this.fdos != null) {
+						try  {
+							this.fdos.close();
+						} catch (Throwable t) {}
+					}
+					throw this.exception;
+				}
+				
+				if (this.fdos != null) {
+					return this.fdos;
+				}
+			}
+			
+			// try to forcefully shut this thread down
+			throw new Exception("Output Path Opener timed out.");
 		}
 	}
 
