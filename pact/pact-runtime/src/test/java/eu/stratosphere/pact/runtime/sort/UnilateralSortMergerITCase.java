@@ -159,7 +159,7 @@ public class UnilateralSortMergerITCase {
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
 			memoryManager, ioManager, 40 * 1024 * 1024, 1024 * 1024 * 1, 10, 2, keySerialization, valSerialization,
-			keyComparator, reader, parentTask);
+			keyComparator, reader, parentTask, 0.7f);
 
 		// emit data
 		LOG.debug("emitting data");
