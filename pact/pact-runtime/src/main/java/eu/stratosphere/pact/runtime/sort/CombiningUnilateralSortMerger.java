@@ -110,6 +110,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * @param keyComparator The comparator used to define the order among the keys.
 	 * @param reader The reader from which the input is drawn that will be sorted.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
+	 *                              actually begins spilling data to disk.
 	 * @param combineLastMerge A flag indicating whether the last merge step applies the combiner as well.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
@@ -121,11 +123,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			long totalMemory, int maxNumFileHandles,
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask, boolean combineLastMerge)
+			AbstractTask parentTask, float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		this (combineStub, memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles,
-			keySerialization, valueSerialization, keyComparator, reader, parentTask, combineLastMerge);
+			keySerialization, valueSerialization, keyComparator, reader, parentTask,
+			startSpillingFraction, combineLastMerge);
 	}
 	
 	/**
@@ -146,6 +149,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * @param keyComparator The comparator used to define the order among the keys.
 	 * @param reader The reader from which the input is drawn that will be sorted.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
+	 *                              actually begins spilling data to disk.
 	 * @param combineLastMerge A flag indicating whether the last merge step applies the combiner as well.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
@@ -157,11 +162,11 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask, boolean combineLastMerge)
+			AbstractTask parentTask, float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, totalMemory, ioMemory, numSortBuffers, maxNumFileHandles,
-			keySerialization, valueSerialization, keyComparator, reader, parentTask);
+			keySerialization, valueSerialization, keyComparator, reader, parentTask, startSpillingFraction);
 
 		this.combineStub = combineStub;
 		this.combineLastMerge = combineLastMerge;
@@ -183,7 +188,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			AbstractTask parentTask, int buffersToKeepBeforeSpilling)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, writeMemSize, readMemSize,
 			parentTask);

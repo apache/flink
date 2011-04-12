@@ -215,6 +215,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param keyComparator The comparator used to define the order among the keys.
 	 * @param reader The reader from which the input is drawn that will be sorted.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
+	 *                              actually begins spilling data to disk.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
@@ -225,11 +227,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator,
 			Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask)
+			AbstractTask parentTask,
+			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, keySerialization,
-			valueSerialization, keyComparator, reader, parentTask);
+			valueSerialization, keyComparator, reader, parentTask, startSpillingFraction);
 	}
 	
 	/**
@@ -249,6 +252,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param keyComparator The comparator used to define the order among the keys.
 	 * @param reader The reader from which the input is drawn that will be sorted.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
+	 *                              actually begins spilling data to disk.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
@@ -258,7 +263,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			long totalMemory, long ioMemory,
 			int numSortBuffers, int maxNumFileHandles, SerializationFactory<K> keySerialization,
 			SerializationFactory<V> valueSerialization, Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask)
+			AbstractTask parentTask,
+			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
@@ -366,14 +372,14 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		};
 
 		// start the thread that reads the input channels
-		this.readThread = getReadingThread(exceptionHandler, reader, circularQueues, parentTask);
+		this.readThread = getReadingThread(exceptionHandler, reader, circularQueues, parentTask, startSpillingFraction);
 
 		// start the thread that sorts the buffers
 		this.sortThread = getSortingThread(exceptionHandler, circularQueues, parentTask);
 
 		// start the thread that handles spilling to secondary storage
 		this.spillThread = getSpillingThread(exceptionHandler, circularQueues, memoryManager, ioManager, ioMemory,
-			sortMem, parentTask);
+			sortMem, parentTask, numSortBuffers >= 3 ? numSortBuffers - 2 : 0);
 		
 		startThreads();
 	}
@@ -546,7 +552,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask)
+			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask,
+			float startSpillingFraction)
 	{
 		return new ReadingThread(exceptionHandler, reader, queues, parentTask);
 	}
@@ -586,10 +593,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The thread that does the spilling and pre-merging.
 	 */
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize, AbstractTask parentTask)
+			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
+			AbstractTask parentTask, int buffersToKeepBeforeSpilling)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, writeMemSize,
-			readMemSize, parentTask);
+			readMemSize, parentTask, buffersToKeepBeforeSpilling);
 	}
 
 	// ------------------------------------------------------------------------
@@ -840,7 +848,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	protected final CircularElement SENTINEL = new CircularElement();
 
 	/**
-	 * Class representing buffers that circulate between the reading, sorting and spilling thead.
+	 * The element that is passed as marker for signal beginning of spilling.
+	 */
+	protected final CircularElement SPILLING_MARKER = new CircularElement();
+	
+	/**
+	 * Class representing buffers that circulate between the reading, sorting and spilling thread.
 	 */
 	protected final class CircularElement {
 		final int id;
@@ -1237,7 +1250,6 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 				queues.spill.add(element);
 			}
-
 		}
 	}
 
@@ -1253,11 +1265,13 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		private final long writeMemSize;				// memory for output buffers
 		
 		private final long readMemSize;					// memory for reading and pre-fetching buffers
+		
+		private final int buffersToKeepBeforeSpilling;
 
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
-				long writeMemSize, long readMemSize, AbstractTask parentTask)
+				long writeMemSize, long readMemSize, AbstractTask parentTask, int buffersToKeepBeforeSpilling)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 
@@ -1266,6 +1280,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			this.ioManager = ioManager;
 			this.writeMemSize = writeMemSize;
 			this.readMemSize = readMemSize;
+			this.buffersToKeepBeforeSpilling = buffersToKeepBeforeSpilling;
 		}
 
 		/**
@@ -1273,6 +1288,74 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 */
 		public void go() throws IOException
 		{
+			// ------------------- In-Memory Cache ------------------------
+			
+			List<CircularElement> cache = new ArrayList<CircularElement>(buffersToKeepBeforeSpilling);
+			CircularElement element = null;
+			boolean cacheOnly = false;
+			
+			// see whether we should keep some buffers
+			if(buffersToKeepBeforeSpilling > 0) {
+				// fill cache
+				while (isRunning()) {					
+					// is cache exhausted?
+					if(cache.size() >= buffersToKeepBeforeSpilling) {
+						cacheOnly = false;
+						break;
+					}
+					
+					// take next element from queue
+					try {
+						element = this.queues.spill.take();
+					}
+					catch (InterruptedException iex) {
+						if (isRunning()) {
+							LOG.error("Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
+									"Retrying to grab buffer...");
+							continue;
+						}
+						else {
+							return;
+						}
+					}
+					cache.add(element);
+					if(element == SENTINEL) {
+						cacheOnly = true;
+						break;
+					}
+				}
+			}
+			
+			// ------------------- In-Memory Merge ------------------------
+			
+			if(cacheOnly) {
+				
+				/* # case 1: operates on in-memory segments only # */
+				LOG.debug("Initiating merge-iterator (in-memory segments).");
+				
+				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
+								
+				// iterate buffers and collect a set of iterators
+				for(CircularElement cached : cache)
+				{
+					if(cached != SENTINEL)
+					{					
+						// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
+						iterators.add(cached.buffer.getIterator());
+					}
+				}
+				
+				// release sort-buffers
+				LOG.debug("Releasing sort-buffer memory.");
+				releaseSortBuffers();
+				
+				// set lazy iterator
+				setResultIterator(new MergeIterator<K, V>(iterators, keyComparator));				
+				return;
+			}			
+			
+			// ------------------- Spilling Phase ------------------------
+			
 			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
 			final List<MemorySegment> writeBuffers;
 			
@@ -1288,14 +1371,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				throw new IOException("Spilling thread was unable to allocate memory for the channel writer.", maex);
 			}
 			
-			// ------------------- Spilling Phase ------------------------
-			
 			// loop as long as the thread is marked alive and we do not see the final element
 			while (isRunning())
 			{
-				CircularElement element = null;
 				try {
-					element = this.queues.spill.take();
+					element = takeNext(queues.spill, cache);
 				}
 				catch (InterruptedException iex) {
 					if (isRunning()) {
@@ -1344,26 +1424,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 			// release sort-buffers
 			LOG.debug("Releasing sort-buffer memory.");
-			while (!queues.empty.isEmpty()) {
-				try {
-					memoryManager.release(queues.empty.take().buffer.unbind());
-				}
-				catch (InterruptedException iex) {
-					if (isRunning()) {
-						LOG.error("Spilling thread was interrupted (without being shut down) while collecting empty buffers to release them. " +
-								"Retrying to collect buffers...");
-					}
-					else {
-						return;
-					}
-				}
-			}
-			if (UnilateralSortMerger.this.sortSegments != null) {
-				unregisterSegmentsToBeFreedAtShutdown(UnilateralSortMerger.this.sortSegments);
-				UnilateralSortMerger.this.sortSegments.clear();
-			}
+			releaseSortBuffers();
 
 			// ------------------- Merging Phase ------------------------
+			
 			try {
 				// merge channels until sufficient file handles are available
 				while (channelIDs.size() > UnilateralSortMerger.this.maxNumFileHandles) {
@@ -1401,6 +1465,29 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 			// done
 			LOG.debug("Spilling and merging thread done.");
+		}
+		
+		private void releaseSortBuffers() {
+			while (!queues.empty.isEmpty()) {
+				try {
+					MemorySegment segment = queues.empty.take().buffer.unbind();
+					UnilateralSortMerger.this.sortSegments.remove(segment);
+					memoryManager.release(segment);
+				}
+				catch (InterruptedException iex) {
+					if (isRunning()) {
+						LOG.error("Spilling thread was interrupted (without being shut down) while collecting empty buffers to release them. " +
+								"Retrying to collect buffers...");
+					}
+					else {
+						return;
+					}
+				}
+			}
+		}
+		
+		private CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache) throws InterruptedException {
+			return cache.isEmpty() ? queue.take() : cache.remove(0);
 		}
 	}
 

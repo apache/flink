@@ -84,6 +84,9 @@ public class CombineTask extends AbstractTask {
 	
 	// maximum number of file handles
 	private int maxFileHandles;
+	
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -196,6 +199,7 @@ public class CombineTask extends AbstractTask {
 		// set up memory and I/O parameters
 		this.availableMemory = config.getMemorySize();
 		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
@@ -328,7 +332,7 @@ public class CombineTask extends AbstractTask {
 				// instantiate a combining sort-merger
 				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
 					ioManager, this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, true);
+					valSerialization, keyComparator, reader, this, this.spillThreshold, true);
 				// obtain and return a grouped iterator from the combining sort-merger
 				return sortMerger;
 			}
