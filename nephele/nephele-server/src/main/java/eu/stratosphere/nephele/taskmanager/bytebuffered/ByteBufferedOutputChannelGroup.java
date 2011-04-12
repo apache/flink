@@ -252,15 +252,4 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 			}
 		}
 	}
-
-	/**
-	 * Releases all resources associated with the output channel with the given channel ID. This method should only be
-	 * called after the respective task has stopped running.
-	 * 
-	 * @param sourceChannelID the ID of the output channel to release the resources for.
-	 */
-	public void releaseResources(final ChannelID sourceChannelID) {
-
-		this.byteBufferedChannelManager.releaseOutputChannelResources(sourceChannelID);
-	}
 }

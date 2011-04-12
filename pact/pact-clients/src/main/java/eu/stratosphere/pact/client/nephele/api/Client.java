@@ -31,6 +31,7 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 
@@ -104,6 +105,20 @@ public class Client {
 	 */
 	public OptimizedPlan getOptimizedPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
 		return compiler.compile(prog.getPlan());
+	}
+	
+	/**
+	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
+	 * 
+	 * @param prog The PACT program to be compiled to JSON.
+	 * @return A JSON string representation of the optimized input plan.
+	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
+	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
+	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 */
+	public String getJSONPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		JSONGenerator jsonGen = new JSONGenerator();
+		return jsonGen.compilePlanToJSON(this.getOptimizedPlan(prog));
 	}
 	
 	/**
@@ -202,6 +217,8 @@ public class Client {
 	 * Submits the job-graph to the nephele job-manager for execution.
 	 * 
 	 * @param prog The program to be submitted.
+	 * @param wait Method will block until the job execution is finished if set to true. 
+	 *               If set to false, the method will directly return after the job is submitted. 
 	 * @throws ProgramInvocationException Thrown, if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.

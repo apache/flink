@@ -17,8 +17,10 @@ package eu.stratosphere.pact.test.pactPrograms;
 
 import java.text.DecimalFormat;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.Random;
+import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -139,8 +141,45 @@ public class KMeansIterationITCase extends TestBase {
 	@Override
 	protected void postSubmit() throws Exception {
 
+		Comparator<String> deltaComp = new Comparator<String>() {
+
+			private final double DELTA = 0.1;
+			
+			@Override
+			public int compare(String o1, String o2) {
+				
+				StringTokenizer st1 = new StringTokenizer(o1, "|");
+				StringTokenizer st2 = new StringTokenizer(o2, "|");
+				
+				if(st1.countTokens() != st2.countTokens()) {
+					return st1.countTokens() - st2.countTokens();
+				}
+				
+				// first token is ID
+				String t1 = st1.nextToken();
+				String t2 = st2.nextToken();
+				if(!t1.equals(t2)) {
+					return t1.compareTo(t2);
+				}
+				
+				while(st1.hasMoreTokens()) {
+					t1 = st1.nextToken();
+					t2 = st2.nextToken();
+					
+					double d1 = Double.parseDouble(t1);
+					double d2 = Double.parseDouble(t2);
+					
+					if(Math.abs(d1-d2) > DELTA) {
+						return d1 < d2 ? -1 : 1;
+					}
+				}
+				
+				return 0;
+			}
+		};
+		
 		// Test results
-		compareResultsByLinesInMemory(NEWCLUSTERCENTERS, resultPath);
+		compareResultsByLinesInMemory(NEWCLUSTERCENTERS, resultPath, deltaComp);
 
 		// clean up file
 		getFilesystemProvider().delete(dataPath, true);

@@ -55,6 +55,8 @@ public class PactConnection {
 	private ShipStrategy shipStrategy; // The data distribution strategy
 
 	private TempMode tempMode; // indicates whether and where the connection needs to be temped by a TempTask
+	
+	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -105,6 +107,19 @@ public class PactConnection {
 		this.targetPact = target;
 		this.shipStrategy = shipStrategy;
 		this.tempMode = tempMode;
+		
+		// set replication factor
+		// TODO: replication factor must be propagated until resolved by PACT code (i.e. Match or Cross)
+		switch (shipStrategy) {
+			case BROADCAST:
+				this.replicationFactor = target.getDegreeOfParallelism();
+				break;
+			case SFR:
+				throw new CompilerException("SFR Shipping Strategy not supported yet.");
+			default:
+				this.replicationFactor = 1;
+				break;
+		}
 	}
 
 	/**
@@ -124,6 +139,7 @@ public class PactConnection {
 		this.targetPact = target;
 
 		this.shipStrategy = template.shipStrategy;
+		this.replicationFactor = template.replicationFactor;
 		this.tempMode = template.tempMode;
 
 		this.interestingProps = template.interestingProps;
@@ -180,6 +196,19 @@ public class PactConnection {
 					}
 				}
 			}
+		}
+		
+		// set the replication factor of this connection
+		// TODO: replication factor must be propagated until resolved by PACT code (i.e. Match or Cross)
+		switch (strategy) {
+			case BROADCAST:
+				this.replicationFactor = targetPact.getDegreeOfParallelism();
+				break;
+			case SFR:
+				throw new CompilerException("SFR Shipping Strategy not supported yet.");
+			default:
+				this.replicationFactor = 1;
+				break;
 		}
 		
 		this.shipStrategy = strategy;
@@ -252,6 +281,15 @@ public class PactConnection {
 	 */
 	public void setTempMode(TempMode tempMode) {
 		this.tempMode = tempMode;
+	}
+	
+	/**
+	 * Returns the replication factor of the connection.
+	 * 
+	 * @return The replication factor of the connection.
+	 */
+	public int getReplicationFactor() {
+		return this.replicationFactor;
 	}
 
 	/**
