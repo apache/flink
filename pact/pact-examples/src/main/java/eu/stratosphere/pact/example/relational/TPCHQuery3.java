@@ -287,7 +287,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			FilterO.class, "FilterO");
 		filterO.setDegreeOfParallelism(noSubtasks);
 		filterO.getCompilerHints().setAvgBytesPerRecord(32);
-		filterO.getCompilerHints().setSelectivity(0.05f);
+		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create MapContract for projecting LineItems tuples
@@ -295,14 +295,13 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			ProjectLi.class, "ProjectLi");
 		projectLi.setDegreeOfParallelism(noSubtasks);
 		projectLi.getCompilerHints().setAvgBytesPerRecord(48);
-		projectLi.getCompilerHints().setSelectivity(1.0f);
+		projectLi.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		projectLi.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> joinLiO = new MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple>(
 			JoinLiO.class, "JoinLiO");
 		joinLiO.setDegreeOfParallelism(noSubtasks);
-		joinLiO.getCompilerHints().setSelectivity(0.05f);
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(64);
 		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
 
@@ -311,7 +310,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			AggLiO.class, "AggLio");
 		aggLiO.setDegreeOfParallelism(noSubtasks);
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(64);
-		aggLiO.getCompilerHints().setSelectivity(0.25f);
+		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result

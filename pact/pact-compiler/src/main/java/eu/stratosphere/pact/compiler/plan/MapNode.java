@@ -138,11 +138,18 @@ public class MapNode extends SingleInputNode {
 				}
 			}
 
-			// estimate the number of rows
 			this.estimatedNumRecords = -1;
-			if (hints.getSelectivity() > 0.0f && pred.estimatedNumRecords != -1) {
-				this.estimatedNumRecords = (long) (pred.estimatedNumRecords * hints.getSelectivity()) + 1;
-
+			// estimate the number of rows
+			if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
+				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
+			} else if (pred.estimatedNumRecords >= 0){
+				// estimate number of stub calls
+				long estNumStubCalls = pred.estimatedNumRecords;
+			
+				// estimate number of emitted rows
+				this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
+				
+				// if we have the records and a values/key hints, use that to reversely estimate the number of keys
 				if (hints.getAvgNumValuesPerKey() >= 1.0f) {
 					long v = (long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) + 1;
 					if (this.estimatedKeyCardinality == -1) {
@@ -151,11 +158,7 @@ public class MapNode extends SingleInputNode {
 						this.estimatedKeyCardinality = Math.min(this.estimatedKeyCardinality, v);
 					}
 				}
-			} else if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
-				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-			} else {
-				// we assume that the data size of the mapper is non-increasing
-				this.estimatedNumRecords = pred.estimatedNumRecords;
+				
 			}
 
 			// estimate the output size

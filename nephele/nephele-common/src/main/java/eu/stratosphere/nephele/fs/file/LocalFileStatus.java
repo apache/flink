@@ -67,7 +67,7 @@ public class LocalFileStatus implements FileStatus {
 	@Override
 	public long getBlockSize() {
 
-		return file.length();
+		return this.file.length();
 	}
 
 	/**
@@ -76,7 +76,7 @@ public class LocalFileStatus implements FileStatus {
 	@Override
 	public long getLen() {
 
-		return file.length();
+		return this.file.length();
 	}
 
 	/**
@@ -85,7 +85,7 @@ public class LocalFileStatus implements FileStatus {
 	@Override
 	public long getModificationTime() {
 
-		return file.lastModified();
+		return this.file.lastModified();
 	}
 
 	/**
@@ -103,7 +103,7 @@ public class LocalFileStatus implements FileStatus {
 	@Override
 	public boolean isDir() {
 
-		return file.isDirectory();
+		return this.file.isDirectory();
 	}
 
 	/**
@@ -112,6 +112,6 @@ public class LocalFileStatus implements FileStatus {
 	@Override
 	public Path getPath() {
 
-		return path;
+		return this.path;
 	}
 }

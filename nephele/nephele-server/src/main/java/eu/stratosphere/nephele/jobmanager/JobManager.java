@@ -711,14 +711,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
 			false, true);
 		while (it.hasNext()) {
-
+		
 			final ExecutionVertex vertex = it.next();
-			final ExecutionState state = vertex.getExecutionState();
-			if (state != ExecutionState.FAILED) {
-				final TaskCancelResult result = vertex.cancelTask();
-				if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
-					errorResult = result;
-				}
+			final TaskCancelResult result = vertex.cancelTask();
+			if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+				errorResult = result;
 			}
 		}
 

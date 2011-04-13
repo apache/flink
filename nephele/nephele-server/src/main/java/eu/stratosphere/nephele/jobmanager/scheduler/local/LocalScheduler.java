@@ -186,6 +186,16 @@ public class LocalScheduler implements Scheduler {
 	 */
 	void checkAndReleaseAllocatedResource(ExecutionGraph executionGraph, AllocatedResource allocatedResource) {
 
+		if (allocatedResource == null) {
+			LOG.error("Resource to lock is null!");
+			return;
+		}
+
+		if (allocatedResource.getInstance() instanceof DummyInstance) {
+			LOG.debug("Available instance is of type DummyInstance!");
+			return;
+		}
+		
 		synchronized (this.jobQueue) {
 
 			final List<ExecutionVertex> assignedVertices = executionGraph
