@@ -394,10 +394,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 		final int indexi = memory.randomAccessView.translateOffset(kvindices[ii + KEYSTART]);
 		final int indexj = memory.randomAccessView.translateOffset(kvindices[ij + KEYSTART]);
 		
-		final int lengthi = kvindices[ii + VALSTART] - kvindices[ii + KEYSTART];
-		final int lengthj = kvindices[ij + VALSTART] - kvindices[ij + KEYSTART];
-		
-		return comparator.compare(backingArray, backingArray, indexi, indexj, lengthi, lengthj);
+		return comparator.compare(backingArray, backingArray, indexi, indexj);
 	}
 
 	@Override

@@ -53,10 +53,17 @@ public class MockRecordReader<T extends Record> implements Reader<T> {
 				try {
 					r = queue.take();
 				} catch (InterruptedException iex) {
+					throw new RuntimeException("Reader was interrupted.");
 				}
 			}
 
 			if (r == SENTINEL) {
+				// put the sentinel back, to ensure that repeated calls do not block
+				try {
+					queue.put(r);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Reader was interrupted.");
+				}
 				return false;
 			} else {
 				next = (T) r;
@@ -82,10 +89,17 @@ public class MockRecordReader<T extends Record> implements Reader<T> {
 			try {
 				r = queue.take();
 			} catch (InterruptedException iex) {
+				throw new RuntimeException("Reader was interrupted.");
 			}
 		}
 
 		if (r == SENTINEL) {
+			try {
+				// put the sentinel back, to ensure that repeated calls do not block
+				queue.put(r);
+			} catch (InterruptedException iex) {
+				throw new RuntimeException("Reader was interrupted.");
+			}
 			throw new NoSuchElementException();
 		} else {
 			return (T) r;
