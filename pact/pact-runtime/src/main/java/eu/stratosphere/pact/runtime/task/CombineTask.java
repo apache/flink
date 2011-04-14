@@ -39,9 +39,10 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
+import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorter;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -81,12 +82,6 @@ public class CombineTask extends AbstractTask {
 	
 	// the memory dedicated to the sorter
 	private long availableMemory;
-	
-	// maximum number of file handles
-	private int maxFileHandles;
-	
-	// the fill fraction of the buffers that triggers the spilling
-	private float spillThreshold;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -133,17 +128,18 @@ public class CombineTask extends AbstractTask {
 		try {
 			sortedInputProvider = obtainInput();
 			Iterator<KeyValuePair<Key, Value>> iterator = sortedInputProvider.getIterator();
+			KeyGroupedIterator<Key, Value> kgIterator = new KeyGroupedIterator<Key, Value>(iterator);
 
 			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			
+			ReduceStub stub = this.stub;
+			OutputCollector output = this.output;
 
 			// iterate over combined pairs
-			while (iterator.hasNext() && !taskCanceled) {
-				// get next combined pair
-				KeyValuePair<Key, Value> pair = iterator.next();
-				// output combined pair
-				output.collect(pair.getKey(), pair.getValue());
+			while (!this.taskCanceled && kgIterator.nextKey()) {
+				stub.combine(kgIterator.getKey(), kgIterator.getValues(), output);
 			}
 		
 		} catch (Exception ex) {
@@ -198,8 +194,6 @@ public class CombineTask extends AbstractTask {
 
 		// set up memory and I/O parameters
 		this.availableMemory = config.getMemorySize();
-		this.maxFileHandles = config.getNumFilehandles();
-		this.spillThreshold = config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
@@ -330,9 +324,9 @@ public class CombineTask extends AbstractTask {
 
 			try {
 				// instantiate a combining sort-merger
-				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
-					ioManager, this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, this.spillThreshold, true);
+				SortMerger<Key, Value> sortMerger = new AsynchronousPartialSorter(memoryManager,
+					ioManager, this.availableMemory, keySerialization,
+					valSerialization, keyComparator, reader, this);
 				// obtain and return a grouped iterator from the combining sort-merger
 				return sortMerger;
 			}

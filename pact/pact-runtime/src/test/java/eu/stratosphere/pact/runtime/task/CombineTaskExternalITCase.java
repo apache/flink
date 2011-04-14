@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -69,10 +70,23 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		// wee need to do the final aggregation manually in the test, because the
+		// combiner is not guaranteed to do that
+		HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
+		for (KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			PactInteger prevVal = aggMap.get(pair.getKey());
+			if (prevVal != null) {
+				aggMap.put(pair.getKey(), new PactInteger(prevVal.getValue() + pair.getValue().getValue()));
+			}
+			else {
+				aggMap.put(pair.getKey(), pair.getValue());
+			}
+		}
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum);
+		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		
+		for (PactInteger integer : aggMap.values()) {
+			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		
 		outList.clear();
@@ -108,10 +122,23 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		// wee need to do the final aggregation manually in the test, because the
+		// combiner is not guaranteed to do that
+		HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
+		for (KeyValuePair<PactInteger,PactInteger> pair : outList) {
+			PactInteger prevVal = aggMap.get(pair.getKey());
+			if (prevVal != null) {
+				aggMap.put(pair.getKey(), new PactInteger(prevVal.getValue() + pair.getValue().getValue()));
+			}
+			else {
+				aggMap.put(pair.getKey(), pair.getValue());
+			}
+		}
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum);
+		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		
+		for (PactInteger integer : aggMap.values()) {
+			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		
 		outList.clear();

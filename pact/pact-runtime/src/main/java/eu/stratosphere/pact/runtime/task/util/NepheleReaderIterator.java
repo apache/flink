@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.types.Record;
  */
 public class NepheleReaderIterator<T extends Record> implements Iterator<T> {
 
-	private Reader<T> reader;
+	private final Reader<T> reader;
 	
 	public NepheleReaderIterator(Reader<T> reader) {
 		this.reader = reader;
