@@ -384,10 +384,16 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				remoteEnvelope.setBuffer(writeBuffer);
 
+				// Create duplicates before queuing
+				TransferEnvelope[] duplicatedEnvelopes = new TransferEnvelope[remoteReceivers.size() - 1];
+				for (int i = 0; i < duplicatedEnvelopes.length; ++i) {
+					duplicatedEnvelopes[i] = remoteEnvelope.duplicate();
+				}
+
 				for (int i = 1; i < remoteReceivers.size(); ++i) {
 
 					this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceivers.get(i),
-						remoteEnvelope.duplicate());
+						duplicatedEnvelopes[i - 1]);
 				}
 
 				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceivers.get(0), remoteEnvelope);
@@ -400,15 +406,25 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				synchronized (this.registeredChannels) {
 
 					ByteBufferedChannelWrapper channelWrapper = null;
-					for (int i = 1; i < localReceivers.size(); ++i) {
 
-						channelWrapper = this.registeredChannels.get(localReceivers.get(i));
-						if (channelWrapper == null) {
-							LOG.error("Cannot find local receiver " + localReceivers.get(i) + " for job "
-								+ transferEnvelope.getJobID());
-							continue;
+					if (localReceivers.size() > 1) {
+
+						// Create duplicates before queuing
+						TransferEnvelope[] duplicatedEnvelopes = new TransferEnvelope[localReceivers.size() - 1];
+						for (int i = 0; i < duplicatedEnvelopes.length; ++i) {
+							duplicatedEnvelopes[i] = transferEnvelope.duplicate();
 						}
-						channelWrapper.queueTransferEnvelope(transferEnvelope.duplicate());
+						
+						for (int i = 1; i < localReceivers.size(); ++i) {
+
+							channelWrapper = this.registeredChannels.get(localReceivers.get(i));
+							if (channelWrapper == null) {
+								LOG.error("Cannot find local receiver " + localReceivers.get(i) + " for job "
+									+ transferEnvelope.getJobID());
+								continue;
+							}
+							channelWrapper.queueTransferEnvelope(duplicatedEnvelopes[i-1]);
+						}
 					}
 
 					channelWrapper = this.registeredChannels.get(localReceivers.get(0));
@@ -595,9 +611,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
-		
+
 		System.out.println("Received envelope from input channel");
-		
+
 		processEnvelope(transferEnvelope);
 	}
 
@@ -607,15 +623,17 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public boolean processEnvelopeFromNetworkOrCheckpoint(final TransferEnvelope transferEnvelope) throws IOException {
 
+		// System.out.println("Processing envelope "+ transferEnvelope.getSequenceNumber() + " from network");
+
 		try {
-			if(!processEnvelope(transferEnvelope)) {
-				System.out.println("Processing envelope from network returned false");
+			if (!processEnvelope(transferEnvelope)) {
+				// System.out.println("Processing envelope from network returned false");
+				return false;
 			}
-		} catch(InterruptedException e) {
+		} catch (InterruptedException e) {
 			LOG.error("Caught unexpected interrupted exception: " + StringUtils.stringifyException(e));
 		}
-		
 
-		return false;
+		return true;
 	}
 }

@@ -140,9 +140,9 @@ public class TransferEnvelopeDeserializer {
 
 		if (!this.lengthBuffer.hasRemaining()) {
 
-			final int sequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);
-			if (sequenceNumber < 0) {
-				throw new IOException("Received invalid sequence number: " + sequenceNumber);
+			this.deserializedSequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);			
+			if (this.deserializedSequenceNumber < 0) {
+				throw new IOException("Received invalid sequence number: " + this.deserializedSequenceNumber);
 			}
 
 			this.deserializationState = DeserializationState.SEQUENCENUMBERDESERIALIZED;

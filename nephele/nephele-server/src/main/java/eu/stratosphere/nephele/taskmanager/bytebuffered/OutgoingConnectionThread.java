@@ -36,7 +36,7 @@ public class OutgoingConnectionThread extends Thread {
 	/**
 	 * The minimum time a TCP connection must be idle it is closed.
 	 */
-	private static final long MIN_IDLE_TIME_BEFORE_CLOSE = 3000L; // 3 seconds
+	private static final long MIN_IDLE_TIME_BEFORE_CLOSE = 300000L; // 300 seconds
 
 	private static final Log LOG = LogFactory.getLog(OutgoingConnectionThread.class);
 

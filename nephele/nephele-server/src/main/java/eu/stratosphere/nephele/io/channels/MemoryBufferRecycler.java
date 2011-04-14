@@ -94,7 +94,7 @@ public final class MemoryBufferRecycler {
 		}
 
 		--this.referenceCounter;
-
+		
 		if (this.referenceCounter <= 0) {
 
 			this.originalBuffer.clear();
@@ -103,8 +103,8 @@ public final class MemoryBufferRecycler {
 				this.queueForRecycledBuffers.add(this.originalBuffer);
 				this.queueForRecycledBuffers.notify();
 			}
+			
+			this.bufferAlreadyRecycled = true;
 		}
-
-		this.bufferAlreadyRecycled = true;
 	}
 }
