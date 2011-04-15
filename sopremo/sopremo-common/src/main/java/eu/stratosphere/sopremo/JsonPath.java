@@ -9,6 +9,7 @@ import eu.stratosphere.reflect.TypeHandler;
 import eu.stratosphere.reflect.TypeSpecificHandler;
 
 public class JsonPath implements Cloneable {
+	public static final JsonPath Unknown = new JsonPath.IdentifierAccess("?");
 	private JsonPath selector;
 
 	public JsonPath(JsonPath selector) {
@@ -35,7 +36,7 @@ public class JsonPath implements Cloneable {
 	private static TypeSpecificHandler<JsonPath, JsonPath, TypeHandler<JsonPath, JsonPath>> PathReplacer = new TypeSpecificHandler<JsonPath, JsonPath, TypeHandler<JsonPath, JsonPath>>();
 
 	static {
-		PathReplacer.register(JsonPath.class, new TypeHandler<JsonPath, JsonPath>() {
+		PathReplacer.register(new TypeHandler<JsonPath, JsonPath>() {
 			public JsonPath replace(JsonPath path, List<Mapping> mapping, JsonPath toReplace,
 					JsonPath replaceFragment) {
 				if (path.isPrefix(toReplace)) {
@@ -45,7 +46,7 @@ public class JsonPath implements Cloneable {
 				}
 				return path;
 			}
-		});
+		}, JsonPath.class);
 	}
 
 	public static JsonPath replace(JsonPath start, JsonPath toReplace, JsonPath replaceFragment) {
@@ -81,7 +82,10 @@ public class JsonPath implements Cloneable {
 	@Override
 	public JsonPath clone() {
 		try {
-			return (JsonPath) super.clone();
+			JsonPath clone = (JsonPath) super.clone();
+			if (getSelector() != null)
+				clone.setSelector(clone.getSelector().clone());
+			return clone;
 		} catch (CloneNotSupportedException e) {
 			throw new IllegalStateException("should never happen", e);
 		}
@@ -153,6 +157,7 @@ public class JsonPath implements Cloneable {
 	}
 
 	public static class Constant extends JsonPath {
+		// TODO: adjust to json model
 		private Object constant;
 
 		public Constant(Object constant) {
@@ -299,6 +304,35 @@ public class JsonPath implements Cloneable {
 		}
 	}
 
+	public static class ObjectCreation extends JsonPath {
+		private ValueAssignment[] assignments;
+
+		public ObjectCreation(ValueAssignment... assignments) {
+			this.assignments = assignments;
+		}
+
+		public ObjectCreation(List<ValueAssignment> assignments) {
+			this.assignments = assignments.toArray(new ValueAssignment[assignments.size()]);
+		}
+
+		@Override
+		protected void toString(StringBuilder builder) {
+			builder.append(Arrays.toString(assignments));
+			super.toString(builder);
+		}
+
+		@Override
+		public int hashCode() {
+			return 53 + Arrays.hashCode(assignments);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (getClass() != obj.getClass())
+				return false;
+			return Arrays.equals(assignments, ((ObjectCreation) obj).assignments);
+		}
+	}
 	public static class Function extends JsonPath {
 
 		private String name;

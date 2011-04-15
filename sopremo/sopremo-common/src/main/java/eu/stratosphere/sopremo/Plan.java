@@ -6,9 +6,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import eu.stratosphere.dag.DirectedAcyclicGraphPrinter;
-import eu.stratosphere.dag.Navigator;
-
+import eu.stratosphere.dag.Printer;
+import eu.stratosphere.dag.TraverseListener;
+import eu.stratosphere.dag.Traverser;
 
 public class Plan {
 	private Collection<Operator> sinks;
@@ -21,15 +21,14 @@ public class Plan {
 		this.sinks = sinks;
 	}
 
-	public static class PlanPrinter extends DirectedAcyclicGraphPrinter<Operator> {
+	public static class PlanPrinter extends Printer<Operator> {
 		public PlanPrinter(Plan plan) {
-			super(new Navigator<Operator>() {
-				@Override
-				public Iterable<Operator> getConnectedNodes(Operator node) {
-					return node.getInputs();
-				}
-			}, plan.getAllNodes());
+			super(new OperatorNavigator(), plan.getAllNodes());
 		}
+	}
+
+	public Collection<Operator> getSinks() {
+		return sinks;
 	}
 
 	@Override
@@ -37,19 +36,15 @@ public class Plan {
 		return new PlanPrinter(this).toString(80);
 	}
 
-	private Collection<Operator> getAllNodes() {
-		List<Operator> nodes = new ArrayList<Operator>();
-		enumerateNodes(nodes, sinks);
-		return nodes;
-	}
-
-	private void enumerateNodes(Collection<Operator> seen, Collection<Operator> collection) {
-		for (Operator node : collection) {
-			if (!seen.contains(node)) {
-				seen.add(node);
-				enumerateNodes(seen, node.getInputs());
+	public List<Operator> getAllNodes() {
+		final List<Operator> nodes = new ArrayList<Operator>();
+		new Traverser<Operator>(new OperatorNavigator(), sinks).traverse(new TraverseListener<Operator>() {
+			@Override
+			public void nodeTraversed(Operator node) {
+				nodes.add(node);
 			}
-		}
+		});
+		return nodes;
 	}
 
 	public static void main(String[] args) throws IOException {

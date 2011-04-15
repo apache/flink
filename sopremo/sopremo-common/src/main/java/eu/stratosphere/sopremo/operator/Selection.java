@@ -11,4 +11,5 @@ public class Selection extends ConditionalOperator {
 		super(Transformation.IDENTITY, condition, input);
 	}
 
+	
 }

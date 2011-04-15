@@ -27,8 +27,18 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 		this.handlerListeners.remove(listener);
 	}
 
-	public <Type extends InputType> void register(Class<Type> type, TypeHandler<Type, ? extends OutputBase> handler) {
-		this.handlers.put(type, (Handler) handler);
+	public <Type extends InputType> TypeSpecificHandler<InputType, OutputBase, Handler> register(
+			TypeHandler<Type, ? extends OutputBase> handler) {
+		register(handler,
+			new Class[] { ReflectUtil.getBindingOfSuperclass(handler.getClass(), TypeHandler.class).getParameters()[0]
+				.getType() });
+		return this;
+	}
+
+	public <Type extends InputType> void register(TypeHandler<Type, ? extends OutputBase> handler,
+			Class<? extends Type>... types) {
+		for (Class<? extends Type> type : types)
+			this.handlers.put(type, (Handler) handler);
 		Method[] methods = handler.getClass().getMethods();
 		for (Method method : methods)
 			if (method.getDeclaringClass() == handler.getClass()) {
@@ -80,6 +90,8 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 	private Class<?> outputBase;
 
 	public OutputBase handleRecursively(Navigator<InputType> navigator, InputType in, Object... params) {
+		for (TypeHandlerListener<InputType, OutputBase> listener : this.handlerListeners)
+			listener.beforeHierarchicalConversion(in, params);
 		List<OutputBase> childTypes = new ArrayList<OutputBase>();
 
 		for (InputType child : navigator.getConnectedNodes(in)) {
@@ -94,6 +106,8 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 		parameters[0] = childTypes;
 		System.arraycopy(params, 0, parameters, 1, params.length);
 		OutputBase convertedType = this.handle(in, parameters);
+		for (TypeHandlerListener<InputType, OutputBase> listener : this.handlerListeners)
+			listener.afterHierarchicalConversion(in, params, convertedType);
 		if (convertedType == null && this.passthroughChildren) {
 			if (Collection.class.isAssignableFrom(this.outputBase))
 				return (OutputBase) childTypes;

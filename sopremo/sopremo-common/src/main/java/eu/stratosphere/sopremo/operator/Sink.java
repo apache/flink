@@ -5,9 +5,9 @@ import eu.stratosphere.sopremo.Transformation;
 
 public class Sink extends Operator {
 	private String outputName;
-	private String type;
+	private DataType type;
 	
-	public Sink(String type, String outputName, Operator input) {
+	public Sink(DataType type, String outputName, Operator input) {
 		super(Transformation.IDENTITY, input);
 		this.outputName = outputName;
 		this.type = type;

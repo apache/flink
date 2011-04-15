@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 public class Operator {
@@ -28,6 +27,8 @@ public class Operator {
 
 	public Operator(String name, Transformation transformation,
 			List<Operator> inputs) {
+		if (transformation == null || inputs == null)
+			throw new NullPointerException();
 		this.inputs = inputs;
 		this.name = name == null ? this.getClass().getSimpleName() : name;
 		this.transformation = transformation;
@@ -65,6 +66,27 @@ public class Operator {
 		if (this.getTransformation() != Transformation.IDENTITY)
 			builder.append(" to ").append(this.getTransformation());
 		return builder.toString();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.name.hashCode();
+		result = prime * result + this.transformation.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		Operator other = (Operator) obj;
+		return this.name.equals(other.name) && this.transformation.equals(other.transformation);
 	}
 
 }

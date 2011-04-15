@@ -31,4 +31,26 @@ public class Comparison {
 		return String.format("%s %s %s", expr1, binaryOperator, expr2);
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 47;
+		int result = 1;
+		result = prime * result + binaryOperator.hashCode();
+		result = prime * result +  expr1.hashCode();
+		result = prime * result +  expr2.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Comparison other = (Comparison) obj;
+		return binaryOperator == other.binaryOperator && expr1.equals(other.expr1) && expr2.equals(other.expr2);
+	}
+
 }

@@ -25,7 +25,7 @@ import java.util.Map;
  * @param <Node>
  *        the class of the node
  */
-public class DirectedAcyclicGraphPrinter<Node> {
+public class Printer<Node> {
 	private Collection<Node> nodes;
 
 	private Navigator<Node> navigator;
@@ -135,7 +135,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 	 * @param startNodes
 	 *        the start nodes
 	 */
-	public DirectedAcyclicGraphPrinter(Navigator<Node> navigator, Collection<Node> startNodes) {
+	public Printer(Navigator<Node> navigator, Collection<Node> startNodes) {
 		this.navigator = navigator;
 		this.nodes = startNodes;
 	}
@@ -148,7 +148,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 	 * @param startNodes
 	 *        the start nodes
 	 */
-	public DirectedAcyclicGraphPrinter(Navigator<Node> navigator, Iterable<Node> startNodes) {
+	public Printer(Navigator<Node> navigator, Iterable<Node> startNodes) {
 		this(navigator, startNodes.iterator());
 	}
 
@@ -160,7 +160,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 	 * @param startNodes
 	 *        the start nodes
 	 */
-	public DirectedAcyclicGraphPrinter(Navigator<Node> navigator, Iterator<Node> startNodes) {
+	public Printer(Navigator<Node> navigator, Iterator<Node> startNodes) {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		while (startNodes.hasNext())
@@ -175,7 +175,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 	 * @param startNodes
 	 *        the start nodes
 	 */
-	public DirectedAcyclicGraphPrinter(Navigator<Node> navigator, Node... startNodes) {
+	public Printer(Navigator<Node> navigator, Node... startNodes) {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		for (Node node : startNodes)
@@ -191,7 +191,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 	 * @param rootNode
 	 *        the root node
 	 */
-	public DirectedAcyclicGraphPrinter(Navigator<Node> navigator, Node rootNode) {
+	public Printer(Navigator<Node> navigator, Node rootNode) {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		gatherNodes(rootNode);
@@ -270,7 +270,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 			// initializes all outgoing links
 			for (Node node : nodes) {
 				ArrayList<Object> links = new ArrayList<Object>();
-				for (Object connectedNode : DirectedAcyclicGraphPrinter.this.navigator.getConnectedNodes(node))
+				for (Object connectedNode : Printer.this.navigator.getConnectedNodes(node))
 					links.add(connectedNode);
 				this.outgoings.put(node, links);
 			}
@@ -401,7 +401,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 		return true;
 	}
 
-	private class Printer {
+	private class State {
 		private Appendable appender;
 
 		private NodePrinter<Node> nodePrinter;
@@ -414,14 +414,14 @@ public class DirectedAcyclicGraphPrinter<Node> {
 
 		private int width;
 
-		private Printer(Appendable builder, NodePrinter<Node> nodePrinter, int width) {
+		private State(Appendable builder, NodePrinter<Node> nodePrinter, int width) {
 			this.appender = builder;
 			this.nodePrinter = nodePrinter;
 			this.widthString = "%-" + width + "s";
 			this.width = width;
 
-			this.levels = DirectedAcyclicGraphPrinter.this.getLevels();
-			DirectedAcyclicGraphPrinter.this.addPlaceholders(this.levels);
+			this.levels = Printer.this.getLevels();
+			Printer.this.addPlaceholders(this.levels);
 		}
 
 		private void printDAG() throws IOException {
@@ -583,7 +583,7 @@ public class DirectedAcyclicGraphPrinter<Node> {
 		StringBuilder builder = new StringBuilder();
 
 		try {
-			new Printer(builder, nodePrinter, width).printDAG();
+			new State(builder, nodePrinter, width).printDAG();
 		} catch (IOException e) {
 		}
 
@@ -648,6 +648,6 @@ public class DirectedAcyclicGraphPrinter<Node> {
 	 *         if an I/O error occurred during the print operation
 	 */
 	public void print(Appendable appendable, NodePrinter<Node> nodePrinter, int width) throws IOException {
-		new Printer(appendable, nodePrinter, width).printDAG();
+		new State(appendable, nodePrinter, width).printDAG();
 	}
 }
