@@ -107,8 +107,8 @@ public class CombiningUnilateralSortMergerITCase {
 
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, PactInteger> merger = new CombiningUnilateralSortMerger<TestData.Key, PactInteger>(
-			new TestCountCombiner(), memoryManager, ioManager, 6, 1024 * 1024 * 8, 1024 * 1024 * 64, 128,
-			keySerialization, valSerialization, keyComparator, reader, parentTask, true);
+			new TestCountCombiner(), memoryManager, ioManager, 64L * 1024 * 1024, 64,
+			keySerialization, valSerialization, keyComparator, reader, parentTask, 0.7f, true);
 
 		for (int i = 0; i < noKeyCnt; i++) {
 			for (int j = 0; j < noKeys; j++) {
@@ -149,8 +149,8 @@ public class CombiningUnilateralSortMergerITCase {
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new CombiningUnilateralSortMerger<TestData.Key, TestData.Value>(
-			new TestCountCombiner2(), memoryManager, ioManager, 1, 1024 * 1024 * 4, 1024 * 1024 * 12, 2,
-			keySerialization, valSerialization, keyComparator, reader, parentTask, true);
+			new TestCountCombiner2(), memoryManager, ioManager, 64L * 1024 * 1024, 2,
+			keySerialization, valSerialization, keyComparator, reader, parentTask, 0.7f, true);
 
 		// emit data
 		LOG.debug("emitting data");

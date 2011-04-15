@@ -296,15 +296,15 @@ public class OutgoingConnection {
 				this.isConnected = true;
 				this.isSubscribedToWriteEvent = true;
 			}
+		}
 
-			// We must assume the current envelope is corrupted so we notify the task which created it.
-			if (this.currentEnvelope != null) {
-				this.byteBufferedChannelManager
-					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
-				if (this.currentEnvelope.getBuffer() != null) {
-					this.currentEnvelope.getBuffer().recycleBuffer();
-					this.currentEnvelope = null;
-				}
+		// We must assume the current envelope is corrupted so we notify the task which created it.
+		if (this.currentEnvelope != null) {
+			this.byteBufferedChannelManager
+				.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
+			if (this.currentEnvelope.getBuffer() != null) {
+				this.currentEnvelope.getBuffer().recycleBuffer();
+				this.currentEnvelope = null;
 			}
 		}
 	}
@@ -463,34 +463,6 @@ public class OutgoingConnection {
 	}
 
 	/**
-	 * Removes all queued {@link TransferEnvelope} objects from the transmission which match the given channel ID. The
-	 * flag <code>source</code> states whether the given channel ID refers to the source or the destination channel ID.
-	 * <p>
-	 * This method should only be called by the byte buffered channel manager.
-	 * 
-	 * @param channelID
-	 *        the channel ID to count the queued envelopes for
-	 * @param source
-	 *        <code>true</code> to indicate the given channel ID refers to the source, <code>false</code> otherwise
-	 */
-	public void dropAllQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
-
-		synchronized (this.queuedEnvelopes) {
-
-			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
-			while (it.hasNext()) {
-				final TransferEnvelope te = it.next();
-				if ((source && channelID.equals(te.getSource())) || (!source && channelID.equals(te.getTarget()))) {
-					it.remove();
-					if (te.getBuffer() != null) {
-						te.getBuffer().recycleBuffer();
-					}
-				}
-			}
-		}
-	}
-
-	/**
 	 * Checks whether this outgoing connection object manages an active connection or can be removed by the
 	 * {@link ByteBufferedChannelManager} object.
 	 * <p>
@@ -523,5 +495,29 @@ public class OutgoingConnection {
 	 */
 	public void setSelectionKey(SelectionKey selectionKey) {
 		this.selectionKey = selectionKey;
+	}
+
+	/**
+	 * Returns the number of currently queued envelopes which contain a write buffer.
+	 * 
+	 * @return the number of currently queued envelopes which contain a write buffer
+	 */
+	public int getNumberOfQueuedWriteBuffers() {
+
+		int retVal = 0;
+
+		synchronized (this.queuedEnvelopes) {
+
+			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
+			while (it.hasNext()) {
+
+				final TransferEnvelope envelope = it.next();
+				if (envelope.getBuffer() != null) {
+					++retVal;
+				}
+			}
+		}
+
+		return retVal;
 	}
 }

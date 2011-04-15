@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.io.channels.bytebuffered;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 
 public interface ByteBufferedInputChannelBroker {
@@ -28,6 +30,10 @@ public interface ByteBufferedInputChannelBroker {
 	 * 
 	 * @param event
 	 *        the event to be transferred
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be transmitted
+	 * @throws IOException
+	 *         thrown if an IO error occurs while transferring the event
 	 */
-	void transferEventToOutputChannel(AbstractEvent event);
+	void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException;
 }

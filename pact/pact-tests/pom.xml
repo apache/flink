@@ -59,39 +59,36 @@
       <artifactId>hadoop-core</artifactId>
     </dependency>
 
-
 	<dependency>
 		<groupId>junit</groupId>
 		<artifactId>junit</artifactId>
 		<version>4.7</version>
 		<type>jar</type>
 	</dependency>
+	
 	<dependency>
 		<groupId>org.mockito</groupId>
 		<artifactId>mockito-all</artifactId>
 		<version>1.8.5</version>
 		<type>jar</type>
 	</dependency>
+	
 	<dependency>
 		<groupId>org.powermock</groupId>
 		<artifactId>powermock-module-junit4</artifactId>
 		<version>1.4.7</version>
 		<type>jar</type>
 	</dependency>
+	
 	<dependency>
 		<groupId>org.powermock</groupId>
 		<artifactId>powermock-api-mockito</artifactId>
 		<version>1.4.7</version>
 		<type>jar</type>
 	</dependency>
-	<dependency>
-		<groupId>org.hamcrest</groupId>
-		<artifactId>hamcrest-all</artifactId>
-		<version>1.1</version>
-		<type>jar</type>
-	</dependency>
-  </dependencies>
 
+  </dependencies>
+	
   <reporting>
     <plugins>
     </plugins>
@@ -120,10 +117,6 @@
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<version>2.7</version>
 				<configuration>
-					<excludes>
-						<exclude>**/*9ITCase.class</exclude>
-						<exclude>**/*RuntimeExceptionFailureITCase.class</exclude>
-					</excludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>

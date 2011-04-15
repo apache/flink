@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
@@ -34,7 +49,7 @@ public class MapTaskTest extends TaskTestBase {
 		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		MapTask testTask = new MapTask();
@@ -45,6 +60,7 @@ public class MapTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		Assert.assertTrue(outList.size() == keyCnt*valCnt);
@@ -60,7 +76,7 @@ public class MapTaskTest extends TaskTestBase {
 		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
 		super.addOutput(outList);
 		
 		MapTask testTask = new MapTask();
@@ -80,51 +96,38 @@ public class MapTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testProperMapTaskCanceling() {
+	public void testCancelMapTask() {
 		
 		super.initEnvironment(1);
 		super.addInput(new InfiniteInputIterator());
 		super.addOutput(new NirvanaOutputList());
 		
-		MapTask testTask = new MapTask();
+		final MapTask testTask = new MapTask();
 		
 		super.registerTask(testTask, MockMapStub.class);
 		
-		TaskCancelThread tct = new TaskCancelThread(1, Thread.currentThread(), testTask, true);
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}				
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
 		tct.start();
 		
 		try {
-			testTask.invoke();
-		} catch (Exception ie) {
-			Assert.fail("Task through exception although it was properly canceled");
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
 		}
-	}
-	
-	@Test
-	public void testUnexpectedMapTaskCanceling() {
-		
-		super.initEnvironment(1);
-		super.addInput(new InfiniteInputIterator());
-		super.addOutput(new NirvanaOutputList());
-		
-		MapTask testTask = new MapTask();
-		
-		super.registerTask(testTask, MockMapStub.class);
-		
-		TaskCancelThread tct = new TaskCancelThread(1, Thread.currentThread(), testTask, false);
-		tct.start();
-		
-		boolean taskInterrupted = false;
-		
-		try {
-			testTask.invoke();
-		} catch (InterruptedException ie) {
-			taskInterrupted = true;
-		} catch (Exception ie) {
-			Assert.fail("Task through unexpected exception");
-		}
-		
-		Assert.assertTrue("Unexpected InterruptedException was not forwarded",taskInterrupted);
+				
 	}
 	
 	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {

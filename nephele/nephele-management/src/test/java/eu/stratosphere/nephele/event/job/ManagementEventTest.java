@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.util.ManagementTestUtils;
 
@@ -61,17 +62,18 @@ public class ManagementEventTest {
 	}
 
 	/**
-	 * Tests serialization/deserialization for {@link NewJobEvent}.
+	 * Tests serialization/deserialization for {@link RecentJobEvent}.
 	 */
 	@Test
-	public void testNewJobEvent() {
+	public void testRecentJobEvent() {
 
-		final NewJobEvent orig = new NewJobEvent(new JobID(), JOBNAME, true, TIMESTAMP);
+		final RecentJobEvent orig = new RecentJobEvent(new JobID(), JOBNAME, JobStatus.SCHEDULED, true, TIMESTAMP);
 
-		final NewJobEvent copy = (NewJobEvent) ManagementTestUtils.createCopy(orig);
+		final RecentJobEvent copy = (RecentJobEvent) ManagementTestUtils.createCopy(orig);
 
 		assertEquals(orig.getJobID(), copy.getJobID());
 		assertEquals(orig.getJobName(), copy.getJobName());
+		assertEquals(orig.getJobStatus(), copy.getJobStatus());
 		assertEquals(orig.isProfilingAvailable(), copy.isProfilingAvailable());
 		assertEquals(orig.getTimestamp(), copy.getTimestamp());
 		assertEquals(orig.hashCode(), copy.hashCode());

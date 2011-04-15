@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.ipc;
 
 import java.io.ByteArrayInputStream;
@@ -313,8 +319,7 @@ public abstract class Server {
 						}
 					}
 					if (c.timedOut(currentTime)) {
-						if (LOG.isDebugEnabled())
-							LOG.debug(getName() + ": disconnecting client " + c.getHostAddress());
+						
 						closeConnection(c);
 						numNuked++;
 						end--;
@@ -400,8 +405,6 @@ public abstract class Server {
 			if (key != null) {
 				Connection c = (Connection) key.attachment();
 				if (c != null) {
-					if (LOG.isDebugEnabled())
-						LOG.debug(getName() + ": disconnecting client " + c.getHostAddress());
 					closeConnection(c);
 					c = null;
 				}
@@ -430,9 +433,6 @@ public abstract class Server {
 					connectionList.add(numConnections, c);
 					numConnections++;
 				}
-				if (LOG.isDebugEnabled())
-					LOG.debug("Server connection from " + c.toString() + "; # active connections: " + numConnections
-						+ "; # queued calls: " + callQueue.size());
 			}
 		}
 
@@ -454,9 +454,6 @@ public abstract class Server {
 				count = -1; // so that the (count < 0) block is executed
 			}
 			if (count < 0) {
-				if (LOG.isDebugEnabled())
-					LOG.debug(getName() + ": disconnecting client " + c.getHostAddress()
-						+ ". Number of active connections: " + numConnections);
 				closeConnection(c);
 				c = null;
 			} else {
@@ -528,7 +525,6 @@ public abstract class Server {
 					// If there were some calls that have not been sent out for a
 					// long time, discard them.
 					//
-					LOG.debug("Checking for old call responses.");
 					ArrayList<Call> calls;
 
 					// get the list of channels from list of keys.
@@ -642,9 +638,7 @@ public abstract class Server {
 					//
 					call = responseQueue.removeFirst();
 					SocketChannel channel = call.connection.channel;
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(getName() + ": responding to #" + call.id + " from " + call.connection);
-					}
+					
 					//
 					// Send as much data as we can in the non-blocking fashion
 					//
@@ -658,10 +652,6 @@ public abstract class Server {
 							done = true; // no more data for this channel.
 						} else {
 							done = false; // more calls pending to be sent.
-						}
-						if (LOG.isDebugEnabled()) {
-							LOG.debug(getName() + ": responding to #" + call.id + " from " + call.connection
-								+ " Wrote " + numBytes + " bytes.");
 						}
 					} else {
 						//
@@ -686,10 +676,6 @@ public abstract class Server {
 							} finally {
 								decPending();
 							}
-						}
-						if (LOG.isDebugEnabled()) {
-							LOG.debug(getName() + ": responding to #" + call.id + " from " + call.connection
-								+ " Wrote partial " + numBytes + " bytes.");
 						}
 					}
 					error = false; // everything went off well
@@ -902,8 +888,6 @@ public abstract class Server {
 			DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data.array()));
 			int id = dis.readInt(); // try to read an id
 
-			if (LOG.isDebugEnabled())
-				LOG.debug(" got #" + id);
 
 			IOReadableWritable invocation = newInstance(invocationClass); // read param
 			invocation.read(dis);
@@ -952,9 +936,6 @@ public abstract class Server {
 			while (running) {
 				try {
 					final Call call = callQueue.take(); // pop the queue; maybe blocked here
-
-					if (LOG.isDebugEnabled())
-						LOG.debug(getName() + ": has #" + call.id + " from " + call.connection);
 
 					String errorClass = null;
 					String error = null;
@@ -1148,8 +1129,6 @@ public abstract class Server {
 				break;
 			}
 		}
-
-		LOG.debug("Shutdown of RPC server completed");
 	}
 
 	/**

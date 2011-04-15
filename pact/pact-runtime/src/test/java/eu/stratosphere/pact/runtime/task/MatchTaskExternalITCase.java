@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
@@ -27,23 +42,21 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 	@Test
 	public void testExternalSort1MatchTask() {
 
-		int keyCnt1 = 16384;
+		int keyCnt1 = 16384*2;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 8192;
-		int valCnt2 = 4;
+		int valCnt2 = 4*2;
 		
-		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
+		super.initEnvironment(6*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORTMERGE);
-		super.getTaskConfig().setNumSortBuffer(4);
-		super.getTaskConfig().setSortBufferSize(1);
-		super.getTaskConfig().setMergeFactor(2);
-		super.getTaskConfig().setIOBufferSize(1);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -51,6 +64,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);

@@ -34,7 +34,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 
-public class DefaultMemoryManagerTest {
+public class DefaultMemoryManagerTest
+{
 	public static final long RANDOM_SEED = 643196033469871L;
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 72; // 72 MB

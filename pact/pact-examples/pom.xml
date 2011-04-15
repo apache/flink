@@ -31,7 +31,6 @@
     	<version>${version}</version>
     	<scope>test</scope>
     </dependency>
-    
   </dependencies>
 
   <reporting>
@@ -139,6 +138,54 @@
               </includes>
             </configuration>
           </execution>
+
+		<execution>
+            <id>TPCHQuery4</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery4</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery4</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery4.class</include>
+                <include>**/relational/contracts/tpch4/*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+
+		<execution>
+            <id>TPCHQuery9</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery9</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery9</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery9.class</include>
+                <include>**/relational/contracts/tpch9/*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+	
 
       <!-- TPCHQuery10 -->
           <execution>

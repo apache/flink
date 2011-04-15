@@ -35,11 +35,9 @@ import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Writer;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -61,7 +59,7 @@ public class BufferSortableGuarenteedTest {
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 16;
 
-	private MemoryManager memoryManager;
+	private DefaultMemoryManager memoryManager;
 
 	@SuppressWarnings("unused")
 	private static Level rootLevel, pkqLevel;
@@ -78,13 +76,19 @@ public class BufferSortableGuarenteedTest {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 	}
 
 	@After
 	public void afterTest() {
-		if (memoryManager != null)
-			memoryManager.shutdown();
+		if (!this.memoryManager.verifyEmpty()) {
+			Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
+		}
+		
+		if (this.memoryManager != null) {
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
+		}
 	}
 
 	private BufferSortableGuaranteed<TestData.Key, TestData.Value> newSortBuffer(MemorySegment memory)
@@ -115,13 +119,13 @@ public class BufferSortableGuarenteedTest {
 			int writtenBytes = 0;
 			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
 			while (buffer.write(pair)) {
-				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
+				writtenBytes += generator.sizeOf(pair);
 				writtenPairs++;
 				pair = generator.next();
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
-			position = buffer.position;
+			position = buffer.getPosition();
 			memory = buffer.unbind();
 		}
 		
@@ -129,10 +133,9 @@ public class BufferSortableGuarenteedTest {
 		{
 			Buffer.Input buffer = new Buffer.Input(memory);
 			buffer.reset(position);
-			IntegerRecord rec = new IntegerRecord();
 			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
 				new TestData.Key(), new TestData.Value());
-			while (buffer.read(rec) && buffer.read(pair)) {
+			while (buffer.read(pair)) {
 				readPairs++;
 			}
 			LOG.debug("Read " + readPairs + " pairs from buffer.");
@@ -152,7 +155,7 @@ public class BufferSortableGuarenteedTest {
 		AbstractInvokable memOwner = new DummyInvokable();
 		MemorySegment memory = memoryManager.allocate(memOwner, 1024);
 
-		int writtenPairs = 0, readPairs = 0, position, limit;
+		int writtenPairs = 0, readPairs = 0, limit;
 
 		// write pairs to buffer
 		{
@@ -163,14 +166,13 @@ public class BufferSortableGuarenteedTest {
 			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
 			while (buffer.write(pair)) {
 				LOG.debug("<- " + pair);
-				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
+				writtenBytes += generator.sizeOf(pair);
 				writtenPairs++;
 				pair = generator.next();
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
 				+ " bytes.");
 			limit = buffer.getPosition();
-			position = buffer.position;
 			memory = buffer.unbind();
 		}
 
@@ -179,11 +181,10 @@ public class BufferSortableGuarenteedTest {
 			Buffer.Input buffer = new Buffer.Input(memory);
 			buffer.reset(limit);
 			
-			IntegerRecord rec = new IntegerRecord();
 			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
 				new TestData.Key(), new TestData.Value());
 			
-			while (buffer.read(rec) && buffer.read(pair) && buffer.getPosition() <= position) {
+			while (buffer.read(pair) && buffer.getPosition() <= limit) {
 				LOG.debug("-> " + pair);
 				readPairs++;
 			}
@@ -246,6 +247,8 @@ public class BufferSortableGuarenteedTest {
 
 		// unbind
 		unsortedMemory = unsortedBuffer.unbind();
+		
+		int sortedPos = sortedBuffer.getPosition();
 		sortedMemory = sortedBuffer.dispose();
 
 		// read pairs
@@ -255,7 +258,7 @@ public class BufferSortableGuarenteedTest {
 
 			// read buffer
 			Buffer.Input buffer = new Buffer.Input(sortedMemory);
-			buffer.reset(sortedBuffer.getPosition());
+			buffer.reset(sortedPos);
 			
 			// comparable pairs
 			KeyValuePair<TestData.Key, TestData.Value> pair1 = new KeyValuePair<TestData.Key, TestData.Value>(
@@ -267,8 +270,10 @@ public class BufferSortableGuarenteedTest {
 			while (buffer.read(pair2)) {
 				readPairs++;
 				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
-				pair1 = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(pair2.getKey().getKey()),
-					new TestData.Value(pair2.getValue().getValue()));
+				
+				KeyValuePair<TestData.Key, TestData.Value> tmp = pair1;
+				pair1 = pair2;
+				pair2 = tmp;
 			}
 		}
 

@@ -326,16 +326,13 @@ public class ExecutionGroupVertex {
 			ChannelType channelType, boolean userDefinedChannelType, CompressionLevel compressionLevel,
 			boolean userDefinedCompressionLevel) throws GraphConversionException {
 
-		// First, check if there is already an edge leading to the same group vertex
-		List<ExecutionGroupEdge> edges = this.getForwardEdges(groupVertex);
-		if (edges.size() > 0) {
-			if (channelType != edges.get(0).getChannelType()) {
-				if (userDefinedChannelType) {
-					throw new GraphConversionException("Multiple channels leading from " + getName() + " to "
-						+ groupVertex + " with different different types");
-				} else {
-					// If not user requested, simply overwrite the channelType
-					channelType = edges.get(0).getChannelType();
+		synchronized (this.forwardLinks) {
+
+			if (indexOfOutputGate < this.forwardLinks.size()) {
+				final ExecutionGroupEdge previousEdge = this.forwardLinks.get(indexOfOutputGate);
+				if (previousEdge != null) {
+					throw new GraphConversionException("Output gate " + indexOfOutputGate + " of" + getName()
+						+ " already has an outgoing edge");
 				}
 			}
 		}

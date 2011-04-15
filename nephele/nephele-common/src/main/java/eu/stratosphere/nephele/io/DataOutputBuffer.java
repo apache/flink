@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.io;
 
 import java.io.DataInput;
@@ -159,10 +165,4 @@ public class DataOutputBuffer extends DataOutputStream {
 	public void write(DataInput in, int length) throws IOException {
 		this.byteBufferedOutputStream.write(in, length);
 	}
-
-	/*
-	 * public void writeTo(OutputStream out) throws IOException {
-	 * this.byteBufferedOutputStream.writeTo(out);
-	 * }
-	 */
 }

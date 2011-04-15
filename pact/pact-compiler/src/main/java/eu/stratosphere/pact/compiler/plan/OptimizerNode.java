@@ -144,7 +144,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
 
-	private int memoryPerTask; // the amount of memory dedicated to each task
+	private int memoryPerTask; // the amount of memory dedicated to each task, in MiBytes
 
 	private int id = -1; // the id for this node.
 
@@ -303,7 +303,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return True, if this node contains logic that requires memory usage, false otherwise.
 	 */
-	public abstract boolean isMemoryConsumer();
+	public abstract int getMemoryConsumerCount();
 
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
@@ -442,7 +442,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	/**
 	 * Gets the memory dedicated to each task for this node.
 	 * 
-	 * @return The memory per task.
+	 * @return The memory per task, in MiBytes.
 	 */
 	public int getMemoryPerTask() {
 		return memoryPerTask;

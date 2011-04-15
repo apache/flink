@@ -1335,12 +1335,20 @@ public class ExecutionGraph implements ExecutionListener {
 		case CREATED:
 			if (jobHasScheduledStatus()) {
 				this.jobStatus = InternalJobStatus.SCHEDULED;
+			} else if (latestStateChange == ExecutionState.CANCELED) {
+				if (jobHasFailedOrCanceledStatus()) {
+					this.jobStatus = InternalJobStatus.CANCELED;
+				}
 			}
 			break;
 		case SCHEDULED:
 			if (latestStateChange == ExecutionState.RUNNING) {
 				this.jobStatus = InternalJobStatus.RUNNING;
 				return;
+			} else if (latestStateChange == ExecutionState.CANCELED) {
+				if (jobHasFailedOrCanceledStatus()) {
+					this.jobStatus = InternalJobStatus.CANCELED;
+				}
 			}
 			break;
 		case RUNNING:

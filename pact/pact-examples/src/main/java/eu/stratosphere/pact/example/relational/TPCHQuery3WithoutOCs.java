@@ -226,20 +226,20 @@ private static Logger LOGGER = Logger.getLogger(TPCHQuery3.class);
 			FilterO.class, "FilterO");
 		filterO.setDegreeOfParallelism(degreeOfParallelism);
 		filterO.getCompilerHints().setAvgBytesPerRecord(32);
-		filterO.getCompilerHints().setSelectivity(0.05f);
+		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		MapContract<PactInteger, Tuple, PactInteger, Tuple> projectLi = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
 			ProjectLi.class, "ProjectLi");
 		projectLi.setDegreeOfParallelism(degreeOfParallelism);
 		projectLi.getCompilerHints().setAvgBytesPerRecord(48);
-		projectLi.getCompilerHints().setSelectivity(1.0f);
+		projectLi.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		projectLi.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> joinLiO = new MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple>(
 			JoinLiO.class, "JoinLiO");
 		joinLiO.setDegreeOfParallelism(degreeOfParallelism);
-		joinLiO.getCompilerHints().setSelectivity(0.05f);
+		joinLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(64);
 		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
 
@@ -247,7 +247,7 @@ private static Logger LOGGER = Logger.getLogger(TPCHQuery3.class);
 			AggLiO.class, "AggLio");
 		aggLiO.setDegreeOfParallelism(degreeOfParallelism);
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(64);
-		aggLiO.getCompilerHints().setSelectivity(0.25f);
+		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(

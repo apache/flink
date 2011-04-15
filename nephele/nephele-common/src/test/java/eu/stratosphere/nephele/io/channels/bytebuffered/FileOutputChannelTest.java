@@ -87,8 +87,9 @@ public class FileOutputChannelTest {
 	@Test
 	@PrepareForTest(CompressionLoader.class)
 	public void writeRecordTest() throws IOException, InterruptedException {
-		StringRecord record = new StringRecord("abc");
-		Decompressor decompressorMock = mock(Decompressor.class);
+		
+		final StringRecord record = new StringRecord("abc");
+		final Decompressor decompressorMock = mock(Decompressor.class);
 		this.uncompressedDataBuffer = mock(Buffer.class);
 		BufferPairResponse bufferPair = new BufferPairResponse(this.uncompressedDataBuffer, this.uncompressedDataBuffer);
 		//BufferPairResponse bufferPair = mock(BufferPairResponse.class);
@@ -98,8 +99,9 @@ public class FileOutputChannelTest {
 		when(CompressionLoader.getDecompressorByCompressionLevel(Matchers.any(CompressionLevel.class))).thenReturn(
 			decompressorMock);
 		
-		OutputGate<StringRecord> outGate = mock(OutputGate.class);
-		ByteBufferedOutputChannelBroker outputBroker = mock(ByteBufferedOutputChannelBroker.class);
+		@SuppressWarnings("unchecked")
+		final OutputGate<StringRecord> outGate = mock(OutputGate.class);
+		final ByteBufferedOutputChannelBroker outputBroker = mock(ByteBufferedOutputChannelBroker.class);
 		when(outputBroker.requestEmptyWriteBuffers()).thenReturn(bufferPair);
 		
 		when(this.serializationBuffer.dataLeftFromPreviousSerialization()).thenReturn(true,false,false,true,false);

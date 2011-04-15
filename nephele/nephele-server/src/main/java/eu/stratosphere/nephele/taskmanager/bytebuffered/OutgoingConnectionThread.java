@@ -36,7 +36,7 @@ public class OutgoingConnectionThread extends Thread {
 	/**
 	 * The minimum time a TCP connection must be idle it is closed.
 	 */
-	private static final long MIN_IDLE_TIME_BEFORE_CLOSE = 3000L; // 3 seconds
+	private static final long MIN_IDLE_TIME_BEFORE_CLOSE = 10000L; // 10 seconds
 
 	private static final Log LOG = LogFactory.getLog(OutgoingConnectionThread.class);
 
@@ -47,8 +47,6 @@ public class OutgoingConnectionThread extends Thread {
 	private final Queue<SelectionKey> pendingWriteEventSubscribeRequests = new ArrayDeque<SelectionKey>();
 
 	private final Map<OutgoingConnection, Long> connectionsToClose = new HashMap<OutgoingConnection, Long>();
-
-	private final Object synchronizationObject = new Object();
 
 	public OutgoingConnectionThread() throws IOException {
 		super("Outgoing Connection Thread");
@@ -64,9 +62,10 @@ public class OutgoingConnectionThread extends Thread {
 
 		while (!isInterrupted()) {
 
-			synchronized (this.synchronizationObject) {
+			synchronized (this.pendingConnectionRequests) {
 
 				if (!this.pendingConnectionRequests.isEmpty()) {
+
 					final OutgoingConnection outgoingConnection = this.pendingConnectionRequests.poll();
 					try {
 						final SocketChannel socketChannel = SocketChannel.open();
@@ -74,10 +73,21 @@ public class OutgoingConnectionThread extends Thread {
 						final SelectionKey key = socketChannel.register(this.selector, SelectionKey.OP_CONNECT);
 						socketChannel.connect(outgoingConnection.getConnectionAddress());
 						key.attach(outgoingConnection);
-					} catch (IOException ioe) {
-						outgoingConnection.reportConnectionProblem(ioe);
+					} catch (final IOException ioe) {
+						// IOException is reported by separate thread to avoid deadlocks
+						final Runnable reporterThread = new Runnable() {
+
+							@Override
+							public void run() {
+								outgoingConnection.reportConnectionProblem(ioe);
+							}
+						};
+						new Thread(reporterThread).start();
 					}
 				}
+			}
+
+			synchronized (this.pendingWriteEventSubscribeRequests) {
 
 				if (!this.pendingWriteEventSubscribeRequests.isEmpty()) {
 					final SelectionKey oldSelectionKey = this.pendingWriteEventSubscribeRequests.poll();
@@ -89,10 +99,21 @@ public class OutgoingConnectionThread extends Thread {
 							| SelectionKey.OP_WRITE);
 						newSelectionKey.attach(outgoingConnection);
 						outgoingConnection.setSelectionKey(newSelectionKey);
-					} catch (IOException ioe) {
-						outgoingConnection.reportTransmissionProblem(ioe);
+					} catch (final IOException ioe) {
+						// IOException is reported by separate thread to avoid deadlocks
+						final Runnable reporterThread = new Runnable() {
+
+							@Override
+							public void run() {
+								outgoingConnection.reportTransmissionProblem(ioe);
+							}
+						};
+						new Thread(reporterThread).start();
 					}
 				}
+			}
+
+			synchronized (this.connectionsToClose) {
 
 				final Iterator<Map.Entry<OutgoingConnection, Long>> closeIt = this.connectionsToClose.entrySet()
 					.iterator();
@@ -103,11 +124,20 @@ public class OutgoingConnectionThread extends Thread {
 					if ((entry.getValue().longValue() + MIN_IDLE_TIME_BEFORE_CLOSE) < now) {
 						final OutgoingConnection outgoingConnection = entry.getKey();
 						closeIt.remove();
-						try {
-							outgoingConnection.closeConnection();
-						} catch (IOException ioe) {
-							outgoingConnection.reportTransmissionProblem(ioe);
-						}
+						// Create new thread to close connection to avoid deadlocks
+						final Runnable closeThread = new Runnable() {
+
+							@Override
+							public void run() {
+								try {
+									outgoingConnection.closeConnection();
+								} catch (IOException ioe) {
+									outgoingConnection.reportTransmissionProblem(ioe);
+								}
+							}
+						};
+
+						new Thread(closeThread).start();
 					}
 
 				}
@@ -212,7 +242,7 @@ public class OutgoingConnectionThread extends Thread {
 
 	public void triggerConnect(OutgoingConnection outgoingConnection) {
 
-		synchronized (this.synchronizationObject) {
+		synchronized (this.pendingConnectionRequests) {
 			this.pendingConnectionRequests.add(outgoingConnection);
 		}
 	}
@@ -226,15 +256,17 @@ public class OutgoingConnectionThread extends Thread {
 		newSelectionKey.attach(outgoingConnection);
 		outgoingConnection.setSelectionKey(newSelectionKey);
 
-		synchronized (this.synchronizationObject) {
+		synchronized (this.connectionsToClose) {
 			this.connectionsToClose.put(outgoingConnection, Long.valueOf(System.currentTimeMillis()));
 		}
 	}
 
 	public void subscribeToWriteEvent(SelectionKey selectionKey) {
 
-		synchronized (this.synchronizationObject) {
+		synchronized (this.pendingWriteEventSubscribeRequests) {
 			this.pendingWriteEventSubscribeRequests.add(selectionKey);
+		}
+		synchronized (this.connectionsToClose) {
 			this.connectionsToClose.remove((OutgoingConnection) selectionKey.attachment());
 		}
 

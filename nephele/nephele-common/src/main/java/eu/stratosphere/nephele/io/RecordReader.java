@@ -16,12 +16,10 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
@@ -35,7 +33,6 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be read from this record reader
  */
 
-// FIXME added Writer<T> to make this at least mock-able ... still requires refactoring (en)
 public class RecordReader<T extends Record> implements Reader<T> {
 
 	/**
@@ -307,15 +304,6 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	}
 
 	/**
-	 * Returns the list of InputChannels that feed this RecordReader.
-	 * 
-	 * @return the list of InputChannels that feed this RecordReader
-	 */
-	public List<AbstractInputChannel<T>> getInputChannels() {
-		return this.inputGate.getInputChannels();
-	}
-
-	/**
 	 * Registers a new listener object with the assigned input gate.
 	 * 
 	 * @param inputGateListener
@@ -361,8 +349,10 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 *        the event to be published
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Delegate call to input gate
 		this.inputGate.publishEvent(event);

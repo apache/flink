@@ -123,8 +123,14 @@ public class CrossNode extends TwoInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case NESTEDLOOP_BLOCKED_OUTER_FIRST:   return 1;
+			case NESTEDLOOP_BLOCKED_OUTER_SECOND:  return 1;
+			case NESTEDLOOP_STREAMED_OUTER_FIRST:  return 1;
+			case NESTEDLOOP_STREAMED_OUTER_SECOND: return 1;
+			default:	                           return 0;
+		}
 	}
 
 	/*
@@ -212,13 +218,13 @@ public class CrossNode extends TwoInputNode {
 			this.estimatedNumRecords = -1;
 			if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
 				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-			} else if (pred1.estimatedNumRecords != -1 && pred2.estimatedNumRecords != -1) {
-				if (hints.getSelectivity() > 0.0f) {
-					this.estimatedNumRecords = (long) (pred1.estimatedNumRecords * pred2.estimatedNumRecords * hints
-						.getSelectivity()) + 1;
-				} else {
-					this.estimatedNumRecords = pred1.estimatedNumRecords * pred2.estimatedNumRecords;
-				}
+			} else if (pred1.estimatedNumRecords >= 0 && pred2.estimatedNumRecords >= 0) {
+				
+				// estimate the number of stub calls
+				long estNumStubCalls = pred1.estimatedNumRecords * pred2.estimatedNumRecords;
+				
+				// estimate the number of records
+				this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
 
 				// if we have the records and a values/key hints, use that to reversely estimate the number of keys
 				if (this.estimatedKeyCardinality == -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
@@ -388,12 +394,12 @@ public class CrossNode extends TwoInputNode {
 		boolean isFirst = false;
 
 		if (oc.appliesToFirstInput()) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, ss1);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred1, ss1);
+			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+			lp = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
 			isFirst = true;
 		} else if (oc.appliesToSecondInput()) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, ss2);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred2, ss2);
+			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+			lp = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
 		} else {
 			gp = new GlobalProperties();
 			lp = new LocalProperties();
@@ -429,17 +435,22 @@ public class CrossNode extends TwoInputNode {
 			}
 
 			createCrossAlternative(target, pred1, pred2, ss1, ss2, ls, gp, lp, estimator);
-		} else {
-			if (isFirst) {
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-					gp, lp, estimator);
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-					gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
-			} else {
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-					gp, lp, estimator);
-				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-					gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+		}
+		else {
+			// we generate the streamed nested-loops only, when we have size estimates. otherwise, we generate
+			// only the block nested-loops variants, as they are more robust.
+			if (pred1.getEstimatedOutputSize() > 0 && pred2.getEstimatedOutputSize() > 0) {
+				if (isFirst) {
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+						gp, lp, estimator);
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+				} else {
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+						gp, lp, estimator);
+					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+				}
 			}
 
 			createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST,
@@ -483,8 +494,8 @@ public class CrossNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-		n.getLocalProperties().getPreservedAfterContract(getOutputContract());
+		n.getGlobalProperties().filterByOutputContract(getOutputContract());
+		n.getLocalProperties().filterByOutputContract(getOutputContract());
 
 		// compute the costs
 		estimator.costOperator(n);

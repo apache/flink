@@ -134,8 +134,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
+	public int getMemoryConsumerCount() {
+		return 0;
 	}
 
 	/*
@@ -204,21 +204,21 @@ public class DataSinkNode extends OptimizerNode {
 			i1.getGlobalProperties().setKeyOrder(o);
 
 			// costs are a range partitioning and a local sort
-			estimator.getRangePartitionCost(this, input.getSourcePact(), i1.getMaximalCosts());
+			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
 			Costs c = new Costs();
-			estimator.getLocalSortCost(this, input.getSourcePact(), c);
+			estimator.getLocalSortCost(this, this.input, c);
 			i1.getMaximalCosts().addCosts(c);
 
 			InterestingProperties i2 = new InterestingProperties();
 			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-			estimator.getRangePartitionCost(this, input.getSourcePact(), i2.getMaximalCosts());
+			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
 
 			input.addInterestingProperties(i1);
 			input.addInterestingProperties(i2);
 		} else if (getPactContract().getLocalOrder() != Order.NONE) {
 			InterestingProperties i = new InterestingProperties();
 			i.getLocalProperties().setKeyOrder(getPactContract().getLocalOrder());
-			estimator.getLocalSortCost(this, input.getSourcePact(), i.getMaximalCosts());
+			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
 			input.addInterestingProperties(i);
 		} else {
 			input.setNoInterestingProperties();

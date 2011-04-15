@@ -24,7 +24,7 @@ import eu.stratosphere.pact.common.contract.Order;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class LocalProperties implements Cloneable {
-	private Order keyOrder; // order across all partitions
+	private Order keyOrder; // order inside a partition
 
 	private boolean keysGrouped = false; // flag indicating whether the keys are grouped
 
@@ -117,7 +117,7 @@ public final class LocalProperties implements Cloneable {
 	 *        The output contract.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public boolean getPreservedAfterContract(OutputContract contract) {
+	public boolean filterByOutputContract(OutputContract contract) {
 		boolean nonTrivial = false;
 
 		// check, whether the local order is preserved

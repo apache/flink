@@ -56,6 +56,7 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
@@ -165,9 +166,9 @@ public class TaskManager implements TaskOperationProtocol {
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		// Use discovery service to find the job manager in the network?
-		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,null);
+		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		InetSocketAddress jobManagerAddress = null;
-		if(address == null) {
+		if (address == null) {
 			// Address is null, use discovery manager to determine address
 			LOG.info("Using discovery service to locate job manager");
 			try {
@@ -177,19 +178,19 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		} else {
 			LOG.info("Reading location of job manager from configuration");
-			
+
 			final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-			
+
 			// Try to convert configured address to {@link InetAddress}
 			try {
 				final InetAddress tmpAddress = InetAddress.getByName(address);
 				jobManagerAddress = new InetSocketAddress(tmpAddress, port);
-			} catch(UnknownHostException e) {
+			} catch (UnknownHostException e) {
 				throw new Exception("Failed to locate job manager based on configuration: " + e.getMessage(), e);
 			}
 		}
-		
+
 		LOG.info("Determined address of job manager to be " + jobManagerAddress);
 
 		// Determine interface address that is announced to the job manager
@@ -235,7 +236,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// Start local RPC server
 		Server taskManagerServer = null;
 		try {
-			taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostName(), ipcPort, handlerCount, false);
+			taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostName(), ipcPort, handlerCount);
 			taskManagerServer.start();
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
@@ -301,8 +302,9 @@ public class TaskManager implements TaskOperationProtocol {
 		LOG.info("Initializing memory manager with " + (hardware.getSizeOfFreeMemory() >>> 20) + " megabytes of memory");
 		try {
 			this.memoryManager = new DefaultMemoryManager(hardware.getSizeOfFreeMemory());
-		} catch(RuntimeException rte) {
-			LOG.fatal("Unable to initialize memory manager with " + (hardware.getSizeOfFreeMemory() >>> 20) + " megabytes of memory",rte);
+		} catch (RuntimeException rte) {
+			LOG.fatal("Unable to initialize memory manager with " + (hardware.getSizeOfFreeMemory() >>> 20)
+				+ " megabytes of memory", rte);
 			throw rte;
 		}
 
@@ -367,6 +369,8 @@ public class TaskManager implements TaskOperationProtocol {
 	// This method is called by the RPC server thread
 	private void registerInputChannels(InputGate<? extends Record> eig) throws ChannelSetupException {
 
+		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
+
 		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
 
 			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
@@ -374,9 +378,11 @@ public class TaskManager implements TaskOperationProtocol {
 			if (eic instanceof NetworkInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
 			} else if (eic instanceof FileInputChannel<?>) {
 				this.byteBufferedChannelManager
 					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
 				// Start recovery of the checkpoint
 				this.checkpointManager.recoverChannelCheckpoint(eic.getConnectedChannelID());
 			} else if (eic instanceof InMemoryInputChannel<?>) {
@@ -429,15 +435,19 @@ public class TaskManager implements TaskOperationProtocol {
 	// This method is called by the respective task thread
 	private void unregisterInputChannels(InputGate<? extends Record> eig) {
 
+		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
+
 		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
 			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
 
 			if (eic instanceof NetworkInputChannel<?>) {
 				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());				
 			} else if (eic instanceof FileInputChannel<?>) {
 				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
 			} else if (eic instanceof InMemoryInputChannel<?>) {
 				this.directChannelManager
 					.unregisterDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
@@ -500,6 +510,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Check the status of the task threads to detect unexpected thread terminations
 			checkTaskExecution();
+
+			// Clean up set of canceled channels
+			this.byteBufferedChannelManager.cleanUpCanceledChannelSet();
 		}
 
 		// Shutdown the individual components of the task manager
@@ -532,6 +545,31 @@ public class TaskManager implements TaskOperationProtocol {
 
 			@Override
 			public void run() {
+
+				// Mark all input channels as canceled
+				for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
+					final InputGate<?> inputGate = environment.getInputGate(i);
+					for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+						final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
+						if (inputChannel.getType() != ChannelType.INMEMORY) {
+							// Note that we always use the ID of the source channel
+							byteBufferedChannelManager.markChannelAsCanceled(inputChannel.getConnectedChannelID());
+						}
+					}
+				}
+
+				// Mark all output channels as canceled
+				for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+					final OutputGate<?> outputGate = environment.getOutputGate(i);
+					for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+						final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
+						if (outputChannel.getType() != ChannelType.INMEMORY) {
+							byteBufferedChannelManager.markChannelAsCanceled(outputChannel.getID());
+						}
+					}
+				}
+
+				// Finally, request user code to cancel
 				environment.cancelExecution();
 			}
 		});
@@ -719,8 +757,6 @@ public class TaskManager implements TaskOperationProtocol {
 			this.memoryManager.releaseAll(environment.getInvokable());
 		}
 
-		// TODO: Unregister from IO manager here
-
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
@@ -861,7 +897,7 @@ public class TaskManager implements TaskOperationProtocol {
 	private void checkTaskExecution() {
 
 		final List<Environment> crashEnvironments = new LinkedList<Environment>();
-		
+
 		synchronized (this.runningTasks) {
 
 			final Iterator<ExecutionVertexID> it = this.runningTasks.keySet().iterator();
@@ -872,14 +908,14 @@ public class TaskManager implements TaskOperationProtocol {
 				if (environment.getExecutingThread().getState() == Thread.State.TERMINATED) {
 					// Remove entry from the running tasks map
 					it.remove();
-					//Don't to IPC call while holding a lock on the runningTasks map
+					// Don't to IPC call while holding a lock on the runningTasks map
 					crashEnvironments.add(environment);
 				}
 			}
 		}
-		
+
 		final Iterator<Environment> it2 = crashEnvironments.iterator();
-		while(it2.hasNext()) {
+		while (it2.hasNext()) {
 			it2.next().changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
 		}
 	}
@@ -894,5 +930,14 @@ public class TaskManager implements TaskOperationProtocol {
 		while (it.hasNext()) {
 			this.checkpointManager.removeCheckpoint(it.next());
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logBufferUtilization() throws IOException {
+
+		this.byteBufferedChannelManager.logBufferUtilization();
 	}
 }

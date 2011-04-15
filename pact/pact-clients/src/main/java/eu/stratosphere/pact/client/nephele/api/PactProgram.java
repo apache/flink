@@ -30,6 +30,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.contextcheck.ContextChecker;
 
@@ -68,9 +69,9 @@ public class PactProgram {
 	 */
 	public PactProgram(File jarFile, String... args)
 													throws ProgramInvocationException {
-		this.assemblerClass = getPactAssemblerFromJar(jarFile);
 		this.jarFile = jarFile;
 		this.args = args;
+		this.assemblerClass = getPactAssemblerFromJar(jarFile);
 	}
 
 	/**
@@ -148,7 +149,7 @@ public class PactProgram {
 			return null;
 		}
 	}
-
+	
 	/**
 	 * Returns the File object of the jar file that is used as base for the
 	 * pact program.

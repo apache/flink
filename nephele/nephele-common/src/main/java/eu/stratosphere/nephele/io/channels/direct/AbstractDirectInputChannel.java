@@ -35,7 +35,7 @@ import eu.stratosphere.nephele.types.Record;
 public abstract class AbstractDirectInputChannel<T extends Record> extends AbstractInputChannel<T> {
 
 	private static final Log LOG = LogFactory.getLog(AbstractDirectInputChannel.class);
-	
+
 	/**
 	 * The synchronization object to protect critical sections.
 	 */
@@ -334,6 +334,9 @@ public abstract class AbstractDirectInputChannel<T extends Record> extends Abstr
 		this.numberOfConnectionRetries = numberOfConnectionRetries;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void processEvent(AbstractEvent event) {
 
@@ -345,6 +348,9 @@ public abstract class AbstractDirectInputChannel<T extends Record> extends Abstr
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void transferEvent(AbstractEvent event) throws IOException {
 
@@ -353,5 +359,30 @@ public abstract class AbstractDirectInputChannel<T extends Record> extends Abstr
 		}
 
 		this.connectedInMemoryOutputChannel.processEvent(event);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		synchronized (this.synchronizationMontior) {
+
+			this.closeRequestedByRemote = true;
+
+			if (this.currentWriteBuffer != null) {
+				this.currentWriteBuffer.clear();
+				this.currentWriteBuffer = null;
+			}
+
+			if (this.currentReadBuffer != null) {
+				this.currentReadBuffer.clear();
+				this.currentReadBuffer = null;
+				this.currentReadBufferIsNull = true;
+			}
+
+			this.fullBuffers.clear();
+		}
 	}
 }

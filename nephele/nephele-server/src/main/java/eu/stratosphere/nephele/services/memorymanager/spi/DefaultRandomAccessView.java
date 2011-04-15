@@ -22,7 +22,9 @@ import java.io.IOException;
 import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
+
 public final class DefaultRandomAccessView extends DefaultMemorySegmentView implements RandomAccessView {
+	
 	// --------------------------------------------------------------------
 	// Constructors
 	// --------------------------------------------------------------------
@@ -34,6 +36,15 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 	// --------------------------------------------------------------------
 	// RandomAccessView
 	// --------------------------------------------------------------------
+
+	// ------------------------------------------------------------------------------------------------------
+	// WARNING: Any code for range checking must take care to avoid integer overflows. The position
+	// integer may go up to <code>Integer.MAX_VALUE</tt>. Range checks that work after the principle
+	// <code>position + 3 &lt; end</code> may fail because <code>position + 3</code> becomes negative.
+	// A safe solution is to subtract the delta from the limit, for example
+	// <code>position &lt; end - 3</code>. Since all indices are always positive, and the integer domain
+	// has one more negative value than positive values, this can never cause an underflow.
+	// ------------------------------------------------------------------------------------------------------
 
 	@Override
 	public int size() {
@@ -91,7 +102,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView get(DataOutput out, int offset, int length) throws IOException {
-		if (offset >= 0 && offset < this.size && length >= 0 && length < this.size) {
+		if (offset >= 0 && offset < this.size && length >= 0 && offset + length < this.size) {
 			out.write(this.memory, this.offset + offset, length);
 			return this;
 		} else {

@@ -85,12 +85,16 @@ public abstract class TwoInputNode extends OptimizerNode
 			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
-		this.input1 = new PactConnection(conn1, pred1, this);
-		this.input2 = new PactConnection(conn2, pred2, this);
-
 		this.inputs = new ArrayList<PactConnection>(2);
-		this.inputs.add(input1);
-		this.inputs.add(input2);
+		
+		if(pred1 != null) {
+			this.input1 = new PactConnection(conn1, pred1, this);
+			inputs.add(input1);
+		}
+		if(pred2 != null) {
+			this.input2 = new PactConnection(conn2, pred2, this);
+			inputs.add(input2);
+		}
 
 		// remember the highest node in our sub-plan that branched.
 		this.lastJoinedBranchNode = template.lastJoinedBranchNode;
