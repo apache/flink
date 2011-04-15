@@ -135,7 +135,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 			}
 		}
 		
-		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, aggMap.size() == keyCnt);
 		
 		for (PactInteger integer : aggMap.values()) {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
