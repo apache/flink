@@ -24,6 +24,7 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
@@ -44,17 +45,26 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .This implementation is tested with
  * the DB2 data format.  
- * THe PACT program implements a modified version of the query 3 of 
- * the TPC-H benchmark including one join, some filtering and an
- * aggregation.
+ * This PACT program implements a query on the TPC-H schema 
+ * including one join and an aggregation.
+ * This query is used as example in the Asterix project
+ * (http://asterix.ics.uci.edu/).
  * 
  * SELECT c_mktsegment, COUNT(o_orderkey)
  *   FROM orders, customer
  *   WHERE c_custkey = o_custkey
  * GROUP BY c_mktsegment;
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription {
 
+	/**
+	 * Serializes a PactString,PactInteger key-value-pair into a byte array.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 *
+	 */
 	public static class StringIntOutFormat extends TextOutputFormat<PactString, PactInteger> {
 
 		@Override
@@ -66,16 +76,11 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	}
 	
 	/**
-	 * Map PACT implements the filter on the orders table. The SameKey
-	 * OutputContract is annotated because the key does not change during
-	 * filtering.
-	 *  
+	 * Map PACT implements the projection on the orders table.   
 	 */
 	public static class ProjectOrder extends MapStub<PactInteger, Tuple, PactInteger, PactNull> {
 
 		/**
-	 	 * Does the projection on the Orders table.
-	 	 *  
 	 	 * Output Schema:
 	 	 *  Key: CUSTKEY
 	 	 *  Value: 0:ORDERKEY
@@ -91,7 +96,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 
 
 	/**
-	 * Map PACT implements the projection on the LineItem table. The SameKey
+	 * Map PACT implements the projection on the Customer table. The SameKey
 	 * OutputContract is annotated because the key does not change during
 	 * projection.
 	 *
@@ -100,8 +105,6 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	public static class ProjectCust extends MapStub<PactInteger, Tuple, PactInteger, PactString> {
 
 		/**
-		 * Does the projection on the Customer table.
-		 *
 		 * Output Schema:
 		 *  Key: CUSTOMERKEY
 		 *  Value: 0:MKTSEGMENT
@@ -116,52 +119,44 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * Match PACT realizes the join between Customers and Order table.
+	 * Realizes the join between Customers and Order table.
 	 */
-	public static class JoinCO extends MatchStub<PactInteger, PactNull, PactString, PactString, PactNull> {
+	public static class JoinCO extends MatchStub<PactInteger, PactNull, PactString, PactString, PactInteger> {
 
 		/**
-		 * Implements the join between LineItem and Order table on the 
-		 * order key.
-		 * 
-		 * WHERE c_custkey = o_custkey
-		 * 
 		 * Output Schema:
 		 *  Key: C_MKTSEGMENT
-		 *  Value: 0:ORDERKEY
+		 *  Value: 0:PARTIAL_COUNT=1
 		 */
 		@Override
-		public void match(PactInteger cKey, PactNull oVal, PactString mktSeg, Collector<PactString, PactNull> out) {
+		public void match(PactInteger cKey, PactNull oVal, PactString mktSeg, Collector<PactString, PactInteger> out) {
 
-			out.collect(mktSeg, oVal);
+			out.collect(mktSeg, new PactInteger(1));
 		}
 	}
 
 	/**
 	 * Reduce PACT implements the aggregation of the results. The 
-	 * Combinable annotation is set as the partial sums can be calculated
+	 * Combinable annotation is set as the partial counts can be calculated
 	 * already in the combiner
 	 *
 	 */
-	// @Combinable
-	public static class AggCO extends ReduceStub<PactString, PactNull, PactString, PactInteger> {
+	@Combinable
+	public static class AggCO extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
 
 		/**
-		 * Does the aggregation of the query. 
-		 * 
 		 * Output Schema:
-		 *  Key: ORDERKEY
-		 *  Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
+		 *  Key: C_MKTSEGMENT
+		 *  Value: 0:COUNT
 		 *
 		 */
 		@Override
-		public void reduce(PactString mktSeg, Iterator<PactNull> values, Collector<PactString, PactInteger> out) {
+		public void reduce(PactString mktSeg, Iterator<PactInteger> values, Collector<PactString, PactInteger> out) {
 
 			int count = 0;
 
 			while (values.hasNext()) {
-				count++;
-				values.next();
+				count+=values.next().getValue();
 			}
 
 			out.collect(mktSeg, new PactInteger(count));
@@ -169,29 +164,19 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		}
 
 		/**
-		 * Creates partial sums on the price attribute for each data batch
+		 * Computes partial counts
 		 */
-		/*
 		@Override
-		public void combine(N_IntStringPair oKeyShipPrio, Iterator<Tuple> values, Collector<N_IntStringPair, Tuple> out) {
+		public void combine(PactString mktSeg, Iterator<PactInteger> values, Collector<PactString, PactInteger> out) {
 
-			long partExtendedPriceSum = 0;
+			int partialCount = 0;
 
-			Tuple value = null;
 			while (values.hasNext()) {
-				value = values.next();
-				partExtendedPriceSum += ((long) Double.parseDouble(value.getStringValueAt(2)));
+				partialCount+=values.next().getValue();
 			}
 
-			if (value != null) {
-				value.project(3);
-				value.addAttribute(partExtendedPriceSum + "");
-
-				out.collect(oKeyShipPrio, value);
-			}
-
+			out.collect(mktSeg, new PactInteger(partialCount));
 		}
-		*/
 	}
 
 	/**
@@ -236,13 +221,13 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		projectC.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MatchContract for joining Orders and LineItems
-		MatchContract<PactInteger, PactNull, PactString, PactString, PactNull> joinCO = new MatchContract<PactInteger, PactNull, PactString, PactString, PactNull>(
+		MatchContract<PactInteger, PactNull, PactString, PactString, PactInteger> joinCO = new MatchContract<PactInteger, PactNull, PactString, PactString, PactInteger>(
 			JoinCO.class, "JoinCO");
 		joinCO.setDegreeOfParallelism(noSubtasks);
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceContract for aggregating the result
-		ReduceContract<PactString, PactNull, PactString, PactInteger> aggCO = new ReduceContract<PactString, PactNull, PactString, PactInteger>(
+		ReduceContract<PactString, PactInteger, PactString, PactInteger> aggCO = new ReduceContract<PactString, PactInteger, PactString, PactInteger>(
 			AggCO.class, "AggCo");
 		aggCO.setDegreeOfParallelism(noSubtasks);
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
@@ -262,7 +247,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		projectC.setInput(customers);
 
 		// return the PACT plan
-		return new Plan(result, "TPCH Benchmark");
+		return new Plan(result, "TPCH Asterix");
 	}
 
 	/**
@@ -270,7 +255,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubStasks], [orders], [lineitem], [output]";
+		return "Parameters: [noSubStasks], [orders], [customer], [output]";
 	}
 
 }
