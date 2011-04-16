@@ -19,6 +19,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.MemoryIOWrapper;
@@ -29,12 +30,12 @@ import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemoryBacked;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
@@ -89,17 +90,17 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		
 		public void growStack(int bytes)
 		{
-			stackEndAbs -= bytes;
+			this.stackEndAbs -= bytes;
 		}
 		
 		public int getStackEndRel()
 		{
-			return stackEndAbs - this.offset;
+			return this.stackEndAbs - this.offset;
 		}
 		
 		public int getHeapEndRel()
 		{
-			return position - this.offset;
+			return this.position - this.offset;
 		}
 
 		// -------------------------------------------------------------------------
@@ -113,8 +114,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		
 		public void resetStackHeap()
 		{
-			position = this.offset;
-			stackEndAbs = this.offset + this.size;
+			this.position = this.offset;
+			this.stackEndAbs = this.offset + this.size;
 		}
 
 		// -------------------------------------------------------------------------
@@ -123,7 +124,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public int getPosition() {
-			return position - this.offset;
+			return this.position - this.offset;
 		}
 
 		@Override
@@ -134,13 +135,13 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public DataOutputView skip(int size) {
-			position += size;
+			this.position += size;
 			return this;
 		}
 
 		@Override
 		public DataOutputView reset() {
-			position = this.offset;
+			this.position = this.offset;
 			return this;
 		}
 
@@ -150,8 +151,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void write(int b) throws IOException {
-			if (position < stackEndAbs) {
-				this.memory[position++] = (byte) (b & 0xff);
+			if (this.position < this.stackEndAbs) {
+				this.memory[this.position++] = (byte) (b & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -164,9 +165,9 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
-			if (position < stackEndAbs && position + len <= stackEndAbs && off + len <= b.length) {
-				System.arraycopy(b, off, this.memory, position, len);
-				position += len;
+			if (this.position <= this.stackEndAbs - len && off <= b.length - len) {
+				System.arraycopy(b, off, this.memory, this.position, len);
+				this.position += len;
 			} else {
 				throw new EOFException();
 			}
@@ -174,8 +175,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeBoolean(boolean v) throws IOException {
-			if (position < stackEndAbs) {
-				this.memory[position++] = (byte) (v ? 1 : 0);
+			if (this.position < this.stackEndAbs) {
+				this.memory[this.position++] = (byte) (v ? 1 : 0);
 			} else {
 				throw new EOFException();
 			}
@@ -188,12 +189,12 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeBytes(String s) throws IOException {
-			if (position + s.length() < stackEndAbs) {
+			if (this.position < this.stackEndAbs - s.length()) {
 				int length = s.length();
 				for (int i = 0; i < length; i++) {
 					writeByte(s.charAt(i));
 				}
-				position += length;
+				this.position += length;
 			} else {
 				throw new EOFException();
 			}
@@ -202,9 +203,9 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		@Override
 		public void writeChar(int v) throws IOException {
 
-			if (position + 1 < stackEndAbs) {
-				this.memory[position++] = (byte) ((v >> 8) & 0xff);
-				this.memory[position++] = (byte) ((v >> 0) & 0xff);
+			if (this.position < this.stackEndAbs - 1) {
+				this.memory[this.position++] = (byte) ((v >> 8) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -213,7 +214,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		@Override
 		public void writeChars(String s) throws IOException {
 
-			if (position + 2 * s.length() < stackEndAbs) {
+			if (this.position < this.stackEndAbs - 2 * s.length()) {
 				int length = s.length();
 				for (int i = 0; i < length; i++) {
 					writeChar(s.charAt(i));
@@ -236,11 +237,11 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeInt(int v) throws IOException {
-			if (position + 3 < stackEndAbs) {
-				this.memory[position++] = (byte) ((v >> 24) & 0xff);
-				this.memory[position++] = (byte) ((v >> 16) & 0xff);
-				this.memory[position++] = (byte) ((v >> 8) & 0xff);
-				this.memory[position++] = (byte) ((v >> 0) & 0xff);
+			if (this.position < this.stackEndAbs - 3) {
+				this.memory[this.position++] = (byte) ((v >> 24) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 16) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 8) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -248,15 +249,15 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeLong(long v) throws IOException {
-			if (position + 7 < stackEndAbs) {
-				this.memory[position++] = (byte) ((v >> 56) & 0xff);
-				this.memory[position++] = (byte) ((v >> 48) & 0xff);
-				this.memory[position++] = (byte) ((v >> 40) & 0xff);
-				this.memory[position++] = (byte) ((v >> 32) & 0xff);
-				this.memory[position++] = (byte) ((v >> 24) & 0xff);
-				this.memory[position++] = (byte) ((v >> 16) & 0xff);
-				this.memory[position++] = (byte) ((v >> 8) & 0xff);
-				this.memory[position++] = (byte) ((v >> 0) & 0xff);
+			if (this.position < this.stackEndAbs - 7) {
+				this.memory[this.position++] = (byte) ((v >> 56) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 48) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 40) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 32) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 24) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 16) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 8) & 0xff);
+				this.memory[this.position++] = (byte) ((v >> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -264,9 +265,9 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 		@Override
 		public void writeShort(int v) throws IOException {
-			if (position + 1 < stackEndAbs) {
-				this.memory[position++] = (byte) ((v >>> 8) & 0xff);
-				this.memory[position++] = (byte) ((v >>> 0) & 0xff);
+			if (this.position < this.stackEndAbs - 1) {
+				this.memory[this.position++] = (byte) ((v >>> 8) & 0xff);
+				this.memory[this.position++] = (byte) ((v >>> 0) & 0xff);
 			} else {
 				throw new EOFException();
 			}
@@ -291,7 +292,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 			}
 
 			if (utflen > 65535)
-				throw new UTFDataFormatException("encoded string too long: " + utflen + " memory");
+				throw new UTFDataFormatException("Encoded string is too long: " + utflen);
 
 			byte[] bytearr = new byte[utflen + 2];
 
@@ -325,19 +326,19 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		}
 	}
 
-	/**
-	 * Position in the underlying memory.
-	 */
-	protected int position;
-	
 	// ------------------------------------------------------------------------
-	// Buffer management
+	//                              Constants
 	// ------------------------------------------------------------------------
+
+	private static final int OFFSET_LEN = 4;
 	
-	private HeapStackDataOutputView outputView;
+	private static final int OFFSET_POSITION_LEN = 4; // bytes per offset
+	
+	private static final int STACK_ENTRY_SIZE = OFFSET_LEN + OFFSET_POSITION_LEN;
+	
 
 	// ------------------------------------------------------------------------
-	// Serialization / Deserialization
+	//                               Members
 	// ------------------------------------------------------------------------
 
 	private final MemoryIOWrapper memoryWrapper;
@@ -355,31 +356,22 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	private final Deserializer<K> keyDeserializer;
 
 	private final Deserializer<V> valDeserializer;
-
-	// ------------------------------------------------------------------------
-	// Key/Value accounting
-	// ------------------------------------------------------------------------
-
-	private static final int KEY_LEN = 4,  VAL_LEN = 4; // integers
 	
-	private static final int KEY_START = 0; // key offset in acct
-
-	private static final int VAL_START = 4; // value offset in acct
-
-	private static final int INDEX_ENTRY_SIZE = KEY_LEN + VAL_LEN; // acct bytes per record
+	private HeapStackDataOutputView outputView;
 	
-	private static final int OFFSET_ENTRY_SIZE = 4; // bytes per offset
+	private RandomAccessView randomAccessView;
 	
-	private static final int STACK_ENTRY_SIZE = INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE;
+	private int position;
 	
-	private int pairsCount = 0;
+	private int pairsCount;
 
 	// -------------------------------------------------------------------------
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	public BufferSortableGuaranteed(MemorySegment memory, RawComparator comparator, SerializationFactory<K> keySerialization,
-			SerializationFactory<V> valSerialization) {
+	public BufferSortableGuaranteed(MemorySegment memory, RawComparator comparator,
+			SerializationFactory<K> keySerialization, SerializationFactory<V> valSerialization)
+	{
 		super();
 
 		// serialization
@@ -410,8 +402,9 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	public boolean bind(MemorySegment memory) {
 		if (super.bind(memory)) {
 			
-			outputView = new HeapStackDataOutputView(memory.randomAccessView.getBackingArray(),
+			this.outputView = new HeapStackDataOutputView(memory.randomAccessView.getBackingArray(),
 				memory.randomAccessView.translateOffset(0), memory.randomAccessView.size());
+			this.randomAccessView = memory.randomAccessView;
 
 			// reset counters
 			reset();
@@ -424,19 +417,25 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	public void reset() {
 		try {
 			// memory segment
-			outputView.reset();
+			this.outputView.reset();
 
 			// buffer
-			position = 0;
-			pairsCount = 0;
+			this.position = 0;
+			this.pairsCount = 0;
 
 			// serialization
-			keySerializer.open(outputView);
-			valSerializer.open(outputView);
+			this.keySerializer.open(this.outputView);
+			this.valSerializer.open(this.outputView);
+			
+			// deserialization
+			this.keyDeserializer.open(this.memory.inputView);
+			this.valDeserializer.open(this.memory.inputView);
+
 
 			// accounting
-			outputView.resetStackHeap();
-		} catch (IOException iex) {
+			this.outputView.resetStackHeap();
+		}
+		catch (IOException iex) {
 			throw new RuntimeException(iex);
 		}
 	}
@@ -445,68 +444,45 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	// Buffering
 	// -------------------------------------------------------------------------
 
-	protected boolean isEmpty() {
-		return outputView.getPosition() == 0;
+	public boolean isEmpty() {
+		return this.outputView.getPosition() == 0;
 	}
 
 	public int getPosition() {
-		return position;
+		return this.position;
+	}
+	
+	public int getCapacity() {
+		return this.outputView.getSize();
+	}
+	
+	public int getOccupancy() {
+		return this.outputView.getPosition() + (this.pairsCount * STACK_ENTRY_SIZE);
 	}
 
 	// -------------------------------------------------------------------------
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
 
-	/**
-	 * Gets the key at the specified position.
-	 * 
-	 * @param position
-	 *        The position of the value.
-	 * @return The key.
-	 * @throws IOException
-	 *         Thrown, if the deserialization causes an exception.
-	 * @throws ArrayIndexOutOfBoundsException
-	 *         If the position is negative or if it is larger or equal to
-	 *         the number of key/value pairs in the buffer.
-	 */
-	public K getKey(int position) throws IOException {
-		keyDeserializer.open(memory.inputView);
+
+	public void getKey(K target, int logicalPosition) throws IOException
+	{
+		final int physicalPosition = readOffsetPosition(logicalPosition);
+		final int keyStart = readPairOffset(physicalPosition);
+		this.memory.inputView.setPosition(keyStart);
 		
-		int offset = readOffset(position);
-		int keyStart = readIndexKeyAbs(offset);
-
-		K key = keySerialization.newInstance();
-
-		memory.inputView.setPosition(keyStart);
-		keyDeserializer.deserialize(key);
-
-		return key;
+		this.keyDeserializer.deserialize(target);
 	}
+	
 
-	/**
-	 * Gets the value at the specified position.
-	 * 
-	 * @param position
-	 *        The position of the value.
-	 * @return The value.
-	 * @throws IOException
-	 *         Thrown, if the deserialization causes an exception.
-	 * @throws ArrayIndexOutOfBoundsException
-	 *         If the position is negative or if it is larger or equal to
-	 *         the number of key/value pairs in the buffer.
-	 */
-	public V getValue(int position) throws IOException {
-		valDeserializer.open(memory.inputView);
-
-		int offset = readOffset(position);
-		int valStart = readIndexValueAbs(offset);
-
-		V val = valSerialization.newInstance();
-
-		memory.inputView.setPosition(valStart);
-		valDeserializer.deserialize(val);
-
-		return val;
+	public void getKeyValuePair(KeyValuePair<K, V> target, int logicalPosition) throws IOException
+	{
+		final int physicalPosition = readOffsetPosition(logicalPosition);
+		final int keyStart = readPairOffset(physicalPosition);
+		this.memory.inputView.setPosition(keyStart);
+		
+		this.keyDeserializer.deserialize(target.getKey());
+		this.valDeserializer.deserialize(target.getValue());
 	}
 
 	/**
@@ -517,45 +493,33 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	 * @throws IOException
 	 * @throws UnboundMemoryBackedException
 	 */
-	public boolean write(Pair<K, V> pair) {
+	public boolean write(KeyValuePair<K, V> pair) {
 		try {
-			/* 1. WRITE PAIR */
-			// reserve 4 bytes for length
-			outputView.skip(4);
-
-			// serialize key bytes into buffer
-			final int keystart = outputView.getPosition();
-			keySerializer.serialize(pair.getKey());
-
-			// serialize value bytes into buffer
-			final int valstart = outputView.getPosition();
-			valSerializer.serialize(pair.getValue());
+			// 1) serialize pair bytes into buffer
+			final int offset = this.outputView.getPosition();
+			this.keySerializer.serialize(pair.getKey());
+			this.valSerializer.serialize(pair.getValue());
 			
-			// serialize object length
-			memory.randomAccessView.putInt(position, outputView.getPosition() - position - 4);
-			
-			/* 2. INSERT INDEX AND OFFSET */
-			// a. precheck heap size
-			final int free = outputView.getStackEndRel() - outputView.getHeapEndRel();
+			// 2) INSERT INDEX AND OFFSET
+			// a. check heap size
+			final int free = this.outputView.getStackEndRel() - this.outputView.getHeapEndRel();
 			if(free < STACK_ENTRY_SIZE)
 			{
 				return false;
 			}
 			
-			// b. write index (pointer into segment)
-			outputView.growStack(INDEX_ENTRY_SIZE); // 8
-			// TODO replace with direct access to outputView.descriptor.memory (en)
-			memory.randomAccessView.putInt(outputView.getStackEndRel() + KEY_START, keystart);
-			memory.randomAccessView.putInt(outputView.getStackEndRel() + VAL_START, valstart);
+			// b. write offset (pointer into segment)
+			this.outputView.growStack(OFFSET_LEN);
+			this.memory.randomAccessView.putInt(this.outputView.getStackEndRel(), offset);
 
-			// c. write offset (pointer to index)
-			final int offset = outputView.getStackEndRel();
-			outputView.growStack(OFFSET_ENTRY_SIZE); // 4
-			memory.randomAccessView.putInt(outputView.getStackEndRel(), offset);
+			// c. write physical position (pointer to offset)
+			final int physicalPos = outputView.getStackEndRel();
+			this.outputView.growStack(OFFSET_POSITION_LEN);
+			this.memory.randomAccessView.putInt(this.outputView.getStackEndRel(), physicalPos);
 
-			/* 3. UPDATE WRITE POSITION */
-			pairsCount++;
-			position = outputView.getPosition();
+			// 3). UPDATE WRITE POSITION
+			this.pairsCount++;
+			this.position = this.outputView.getPosition();
 			
 			return true;
 		} catch (IOException e) {
@@ -563,70 +527,62 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		}
 	}
 	
-	private final int readIndexKeyAbs(int absPosition)
+	// ------------------------------------------------------------------------
+	
+	private final int readPairOffset(int physicalOffsetPosition)
 	{
-		return memory.randomAccessView.getInt(absPosition);
+		return memory.randomAccessView.getInt(physicalOffsetPosition);
 	}
 	
-	private final int readIndexValueAbs(int absPosition)
+	private final void writeOffsetPosition(int logicalPosition, int offset)
 	{
-		return memory.randomAccessView.getInt(absPosition + KEY_LEN);
+		final int stackoffset = (logicalPosition + 1) * STACK_ENTRY_SIZE;
+		final int memoryoffset = this.outputView.getSize() - stackoffset;
+		this.randomAccessView.putInt(memoryoffset, offset);
 	}
 	
-	private final void writeOffset(int position, int offset)
+	private final int readOffsetPosition(int logicalPosition)
 	{
-		final int stackoffset = position * (INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE) + INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE;
-		final int memoryoffset = outputView.getSize() - stackoffset;
-		memory.randomAccessView.putInt(memoryoffset, offset);
-	}
-	
-	private final int readOffset(int position)
-	{
-		final int stackoffset = position * (INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE) + INDEX_ENTRY_SIZE + OFFSET_ENTRY_SIZE;
-		final int memoryoffset = outputView.getSize() - stackoffset;
-		return memory.randomAccessView.getInt(memoryoffset);
+		final int stackoffset = (logicalPosition + 1) * STACK_ENTRY_SIZE;
+		final int memoryoffset = this.outputView.getSize() - stackoffset;
+		return this.randomAccessView.getInt(memoryoffset);
 	}
 
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Writes this buffer completely to the given writer.
 	 * 
-	 * @param writer
-	 *        The writer to write the segment to.
-	 * @throws IOException
-	 *         Thrown, if the writer caused an I/O exception.
+	 * @param writer The writer to write the segment to.
+	 * @throws IOException Thrown, if the writer caused an I/O exception.
 	 */
-	public void writeToChannel(Writer writer) throws IOException {
+	public void writeToChannel(final Writer writer) throws IOException {
 		if (!isBound()) {
 			new UnboundMemoryBackedException();
 		}
 
-		final MemoryIOWrapper memoryWrapper = new MemoryIOWrapper(memory);
+		final MemoryIOWrapper memoryWrapper = new MemoryIOWrapper(this.memory);
 
 		// write according to index
-		for (int i = 0; i < size(); i++) {
-			// offset to index element
-			int offset = readOffset(i);
+		for (int i = 0; i < size(); i++)
+		{
+			int offsetPosition = readOffsetPosition(i);
 
 			// start and end within memory segment
-			int kvstart = readIndexKeyAbs(offset);
+			int kvstart = readPairOffset(offsetPosition);
 			int kvend = 0;
 			
 			// for the last pair there is no next pair
-			if(offset - STACK_ENTRY_SIZE > outputView.getStackEndRel())
-			{	
+			if(offsetPosition - STACK_ENTRY_SIZE > this.outputView.getStackEndRel()) {
 				// -> kvend = kvstart of next pair
-				// -> 4 = kv-length -> see write(...)
-				kvend = readIndexKeyAbs(offset-STACK_ENTRY_SIZE) - 4;
+				kvend = readPairOffset(offsetPosition - STACK_ENTRY_SIZE);
 			}
-			else
-			{
-				kvend = position;
+			else {
+				kvend = this.position;
 			}
-
-			// length of serialized pair
-			final int kvlength = kvend - kvstart;
 
 			// set offset within memory segment
+			final int kvlength = kvend - kvstart;
 			memoryWrapper.setIOBlock(kvstart, kvlength);
 
 			// copy serialized pair to writer
@@ -637,41 +593,32 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	/**
 	 * Writes a series of key/value pairs in this buffer to the given writer.
 	 * 
-	 * @param writer
-	 *        The writer to write the pairs to.
-	 * @param start
-	 *        The position (logical number) of the first pair that is written.
-	 * @param num
-	 *        The number of pairs to be written.
-	 * @throws IOException
-	 *         Thrown, if the writer caused an I/O exception.
+	 * @param writer The writer to write the pairs to.
+	 * @param start The position (logical number) of the first pair that is written.
+	 * @param num The number of pairs to be written.
+	 * @throws IOException Thrown, if the writer caused an I/O exception.
 	 */
-	public void writeToChannel(Writer writer, int start, int num) throws IOException {
+	public void writeToChannel(final Writer writer, final int start, final int num) throws IOException {
 		// write according to index
 		for (int i = start; i < start + num; i++) {
 			// offset to index element
-			int offset = readOffset(i);
+			int offsetPosition = readOffsetPosition(i);
 
 			// start and end within memory segment
-			int kvstart = readIndexKeyAbs(offset);
+			int kvstart = readPairOffset(offsetPosition);
 			int kvend = 0;
 			
 			// for the last pair there is no next pair
-			if(offset - STACK_ENTRY_SIZE > outputView.getStackEndRel())
-			{	
+			if(offsetPosition - STACK_ENTRY_SIZE > this.outputView.getStackEndRel()) {
 				// -> kvend = kvstart of next pair
-				// -> 4 = kv-length -> see write(...)
-				kvend = readIndexKeyAbs(offset-STACK_ENTRY_SIZE) - 4;
+				kvend = readPairOffset(offsetPosition - STACK_ENTRY_SIZE);
 			}
-			else
-			{
-				kvend = position;
+			else {
+				kvend = this.position;
 			}
-
-			// length of serialized pair
-			final int kvlength = kvend - kvstart;
 
 			// set offset within memory segment
+			final int kvlength = kvend - kvstart;
 			memoryWrapper.setIOBlock(kvstart, kvlength);
 
 			// copy serialized pair to writer
@@ -684,88 +631,72 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	// -------------------------------------------------------------------------
 
 	@Override
-	public int compare(int i, int j) {
+	public int compare(int i, int j)
+	{
+		final byte[] backingArray = this.randomAccessView.getBackingArray();
+		
 		// offsets into index
-		final int offseti = readOffset(i);
-		final int offsetj = readOffset(j);
+		final int offsetPositionI = readOffsetPosition(i);
+		final int offsetPositionJ = readOffsetPosition(j);
 		
-		// key i
-		final int indexi = readIndexKeyAbs(offseti);
-		final int lengthi = readIndexValueAbs(offseti) - indexi;
+		// starts of keys
+		final int indexI = readPairOffset(offsetPositionI);
+		final int indexJ = readPairOffset(offsetPositionJ);
 		
-		byte[] keyi = new byte[lengthi];
-		memory.randomAccessView.get(indexi, keyi);
-		
-		// key j
-		final int indexj = readIndexKeyAbs(offsetj);
-		final int lengthj = readIndexValueAbs(offsetj) - indexj;
-
-		byte[] keyj = new byte[lengthj];
-		memory.randomAccessView.get(indexj, keyj);
-
-		// sort by key
-		return comparator.compare(keyi, keyj, 0, 0, keyi.length, keyj.length);
+		return comparator.compare(backingArray, backingArray, 
+			this.randomAccessView.translateOffset(indexI),
+			this.randomAccessView.translateOffset(indexJ));
 	}
 
 	@Override
 	public void swap(int i, int j) {
-		int offseti = readOffset(i);
-		int offsetj = readOffset(j);
-		writeOffset(i, offsetj);
-		writeOffset(j, offseti);
+		int offseti = readOffsetPosition(i);
+		int offsetj = readOffsetPosition(j);
+		writeOffsetPosition(i, offsetj);
+		writeOffsetPosition(j, offseti);
 	}
 
 	@Override
-	public int size() {
-		return pairsCount;
+	public int size()
+	{
+		return this.pairsCount;
 	}
 
-	public Iterator<KeyValuePair<K, V>> getIterator() {
+	public final Iterator<KeyValuePair<K, V>> getIterator() {
 
 		return new Iterator<KeyValuePair<K, V>>() {
 
-			int current = 0;
+			private final int size = size();
+			private int current = 0;
 
 			@Override
 			public boolean hasNext() {
-				if (current < size()) {
-					return true;
-				} else {
-					return false;
-				}
+				return this.current < this.size;
 			}
 
 			@Override
 			public KeyValuePair<K, V> next() {
+				if (!hasNext()) {
+					throw new NoSuchElementException();
+				}
+				
 				try {
-					keyDeserializer.open(memory.inputView);
-					valDeserializer.open(memory.inputView);
+					final K key = keySerialization.newInstance();
+					final V val = valSerialization.newInstance();
+					final KeyValuePair<K, V> pair = new KeyValuePair<K, V>(key, val);
 
-					int index = readOffset(current);
-					int keyStart = readIndexKeyAbs(index);
-					int valStart = readIndexValueAbs(index);
+					getKeyValuePair(pair, this.current++);
 
-					K key = keySerialization.newInstance();
-					V val = valSerialization.newInstance();
-
-					memory.inputView.setPosition(keyStart);
-					keyDeserializer.deserialize(key);
-
-					memory.inputView.setPosition(valStart);
-					valDeserializer.deserialize(val);
-
-					current++;
-
-					return new KeyValuePair<K, V>(key, val);
-
-				} catch (IOException ioe) {
+					return pair;
+				}
+				catch (IOException ioe) {
 					throw new RuntimeException(ioe);
 				}
 			}
 
 			@Override
 			public void remove() {
-
+				throw new UnsupportedOperationException();
 			}
 		};
 	}
