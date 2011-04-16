@@ -123,7 +123,8 @@ public final class KeyGroupedIterator<K extends Key, V extends Value> {
 		return valuesIterator;
 	}
 
-	private final class ValuesIterator implements Iterator<V> {
+	private final class ValuesIterator implements Iterator<V>
+	{
 		private boolean nextIsUnconsumed = false;
 
 		@Override
