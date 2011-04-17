@@ -180,7 +180,9 @@ public class UnilateralSortMergerITCase {
 			pairsEmitted++;
 			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
 			if (pair1 != null && pair2 != null) {
-				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
+				if (keyComparator.compare(pair1.getKey(), pair2.getKey()) > 0) {
+					Assert.fail();
+				}
 			}
 			pair1 = pair2;
 		}
