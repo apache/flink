@@ -39,7 +39,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -389,7 +388,7 @@ public class BufferSortableGuarenteedTest {
 				{
 					throw new IllegalStateException();
 				}
-				Pair<TestData.Key, TestData.Value> pair = iter.next();
+				KeyValuePair<TestData.Key, TestData.Value> pair = iter.next();
 				Assert.assertEquals(i, pair.getKey().getKey());
 			}
 			

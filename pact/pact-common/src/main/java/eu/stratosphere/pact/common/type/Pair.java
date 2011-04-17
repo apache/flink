@@ -16,18 +16,12 @@
 package eu.stratosphere.pact.common.type;
 
 /**
- * Container for a pair consisting of a {@link eu.stratosphere.pact.common.type.Key} and 
- * a {@link eu.stratosphere.pact.common.type.Value} object. 
+ * Merged and replaced by KeyValuePair.
  * 
- * @see eu.stratosphere.pact.common.type.Key
- * @see eu.stratosphere.pact.common.type.Value
- * 
- * @param <K> Type of the pair's key element.
- * @param <V> Type of the pair's value element.
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * Will soon be removed.
  */
-public class Pair<K extends Key, V extends Value> {
+@Deprecated
+public class Pair<K extends Key, V extends Value>  {
 	
 	// key object
 	protected K key;
