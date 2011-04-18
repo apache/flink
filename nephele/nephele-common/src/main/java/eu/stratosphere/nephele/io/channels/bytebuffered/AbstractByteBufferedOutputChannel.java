@@ -51,7 +51,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private boolean closeRequested = false;
 
 	/**
-	 * Stores whether the channel has received the acknowledgement
+	 * Stores whether the channel has received the acknowledgment
 	 * for the close request from its connected input channel.
 	 */
 	private boolean closeAcknowledgementReceived = false;
@@ -133,7 +133,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
-			transferEvent(new ByteBufferedChannelCloseEvent());
+			
+			if(!isBroadcastChannel() || getChannelIndex() == 0) {
+				transferEvent(new ByteBufferedChannelCloseEvent());
+			}
 		}
 	}
 
