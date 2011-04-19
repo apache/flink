@@ -62,7 +62,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class All2AllSP implements PlanAssembler, PlanAssemblerDescription {
+public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 
 	/**
 	 * Simple extension of PactPair to hold two nodes represented as strings.
