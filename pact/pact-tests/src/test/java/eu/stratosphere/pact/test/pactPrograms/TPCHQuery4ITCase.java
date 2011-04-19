@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
-import eu.stratosphere.pact.example.relational.TPCHQuery4;
+import eu.stratosphere.pact.test.testPrograms.tpch4.TPCHQuery4;
 import eu.stratosphere.pact.test.util.TestBase;
 
 /**

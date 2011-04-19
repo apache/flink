@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational.contracts.tpch1;
+package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import java.util.Iterator;
 

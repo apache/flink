@@ -12,42 +12,39 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational.contracts.tpch9;
-
+package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import org.apache.log4j.Logger;
 
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.base.*;
-import eu.stratosphere.pact.example.relational.types.tpch9.*;
+import eu.stratosphere.pact.example.relational.util.Tuple;
 
+public class PartJoin extends MatchStub<PactInteger, PactNull, Tuple, IntPair, PactString> {
 
-public class PartListJoin extends MatchStub<PactInteger, StringIntPair, PactString, StringIntPair, PactString> {
-	
-	private static Logger LOGGER = Logger.getLogger(PartListJoin.class);
+	private static Logger LOGGER = Logger.getLogger(PartJoin.class);
 	
 	/**
-	 * Join "filteredParts" and "suppliers" by "suppkey".
+	 * Join "part" and "partsupp" by "partkey".
 	 * 
 	 * Output Schema:
-	 *  Key: (nation, year)
-	 *  Value: amount
+	 *  Key: (partkey, suppkey)
+	 *  Value: supplycost
 	 *
 	 */
 	@Override
-	public void match(PactInteger suppKey, StringIntPair amountYearPair, PactString nationName,
-			Collector<StringIntPair, PactString> output) {
+	public void match(PactInteger partKey, PactNull dummy, Tuple partSuppValue,
+			Collector<IntPair, PactString> output) {
 		
 		try {
-			PactInteger year = amountYearPair.getSecond();
-			PactString amount = amountYearPair.getFirst();
-			StringIntPair key = new StringIntPair(nationName, year);
-			output.collect(key, amount);
-		} catch (final Exception ex) {
-			LOGGER.error(ex);
+			IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(0))));
+			String supplyCost = partSuppValue.getStringValueAt(1);
+		
+			output.collect(newKey, new PactString(supplyCost));
+		} catch(Exception e) {
+			LOGGER.error(e);
 		}
-
 	}
 
 }

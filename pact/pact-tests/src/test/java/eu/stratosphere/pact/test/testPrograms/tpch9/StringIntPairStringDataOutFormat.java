@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2011 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,15 +12,19 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational;
 
-/**
- * Small base class for the tpc-h queries.
- * 
- * 
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- *
- */
-public class TPCHBase {
+package eu.stratosphere.pact.test.testPrograms.tpch9;
+
+import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.base.PactString;
+
+public class StringIntPairStringDataOutFormat extends TextOutputFormat<StringIntPair, PactString> {
+
+	@Override
+	public byte[] writeLine(KeyValuePair<StringIntPair, PactString> pair) {
+		StringIntPair key = pair.getKey();
+		return (key.getFirst().toString() + "|" + key.getSecond().toString() + "|" + pair.getValue().toString() + "\n").getBytes();
+	}
 
 }

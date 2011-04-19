@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational;
+package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import org.apache.log4j.Logger;
 
@@ -28,20 +28,6 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.AmountAggregate;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.FilteredPartsJoin;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.LineItemMap;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.OrderMap;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.OrderedPartsJoin;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.PartFilter;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.PartJoin;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.PartListJoin;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.PartsuppMap;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.StringIntPairStringDataOutFormat;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.SupplierMap;
-import eu.stratosphere.pact.example.relational.contracts.tpch9.SuppliersJoin;
-import eu.stratosphere.pact.example.relational.types.tpch9.IntPair;
-import eu.stratosphere.pact.example.relational.types.tpch9.StringIntPair;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 

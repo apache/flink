@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational.contracts.tpch9;
+package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 
 import java.util.Iterator;
@@ -20,8 +20,6 @@ import java.util.Iterator;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.base.*;
-import eu.stratosphere.pact.example.relational.types.tpch9.*;
-
 
 public class AmountAggregate extends ReduceStub<StringIntPair, PactString, StringIntPair, PactString> {
 	

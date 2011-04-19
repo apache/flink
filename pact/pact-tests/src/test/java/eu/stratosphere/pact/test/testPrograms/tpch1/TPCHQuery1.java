@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational;
+package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import org.apache.log4j.Logger;
 
@@ -25,8 +25,6 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.contracts.tpch1.GroupByReturnFlag;
-import eu.stratosphere.pact.example.relational.contracts.tpch1.LineItemFilter;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
