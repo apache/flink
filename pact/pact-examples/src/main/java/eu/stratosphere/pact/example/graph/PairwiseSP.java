@@ -47,10 +47,10 @@ import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
- * Implementation of the All-2-All Shortest Path example PACT program.
+ * Implementation of the Pairwise Shortest Path example PACT program.
  * The program implements on iteration of the algorithm and must be run multiple times until no changes are computed.
  * 
- * The all-2-all shortest path algorithm comes from the domain graph problems. The goal is to find all shortest paths
+ * The pairwise shortest path algorithm comes from the domain graph problems. The goal is to find all shortest paths
  * between any two transitively connected nodes in a graph. In this implementation edges are interpreted as directed and weighted.
  * 
  * For the first iteration, the program allows two input formats.
@@ -295,7 +295,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Reads RDF triples and filters on the foaf:knows RDF predicate. The triples elements must be separated by whitespaces.
 	 * The foaf:knows RDF predicate indicates that the RDF subject knows the object (typically of type foaf:person).
-	 * The connections between people are extracted and handles as graph edges. For the All-2-All Shortest Path algorithm the 
+	 * The connections between people are extracted and handles as graph edges. For the Pairwise Shortest Path algorithm the 
 	 * connection is interpreted as a directed edge, i.e. subject knows object, but the object does not necessarily know the subject.
 	 * 
 	 * The RDFTripleInFormat filters all RDF triples with foaf:knows predicates. 
@@ -579,8 +579,8 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * Assembles the Plan of the All-2-All Shortest Paths example Pact program.
-	 * The program computes one iteration of the All-2-All Shortest Paths algorithm.
+	 * Assembles the Plan of the Pairwise Shortest Paths example Pact program.
+	 * The program computes one iteration of the Pairwise Shortest Paths algorithm.
 	 * 
 	 * For the first iteration, two input formats can be chosen:
 	 * 1) RDF triples with foaf:knows predicates
@@ -636,7 +636,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		concatPaths.setSecondInput(pathEnds);
 		pathEnds.setInput(pathsInput);
 
-		return new Plan(result, "All-2-All Shortest Paths");
+		return new Plan(result, "Pairwise Shortest Paths");
 
 	}
 
