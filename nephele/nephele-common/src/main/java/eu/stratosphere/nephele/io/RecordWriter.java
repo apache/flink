@@ -36,7 +36,6 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be emitted with this record writer
  */
 
-// FIXME added Writer<T> to make this at least mock-able ... still requires refactoring (en)
 public class RecordWriter<T extends Record> implements Writer<T> {
 
 	/**
