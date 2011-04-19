@@ -251,7 +251,9 @@ public class Client {
 			throw new ProgramInvocationException("Could not submit job to job manager: " + e.getMessage());
 		}
 		catch (JobExecutionException jex) {
-			if(!jex.isJobCanceledByUser()) {
+			if(jex.isJobCanceledByUser()) {
+				throw new ProgramInvocationException("The program has been canceled");
+			} else {
 				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 			}
 		}
