@@ -20,14 +20,12 @@ import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.nephele.fs.hdfs.DistributedDataInputStream;
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
 import eu.stratosphere.pact.common.io.InputFormat;
@@ -144,8 +142,8 @@ public class DataSourceTask extends AbstractFileInputTask {
 					fdis = isot.getFSDataInputStream();
 
 					// set input stream of input format
-					format.setInput(new DistributedDataInputStream(fdis), start, length, (1024 * 1024));
-
+					format.setInput(fdis, start, length, (1024 * 1024));
+					
 					// open input format
 					format.open();
 
@@ -382,11 +380,9 @@ public class DataSourceTask extends AbstractFileInputTask {
 		@Override
 		public void run() {
 			try {
-
-				FileSystem fs = FileSystem.get(split.getPath().toUri(), new org.apache.hadoop.conf.Configuration());
-
-				this.fdis = fs.open(new Path(split.getPath().toUri().toString()));
-
+				FileSystem fs = FileSystem.get(split.getPath().toUri());
+				fdis = fs.open(split.getPath());
+				
 			} catch (Exception t) {
 				this.success = false;
 				this.exception = t;
