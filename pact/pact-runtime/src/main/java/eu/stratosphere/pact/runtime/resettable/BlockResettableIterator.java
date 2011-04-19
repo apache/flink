@@ -40,7 +40,6 @@ import eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator;
  * 
  * @author mheimel
  * @author Fabian Hueske
- * @author Stephan Ewen
  * 
  * @param <T> The type of the records that are iterated over.
  */

@@ -36,7 +36,7 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.compiler.DataStatistics.BasicFileStatistics;
-import eu.stratosphere.pact.compiler.costs.FallbackCostEstimator;
+import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
@@ -85,7 +85,7 @@ public class PropertiesPropagationTest {
 			MockDataStatistics dataStats = new MockDataStatistics();
 			dataStats.setStatsForFile(IN_FILE_1, new BasicFileStatistics(1000, 128 * 1024 * 1024, 8.0f));
 			
-			this.compiler = new PactCompiler(dataStats, new FallbackCostEstimator(), dummyAddress);
+			this.compiler = new PactCompiler(dataStats, new FixedSizeClusterCostEstimator(), dummyAddress);
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();
