@@ -50,11 +50,11 @@ public class ByteBufferedChannelManager {
 
 	private static final Log LOG = LogFactory.getLog(ByteBufferedChannelManager.class);
 
-	private static final int DEFAULT_NUMBER_OF_READ_BUFFERS = 128;
+	private static final int DEFAULT_NUMBER_OF_READ_BUFFERS = 256;
 
-	private static final int DEFAULT_NUMBER_OF_WRITE_BUFFERS = 128;
+	private static final int DEFAULT_NUMBER_OF_WRITE_BUFFERS = 256;
 
-	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 128 * 1024; // 128k
+	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 64 * 1024; // 64k
 
 	private static final boolean DEFAULT_ALLOW_SPILLING = true;
 
