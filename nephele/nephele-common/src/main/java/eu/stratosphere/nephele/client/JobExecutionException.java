@@ -17,7 +17,7 @@ package eu.stratosphere.nephele.client;
 
 /**
  * This exception is thrown by the {@link JobClient} if a Nephele job has been aborted either as a result of a user
- * request or an error which occured during the execution.
+ * request or an error which occurred during the execution.
  * 
  * @author warneke
  */
@@ -28,13 +28,30 @@ public class JobExecutionException extends Exception {
 	 */
 	private static final long serialVersionUID = 2818087325120827525L;
 
+	private final boolean canceledByUser;
+
 	/**
 	 * Constructs a new job execution exception.
 	 * 
 	 * @param msg
 	 *        the message that shall be encapsulated by this exception
+	 * @param canceledByUser
+	 *        <code>true</code> if the job has been aborted as a result of a user request, <code>false</code> otherwise
 	 */
-	public JobExecutionException(String msg) {
+	public JobExecutionException(final String msg, final boolean canceledByUser) {
 		super(msg);
+
+		this.canceledByUser = canceledByUser;
+	}
+
+	/**
+	 * Returns <code>true</code> if the job has been aborted as a result of a user request, <code>false</code>
+	 * otherwise.
+	 * 
+	 * @return <code>true</code> if the job has been aborted as a result of a user request, <code>false</code> otherwise
+	 */
+	public boolean isJobCanceledByUser() {
+
+		return this.canceledByUser;
 	}
 }
