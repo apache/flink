@@ -12,43 +12,46 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational.contracts.tpch9;
+package eu.stratosphere.pact.test.testPrograms.tpch9;
+
 
 import org.apache.log4j.Logger;
 
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.base.*;
-import eu.stratosphere.pact.example.relational.types.tpch9.IntPair;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class OrderedPartsJoin extends MatchStub<PactInteger, PactInteger, Tuple, IntPair, Tuple> {
 
-	private static Logger LOGGER = Logger.getLogger(OrderedPartsJoin.class);
+public class FilteredPartsJoin extends MatchStub<IntPair, PactString, Tuple, PactInteger, StringIntPair> {
+	
+	private static Logger LOGGER = Logger.getLogger(FilteredPartsJoin.class);
 	
 	/**
-	 * Join "orders" and "lineitem" by "orderkey".
+	 * Join together parts and orderedParts by matching partkey and suppkey.
 	 * 
 	 * Output Schema:
-	 *  Key: (partkey, suppkey)
-	 *  Value: (year, quantity, price)
+	 *  Key: suppkey
+	 *  Value: (amount, year)
 	 *
 	 */
 	@Override
-	public void match(PactInteger orderKey, PactInteger year, Tuple lineItem,
-			Collector<IntPair, Tuple> output) {
+	public void match(IntPair partAndSupplierKey, PactString supplyCostStr, Tuple ordersValue,
+			Collector<PactInteger, StringIntPair> output) {
 		
 		try {
-			/* (partkey, suppkey) from lineItem: */
-			IntPair newKey = new IntPair(new PactInteger(Integer.parseInt(lineItem.getStringValueAt(0))), new PactInteger(Integer.parseInt(lineItem.getStringValueAt(1))));
-			Tuple newValue = new Tuple();
-			newValue.addAttribute(year.toString()); // year
-			newValue.addAttribute(lineItem.getStringValueAt(2)); // quantity
-			newValue.addAttribute(lineItem.getStringValueAt(3)); // price
-			output.collect(newKey, newValue);
+			PactInteger year = new PactInteger(Integer.parseInt(ordersValue.getStringValueAt(0)));
+			float quantity = Float.parseFloat(ordersValue.getStringValueAt(1));
+			float price = Float.parseFloat(ordersValue.getStringValueAt(2));
+			float supplyCost = Float.parseFloat(supplyCostStr.toString());
+			float amount = price - supplyCost * quantity;
+			
+			/* Push (supplierKey, (amount, year)): */
+			output.collect(partAndSupplierKey.getSecond(), new StringIntPair(new PactString("" + amount), year));
 		} catch (final Exception ex) {
 			LOGGER.error(ex);
 		}
+
 	}
 
 }

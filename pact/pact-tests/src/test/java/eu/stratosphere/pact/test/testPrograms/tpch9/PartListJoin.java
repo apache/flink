@@ -12,39 +12,40 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational.contracts.tpch9;
+package eu.stratosphere.pact.test.testPrograms.tpch9;
+
 
 import org.apache.log4j.Logger;
+
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
+import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.base.*;
-import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class PartFilter extends MapStub<PactInteger, Tuple, PactInteger, PactNull> {
-
-	private static String COLOR = "green";
+public class PartListJoin extends MatchStub<PactInteger, StringIntPair, PactString, StringIntPair, PactString> {
 	
-	private static Logger LOGGER = Logger.getLogger(PartFilter.class);
+	private static Logger LOGGER = Logger.getLogger(PartListJoin.class);
 	
 	/**
-	 * Filter and project "part".
-	 * The parts are filtered by "name LIKE %green%".
+	 * Join "filteredParts" and "suppliers" by "suppkey".
 	 * 
 	 * Output Schema:
-	 *  Key: partkey
-	 *  Value: (empty)
+	 *  Key: (nation, year)
+	 *  Value: amount
 	 *
 	 */
 	@Override
-	public void map(PactInteger partKey, Tuple inputTuple,
-			Collector<PactInteger, PactNull> output) {
+	public void match(PactInteger suppKey, StringIntPair amountYearPair, PactString nationName,
+			Collector<StringIntPair, PactString> output) {
 		
 		try {
-			if(inputTuple.getStringValueAt(1).indexOf(COLOR) != -1)
-				output.collect(partKey, new PactNull());
+			PactInteger year = amountYearPair.getSecond();
+			PactString amount = amountYearPair.getFirst();
+			StringIntPair key = new StringIntPair(nationName, year);
+			output.collect(key, amount);
 		} catch (final Exception ex) {
 			LOGGER.error(ex);
 		}
+
 	}
 
 }

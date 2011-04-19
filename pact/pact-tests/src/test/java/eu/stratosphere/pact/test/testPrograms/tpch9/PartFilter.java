@@ -12,35 +12,36 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational.contracts.tpch9;
+package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import org.apache.log4j.Logger;
-
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class PartsuppMap extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
-	
-	private static Logger LOGGER = Logger.getLogger(PartsuppMap.class);
+public class PartFilter extends MapStub<PactInteger, Tuple, PactInteger, PactNull> {
 
+	private static String COLOR = "green";
+	
+	private static Logger LOGGER = Logger.getLogger(PartFilter.class);
+	
 	/**
-	 * Project "partsupp".
+	 * Filter and project "part".
+	 * The parts are filtered by "name LIKE %green%".
 	 * 
 	 * Output Schema:
 	 *  Key: partkey
-	 *  Value: (suppkey, supplycost)
+	 *  Value: (empty)
 	 *
 	 */
 	@Override
 	public void map(PactInteger partKey, Tuple inputTuple,
-			Collector<PactInteger, Tuple> output) {
+			Collector<PactInteger, PactNull> output) {
 		
 		try {
-			/* Project (partkey, suppkey, availqty, supplycost, comment) to (suppkey, supplycost): */
-			inputTuple.project((0 << 0) | (1 << 1) | (0 << 2) | (1 << 3) | (0 << 4));
-			output.collect(partKey, inputTuple);
+			if(inputTuple.getStringValueAt(1).indexOf(COLOR) != -1)
+				output.collect(partKey, new PactNull());
 		} catch (final Exception ex) {
 			LOGGER.error(ex);
 		}

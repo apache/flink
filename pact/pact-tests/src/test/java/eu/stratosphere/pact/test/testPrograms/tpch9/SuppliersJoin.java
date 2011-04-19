@@ -12,38 +12,40 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational.contracts.tpch9;
+package eu.stratosphere.pact.test.testPrograms.tpch9;
+
 
 import org.apache.log4j.Logger;
 
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
+import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class SupplierMap extends MapStub<PactInteger, Tuple, PactInteger, PactInteger> {
+
+public class SuppliersJoin extends MatchStub<PactInteger, PactInteger, Tuple, PactInteger, PactString> {
 	
-	private static Logger LOGGER = Logger.getLogger(SupplierMap.class);
+	private static Logger LOGGER = Logger.getLogger(SuppliersJoin.class);
 	
 	/**
-	 * Project "supplier".
+	 * Join "nation" and "supplier" by "nationkey".
 	 * 
 	 * Output Schema:
-	 *  Key: nationkey
-	 *  Value: suppkey
+	 *  Key: suppkey
+	 *  Value: "nation" (name of the nation)
 	 *
 	 */
 	@Override
-	public void map(PactInteger suppKey, Tuple inputTuple,
-			Collector<PactInteger, PactInteger> output) {
+	public void match(PactInteger partKey, PactInteger suppKey, Tuple nationVal,
+			Collector<PactInteger, PactString> output) {
 		
 		try {
-			/* Project (suppkey | name, address, nationkey, phone, acctbal, comment): */
-			PactInteger nationKey = new PactInteger(Integer.parseInt(inputTuple.getStringValueAt(3)));
-			output.collect(nationKey, suppKey);
+			PactString nationName = new PactString(nationVal.getStringValueAt(1));
+			output.collect(suppKey, nationName);
 		} catch (final Exception ex) {
 			LOGGER.error(ex);
 		}
+
 	}
 
 }

@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational;
+package eu.stratosphere.pact.test.testPrograms.tpch4;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;

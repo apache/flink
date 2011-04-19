@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.example.relational.contracts.tpch1;
+package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package eu.stratosphere.pact.example.relational;
+package eu.stratosphere.pact.test.testPrograms.tpch10;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
