@@ -30,13 +30,13 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
-import eu.stratosphere.pact.example.graph.All2AllSP;
+import eu.stratosphere.pact.example.graph.PairwiseSP;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class All2AllSPITCase extends TestBase {
+public class PairwiseSPITCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(All2AllSPITCase.class);
+	private static final Log LOG = LogFactory.getLog(PairwiseSPITCase.class);
 
 	String rdfDataPath = null;
 	String resultPath = null;
@@ -64,7 +64,7 @@ public class All2AllSPITCase extends TestBase {
 				              "<D>|<E>|2|1|<F>|\n" + "<E>|<D>|2|1|<H>|\n" + "<F>|<H>|2|1|<E>|\n" + "<G>|<E>|2|1|<F>|\n" + 
 				              "<H>|<F>|2|1|<D>|\n";
 
-	public All2AllSPITCase(Configuration config) {
+	public PairwiseSPITCase(Configuration config) {
 		super(config);
 	}
 
@@ -86,7 +86,7 @@ public class All2AllSPITCase extends TestBase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 
-		All2AllSP a2aSP = new All2AllSP();
+		PairwiseSP a2aSP = new PairwiseSP();
 		Plan plan = a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", "4"), 
 				getFilesystemProvider().getURIPrefix() + rdfDataPath, 
 				getFilesystemProvider().getURIPrefix() + resultPath, 
