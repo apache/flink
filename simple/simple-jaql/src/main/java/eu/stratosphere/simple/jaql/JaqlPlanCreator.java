@@ -19,7 +19,9 @@ import com.ibm.jaql.json.type.JsonLong;
 import com.ibm.jaql.json.type.JsonNumber;
 import com.ibm.jaql.json.type.JsonValue;
 import com.ibm.jaql.lang.Jaql;
+import com.ibm.jaql.lang.core.Var;
 import com.ibm.jaql.lang.expr.agg.Aggregate;
+import com.ibm.jaql.lang.expr.core.AndExpr;
 import com.ibm.jaql.lang.expr.core.ArrayExpr;
 import com.ibm.jaql.lang.expr.core.BindingExpr;
 import com.ibm.jaql.lang.expr.core.CompareExpr;
@@ -34,6 +36,7 @@ import com.ibm.jaql.lang.expr.core.GroupByExpr;
 import com.ibm.jaql.lang.expr.core.JoinExpr;
 import com.ibm.jaql.lang.expr.core.MathExpr;
 import com.ibm.jaql.lang.expr.core.NameValueBinding;
+import com.ibm.jaql.lang.expr.core.OrExpr;
 import com.ibm.jaql.lang.expr.core.RecordExpr;
 import com.ibm.jaql.lang.expr.core.TransformExpr;
 import com.ibm.jaql.lang.expr.core.VarExpr;
@@ -47,6 +50,7 @@ import com.ibm.jaql.lang.expr.path.PathExpr;
 import com.ibm.jaql.lang.expr.path.PathFieldValue;
 import com.ibm.jaql.lang.expr.path.PathIndex;
 import com.ibm.jaql.lang.expr.path.PathReturn;
+import com.ibm.jaql.lang.expr.top.QueryExpr;
 
 import eu.stratosphere.dag.Printer;
 import eu.stratosphere.dag.Navigator;
@@ -54,8 +58,8 @@ import eu.stratosphere.reflect.TypeHandler;
 import eu.stratosphere.reflect.TypeHandlerListener;
 import eu.stratosphere.reflect.TypeSpecificHandler;
 import eu.stratosphere.simple.jaql.rewrite.RewriteEngine;
-import eu.stratosphere.sopremo.Comparison;
-import eu.stratosphere.sopremo.Comparison.BinaryOperator;
+import eu.stratosphere.sopremo.BooleanExpression;
+import eu.stratosphere.sopremo.BooleanExpression.BinaryOperator;
 import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Condition.Combination;
 import eu.stratosphere.sopremo.JsonPath;
@@ -92,7 +96,7 @@ public class JaqlPlanCreator extends PlanCreator {
 		Expr expr;
 		try {
 			expr = jaql.expr();
-			return this.convert(expr);
+			return expr == null ? null : this.convert(expr);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -149,6 +153,9 @@ public class JaqlPlanCreator extends PlanCreator {
 		public Output convert(BindingExpr expr, List<Object> children) {
 			// System.out.println(expr);
 			if (children.isEmpty() && expr.numChildren() == 0)
+				return null;
+
+			if (expr.var == Var.UNUSED)
 				return null;
 
 			Expr valueExpr;
@@ -241,7 +248,7 @@ public class JaqlPlanCreator extends PlanCreator {
 		return new Plan(Arrays.asList(operator));
 	}
 
-	private static interface ExprConverter<I extends Expr> extends TypeHandler<I, Operator> {
+	private static interface OpConverter<I extends Expr> extends TypeHandler<I, Operator> {
 		public abstract Operator convert(I expr, List<Operator> childOperators);
 	}
 
@@ -304,7 +311,7 @@ public class JaqlPlanCreator extends PlanCreator {
 			public ValueAssignment convert(CopyField expr, List<Mapping> childTransformations) {
 				String fieldName = ((ConstExpr) expr.nameExpr()).value.toString();
 				JsonPath path = JaqlPlanCreator.this.parsePath(expr.recExpr());
-				path.setSelector(new JsonPath.FieldAccess(fieldName));
+				path.getSelector(-1).setSelector(new JsonPath.FieldAccess(fieldName));
 				return new ValueAssignment(fieldName, path);
 			}
 		}).register(new TransformationConverter<CopyRecord>() {
@@ -312,7 +319,7 @@ public class JaqlPlanCreator extends PlanCreator {
 			@Override
 			public ValueAssignment convert(CopyRecord expr, List<Mapping> childTransformations) {
 				JsonPath path = JaqlPlanCreator.this.parsePath(expr.recExpr());
-				return new ValueAssignment("", path);
+				return new ValueAssignment(ValueAssignment.COPY_ALL_FIELDS, path);
 			}
 		}).register(new TransformationConverter<TransformExpr>() {
 			// ?
@@ -369,6 +376,8 @@ public class JaqlPlanCreator extends PlanCreator {
 		}).register(new PathConverter<ConstExpr>() {
 			@Override
 			public JsonPath convert(ConstExpr expr, List<JsonPath> childPath) {
+				if (expr.value == null)
+					return null;
 				// TODO: adjust to json model
 				return new JsonPath.Constant(toJavaValue(expr.value));
 			}
@@ -386,8 +395,13 @@ public class JaqlPlanCreator extends PlanCreator {
 			}
 		}).register(new PathConverter<PathIndex>() {
 			@Override
-			public JsonPath convert(PathIndex expr, List<JsonPath> childPath) {
-				return new JsonPath.ArrayAccess(((Constant) childPath.get(0)).asInt());
+			public JsonPath convert(PathIndex expr, List<JsonPath> childPaths) {
+				for (int index = childPaths.size() - 2; index >= 1; index--) {
+					JsonPath childPath = childPaths.get(index);
+					JsonPath lastSelector = childPath.getSelector(-1);
+					lastSelector.setSelector(childPaths.get(index + 1));
+				}
+				return new JsonPath.ArrayAccess(((Constant) childPaths.get(0)).asInt());
 			}
 		}).register(new PathConverter<FixedRecordExpr>() {
 			@Override
@@ -491,6 +505,24 @@ public class JaqlPlanCreator extends PlanCreator {
 	}
 
 	private void initCondConverter() {
+		this.condConverter.register(new CondConverter<OrExpr>() {
+			@Override
+			public Condition convert(OrExpr expr, List<Condition> childConditions) {
+				return Condition.chain(childConditions, Combination.OR);
+			}
+		});
+		this.condConverter.register(new CondConverter<AndExpr>() {
+			@Override
+			public Condition convert(AndExpr expr, List<Condition> childConditions) {
+				return Condition.chain(childConditions, Combination.AND);
+			}
+		});
+		this.condConverter.register(new CondConverter<PathExpr>() {
+			@Override
+			public Condition convert(PathExpr expr, List<Condition> childConditions) {
+				return new Condition(new BooleanExpression(parsePath(expr)));
+			}
+		});
 		this.condConverter.register(new CondConverter<CompareExpr>() {
 			private Field OpField;
 
@@ -510,9 +542,8 @@ public class JaqlPlanCreator extends PlanCreator {
 			public Condition convert(CompareExpr expr, List<Condition> childConditions) {
 				try {
 					int op = (Integer) this.OpField.get(expr);
-					return new Condition(new Comparison(JaqlPlanCreator.this.parsePath(expr.child(0)),
-						this.OperatorMapping[op], JaqlPlanCreator.this.parsePath(expr
-							.child(1))));
+					return new Condition(new BooleanExpression(JaqlPlanCreator.this.parsePath(expr.child(0)),
+						this.OperatorMapping[op], JaqlPlanCreator.this.parsePath(expr.child(1))));
 				} catch (Exception e) {
 					throw new IllegalArgumentException("Cannot parse " + expr, e);
 				}
@@ -550,50 +581,66 @@ public class JaqlPlanCreator extends PlanCreator {
 					JaqlPlanCreator.this.bindings.addScope();
 			}
 		});
-		this.operatorConverter.register(new ExprConverter<WriteFn>() {
+		this.operatorConverter.register(new OpConverter<WriteFn>() {
 			@Override
 			public Operator convert(WriteFn expr, List<Operator> childOperators) {
 				return new Sink(DataType.HDFS, ((AbstractHandleFn) expr.descriptor()).location().toString(),
 					childOperators.get(0));
 			}
 		});
-		this.operatorConverter.register(new ExprConverter<FilterExpr>() {
+		this.operatorConverter.register(new OpConverter<FilterExpr>() {
 			@Override
 			public Operator convert(FilterExpr expr, List<Operator> childOperators) {
 				return new Selection(JaqlPlanCreator.this.parseCondition(expr), childOperators.get(0));
 			}
 		});
-		this.operatorConverter.register(new ExprConverter<TransformExpr>() {
+		this.operatorConverter.register(new OpConverter<TransformExpr>() {
 			@Override
 			public Operator convert(TransformExpr expr, List<Operator> childOperators) {
 				return new Projection(JaqlPlanCreator.this.parseTransformation(expr), childOperators.get(0));
 			}
 		});
-		this.operatorConverter.register(new ExprConverter<JoinExpr>() {
+		this.operatorConverter.register(new OpConverter<JoinExpr>() {
 			private List<String> inputAliases = new ArrayList<String>();
 
 			@Override
 			public Operator convert(JoinExpr expr, List<Operator> childOperators) {
-				// Expr optionsExpr = expr.optionsExpr();
-				List<List<JsonPath>> onPaths = new ArrayList<List<JsonPath>>();
-				for (int index = 0; index < expr.numBindings(); index++) {
-					ArrayExpr onExpr = (ArrayExpr) expr.onExpr(index);
-					ArrayList<JsonPath> onPath = new ArrayList<JsonPath>();
-					for (int i = 0; i < onExpr.numChildren(); i++)
-						onPath.add(JaqlPlanCreator.this.parsePath(onExpr.child(i)));
-					onPaths.add(onPath);
-				}
-
-				Condition condition = null;
-				for (int index = 0; index < onPaths.get(0).size(); index++)
-					condition = new Condition(new Comparison(onPaths.get(0).get(index), BinaryOperator.EQUAL, onPaths
-						.get(1).get(index)), Combination.AND, condition);
+				Condition condition = parseCondition(expr);
 
 				if (this.inputAliases.size() < childOperators.size())
 					this.inputAliases.addAll(Arrays.asList(new String[childOperators.size() - this.inputAliases.size()]));
 				for (int index = 0; index < childOperators.size(); index++)
 					childOperators.set(index, this.withoutNameBinding(childOperators.get(index), index));
-				return new Join(this.parseTransformation(expr, childOperators.size()), condition, childOperators);
+
+				Join join = new Join(this.parseTransformation(expr, childOperators.size()), condition, childOperators);
+				for (int index = 0; index < expr.numBindings(); index++) 
+					if(expr.binding(index).preserve)
+						join.withOuterJoin(childOperators.get(index));
+				return join;
+			}
+
+			private Condition parseCondition(JoinExpr expr) {
+				List<List<JsonPath>> onPaths = new ArrayList<List<JsonPath>>();
+				for (int index = 0; index < expr.numBindings(); index++) {
+					Expr onExpr = expr.onExpr(index);
+					ArrayList<JsonPath> onPath = new ArrayList<JsonPath>();
+					if (onExpr instanceof ArrayExpr)
+						for (int i = 0; i < onExpr.numChildren(); i++)
+							onPath.add(JaqlPlanCreator.this.parsePath(onExpr.child(i)));
+					else
+						onPath.add(JaqlPlanCreator.this.parsePath(onExpr));
+
+					for (JsonPath jsonPath : onPath)
+						// leave out intermediate variable
+						jsonPath.setSelector(jsonPath.getSelector().getSelector());
+					onPaths.add(onPath);
+				}
+
+				Condition condition = null;
+				for (int index = 0; index < onPaths.get(0).size(); index++)
+					condition = new Condition(new BooleanExpression(onPaths.get(0).get(index), BinaryOperator.EQUAL,
+						onPaths.get(1).get(index)), Combination.AND, condition);
+				return condition;
 			}
 
 			private Transformation parseTransformation(JoinExpr expr, int numInputs) {
@@ -601,7 +648,7 @@ public class JaqlPlanCreator extends PlanCreator {
 				Transformation transformation = JaqlPlanCreator.this.parseTransformation(((ForExpr) expr.parent()
 					.parent()).collectExpr());
 				for (int inputIndex = 0; inputIndex < numInputs; inputIndex++) {
-					JsonPath alias = new JsonPath.Input(inputIndex);
+					JsonPath alias = new JsonPath.Input(0);
 					alias.setSelector(new JsonPath.FieldAccess(this.inputAliases.get(inputIndex)));
 					transformation.replace(alias, new JsonPath.Input(inputIndex));
 				}
@@ -631,13 +678,26 @@ public class JaqlPlanCreator extends PlanCreator {
 				return operator;
 			}
 		});
-		this.operatorConverter.register(new ExprConverter<GroupByExpr>() {
+		this.operatorConverter.register(new OpConverter<GroupByExpr>() {
 			@Override
 			public Operator convert(GroupByExpr expr, List<Operator> childOperators) {
-				return new Aggregation(JaqlPlanCreator.this.parseTransformation(((ArrayExpr) expr.collectExpr())
-					.child(0)),
-					JaqlPlanCreator.this.parsePath(expr.byBinding()), childOperators.isEmpty() ? null : childOperators
-						.get(0));
+				int n = expr.numInputs();
+				List<JsonPath> groupStatements = new ArrayList<JsonPath>();
+				for (int index = 0; index < n; index++) {
+					JaqlPlanCreator.this.bindings.set("$", new Binding(null, new JsonPath.Input(index)));
+					JsonPath groupStatement = JaqlPlanCreator.this.parsePath(expr.byBinding().child(index));
+					if (groupStatement != null) {
+						JaqlPlanCreator.this.bindings.set(expr.getAsVar(index).taggedName(), new Binding(null,
+							new JsonPath.Input(index)));
+						groupStatements.add(groupStatement);
+					}
+					if (index > 0)
+						childOperators.add(parseOperator(expr.inBinding().child(index)));
+				}
+				Transformation collectTransformation = JaqlPlanCreator.this.parseTransformation(((ArrayExpr) expr
+					.collectExpr()).child(0));
+				return new Aggregation(collectTransformation, groupStatements.isEmpty() ? Aggregation.NO_GROUPING
+					: groupStatements, childOperators);
 				// // expr.optionsExpr(), expr.usingExpr()
 				// if (childOperators.size() > 0)
 				// return new Aggregation(JaqlPlanCreator.this.parseTransformation(((ArrayExpr) expr.collectExpr())
@@ -650,17 +710,19 @@ public class JaqlPlanCreator extends PlanCreator {
 				// return null;
 			}
 		});
-		this.operatorConverter.register(new ExprConverter<ReadFn>() {
+		this.operatorConverter.register(new OpConverter<ReadFn>() {
 			@Override
 			public Operator convert(ReadFn expr, List<Operator> childOperators) {
 				return new Source(DataType.HDFS, ((ConstExpr) ((AbstractHandleFn) expr.child(0)).location()).value
 					.toString());
 			}
 		});
-		this.operatorConverter.register(new ExprConverter<ArrayExpr>() {
+		this.operatorConverter.register(new OpConverter<ArrayExpr>() {
 			@Override
 			public Operator convert(ArrayExpr expr, List<Operator> childOperators) {
-				return new Source(parsePath(expr));
+				if (expr.parent() instanceof BindingExpr)
+					return new Source(parsePath(expr));
+				return null;
 			}
 		});
 		// this.operatorConverter.register(ForExpr.class, new ExprConverter<ForExpr>() {

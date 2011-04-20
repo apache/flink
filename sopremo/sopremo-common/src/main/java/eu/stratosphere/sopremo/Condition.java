@@ -1,20 +1,30 @@
 package eu.stratosphere.sopremo;
 
+import java.util.List;
+
 public class Condition {
-	private Comparison comparison;
+	private BooleanExpression comparison;
 
 	private Combination combination;
 
 	private Condition chainedCondition;
 
-	public Condition(Comparison comparison, Combination combination, Condition condition) {
+	public Condition(BooleanExpression comparison, Combination combination, Condition condition) {
 		this.comparison = comparison;
-		this.combination = combination;
+		this.combination = chainedCondition != null ? combination : null;
 		this.chainedCondition = condition;
 	}
 
-	public Condition(Comparison comparison) {
+	public Condition(BooleanExpression comparison) {
 		this(comparison, null, null);
+	}
+
+	public static Condition chain(List<Condition> conditions, Combination combination) {
+		for (int index = 1; index < conditions.size(); index++) {
+			conditions.get(index - 1).combination = combination;
+			conditions.get(index - 1).chainedCondition = conditions.get(index);
+		}
+		return conditions.isEmpty() ? null : conditions.get(0);
 	}
 
 	@Override

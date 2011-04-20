@@ -27,6 +27,8 @@ public class ParserTestCase {
 			Assert.fail("cannot parse jaql script: " + jaqlScript + " " + e.toString());
 			return;
 		}
+		if (parsedPlan == null && expected != null)
+			Assert.fail("empty plan unexpected");
 
 		List<Operator> expectedNodes = expected.getAllNodes();
 		List<Operator> actualNodes = parsedPlan.getAllNodes();
@@ -67,9 +69,20 @@ public class ParserTestCase {
 			JsonPath segment;
 			if (parts[index].equals("$"))
 				segment = new JsonPath.Input(0);
-			else if (parts[index].equals("[*]"))
-				segment = new JsonPath.ArrayAccess();
-			else
+			else if (parts[index].matches("[0-9]+"))
+				segment = new JsonPath.Input(Integer.parseInt(parts[index]));
+			else if (parts[index].matches("\\[.*\\]")) {
+				if (parts[index].charAt(1) == '*')
+					segment = new JsonPath.ArrayAccess();
+				else if (parts[index].contains(":")) {
+					int delim = parts[index].indexOf(":");
+					segment = new JsonPath.ArrayAccess(
+						Integer.parseInt(parts[index].substring(1, delim)),
+						Integer.parseInt(parts[index].substring(delim + 1, parts[index].length() - 1)));
+				} else
+					segment = new JsonPath.ArrayAccess(
+						Integer.parseInt(parts[index].substring(1, parts[index].length() - 1)));
+			} else
 				segment = new JsonPath.FieldAccess(parts[index]);
 			if (lastSegment != null)
 				lastSegment.setSelector(segment);

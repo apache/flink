@@ -1,6 +1,8 @@
 package eu.stratosphere.sopremo.operator;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.JsonPath;
@@ -9,20 +11,29 @@ import eu.stratosphere.sopremo.Partition;
 import eu.stratosphere.sopremo.Transformation;
 
 public class Aggregation extends Operator {
-	private JsonPath grouping;
+	public final static List<JsonPath> NO_GROUPING = new ArrayList<JsonPath>();
 
-	public Aggregation(Transformation transformation, JsonPath grouping, Operator input) {
-		super(transformation, input);
+	private List<JsonPath> groupings;
+
+	public Aggregation(Transformation transformation, List<JsonPath> grouping, Operator... inputs) {
+		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
-		this.grouping = grouping;
+		this.groupings = grouping;
+	}
+
+	public Aggregation(Transformation transformation, List<JsonPath> grouping, List<Operator> inputs) {
+		super(transformation, inputs);
+		if (grouping == null)
+			throw new NullPointerException();
+		this.groupings = grouping;
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(this.getName());
-		if (this.grouping != null)
-			builder.append(" on ").append(this.grouping);
+		if (this.groupings != null)
+			builder.append(" on ").append(this.groupings);
 		if (this.getTransformation() != Transformation.IDENTITY)
 			builder.append(" to ").append(this.getTransformation());
 		return builder.toString();
@@ -32,7 +43,7 @@ public class Aggregation extends Operator {
 	public int hashCode() {
 		final int prime = 67;
 		int result = super.hashCode();
-		result = prime * result + grouping.hashCode();
+		result = prime * result + groupings.hashCode();
 		return result;
 	}
 
@@ -45,8 +56,13 @@ public class Aggregation extends Operator {
 		if (getClass() != obj.getClass())
 			return false;
 		Aggregation other = (Aggregation) obj;
-		return grouping.equals(other.grouping);
+		if (!groupings.equals(other.groupings))
+			return false;
+
+		for (int index = 0; index < groupings.size(); index++)
+			if (!groupings.get(index).deepEquals(other.groupings.get(index)))
+				return false;
+		return true;
 	}
-	
-	
+
 }

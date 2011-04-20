@@ -10,6 +10,17 @@ import eu.stratosphere.sopremo.operator.Projection;
 import eu.stratosphere.sopremo.operator.Source;
 
 public class TransformTest extends ParserTestCase {
+	private static String recordsJaql() {
+		return "recs = [  {a: 1, b: 4},  {a: 2, b: 5},  {a: -1, b: 4}];";
+	}
+
+	private static Source recordsSource() {
+		return new Source(createJsonArray(
+			createObject("a", 1L, "b", 4L),
+			createObject("a", 2L, "b", 5L),
+			createObject("a", -1L, "b", 4L)));
+	}
+
 	@Test
 	public void shouldParseEmptyTransform() {
 		assertParseResult(new Projection(new Transformation(), new Source(createJsonArray(1L, 2L, 3L))),
@@ -38,4 +49,21 @@ public class TransformTest extends ParserTestCase {
 			"[{a: 1, b: 2}, {a: 3, b: 4}] -> transform { c: { $.a, d: $.b} }");
 	}
 
+	@Test
+	public void shouldParseExampleTransform() {
+		Transformation transformation = new Transformation();
+		transformation.addMapping(new ValueAssignment("sum", new JsonPath.Arithmetic(createPath("$", "a"),
+			ArithmeticOperator.PLUS, createPath("$", "b"))));
+		assertParseResult(new Projection(transformation, recordsSource()),
+			recordsJaql() + "recs -> transform {sum: $.a + $.b}");
+	}
+
+	@Test
+	public void shouldParseExampleTransformWithIterationVariable() {
+		Transformation transformation = new Transformation();
+		transformation.addMapping(new ValueAssignment("sum", new JsonPath.Arithmetic(createPath("$", "a"),
+			ArithmeticOperator.PLUS, createPath("$", "b"))));
+		assertParseResult(new Projection(transformation, recordsSource()),
+			recordsJaql() + "recs -> transform each r {sum: r.a + r.b}");
+	}
 }

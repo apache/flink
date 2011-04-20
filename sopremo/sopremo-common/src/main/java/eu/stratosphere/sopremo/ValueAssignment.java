@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo;
 
 public class ValueAssignment extends Mapping {
+	public static final String COPY_ALL_FIELDS = "*";
 
 	private JsonPath transformation;
 

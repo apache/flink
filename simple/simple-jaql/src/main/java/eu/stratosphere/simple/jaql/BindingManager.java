@@ -17,9 +17,9 @@ public class BindingManager {
 	}
 
 	public void set(String name, Binding binding) {
-		System.out.println("set " + name + " -> " + binding + " with transformation "
-			+ binding.getTransformed().getClass().getSimpleName() + " replacing "
-			+ getAll().get(name));
+//		System.out.println("set " + name + " -> " + binding + " with transformation "
+//			+ binding.getTransformed().getClass().getSimpleName() + " replacing "
+//			+ getAll().get(name));
 		bindings.getLast().put(name, binding);
 	}
 
@@ -32,7 +32,7 @@ public class BindingManager {
 		while (iterator.hasNext()) {
 			Binding binding = iterator.next().get(name);
 			if (binding != null) {
-				System.out.println("get " + name + " -> " + binding);
+//				System.out.println("get " + name + " -> " + binding);
 				return binding;
 			}
 		}

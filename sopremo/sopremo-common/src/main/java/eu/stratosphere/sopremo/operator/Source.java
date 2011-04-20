@@ -53,17 +53,17 @@ public class Source extends Operator {
 		if (getClass() != obj.getClass())
 			return false;
 		Source other = (Source) obj;
-		if (adhocValue == null) {
-			if (other.adhocValue != null)
-				return false;
-		} else if (!adhocValue.equals(other.adhocValue))
+		if (type != other.type)
 			return false;
 		if (inputName == null) {
 			if (other.inputName != null)
 				return false;
 		} else if (!inputName.equals(other.inputName))
 			return false;
-		if (type != other.type)
+		if (adhocValue == null) {
+			if (other.adhocValue != null)
+				return false;
+		} else if (!adhocValue.deepEquals(other.adhocValue))
 			return false;
 		return true;
 	}

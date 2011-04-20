@@ -10,6 +10,7 @@ import eu.stratosphere.reflect.TypeSpecificHandler;
 
 public class JsonPath implements Cloneable {
 	public static final JsonPath Unknown = new JsonPath.IdentifierAccess("?");
+
 	private JsonPath selector;
 
 	public JsonPath(JsonPath selector) {
@@ -31,6 +32,11 @@ public class JsonPath implements Cloneable {
 	protected void toString(StringBuilder builder) {
 		if (this.selector != null)
 			this.selector.toString(builder);
+	}
+
+	public boolean deepEquals(JsonPath path) {
+		return equals(path)
+			&& (getSelector() == null ? path.getSelector() == null : getSelector().deepEquals(path.getSelector()));
 	}
 
 	private static TypeSpecificHandler<JsonPath, JsonPath, TypeHandler<JsonPath, JsonPath>> PathReplacer = new TypeSpecificHandler<JsonPath, JsonPath, TypeHandler<JsonPath, JsonPath>>();
@@ -333,6 +339,7 @@ public class JsonPath implements Cloneable {
 			return Arrays.equals(assignments, ((ObjectCreation) obj).assignments);
 		}
 	}
+
 	public static class Function extends JsonPath {
 
 		private String name;
