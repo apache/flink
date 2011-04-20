@@ -45,10 +45,7 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.JsonInputFormat;
-import eu.stratosphere.pact.common.io.JsonOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
@@ -65,6 +62,9 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
+import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
+import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Tests {@link TestPlan}.
