@@ -55,10 +55,6 @@ import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
-import eu.stratosphere.pact.common.io.OutputFormat;
-import eu.stratosphere.pact.common.io.SequentialInputFormat;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
-import eu.stratosphere.pact.common.io.SplittingOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
@@ -72,6 +68,8 @@ import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.testing.ioformats.SequentialInputFormat;
+import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * The primary resource to test one or more implemented PACT stubs. It is
@@ -276,7 +274,7 @@ public class TestPlan implements Closeable {
 	}
 
 	/**
-	 * Actually builds the plan but garantuees that the output can be read
+	 * Actually builds the plan but guarantees that the output can be read
 	 * without additional knowledge. Currently the {@link SequentialOutputFormat} is used for a guaranteed
 	 * deserializable
 	 * output.<br>
@@ -291,17 +289,17 @@ public class TestPlan implements Closeable {
 		for (final DataSinkContract<?, ?> dataSinkContract : existingSinks)
 			// need a format which is deserializable without configuration
 			if (dataSinkContract.getStubClass() != SequentialOutputFormat.class) {
-				final DataSinkContract<Key, Value> safeSink = createDefaultSink(dataSinkContract
-						.getName());
+				
+				final DataSinkContract<Key, Value> safeSink = createDefaultSink(dataSinkContract.getName());
 				safeSink.setInput(dataSinkContract.getInput());
-				wrappedSinks.add(this.createSplittingSink(dataSinkContract,
-						safeSink));
-				this.expectedOutputs.put(safeSink,
-						this.getExpectedOutput(dataSinkContract));
-				this.actualOutputs.put(safeSink,
-						this.getActualOutput(dataSinkContract));
-				this.getActualOutput(dataSinkContract).fromFile(
-						SequentialInputFormat.class, safeSink.getFilePath());
+				
+				wrappedSinks.add(dataSinkContract);
+				wrappedSinks.add(safeSink);
+				
+				this.expectedOutputs.put(safeSink,this.getExpectedOutput(dataSinkContract));
+				this.actualOutputs.put(safeSink,this.getActualOutput(dataSinkContract));
+				this.getActualOutput(dataSinkContract).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
+				
 			} else {
 				wrappedSinks.add(dataSinkContract);
 				this.getActualOutput(dataSinkContract).fromFile(
@@ -315,6 +313,7 @@ public class TestPlan implements Closeable {
 	/**
 	 * Creates a data sink which replicates the data to both given output sinks.
 	 */
+	/*
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private DataSinkContract<Key, Value> createSplittingSink(
 			final DataSinkContract<?, ?> dataSinkContract,
@@ -334,6 +333,7 @@ public class TestPlan implements Closeable {
 		wrappedSink.setInput(dataSinkContract.getInput());
 		return wrappedSink;
 	}
+	*/
 
 	/**
 	 * Sets the degree of parallelism for every node in the plan.

@@ -22,14 +22,14 @@ import java.util.NoSuchElementException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.io.SequentialInputFormat;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.util.FormatUtil;
+import eu.stratosphere.pact.testing.ioformats.FormatUtil;
+import eu.stratosphere.pact.testing.ioformats.SequentialInputFormat;
+import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Tests {@link InputFileIterator}.
