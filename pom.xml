@@ -339,7 +339,8 @@
 						<goals>
 							<goal>aggregate-jar</goal>
 						</goals>
-						<phase>package</phase>
+						<!-- use "package" phase to include JavaDocs in build -->
+						<phase>site</phase>
 						<configuration>
 							<quiet>true</quiet>
 						</configuration>
