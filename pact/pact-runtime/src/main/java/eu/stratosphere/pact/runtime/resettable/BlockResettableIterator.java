@@ -16,11 +16,10 @@
 package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
-import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -35,65 +34,68 @@ import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator;
 
 /**
- * Implementation of an iterator that fetches a block of data into main memory and offers a resettable
- * iterator on this block.
+ * Implementation of an iterator that fetches a block of data into main memory and offers resettable
+ * access to the data in that block.
  * 
- * @author mheimel
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  * @author Fabian Hueske
  * 
  * @param <T> The type of the records that are iterated over.
  */
 public class BlockResettableIterator<T extends Record> implements MemoryBlockIterator<T> {
-
-	private static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
+	
+	public static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
 	
 	public static final int MIN_BUFFER_SIZE = 8 * 1024;
 	
 	// ------------------------------------------------------------------------
-
+	
+	protected final Reader<T> reader;
+	
 	protected final MemoryManager memoryManager;
+	
+	protected final List<MemorySegment> emptySegments;
 
-	protected final List<MemorySegment> buffers;
+	protected final List<Buffer.Input> fullBuffers;
 	
-	protected final BlockingQueue<MemorySegment> emptySegments;
-
-	protected final BlockingQueue<Buffer.Input> filledBuffers;
+	protected final List<Buffer.Input> consumedBuffers;
 	
-	protected final RecordDeserializer<T> deserializer;
-
-	private final BlockFetcher<T> blockFetcher;
-
-	private Thread blockFetcherThread;
+	private final RecordDeserializer<T> deserializer;
 	
-	private Buffer.Input in = null;
+	private Buffer.Input bufferCurrentlyRead;
 	
-	private T deserializationInstance = null;
+	private Buffer.Output bufferCurrentlyFilled;
 	
-	private volatile Throwable error = null;
+	private T nextElement = null;
+	
+	private T leftOverElement = null;
+	
+	private boolean noMoreBlocks = false;
 	
 	private volatile boolean closed = false;
-
+	
 	// ------------------------------------------------------------------------
 	
-	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader, long availableMemory, int nrOfBuffers,
+	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader,
+			long availableMemory, int nrOfBuffers,
 			RecordDeserializer<T> deserializer, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		this.deserializer = deserializer;
-		this.memoryManager = memoryManager;
+		if (nrOfBuffers < 1) {
+			throw new IllegalArgumentException("BlockResettableIterator needs at least one element.");
+		}
+		if (availableMemory < MIN_BUFFER_SIZE) {
+			throw new IllegalArgumentException("Block Resettable iterator requires at leat " + MIN_BUFFER_SIZE + " bytes of memory.");
+		}
 		
-		// allocate the queues
-		this.emptySegments = new LinkedBlockingQueue<MemorySegment>();
-		this.filledBuffers = new LinkedBlockingQueue<Buffer.Input>();
+		this.reader = reader;
+		this.memoryManager = memoryManager;
+		this.deserializer = deserializer;
 		
 		// allocate the memory buffers
-		this.buffers = this.memoryManager.allocate(ownerTask, availableMemory, nrOfBuffers, MIN_BUFFER_SIZE);
-		
-		// now append all memory segments to the workerQueue
-		this.emptySegments.addAll(buffers);
-		
-		// create the writer thread
-		this.blockFetcher = new BlockFetcher<T>(emptySegments, filledBuffers, reader);
+		this.emptySegments = this.memoryManager.allocate(ownerTask, availableMemory, nrOfBuffers, MIN_BUFFER_SIZE);
+		this.fullBuffers = new ArrayList<Buffer.Input>();
+		this.consumedBuffers = new ArrayList<Buffer.Input>();
 		
 		LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
 	}
@@ -104,48 +106,135 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 	@Override
 	public boolean hasNext()
 	{
-		// an exception may occur here, if the iterator has been closed or is in the process
-		// of being closed
-		try {
-			if (deserializationInstance == null) {
-				deserializationInstance = deserializer.getInstance();
-				if (!in.read(deserializationInstance)) {
-					deserializationInstance = null;
+		if (this.nextElement == null)
+		{
+			// we need to make a case distinction whether we are currently reading through full blocks
+			// or filling blocks anew
+			if (this.bufferCurrentlyRead != null)
+			{
+				T next = this.deserializer.getInstance();
+				
+				// we are reading from a full block
+				if (this.bufferCurrentlyRead.read(next)) {
+					// the current buffer had another element
+					this.nextElement = next;
+					return true;
+				}
+				else {
+					// the current buffer is exhausted
+					this.consumedBuffers.add(this.bufferCurrentlyRead);
+					if (this.fullBuffers.isEmpty()) {
+						// no more elements in this block.
+						this.bufferCurrentlyRead = null;
+						return false;
+					}
+					else {
+						// go to next input block
+						this.bufferCurrentlyRead = this.fullBuffers.remove(0);
+						if (this.bufferCurrentlyRead.read(next)) {
+							this.nextElement = next;
+							return true;
+						}
+						else {
+							throw new RuntimeException("BlockResettableIterator: " +
+									"BUG - Could not de-serialize element newly obtaint input block buffer.");
+						}
+					}
+				}
+			}
+			else if (this.bufferCurrentlyFilled != null) {
+				// we are reading from the input reader and filling the block along
+				if (this.reader.hasNext()) {
+					try {
+						T next = this.reader.next();
+
+						if (this.bufferCurrentlyFilled.write(next)) {
+							// object fit into current buffer
+							this.nextElement = next;
+							return true;
+						}
+						else {
+							// object did not fit into current buffer
+							// add the current buffer to the full buffers
+							final int fillPosition = this.bufferCurrentlyFilled.getPosition();
+							final MemorySegment seg = this.bufferCurrentlyFilled.dispose();
+							this.bufferCurrentlyFilled = null;
+							
+							final Buffer.Input in = new Buffer.Input(seg);
+							in.reset(fillPosition);
+							this.consumedBuffers.add(in);
+							
+							// get the next buffer
+							if (this.emptySegments.isEmpty()) {
+								// no more empty segments. the current element is left over
+								this.leftOverElement = next;
+								return false;
+							}
+							else {
+								// next segment available, use it.
+								this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
+								if (this.bufferCurrentlyFilled.write(next)) {
+									// object fit into next buffer
+									this.nextElement = next;
+									return true;
+								}
+								else {
+									throw new RuntimeException("BlockResettableIterator: " +
+										"Could not serialize element into fresh block buffer - element is too large.");
+								}
+							}
+						}
+					}
+					catch (InterruptedException iex) {
+						if (!closed) {
+							throw new RuntimeException("Block-Resettable-Iterator was interrupted while reading input.");
+						}
+						return false;
+					}
+					catch (IOException ioex) {
+						if (!closed) {
+							throw new RuntimeException("Block-Resettable-Iterator: IO error while reading the input - "
+								+ ioex.getMessage());
+						}
+						return false;
+					}
+				}
+				else {
+					// no more input from the reader
+					this.noMoreBlocks = true;
 					return false;
 				}
 			}
+			else {
+				// we have a repeated call to hasNext() an either the buffers are completely filled, or completely read
+				// or the iterator was closed
+				if (this.closed) {
+					throw new IllegalStateException("Iterator was closed.");
+				}
+				return false;
+			}
+		}
+		else {
 			return true;
 		}
-		catch (RuntimeException ex) {
-			if (this.closed) {
-				throw new IllegalStateException("The iterator has been closed.");
-			}
-			else if (this.error != null) {
-				throw new RuntimeException("The iterator encountered an error: " + error.getMessage(), error);
-			}
-			else {
-				// unknown error, so re-throw
-				throw ex;
-			}
-		}
 	}
-
+	
 	/* (non-Javadoc)
 	 * @see java.util.Iterator#next()
 	 */
 	@Override
 	public T next() {
-		if (this.deserializationInstance == null) {
+		if (this.nextElement == null) {
 			if (!hasNext()) {
 				throw new NoSuchElementException();
 			}
 		}
 		
-		T out = deserializationInstance;
-		deserializationInstance = null;
+		T out = this.nextElement;
+		this.nextElement = null;
 		return out;
 	}
-
+	
 	/* (non-Javadoc)
 	 * @see java.util.Iterator#remove()
 	 */
@@ -158,38 +247,53 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 	 * @see eu.stratosphere.pact.runtime.task.util.ResettableIterator#reset()
 	 */
 	@Override
-	public void reset() {
-		// check the state
-		if (this.in == null) {
-			if (this.closed) {
-				throw new IllegalStateException("Iterator has been closed.");
-			}
-			else {
-				throw new IllegalStateException("Iterator has not been opened.");
-			}
+	public void reset()
+	{
+		if (this.closed) {
+			throw new IllegalStateException("Iterator was closed.");
 		}
 		
-		// we need a try block here, because no synchronization is performed between
-		// resetting and possible asynchronous close calls
-		try {
-			// re-open the input reader
-			this.in.rewind();
-			this.deserializationInstance = null;
+		// if some full buffers remain, remember them
+		List<Buffer.Input> fullBuffsLeft = null;
+		if (!this.fullBuffers.isEmpty()) {
+			fullBuffsLeft = new ArrayList<Buffer.Input>(this.fullBuffers.size());
+			fullBuffsLeft.addAll(this.fullBuffers);
+			this.fullBuffers.clear();
 		}
-		catch (RuntimeException ex) {
-			if (this.closed) {
-				throw new IllegalStateException("The iterator has been closed.");
-			}
-			else if (this.error != null) {
-				throw new RuntimeException("The iterator encountered an error: " + error.getMessage(), error);
-			}
-			else {
-				// unknown error, so re-throw
-				throw ex;
-			}
-		}
-	}
 
+		// we need to rewind all consumed buffers and add them again to the full buffers
+		for (int i = 0; i < this.consumedBuffers.size(); i++) {
+			Buffer.Input in = this.consumedBuffers.get(i);
+			in.rewind();
+			this.fullBuffers.add(in);
+		}
+		this.consumedBuffers.clear();
+		
+		// add the currently read buffer
+		if (this.bufferCurrentlyRead != null) {
+			this.bufferCurrentlyRead.rewind();
+			this.fullBuffers.add(this.bufferCurrentlyRead);
+			this.bufferCurrentlyRead = null;
+		}
+		
+		// re-add the left buffers
+		if (fullBuffsLeft != null) {
+			this.fullBuffers.addAll(fullBuffsLeft);
+		}
+		
+		// if we are currently filling a buffer, add it
+		if (this.bufferCurrentlyFilled != null) {
+			final int pos = this.bufferCurrentlyFilled.getPosition();
+			final Buffer.Input in = new Buffer.Input(this.bufferCurrentlyFilled.dispose());
+			in.reset(pos);
+			this.fullBuffers.add(in);
+			this.bufferCurrentlyFilled = null;
+		}
+		
+		// take the first input buffer
+		this.bufferCurrentlyRead = this.fullBuffers.remove(0);
+	}
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator#nextBlock()
 	 */
@@ -199,45 +303,30 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 		if (this.closed) {
 			throw new IllegalStateException("Iterator has been closed.");
 		}
-		// check, whether an exception was set
-		if (this.error != null) {
-			throw new RuntimeException("The iterator encountered an error: " + error.getMessage(), error);
+		
+		// check whether more blocks are available
+		if (this.noMoreBlocks) {
+			return false;
 		}
 		
-		// we need a try/catch block here, because no synchronization is performed between
-		// this method and possible asynchronous close calls
-		try {
-			// add the last block to the worker queue of the writer thread
-			if (this.in != null)
-				this.emptySegments.add(this.in.dispose());
-			// now fetch the latest filled Buffer
-			try {
-				this.in = this.filledBuffers.take();
-			}
-			catch (InterruptedException e) {
-				throw new RuntimeException("BlockResettableIterator: Unable to fetch the next filled buffer", e);
-			}
+		// the basic logic is to dispose all input buffers and reuse the memory segments by putting
+		// them into the empty segment list
+		collectAllBuffers(this.emptySegments);
 			
-			if (in.getRemainingBytes() == 0) {
-				// empty buffer signals end
-				return false;
+		// set one buffer to be filled and write the leftover element
+		this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
+		if (this.leftOverElement != null) {
+			if (!this.bufferCurrentlyFilled.write(this.leftOverElement)) {
+				throw new RuntimeException("BlockResettableIterator: " +
+					"Could not serialize element into fresh block buffer - element is too large.");
 			}
-			return true;
+			this.nextElement = this.leftOverElement;
+			this.leftOverElement = null;
 		}
-		catch (RuntimeException ex) {
-			if (this.closed) {
-				throw new IllegalStateException("The iterator has been closed.");
-			}
-			else if (this.error != null) {
-				throw new RuntimeException("The iterator encountered an error: " + error.getMessage(), error);
-			}
-			else {
-				// unknown error, so re-throw
-				throw ex;
-			}
-		}
+		
+		return true;
 	}
-
+	
 	/**
 	 * Opens the block resettable iterator. This method will cause the iterator to start asynchronously 
 	 * reading the input and prepare the first block.
@@ -245,166 +334,72 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 	public void open() {
 		LOG.debug("Iterator opened.");
 		
-		final UncaughtExceptionHandler uceh = new UncaughtExceptionHandler() {
-			@Override
-			public void uncaughtException(Thread t, Throwable e) {
-				// process error only, if the iterator has not been closed.
-				if (!BlockResettableIterator.this.closed) {
-					if (e instanceof RuntimeException && e.getCause() != null) {
-						BlockResettableIterator.this.error = e.getCause();
-					}
-					else {
-						BlockResettableIterator.this.error = e;
-					}
-				}
-			}
-		};
-		
-		// start the writer Thread
-		this.blockFetcherThread = new Thread(blockFetcher);
-		this.blockFetcherThread.setDaemon(true);
-		this.blockFetcherThread.setName("Block Resettable Iterator Fetching Thread.");
-		this.blockFetcherThread.setUncaughtExceptionHandler(uceh);
-		this.blockFetcherThread.start();
-		
-		// fetch the first block
+		// move the first = next block
 		nextBlock();
 	}
-
+	
 	/**
 	 * This method closes the iterator and releases all resources. This method works both as a regular
-	 * shutdown and as a canceling method.
+	 * shutdown and as a canceling method. The method may be called multiple times and will not produce
+	 * an error.
 	 */
 	public void close() {
-		if (this.closed) {
-			return;
-		}
-		this.closed = true;
-		
-		// shutdown the block fetcher first
-		if (this.blockFetcherThread != null) {
-			this.blockFetcher.shutdown();
-			this.blockFetcherThread.interrupt();
-			this.blockFetcherThread = null;
+		synchronized (this) {
+			if (this.closed) {
+				return;
+			}
+			this.closed = true;
 		}
 		
 		// remove all blocks
-		this.in = null;
+		List<MemorySegment> toReturn = new ArrayList<MemorySegment>(this.emptySegments.size() + 
+				this.fullBuffers.size() + this.consumedBuffers.size() + 2);
+
+		// collect empty segments
+		toReturn.addAll(this.emptySegments);
 		this.emptySegments.clear();
-		this.filledBuffers.clear();
+		
+		// collect all other segments
+		collectAllBuffers(toReturn);
 		
 		// release the memory segment
-		this.memoryManager.release(this.buffers);
-		this.buffers.clear();
+		this.memoryManager.release(toReturn);
 		
 		LOG.debug("Iterator closed.");
 	}
-
+	
 	
 	/**
+	 * Takes all buffers in the list of full buffers and consumed buffers,
+	 * as well as the currently written and currently read buffers, and disposes
+	 * them, putting their backing memory segment in the given list.
 	 * 
+	 * @param target The list to collect the buffers in. 
 	 */
-	private final class BlockFetcher<R extends Record> implements Runnable
+	private void collectAllBuffers(List<MemorySegment> target)
 	{
-		private final BlockingQueue<MemorySegment> requestQueue;
-
-		private final BlockingQueue<Buffer.Input> finishedTasks;
-
-		private final Reader<R> reader;
-		
-		private volatile boolean alive;
-
-		public BlockFetcher(BlockingQueue<MemorySegment> inputQueue, BlockingQueue<Buffer.Input> outputQueue,
-				Reader<R> recordReader)
-		{
-			this.requestQueue = inputQueue;
-			this.finishedTasks = outputQueue;
-			this.reader = recordReader;
-			this.alive = true;
+		// collect full buffers
+		while (!this.fullBuffers.isEmpty()) {
+			Buffer.Input in = this.fullBuffers.remove(this.fullBuffers.size() - 1);
+			target.add(in.dispose());
 		}
 		
-		public void shutdown() {
-			this.alive = false;
+		// collect consumed segments
+		while (!this.consumedBuffers.isEmpty()) {
+			Buffer.Input in = this.consumedBuffers.remove(this.consumedBuffers.size() - 1);
+			target.add(in.dispose());
 		}
-
-		@Override
-		public void run()
-		{
-			final Reader<R> reader = this.reader;
-			R next = null;
-			boolean allRead = false;
-			
-			while (this.alive && !allRead) {
-				// wait for the next request
-				MemorySegment request = null;
-				try {
-					request = this.requestQueue.take();
-				}
-				catch (InterruptedException iex) {
-					if (this.alive) {
-						throw new RuntimeException(iex);
-					}
-					else {
-						return;
-					}
-				}
-				// create an output buffer
-				Buffer.Output out = new Buffer.Output(request);
-
-				// write the last spilled element
-				if (next != null) {
-					out.write(next);
-				}
-
-				// now fetch elements from the reader until the memory segment is filled
-				while (this.alive && reader.hasNext()) {
-					try {
-						next = reader.next();
-					}
-					catch (IOException ioex) {
-						throw new RuntimeException(ioex);
-					}
-					catch (InterruptedException iex) {
-						throw new RuntimeException(iex);
-					}
-					
-					if (!out.write(next)) {
-						break;
-					}
-				}
-
-				int pos = out.getPosition();
-				MemorySegment seg = out.dispose();
-				
-				// allocate a new input buffer for the segment and push it to the input queue
-				Buffer.Input in = new Buffer.Input(seg);
-				in.reset(pos);
-				
-				this.finishedTasks.add(in);
-				
-				if (!reader.hasNext()) {
-					allRead = true;
-				}
-			} // end while alive
-			
-			if (!this.alive) {
-				return;
-			}
-			
-			// send an empty buffer to signal completion
-			MemorySegment request = null;
-			try {
-				request = requestQueue.take();
-			}
-			catch (InterruptedException iex) {
-				if (this.alive) {
-					throw new RuntimeException(iex);
-				}
-				else {
-					return;
-				}
-			}
-			this.finishedTasks.add(new Buffer.Input(request)); // null signals completion
+		
+		// return the currently read buffer
+		if (this.bufferCurrentlyRead != null) {
+			target.add(this.bufferCurrentlyRead.dispose());
+			this.bufferCurrentlyRead = null;
+		}
+		
+		// return the currently filled buffer
+		if (this.bufferCurrentlyFilled != null) {
+			target.add(this.bufferCurrentlyFilled.dispose());
+			this.bufferCurrentlyFilled = null;
 		}
 	}
 

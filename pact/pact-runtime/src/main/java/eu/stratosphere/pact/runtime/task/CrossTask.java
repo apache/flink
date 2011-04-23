@@ -148,7 +148,7 @@ public class CrossTask extends AbstractTask {
 		// obtain IO manager from task manager
 		final IOManager ioManager = getEnvironment().getIOManager();
 
-		// run nested loops strategy accoring to local strategy decision
+		// run nested loops strategy according to local strategy decision
 		if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST
 			|| config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
 			// run blocked nested loop strategy
@@ -178,14 +178,15 @@ public class CrossTask extends AbstractTask {
 	{
 		this.taskCanceled = true;
 		
-		if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST || 
-				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
-			if(this.spillingResetIt != null) this.spillingResetIt.abort();
-			if(this.blockResetIt != null) this.blockResetIt.close();
-		} else if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST || 
-				config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
-			if(this.spillingResetIt != null) this.spillingResetIt.abort();
+		if (this.spillingResetIt != null) {
+			this.spillingResetIt.abort();
 		}
+		
+		if (this.blockResetIt != null) {
+			this.blockResetIt.close();
+			this.blockResetIt = null;
+		}
+		
 		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
