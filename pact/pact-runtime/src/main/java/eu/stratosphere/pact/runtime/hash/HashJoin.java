@@ -37,6 +37,30 @@ import eu.stratosphere.pact.common.type.Value;
 /**
  *
  *
+ * The layout of the buckets inside a memory segment is as follows:
+ * 
+ * <pre>
+ * +----------------------------- Bucket x ----------------------------
+ * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
+ * |
+ * |hashCode 1 (4 bytes) | hashCode 2 (4 bytes) | hashCode 3 (4 bytes) |
+ * | ... hashCode n-1 (4 bytes) | hashCode n (4 bytes)
+ * |
+ * |pointer 1 (8 bytes) | pointer 2 (8 bytes) | pointer 3 (8 bytes) |
+ * | ... pointer n-1 (8 bytes) | pointer n (8 bytes)
+ * +---------------------------- Bucket x + 1--------------------------
+ * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
+ * |
+ * |hashCode 1 (4 bytes) | hashCode 2 (4 bytes) | hashCode 3 (4 bytes) |
+ * | ... hashCode n-1 (4 bytes) | hashCode n (4 bytes)
+ * |
+ * |pointer 1 (8 bytes) | pointer 2 (8 bytes) | pointer 3 (8 bytes) |
+ * | ... pointer n-1 (8 bytes) | pointer n (8 bytes)
+ * +-------------------------------------------------------------------
+ * | ...
+ * |
+ * </pre>
+ * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class HashJoin<K extends Key, V extends Value>
@@ -53,7 +77,7 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	private static final int HASH_BUCKET_SIZE = 0x1 << NUM_INTRA_BUCKET_BITS;
 	
-	private static final int BUCKET_HEADER_LENGTH = 14;
+	private static final int BUCKET_HEADER_LENGTH = 12;
 	
 	private static final int BUCKET_STATUS_SPILLED = 1;
 	
@@ -61,6 +85,11 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	private static final int DEFAULT_RECORD_LEN = 100;
 	
+	/**
+	 * The storage overhead per record, in bytes. This corresponds to the space in the
+	 * actual hash table buckets, consisting of a 4 byte hash value and an 8 byte
+	 * pointer.
+	 */
 	private static final int RECORD_OVERHEAD_BYTES = 12;
 	
 	
@@ -100,17 +129,22 @@ public class HashJoin<K extends Key, V extends Value>
 	private final int segmentSize;
 	
 	/**
-	 * The number of hash table buckets in a single memory segment. Because memory segments can be comparatively large, we
-	 * fit multiple buckets into one memory segment.
+	 * The number of hash table buckets in a single memory segment - 1.
+	 * Because memory segments can be comparatively large, we fit multiple buckets into one memory segment.
+	 * This variable is a mask that is 1 in the lower bits that define the number of a bucket
+	 * in a segment.
 	 */
-	private final int bucketsPerSegment;
+	private final int bucketsPerSegmentMask;
 	
 	/**
 	 * The number of bits that describe the position of a bucket in a memory segment. Computed as log2(bucketsPerSegment).
 	 */
 	private final int bucketsPerSegmentBits;
 	
-	
+	/**
+	 * An estimate for the average record length.
+	 */
+	private final int avgRecordLen;
 	
 	// ------------------------------------------------------------------------
 	
@@ -145,7 +179,8 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	public HashJoin(Iterator<KeyValuePair<K, V>> buildSideInput, Iterator<KeyValuePair<K, V>> probeSideInput,
 			List<MemorySegment> memorySegments,
-			IOManager ioManager)
+			IOManager ioManager,
+			int avgRecordLen)
 	{
 		// some sanity checks first
 		if (buildSideInput == null || probeSideInput == null || memorySegments == null) {
@@ -162,17 +197,20 @@ public class HashJoin<K extends Key, V extends Value>
 		this.availableMemory = memorySegments;
 		this.ioManager = ioManager;
 		
+		this.avgRecordLen = avgRecordLen < 1 ? DEFAULT_RECORD_LEN : avgRecordLen;
+		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
 		this.segmentSize = memorySegments.get(0).size();
 		if ( (this.segmentSize & this.segmentSize - 1) != 0) {
 			throw new IllegalArgumentException("Hash Table requires buffers whose size is a power of 2.");
 		}
-		this.bucketsPerSegment = this.segmentSize >> NUM_INTRA_BUCKET_BITS;
-		if (this.bucketsPerSegment == 0) {
+		int bucketsPerSegment = this.segmentSize >> NUM_INTRA_BUCKET_BITS;
+		if (bucketsPerSegment == 0) {
 			throw new IllegalArgumentException("Hash Table requires buffers of at least " + HASH_BUCKET_SIZE + " bytes.");
 		}
-		this.bucketsPerSegmentBits = log2floor(this.bucketsPerSegment);
+		this.bucketsPerSegmentMask = bucketsPerSegment - 1;
+		this.bucketsPerSegmentBits = log2floor(bucketsPerSegment);
 		
 		// take away the write behind buffers
 		this.writeBehindBuffers = new LinkedBlockingQueue<MemorySegment>();
@@ -198,7 +236,7 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	public void next() throws IOException
 	{
-		// open builds the initial table by consuming the build-side input
+		
 	}
 	
 	/**
@@ -218,12 +256,15 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	
 	public void buildInitialTable(final Iterator<KeyValuePair<K, V>> input)
+	throws IOException
 	{
 		// create the partitions
-		int partitionFanOut = getPartitioningFanOutNoEstimates(this.availableMemory.size());
+		final int partitionFanOut = getPartitioningFanOutNoEstimates(this.availableMemory.size());
 		createPartitions(partitionFanOut);
 		
 		// set up the table structure. the write behind buffers are taken away, as are one buffer per partition
+		final int numBuckets = getInitialTableSize(this.availableMemory.size(), this.segmentSize, 
+			partitionFanOut, this.avgRecordLen);
 		
 		
 		// go over the complete input
@@ -231,12 +272,7 @@ public class HashJoin<K extends Key, V extends Value>
 		{
 			final KeyValuePair<K, V> pair = input.next();
 			final int hashCode = hash(pair.getKey().hashCode(), 0);
-			
-			
-			
-			// get the hash bucket
-			
-			// write the pair in the current partition buffer
+			insertIntoTable(pair, hashCode);
 		}
 	}
 	
@@ -265,7 +301,7 @@ public class HashJoin<K extends Key, V extends Value>
 	{
 		// get the bucket for the given hash code
 		final int bucketArrayPos = hashCode >> this.bucketsPerSegmentBits;
-		final int bucketInSegmentPos = (hashCode & (this.bucketsPerSegmentBits - 1)) << NUM_INTRA_BUCKET_BITS;
+		final int bucketInSegmentPos = (hashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
 		final RandomAccessView bucket = this.buckets[bucketArrayPos];
 		
 		// get the basic characteristics of the bucket
@@ -331,6 +367,15 @@ public class HashJoin<K extends Key, V extends Value>
 			
 			
 			throw new RuntimeException("Spilled buckets are not supported at the moment.");
+		}
+	}
+	
+	private final RandomAccessView[] initTable(int numBuckets, int partitionLevel)
+	{
+		final int numSegs = numBuckets >> this.bucketsPerSegmentBits;
+		final RandomAccessView[] table = new RandomAccessView[numSegs];
+		
+		for (int i = 0, bucket = 0; i < numSegs; i++) {
 		}
 	}
 	
@@ -400,7 +445,7 @@ public class HashJoin<K extends Key, V extends Value>
 				largestPartNum = i;
 			}
 		}
-		Partition p = partitions.get(largestPartNum);
+		final Partition p = partitions.get(largestPartNum);
 		
 		// spill the partition
 		if (this.currentEnumerator == null) {
@@ -451,10 +496,10 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	public static final int getPartitioningFanOutNoEstimates(int numBuffers)
 	{
-		return Math.max(10, Math.min(numBuffers / 10, 100));
+		return Math.max(10, Math.min(numBuffers / 10, MAX_NUM_PARTITIONS));
 	}
 	
-	public static int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes)
+	public static final int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes)
 	{
 		// ----------------------------------------------------------------------------------------
 		// the following observations hold:
@@ -475,8 +520,8 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		final long totalSize = ((long) bufferSize) * numBuffers;
 		final long numRecordsStorable = totalSize / (recordLenBytes + RECORD_OVERHEAD_BYTES);
-		final long bucketBytes = numRecordsStorable / RECORD_OVERHEAD_BYTES;
-		final long numBuckets = bucketBytes / HASH_BUCKET_SIZE + 1;
+		final long bucketBytes = numRecordsStorable * RECORD_OVERHEAD_BYTES;
+		final long numBuckets = bucketBytes / (2 * HASH_BUCKET_SIZE) + 1;
 		
 		return numBuckets > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) numBuckets;
 	}
@@ -698,7 +743,7 @@ public class HashJoin<K extends Key, V extends Value>
 			}
 			
 			// create the channel block writer
-			this.spillingWriter = ioAccess.createBlockChannWriter(targetChannel, writeBehindBuffers);
+			this.spillingWriter = ioAccess.createBlockChannelWriter(targetChannel, this.writeBehindBuffers);
 			int numBlocks = this.partitionBuffers.size();
 			
 			// spill all blocks and release them

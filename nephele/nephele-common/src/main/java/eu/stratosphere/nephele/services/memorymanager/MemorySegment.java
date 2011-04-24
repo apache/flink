@@ -18,6 +18,11 @@ package eu.stratosphere.nephele.services.memorymanager;
 
 import java.nio.ByteBuffer;
 
+import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataInputView;
+import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.spi.DefaultRandomAccessView;
+import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
+
 
 /**
  * This class represents a piece of memory allocated from the memory manager.
@@ -36,13 +41,13 @@ import java.nio.ByteBuffer;
  *
  * @author Alexander Alexandrov
  */
-public abstract class MemorySegment
+public final class MemorySegment
 {
 	/**
-	 * The random access view, used to put elements at arbitrary positions in the memory.
+	 * The descriptor to the portion of the memory that was allocated.
 	 */
-	public final RandomAccessView randomAccessView;
-
+	private final MemorySegmentDescriptor descriptor;
+	
 	/**
 	 * The input view, used to read the data sequentially from the memory segment.
 	 */
@@ -52,7 +57,14 @@ public abstract class MemorySegment
 	 * The output view, used to write data sequentially to the memory segment.
 	 */
 	public final DataOutputView outputView;
+	
+	
 
+	/**
+	 * The byte buffer used to wrap the memory segment for I/O.
+	 */
+	private ByteBuffer wrapper
+	
 	/**
 	 * The size of the memory segment.
 	 */
@@ -72,14 +84,11 @@ public abstract class MemorySegment
 	 * Creates a new memory segment of given size with the provided views.
 	 * 
 	 * @param size The size of the memory segment.
-	 * @param randomAccessView The random access view to use.
 	 * @param inputView The input view to use.
 	 * @param outputView The output view to use.
 	 */
-	protected MemorySegment(int size, RandomAccessView randomAccessView, 
-			DataInputView inputView, DataOutputView outputView)
+	protected MemorySegment(int size, DataInputView inputView, DataOutputView outputView)
 	{
-		this.randomAccessView = randomAccessView;
 		this.inputView = inputView;
 		this.outputView = outputView;
 		
@@ -135,4 +144,57 @@ public abstract class MemorySegment
 	 *                                   or if the offset plus the length is larger than the segment size.
 	 */
 	public abstract ByteBuffer wrap(int offset, int length);
+	
+
+
+	
+	public DefaultMemorySegment(MemorySegmentDescriptor descriptor,
+			RandomAccessView randomAccessView, DataInputView inputView, DataOutputView outputView)
+	{
+		super(descriptor.size, randomAccessView, inputView, outputView);
+		this.descriptor = descriptor;
+	}
+	
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemorySegment#wrap(int, int)
+	 */
+	@Override
+	public ByteBuffer wrap(int offset, int length) {
+		if (offset > size || offset + length > size) {
+			throw new IndexOutOfBoundsException();
+		}
+		
+		if (this.wrapper == null) {
+			this.wrapper = ByteBuffer.wrap(descriptor.memory, descriptor.start + offset, length);
+		}
+		else {
+			this.wrapper.position(descriptor.start + offset);
+			this.wrapper.limit(descriptor.start + offset + length);
+		}
+		
+		return this.wrapper;
+	}
+	
+	/**
+	 * @return
+	 */
+	MemorySegmentDescriptor getSegmentDescriptor()
+	{
+		return this.descriptor;
+	}
+	
+	/**
+	 * Clears all memory references in the views over this memory segment. This way, code trying to access this
+	 * memory segment through the views will fail.
+	 */
+	public void clearMemoryReferences()
+	{
+		this.descriptor = null;
+		
+		((DefaultRandomAccessView) this.randomAccessView).memory = null;
+		((DefaultDataInputView) this.inputView).memory = null;
+		((DefaultDataOutputView) this.outputView).memory = null;
+	}
+}
 }

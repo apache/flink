@@ -395,5 +395,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.uncompressedDataBuffer.recycleBuffer();
 			this.uncompressedDataBuffer = null;
 		}
+		
+		if(this.compressor != null) {
+			this.compressor.shutdown();
+		}
 	}
 }

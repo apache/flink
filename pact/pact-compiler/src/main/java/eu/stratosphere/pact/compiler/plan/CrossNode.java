@@ -218,13 +218,13 @@ public class CrossNode extends TwoInputNode {
 			this.estimatedNumRecords = -1;
 			if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
 				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-			} else if (pred1.estimatedNumRecords != -1 && pred2.estimatedNumRecords != -1) {
-				if (hints.getSelectivity() > 0.0f) {
-					this.estimatedNumRecords = (long) (pred1.estimatedNumRecords * pred2.estimatedNumRecords * hints
-						.getSelectivity()) + 1;
-				} else {
-					this.estimatedNumRecords = pred1.estimatedNumRecords * pred2.estimatedNumRecords;
-				}
+			} else if (pred1.estimatedNumRecords >= 0 && pred2.estimatedNumRecords >= 0) {
+				
+				// estimate the number of stub calls
+				long estNumStubCalls = pred1.estimatedNumRecords * pred2.estimatedNumRecords;
+				
+				// estimate the number of records
+				this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
 
 				// if we have the records and a values/key hints, use that to reversely estimate the number of keys
 				if (this.estimatedKeyCardinality == -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {

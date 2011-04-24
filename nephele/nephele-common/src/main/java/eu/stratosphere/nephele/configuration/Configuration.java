@@ -288,6 +288,44 @@ public class Configuration implements IOReadableWritable {
 			this.confData.put(key, Boolean.toString(value));
 		}
 	}
+	
+	/**
+	 * Returns the value associated with the given key as a float.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	public float getFloat(String key, float defaultValue) {
+		synchronized (this.confData)
+		{
+			String val = this.confData.get(key);
+			return val == null ? defaultValue : Float.parseFloat(val);
+		}
+	}
+
+	/**
+	 * Adds the given key/value pair to the configuration object. If key is <code>null</code> the key/value pair is
+	 * ignored and not added.
+	 * 
+	 * @param key
+	 *        the key of the key/value pair to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	public void setFloat(String key, float value) {
+
+		if (key == null) {
+			LOG.warn("Cannot set boolean: Given key is null!");
+			return;
+		}
+
+		synchronized (this.confData) {
+			this.confData.put(key, Float.toString(value));
+		}
+	}
 
 	/**
 	 * Returns the keys of all key/value pairs stored inside this

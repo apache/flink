@@ -30,7 +30,13 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * 
  * @author warneke
  */
-public class ManagementTestUtils {
+public final class ManagementTestUtils {
+
+	/**
+	 * Private constructor, so class cannot be instantiated.
+	 */
+	private ManagementTestUtils() {
+	}
 
 	/**
 	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent

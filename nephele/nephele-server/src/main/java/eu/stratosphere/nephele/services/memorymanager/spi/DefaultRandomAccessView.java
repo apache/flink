@@ -82,7 +82,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView get(int index, byte[] dst, int offset, int length) {
-		if (index >= 0 && index < this.size && index + length <= this.size && offset + length <= dst.length) {
+		if (index >= 0 && index < this.size && index <= this.size - length && offset <= dst.length - length) {
 			System.arraycopy(this.memory, this.offset + index, dst, offset, length);
 			return this;
 		} else {
@@ -92,7 +92,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView put(int index, byte[] src, int offset, int length) {
-		if (index >= 0 && index < this.size && index + length <= this.size && offset + length <= src.length) {
+		if (index >= 0 && index < this.size && index <= this.size - length && offset <= src.length - length) {
 			System.arraycopy(src, offset, this.memory, this.offset + index, length);
 			return this;
 		} else {
@@ -102,7 +102,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView get(DataOutput out, int offset, int length) throws IOException {
-		if (offset >= 0 && offset < this.size && length >= 0 && offset + length < this.size) {
+		if (offset >= 0 && offset < this.size && length >= 0 && offset < this.size - length) {
 			out.write(this.memory, this.offset + offset, length);
 			return this;
 		} else {
@@ -112,7 +112,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView put(DataInput in, int offset, int length) throws IOException {
-		if (offset >= 0 && offset < this.size && length >= 0 && length < this.size) {
+		if (offset >= 0 && offset < this.size && length >= 0 && offset < this.size - length) {
 			in.readFully(this.memory, this.offset + offset, length);
 			return this;
 		} else {
@@ -141,7 +141,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public char getChar(int index) {
-		if (index >= 0 && index + 1 < this.size) {
+		if (index >= 0 && index < this.size - 1) {
 			return (char) (((this.memory[this.offset + index + 0] & 0xff) << 8) | ((this.memory[this.offset
 				+ index + 1] & 0xff) << 0));
 		} else {
@@ -151,7 +151,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView putChar(int index, char value) {
-		if (index >= 0 && index + 1 < this.size) {
+		if (index >= 0 && index < this.size - 1) {
 			this.memory[this.offset + index + 0] = (byte) ((value >> 8) & 0xff);
 			this.memory[this.offset + index + 1] = (byte) ((value >> 0) & 0xff);
 			return this;
@@ -184,7 +184,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public long getLong(int index) {
-		if (index >= 0 && index + 7 < this.size) {
+		if (index >= 0 && index < this.size - 7) {
 			return (((long) this.memory[this.offset + index + 0] & 0xff) << 56)
 				| (((long) this.memory[this.offset + index + 1] & 0xff) << 48)
 				| (((long) this.memory[this.offset + index + 2] & 0xff) << 40)
@@ -200,7 +200,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView putLong(int index, long value) {
-		if (index >= 0 && index + 7 < this.size) {
+		if (index >= 0 && index < this.size - 7) {
 			this.memory[this.offset + index + 0] = (byte) ((value >> 56) & 0xff);
 			this.memory[this.offset + index + 1] = (byte) ((value >> 48) & 0xff);
 			this.memory[this.offset + index + 2] = (byte) ((value >> 40) & 0xff);
@@ -217,7 +217,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public int getInt(int index) {
-		if (index >= 0 && index + 3 < this.size) {
+		if (index >= 0 && index < this.size - 3) {
 			return (((int) this.memory[this.offset + index + 0] & 0xff) << 24)
 				| (((int) this.memory[this.offset + index + 1] & 0xff) << 16)
 				| (((int) this.memory[this.offset + index + 2] & 0xff) << 8)
@@ -229,7 +229,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView putInt(int index, int value) {
-		if (index >= 0 && index + 3 < this.size) {
+		if (index >= 0 && index < this.size - 3) {
 			this.memory[this.offset + index + 0] = (byte) ((value >> 24) & 0xff);
 			this.memory[this.offset + index + 1] = (byte) ((value >> 16) & 0xff);
 			this.memory[this.offset + index + 2] = (byte) ((value >> 8) & 0xff);
@@ -242,7 +242,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public short getShort(int index) {
-		if (index >= 0 && index + 1 < this.size) {
+		if (index >= 0 && index < this.size - 1) {
 			return (short) (((this.memory[this.offset + index + 0] & 0xff) << 8) | ((this.memory[this.offset
 				+ index + 1] & 0xff) << 0));
 		} else {
@@ -252,7 +252,7 @@ public final class DefaultRandomAccessView extends DefaultMemorySegmentView impl
 
 	@Override
 	public RandomAccessView putShort(int index, short value) {
-		if (index >= 0 && index + 1 < this.size) {
+		if (index >= 0 && index < this.size - 1) {
 			this.memory[this.offset + index + 0] = (byte) ((value >> 8) & 0xff);
 			this.memory[this.offset + index + 1] = (byte) ((value >> 0) & 0xff);
 			return this;

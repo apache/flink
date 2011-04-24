@@ -29,11 +29,10 @@ import eu.stratosphere.nephele.types.Record;
  * (e.g., grouped, joined, or combined) depending on the concrete PACT and split up into keys and value. 
  * Keys and Values are forwarded to user functions (stub implementations). 
  * <p>
- * KeyValuePair extends {@link eu.stratosphere.pact.common.type.Pair} and implements 
- * {@link eu.stratosphere.nephele.types.Record} in order to be processable by Nephele. 
+ * KeyValuePair implements {@link eu.stratosphere.nephele.types.Record} in order to be 
+ * processable by Nephele. 
  * 
  * @see eu.stratosphere.nephele.types.Record
- * @see eu.stratosphere.pact.common.type.Pair
  * 
  * @param <K> Type of the pair's key element.
  * @param <V> Type of the pair's value element.
@@ -41,13 +40,17 @@ import eu.stratosphere.nephele.types.Record;
  * @author Erik Nijkamp
  * 
  */
-public final class KeyValuePair<K extends Key, V extends Value> extends Pair<K, V> implements Record {
+final public class KeyValuePair<K extends Key, V extends Value> implements Record {
 
+	// key object
+	protected K key;
+	// value object
+	protected V value;
+	
 	/**
 	 * Initializes key and value with null.
 	 */
 	public KeyValuePair() {
-		super();
 	}
 
 	/**
@@ -57,9 +60,59 @@ public final class KeyValuePair<K extends Key, V extends Value> extends Pair<K, 
 	 * @param value Initial value of the pair.
 	 */
 	public KeyValuePair(final K key, final V value) {
-		super(key, value);
+		if (key == null)
+			throw new NullPointerException("key must not be null");
+		if (value == null)
+			throw new NullPointerException("value must not be null");
+
+		this.key = key;
+		this.value = value;
 	}
 
+	/**
+	 * Returns the key.
+	 * 
+	 * @return The key.
+	 */
+	public K getKey() {
+		return this.key;
+	}
+
+	/**
+	 * Sets the key to the specified value.
+	 * 
+	 * @param key
+	 *        The new key.
+	 */
+	public void setKey(final K key) {
+		if (key == null)
+			throw new NullPointerException("key must not be null");
+
+		this.key = key;
+	}
+
+	/**
+	 * Returns the value.
+	 * 
+	 * @return The value.
+	 */
+	public V getValue() {
+		return this.value;
+	}
+
+	/**
+	 * Sets the value to the specified value.
+	 * 
+	 * @param value
+	 *        The new value.
+	 */
+	public void setValue(final V value) {
+		if (value == null)
+			throw new NullPointerException("value must not be null");
+
+		this.value = value;
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
@@ -78,6 +131,35 @@ public final class KeyValuePair<K extends Key, V extends Value> extends Pair<K, 
 	public void write(final DataOutput out) throws IOException {
 		this.key.write(out);
 		this.value.write(out);
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.key.hashCode();
+		result = prime * result + this.value.hashCode();
+		return result;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		final KeyValuePair<?, ?> other = (KeyValuePair<?, ?>) obj;
+		return this.key.equals(other.key) && this.value.equals(other.value);
 	}
 
 	/*

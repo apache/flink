@@ -66,7 +66,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -77,7 +77,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
-import eu.stratosphere.nephele.executiongraph.ManagementGraphFactory;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
@@ -87,6 +86,7 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
+import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -666,7 +666,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public JobCancelResult cancelJob(JobID jobID) throws IOException {
+	public JobCancelResult cancelJob(final JobID jobID) throws IOException {
 
 		LOG.info("Trying to cancel job with ID " + jobID);
 
@@ -675,11 +675,17 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return new JobCancelResult(ReturnCode.ERROR, "Cannot find job with ID " + jobID);
 		}
 
-		final TaskCancelResult errorResult = cancelJob(eg);
-		if (errorResult != null) {
-			LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
-			return new JobCancelResult(AbstractJobResult.ReturnCode.ERROR, errorResult.getDescription());
-		}
+		final Runnable cancelJobRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+				final TaskCancelResult errorResult = cancelJob(eg);
+				if (errorResult != null) {
+					LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
+				}
+			}
+		};
+		this.executorService.execute(cancelJobRunnable);
 
 		LOG.info("Cancel of job " + jobID + " successfully triggered");
 
@@ -705,14 +711,11 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
 			false, true);
 		while (it.hasNext()) {
-
+		
 			final ExecutionVertex vertex = it.next();
-			final ExecutionState state = vertex.getExecutionState();
-			if (state != ExecutionState.FAILED) {
-				final TaskCancelResult result = vertex.cancelTask();
-				if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
-					errorResult = result;
-				}
+			final TaskCancelResult result = vertex.cancelTask();
+			if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+				errorResult = result;
 			}
 		}
 
@@ -740,7 +743,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID targetChannelID) {
+	public ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID sourceChannelID) {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 		if (eg == null) {
@@ -748,12 +751,23 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
 
+		AbstractChannel sourceChannel = eg.getOutputChannelByID(sourceChannelID);
+		if(sourceChannel == null) {
+			sourceChannel = eg.getInputChannelByID(sourceChannelID);
+			if(sourceChannel == null) {
+				LOG.error("Cannot find source channel with ID " + sourceChannelID);
+				return ConnectionInfoLookupResponse.createReceiverNotFound();
+			}
+		}
+		
+		final ChannelID targetChannelID = sourceChannel.getConnectedChannelID();
+		
 		final ExecutionVertex vertex = eg.getVertexByChannelID(targetChannelID);
 		if (vertex == null) {
-			LOG.debug("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
+			LOG.error("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
-
+		
 		final ExecutionState executionState = vertex.getExecutionState();
 		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
 			return ConnectionInfoLookupResponse.createReceiverNotReady();
@@ -812,15 +826,15 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<NewJobEvent> getRecentJobs() throws IOException {
+	public List<RecentJobEvent> getRecentJobs() throws IOException {
 
-		final List<NewJobEvent> eventList = new SerializableArrayList<NewJobEvent>();
+		final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
 		}
 
-		this.eventCollector.getNewJobs(eventList);
+		this.eventCollector.getRecentJobs(eventList);
 
 		return eventList;
 	}

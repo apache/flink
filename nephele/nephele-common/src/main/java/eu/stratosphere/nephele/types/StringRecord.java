@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.types;
 
 import java.io.IOException;
@@ -39,8 +45,6 @@ import java.util.Arrays;
  * <p>
  * Also includes utilities for serializing/deserialing a string, coding/decoding a string, checking if a byte array
  * contains valid UTF8 code, calculating the length of an encoded string.
- * 
- * @author warneke
  */
 public class StringRecord implements Record {
 
@@ -65,7 +69,7 @@ public class StringRecord implements Record {
 	private int length;
 
 	public StringRecord() {
-		bytes = EMPTY_BYTES;
+		this.bytes = EMPTY_BYTES;
 	}
 
 	/**
@@ -98,20 +102,20 @@ public class StringRecord implements Record {
 	/**
 	 * Returns the Unicode Scalar Value (32-bit integer value) for the character
 	 * at <code>position</code>. Note that this method avoids using the
-	 * converter or doing String instatiation
+	 * converter or doing String instantiation
 	 * 
 	 * @return the Unicode scalar value at position or -1 if the position is
 	 *         invalid or points to a trailing byte
 	 */
-	public int charAt(int position) {
+	public int charAt(final int position) {
 		if (position > this.length) {
 			return -1; // too long
 		}
 		if (position < 0) {
-			return -1; // duh.
+			return -1;
 		}
 
-		final ByteBuffer bb = (ByteBuffer) ByteBuffer.wrap(bytes).position(position);
+		final ByteBuffer bb = (ByteBuffer) ByteBuffer.wrap(this.bytes).position(position);
 		return bytesToCodePoint(bb.slice());
 	}
 
@@ -120,7 +124,7 @@ public class StringRecord implements Record {
 	}
 
 	/**
-	 * Finds any occurence of <code>what</code> in the backing buffer, starting
+	 * Finds any occurrence of <code>what</code> in the backing buffer, starting
 	 * as position <code>start</code>. The starting position is measured in
 	 * bytes and the return value is in terms of byte position in the buffer.
 	 * The backing buffer is not converted to a string for this operation.
@@ -128,7 +132,7 @@ public class StringRecord implements Record {
 	 * @return byte position of the first occurence of the search string in the
 	 *         UTF-8 buffer or -1 if not found
 	 */
-	public int find(String what, int start) {
+	public int find(final String what, final int start) {
 		try {
 			final ByteBuffer src = ByteBuffer.wrap(this.bytes, 0, this.length);
 			final ByteBuffer tgt = encode(what);

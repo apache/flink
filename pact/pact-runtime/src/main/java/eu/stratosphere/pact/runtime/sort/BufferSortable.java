@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
@@ -257,7 +256,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	 * @throws IOException
 	 * @throws UnboundMemoryBackedException
 	 */
-	public boolean write(Pair<K, V> pair) {
+	public boolean write(KeyValuePair<K, V> pair) {
 		try {
 			// increment index
 			final int kvnext = (kvindex + 1);
@@ -394,10 +393,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 		final int indexi = memory.randomAccessView.translateOffset(kvindices[ii + KEYSTART]);
 		final int indexj = memory.randomAccessView.translateOffset(kvindices[ij + KEYSTART]);
 		
-		final int lengthi = kvindices[ii + VALSTART] - kvindices[ii + KEYSTART];
-		final int lengthj = kvindices[ij + VALSTART] - kvindices[ij + KEYSTART];
-		
-		return comparator.compare(backingArray, backingArray, indexi, indexj, lengthi, lengthj);
+		return comparator.compare(backingArray, backingArray, indexi, indexj);
 	}
 
 	@Override

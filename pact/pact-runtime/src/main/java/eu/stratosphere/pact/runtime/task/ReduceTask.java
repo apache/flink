@@ -89,6 +89,9 @@ public class ReduceTask extends AbstractTask {
 	// maximum number of file handles
 	private int maxFileHandles;
 	
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
+	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 
@@ -218,6 +221,7 @@ public class ReduceTask extends AbstractTask {
 		// set up memory and I/O parameters
 		this.availableMemory = config.getMemorySize();
 		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
@@ -397,7 +401,7 @@ public class ReduceTask extends AbstractTask {
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
 					this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this);
+					valSerialization, keyComparator, reader, this, this.spillThreshold);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
 			} catch (MemoryAllocationException mae) {
@@ -429,7 +433,7 @@ public class ReduceTask extends AbstractTask {
 				// instantiate a combining sort-merger
 				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
 					ioManager, this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, false);
+					valSerialization, keyComparator, reader, this, this.spillThreshold, false);
 				// obtain and return a grouped iterator from the combining
 				// sort-merger
 				return sortMerger;

@@ -41,12 +41,12 @@ public final class DeserializerComparator<T> implements RawComparator
 		this.deserializer.open(buffer);
 	}
 
-	public int compare(byte[] keyBytes1, byte[] keyBytes2, int startKey1, int startKey2, int lenKey1, int lenKey2) {
+	public int compare(byte[] keyBytes1, byte[] keyBytes2, int startKey1, int startKey2) {
 		try {
-			buffer.reset(keyBytes1, startKey1, lenKey1);
+			buffer.reset(keyBytes1, startKey1, keyBytes1.length - startKey1);
 			key1 = deserializer.deserialize(key1);
 
-			buffer.reset(keyBytes2, startKey2, lenKey2);
+			buffer.reset(keyBytes2, startKey2, keyBytes2.length - startKey2);
 			key2 = deserializer.deserialize(key2);
 
 			return comparator.compare(key1, key2);

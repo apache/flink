@@ -85,6 +85,9 @@ public class CoGroupTask extends AbstractTask
 	// maximum number of file handles
 	private int maxFileHandles;
 	
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
+	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 
@@ -151,6 +154,7 @@ public class CoGroupTask extends AbstractTask
 		// set up memory and I/O parameters
 		this.availableMemory = config.getMemorySize();
 		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
@@ -236,16 +240,20 @@ public class CoGroupTask extends AbstractTask
 		switch (config.getLocalStrategy()) {
 		case SORT_BOTH_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
-				iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+				iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
 		case SORT_FIRST_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
-					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
+					config.getLocalStrategy(), this);
 		case SORT_SECOND_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
-					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
+					config.getLocalStrategy(), this);
 		case MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
-					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, config.getLocalStrategy(), this);
+					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
+					config.getLocalStrategy(), this);
 		default:
 			throw new RuntimeException("Supported local strategy for CoGroupTask: "+config.getLocalStrategy());
 		}

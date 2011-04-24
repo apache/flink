@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.net;
 
 import java.io.IOException;
@@ -46,35 +52,11 @@ public class NetUtils {
 
 	private static Map<String, String> hostToResolved = new HashMap<String, String>();
 
-	/**
-	 * Get the socket factory for the given class according to its
-	 * configuration parameter <tt>hadoop.rpc.socket.factory.class.&lt;ClassName&gt;</tt>. When no
-	 * such parameter exists then fall back on the default socket factory as
-	 * configured by <tt>hadoop.rpc.socket.factory.class.default</tt>. If
-	 * this default socket factory is not configured, then fall back on the JVM
-	 * default socket factory.
-	 * 
-	 * @param conf
-	 *        the configuration
-	 * @param clazz
-	 *        the class (usually a {@link VersionedProtocol})
-	 * @return a socket factory
-	 */
 	public static SocketFactory getSocketFactory() {
 
 		return getDefaultSocketFactory();
 	}
 
-	/**
-	 * Get the default socket factory as specified by the configuration
-	 * parameter <tt>hadoop.rpc.socket.factory.default</tt>
-	 * 
-	 * @param conf
-	 *        the configuration
-	 * @return the default socket factory as specified in the configuration or
-	 *         the JVM default socket factory if the configuration does not
-	 *         contain a default socket factory property.
-	 */
 	public static SocketFactory getDefaultSocketFactory() {
 
 		return SocketFactory.getDefault();
@@ -290,22 +272,6 @@ public class NetUtils {
 		return (socket.getChannel() == null) ? socket.getOutputStream() : new SocketOutputStream(socket, timeout);
 	}
 
-	/**
-	 * This is a drop-in replacement for {@link Socket#connect(SocketAddress, int)}.
-	 * In the case of normal sockets that don't have associated channels, this
-	 * just invokes <code>socket.connect(endpoint, timeout)</code>. If <code>socket.getChannel()</code> returns a
-	 * non-null channel,
-	 * connect is implemented using Hadoop's selectors. This is done mainly
-	 * to avoid Sun's connect implementation from creating thread-local
-	 * selectors, since Hadoop does not have control on when these are closed
-	 * and could end up taking all the available file descriptors.
-	 * 
-	 * @see java.net.Socket#connect(java.net.SocketAddress, int)
-	 * @param socket
-	 * @param endpoint
-	 * @param timeout
-	 *        - timeout in milliseconds
-	 */
 	public static void connect(Socket socket, SocketAddress endpoint, int timeout) throws IOException {
 		if (socket == null || endpoint == null || timeout < 0) {
 			throw new IllegalArgumentException("Illegal argument for connect()");

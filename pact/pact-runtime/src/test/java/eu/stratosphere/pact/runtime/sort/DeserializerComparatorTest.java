@@ -63,8 +63,8 @@ public class DeserializerComparatorTest {
 		byte[] key2bytes = buffer2.toByteArray();
 
 		// assertion
-		Assert.assertTrue(rawComparator.compare(key1bytes, key2bytes, 0, 0, key1bytes.length, key2bytes.length) < 0);
-		Assert.assertTrue(rawComparator.compare(key2bytes, key1bytes, 0, 0, key2bytes.length, key1bytes.length) > 0);
-		Assert.assertTrue(rawComparator.compare(key1bytes, key1bytes, 0, 0, key1bytes.length, key1bytes.length) == 0);
+		Assert.assertTrue(rawComparator.compare(key1bytes, key2bytes, 0, 0) < 0);
+		Assert.assertTrue(rawComparator.compare(key2bytes, key1bytes, 0, 0) > 0);
+		Assert.assertTrue(rawComparator.compare(key1bytes, key1bytes, 0, 0) == 0);
 	}
 }

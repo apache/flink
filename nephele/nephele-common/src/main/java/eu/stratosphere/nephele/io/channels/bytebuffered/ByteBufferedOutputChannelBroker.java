@@ -53,5 +53,4 @@ public interface ByteBufferedOutputChannelBroker {
 	 *         thrown if an I/O error occurs while transfering the event
 	 */
 	void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException;
-
 }

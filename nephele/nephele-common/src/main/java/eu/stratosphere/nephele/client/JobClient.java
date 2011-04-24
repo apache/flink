@@ -252,7 +252,7 @@ public class JobClient {
 			final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
 			if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
 				LOG.error("ERROR: " + submissionResult.getDescription());
-				throw new JobExecutionException(submissionResult.getDescription());
+				throw new JobExecutionException(submissionResult.getDescription(), false);
 			} else {
 				// Make sure the job is properly terminated when the user shut's down the client
 				Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
@@ -310,7 +310,7 @@ public class JobClient {
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
-						throw new JobExecutionException(jobEvent.getOptionalMessage());
+						throw new JobExecutionException(jobEvent.getOptionalMessage(), (jobStatus == JobStatus.CANCELED) ? true : false);
 					}
 				}
 			}

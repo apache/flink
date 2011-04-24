@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.fs;
 
 import java.io.DataInput;
@@ -114,24 +120,24 @@ public class FileInputSplit implements InputSplit {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
-		if (file != null) {
+		if (this.file != null) {
 			out.writeBoolean(true);
-			file.write(out);
+			this.file.write(out);
 		} else {
 			out.writeBoolean(false);
 		}
 
-		out.writeLong(start);
-		out.writeLong(length);
-		if (hosts == null) {
+		out.writeLong(this.start);
+		out.writeLong(this.length);
+		if (this.hosts == null) {
 			out.writeBoolean(false);
 		} else {
 			out.writeBoolean(true);
 			out.writeInt(this.hosts.length);
-			for (int i = 0; i < hosts.length; i++) {
-				StringRecord.writeString(out, hosts[i]);
+			for (int i = 0; i < this.hosts.length; i++) {
+				StringRecord.writeString(out, this.hosts[i]);
 			}
 		}
 	}
@@ -152,12 +158,12 @@ public class FileInputSplit implements InputSplit {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.file = new Path();
-			file.read(in);
+			this.file.read(in);
 		}
 
 		this.start = in.readLong();
@@ -171,7 +177,7 @@ public class FileInputSplit implements InputSplit {
 				this.hosts[i] = StringRecord.readString(in);
 			}
 		} else {
-			hosts = null;
+			this.hosts = null;
 		}
 	}
 }

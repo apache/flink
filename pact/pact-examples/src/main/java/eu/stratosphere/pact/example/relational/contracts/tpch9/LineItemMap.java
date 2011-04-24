@@ -18,13 +18,12 @@ import org.apache.log4j.Logger;
 
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.base.*;
-import eu.stratosphere.pact.example.relational.contracts.tpch4.Join;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 public class LineItemMap extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
 	
-	private static Logger LOGGER = Logger.getLogger(Join.class);
+	private static Logger LOGGER = Logger.getLogger(LineItemMap.class);
 	
 	/**
 	 * Filter "lineitem".

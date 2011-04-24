@@ -33,8 +33,8 @@ import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
  * 
  * @author warneke
  */
-public class ServerTestUtils {
-
+public final class ServerTestUtils {
+	
 	/**
 	 * The system property key to retrieve the user directory.
 	 */
