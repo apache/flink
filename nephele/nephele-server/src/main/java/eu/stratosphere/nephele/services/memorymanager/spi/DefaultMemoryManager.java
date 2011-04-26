@@ -921,11 +921,10 @@ public class DefaultMemoryManager implements MemoryManager
 	 * @return A <tt>DefaultMemorySegment</tt> representation of the given memory segment.
 	 */
 	private static final DefaultMemorySegment factory(MemorySegmentDescriptor descriptor) {
-		DefaultRandomAccessView randomAccessView = new DefaultRandomAccessView(descriptor);
 		DefaultDataInputView inputView = new DefaultDataInputView(descriptor);
 		DefaultDataOutputView outputView = new DefaultDataOutputView(descriptor);
 
-		return new DefaultMemorySegment(descriptor, randomAccessView, inputView, outputView);
+		return new DefaultMemorySegment(descriptor, inputView, outputView);
 	}
 	
 	/**

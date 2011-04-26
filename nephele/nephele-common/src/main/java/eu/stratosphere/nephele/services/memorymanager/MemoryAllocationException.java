@@ -23,7 +23,8 @@ import eu.stratosphere.nephele.services.ServiceException;
  * 
  * @author Alexander Alexandrov
  */
-public class MemoryAllocationException extends ServiceException {
+public class MemoryAllocationException extends ServiceException
+{
 	private static final long serialVersionUID = -403983866457947012L;
 
 	public MemoryAllocationException() {
@@ -41,5 +42,4 @@ public class MemoryAllocationException extends ServiceException {
 	public MemoryAllocationException(Throwable cause) {
 		super(cause);
 	}
-	
 }

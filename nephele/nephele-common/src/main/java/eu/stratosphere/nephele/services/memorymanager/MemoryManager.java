@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * be assigned to other tasks.
  *
  * @author Alexander Alexandrov
- * @author Stephan Ewen
  */
 public interface MemoryManager {
 	
