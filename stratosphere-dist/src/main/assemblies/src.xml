@@ -63,13 +63,13 @@
     	<!-- copy JavaDocs -->
     		<!--
     		<directory>../target/apidocs</directory>
-    		-->
     		<directory>../target</directory>
     		<includes>
     			<include>stratosphere-*-javadoc.jar</include>
     		</includes>
     		<outputDirectory>docs/javadoc</outputDirectory>
     		<fileMode>0644</fileMode>
+		-->
     	</fileSet>
     	
         <fileSet>

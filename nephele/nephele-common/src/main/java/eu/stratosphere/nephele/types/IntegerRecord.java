@@ -71,7 +71,7 @@ public class IntegerRecord implements Record {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Simply read the value from the stream
 		this.value = in.readInt();
@@ -81,9 +81,33 @@ public class IntegerRecord implements Record {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Simply write the value to the stream
 		out.writeInt(this.value);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(Object obj) {
+
+		if (!(obj instanceof IntegerRecord)) {
+			return false;
+		}
+
+		final IntegerRecord ir = (IntegerRecord) obj;
+
+		return (this.value == ir.value);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return this.value;
 	}
 }

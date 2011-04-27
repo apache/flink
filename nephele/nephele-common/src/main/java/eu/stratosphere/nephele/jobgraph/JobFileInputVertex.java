@@ -305,7 +305,8 @@ public class JobFileInputVertex extends JobInputVertex {
 				% numSubtasks == 0 ? 0 : 1));
 
 			// now that we have the files, generate the splits
-			for (FileStatus file : files) {
+			for (final FileStatus file : files) {
+
 				final long len = file.getLen();
 				final long blockSize = file.getBlockSize();
 
@@ -348,7 +349,13 @@ public class JobFileInputVertex extends JobInputVertex {
 				} else {
 					// special case with a file of zero bytes size
 					final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, 0);
-					final FileInputSplit fis = new FileInputSplit(file.getPath(), 0, 0, blocks[0].getHosts());
+					String[] hosts;
+					if (blocks.length > 0) {
+						hosts = blocks[0].getHosts();
+					} else {
+						hosts = new String[0];
+					}
+					final FileInputSplit fis = new FileInputSplit(file.getPath(), 0, 0, hosts);
 					inputSplits.add(fis);
 				}
 			}

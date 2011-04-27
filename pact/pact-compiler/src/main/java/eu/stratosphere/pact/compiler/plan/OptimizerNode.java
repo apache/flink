@@ -51,18 +51,23 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Fabian Hüske (fabian.hueske@tu-berlin.de)
  * @author Stephan Ewen (stephan.ewen@tu -berlin.de)
  */
-public abstract class OptimizerNode implements Visitable<OptimizerNode> {
+public abstract class OptimizerNode implements Visitable<OptimizerNode>
+{
 	// ------------------------------------------------------------------------
-	// Internal classes
+	//                         Internal classes
 	// ------------------------------------------------------------------------
 
 	/**
 	 * An enumeration describing the type of the PACT.
 	 */
 	public enum PactType {
-		Cogroup(CoGroupContract.class), Cross(CrossContract.class), DataSource(DataSourceContract.class), DataSink(
-				DataSinkContract.class), Map(MapContract.class), Match(MatchContract.class), Reduce(
-				ReduceContract.class);
+		Cogroup(CoGroupContract.class),
+		Cross(CrossContract.class),
+		DataSource(DataSourceContract.class),
+		DataSink(DataSinkContract.class),
+		Map(MapContract.class),
+		Match(MatchContract.class),
+		Reduce(ReduceContract.class);
 
 		private Class<? extends Contract> clazz; // The class describing the contract
 
@@ -104,7 +109,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 	}
 
 	// ------------------------------------------------------------------------
-	// Members
+	//                              Members
 	// ------------------------------------------------------------------------
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
@@ -119,41 +124,34 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 
 	protected GlobalProperties globalProps; // global properties of the data produced by this node
 
-	protected List<UnclosedBranchDescriptor> openBranches; // stack of branches in the sub-graph that are not yet
-
-	// rejoined
-	protected Map<OptimizerNode, OptimizerNode> branchPlan; // the actual plan alternative chosen at a specific branch
-
-	// point
+	protected List<UnclosedBranchDescriptor> openBranches; // stack of branches in the sub-graph that are not joined
+	
+	protected Map<OptimizerNode, OptimizerNode> branchPlan; // the actual plan alternative chosen at a branch point
 
 	protected LocalStrategy localStrategy; // The local strategy (sorting / hashing, ...)
 
 	protected Costs nodeCosts; // the costs incurred by this node
 
-	protected Costs cumulativeCosts; // the cumulative costs of all operators in the sub-tree
+	protected Costs cumulativeCosts; // the cumulative costs of all operators in the sub-tree of this node
 
-	// of and including this node
+	protected long estimatedOutputSize = -1; // the estimated size of the output (bytes)
 
-	protected long estimatedOutputSize = -1;
+	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
 
-	protected long estimatedNumRecords = -1;
-
-	protected long estimatedKeyCardinality = -1;
+	protected long estimatedKeyCardinality = -1; // the estimated number of distinct keys in the output
 
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
-	private int instancesPerMachine = -1; // the number of parallel instance that will run on the
+	private int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
 
-	// same machine
-
-	private int memoryPerTask; // the amount of memory dedicated to each task
+	private int memoryPerTask; // the amount of memory dedicated to each task, in MiBytes
 
 	private int id = -1; // the id for this node.
 
 	private boolean pFlag = false; // flag for the internal pruning algorithm
 
 	// ------------------------------------------------------------------------
-	// Constructor / Setup
+	//                      Constructor / Setup
 	// ------------------------------------------------------------------------
 
 	/**
@@ -218,8 +216,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 	}
 
 	// ------------------------------------------------------------------------
-	// Abstract methods that implement node specific behavior
-	// and the pact type specific optimization methods.
+	//      Abstract methods that implement node specific behavior
+	//        and the pact type specific optimization methods.
 	// ------------------------------------------------------------------------
 
 	/**
@@ -305,10 +303,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 	 * 
 	 * @return True, if this node contains logic that requires memory usage, false otherwise.
 	 */
-	public abstract boolean isMemoryConsumer();
+	public abstract int getMemoryConsumerCount();
 
 	// ------------------------------------------------------------------------
-	// Getters / Setters
+	//                          Getters / Setters
 	// ------------------------------------------------------------------------
 
 	/**
@@ -341,7 +339,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 			this.outgoingConnections = new ArrayList<PactConnection>();
 		} else {
 			if (this.outgoingConnections.size() == 64) {
-				throw new CompilerException("Cannot currently handle node with more than 64 outputs.");
+				throw new CompilerException("Cannot currently handle nodes with more than 64 outputs.");
 			}
 		}
 
@@ -444,7 +442,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 	/**
 	 * Gets the memory dedicated to each task for this node.
 	 * 
-	 * @return The memory per task.
+	 * @return The memory per task, in MiBytes.
 	 */
 	public int getMemoryPerTask() {
 		return memoryPerTask;
@@ -575,13 +573,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 
 		for (PactConnection p : getIncomingConnections()) {
 			this.cumulativeCosts.addCosts(p.getSourcePact().cumulativeCosts);
-
-			// TODO: handle cycles such that costs are not added multiple times
 		}
 	}
 
 	// ------------------------------------------------------------------------
-	// Miscellaneous
+	//                              Miscellaneous
 	// ------------------------------------------------------------------------
 
 	/**
@@ -860,15 +856,18 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 	// Handling of branches
 	// ------------------------------------------------------------------------
 
-	public boolean hasUnclosedBranches() {
+	public boolean hasUnclosedBranches()
+	{
 		return openBranches != null && !openBranches.isEmpty();
 	}
 
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent)
+	{
 		if (outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
 			return this.openBranches;
-		} else if (outgoingConnections.size() > 1) {
+		}
+		else if (outgoingConnections.size() > 1) {
 			// we branch add a branch info to the stack
 			List<UnclosedBranchDescriptor> branches = new ArrayList<UnclosedBranchDescriptor>(4);
 			if (this.openBranches != null) {
@@ -891,13 +890,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 			long bitvector = 0x1L << num;
 			branches.add(new UnclosedBranchDescriptor(this, bitvector));
 			return branches;
-		} else {
+		}
+		else {
 			throw new CompilerException(
 				"Error in compiler: Cannot get branch info for parent in a node woth no parents.");
 		}
 	}
 
-	protected final class UnclosedBranchDescriptor {
+	protected static final class UnclosedBranchDescriptor
+	{
 		protected OptimizerNode branchingNode;
 
 		protected long joinedPathsVector;
@@ -906,7 +907,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode> {
 		 * @param branchingNode
 		 * @param joinedPathsVector
 		 */
-		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector) {
+		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector)
+		{
 			this.branchingNode = branchingNode;
 			this.joinedPathsVector = joinedPathsVector;
 		}

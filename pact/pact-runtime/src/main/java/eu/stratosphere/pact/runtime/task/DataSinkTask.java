@@ -46,7 +46,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.io.OutputFormat
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings( { "unchecked", "rawtypes" })
 public class DataSinkTask extends AbstractFileOutputTask {
 
 	// Obtain DataSinkTask Logger
@@ -59,7 +59,10 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	private OutputFormat format;
 
 	// task configuration
-	private Config config;
+	private DataSinkConfig config;
+
+	// cancel flag
+	private volatile boolean taskCanceled = false;
 
 	/**
 	 * {@inheritDoc}
@@ -85,48 +88,95 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 */
 	@Override
 	public void invoke() throws Exception {
+		
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
+		final Path path = getFileOutputPath();
+		final RecordReader<KeyValuePair<Key, Value>> reader = this.reader;
+		final OutputFormat format = this.format;
+
+		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
+		OutputPathOpenThread opot = new OutputPathOpenThread(path, 
+			this.getEnvironment().getIndexInSubtaskGroup() + 1, 10000);
+		opot.start();
+		
 		FSDataOutputStream fdos = null;
+		
+		try {
+			// get FSDataOutputStream
+			fdos = opot.getFSDataOutputStream();
 
-		Path path = getFileOutputPath();
-		FileSystem fs = path.getFileSystem();
+			// check if task has been canceled
+			if (this.taskCanceled) {
+				return;
+			}
 
-		if (fs.exists(path) && fs.getFileStatus(path).isDir()) {
-			// write output in directory
-			path = path.suffix("/" + (this.getEnvironment().getIndexInSubtaskGroup() + 1));
+			LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
+				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+			format.setOutput(fdos);
+			format.open();
+
+			while (!this.taskCanceled && reader.hasNext()) {
+				KeyValuePair pair = reader.next();
+				format.writePair(pair);
+			}
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+				
+		}
+		finally {
+			
+			if (this.format != null) {
+				// close format
+				try {
+					this.format.close();
+				}
+				catch (Throwable t) {}
+			}
+				
+			if (fdos != null) {
+				// close file stream
+				try {
+					fdos.close();
+				}
+				catch (Throwable t) {}
+			}
 		}
 
-		fdos = fs.create(path, true);
+		if (!this.taskCanceled) {
+			LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
+				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
-		LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		format.setOutput(fdos);
-		format.open();
-
-		while (reader.hasNext()) {
-			KeyValuePair pair = reader.next();
-			format.writePair(pair);
-			// byte[] line = format.writeLine(pair);
-			// fdos.write(line, 0, line.length);
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
+	}
 
-		format.close();
-		fdos.close(); // Should this be done in the format?l
-
-		LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		if (fdos != null) {
-			fdos.close();
-		}
-
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception {
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -141,7 +191,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	private void initOutputFormat() throws RuntimeException {
 
 		// obtain task configuration (including stub parameters)
-		config = new Config(getRuntimeConfiguration());
+		config = new DataSinkConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
 		ClassLoader cl;
@@ -149,9 +199,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			Class<? extends OutputFormat> formatClass = config.getStubClass(OutputFormat.class, cl);
 			// obtain instance of stub implementation
-			format = formatClass.newInstance();
+			this.format = formatClass.newInstance();
 			// configure stub implementation
-			format.configure(config.getStubParameters());
+			this.format.configure(this.config.getStubParameters());
 
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
@@ -184,22 +234,22 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			dp = new PointwiseDistributionPattern();
 			break;
 		default:
-			throw new RuntimeException("No valid input ship strategy provided for MapTask.");
+			throw new RuntimeException("No valid input ship strategy provided for DataSinkTask.");
 		}
 
 		// create reader
 		// map has only one input, so we create one reader (id=0).
-		reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
 
 	}
 
-	public static class Config extends TaskConfig {
+	public static class DataSinkConfig extends TaskConfig {
 
 		private static final String FORMAT_CLASS = "formatClass";
 
 		private static final String FILE_PATH = "outputPath";
 
-		public Config(Configuration config) {
+		public DataSinkConfig(Configuration config) {
 			super(config);
 		}
 
@@ -225,6 +275,120 @@ public class DataSinkTask extends AbstractFileOutputTask {
 
 		public String getFilePath() {
 			return config.getString(FILE_PATH, null);
+		}
+	}
+
+	/**
+	 * Obtains a DataOutputStream in an thread that is not interrupted.
+	 * The HDFS client is very sensitive to InterruptedExceptions.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class OutputPathOpenThread extends Thread {
+
+		private final Object lock = new Object();
+		
+		private final Path path;
+		
+		private final long timeoutMillies;
+
+		private final int taskIndex;
+
+		private volatile FSDataOutputStream fdos;
+
+		private volatile Exception exception;
+		
+		private volatile boolean canceled = false;
+		
+
+		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
+			this.path = path;
+			this.timeoutMillies = timeoutMillies;
+			this.taskIndex = taskIndex;
+		}
+
+		@Override
+		public void run() {
+			
+			try {
+				final FileSystem fs = path.getFileSystem();
+				Path p = this.path;
+				
+				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
+					// write output in directory
+					p = this.path.suffix("/" + this.taskIndex);
+				}
+				
+				final FSDataOutputStream stream = fs.create(p, true);
+
+				// create output file
+				synchronized (this.lock) {
+					this.lock.notifyAll();
+					
+					if (!this.canceled) {
+						this.fdos = stream;
+					}
+					else {
+						this.fdos = null;
+						stream.close();
+					}
+				}
+			}
+			catch (Exception t) {
+				synchronized (this.lock) {
+					this.canceled = true;
+					this.exception = t;
+				}
+			}
+		}
+
+		public FSDataOutputStream getFSDataOutputStream()
+		throws Exception
+		{
+			long start = System.currentTimeMillis();
+			long remaining = this.timeoutMillies;
+			
+			if (this.exception != null) {
+				throw this.exception;
+			}
+			if (this.fdos != null) {
+				return this.fdos;
+			}
+			
+			synchronized (this.lock) {
+				do {
+					try {
+						this.lock.wait(remaining);
+					}
+					catch (InterruptedException iex) {
+						this.canceled = true;
+						if (this.fdos != null) {
+							try  {
+								this.fdos.close();
+							} catch (Throwable t) {}
+						}
+						throw new Exception("Output Path Opener was interrupted.");
+					}
+				}
+				while (this.exception == null && this.fdos == null &&
+						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
+			
+				if (this.exception != null) {
+					if (this.fdos != null) {
+						try  {
+							this.fdos.close();
+						} catch (Throwable t) {}
+					}
+					throw this.exception;
+				}
+				
+				if (this.fdos != null) {
+					return this.fdos;
+				}
+			}
+			
+			// try to forcefully shut this thread down
+			throw new Exception("Output Path Opener timed out.");
 		}
 	}
 

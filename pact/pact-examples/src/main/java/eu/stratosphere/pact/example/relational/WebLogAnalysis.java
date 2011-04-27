@@ -101,7 +101,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * Filters for documents that contain all of the given keywords and emit their keys.
 		 */
 		@Override
-		protected void map(PactString url, Tuple docRecord, Collector<PactString, PactNull> out) {
+		public void map(PactString url, Tuple docRecord, Collector<PactString, PactNull> out) {
 			
 			// FILTER
 			// Only collect the document if all keywords are contained
@@ -138,7 +138,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * than the given threshold. The key is set to the URL of the record.
 		 */
 		@Override
-		protected void map(PactString key, Tuple rankRecord, Collector<PactString, Tuple> out) {
+		public void map(PactString key, Tuple rankRecord, Collector<PactString, Tuple> out) {
 			
 			// Extract rank from record 
 			int rank = (int) rankRecord.getLongValueAt(0);
@@ -170,7 +170,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * specified value. The URL of all visit records passing the filter is emitted.
 		 */
 		@Override
-		protected void map(PactString key, Tuple visitRecord, Collector<PactString, PactNull> out) {
+		public void map(PactString key, Tuple visitRecord, Collector<PactString, PactNull> out) {
 			
 			// Parse date string with the format YYYY-MM-DD and extract the year
 			int year = Integer.parseInt(visitRecord.getStringValueAt(2).substring(0,4));
@@ -240,18 +240,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 5) {
-			throw new IllegalArgumentException(
-				"Must provide five arguments: <parallelism> <docs_input> <ranks_input> <visits_input> <result_directory>");
-		}
-
 		// parse job parameters
-		int noSubTasks = Integer.parseInt(args[0]);
-		String docsInput = args[1];
-		String ranksInput = args[2];
-		String visitsInput = args[3];
-		String output = args[4];
+		int noSubTasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String docsInput   = (args.length > 1 ? args[1] : "");
+		String ranksInput  = (args.length > 2 ? args[2] : "");
+		String visitsInput = (args.length > 3 ? args[3] : "");
+		String output      = (args.length > 4 ? args[4] : "");
 
 		// Create DataSourceContract for documents relation
 		DataSourceContract<PactString, Tuple> docs = new DataSourceContract<PactString, Tuple>(
@@ -277,34 +271,34 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		MapContract<PactString, Tuple, PactString, PactNull> filterDocs = new MapContract<PactString, Tuple, PactString, PactNull>(
 				FilterDocs.class, "Filter Docs");
 		filterDocs.setDegreeOfParallelism(noSubTasks);
-		filterDocs.getCompilerHints().setSelectivity(0.15f);
+		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 
 		// Create MapContract for filtering the entries from the ranks relation
 		MapContract<PactString, Tuple, PactString, Tuple> filterRanks = new MapContract<PactString, Tuple, PactString, Tuple>(
 				FilterRanks.class, "Filter Ranks");
 		filterRanks.setDegreeOfParallelism(noSubTasks);
-		filterRanks.getCompilerHints().setSelectivity(0.25f);
+		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
 
 		// Create MapContract for filtering the entries from the visits relation
 		MapContract<PactString, Tuple, PactString, PactNull> filterVisits = new MapContract<PactString, Tuple, PactString, PactNull>(
 				FilterVisits.class, "Filter Visits");
 		filterVisits.setDegreeOfParallelism(noSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
-		filterVisits.getCompilerHints().setSelectivity(0.2f);
+		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
 		// Create MatchContract to join the filtered documents and ranks
 		// relation
 		MatchContract<PactString, Tuple, PactNull, PactString, Tuple> joinDocsRanks = new MatchContract<PactString, Tuple, PactNull, PactString, Tuple>(
 				JoinDocRanks.class, "Join DocRanks");
 		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
-		joinDocsRanks.getCompilerHints().setSelectivity(0.15f);
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
 		CoGroupContract<PactString, PactNull, Tuple, PactString, Tuple> antiJoinVisits = new CoGroupContract<PactString, PactNull, Tuple, PactString, Tuple>(
 				AntiJoinVisits.class, "Antijoin DocsVisits");
 		antiJoinVisits.setDegreeOfParallelism(noSubTasks);
+		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
 		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
@@ -330,7 +324,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: [noSubTasks], [docsInput], [ranksInput], [visitsInput], [output]";
+		return "Parameters: [noSubTasks], [docs], [ranks], [visits], [output]";
 	}
 
 }

@@ -19,9 +19,13 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
@@ -29,13 +33,21 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.EmptyIterator;
+import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * @author Fabian Hueske
  * @author Erik Nijkamp
  */
 public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extends Value> implements
-		CoGroupTaskIterator<K, V1, V2> {
+		CoGroupTaskIterator<K, V1, V2>
+{
+	private static final Log LOG = LogFactory.getLog(SortMergeCoGroupIterator.class);
+	
+	
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
@@ -50,131 +62,46 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 
 	private final Class<V2> valueClass2;
 
-	private final int numSortBufferPerChannel;
-
-	private final int sizeSortBufferPerChannel;
-
-	private final int ioMemoryPerChannel;
+	private final long memoryPerChannel;
 
 	private final int fileHandlesPerChannel;
+	
+	private final float spillingThreshold;
 
-	private KeyValueIterator<V1> iterator1;
+	private KeyGroupedIterator<K, V1> iterator1;
 
-	private KeyValueIterator<V2> iterator2;
+	private KeyGroupedIterator<K, V2> iterator2;
 
 	private SortMerger<K, V1> sortMerger1;
 
 	private SortMerger<K, V2> sortMerger2;
 
-	private AbstractTask parentTask;
+	private final LocalStrategy localStrategy;
+	
+	private final AbstractTask parentTask;
 
 	private K key;
 
-	private enum MatchStatus {
+	private static enum MatchStatus {
 		NONE_REMAINED, FIRST_REMAINED, SECOND_REMAINED, FIRST_EMPTY, SECOND_EMPTY
 	}
 
 	private MatchStatus matchStatus;
 
-	private enum ReturnStatus {
+	private static enum ReturnStatus {
 		RETURN_NONE, RETURN_BOTH, RETURN_FIRST, RETURN_SECOND
 	}
 
 	private ReturnStatus returnStatus;
 
-	private class KeyValueIterator<V extends Value> {
-		private boolean nextKey = false;
 
-		private KeyValuePair<K, V> next = null;
-
-		private Iterator<KeyValuePair<K, V>> iterator;
-
-		public KeyValueIterator(Iterator<KeyValuePair<K, V>> iterator) {
-			this.iterator = iterator;
-		}
-
-		public boolean nextKey() {
-			// first pair
-			if (next == null) {
-				if (iterator.hasNext()) {
-					next = iterator.next();
-					return true;
-				} else {
-					return false;
-				}
-			}
-
-			// known key
-			if (nextKey) {
-				nextKey = false;
-				return true;
-			}
-
-			// next key
-			while (true) {
-				KeyValuePair<K, V> prev = next;
-				if (iterator.hasNext()) {
-					next = iterator.next();
-					if (next.getKey().compareTo(prev.getKey()) != 0) {
-						return true;
-					}
-				} else {
-					return false;
-				}
-			}
-		}
-
-		public K getKey() {
-			return next.getKey();
-		}
-
-		public Iterator<V> getValues() {
-			return new Iterator<V>() {
-				boolean first = true;
-
-				boolean last = false;
-
-				@Override
-				public boolean hasNext() {
-					if (first) {
-						first = false;
-						return true;
-					} else if (last) {
-						return false;
-					} else {
-						if (!iterator.hasNext()) {
-							return false;
-						}
-
-						KeyValuePair<K, V> prev = next;
-						next = iterator.next();
-						if (next.getKey().compareTo(prev.getKey()) == 0) {
-							return true;
-						} else {
-							last = true;
-							nextKey = true;
-							return false;
-						}
-					}
-				}
-
-				@Override
-				public V next() {
-					return next.getValue();
-				}
-
-				@Override
-				public void remove() {
-
-				}
-			};
-		}
-	};
 
 	public SortMergeCoGroupIterator(MemoryManager memoryManager, IOManager ioManager,
-			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2, Class<K> keyClass,
-			Class<V1> valueClass1, Class<V2> valueClass2, int numSortBuffer, int sizeSortBuffer, int ioMemory,
-			int maxNumFileHandles, AbstractTask parentTask) {
+			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
+			Class<K> keyClass, Class<V1> valueClass1, Class<V2> valueClass2,
+			long memory, int maxNumFileHandles, float spillingThreshold,
+			LocalStrategy localStrategy, AbstractTask parentTask)
+	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.keyClass = keyClass;
@@ -182,66 +109,106 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 		this.valueClass2 = valueClass2;
 		this.reader1 = reader1;
 		this.reader2 = reader2;
-		this.numSortBufferPerChannel = numSortBuffer / 2;
-		this.sizeSortBufferPerChannel = sizeSortBuffer;
-		this.ioMemoryPerChannel = ioMemory / 2;
-		this.fileHandlesPerChannel = (maxNumFileHandles / 2) == 1 ? 2 : (maxNumFileHandles / 2);
+		this.memoryPerChannel = memory / 2;
+		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
+		this.localStrategy = localStrategy;
 		this.parentTask = parentTask;
+		this.spillingThreshold = spillingThreshold;
 	}
 
 	@Override
-	public void open() {
+	public void open() throws IOException, MemoryAllocationException, InterruptedException {
 		returnStatus = ReturnStatus.RETURN_NONE;
 		matchStatus = MatchStatus.NONE_REMAINED;
-		try {
+		
 
-			// comparator
-			final Comparator<K> keyComparator = new Comparator<K>() {
-				@Override
-				public int compare(K k1, K k2) {
-					return k1.compareTo(k2);
-				}
-			};
-
-			// iterator 1
-			{
-				// serialization
-				final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
-				final SerializationFactory<V1> valSerialization = new WritableSerializationFactory<V1>(valueClass1);
-
-				// merger
-				sortMerger1 = new UnilateralSortMerger<K, V1>(memoryManager, ioManager, numSortBufferPerChannel,
-					sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-					valSerialization, keyComparator, reader1, 0.1f, parentTask);
-				// iterator
-				iterator1 = new KeyValueIterator<V1>(sortMerger1.getIterator());
+		// comparator
+		final Comparator<K> keyComparator = new Comparator<K>() {
+			@Override
+			public int compare(K k1, K k2) {
+				return k1.compareTo(k2);
 			}
+		};
 
-			// iterator 2
-			{
-				// serialization
-				final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
-				final SerializationFactory<V2> valSerialization = new WritableSerializationFactory<V2>(valueClass2);
+		// ================================================================
+		//                   PERFORMANCE NOTICE
+		//
+		// It is important to instantiate the sort-mergers both before 
+		// obtaining the iterator from one of them. The reason is that
+		// the getIterator() method freezes until the first value is
+		// available and both sort-mergers should be instantiated and
+		// running in the background before this thread waits.
+		// ================================================================
+		
+		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_FIRST_MERGE)
+		{
+			// serialization
+			final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
+			final SerializationFactory<V1> valSerialization = new WritableSerializationFactory<V1>(valueClass1);
 
-				// merger
-				sortMerger2 = new UnilateralSortMerger<K, V2>(memoryManager, ioManager, numSortBufferPerChannel,
-					sizeSortBufferPerChannel, ioMemoryPerChannel, fileHandlesPerChannel, keySerialization,
-					valSerialization, keyComparator, reader2, 0.1f, parentTask);
-
-				// iterator
-				iterator2 = new KeyValueIterator<V2>(sortMerger2.getIterator());
-			}
-		} catch (Exception ex) {
-			// TODO exception handling sucks (en)
-			throw new RuntimeException(ex);
+			// merger
+			this.sortMerger1 = new UnilateralSortMerger<K, V1>(this.memoryManager, this.ioManager,
+					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
+					valSerialization, keyComparator, this.reader1, this.parentTask, this.spillingThreshold);
 		}
+
+		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
+		{
+			// serialization
+			final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(keyClass);
+			final SerializationFactory<V2> valSerialization = new WritableSerializationFactory<V2>(valueClass2);
+
+			// merger
+			this.sortMerger2 = new UnilateralSortMerger<K, V2>(this.memoryManager, this.ioManager, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
+					valSerialization, keyComparator, reader2, parentTask, this.spillingThreshold);
+		}
+		
+		// =============== These calls freeze until the data is actually available ============
+
+		switch (this.localStrategy) {
+			case SORT_BOTH_MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(sortMerger1.getIterator());
+				this.iterator2 = new KeyGroupedIterator<K, V2>(sortMerger2.getIterator());
+				break;
+			case SORT_FIRST_MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(sortMerger1.getIterator());
+				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<KeyValuePair<K,V2>>(reader2));
+				break;
+			case SORT_SECOND_MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<KeyValuePair<K,V1>>(reader1));
+				this.iterator2 = new KeyGroupedIterator<K, V2>(sortMerger2.getIterator());
+				break;
+			case MERGE:
+				this.iterator1 = new KeyGroupedIterator<K, V1>(new NepheleReaderIterator<KeyValuePair<K,V1>>(reader1));
+				this.iterator2 = new KeyGroupedIterator<K, V2>(new NepheleReaderIterator<KeyValuePair<K,V2>>(reader2));
+				break;
+			default:
+				throw new RuntimeException("Unsupported Local Strategy in SortMergeCoGroupIterator: "+this.localStrategy);
+		}
+		
 	}
 
 	@Override
 	public void close() {
-		// TODO (en)
-		// merger1.close()
-		// merger2.close()
+		// close the two sort/merger to release the memory segments
+		if (sortMerger1 != null) {
+			try {
+				sortMerger1.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error closing sort/merger for first input: " + t.getMessage(), t);
+			}
+		}
+		
+		if (sortMerger2 != null) {
+			try {
+				sortMerger2.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error closing sort/merger for second input: " + t.getMessage(), t);
+			}
+		}
 	}
 
 	@Override
@@ -252,22 +219,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	@Override
 	public Iterator<V1> getValues1() {
 		if (returnStatus == ReturnStatus.RETURN_SECOND) {
-			return new Iterator<V1>() {
-
-				@Override
-				public boolean hasNext() {
-					return false;
-				}
-
-				@Override
-				public V1 next() {
-					return null;
-				}
-
-				@Override
-				public void remove() {
-				}
-			};
+			return EmptyIterator.get();
 		} else {
 			return iterator1.getValues();
 		}
@@ -276,29 +228,14 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	@Override
 	public Iterator<V2> getValues2() {
 		if (returnStatus == ReturnStatus.RETURN_FIRST) {
-			return new Iterator<V2>() {
-
-				@Override
-				public boolean hasNext() {
-					return false;
-				}
-
-				@Override
-				public V2 next() {
-					return null;
-				}
-
-				@Override
-				public void remove() {
-				}
-			};
+			return EmptyIterator.get();
 		} else {
 			return iterator2.getValues();
 		}
 	}
 
 	@Override
-	public boolean next() throws IOException, InterruptedException {
+	public boolean next() throws IOException {
 
 		K key1 = null;
 		K key2 = null;

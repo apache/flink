@@ -19,9 +19,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -39,7 +42,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class DataSourceNode extends OptimizerNode {
-	List<DataSourceNode> cachedPlans; // the cache in case there are multiple outputs;
+	private List<DataSourceNode> cachedPlans; // the cache in case there are multiple outputs;
 
 	private long fileSize = -1; // the size of the input file. unknown by default.
 
@@ -66,6 +69,7 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	protected DataSourceNode(DataSourceNode template, GlobalProperties gp, LocalProperties lp) {
 		super(template, gp, lp);
+		this.fileSize = template.fileSize;
 	}
 
 	/*
@@ -119,8 +123,8 @@ public class DataSourceNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
+	public int getMemoryConsumerCount() {
+		return 0;
 	}
 
 	/*
@@ -138,7 +142,6 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		// TODO: A exception should be thrown here?
 		// no inputs, so do nothing.
 	}
 
@@ -149,10 +152,28 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	public void computeOutputEstimates(DataStatistics statistics) {
 		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		// for unique keys, we can have only one value per key
+		OutputContract oc = getOutputContract();
+		if (oc == OutputContract.UniqueKey) {
+			hints.setAvgNumValuesPerKey(1.0f);
+		}
 
 		// see, if we have a statistics object that can tell us a bit about the file
 		if (statistics != null) {
-			DataStatistics.BasicFileStatistics bfs = statistics.getFileStatistics(getFilePath());
+			// instantiate the input format, as this is needed by the statistics 
+			InputFormat<?, ?> format = null;
+			try {
+				Class<? extends InputFormat<?, ?>> formatClass = getPactContract().getStubClass();
+				format = formatClass.newInstance();
+				format.configure(getPactContract().getFormatParameters());
+			}
+			catch (Throwable t) {
+				LogFactory.getLog(PactCompiler.class).warn("Could not instantiate input format for statistics sampling."
+						+ " Limited statistics will be available.", t);
+			}
+			
+			DataStatistics.BasicFileStatistics bfs = statistics.getFileStatistics(getFilePath(), format);
 
 			long len = bfs.getFileSize();
 			if (len == DataStatistics.UNKNOWN) {

@@ -133,8 +133,7 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(JobGraph jobGraph)
-										throws IOException {
+	public JobClient(JobGraph jobGraph) throws IOException {
 
 		this(jobGraph, new Configuration());
 	}
@@ -150,11 +149,9 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(JobGraph jobGraph, Configuration configuration)
-																	throws IOException {
+	public JobClient(JobGraph jobGraph, Configuration configuration) throws IOException {
 
-		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS);
+		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		final int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
@@ -255,7 +252,7 @@ public class JobClient {
 			final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
 			if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
 				LOG.error("ERROR: " + submissionResult.getDescription());
-				throw new JobExecutionException(submissionResult.getDescription());
+				throw new JobExecutionException(submissionResult.getDescription(), false);
 			} else {
 				// Make sure the job is properly terminated when the user shut's down the client
 				Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
@@ -310,10 +307,10 @@ public class JobClient {
 					if (jobStatus == JobStatus.FINISHED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						return;
-					} else if (jobStatus == JobStatus.CANCELLED || jobStatus == JobStatus.FAILED) {
+					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
-						throw new JobExecutionException(jobEvent.getOptionalMessage());
+						throw new JobExecutionException(jobEvent.getOptionalMessage(), (jobStatus == JobStatus.CANCELED) ? true : false);
 					}
 				}
 			}

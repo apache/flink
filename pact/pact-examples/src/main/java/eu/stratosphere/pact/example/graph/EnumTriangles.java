@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.example.graph;
 
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
@@ -26,8 +25,6 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
@@ -37,13 +34,11 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactList;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.compiler.PactCompiler;
 
 /**
  * Implementation of the triangle enumeration example Pact program.
@@ -150,9 +145,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 				edge = new Edge(new PactString(rdfObj), new PactString(rdfSubj));
 			}
 
-			EdgeList edgeList = new EdgeList();
-			edgeList.add(edge);
-
 			pair.setKey(edge);
 			pair.setValue(new PactNull());
 
@@ -210,60 +202,49 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * Groups all edges whose smaller node is identical.
-	 * All edges are collected and pair-wise combined to triads (open triangles).
+	 * Builds triads (open triangles) from two edges that share the same key.
 	 * A triad is represented as an EdgeList with two elements.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 */
-	public static class BuildTriads extends ReduceStub<PactString, Edge, Edge, EdgeList> {
+	public static class BuildTriads extends MatchStub<PactString, Edge, Edge, Edge, EdgeList> {
 
 		private static final Log LOG = LogFactory.getLog(BuildTriads.class);
 
 		@Override
-		public void reduce(PactString node, Iterator<Edge> edges, Collector<Edge, EdgeList> out) {
+		public void match(PactString key, Edge value1, Edge value2, Collector<Edge, EdgeList> out) {
 
-			// collect all edges
-			LinkedList<Edge> edgesList = new LinkedList<Edge>();
-			while (edges.hasNext()) {
-				edgesList.add(edges.next());
-				LOG.debug("Read: " + node + " :: " + edgesList.getLast());
-			}
-
-			// we need at least 2 edges to build a triad
-			if (edgesList.size() <= 1) {
+			// we do not connect a node with itself
+			if(value1.compareTo(value2) <= 0) {
 				return;
 			}
+			
+			// identify nodes for missing edge
+			PactString e_i = value1.getSecond();
+			PactString e_j = value2.getSecond();
 
-			// enumerate all binary edge combinations, build triads and identify missing edges
-			for (int i = 0; i < edgesList.size(); i++) {
-				for (int j = i + 1; j < edgesList.size(); j++) {
+			Edge missingEdge;
+			EdgeList triad = new EdgeList();
 
-					// identify nodes for missing edge
-					PactString e_i = edgesList.get(i).getSecond();
-					PactString e_j = edgesList.get(j).getSecond();
-
-					Edge missingEdge;
-					EdgeList triad = new EdgeList();
-
-					// build missing edges. Smaller node goes first, greater second.
-					if (e_i.compareTo(e_j) <= 0) {
-						missingEdge = new Edge(e_i, e_j);
-						triad.add(edgesList.get(i));
-						triad.add(edgesList.get(j));
-					} else {
-						missingEdge = new Edge(e_j, e_i);
-						triad.add(edgesList.get(j));
-						triad.add(edgesList.get(i));
-					}
-
-					LOG.debug("Emit: " + missingEdge + " :: " + triad);
-
-					// emit missing edge and triad
-					out.collect(missingEdge, triad);
-				}
+			// build missing edges. Smaller node goes first, greater second.
+			if (e_i.compareTo(e_j) <= 0) {
+				missingEdge = new Edge(e_i, e_j);
+				triad.add(value1);
+				triad.add(value2);
+			} else {
+				missingEdge = new Edge(e_j, e_i);
+				triad.add(value2);
+				triad.add(value1);
 			}
+
+			LOG.debug("Emit: " + missingEdge + " :: " + triad);
+
+			// emit missing edge and triad
+			out.collect(missingEdge, triad);
+			
 		}
+
+		
 	}
 
 	/**
@@ -272,7 +253,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 */
-	@OutputContract.SameKey
 	public static class CloseTriads extends MatchStub<Edge, EdgeList, PactNull, PactNull, EdgeList> {
 
 		private static final Log LOG = LogFactory.getLog(CloseTriads.class);
@@ -296,16 +276,10 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(String... args) {
 
-		// check for the correct number of job parameters
-		if (args.length != 3) {
-			throw new IllegalArgumentException(
-				"Must provide three arguments: <parallelism> <edges_input> <result_directory>");
-		}
-
 		// parse job parameters
-		int noSubTasks = Integer.parseInt(args[0]);
-		String edgeInput = args[1];
-		String output = args[2];
+		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String edgeInput = (args.length > 1 ? args[1] : "");
+		String output    = (args.length > 2 ? args[2] : "");
 
 		DataSourceContract<Edge, PactNull> edges = new DataSourceContract<Edge, PactNull>(EdgeListInFormat.class,
 			edgeInput);
@@ -317,16 +291,13 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			AssignKeys.class, "Assign Keys");
 		assignKeys.setDegreeOfParallelism(noSubTasks);
 
-		ReduceContract<PactString, Edge, Edge, EdgeList> buildTriads = new ReduceContract<PactString, Edge, Edge, EdgeList>(
+		MatchContract<PactString, Edge, Edge, Edge, EdgeList> buildTriads = new MatchContract<PactString, Edge, Edge, Edge, EdgeList>(
 			BuildTriads.class, "Build Triads");
 		buildTriads.setDegreeOfParallelism(noSubTasks);
 
 		MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList> closeTriads = new MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList>(
 			CloseTriads.class, "Close Triads");
 		closeTriads.setDegreeOfParallelism(noSubTasks);
-		// TODO: remove enforced sort-merge strategy
-		closeTriads.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
-			PactCompiler.HINT_LOCAL_STRATEGY_SORT);
 
 		DataSinkContract<PactNull, EdgeList> triangles = new DataSinkContract<PactNull, EdgeList>(
 			EdgeListOutFormat.class, output);
@@ -335,7 +306,8 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		triangles.setInput(closeTriads);
 		closeTriads.setSecondInput(edges);
 		closeTriads.setFirstInput(buildTriads);
-		buildTriads.setInput(assignKeys);
+		buildTriads.setFirstInput(assignKeys);
+		buildTriads.setSecondInput(assignKeys);
 		assignKeys.setInput(edges);
 
 		return new Plan(triangles, "Enumerate Triangles");
@@ -348,7 +320,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, in-rdf-triples, out-triangles";
+		return "Parameters: [noSubStasks] [inputRDFTriples] [outputTriangles]";
 	}
 
 }

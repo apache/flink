@@ -19,6 +19,7 @@ import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -52,11 +53,11 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * aggregation.
  * 
  * SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
- * FROM orders, lineitem
- * WHERE l_orderkey = o_orderkey
- * AND o_orderstatus = "X" 
- * AND YEAR(o_orderdate) > Y
- * AND o_orderpriority LIKE "Z%"
+ *   FROM orders, lineitem
+ *   WHERE l_orderkey = o_orderkey
+ *     AND o_orderstatus = "X" 
+ *     AND YEAR(o_orderdate) > Y
+ *     AND o_orderpriority LIKE "Z%"
  * GROUP BY l_orderkey, o_shippriority;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
@@ -96,9 +97,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	@SameKey
 	public static class FilterO extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
 
-		private final int YEAR_FILTER = 1993;
-
-		private final String PRIO_FILTER = "5";
+		private int yearFilter;
+		private String prioFilter;
+		
+		@Override
+		public void configure(Configuration parameters) {
+			this.yearFilter = parameters.getInteger("YEAR_FILTER", 1990);
+			this.prioFilter = parameters.getString("PRIO_FILTER", "0");
+		}
 
 		/**
 		 * Filters the orders table by year, orderstatus and orderpriority
@@ -115,8 +121,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		public void map(final PactInteger oKey, final Tuple value, final Collector<PactInteger, Tuple> out) {
 
 			try {
-				if (Integer.parseInt(value.getStringValueAt(4).substring(0, 4)) > this.YEAR_FILTER
-					&& value.getStringValueAt(2).equals("F") && value.getStringValueAt(5).startsWith(this.PRIO_FILTER)) {
+				if (Integer.parseInt(value.getStringValueAt(4).substring(0, 4)) > this.yearFilter
+					&& value.getStringValueAt(2).equals("F") && value.getStringValueAt(5).startsWith(this.prioFilter)) {
 
 					// project
 					value.project(129);
@@ -261,71 +267,71 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	@Override
 	public Plan getPlan(final String... args) {
 
-		int degreeOfParallelism = 1;
-		String ordersPath = "";
-		String lineitemsPath = "";
-		String resultPath = "";
-
-		if (args.length != 4)
-			LOGGER.warn("number of arguments do not match!");
-		else {
-			degreeOfParallelism = Integer.parseInt(args[0]);
-			ordersPath = args[1];
-			lineitemsPath = args[2];
-			resultPath = args[3];
-		}
+		// parse program parameters
+		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String ordersPath    = (args.length > 1 ? args[1] : "");
+		String lineitemsPath = (args.length > 2 ? args[2] : "");
+		String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
 		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, ordersPath, "Orders");
 		orders.setFormatParameter("delimiter", "\n");
-		orders.setDegreeOfParallelism(degreeOfParallelism);
+		orders.setDegreeOfParallelism(noSubtasks);
 		orders.setOutputContract(UniqueKey.class);
+		// set compiler hints
 		orders.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSourceContract for LineItems input
 		DataSourceContract<PactInteger, Tuple> lineitems = new DataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, lineitemsPath, "LineItems");
 		lineitems.setFormatParameter("delimiter", "\n");
-		lineitems.setDegreeOfParallelism(degreeOfParallelism);
+		lineitems.setDegreeOfParallelism(noSubtasks);
+		// set compiler hints
 		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		// create MapContract for filtering Orders tuples
 		MapContract<PactInteger, Tuple, PactInteger, Tuple> filterO = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
 			FilterO.class, "FilterO");
-		filterO.setDegreeOfParallelism(degreeOfParallelism);
+		filterO.setDegreeOfParallelism(noSubtasks);
+		// set stub parameters
+		filterO.setStubParameter("YEAR_FILTER", 1993);
+		filterO.setStubParameter("PRIO_FILTER", "5");
+		// set compiler hints
 		filterO.getCompilerHints().setAvgBytesPerRecord(32);
-		filterO.getCompilerHints().setSelectivity(0.05f);
+		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create MapContract for projecting LineItems tuples
 		MapContract<PactInteger, Tuple, PactInteger, Tuple> projectLi = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
 			ProjectLi.class, "ProjectLi");
-		projectLi.setDegreeOfParallelism(degreeOfParallelism);
+		projectLi.setDegreeOfParallelism(noSubtasks);
+		// set compiler hints
 		projectLi.getCompilerHints().setAvgBytesPerRecord(48);
-		projectLi.getCompilerHints().setSelectivity(1.0f);
+		projectLi.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		projectLi.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> joinLiO = new MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple>(
 			JoinLiO.class, "JoinLiO");
-		joinLiO.setDegreeOfParallelism(degreeOfParallelism);
-		joinLiO.getCompilerHints().setSelectivity(0.05f);
+		joinLiO.setDegreeOfParallelism(noSubtasks);
+		// set compiler hints
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(64);
 		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		// create ReduceContract for aggregating the result
 		ReduceContract<N_IntStringPair, Tuple, PactInteger, Tuple> aggLiO = new ReduceContract<N_IntStringPair, Tuple, PactInteger, Tuple>(
 			AggLiO.class, "AggLio");
-		aggLiO.setDegreeOfParallelism(degreeOfParallelism);
+		aggLiO.setDegreeOfParallelism(noSubtasks);
+		// set compiler hints
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(64);
-		aggLiO.getCompilerHints().setSelectivity(0.25f);
+		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result
 		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
-			StringTupleDataOutFormat.class, resultPath, "Output");
-		result.setDegreeOfParallelism(degreeOfParallelism);
+			StringTupleDataOutFormat.class, output, "Output");
+		result.setDegreeOfParallelism(noSubtasks);
 
 		// assemble the PACT plan
 		result.setInput(aggLiO);
@@ -344,7 +350,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public String getDescription() {
-		return "Parameters: dop, orders-input, lineitem-input, result";
+		return "Parameters: [noSubStasks], [orders], [lineitem], [output]";
 	}
 
 }

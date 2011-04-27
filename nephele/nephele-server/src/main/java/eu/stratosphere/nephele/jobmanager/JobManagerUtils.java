@@ -21,10 +21,10 @@ import java.lang.reflect.InvocationTargetException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
-import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -51,15 +51,12 @@ public class JobManagerUtils {
 	 * 
 	 * @param schedulerClassName
 	 *        the name of the class to instantiate the scheduler object from
-	 * @param schedulingListener
-	 *        the listener object which shall be registered with the scheduler
 	 * @param instanceManager
 	 *        the instance manager which shall be passed on the the scheduler
 	 * @return the {@link Scheduler} object instantiated from the class with the provided name
 	 */
 	@SuppressWarnings("unchecked")
-	public static Scheduler loadScheduler(String schedulerClassName, SchedulingListener schedulingListener,
-			InstanceManager instanceManager) {
+	public static Scheduler loadScheduler(String schedulerClassName, InstanceManager instanceManager) {
 
 		Class<? extends Scheduler> schedulerClass;
 		try {
@@ -73,7 +70,7 @@ public class JobManagerUtils {
 
 		try {
 
-			Class<?>[] constructorArgs = { SchedulingListener.class, InstanceManager.class };
+			Class<?>[] constructorArgs = { InstanceManager.class };
 			constructor = schedulerClass.getConstructor(constructorArgs);
 		} catch (NoSuchMethodException e) {
 			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
@@ -86,7 +83,7 @@ public class JobManagerUtils {
 		Scheduler scheduler;
 
 		try {
-			scheduler = constructor.newInstance(schedulingListener, instanceManager);
+			scheduler = constructor.newInstance(instanceManager);
 		} catch (InstantiationException e) {
 			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
 			return null;
@@ -151,7 +148,13 @@ public class JobManagerUtils {
 	public static String getSchedulerClassName(String executionMode) {
 
 		final String instanceManagerClassNameKey = "jobmanager.scheduler." + executionMode + ".classname";
-		return GlobalConfiguration.getString(instanceManagerClassNameKey, null);
+		String schedulerClassName = GlobalConfiguration.getString(instanceManagerClassNameKey, null);
+
+		if ("local".equals(executionMode) && schedulerClassName == null) {
+			schedulerClassName = ConfigConstants.DEFAULT_LOCAL_MODE_SCHEDULER;
+		}
+
+		return schedulerClassName;
 	}
 
 	public static String getInstanceManagerClassName(String executionMode) {

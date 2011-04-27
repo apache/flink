@@ -138,9 +138,13 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 
 	@Override
 	public void accept(Visitor<Contract> visitor) {
-		visitor.preVisit(this);
-		if (input != null)
-			input.accept(visitor);
-		visitor.postVisit(this);
+		boolean descend = visitor.preVisit(this);
+		
+		if (descend) {
+			if (input != null) {
+				input.accept(visitor);
+			}
+			visitor.postVisit(this);
+		}
 	}
 }

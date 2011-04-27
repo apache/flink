@@ -33,11 +33,13 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
@@ -60,17 +62,14 @@ public class CombiningUnilateralSortMergerITCase {
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 256;
 
-	public static final float OFFSETS_PERCENTAGE = 0.1f;
-
-	public static final float LOW_OFFSETS_PERCENTAGE = 0.001f;
-
-	private static IOManager ioManager;
+	private final AbstractTask parentTask = new DummyInvokable();
+	
+	private IOManager ioManager;
 
 	private MemoryManager memoryManager;
 
 	@BeforeClass
 	public static void beforeClass() {
-		ioManager = new IOManager();
 	}
 
 	@AfterClass
@@ -80,6 +79,7 @@ public class CombiningUnilateralSortMergerITCase {
 	@Before
 	public void beforeTest() {
 		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		ioManager = new IOManager();
 	}
 
 	@After
@@ -107,9 +107,8 @@ public class CombiningUnilateralSortMergerITCase {
 
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, PactInteger> merger = new CombiningUnilateralSortMerger<TestData.Key, PactInteger>(
-			new TestCountCombiner(), memoryManager, ioManager, 6, 1024 * 1024 * 8, 1024 * 1024 * 64, 128,
-			keySerialization, valSerialization, keyComparator, reader, OFFSETS_PERCENTAGE, null, true);
-		Iterator<KeyValuePair<TestData.Key, PactInteger>> iterator = merger.getIterator();
+			new TestCountCombiner(), memoryManager, ioManager, 64L * 1024 * 1024, 64,
+			keySerialization, valSerialization, keyComparator, reader, parentTask, 0.7f, true);
 
 		for (int i = 0; i < noKeyCnt; i++) {
 			for (int j = 0; j < noKeys; j++) {
@@ -119,6 +118,8 @@ public class CombiningUnilateralSortMergerITCase {
 			}
 		}
 		reader.close();
+		
+		Iterator<KeyValuePair<TestData.Key, PactInteger>> iterator = merger.getIterator();
 
 		while (iterator.hasNext()) {
 			Assert.assertEquals(noKeyCnt, iterator.next().getValue().getValue());
@@ -148,9 +149,8 @@ public class CombiningUnilateralSortMergerITCase {
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		SortMerger<TestData.Key, TestData.Value> merger = new CombiningUnilateralSortMerger<TestData.Key, TestData.Value>(
-			new TestCountCombiner2(), memoryManager, ioManager, 1, 1024 * 1024 * 4, 1024 * 1024 * 12, 2,
-			keySerialization, valSerialization, keyComparator, reader, OFFSETS_PERCENTAGE, null, true);
-		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+			new TestCountCombiner2(), memoryManager, ioManager, 64L * 1024 * 1024, 2,
+			keySerialization, valSerialization, keyComparator, reader, parentTask, 0.7f, true);
 
 		// emit data
 		LOG.debug("emitting data");
@@ -165,6 +165,8 @@ public class CombiningUnilateralSortMergerITCase {
 		reader.close();
 
 		// check order
+		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+		
 		LOG.debug("checking results");
 		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
 		while (iterator.hasNext()) {

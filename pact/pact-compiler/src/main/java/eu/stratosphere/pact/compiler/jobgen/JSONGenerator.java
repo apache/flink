@@ -212,6 +212,9 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 					shipStrategy = "Partition (range)";
 					channelType = "network";
 					break;
+				case PARTITION_LOCAL_HASH:
+					shipStrategy = "Partition local";
+					channelType = "memory";
 				case SFR:
 					shipStrategy = "SFR";
 					channelType = "network";
@@ -272,14 +275,29 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			case NESTEDLOOP_STREAMED_OUTER_SECOND:
 				locString = "Nested Loops (Streamed Outer: " + child2name + ")";
 				break;
-			case SORTMERGE:
-				locString = "Sort-Merge";
+			case SORT_BOTH_MERGE:
+				locString = "Sort-Both-Merge";
+				break;
+			case SORT_FIRST_MERGE:
+				locString = "Sort-First-Merge";
+				break;
+			case SORT_SECOND_MERGE:
+				locString = "Sort-Second-Merge";
+				break;
+			case MERGE:
+				locString = "Merge";
 				break;
 			case SORT:
 				locString = "Sort";
 				break;
 			case COMBININGSORT:
 				locString = "Sort with Combiner";
+				break;
+			case SORT_SELF_NESTEDLOOP:
+				locString = "Sort Self-Nested-Loops";
+				break;
+			case SELF_NESTEDLOOP:
+				locString = "Self-Nested-Loops";
 				break;
 			default:
 				throw new CompilerException("Unknown local strategy '" + visitable.getLocalStrategy().name()
@@ -360,11 +378,10 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			addProperty(jsonString, "Key-Cardinality",
 				hints.getKeyCardinality() == defaults.getKeyCardinality() ? "(none)" : formatNumber(hints
 					.getKeyCardinality()), true);
-			addProperty(jsonString, "Selectivity", hints.getSelectivity() == defaults.getSelectivity() ? "(none)"
-				: String.valueOf(hints.getSelectivity()), false);
+			addProperty(jsonString, "Avg. Records/StubCall", String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
 			addProperty(jsonString, "Avg. Values/Key", hints.getAvgNumValuesPerKey() == defaults
 				.getAvgNumValuesPerKey() ? "(none)" : String.valueOf(hints.getAvgNumValuesPerKey()), false);
-			addProperty(jsonString, "Avg. width (bytes)", hints.getAvgBytesPerRecord() == defaults
+			addProperty(jsonString, "Avg. Width (bytes)", hints.getAvgBytesPerRecord() == defaults
 				.getAvgBytesPerRecord() ? "(none)" : String.valueOf(hints.getAvgBytesPerRecord()), false);
 
 			jsonString.append("\t\t]");

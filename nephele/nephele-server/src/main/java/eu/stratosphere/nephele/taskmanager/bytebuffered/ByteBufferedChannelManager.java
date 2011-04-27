@@ -19,17 +19,12 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -50,23 +45,18 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
 
 public class ByteBufferedChannelManager {
 
 	private static final Log LOG = LogFactory.getLog(ByteBufferedChannelManager.class);
 
-	private static final int DEFAULT_NUMBER_OF_READ_BUFFERS = 128;
+	private static final int DEFAULT_NUMBER_OF_READ_BUFFERS = 256;
 
-	private static final int DEFAULT_NUMBER_OF_WRITE_BUFFERS = 128;
+	private static final int DEFAULT_NUMBER_OF_WRITE_BUFFERS = 256;
 
-	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 128 * 1024; // 128k
+	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 64 * 1024; // 64k
 
-	private static final boolean DEFAULT_ALLOW_SPILLING = false;
-
-	private static final int DEFAULT_NUMBER_OF_OUTGOING_CONNECTION_THREADS = 1;
-
-	private static final int DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS = 1;
+	private static final boolean DEFAULT_ALLOW_SPILLING = true;
 
 	private static final int DEFAULT_NUMBER_OF_CONNECTION_RETRIES = 10;
 
@@ -74,27 +64,21 @@ public class ByteBufferedChannelManager {
 
 	private final Deque<ByteBuffer> emptyWriteBuffers = new ArrayDeque<ByteBuffer>();
 
-	private final Map<ChannelID, Queue<TransferEnvelope>> queuedIncomingTransferEnvelopes = new HashMap<ChannelID, Queue<TransferEnvelope>>();
-
 	private final Map<ChannelID, ByteBufferedChannelWrapper> registeredChannels = new HashMap<ChannelID, ByteBufferedChannelWrapper>();
 
 	private final Map<ChannelID, InetSocketAddress> connectionAddresses = new HashMap<ChannelID, InetSocketAddress>();
 
 	private final Map<InetSocketAddress, OutgoingConnection> outgoingConnections = new HashMap<InetSocketAddress, OutgoingConnection>();
 
-	private final Map<IncomingConnectionID, IncomingConnection> incomingConnections = new HashMap<IncomingConnectionID, IncomingConnection>();
-
 	private final Set<OutOfByteBuffersListener> registeredOutOfWriteBuffersListeners = new HashSet<OutOfByteBuffersListener>();
+
+	private final CanceledChannelSet canceledChannelSet;
 
 	private final FileBufferManager fileBufferManager;
 
-	private final List<OutgoingConnectionThread> outgoingConnectionThreads = new ArrayList<OutgoingConnectionThread>();
+	private final OutgoingConnectionThread outgoingConnectionThread;
 
-	private final List<IncomingConnectionThread> incomingConnectionThreads = new ArrayList<IncomingConnectionThread>();
-
-	private final int minimumQueueLengthForThrottling;
-
-	private final int maximumQueueLengthForThrottling;
+	private final IncomingConnectionThread incomingConnectionThread;
 
 	private final int bufferSizeInBytes;
 
@@ -114,8 +98,6 @@ public class ByteBufferedChannelManager {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
 
-		this.fileBufferManager = new FileBufferManager(tmpDir);
-
 		this.numberOfReadBuffers = configuration.getInteger("channel.network.numberOfReadBuffers",
 			DEFAULT_NUMBER_OF_READ_BUFFERS);
 		this.numberOfWriteBuffers = configuration.getInteger("channel.network.numberOfWriteBuffers",
@@ -125,27 +107,16 @@ public class ByteBufferedChannelManager {
 
 		this.channelLookupService = channelLookupService;
 
-		// Start the connection threads
-		final int numberOfOutgoingConnectionThreads = configuration.getInteger(
-			"channel.network.numberOfOutgoingConnectionThreads", DEFAULT_NUMBER_OF_OUTGOING_CONNECTION_THREADS);
-		synchronized (this.outgoingConnectionThreads) {
-			for (int i = 0; i < numberOfOutgoingConnectionThreads; i++) {
-				final OutgoingConnectionThread outgoingConnectionThread = new OutgoingConnectionThread();
-				outgoingConnectionThread.start();
-				this.outgoingConnectionThreads.add(outgoingConnectionThread);
-			}
-		}
+		this.canceledChannelSet = new CanceledChannelSet();
 
-		final int numberOfIncomingConnectionThreads = configuration.getInteger(
-			"channel.network.numgerOfIncomingConnectionThreads", DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS);
-		synchronized (this.incomingConnectionThreads) {
-			for (int i = 0; i < numberOfIncomingConnectionThreads; i++) {
-				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(this, (i == 0),
-					new InetSocketAddress(incomingDataAddress, incomingDataPort));
-				incomingConnectionThread.start();
-				this.incomingConnectionThreads.add(incomingConnectionThread);
-			}
-		}
+		this.fileBufferManager = new FileBufferManager(this.canceledChannelSet);
+
+		// Start the connection threads
+		this.outgoingConnectionThread = new OutgoingConnectionThread();
+		this.outgoingConnectionThread.start();
+		this.incomingConnectionThread = new IncomingConnectionThread(this, true, new InetSocketAddress(
+			incomingDataAddress, incomingDataPort));
+		this.incomingConnectionThread.start();
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
@@ -164,11 +135,6 @@ public class ByteBufferedChannelManager {
 			final ByteBuffer writeBuffer = ByteBuffer.allocateDirect(bufferSizeInBytes);
 			this.emptyWriteBuffers.add(writeBuffer);
 		}
-
-		this.minimumQueueLengthForThrottling = configuration.getInteger(
-			"channel.network.minimumQueueLengthForThrottling", 6);
-		this.maximumQueueLengthForThrottling = configuration.getInteger(
-			"channel.network.maximumQueueLengthForThrottling", 13);
 	}
 
 	/**
@@ -200,11 +166,14 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	BufferPairResponse requestEmptyWriteBuffers(BufferPairRequest bufferPairRequest) throws InterruptedException {
+	BufferPairResponse requestEmptyWriteBuffers(WriteBufferRequestor requestor, BufferPairRequest bufferPairRequest)
+			throws InterruptedException {
 
 		synchronized (this.emptyWriteBuffers) {
 
 			while (this.emptyWriteBuffers.size() < bufferPairRequest.getNumberOfRequestedByteBuffers()) {
+
+				requestor.outOfWriteBuffers();
 
 				/*
 				 * synchronized(this.registeredOutOfWriteBuffersListeners) {
@@ -272,17 +241,10 @@ public class ByteBufferedChannelManager {
 				return BufferFactory.createFromMemory(minimumSizeOfBuffer, this.emptyReadBuffers.poll(),
 					this.emptyReadBuffers);
 			}
+		}
 
-			if (this.isSpillingAllowed) {
-				return BufferFactory.createFromFile(minimumSizeOfBuffer, sourceChannelID, this.fileBufferManager);
-			}
-
-			try {
-				this.emptyReadBuffers.wait(100); // Wait for 100 milliseconds, so the NIO thread won't do busy
-				// waiting...
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+		if (this.isSpillingAllowed) {
+			return BufferFactory.createFromFile(minimumSizeOfBuffer, sourceChannelID, this.fileBufferManager);
 		}
 
 		return null;
@@ -301,8 +263,7 @@ public class ByteBufferedChannelManager {
 			}
 
 			final ByteBufferedInputChannelWrapper networkInputChannelWrapper = new ByteBufferedInputChannelWrapper(
-				byteBufferedInputChannel, this, this.minimumQueueLengthForThrottling,
-				this.maximumQueueLengthForThrottling);
+				byteBufferedInputChannel, this);
 			this.registeredChannels.put(byteBufferedInputChannel.getID(), networkInputChannelWrapper);
 		}
 	}
@@ -346,50 +307,21 @@ public class ByteBufferedChannelManager {
 
 		LOG.debug("Unregistering byte buffered input channel " + byteBufferedInputChannel.getID());
 
+		ByteBufferedInputChannelWrapper channelWrapper;
 		synchronized (this.registeredChannels) {
 
-			if (this.registeredChannels.remove(byteBufferedInputChannel.getID()) == null) {
+			channelWrapper = (ByteBufferedInputChannelWrapper) this.registeredChannels.remove(byteBufferedInputChannel
+				.getID());
+			if (channelWrapper == null) {
 				LOG.error("Cannot find byte buffered input channel " + byteBufferedInputChannel.getID()
 					+ " to unregister");
 				return;
 			}
 		}
 
-		// Make sure all buffers are released in case the channel is unregistered as a result of an error
-		Queue<TransferEnvelope> incomingTransferEnvelopes = null;
-
-		synchronized (this.queuedIncomingTransferEnvelopes) {
-
-			incomingTransferEnvelopes = this.queuedIncomingTransferEnvelopes.remove(byteBufferedInputChannel.getID());
-		}
-
-		if (incomingTransferEnvelopes == null) {
-			// No more data buffered for us, we are done...
-			return;
-		}
-
-		// A dump thread might be working on the same queue, so access must be synchronized
-		synchronized (incomingTransferEnvelopes) {
-
-			final Iterator<TransferEnvelope> it = incomingTransferEnvelopes.iterator();
-			while (it.hasNext()) {
-				final TransferEnvelope envelope = it.next();
-				if (envelope.getBuffer() != null) {
-					envelope.getBuffer().recycleBuffer();
-				}
-			}
-		}
+		// Recycle all resources
+		channelWrapper.releaseAllResources();
 	}
-
-	/*
-	 * void recycleEmptyWriteBuffer(ByteBuffer buffer) {
-	 * buffer.clear();
-	 * synchronized(this.emptyWriteBuffers) {
-	 * this.emptyWriteBuffers.add(buffer);
-	 * this.emptyWriteBuffers.notify();
-	 * }
-	 * }
-	 */
 
 	public void unregisterByteBufferedOutputChannel(
 			AbstractByteBufferedOutputChannel<? extends Record> byteBufferedOutputChannel) {
@@ -423,10 +355,11 @@ public class ByteBufferedChannelManager {
 		}
 
 		// Make sure all queued outgoing buffers are dropped and recycled
+		OutgoingConnection outgoingConnection = null;
 		synchronized (this.outgoingConnections) {
-			final OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
+			outgoingConnection = this.outgoingConnections.get(connectionAddress);
+
 			if (outgoingConnection != null) {
-				outgoingConnection.dropAllQueuedEnvelopesForChannel(byteBufferedOutputChannel.getID(), true);
 				if (outgoingConnection.canBeRemoved()) {
 					// reflects no envelopes, no
 					// currentEnvelope and not connected
@@ -436,61 +369,17 @@ public class ByteBufferedChannelManager {
 		}
 	}
 
-	public IncomingConnection registerIncomingConnection(IncomingConnectionID incomingConnectionID,
-			ReadableByteChannel readableByteChannel) {
-
-		final IncomingConnection incomingConnection = new IncomingConnection(incomingConnectionID, this,
-			readableByteChannel);
-
-		synchronized (this.incomingConnections) {
-
-			// Find previous connection
-			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
-
-			// Set previous connection if there is any and set sequence number to expect
-			incomingConnection.setPreviousConnection(previousConnection);
-			this.incomingConnections.put(incomingConnectionID, incomingConnection);
-		}
-
-		// Register connection with an incoming connection thread if this is a network connection
-		if (readableByteChannel instanceof SocketChannel) {
-			getIncomingConnectionThread().addToPendingIncomingConnections(incomingConnection);
-		}
-
-		return incomingConnection;
-	}
-
-	public void unregisterIncomingConnection(IncomingConnectionID incomingConnectionID,
-			ReadableByteChannel readableByteChannel) {
-
-		synchronized (this.incomingConnections) {
-			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
-			if (incomingConnection == null) {
-				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
-			}
-		}
-	}
-
 	private OutgoingConnectionThread getOutgoingConnectionThread() {
 
-		synchronized (this.outgoingConnectionThreads) {
-			return this.outgoingConnectionThreads.get((int) (this.outgoingConnectionThreads.size() * Math.random()));
-		}
+		return this.outgoingConnectionThread;
 	}
 
-	private IncomingConnectionThread getIncomingConnectionThread() {
-
-		synchronized (this.incomingConnectionThreads) {
-			return this.incomingConnectionThreads.get((int) (this.incomingConnectionThreads.size() * Math.random()));
-		}
-	}
-
-	void queueOutgoingTransferEnvelope(TransferEnvelope transferEnvelope) {
+	void queueOutgoingTransferEnvelope(TransferEnvelope transferEnvelope) throws InterruptedException, IOException {
 
 		// Check to which host the transfer envelope shall be sent
-		InetSocketAddress connectionAddress = getPeerConnectionAddress(transferEnvelope.getSource());
+		final InetSocketAddress connectionAddress = getPeerConnectionAddress(transferEnvelope.getSource());
 		if (connectionAddress == null) {
-			LOG.fatal("Cannot resolve channel ID to a connection address: " + transferEnvelope.getTarget());
+			LOG.fatal("Cannot resolve channel ID to a connection address: " + transferEnvelope.getSource());
 			return;
 		}
 
@@ -508,7 +397,8 @@ public class ByteBufferedChannelManager {
 		outgoingConnection.queueEnvelope(transferEnvelope);
 	}
 
-	public void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
+	public void queueIncomingTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException,
+			InterruptedException {
 
 		final ChannelID targetID = transferEnvelope.getTarget();
 		ByteBufferedChannelWrapper targetChannelWrapper = null;
@@ -518,13 +408,19 @@ public class ByteBufferedChannelManager {
 
 		synchronized (this.registeredChannels) {
 			targetChannelWrapper = this.registeredChannels.get(targetID);
-			if (targetChannelWrapper == null) {
+		}
 
-				// Release buffer immediately
-				if (transferEnvelope.getBuffer() != null) {
-					transferEnvelope.getBuffer().recycleBuffer();
-				}
+		if (targetChannelWrapper == null) {
 
+			// Release buffer immediately
+			if (transferEnvelope.getBuffer() != null) {
+				transferEnvelope.getBuffer().recycleBuffer();
+			}
+
+			// Check if the channel has been recently marked as canceled
+			if (this.canceledChannelSet.contains(transferEnvelope.getSource())) {
+				return;
+			} else {
 				throw new IOException("Cannot find target channel to ID " + targetID
 					+ " to process incoming transfer envelope");
 			}
@@ -561,7 +457,8 @@ public class ByteBufferedChannelManager {
 		return connection;
 	}
 
-	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) {
+	private InetSocketAddress getPeerConnectionAddress(ChannelID sourceChannelID) throws InterruptedException,
+			IOException {
 
 		InetSocketAddress connectionAddress = null;
 
@@ -580,37 +477,28 @@ public class ByteBufferedChannelManager {
 			}
 
 			InstanceConnectionInfo ici = null;
-			try {
 
-				while (true) {
+			while (!Thread.interrupted()) {
 
-					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
-						channelWrapper.getJobID(), channelWrapper.getConnectedChannelID());
+				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+					channelWrapper.getJobID(), sourceChannelID);
 
-					if (lookupResponse.receiverNotFound()) {
-						throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
-							+ " does not appear to be running");
-					}
-
-					if (lookupResponse.receiverNotReady()) {
-						try {
-							Thread.sleep(500);
-						} catch (InterruptedException e) {
-							return null;
-						}
-						continue;
-					}
-
-					if (lookupResponse.receiverReady()) {
-						ici = lookupResponse.getInstanceConnectionInfo();
-						break;
-					}
+				if (lookupResponse.receiverNotFound()) {
+					throw new IOException("Task with channel ID " + channelWrapper.getConnectedChannelID()
+						+ " does not appear to be running");
 				}
 
-			} catch (IOException e) {
-				LOG.error(StringUtils.stringifyException(e));
-				return null;
+				if (lookupResponse.receiverNotReady()) {
+					Thread.sleep(500);
+					continue;
+				}
+
+				if (lookupResponse.receiverReady()) {
+					ici = lookupResponse.getInstanceConnectionInfo();
+					break;
+				}
 			}
+
 			if (ici != null) {
 				connectionAddress = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
 				synchronized (this.connectionAddresses) {
@@ -622,24 +510,6 @@ public class ByteBufferedChannelManager {
 		return connectionAddress;
 	}
 
-	public int getNumberOfQueuedOutgoingEnvelopes(ChannelID sourceChannelID) {
-
-		final InetSocketAddress socketAddress = getPeerConnectionAddress(sourceChannelID);
-		if (socketAddress == null) {
-			return 0;
-		}
-
-		synchronized (this.outgoingConnections) {
-
-			final OutgoingConnection outgoingConnection = this.outgoingConnections.get(socketAddress);
-			if (outgoingConnection == null) {
-				return 0;
-			}
-
-			return outgoingConnection.getNumberOfQueuedEnvelopesForChannel(sourceChannelID, true);
-		}
-	}
-
 	/**
 	 * Shuts down the network channel manager and
 	 * stops all its internal processes.
@@ -649,79 +519,21 @@ public class ByteBufferedChannelManager {
 		LOG.info("Shutting down network channel manager");
 
 		// Interrupt the threads we started
-		synchronized (this.incomingConnectionThreads) {
-			final Iterator<IncomingConnectionThread> it = this.incomingConnectionThreads.iterator();
-			while (it.hasNext()) {
-				it.next().interrupt();
-			}
-		}
-
-		synchronized (this.outgoingConnectionThreads) {
-			final Iterator<OutgoingConnectionThread> it = this.outgoingConnectionThreads.iterator();
-			while (it.hasNext()) {
-				it.next().interrupt();
-			}
-		}
+		this.incomingConnectionThread.interrupt();
+		this.outgoingConnectionThread.interrupt();
 
 		// Finally, do some consistency tests
-		synchronized (this.incomingConnections) {
-			if (!this.incomingConnections.isEmpty()) {
-				LOG.error("Detected inconsistency on shutdown: still " + this.incomingConnections.size()
-					+ " incoming connections registered");
-			}
-		}
-
 		synchronized (this.emptyReadBuffers) {
 			if (this.emptyReadBuffers.size() != this.numberOfReadBuffers) {
-				LOG.error("Missing " + (this.emptyReadBuffers.size() - this.numberOfReadBuffers)
+				LOG.error("Missing " + (this.numberOfReadBuffers - this.emptyReadBuffers.size())
 					+ " read buffers during shutdown");
 			}
 		}
 
 		synchronized (this.emptyWriteBuffers) {
 			if (this.emptyWriteBuffers.size() != this.numberOfWriteBuffers) {
-				LOG.error("Missing " + (this.emptyWriteBuffers.size() - this.numberOfWriteBuffers)
+				LOG.error("Missing " + (this.numberOfWriteBuffers - this.emptyWriteBuffers.size())
 					+ " write buffers during shutdown");
-			}
-		}
-	}
-
-	/**
-	 * This method identifies the network channel with the longest
-	 * queue of read buffers to process and attempts to dump
-	 * occupied memory read buffers to disk.
-	 */
-	public void dumpMemoryReadBuffersToDisk() {
-
-		Queue<TransferEnvelope> longestQueue = null;
-		int longestQueueSize = 0;
-
-		synchronized (this.queuedIncomingTransferEnvelopes) {
-
-			final Iterator<ChannelID> it = this.queuedIncomingTransferEnvelopes.keySet().iterator();
-			while (it.hasNext()) {
-
-				final ChannelID channelID = it.next();
-
-				final Queue<TransferEnvelope> queue = this.queuedIncomingTransferEnvelopes.get(channelID);
-				synchronized (queue) {
-					if (longestQueue == null) {
-						longestQueue = queue;
-						longestQueueSize = queue.size();
-					} else {
-						if (queue.size() > longestQueueSize) {
-							longestQueue = queue;
-						}
-					}
-				}
-			}
-
-			// Launch new dump thread
-			if (longestQueue != null) {
-				// System.out.println("Longest queue has " + longestQueue.size() + " elements");
-				// final ReadBufferDumpThread dumpThread = new ReadBufferDumpThread(longestQueue,
-				// this.emptyReadBuffers);
-				// dumpThread.start();
 			}
 		}
 	}
@@ -762,6 +574,83 @@ public class ByteBufferedChannelManager {
 		return this.bufferSizeInBytes;
 	}
 
+	/**
+	 * Triggers the byte buffer channel manager write the current utilization of its read and write buffers to the logs.
+	 * This method is primarily for debugging purposes.
+	 */
+	public void logBufferUtilization() {
+
+		System.out.println("Buffer utilization for at " + System.currentTimeMillis());
+		synchronized (this.emptyWriteBuffers) {
+			System.out.println("\tEmpty write buffers: " + this.emptyWriteBuffers.size());
+		}
+		synchronized (this.emptyReadBuffers) {
+			System.out.println("\tEmpty read buffers: " + this.emptyReadBuffers.size());
+		}
+		synchronized (this.outgoingConnections) {
+
+			System.out.println("\tOutgoing connections:");
+
+			final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
+				System.out
+					.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
+			}
+		}
+
+		synchronized (this.registeredChannels) {
+
+			System.out.println("\tIncoming connections:");
+
+			final Iterator<Map.Entry<ChannelID, ByteBufferedChannelWrapper>> it = this.registeredChannels.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<ChannelID, ByteBufferedChannelWrapper> entry = it.next();
+				final ByteBufferedChannelWrapper wrapper = entry.getValue();
+				if (wrapper.isInputChannel()) {
+
+					final ByteBufferedInputChannelWrapper inputChannelWrapper = (ByteBufferedInputChannelWrapper) wrapper;
+					final int numberOfQueuedEnvelopes = inputChannelWrapper.getNumberOfQueuedEnvelopes();
+					final int numberOfQueuedMemoryBuffers = inputChannelWrapper.getNumberOfQueuedMemoryBuffers();
+
+					System.out.println("\t\t" + entry.getKey() + ": " + numberOfQueuedMemoryBuffers + " ("
+						+ numberOfQueuedEnvelopes + ")");
+				}
+			}
+		}
+	}
+
+	/**
+	 * Triggers the clean-up method of the canceled channel set.
+	 */
+	public void cleanUpCanceledChannelSet() {
+
+		this.canceledChannelSet.cleanup();
+	}
+
+	/**
+	 * Marks the channel with the given ID as canceled. This means the channel belongs to a task which as about to be
+	 * canceled.
+	 * 
+	 * @param channelID
+	 *        the ID of the channel to be marked as canceled
+	 */
+	public void markChannelAsCanceled(ChannelID channelID) {
+
+		this.canceledChannelSet.add(channelID);
+	}
+
+	/**
+	 * Returns the instance of the file buffer manager that is used by this byte buffered channel manager.
+	 * 
+	 * @return the instance of the file buffer manager that is used by this byte buffered channel manager.
+	 */
 	public FileBufferManager getFileBufferManager() {
 		return this.fileBufferManager;
 	}

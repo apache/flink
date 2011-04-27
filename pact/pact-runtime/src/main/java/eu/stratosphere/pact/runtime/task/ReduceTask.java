@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,8 +44,11 @@ import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -55,41 +57,46 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * implementation.
  * <p>
  * The ReduceTask creates a iterator over all key-value pairs of its input. The iterator returns all k-v pairs grouped
- * by their key. The iterator is handed to the <code>run()</code> method of the MapStub.
+ * by their key. The iterator is handed to the <code>reduce()</code> method of the ReduceStub.
  * 
  * @see eu.stratosphere.pact.common.stub.ReduceStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class ReduceTask extends AbstractTask {
-
-	// number of sort buffers to use
-	private int NUM_SORT_BUFFERS;
-
-	// size of each sort buffer in MB
-	private int SIZE_SORT_BUFFER;
-
-	// memory to be used for IO buffering
-	private int MEMORY_IO;
-
-	// maximum number of file handles
-	private int MAX_NUM_FILEHANLDES;
 
 	// obtain ReduceTask logger
 	private static final Log LOG = LogFactory.getLog(ReduceTask.class);
 
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+	
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
 
 	// output collector
-	private Collector output;
+	private OutputCollector output;
 
 	// reduce stub implementation instance
 	private ReduceStub stub;
 
 	// task config including stub parameters
 	private TaskConfig config;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// maximum number of file handles
+	private int maxFileHandles;
+	
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
 
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -117,7 +124,8 @@ public class ReduceTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception {
+	public void invoke() throws Exception
+	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -125,26 +133,79 @@ public class ReduceTask extends AbstractTask {
 		LOG.debug("Start obtaining iterator: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		
 		// obtain grouped iterator
-		final Iterator<KeyValuePair<Key, Value>> groupedIterator = obtainGroupedIterator();
-		LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
+		try {
+			sortedInputProvider = obtainInput();
+			
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	
+			// open stub implementation
+			stub.open();
+			
+			// run stub implementation
+			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
 
-		// open stub implementation
-		stub.open();
-		// run stub implementation
-		stub.run(groupedIterator, output);
-		// close output collector
-		output.close();
-		// close stub implementation
-		stub.close();
-
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
+		finally {
+			if (sortedInputProvider != null) {
+				sortedInputProvider.close();
+			}
+			
+			// close stub implementation.
+			// when the stub is closed, anything will have been written, so any error will be logged but has no 
+			// effect on the successful completion of the task
+			try {
+				stub.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error while closing the Reduce user function " 
+					+ this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
+			}
+			
+			// close output collector
+			output.close();
+		}
+		
+		if (this.taskCanceled) {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Initializes the stub implementation and configuration.
 	 * 
@@ -157,11 +218,32 @@ public class ReduceTask extends AbstractTask {
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
 
-		// set up memory and io parameters
-		NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
+		
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case SORT:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case COMBININGSORT: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case NONE:
+				strategyMinMem = 0;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The Reduce task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -220,8 +302,11 @@ public class ReduceTask extends AbstractTask {
 	 */
 	private void initOutputCollector() {
 
-		// create collection for writers
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+		
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -230,12 +315,15 @@ public class ReduceTask extends AbstractTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
+			
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
+			
 		}
-
-		// create collector and register all writers
-		output = new OutputCollector(writers);
 	}
 
 	/**
@@ -247,7 +335,8 @@ public class ReduceTask extends AbstractTask {
 	 *         Throws RuntimeException if it is not possible to obtain a
 	 *         grouped iterator.
 	 */
-	private Iterator<KeyValuePair<Key, Value>> obtainGroupedIterator() throws RuntimeException {
+	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
+		
 		// obtain the MemoryManager of the TaskManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain the IOManager of the TaskManager
@@ -271,7 +360,7 @@ public class ReduceTask extends AbstractTask {
 		// created and returned
 		case NONE: {
 			// iterator wraps input reader
-			return new Iterator<KeyValuePair<Key, Value>>() {
+			Iterator<KeyValuePair<Key, Value>> iter = new Iterator<KeyValuePair<Key, Value>>() {
 
 				@Override
 				public boolean hasNext() {
@@ -292,6 +381,8 @@ public class ReduceTask extends AbstractTask {
 				}
 
 			};
+			
+			return new SimpleCloseableInputProvider<KeyValuePair<Key,Value>>(iter);
 		}
 
 			// local strategy is SORT
@@ -309,10 +400,10 @@ public class ReduceTask extends AbstractTask {
 			try {
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
-					NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
-					valSerialization, keyComparator, reader, 0.5f, this);
+					this.availableMemory, this.maxFileHandles, keySerialization,
+					valSerialization, keyComparator, reader, this, this.spillThreshold);
 				// obtain and return a grouped iterator from the sort-merger
-				return sortMerger.getIterator();
+				return sortMerger;
 			} catch (MemoryAllocationException mae) {
 				throw new RuntimeException(
 					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
@@ -341,11 +432,11 @@ public class ReduceTask extends AbstractTask {
 			try {
 				// instantiate a combining sort-merger
 				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
-					ioManager, NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
-					valSerialization, keyComparator, reader, 0.1f, this, false);
+					ioManager, this.availableMemory, this.maxFileHandles, keySerialization,
+					valSerialization, keyComparator, reader, this, this.spillThreshold, false);
 				// obtain and return a grouped iterator from the combining
 				// sort-merger
-				return sortMerger.getIterator();
+				return sortMerger;
 			} catch (MemoryAllocationException mae) {
 				throw new RuntimeException(
 					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
@@ -357,5 +448,23 @@ public class ReduceTask extends AbstractTask {
 			throw new RuntimeException("Invalid local strategy provided for ReduceTask.");
 		}
 
+	}
+	
+	/**
+	 * This method goes over all keys and values that are to be processed by this ReduceTask and calls 
+	 * {@link ReduceStub#reduce(Key, Iterator, Collector)} for each key with the key and an iterator over all 
+	 * corresponding values. 
+	 * 
+	 * @param in
+	 *        An iterator over all key/value pairs processed by this instance of the reducing code.
+	 *        The pairs are grouped by key, such that equal keys are always in a contiguous sequence.
+	 * @param out
+	 *        The collector to write the results to.
+	 */
+	private final void callStubWithGroups(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
+		KeyGroupedIterator<Key, Value> iter = new KeyGroupedIterator<Key, Value>(in);
+		while (!this.taskCanceled && iter.nextKey()) {
+			this.stub.reduce(iter.getKey(), iter.getValues(), out);
+		}
 	}
 }

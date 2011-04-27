@@ -36,7 +36,6 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be emitted with this record writer
  */
 
-// FIXME added Writer<T> to make this at least mock-able ... still requires refactoring (en)
 public class RecordWriter<T extends Record> implements Writer<T> {
 
 	/**
@@ -100,7 +99,7 @@ public class RecordWriter<T extends Record> implements Writer<T> {
 	 */
 	// TODO: See if type safety can be improved here
 	@SuppressWarnings("unchecked")
-	private void connectOutputGate(Class<T> outputClass, ChannelSelector selector) {
+	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector) {
 
 		// See if there are any unbound input gates left we can connect to
 		if (this.environment.hasUnboundOutputGates()) {
@@ -191,14 +190,16 @@ public class RecordWriter<T extends Record> implements Writer<T> {
 	 *        the event to be published
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Delegate call to output gate
 		this.outputGate.publishEvent(event);
 	}
 
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		// Delegate call to output gate
 		this.outputGate.flush();
 	}

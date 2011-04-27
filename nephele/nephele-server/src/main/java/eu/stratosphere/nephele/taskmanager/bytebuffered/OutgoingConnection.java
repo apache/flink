@@ -75,6 +75,12 @@ public class OutgoingConnection {
 	private boolean isConnected = false;
 
 	/**
+	 * Stores whether is underlying TCP connection is subscribed to the NIO write event. As this variable is accessed by
+	 * the byte buffered channel and the outgoing connection thread, it must be protected by a monitor.
+	 */
+	private boolean isSubscribedToWriteEvent = false;
+
+	/**
 	 * The overall number of connection retries which shall be performed before a connection error is reported.
 	 */
 	private final int numberOfConnectionRetries;
@@ -88,6 +94,12 @@ public class OutgoingConnection {
 	 * The timestamp of the last connection retry.
 	 */
 	private long timstampOfLastRetry = 0;
+
+	/**
+	 * The current selection key representing the interest set of the underlying TCP NIO connection. This variable may
+	 * only be accessed the the outgoing connection thread.
+	 */
+	private SelectionKey selectionKey = null;
 
 	/**
 	 * The period of time in milliseconds that shall be waited before a connection attempt is considered to be failed.
@@ -130,10 +142,18 @@ public class OutgoingConnection {
 		synchronized (this.queuedEnvelopes) {
 
 			if (!this.isConnected) {
+
 				this.retriesLeft = this.numberOfConnectionRetries;
 				this.timstampOfLastRetry = System.currentTimeMillis();
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
+				this.isSubscribedToWriteEvent = true;
+			} else {
+
+				if (!this.isSubscribedToWriteEvent) {
+					this.connectionThread.subscribeToWriteEvent(this.selectionKey);
+					this.isSubscribedToWriteEvent = true;
+				}
 			}
 
 			this.queuedEnvelopes.add(transferEnvelope);
@@ -161,14 +181,10 @@ public class OutgoingConnection {
 	 * <p>
 	 * This method should only be called by the {@link OutgoingConnectionThread} object.
 	 * 
-	 * @param socketChannel
-	 *        the socket representing the TCP connection to which the connection problem relates
-	 * @param key
-	 *        the interest key for the connection attempt
 	 * @param ioe
 	 *        thrown if an error occurs while reseting the underlying TCP connection
 	 */
-	public void reportConnectionProblem(SocketChannel socketChannel, SelectionKey key, IOException ioe) {
+	public void reportConnectionProblem(IOException ioe) {
 
 		// First, write exception to log
 		final long currentTime = System.currentTimeMillis();
@@ -178,27 +194,29 @@ public class OutgoingConnection {
 
 		synchronized (this.queuedEnvelopes) {
 
-			// Make sure the socket is closed
-			if (socketChannel != null) {
-				try {
-					socketChannel.close();
-				} catch (IOException e) {
-					LOG.debug("Error while trying to close the socket channel to " + this.connectionAddress);
-				}
-			}
+			if (this.selectionKey != null) {
 
-			// Cancel the key
-			if (key != null) {
-				key.cancel();
+				final SocketChannel socketChannel = (SocketChannel) this.selectionKey.channel();
+				if (socketChannel != null) {
+					try {
+						socketChannel.close();
+					} catch (IOException e) {
+						LOG.debug("Error while trying to close the socket channel to " + this.connectionAddress);
+					}
+				}
+
+				this.selectionKey.cancel();
+				this.selectionKey = null;
+				this.isConnected = false;
+				this.isSubscribedToWriteEvent = false;
 			}
 
 			if (hasRetriesLeft(currentTime)) {
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
+				this.isSubscribedToWriteEvent = true;
 				return;
 			}
-
-			this.isConnected = false;
 
 			// Error is fatal
 			LOG.error(ioe);
@@ -237,14 +255,12 @@ public class OutgoingConnection {
 	 * <p>
 	 * This method should only be called by the {@link OutgoingConnectionThread} object.
 	 * 
-	 * @param socketChannel
-	 *        the socket channel which caused the transmission problem
-	 * @param key
-	 *        the interest key to be canceled
 	 * @param ioe
 	 *        thrown if an error occurs while reseting the connection
 	 */
-	public void reportTransmissionProblem(SocketChannel socketChannel, SelectionKey key, IOException ioe) {
+	public void reportTransmissionProblem(IOException ioe) {
+
+		final SocketChannel socketChannel = (SocketChannel) this.selectionKey.channel();
 
 		// First, write exception to log
 		if (this.currentEnvelope != null) {
@@ -266,7 +282,7 @@ public class OutgoingConnection {
 				LOG.debug(e);
 			}
 
-			key.cancel();
+			this.selectionKey.cancel();
 
 			// Error is fatal
 			LOG.error(ioe);
@@ -274,19 +290,21 @@ public class OutgoingConnection {
 			// Trigger new connection if there are more envelopes to be transmitted
 			if (this.queuedEnvelopes.isEmpty()) {
 				this.isConnected = false;
+				this.isSubscribedToWriteEvent = false;
 			} else {
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
+				this.isSubscribedToWriteEvent = true;
 			}
+		}
 
-			// We must assume the current envelope is corrupted so we notify the task which created it.
-			if (this.currentEnvelope != null) {
-				this.byteBufferedChannelManager
-					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
-				if (this.currentEnvelope.getBuffer() != null) {
-					this.currentEnvelope.getBuffer().recycleBuffer();
-					this.currentEnvelope = null;
-				}
+		// We must assume the current envelope is corrupted so we notify the task which created it.
+		if (this.currentEnvelope != null) {
+			this.byteBufferedChannelManager
+				.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
+			if (this.currentEnvelope.getBuffer() != null) {
+				this.currentEnvelope.getBuffer().recycleBuffer();
+				this.currentEnvelope = null;
 			}
 		}
 	}
@@ -312,18 +330,17 @@ public class OutgoingConnection {
 	}
 
 	/**
-	 * Writes the content of the current {@link TransferEnvelope} object to the given {@link WritableByteChannel}
-	 * object.
+	 * Writes the content of the current {@link TransferEnvelope} object to the underlying TCP connection.
 	 * <p>
 	 * This method should only be called by the {@link OutgoingConnectionThread} object.
 	 * 
-	 * @param writableByteChannel
-	 *        the channel to write to
 	 * @return <code>true</code> if there is more data from this/other queued envelopes to be written to this channel
 	 * @throws IOException
 	 *         thrown if an error occurs while writing the data to the channel
 	 */
-	public boolean write(WritableByteChannel writableByteChannel) throws IOException {
+	public boolean write() throws IOException {
+
+		final WritableByteChannel writableByteChannel = (WritableByteChannel) this.selectionKey.channel();
 
 		if (this.currentEnvelope == null) {
 			synchronized (this.queuedEnvelopes) {
@@ -358,27 +375,56 @@ public class OutgoingConnection {
 	}
 
 	/**
-	 * Closes the TCP connection represented by this connection object and cancels associated interest key if no more
-	 * {@link TransferEnvelope} objects are in the transmission queue.
+	 * Requests to close the underlying TCP connection. The request is ignored if at least one {@link TransferEnvelope}
+	 * is queued.
 	 * <p>
 	 * This method should only be called by the {@link OutgoingConnectionThread} object.
 	 * 
-	 * @param socketChannel
-	 *        the socket referring to the TCP connection to be closed
-	 * @param key
-	 *        the interest key to be canceled
 	 * @throws IOException
 	 *         thrown if an error occurs while closing the TCP connection
 	 */
-	public void closeConnection(SocketChannel socketChannel, SelectionKey key) throws IOException {
+	public void requestClose() throws IOException {
 
 		synchronized (this.queuedEnvelopes) {
 
 			if (this.queuedEnvelopes.isEmpty()) {
-				socketChannel.close();
-				key.cancel();
-				this.isConnected = false;
+
+				if (this.isSubscribedToWriteEvent) {
+
+					this.connectionThread.unsubscribeFromWriteEvent(this.selectionKey);
+					this.isSubscribedToWriteEvent = false;
+				}
 			}
+		}
+	}
+
+	/**
+	 * Closes the underlying TCP connection if no more {@link TransferEnvelope} objects are in the transmission queue.
+	 * <p>
+	 * This method should only be called by the {@link OutgoingConnectionThread} object.
+	 * 
+	 * @throws IOException
+	 */
+	public void closeConnection() throws IOException {
+
+		synchronized (this.queuedEnvelopes) {
+
+			if (!this.queuedEnvelopes.isEmpty()) {
+				return;
+			}
+
+			LOG.debug("Closing connection to " + this.connectionAddress);
+
+			if (this.selectionKey != null) {
+
+				final SocketChannel socketChannel = (SocketChannel) this.selectionKey.channel();
+				socketChannel.close();
+				this.selectionKey.cancel();
+				this.selectionKey = null;
+			}
+
+			this.isConnected = false;
+			this.isSubscribedToWriteEvent = false;
 		}
 	}
 
@@ -417,34 +463,6 @@ public class OutgoingConnection {
 	}
 
 	/**
-	 * Removes all queued {@link TransferEnvelope} objects from the transmission which match the given channel ID. The
-	 * flag <code>source</code> states whether the given channel ID refers to the source or the destination channel ID.
-	 * <p>
-	 * This method should only be called by the byte buffered channel manager.
-	 * 
-	 * @param channelID
-	 *        the channel ID to count the queued envelopes for
-	 * @param source
-	 *        <code>true</code> to indicate the given channel ID refers to the source, <code>false</code> otherwise
-	 */
-	public void dropAllQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
-
-		synchronized (this.queuedEnvelopes) {
-
-			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
-			while (it.hasNext()) {
-				final TransferEnvelope te = it.next();
-				if ((source && channelID.equals(te.getSource())) || (!source && channelID.equals(te.getTarget()))) {
-					it.remove();
-					if (te.getBuffer() != null) {
-						te.getBuffer().recycleBuffer();
-					}
-				}
-			}
-		}
-	}
-
-	/**
 	 * Checks whether this outgoing connection object manages an active connection or can be removed by the
 	 * {@link ByteBufferedChannelManager} object.
 	 * <p>
@@ -467,5 +485,39 @@ public class OutgoingConnection {
 
 			return this.queuedEnvelopes.isEmpty();
 		}
+	}
+
+	/**
+	 * Sets the selection key representing the interest set of the underlying TCP NIO connection.
+	 * 
+	 * @param selectionKey
+	 *        the selection of the underlying TCP connection
+	 */
+	public void setSelectionKey(SelectionKey selectionKey) {
+		this.selectionKey = selectionKey;
+	}
+
+	/**
+	 * Returns the number of currently queued envelopes which contain a write buffer.
+	 * 
+	 * @return the number of currently queued envelopes which contain a write buffer
+	 */
+	public int getNumberOfQueuedWriteBuffers() {
+
+		int retVal = 0;
+
+		synchronized (this.queuedEnvelopes) {
+
+			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
+			while (it.hasNext()) {
+
+				final TransferEnvelope envelope = it.next();
+				if (envelope.getBuffer() != null) {
+					++retVal;
+				}
+			}
+		}
+
+		return retVal;
 	}
 }

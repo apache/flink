@@ -22,7 +22,9 @@ import java.io.IOException;
 import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.MemorySegmentDescriptor;
 
-public class DefaultRandomAccessView extends DefaultMemorySegmentView implements RandomAccessView {
+
+public final class DefaultRandomAccessView extends DefaultMemorySegmentView implements RandomAccessView {
+	
 	// --------------------------------------------------------------------
 	// Constructors
 	// --------------------------------------------------------------------
@@ -35,17 +37,24 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 	// RandomAccessView
 	// --------------------------------------------------------------------
 
+	// ------------------------------------------------------------------------------------------------------
+	// WARNING: Any code for range checking must take care to avoid integer overflows. The position
+	// integer may go up to <code>Integer.MAX_VALUE</tt>. Range checks that work after the principle
+	// <code>position + 3 &lt; end</code> may fail because <code>position + 3</code> becomes negative.
+	// A safe solution is to subtract the delta from the limit, for example
+	// <code>position &lt; end - 3</code>. Since all indices are always positive, and the integer domain
+	// has one more negative value than positive values, this can never cause an underflow.
+	// ------------------------------------------------------------------------------------------------------
+
 	@Override
 	public int size() {
-		return descriptorReference.get().size;
+		return this.size;
 	}
 
 	@Override
 	public byte get(int index) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index < descriptor.size) {
-			return descriptor.memory[descriptor.start + index];
+		if (index >= 0 && index < this.size) {
+			return this.memory[this.offset + index];
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -53,10 +62,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView put(int index, byte b) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index < descriptor.size) {
-			descriptor.memory[descriptor.start + index] = b;
+		if (index >= 0 && index < this.size) {
+			this.memory[this.offset + index] = b;
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -75,10 +82,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView get(int index, byte[] dst, int offset, int length) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index < descriptor.size && index + length <= descriptor.size && offset + length <= dst.length) {
-			System.arraycopy(descriptor.memory, descriptor.start + index, dst, offset, length);
+		if (index >= 0 && index < this.size && index + length <= this.size && offset + length <= dst.length) {
+			System.arraycopy(this.memory, this.offset + index, dst, offset, length);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -87,10 +92,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView put(int index, byte[] src, int offset, int length) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index < descriptor.size && index + length <= descriptor.size && offset + length <= src.length) {
-			System.arraycopy(src, offset, descriptor.memory, descriptor.start + index, length);
+		if (index >= 0 && index < this.size && index + length <= this.size && offset + length <= src.length) {
+			System.arraycopy(src, offset, this.memory, this.offset + index, length);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -99,10 +102,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView get(DataOutput out, int offset, int length) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (offset >= 0 && offset < descriptor.size && length >= 0 && length < descriptor.size) {
-			out.write(descriptor.memory, descriptor.start + offset, length);
+		if (offset >= 0 && offset < this.size && length >= 0 && offset + length < this.size) {
+			out.write(this.memory, this.offset + offset, length);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -111,10 +112,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView put(DataInput in, int offset, int length) throws IOException {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (offset >= 0 && offset < descriptor.size && length >= 0 && length < descriptor.size) {
-			in.readFully(descriptor.memory, descriptor.start + offset, length);
+		if (offset >= 0 && offset < this.size && length >= 0 && length < this.size) {
+			in.readFully(this.memory, this.offset + offset, length);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -123,10 +122,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public boolean getBoolean(int index) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index < descriptor.size) {
-			return descriptor.memory[descriptor.start + index] != 0;
+		if (index >= 0 && index < this.size) {
+			return this.memory[this.offset + index] != 0;
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -134,10 +131,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView putBoolean(int index, boolean value) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index < descriptor.size) {
-			descriptor.memory[descriptor.start + index] = (byte) (value ? 1 : 0);
+		if (index >= 0 && index < this.size) {
+			this.memory[this.offset + index] = (byte) (value ? 1 : 0);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -146,10 +141,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public char getChar(int index) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 1 < descriptor.size) {
-			return (char) (((descriptor.memory[descriptor.start + index + 0] & 0xff) << 8) | ((descriptor.memory[descriptor.start
+		if (index >= 0 && index + 1 < this.size) {
+			return (char) (((this.memory[this.offset + index + 0] & 0xff) << 8) | ((this.memory[this.offset
 				+ index + 1] & 0xff) << 0));
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -158,11 +151,9 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView putChar(int index, char value) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 1 < descriptor.size) {
-			descriptor.memory[descriptor.start + index + 0] = (byte) ((value >> 8) & 0xff);
-			descriptor.memory[descriptor.start + index + 1] = (byte) ((value >> 0) & 0xff);
+		if (index >= 0 && index + 1 < this.size) {
+			this.memory[this.offset + index + 0] = (byte) ((value >> 8) & 0xff);
+			this.memory[this.offset + index + 1] = (byte) ((value >> 0) & 0xff);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -193,17 +184,15 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public long getLong(int index) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 7 < descriptor.size) {
-			return (((long) descriptor.memory[descriptor.start + index + 0] & 0xff) << 56)
-				| (((long) descriptor.memory[descriptor.start + index + 1] & 0xff) << 48)
-				| (((long) descriptor.memory[descriptor.start + index + 2] & 0xff) << 40)
-				| (((long) descriptor.memory[descriptor.start + index + 3] & 0xff) << 32)
-				| (((long) descriptor.memory[descriptor.start + index + 4] & 0xff) << 24)
-				| (((long) descriptor.memory[descriptor.start + index + 5] & 0xff) << 16)
-				| (((long) descriptor.memory[descriptor.start + index + 6] & 0xff) << 8)
-				| (((long) descriptor.memory[descriptor.start + index + 7] & 0xff) << 0);
+		if (index >= 0 && index + 7 < this.size) {
+			return (((long) this.memory[this.offset + index + 0] & 0xff) << 56)
+				| (((long) this.memory[this.offset + index + 1] & 0xff) << 48)
+				| (((long) this.memory[this.offset + index + 2] & 0xff) << 40)
+				| (((long) this.memory[this.offset + index + 3] & 0xff) << 32)
+				| (((long) this.memory[this.offset + index + 4] & 0xff) << 24)
+				| (((long) this.memory[this.offset + index + 5] & 0xff) << 16)
+				| (((long) this.memory[this.offset + index + 6] & 0xff) << 8)
+				| (((long) this.memory[this.offset + index + 7] & 0xff) << 0);
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -211,17 +200,15 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView putLong(int index, long value) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 7 < descriptor.size) {
-			descriptor.memory[descriptor.start + index + 0] = (byte) ((value >> 56) & 0xff);
-			descriptor.memory[descriptor.start + index + 1] = (byte) ((value >> 48) & 0xff);
-			descriptor.memory[descriptor.start + index + 2] = (byte) ((value >> 40) & 0xff);
-			descriptor.memory[descriptor.start + index + 3] = (byte) ((value >> 32) & 0xff);
-			descriptor.memory[descriptor.start + index + 4] = (byte) ((value >> 24) & 0xff);
-			descriptor.memory[descriptor.start + index + 5] = (byte) ((value >> 16) & 0xff);
-			descriptor.memory[descriptor.start + index + 6] = (byte) ((value >> 8) & 0xff);
-			descriptor.memory[descriptor.start + index + 7] = (byte) (value & 0xff);
+		if (index >= 0 && index + 7 < this.size) {
+			this.memory[this.offset + index + 0] = (byte) ((value >> 56) & 0xff);
+			this.memory[this.offset + index + 1] = (byte) ((value >> 48) & 0xff);
+			this.memory[this.offset + index + 2] = (byte) ((value >> 40) & 0xff);
+			this.memory[this.offset + index + 3] = (byte) ((value >> 32) & 0xff);
+			this.memory[this.offset + index + 4] = (byte) ((value >> 24) & 0xff);
+			this.memory[this.offset + index + 5] = (byte) ((value >> 16) & 0xff);
+			this.memory[this.offset + index + 6] = (byte) ((value >> 8) & 0xff);
+			this.memory[this.offset + index + 7] = (byte) (value & 0xff);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -230,13 +217,11 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public int getInt(int index) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 3 < descriptor.size) {
-			return (((int) descriptor.memory[descriptor.start + index + 0] & 0xff) << 24)
-				| (((int) descriptor.memory[descriptor.start + index + 1] & 0xff) << 16)
-				| (((int) descriptor.memory[descriptor.start + index + 2] & 0xff) << 8)
-				| (((int) descriptor.memory[descriptor.start + index + 3] & 0xff) << 0);
+		if (index >= 0 && index + 3 < this.size) {
+			return (((int) this.memory[this.offset + index + 0] & 0xff) << 24)
+				| (((int) this.memory[this.offset + index + 1] & 0xff) << 16)
+				| (((int) this.memory[this.offset + index + 2] & 0xff) << 8)
+				| (((int) this.memory[this.offset + index + 3] & 0xff) << 0);
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -244,13 +229,11 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView putInt(int index, int value) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 3 < descriptor.size) {
-			descriptor.memory[descriptor.start + index + 0] = (byte) ((value >> 24) & 0xff);
-			descriptor.memory[descriptor.start + index + 1] = (byte) ((value >> 16) & 0xff);
-			descriptor.memory[descriptor.start + index + 2] = (byte) ((value >> 8) & 0xff);
-			descriptor.memory[descriptor.start + index + 3] = (byte) ((value >> 0) & 0xff);
+		if (index >= 0 && index + 3 < this.size) {
+			this.memory[this.offset + index + 0] = (byte) ((value >> 24) & 0xff);
+			this.memory[this.offset + index + 1] = (byte) ((value >> 16) & 0xff);
+			this.memory[this.offset + index + 2] = (byte) ((value >> 8) & 0xff);
+			this.memory[this.offset + index + 3] = (byte) ((value >> 0) & 0xff);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -259,10 +242,8 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public short getShort(int index) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 1 < descriptor.size) {
-			return (short) (((descriptor.memory[descriptor.start + index + 0] & 0xff) << 8) | ((descriptor.memory[descriptor.start
+		if (index >= 0 && index + 1 < this.size) {
+			return (short) (((this.memory[this.offset + index + 0] & 0xff) << 8) | ((this.memory[this.offset
 				+ index + 1] & 0xff) << 0));
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -271,11 +252,9 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 
 	@Override
 	public RandomAccessView putShort(int index, short value) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (index >= 0 && index + 1 < descriptor.size) {
-			descriptor.memory[descriptor.start + index + 0] = (byte) ((value >> 8) & 0xff);
-			descriptor.memory[descriptor.start + index + 1] = (byte) ((value >> 0) & 0xff);
+		if (index >= 0 && index + 1 < this.size) {
+			this.memory[this.offset + index + 0] = (byte) ((value >> 8) & 0xff);
+			this.memory[this.offset + index + 1] = (byte) ((value >> 0) & 0xff);
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -288,13 +267,7 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 	 */
 	@Override
 	public byte[] getBackingArray() {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-
-		if (descriptor != null) {
-			return descriptor.memory;
-		} else {
-			return null;
-		}
+		return this.memory;
 	}
 
 	/*
@@ -303,7 +276,6 @@ public class DefaultRandomAccessView extends DefaultMemorySegmentView implements
 	 */
 	@Override
 	public int translateOffset(int offset) {
-		MemorySegmentDescriptor descriptor = descriptorReference.get();
-		return descriptor.start + offset;
+		return this.offset + offset;
 	}
 }

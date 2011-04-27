@@ -17,7 +17,7 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.fs.hdfs.DistributedDataInputStream;
+import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -38,7 +38,7 @@ import eu.stratosphere.pact.common.type.Value;
  */
 public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K, V> {
 
-	protected DistributedDataInputStream stream;
+	protected FSDataInputStream stream;
 
 	protected long start;
 
@@ -80,18 +80,28 @@ public abstract class InputFormat<K extends Key, V extends Value> extends Stub<K
 	public abstract boolean reachedEnd() throws IOException;
 
 	/**
-	 * Conncets the input stream to the input format.
+	 * Connects the input stream to the input format.
 	 * 
 	 * @param fdis
 	 * @param start
 	 * @param length
 	 * @param bufferSize
 	 */
-	public void setInput(DistributedDataInputStream fdis, long start, long length, int bufferSize) {
+	public void setInput(FSDataInputStream fdis, long start, long length, int bufferSize) {
 		this.stream = fdis;
 		this.start = start;
 		this.length = length;
 		this.bufferSize = bufferSize;
+	}
+	
+	/**
+	 * Closes the input stream of the input format.
+	 */
+	public void closeInput() throws IOException {
+		if(this.stream != null) {
+			// close input stream
+			this.stream.close();
+		}
 	}
 
 }

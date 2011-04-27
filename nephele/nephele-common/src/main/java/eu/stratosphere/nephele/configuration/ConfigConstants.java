@@ -24,11 +24,11 @@ package eu.stratosphere.nephele.configuration;
 public final class ConfigConstants {
 
 	// ------------------------------------------------------------------------
-	//                         Configuration Keys
+	// Configuration Keys
 	// ------------------------------------------------------------------------
 
 	// -------------------------- Addresses and Ports -------------------------
-	
+
 	/**
 	 * The key for the config parameter defining the network address to connect to
 	 * for communication with the job manager.
@@ -52,11 +52,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
-	 * The key for the config parameter defining whether to use discovery on startup.
-	 */
-	public static final String TASK_MANAGER_USE_DISCOVERY_KEY = "taskmanager.setup.usediscovery";
-
-	/**
 	 * The key for the config parameter defining the directory for temporary files.
 	 */
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dir";
@@ -70,16 +65,11 @@ public final class ConfigConstants {
 	/**
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
-	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";	
-	
-	// ------------------------------------------------------------------------
-	//                             Default Values
-	// ------------------------------------------------------------------------
+	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
 
-	/**
-	 * The default network address to connect to for communication with the job manager.
-	 */
-	public static final String DEFAULT_JOB_MANAGER_IPC_ADDRESS = "127.0.0.1";
+	// ------------------------------------------------------------------------
+	// Default Values
+	// ------------------------------------------------------------------------
 
 	/**
 	 * The default network port to connect to for communication with the job manager.
@@ -116,19 +106,23 @@ public final class ConfigConstants {
 	 */
 	public static final boolean DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB = true;
 
+	/**
+	 * The default scheduler to be used when Nephele is started in local mode.
+	 */
+	public static final String DEFAULT_LOCAL_MODE_SCHEDULER = "eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler";
+
 	// ----------------------------- Instances --------------------------------
 
 	/**
 	 * The default definition for an instance type, if no other configuration is provided.
 	 */
 	public static final String DEFAULT_INSTANCE_TYPE = "default,2,1,1024,10,10";
-	
+
 	/**
-	 * The default index for the default instance type. 
+	 * The default index for the default instance type.
 	 */
 	public static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
-	
-	
+
 	// ------------------------------------------------------------------------
 
 	/**

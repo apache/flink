@@ -53,16 +53,13 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 	private Buffer compressedDataBuffer = null;
 
-	/**
-	 * The buffered record to be returned next on a read request.
-	 */
-	private T bufferedRecord = null;
-
 	private ByteBufferedInputChannelBroker inputChannelBroker = null;
 
 	private final Object synchronisationObject = new Object();
 
 	private boolean brokerAggreedToCloseChannel = false;
+
+	private T bufferedRecord = null;
 
 	/**
 	 * The Decompressor-Object to decompress incoming data
@@ -107,41 +104,38 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 */
 	private T deserializeNextRecord() throws IOException {
 
-		T nextRecord = null;
+		if (this.bufferedRecord != null) {
+			final T record = this.bufferedRecord;
+			this.bufferedRecord = null;
+			return record;
+		}
 
-		while (true) {
+		if (this.uncompressedDataBuffer == null) {
+
+			synchronized (this.synchronisationObject) {
+
+				if (this.ioException != null) {
+					throw this.ioException;
+				}
+
+				requestReadBuffersFromBroker();
+			}
 
 			if (this.uncompressedDataBuffer == null) {
-
-				synchronized (this.synchronisationObject) {
-
-					if (this.ioException != null) {
-						throw this.ioException;
-					}
-
-					requestReadBuffersFromBroker();
-				}
-
-				if (this.uncompressedDataBuffer == null) {
-					break;
-				}
-
-				if (this.decompressor != null) {
-					this.decompressor.decompress();
-				}
+				return null;
 			}
 
-			nextRecord = this.deserializationBuffer.readData(this.uncompressedDataBuffer);
-
-			// If deserialization was successful, exit the loop
-			if (nextRecord != null) {
-				break;
+			if (this.decompressor != null) {
+				this.decompressor.decompress();
 			}
+		}
 
-			// Make sure the loop will eventually terminate
-			if (this.uncompressedDataBuffer.remaining() == 0) {
-				releasedConsumedReadBuffer();
-			}
+		final T nextRecord = this.deserializationBuffer.readData(this.uncompressedDataBuffer);
+
+		if (this.uncompressedDataBuffer.remaining() == 0) {
+			releasedConsumedReadBuffer();
+			this.bufferedRecord = nextRecord;
+			return null;
 		}
 
 		return nextRecord;
@@ -171,17 +165,11 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	@Override
 	public T readRecord() throws IOException {
 
-		T returnRecord = null;
-
 		if (isClosed()) {
 			throw new EOFException();
 		}
 
-		returnRecord = this.bufferedRecord;
-
-		this.bufferedRecord = deserializeNextRecord();
-
-		return returnRecord;
+		return deserializeNextRecord();
 	}
 
 	/**
@@ -214,13 +202,12 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void close() {
+	public void close() throws IOException, InterruptedException {
 
 		this.deserializationBuffer.clear();
 		if (this.uncompressedDataBuffer != null) {
 			releasedConsumedReadBuffer();
 		}
-		this.bufferedRecord = null;
 
 		/*
 		 * Send close event to indicate the input channel has successfully
@@ -271,8 +258,11 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void transferEvent(AbstractEvent event) {
+	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		this.inputChannelBroker.transferEventToOutputChannel(event);
 	}
@@ -281,6 +271,25 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		synchronized (this.synchronisationObject) {
 			this.ioException = ioe;
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		synchronized (this.synchronisationObject) {
+			this.brokerAggreedToCloseChannel = true;
+		}
+
+		this.deserializationBuffer.clear();
+
+		// The buffers are recycled by the input channel wrapper
+
+		if (this.decompressor != null) {
+			this.decompressor.shutdown();
 		}
 	}
 }

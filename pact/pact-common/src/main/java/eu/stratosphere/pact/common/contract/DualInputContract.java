@@ -179,12 +179,13 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {
-		visitor.preVisit(this);
-		if (firstInput != null)
-			firstInput.accept(visitor);
-		if (secondInput != null)
-			secondInput.accept(visitor);
-		visitor.postVisit(this);
+		if (visitor.preVisit(this)) {
+			if (firstInput != null)
+				firstInput.accept(visitor);
+			if (secondInput != null)
+				secondInput.accept(visitor);
+			visitor.postVisit(this);
+		}
 	}
 
 }

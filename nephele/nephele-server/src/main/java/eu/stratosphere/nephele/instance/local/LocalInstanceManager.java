@@ -226,7 +226,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 			if (this.localInstance != null) { // Instance is available
 				if (this.allocatedResource == null) { // Instance is not used by another job
-					allocatedResource = new AllocatedResource(this.localInstance, new AllocationID());
+					allocatedResource = new AllocatedResource(this.localInstance, instanceType, new AllocationID());
 					this.allocatedResource = allocatedResource;
 					assignmentSuccessful = true;
 				}

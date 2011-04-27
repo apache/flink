@@ -33,7 +33,22 @@ import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
  * 
  * @author warneke
  */
-public class ServerTestUtils {
+public final class ServerTestUtils {
+	
+	/**
+	 * The system property key to retrieve the user directory.
+	 */
+	private static final String USER_DIR_KEY = "user.dir";
+
+	/**
+	 * The directory containing the correct configuration file to be used during the tests.
+	 */
+	private static final String CORRECT_CONF_DIR = "/correct-conf";
+
+	/**
+	 * The directory the configuration directory is expected in when test are executed using Eclipse.
+	 */
+	private static final String ECLIPSE_PATH_EXTENSION = "/src/test/resources";
 
 	/**
 	 * Private constructor.
@@ -42,23 +57,26 @@ public class ServerTestUtils {
 	}
 
 	/**
-	 * Creates a file with a random name in the directory for temporary files. The directory for temporary files is read
-	 * from the configuration. The file contains a sequence of integer numbers from 0 to <code>limit</code>. The
-	 * individual numbers are separated by a newline.
+	 * Creates a file with a random name in the given sub directory within the directory for temporary files. The
+	 * directory for temporary files is read from the configuration. The file contains a sequence of integer numbers
+	 * from 0 to <code>limit</code>. The individual numbers are separated by a newline.
 	 * 
+	 * @param subDirectory
+	 *        name of the sub directory to create the input file in
 	 * @param limit
 	 *        the upper bound for the sequence of integer numbers to generate
 	 * @return a {@link File} object referring to the created file
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while writing the file
 	 */
-	public static File createInputFile(int limit) throws IOException {
+	public static File createInputFile(String subDirectory, int limit) throws IOException {
 
 		if (limit < 0) {
 			throw new IllegalArgumentException("limit must be >= 0");
 		}
 
-		final File inputFile = new File(getTempDir() + File.separator + getRandomFilename());
+		final File inputFile = new File(getTempDir() + File.separator + subDirectory + File.separator
+			+ getRandomFilename());
 
 		if (inputFile.exists()) {
 			inputFile.delete();
@@ -73,6 +91,21 @@ public class ServerTestUtils {
 		fw.close();
 
 		return inputFile;
+	}
+
+	/**
+	 * Creates a file with a random name in the directory for temporary files. The directory for temporary files is read
+	 * from the configuration. The file contains a sequence of integer numbers from 0 to <code>limit</code>. The
+	 * individual numbers are separated by a newline.
+	 * 
+	 * @param limit
+	 *        the upper bound for the sequence of integer numbers to generate
+	 * @return a {@link File} object referring to the created file
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while writing the file
+	 */
+	public static File createInputFile(int limit) throws IOException {
+		return createInputFile("", limit);
 	}
 
 	/**
@@ -143,5 +176,27 @@ public class ServerTestUtils {
 		jos.close();
 
 		return jarFile;
+	}
+
+	/**
+	 * Returns the directory containing the configuration files that shall be used for the test.
+	 * 
+	 * @return the directory containing the configuration files or <code>null</code> if the configuration directory
+	 *         could not be located
+	 */
+	public static String getConfigDir() {
+
+		// This is the correct path for Maven-based tests
+		String configDir = System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR;
+		if (new File(configDir).exists()) {
+			return configDir;
+		}
+
+		configDir = System.getProperty(USER_DIR_KEY) + ECLIPSE_PATH_EXTENSION + CORRECT_CONF_DIR;
+		if (new File(configDir).exists()) {
+			return configDir;
+		}
+
+		return null;
 	}
 }

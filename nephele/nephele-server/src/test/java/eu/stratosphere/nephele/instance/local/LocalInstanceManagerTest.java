@@ -17,10 +17,21 @@ package eu.stratosphere.nephele.instance.local;
 
 import static org.junit.Assert.*;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+import junit.framework.Assert;
+
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.discovery.DiscoveryException;
+import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
  * Tests for the {@link LocalInstanceManager}.
@@ -30,24 +41,55 @@ import eu.stratosphere.nephele.instance.InstanceType;
 public class LocalInstanceManagerTest {
 
 	/**
-	 * The system property key to retrieve the user directory.
+	 * Starts the discovery service before the tests.
 	 */
-	private static final String USER_DIR_KEY = "user.dir";
-
+	@BeforeClass
+	public static void startDiscoveryService() {
+		
+		final String configDir = ServerTestUtils.getConfigDir();
+		if(configDir == null) {
+			fail("Cannot locate configuration directory");
+		}
+		
+		GlobalConfiguration.loadConfiguration(configDir);
+		
+		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		InetAddress bindAddress = null;
+		if(address != null) {
+			try {
+				bindAddress = InetAddress.getByName(address);
+			} catch(UnknownHostException e) {
+				fail(e.getMessage());
+			}
+		}
+		
+		try {
+			DiscoveryService.startDiscoveryService(bindAddress, 5555);
+		} catch(DiscoveryException e) {
+			fail(e.getMessage());
+		}
+	}
+	
 	/**
-	 * The directory containing the correct configuration file to be used during the tests.
+	 * Stops the discovery service after the tests.
 	 */
-	private static final String CORRECT_CONF_DIR = "/correct-conf";
-
+	@AfterClass
+	public static void stopDiscoveryService() {
+		
+		DiscoveryService.stopDiscoveryService();
+	}
+	
 	/**
 	 * Checks if the local instance manager reads the default correctly from the configuration file.
 	 */
 	@Test
 	public void testInstanceTypeFromConfiguration() {
 
-		final String configDir = System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR;
-
-		GlobalConfiguration.loadConfiguration(configDir);
+		final String configDir = ServerTestUtils.getConfigDir();
+		if(configDir == null) {
+			fail("Cannot locate configuration directory");
+		}
+		
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
 
 		LocalInstanceManager lm = null;
@@ -64,6 +106,8 @@ public class LocalInstanceManagerTest {
 			assertEquals(160, defaultInstanceType.getDiskCapacity());
 			assertEquals(0, defaultInstanceType.getPricePerHour());
 
+		} catch(Exception e) {
+			Assert.fail("Instanciating LocalInstanceManager failed: "+e.getMessage());
 		} finally {
 
 			if (lm != null) {

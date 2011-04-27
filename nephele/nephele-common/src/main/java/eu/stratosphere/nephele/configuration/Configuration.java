@@ -199,6 +199,51 @@ public class Configuration implements IOReadableWritable {
 			this.confData.put(key, Integer.toString(value));
 		}
 	}
+	
+	/**
+	 * Returns the value associated with the given key as a long.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	public long getLong(String key, long defaultValue) {
+		try {
+			synchronized (this.confData) {
+				String val = this.confData.get(key);
+				if (val != null) {
+					return Long.parseLong(val);
+				}
+			}
+		}
+		catch (NumberFormatException e) {
+			LOG.debug(e);
+		}
+
+		return defaultValue;
+	}
+
+	/**
+	 * Adds the given key/value pair to the configuration object. If the
+	 * key is <code>null</code>, the key/value pair is not added.
+	 * 
+	 * @param key
+	 *        the key of the key/value pair to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	public void setLong(String key, long value) {
+		if (key == null) {
+			LOG.warn("Cannot set integer: Given key is null!");
+			return;
+		}
+
+		synchronized (this.confData) {
+			this.confData.put(key, Long.toString(value));
+		}
+	}
 
 	/**
 	 * Returns the value associated with the given key as a boolean.
@@ -241,6 +286,44 @@ public class Configuration implements IOReadableWritable {
 
 		synchronized (this.confData) {
 			this.confData.put(key, Boolean.toString(value));
+		}
+	}
+	
+	/**
+	 * Returns the value associated with the given key as a float.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	public float getFloat(String key, float defaultValue) {
+		synchronized (this.confData)
+		{
+			String val = this.confData.get(key);
+			return val == null ? defaultValue : Float.parseFloat(val);
+		}
+	}
+
+	/**
+	 * Adds the given key/value pair to the configuration object. If key is <code>null</code> the key/value pair is
+	 * ignored and not added.
+	 * 
+	 * @param key
+	 *        the key of the key/value pair to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	public void setFloat(String key, float value) {
+
+		if (key == null) {
+			LOG.warn("Cannot set boolean: Given key is null!");
+			return;
+		}
+
+		synchronized (this.confData) {
+			this.confData.put(key, Float.toString(value));
 		}
 	}
 

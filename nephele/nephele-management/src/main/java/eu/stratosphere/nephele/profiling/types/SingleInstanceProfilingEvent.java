@@ -22,14 +22,60 @@ import java.io.IOException;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.StringRecord;
 
-public class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
+/**
+ * A single instance profiling event encapsulates profiling information for one particular instance.
+ * 
+ * @author warneke
+ */
+public final class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 
 	private String instanceName;
 
-	public SingleInstanceProfilingEvent(int profilingInterval, int ioWaitCPU, int idleCPU, int userCPU, int systemCPU,
-			int hardIrqCPU, int softIrqCPU, long totalMemory, long freeMemory, long bufferedMemory, long cachedMemory,
-			long cachedSwapMemory, long receivedBytes, long transmittedBytes, JobID jobID, long timestamp,
-			long profilingTimestamp, String instanceName) {
+	/**
+	 * Constructs a new instance profiling event.
+	 * 
+	 * @param profilingInterval
+	 *        the interval of time this profiling event covers in milliseconds
+	 * @param ioWaitCPU
+	 *        the percentage of time the CPU(s) spent in state IOWAIT during the profiling interval
+	 * @param idleCPU
+	 *        the percentage of time the CPU(s) spent in state IDLE during the profiling interval
+	 * @param userCPU
+	 *        the percentage of time the CPU(s) spent in state USER during the profiling interval
+	 * @param systemCPU
+	 *        the percentage of time the CPU(s) spent in state SYSTEM during the profiling interval
+	 * @param hardIrqCPU
+	 *        the percentage of time the CPU(s) spent in state HARD_IRQ during the profiling interval
+	 * @param softIrqCPU
+	 *        the percentage of time the CPU(s) spent in state SOFT_IRQ during the profiling interval
+	 * @param totalMemory
+	 *        the total amount of this instance's main memory in bytes
+	 * @param freeMemory
+	 *        the free amount of this instance's main memory in bytes
+	 * @param bufferedMemory
+	 *        the amount of main memory the instance uses for file buffers
+	 * @param cachedMemory
+	 *        the amount of main memory the instance uses as cache memory
+	 * @param cachedSwapMemory
+	 *        The amount of main memory the instance uses for cached swaps
+	 * @param receivedBytes
+	 *        the number of bytes received via network during the profiling interval
+	 * @param transmittedBytes
+	 *        the number of bytes transmitted via network during the profiling interval
+	 * @param jobID
+	 *        the ID of this job this profiling event belongs to
+	 * @param timestamp
+	 *        the time stamp of this profiling event's creation
+	 * @param profilingTimestamp
+	 *        the time stamp relative to the beginning of the job's execution
+	 * @param instanceName
+	 *        the name of the instance this profiling event refers to
+	 */
+	public SingleInstanceProfilingEvent(final int profilingInterval, final int ioWaitCPU, final int idleCPU,
+			final int userCPU, final int systemCPU, final int hardIrqCPU, final int softIrqCPU, final long totalMemory,
+			final long freeMemory, final long bufferedMemory, final long cachedMemory, final long cachedSwapMemory,
+			final long receivedBytes, final long transmittedBytes, final JobID jobID, final long timestamp,
+			final long profilingTimestamp, final String instanceName) {
 		super(profilingInterval, ioWaitCPU, idleCPU, userCPU, systemCPU, hardIrqCPU, softIrqCPU, totalMemory,
 			freeMemory, bufferedMemory, cachedMemory, cachedSwapMemory, receivedBytes, transmittedBytes, jobID,
 			timestamp, profilingTimestamp);
@@ -37,6 +83,9 @@ public class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 		this.instanceName = instanceName;
 	}
 
+	/**
+	 * Default constructor for serialization/deserialization.
+	 */
 	public SingleInstanceProfilingEvent() {
 		super();
 	}

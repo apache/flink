@@ -30,16 +30,24 @@ import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.LineReader;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 
 /**
  * The collection of access methods that can be used to retrieve statistical
  * information about the data processed in a job.
+ * <p>
+ * Currently, only file size and number of records (key/value pairs) are determined. The later is only
+ * determined, when the file is read via a file-input format.
+ * <p>
+ * WARNING: The sampling that determines the average size of a record is very simple and in no way statistically robust,
+ * in cases where the sizes of the records follow strongly skewed distributions.
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class DataStatistics {
 	// ------------------------------------------------------------------------
-	// Constants
+	//                             Constants
 	// ------------------------------------------------------------------------
 
 	/**
@@ -58,15 +66,15 @@ public class DataStatistics {
 	private static final int DEFAULT_NUM_SAMPLES = 10;
 
 	// ------------------------------------------------------------------------
-	// Members
+	//                            Members
 	// ------------------------------------------------------------------------
 
-	private final Map<String, BasicFileStatistics> fileStatisticsCache;
+	private final Map<String, BasicFileStatistics> fileStatisticsCache;		// a cache for file statistics
 
-	private int numLineSamples;
+	private final int numLineSamples;										// the number of lines to sample
 
 	// ------------------------------------------------------------------------
-	// Constructor / Setup
+	//                      Constructor / Setup
 	// ------------------------------------------------------------------------
 
 	/**
@@ -90,7 +98,7 @@ public class DataStatistics {
 	 *        The path to the file.
 	 * @return The size of the file, in bytes, or -1, if unknown, or -2, if an error occurred.
 	 */
-	public BasicFileStatistics getFileStatistics(String filePath) {
+	public BasicFileStatistics getFileStatistics(String filePath, InputFormat<?, ?> format) {
 		// check the cache
 		BasicFileStatistics stats = fileStatisticsCache.get(filePath);
 		if (stats == null) {
@@ -98,17 +106,11 @@ public class DataStatistics {
 		}
 
 		try {
-			URI uri = new Path(filePath).toUri();
-
-			// check if the file is qualified enough
-			if (uri.getHost() == null || uri.getPort() == -1) {
-				return stats;
-			}
-
-			Path file = new Path(uri.getPath());
+			final URI uri = new Path(filePath).toUri();
+			final Path file = new Path(uri.getPath());
 
 			// get the filesystem
-			FileSystem fs = FileSystem.get(uri);
+			final FileSystem fs = FileSystem.get(uri);
 			List<FileStatus> files = null;
 
 			// get the file info and check whether the cached statistics are still
@@ -136,24 +138,50 @@ public class DataStatistics {
 					}
 				} else {
 					// check if the statistics are up to date
-					if (stats.getLastModificationTime() == status.getModificationTime()) {
+					long modTime = status.getModificationTime();
+					
+					if (stats.getLastModificationTime() == modTime) {
 						return stats;
 					}
 
+					stats.fileModTime = modTime;
+					
 					files = new ArrayList<FileStatus>(1);
 					files.add(status);
 				}
 			}
 
-			// calculate the whole length
+			stats.avgBytesPerRecord = -1.0f;
 			stats.fileSize = 0;
+			
+			// calculate the whole length
 			for (FileStatus s : files) {
 				stats.fileSize += s.getLen();
 			}
+			
+			// sanity check
 			if (stats.fileSize <= 0) {
+				stats.fileSize = UNKNOWN;
 				return stats;
 			}
+			
+			// ---------------------------------
+			// The sampling currently works only for text input formats
+			// ---------------------------------
 
+			// currently, the sampling only works on line separated data
+			if (format != null && format instanceof TextInputFormat<?, ?>) {
+				byte[] delimiter = ((TextInputFormat<?, ?>) format).getDelimiter();
+				if (! ((delimiter.length == 1 && delimiter[0] == '\n') ||
+					   (delimiter.length == 2 && delimiter[0] == '\r' && delimiter[1] == '\n')) )
+				{
+					return stats;
+				}
+			}
+			else {
+				return stats;
+			}
+			
 			// make the samples small for very small files
 			int numSamples = Math.min(numLineSamples, (int) (stats.fileSize / 1024));
 			if (numSamples < 2) {
@@ -161,7 +189,7 @@ public class DataStatistics {
 			}
 
 			long offset = 0;
-			long bytes = 0; // one byte for the linebreak
+			long bytes = 0; // one byte for the line-break
 			long stepSize = stats.fileSize / numSamples;
 
 			int fileNum = 0;
@@ -174,7 +202,6 @@ public class DataStatistics {
 
 				try {
 					inStream = fs.open(currentFile.getPath());
-
 					LineReader lineReader = new LineReader(inStream, offset, currentFile.getLen() - offset, 1024);
 					byte[] line = lineReader.readLine();
 					lineReader.close();
@@ -218,7 +245,7 @@ public class DataStatistics {
 	}
 
 	// ------------------------------------------------------------------------
-	// Internal classes
+	//                           Internal classes
 	// ------------------------------------------------------------------------
 
 	/**
@@ -227,7 +254,8 @@ public class DataStatistics {
 	 * have a time-stamp that records the modification time of the file and indicates as such
 	 * for which time the statistics were valid.
 	 */
-	public static final class BasicFileStatistics {
+	public static final class BasicFileStatistics
+	{
 		private long fileModTime; // timestamp of the last modification
 
 		private long fileSize; // size of the file(s) in bytes
@@ -244,7 +272,7 @@ public class DataStatistics {
 		 * @param avgBytesPerRecord
 		 *        The average number of byte in a record, or <code>-1.0f</code>, if unknown.
 		 */
-		private BasicFileStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
+		public BasicFileStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
 			this.fileModTime = fileModTime;
 			this.fileSize = fileSize;
 			this.avgBytesPerRecord = avgBytesPerRecord;

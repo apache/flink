@@ -42,7 +42,6 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
-import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingListener;
 
 public class LocalScheduler implements Scheduler {
 
@@ -55,11 +54,7 @@ public class LocalScheduler implements Scheduler {
 
 	private final InstanceManager instanceManager;
 
-	private final SchedulingListener schedulingListener;
-
-	public LocalScheduler(SchedulingListener schedulingListener, InstanceManager instanceManager) {
-
-		this.schedulingListener = schedulingListener;
+	public LocalScheduler(InstanceManager instanceManager) {
 
 		// Set the instance manager
 		this.instanceManager = instanceManager;
@@ -157,7 +152,7 @@ public class LocalScheduler implements Scheduler {
 	void removeJobFromSchedule(ExecutionGraph executionGraphToRemove) {
 
 		boolean removedFromQueue = false;
-		;
+
 		synchronized (this.jobQueue) {
 
 			final Iterator<ExecutionGraph> it = this.jobQueue.iterator();
@@ -172,9 +167,7 @@ public class LocalScheduler implements Scheduler {
 			}
 		}
 
-		if (removedFromQueue) {
-			this.schedulingListener.jobRemovedFromScheduler(executionGraphToRemove);
-		} else {
+		if (!removedFromQueue) {
 			LOG.error("Cannot find job " + executionGraphToRemove.getJobName() + " ("
 				+ executionGraphToRemove.getJobID() + ") to remove");
 		}
@@ -193,6 +186,16 @@ public class LocalScheduler implements Scheduler {
 	 */
 	void checkAndReleaseAllocatedResource(ExecutionGraph executionGraph, AllocatedResource allocatedResource) {
 
+		if (allocatedResource == null) {
+			LOG.error("Resource to lock is null!");
+			return;
+		}
+
+		if (allocatedResource.getInstance() instanceof DummyInstance) {
+			LOG.debug("Available instance is of type DummyInstance!");
+			return;
+		}
+		
 		synchronized (this.jobQueue) {
 
 			final List<ExecutionVertex> assignedVertices = executionGraph
@@ -209,7 +212,7 @@ public class LocalScheduler implements Scheduler {
 
 				if (state == ExecutionState.ASSIGNED || state == ExecutionState.READY
 					|| state == ExecutionState.RUNNING || state == ExecutionState.FINISHING
-					|| state == ExecutionState.CANCELLING) {
+					|| state == ExecutionState.CANCELING) {
 					instanceCanBeReleased = false;
 					break;
 				}
@@ -349,8 +352,8 @@ public class LocalScheduler implements Scheduler {
 				final ExecutionVertex vertex = it.next();
 				if (vertex.getExecutionState() == ExecutionState.ASSIGNING && vertex.getAllocatedResource() != null) {
 					// In local mode, we do not consider any topology, only the instance type
-					if (vertex.getAllocatedResource().getInstance().getType().equals(
-						allocatedResource.getInstance().getType())) {
+					if (vertex.getAllocatedResource().getInstanceType().equals(
+						allocatedResource.getInstanceType())) {
 						resourceToBeReplaced = vertex.getAllocatedResource();
 						break;
 					}

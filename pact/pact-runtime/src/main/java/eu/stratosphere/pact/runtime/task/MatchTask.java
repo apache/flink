@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,10 +25,12 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
@@ -36,14 +38,17 @@ import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.hash.HybridHashMatchIterator;
-import eu.stratosphere.pact.runtime.hash.InMemoryHashMatchIterator;
-import eu.stratosphere.pact.runtime.hash.HybridHashMatchIterator.InputRoles;
+import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.serialization.ValueDeserializer;
+import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
+import eu.stratosphere.pact.runtime.task.util.IteratorNepheleReader;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -57,22 +62,21 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.MatchStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class MatchTask extends AbstractTask {
-	// number of sort buffers to use
-	private int NUM_SORT_BUFFERS;
-
-	// size of each sort buffer in MB
-	private int SIZE_SORT_BUFFER;
-
-	// memory to be used for IO buffering
-	private int MEMORY_IO;
-
-	// maximum number of file handles
-	private int MAX_NUM_FILEHANLDES;
-
+	
 	// obtain MatchTask logger
 	private static final Log LOG = LogFactory.getLog(MatchTask.class);
+
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+	
+	// share ratio for resettable iterator
+	private static final double MEMORY_SHARE_RATIO = 0.05;
+	
+	// copier for key and values
+	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
+	private final SerializationCopier<Value> valCopier = new SerializationCopier<Value>();
 
 	// reader of first input
 	private RecordReader<KeyValuePair<Key, Value>> reader1;
@@ -84,11 +88,30 @@ public class MatchTask extends AbstractTask {
 	private OutputCollector output;
 
 	// match stub implementation instance
-	private MatchStub match;
+	private MatchStub matchStub;
 
 	// task config including stub parameters
 	private TaskConfig config;
 
+	// serialization factories for key and values
+	private SerializationFactory<Key> keySerialization;
+	private SerializationFactory<Value> v1Serialization;
+	private SerializationFactory<Value> v2Serialization;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// maximum number of file handles
+	private int maxFileHandles;
+	
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
+	
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -116,51 +139,89 @@ public class MatchTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() // throws Exception
+	public void invoke() throws Exception
 	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// obtain MatchTaskIterator
-		final MatchTaskIterator matchIterator = getIterator(reader1, reader2);
-		LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		// open match stub instance
-		match.open();
-
+		MatchTaskIterator matchIterator = null;
 		try {
+			matchIterator = getIterator(reader1, reader2);
+			
 			// open MatchTaskIterator
 			matchIterator.open();
+			
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
+			// open match stub instance
+			matchStub.open();
+			
 			// for each distinct key that is contained in both inputs
-			while (matchIterator.next()) {
+			while (matchIterator.next() && !taskCanceled) {
 				// call run() method of match stub implementation
-				match.run(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2(), output);
+				crossValues(matchIterator.getKey(), matchIterator.getValues1(), matchIterator.getValues2());
 			}
-
-		} catch (IOException ioe) {
-			throw new RuntimeException("Error occured during processing MatchTask", ioe);
-		} catch (InterruptedException ie) {
-			throw new RuntimeException("Error occured during processing MatchTask", ie);
-		} finally {
-
-			// close match stub instance
-			match.close();
-
+		}
+		catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
+		finally {
 			// close MatchTaskIterator
-			matchIterator.close();
+			if (matchIterator != null) {
+				matchIterator.close();
+			}
+			
+			// close stub implementation.
+			// when the stub is closed, anything will have been written, so any error will be logged but has no 
+			// effect on the successful completion of the task
+			try {
+				matchStub.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error while closing the Match user function " 
+					+ this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
+			}
 
 			// close output collector
 			output.close();
 		}
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
+	
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Initializes the stub implementation and configuration.
@@ -172,22 +233,64 @@ public class MatchTask extends AbstractTask {
 	private void initStub() {
 
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
-		// set up memory and io parameters
-		NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
+		
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case SORT_BOTH_MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY*2;
+				break;
+			case SORT_FIRST_MERGE: 
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case SORT_SECOND_MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MERGE:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case HYBRIDHASH_FIRST:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case HYBRIDHASH_SECOND:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MMHASH_FIRST:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+			case MMHASH_SECOND:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The Match task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			Class<? extends MatchStub> matchClass = config.getStubClass(MatchStub.class, cl);
 			// obtain stub implementation instance
-			match = matchClass.newInstance();
+			matchStub = matchClass.newInstance();
 			// configure stub instance
-			match.configure(config.getStubParameters());
+			matchStub.configure(config.getStubParameters());
+			
+			// initialize 
+			this.keySerialization = new WritableSerializationFactory<Key>(matchStub.getFirstInKeyType());
+			this.v1Serialization  = new WritableSerializationFactory<Value>(matchStub.getFirstInValueType());
+			this.v2Serialization  = new WritableSerializationFactory<Value>(matchStub.getSecondInValueType());
+			
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -208,10 +311,10 @@ public class MatchTask extends AbstractTask {
 	private void initInputReaders() {
 
 		// create RecordDeserializers
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer1 = new KeyValuePairDeserializer(match
-			.getFirstInKeyType(), match.getFirstInValueType());
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer2 = new KeyValuePairDeserializer(match
-			.getSecondInKeyType(), match.getSecondInValueType());
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer1 = new KeyValuePairDeserializer(matchStub
+			.getFirstInKeyType(), matchStub.getFirstInValueType());
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer2 = new KeyValuePairDeserializer(matchStub
+			.getSecondInKeyType(), matchStub.getSecondInValueType());
 
 		// determine distribution pattern for first reader from input ship strategy
 		DistributionPattern dp1 = null;
@@ -262,8 +365,12 @@ public class MatchTask extends AbstractTask {
 	 * forwards its input to all writers.
 	 */
 	private void initOutputCollector() {
-		// create collection for writers
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+				
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -272,12 +379,16 @@ public class MatchTask extends AbstractTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
+			
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
+			
 		}
-
-		// create collector and register all writers
-		output = new OutputCollector(writers);
+		
 	}
 
 	/**
@@ -291,7 +402,7 @@ public class MatchTask extends AbstractTask {
 	 * @throws IllegalConfigurationException
 	 *         Thrown if the local strategy is not supported.
 	 */
-	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) throws RuntimeException {
+	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) {
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain task manager's IO manager
@@ -299,22 +410,267 @@ public class MatchTask extends AbstractTask {
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (config.getLocalStrategy()) {
-		case SORTMERGE:
-			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, match.getFirstInKeyType(),
-				match.getFirstInValueType(), match.getSecondInValueType(), NUM_SORT_BUFFERS, SIZE_SORT_BUFFER,
-				MEMORY_IO, MAX_NUM_FILEHANLDES, this);
-		case HYBRIDHASH_FIRST:
-			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, match.getFirstInKeyType(),
-				match.getFirstInValueType(), match.getSecondInValueType(), InputRoles.BUILD_PROBE, MEMORY_IO);
-		case HYBRIDHASH_SECOND:
-			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, match.getFirstInKeyType(),
-				match.getFirstInValueType(), match.getSecondInValueType(), InputRoles.PROBE_BUILD, MEMORY_IO);
-		case MMHASH_FIRST:
-			return new InMemoryHashMatchIterator(reader1, reader2);
-		case MMHASH_SECOND:
-			return new InMemoryHashMatchIterator(reader2, reader1);
+		case SORT_BOTH_MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
+		case SORT_FIRST_MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
+		case SORT_SECOND_MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
+		case MERGE:
+			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				(long)(this.availableMemory * (1.0 - MEMORY_SHARE_RATIO)), this.maxFileHandles, this.spillThreshold,
+				config.getLocalStrategy(), this);
+//		case HYBRIDHASH_FIRST:
+//			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+//				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, 
+//				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
+//		case HYBRIDHASH_SECOND:
+//			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
+//				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.PROBE_BUILD,
+//				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
+//		case MMHASH_FIRST:
+//			return new InMemoryHashMatchIterator(reader1, reader2);
+//		case MMHASH_SECOND:
+//			return new InMemoryHashMatchIterator(reader2, reader1);
 		default:
-			throw new RuntimeException("Unknown local strategy for MatchTask");
+			throw new RuntimeException("Unsupported local strategy for MatchTask: "+config.getLocalStrategy());
+		}
+	}
+	
+	
+	/**
+	 * <p>
+	 * Calls the <code>MatchStub#match()</code> method for all two
+	 * key-value pairs that share the same key and come from different inputs. The output of the <code>match()</code>
+	 * method is forwarded.
+	 * <p>
+	 * This method is called with a key and two iterator (one for each input) over all values that share this key.
+	 * <p>
+	 * 
+	 * @param key
+	 *        A key.
+	 * @param values1
+	 *        An iterator on values of the first input that were paired with the key.
+	 * @param values2
+	 *        An iterator on values of the second input that were paired with the key.
+	 * @param out
+	 *        A collector that collects all output pairs.
+	 */
+	private void crossValues(Key key, final Iterator<Value> values1, final Iterator<Value> values2) throws RuntimeException {
+
+		// get first value of each side
+		final Value firstV1 = values1.next();
+		final Value firstV2 = values2.next();
+		
+		if (firstV1 == null || firstV2 == null) {
+			return;
+		}
+		
+		final boolean v1HasNext = values1.hasNext();
+		final boolean v2HasNext = values2.hasNext();
+
+		// check if one side is already empty
+		// this check could be omitted if we put this in MatchTask.
+		// then we can derive the local strategy (with build side).
+		if (!v1HasNext && !v2HasNext) {
+			// both sides contain only one value
+			matchStub.match(key, firstV1, firstV2, output);
+			return;
+		}
+		
+		if (!this.taskCanceled && !v1HasNext) {
+			// only values1 contains only one value
+			ValueIncludingIterator v2Iterator = new ValueIncludingIterator(firstV2, values2);
+			cross1withNValues(key, firstV1, v2Iterator, false);
+
+		} else if (!this.taskCanceled && !v2HasNext) {
+			// only values2 contains only one value
+			ValueIncludingIterator v1Iterator = new ValueIncludingIterator(firstV1, values1);
+			cross1withNValues(key, firstV2, v1Iterator, true);
+
+		} else {
+			// both sides contain more than one value
+			IteratorNepheleReader v1Reader = new IteratorNepheleReader(new ValueIncludingIterator(firstV1, values1));
+			IteratorNepheleReader v2Reader = new IteratorNepheleReader(new ValueIncludingIterator(firstV2, values2));
+
+			// TODO: Decide which side to spill and which to block!
+			crossMwithNValues(key, v2Reader, v1Reader, true);
+		}
+	}
+	
+	/**
+	 * Crosses a single value with N values all sharing a common key.
+	 * 
+	 * @param key 
+	 * 			The key shared by all values
+	 * @param val1
+	 *          The single value
+	 * @param valsN
+	 *          Iterator over N values
+	 * @param firstInputNValues
+	 *          Set to true if the first input in N-value side, false otherwise.
+	 *          
+	 * @throws RuntimeException
+	 *          Forwards all exceptions thrown by the stub.
+	 */
+	private void cross1withNValues(Key key, Value val1, Iterator<Value> valsN, final boolean firstInputNValues) throws RuntimeException {
+		
+		Value v1;
+		Value vN;
+		
+		// set copies
+		keyCopier.setCopy(key);
+		this.valCopier.setCopy(val1);
+		
+		// for each of N values
+		while (!this.taskCanceled && valsN.hasNext()) {
+			
+			// get key copy
+			key = this.keySerialization.newInstance();
+			this.keyCopier.getCopy(key);
+		
+			// get N value
+			vN = valsN.next();
+			
+			if(firstInputNValues) {
+				// get value copy
+				v1 = this.v2Serialization.newInstance();
+				this.valCopier.getCopy(v1);
+				// match
+				matchStub.match(key, vN, v1, output);
+			} else {
+				// get value copy
+				v1 = this.v1Serialization.newInstance();
+				this.valCopier.getCopy(v1);
+				// match
+				matchStub.match(key, v1, vN, output);
+			}
+			
+		}
+		
+	}
+	
+	private void crossMwithNValues(Key key, Reader<Value> blockVals, Reader<Value> spillVals, final boolean spillFirstInput) throws RuntimeException {
+		
+		Value spillVal;
+		Value blockVal;
+		
+		keyCopier.setCopy(key);
+		
+		SpillingResettableIterator<Value> spillIt = null;
+		BlockResettableIterator<Value> blockIt = null;
+		
+		try {
+			// create block iterator on second input
+			
+			ValueDeserializer<Value> v2Deserializer = new ValueDeserializer<Value>(matchStub.getSecondInValueType());
+			blockIt = new BlockResettableIterator<Value>(getEnvironment().getMemoryManager(), 
+					blockVals, (long)(this.availableMemory * (MEMORY_SHARE_RATIO/2)), 2, v2Deserializer, this);
+			blockIt.open();
+			
+			// TODO: check if v2 has more than one block to read from
+			
+			// create spilling iterator on first input
+			
+			ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(matchStub.getFirstInValueType());
+			spillIt = 
+					new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
+							spillVals, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+			spillIt.open();
+			
+			// as long as there are blocks of second input 
+			do {
+				
+				// cross block values (second input) with resettable values (first input)
+				while(!this.taskCanceled && spillIt.hasNext()) {
+					
+					// get value from resettable iterator
+					spillVal = spillIt.next();
+					
+					// cross value with block values
+					while(!this.taskCanceled && blockIt.hasNext()) {
+						
+						// get instances of key and block value
+						key = this.keySerialization.newInstance();
+						this.keyCopier.getCopy(key);
+						blockVal = blockIt.next();
+						
+						// match
+						if(spillFirstInput) {
+							matchStub.match(key, spillVal, blockVal, output);
+						} else {
+							matchStub.match(key, blockVal, spillVal, output);
+						}
+						
+						// get new instance of resettable value
+						if(blockIt.hasNext())
+							spillVal = spillIt.repeatLast();
+					}
+					// reset block iterator
+					blockIt.reset();
+				}
+				// reset v1 iterator
+				spillIt.reset();
+				
+				// move to next block
+			} while (!this.taskCanceled && blockIt.nextBlock());
+			
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		} finally {
+			if(blockIt != null) {
+				blockIt.close();
+			}
+			if(spillIt != null) {
+				spillIt.close();
+			}
+		}
+		
+	}
+		
+	private static final class ValueIncludingIterator implements Iterator<Value> {
+
+		private Value v;
+		private Iterator<Value> it;
+		private boolean first = true;
+		
+		public ValueIncludingIterator(Value v, Iterator<Value> it) {
+			this.v = v;
+			this.it = it;
+		}
+		
+		@Override
+		public boolean hasNext() {
+			if(first) 
+				return true;
+			else
+				return it.hasNext();
+		}
+
+		@Override
+		public Value next() {
+			if(first) {
+				first = false;
+				return v;
+			} else {
+				return it.next();
+			}
+				
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
 		}
 	}
 

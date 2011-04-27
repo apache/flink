@@ -51,7 +51,6 @@ import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.nephele.types.Record;
@@ -115,7 +114,12 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * The current status of the job which is represented by this execution graph.
 	 */
-	private JobStatus jobStatus = JobStatus.CREATED;
+	private InternalJobStatus jobStatus = InternalJobStatus.CREATED;
+
+	/**
+	 * The error description of the first task which causes this job to fail.
+	 */
+	private volatile String errorDescription = null;
 
 	/**
 	 * List of listeners which are notified in case the status of this job has changed.
@@ -531,8 +535,13 @@ public class ExecutionGraph implements ExecutionListener {
 		// Add group vertex to initial execution stage
 		initialExecutionStage.addStageMember(groupVertex);
 
-		final ExecutionVertex ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
-			groupVertex);
+		ExecutionVertex ev = null;
+		try {
+			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
+				groupVertex);
+		} catch (Exception e) {
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
 
 		// Run the configuration check the user has provided for the vertex
 		try {
@@ -573,7 +582,8 @@ public class ExecutionGraph implements ExecutionListener {
 		groupVertex.setMaxMemberSize(maximumNumberOfSubtasks);
 
 		// Assign initial instance to vertex (may be overwritten later on when user settings are applied)
-		ev.setAllocatedResource(new AllocatedResource(DummyInstance.createDummyInstance(instanceType), null));
+		ev.setAllocatedResource(new AllocatedResource(DummyInstance.createDummyInstance(instanceType), instanceType,
+			null));
 
 		// Register input and output vertices separately
 		if (jobVertex instanceof JobInputVertex) {
@@ -881,7 +891,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	public boolean isExecutionFinished() {
 
-		return (getJobStatus() == JobStatus.FINISHED);
+		return (getJobStatus() == InternalJobStatus.FINISHED);
 	}
 
 	public void prepareChannelsForExecution(ExecutionVertex executionVertex) throws ChannelSetupException {
@@ -1250,25 +1260,6 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * Checks whether the job represented by the execution graph has the status <code>CREATED</code>.
-	 * 
-	 * @return <code>true</code> if the job has the status <code>CREATED</code>, <code>false</code> otherwise
-	 */
-	private boolean jobHasCreatedStatus() {
-
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
-
-		while (it.hasNext()) {
-
-			if (it.next().getExecutionState() != ExecutionState.CREATED) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
 	 * Checks whether the job represented by the execution graph has the status <code>FINISHED</code>.
 	 * 
 	 * @return <code>true</code> if the job has the status <code>CREATED</code>, <code>false</code> otherwise
@@ -1285,27 +1276,6 @@ public class ExecutionGraph implements ExecutionListener {
 		}
 
 		return true;
-	}
-
-	/**
-	 * Checks whether the job represented by the execution graph has the status <code>FAILED</code>.
-	 * 
-	 * @return <code>true</code> if the job has the status <code>FAILED</code>, <code>false</code> otherwise
-	 */
-	private boolean jobHasFailedStatus() {
-
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
-
-		while (it.hasNext()) {
-
-			final ExecutionVertex ev = it.next();
-
-			if (ev.getExecutionState() == ExecutionState.FAILED && !ev.hasRetriesLeft()) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	/**
@@ -1330,17 +1300,21 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * Checks whether the job represented by the execution graph has the status <code>CANCELED</code>.
+	 * Checks whether the job represented by the execution graph has the status <code>CANCELED</code> or
+	 * <code>FAILED</code>.
 	 * 
-	 * @return <code>true</code> if the job has the status <code>CANCELED</code>, <code>false</code> otherwise
+	 * @return <code>true</code> if the job has the status <code>CANCELED</code> or <code>FAILED</code>,
+	 *         <code>false</code> otherwise
 	 */
-	private boolean jobHasCanceledStatus() {
+	private boolean jobHasFailedOrCanceledStatus() {
 
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
 
 		while (it.hasNext()) {
 
-			if (it.next().getExecutionState() != ExecutionState.CANCELLED) {
+			final ExecutionState state = it.next().getExecutionState();
+
+			if (state != ExecutionState.CANCELED && state != ExecutionState.FAILED && state != ExecutionState.FINISHED) {
 				return false;
 			}
 		}
@@ -1351,36 +1325,73 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * Checks and updates the current execution status of the
 	 * job which is represented by this execution graph.
+	 * 
+	 * @param latestStateChange
+	 *        the latest execution state change which occurred
 	 */
-	public synchronized void checkAndUpdateJobStatus() {
+	public synchronized void checkAndUpdateJobStatus(final ExecutionState latestStateChange) {
 
-		if (jobHasCreatedStatus()) {
-			this.jobStatus = JobStatus.CREATED;
-			return;
+		switch (this.jobStatus) {
+		case CREATED:
+			if (jobHasScheduledStatus()) {
+				this.jobStatus = InternalJobStatus.SCHEDULED;
+			} else if (latestStateChange == ExecutionState.CANCELED) {
+				if (jobHasFailedOrCanceledStatus()) {
+					this.jobStatus = InternalJobStatus.CANCELED;
+				}
+			}
+			break;
+		case SCHEDULED:
+			if (latestStateChange == ExecutionState.RUNNING) {
+				this.jobStatus = InternalJobStatus.RUNNING;
+				return;
+			} else if (latestStateChange == ExecutionState.CANCELED) {
+				if (jobHasFailedOrCanceledStatus()) {
+					this.jobStatus = InternalJobStatus.CANCELED;
+				}
+			}
+			break;
+		case RUNNING:
+			if (latestStateChange == ExecutionState.CANCELING || latestStateChange == ExecutionState.CANCELED) {
+				this.jobStatus = InternalJobStatus.CANCELING;
+				return;
+			}
+			if (latestStateChange == ExecutionState.FAILED) {
+
+				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+				while (it.hasNext()) {
+
+					final ExecutionVertex vertex = it.next();
+					if (vertex.getExecutionState() == ExecutionState.FAILED && !vertex.hasRetriesLeft()) {
+						this.jobStatus = InternalJobStatus.FAILING;
+						return;
+					}
+				}
+			}
+			if (jobHasFinishedStatus()) {
+				this.jobStatus = InternalJobStatus.FINISHED;
+			}
+			break;
+		case FAILING:
+			if (jobHasFailedOrCanceledStatus()) {
+				this.jobStatus = InternalJobStatus.FAILED;
+			}
+			break;
+		case FAILED:
+			LOG.error("Received update of execute state in job status FAILED");
+			break;
+		case CANCELING:
+			if (jobHasFailedOrCanceledStatus()) {
+				this.jobStatus = InternalJobStatus.CANCELED;
+			}
+			break;
+		case CANCELED:
+			LOG.error("Received update of execute state in job status CANCELED");
+			break;
+		case FINISHED:
+			LOG.error("Received update of execute state in job status FINISHED");
+			break;
 		}
-
-		if (jobHasScheduledStatus()) {
-			this.jobStatus = JobStatus.SCHEDULED;
-			return;
-		}
-
-		if (jobHasCanceledStatus()) {
-			this.jobStatus = JobStatus.CANCELLED;
-			return;
-		}
-
-		if (jobHasFinishedStatus()) {
-			this.jobStatus = JobStatus.FINISHED;
-			return;
-		}
-
-		if (jobHasFailedStatus()) {
-			this.jobStatus = JobStatus.FAILED;
-			return;
-		}
-
-		this.jobStatus = JobStatus.RUNNING;
-
 	}
 
 	/**
@@ -1389,7 +1400,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 * 
 	 * @return the current status of the job
 	 */
-	public synchronized JobStatus getJobStatus() {
+	public synchronized InternalJobStatus getJobStatus() {
 		return this.jobStatus;
 	}
 
@@ -1400,8 +1411,9 @@ public class ExecutionGraph implements ExecutionListener {
 	public synchronized void executionStateChanged(Environment ee, ExecutionState newExecutionState,
 			String optionalMessage) {
 
-		final JobStatus oldStatus = this.jobStatus;
-		checkAndUpdateJobStatus();
+		final InternalJobStatus oldStatus = this.jobStatus;
+
+		checkAndUpdateJobStatus(newExecutionState);
 
 		if (newExecutionState == ExecutionState.FINISHED) {
 			// It is worth checking if the current stage has complete
@@ -1413,9 +1425,19 @@ public class ExecutionGraph implements ExecutionListener {
 
 		if (this.jobStatus != oldStatus) {
 
+			// The task caused the entire job to fail, save the error description
+			if (this.jobStatus == InternalJobStatus.FAILING) {
+				this.errorDescription = optionalMessage;
+			}
+
+			// If this is the final failure state change, reuse the saved error description
+			if (this.jobStatus == InternalJobStatus.FAILED) {
+				optionalMessage = this.errorDescription;
+			}
+
 			final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
 			while (it.hasNext()) {
-				it.next().jobStatusHasChanged(this.jobID, this.jobStatus, optionalMessage);
+				it.next().jobStatusHasChanged(this, this.jobStatus, optionalMessage);
 			}
 		}
 	}

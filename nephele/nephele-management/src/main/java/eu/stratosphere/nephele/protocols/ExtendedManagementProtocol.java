@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -64,13 +64,13 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	NetworkTopology getNetworkTopology(JobID jobID) throws IOException;
 
 	/**
-	 * Retrieves a list of new jobs which arrived during the last query interval.
+	 * Retrieves a list of jobs which have either running or have been started recently.
 	 * 
-	 * @return a (possibly) empty list of new jobs
+	 * @return a (possibly) empty list of recent jobs
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the job list
 	 */
-	List<NewJobEvent> getNewJobs() throws IOException;
+	List<RecentJobEvent> getRecentJobs() throws IOException;
 
 	/**
 	 * Retrieves the collected events for the job with the given job ID.
@@ -118,4 +118,15 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *         thrown if an error occurs while transmitting the list
 	 */
 	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() throws IOException;
+
+	/**
+	 * Triggers all task managers involved in processing the job with the given job ID to write the utilization of
+	 * their read and write buffers to their log files. This method is primarily for debugging purposes.
+	 * 
+	 * @param jobID
+	 *        the ID of the job to print the buffer distribution for
+	 * @throws IOException
+	 *         throws if an error occurs while transmitting the request
+	 */
+	void logBufferUtilization(JobID jobID) throws IOException;
 }

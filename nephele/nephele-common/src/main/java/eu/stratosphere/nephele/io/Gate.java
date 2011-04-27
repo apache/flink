@@ -162,9 +162,17 @@ public abstract class Gate<T extends Record> implements IOReadableWritable {
 		deserializer.write(out);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String toString() {
 		return "Gate " + this.index;
 	}
 
+	/**
+	 * Releases the allocated resources (particularly buffer) of all channels attached to this gate. This method
+	 * should only be called after the respected task has stopped running.
+	 */
+	public abstract void releaseAllChannelResources();
 }

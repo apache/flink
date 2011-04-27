@@ -13,14 +13,23 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.fs.file;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.io.File;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.fs.BlockLocation;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
@@ -52,6 +61,8 @@ public class LocalFileSystem extends FileSystem {
 	 */
 	private final String hostName;
 
+	private static final Log LOG = LogFactory.getLog(LocalFileSystem.class);
+
 	/**
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
@@ -63,7 +74,7 @@ public class LocalFileSystem extends FileSystem {
 		try {
 			tmp = InetAddress.getLocalHost().getHostName();
 		} catch (UnknownHostException e) {
-			e.printStackTrace();
+			LOG.error(e);
 		}
 
 		this.hostName = tmp;

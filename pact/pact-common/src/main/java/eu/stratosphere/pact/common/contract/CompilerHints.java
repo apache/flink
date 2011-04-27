@@ -46,7 +46,7 @@ public class CompilerHints {
 
 	private long keyCardinality = -1;
 
-	private float selectivity = -1.0f;
+	private float avgRecordsEmittedPerStubCall = 1.0f;
 
 	private float avgValuesPerKey = -1.0f;
 
@@ -75,6 +75,9 @@ public class CompilerHints {
 	 *        The key cardinality to set.
 	 */
 	public void setKeyCardinality(long keyCardinality) {
+		if(keyCardinality < 0) {
+			throw new IllegalArgumentException("Key Cardinality must be >= 0!");
+		}
 		this.keyCardinality = keyCardinality;
 	}
 
@@ -94,6 +97,9 @@ public class CompilerHints {
 	 *        The average number of values per key to set.
 	 */
 	public void setAvgNumValuesPerKey(float avgNumValues) {
+		if(avgNumValues < 0) {
+			throw new IllegalArgumentException("Average Number of Values per Key must be >= 0");
+		}
 		this.avgValuesPerKey = avgNumValues;
 	}
 
@@ -115,30 +121,32 @@ public class CompilerHints {
 	 *        The average number of bytes per record.
 	 */
 	public void setAvgBytesPerRecord(float avgBytes) {
+		if(avgBytes < 0) {
+			throw new IllegalArgumentException("Average Bytes per Record must be  >= 0!");
+		}
 		this.avgBytesPerRecord = avgBytes;
 	}
 
 	/**
-	 * Gets the selectivity. The selectivity is the ration of produced to consumed
-	 * key/value pairs. It may hence be greater than 1.0, in contrast to its definition
-	 * in the context of the relational model.
+	 * Gets the average number of emitted records per stub call.
 	 * 
-	 * @return The selectivity.
+	 * @return The average number of emitted records per stub call.
 	 */
-	public float getSelectivity() {
-		return selectivity;
+	public float getAvgRecordsEmittedPerStubCall() {
+		return avgRecordsEmittedPerStubCall;
 	}
 
 	/**
-	 * Sets the selectivity. The selectivity is the ration of produced to consumed
-	 * key/value pairs. It may hence be greater than 1.0, in contrast to its definition
-	 * in the context of the relational model.
+	 * Sets the average number of emitted records per stub call. 
 	 * 
-	 * @param selectivity
-	 *        The selectivity to set.
+	 * @param avgRecordsEmittedPerStubCall
+	 *        The average number of emitted records per stub call to set.
 	 */
-	public void setSelectivity(float selectivity) {
-		this.selectivity = selectivity;
+	public void setAvgRecordsEmittedPerStubCall(float avgRecordsEmittedPerStubCall) {
+		if(avgRecordsEmittedPerStubCall < 0) {
+			throw new IllegalArgumentException("Average Number of Emitted Records per Stub Call must be >= 0!");
+		}
+		this.avgRecordsEmittedPerStubCall = avgRecordsEmittedPerStubCall;
 	}
 
 }

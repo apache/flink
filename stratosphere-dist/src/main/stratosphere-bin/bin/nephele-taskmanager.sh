@@ -30,11 +30,60 @@ if [ "$NEPHELE_IDENT_STRING" = "" ]; then
 	NEPHELE_IDENT_STRING="$USER"
 fi
 
+# auxilliary function to construct a lightweight classpath for the
+# Nephele TaskManager
+constructTaskManagerClassPath() {
+
+	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
+
+		add=0
+
+		if [[ "$jarfile" =~ 'nephele-server' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'jackson' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'log4j' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
+			add=1
+		fi
+
+		if [[ "$add" = "1" ]]; then
+			if [[ $NEPHELE_TM_CLASSPATH = "" ]]; then
+				NEPHELE_TM_CLASSPATH=$jarfile;
+			else
+				NEPHELE_TM_CLASSPATH=$NEPHELE_TM_CLASSPATH:$jarfile
+			fi
+		fi
+	done
+
+	echo $NEPHELE_TM_CLASSPATH
+}
+
+NEPHELE_TM_CLASSPATH=$(constructTaskManagerClassPath)
+
 log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.log
+out=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager-$HOSTNAME.out
 pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-taskmanager.pid
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/log4j.properties"
 
-JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$TM_JHEAP"m -Xmx"$TM_JHEAP"m"
+JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$NEPHELE_TM_HEAP"m -Xmx"$NEPHELE_TM_HEAP"m"
 
 case $STARTSTOP in
 
@@ -47,7 +96,7 @@ case $STARTSTOP in
      			fi
 		fi
 		echo starting Nephele task manager on host $HOSTNAME
-		$JAVA_HOME/bin/java $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $CLASSPATH eu.stratosphere.nephele.taskmanager.TaskManager -configDir $NEPHELE_CONF_DIR < /dev/null &
+		$JAVA_HOME/bin/java $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_TM_CLASSPATH eu.stratosphere.nephele.taskmanager.TaskManager -configDir $NEPHELE_CONF_DIR > "$out" 2>&1 < /dev/null &
 		echo $! > $pid
 	;;
 

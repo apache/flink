@@ -20,6 +20,7 @@ import java.util.Iterator;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 
 /**
  * The SortMerger interface representing the public interface to all specific Sort-Merge implementations.
@@ -30,6 +31,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @param <V>
  *        value class
  */
-public interface SortMerger<K extends Key, V extends Value> {
-	Iterator<KeyValuePair<K, V>> getIterator();
+public interface SortMerger<K extends Key, V extends Value> extends CloseableInputProvider<KeyValuePair<K, V>>
+{
+	Iterator<KeyValuePair<K, V>> getIterator() throws InterruptedException;
 }

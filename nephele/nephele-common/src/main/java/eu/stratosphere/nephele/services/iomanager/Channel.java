@@ -34,7 +34,7 @@ public final class Channel {
 	 * 
 	 * @author Alexander Alexandrov
 	 */
-	public static final class ID {
+	public static class ID {
 		private final String path;
 
 		protected ID(String path) {
@@ -60,7 +60,7 @@ public final class Channel {
 	}
 
 	public static final class Enumerator {
-		private static final String format = "%s.%04d.channel";
+		private static final String format = "%s.%06d.channel";
 
 		private final String pathPrefix;
 

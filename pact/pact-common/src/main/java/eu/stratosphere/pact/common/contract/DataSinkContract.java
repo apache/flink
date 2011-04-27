@@ -105,17 +105,20 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 		return globalOrder;
 	}
 
-	/**
-	 * Sets the order in which the sink must write its data. For any value other then <tt>NONE</tt>,
-	 * this will cause the system to perform a global sort, or try to reuse an order from a
-	 * previous operation.
-	 * 
-	 * @param globalOrder
-	 *        The order to write the data in.
-	 */
-	public void setGlobalOrder(Order globalOrder) {
-		this.globalOrder = globalOrder;
-	}
+//	This method is currently not supported, since global sorting is not implemented in the runtime system.
+//	The method will become available once the sorting is implemented.
+//	
+//	/**
+//	 * Sets the order in which the sink must write its data. For any value other then <tt>NONE</tt>,
+//	 * this will cause the system to perform a global sort, or try to reuse an order from a
+//	 * previous operation.
+//	 * 
+//	 * @param globalOrder
+//	 *        The order to write the data in.
+//	 */
+//	public void setGlobalOrder(Order globalOrder) {
+//		this.globalOrder = globalOrder;
+//	}
 
 	/**
 	 * Gets the order, in which the data sink writes its data locally. Local order means that
@@ -128,28 +131,35 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 	public Order getLocalOrder() {
 		return localOrder;
 	}
-
-	/**
-	 * Sets the order in which the sink must write its data within each fragment in the distributed
-	 * file system. For any value other then <tt>NONE</tt>, this will cause the system to perform a
-	 * local sort, or try to reuse an order from a previous operation.
-	 * 
-	 * @param localOrder
-	 *        The local order to write the data in.
-	 */
-	public void setLocalOrder(Order localOrder) {
-		this.localOrder = localOrder;
-	}
+	
+//	This method is currently not supported, since global sorting is not implemented in the runtime system.
+//	The method will become available once the sorting is implemented.
+//	
+//	/**
+//	 * Sets the order in which the sink must write its data within each fragment in the distributed
+//	 * file system. For any value other then <tt>NONE</tt>, this will cause the system to perform a
+//	 * local sort, or try to reuse an order from a previous operation.
+//	 * 
+//	 * @param localOrder
+//	 *        The local order to write the data in.
+//	 */
+//	public void setLocalOrder(Order localOrder) {
+//		this.localOrder = localOrder;
+//	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void accept(Visitor<Contract> visitor) {
-		visitor.preVisit(this);
-		if (input != null)
-			input.accept(visitor);
-		visitor.postVisit(this);
+	public void accept(Visitor<Contract> visitor)
+	{
+		boolean descend = visitor.preVisit(this);
+		if (descend) {
+			if (input != null) {
+				input.accept(visitor);
+			}
+			visitor.postVisit(this);
+		}
 	}
 
 	/**

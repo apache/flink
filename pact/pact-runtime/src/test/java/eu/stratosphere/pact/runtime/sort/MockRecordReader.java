@@ -18,14 +18,11 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -47,11 +44,6 @@ public class MockRecordReader<T extends Record> implements Reader<T> {
 
 	private T next;
 
-	@Override
-	public List<AbstractInputChannel<T>> getInputChannels() {
-		return Collections.emptyList();
-	}
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean hasNext() {
@@ -61,10 +53,17 @@ public class MockRecordReader<T extends Record> implements Reader<T> {
 				try {
 					r = queue.take();
 				} catch (InterruptedException iex) {
+					throw new RuntimeException("Reader was interrupted.");
 				}
 			}
 
 			if (r == SENTINEL) {
+				// put the sentinel back, to ensure that repeated calls do not block
+				try {
+					queue.put(r);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Reader was interrupted.");
+				}
 				return false;
 			} else {
 				next = (T) r;
@@ -90,10 +89,17 @@ public class MockRecordReader<T extends Record> implements Reader<T> {
 			try {
 				r = queue.take();
 			} catch (InterruptedException iex) {
+				throw new RuntimeException("Reader was interrupted.");
 			}
 		}
 
 		if (r == SENTINEL) {
+			try {
+				// put the sentinel back, to ensure that repeated calls do not block
+				queue.put(r);
+			} catch (InterruptedException iex) {
+				throw new RuntimeException("Reader was interrupted.");
+			}
 			throw new NoSuchElementException();
 		} else {
 			return (T) r;

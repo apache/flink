@@ -128,8 +128,10 @@
                 <configuration>
                     <descriptors>
                         <descriptor>src/main/assemblies/bin.xml</descriptor>
+                        <!--
                         <descriptor>src/main/assemblies/src.xml</descriptor>
-			        </descriptors>
+                        -->
+	            </descriptors>
                 </configuration>
             </plugin>
         </plugins>
