@@ -26,13 +26,19 @@ import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // TODO: Fix me
+public class InstanceProfiler {
+
+	static final String PROC_MEMINFO = "/proc/meminfo";
+
+	static final String PROC_STAT = "/proc/stat";
+
+	static final String PROC_NET_DEV = "/proc/net/dev";
 
 	private static final Pattern CPU_PATTERN = Pattern
 		.compile("^cpu\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+).+$");
 
 	private static final Pattern NETWORK_PATTERN = Pattern
-		.compile("^\\s*\\w+:(\\d+)\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+(\\d+).+$");
+		.compile("^\\s*\\w+:\\s*(\\d+)\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+(\\d+).+$");
 
 	private static final Pattern MEMORY_PATTERN = Pattern.compile("^\\w+:\\s*(\\d+)\\s+kB$");
 
@@ -62,10 +68,6 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 	private long lastTramsmittedBytes = 0;
 
-	private String interfaceName = ""; // eth0 or eth1 ...
-
-	private int networkSpeedPerSecondInBytes = 0;
-
 	public InstanceProfiler(InstanceConnectionInfo instanceConnectionInfo)
 																			throws ProfilingException {
 
@@ -73,18 +75,6 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		// Initialize counters by calling generateProfilingData once and ignore the return value
 		generateProfilingData(System.currentTimeMillis());
-	}
-
-	public InstanceProfiler(InstanceConnectionInfo instanceConnectionInfo, boolean forCompression)
-																									throws ProfilingException {
-
-		this.instanceConnectionInfo = instanceConnectionInfo;
-
-		gatherNetworkInformation();
-		System.out.println("Networkinterface is " + interfaceName + " Speed: " + networkSpeedPerSecondInBytes
-			+ "B/s = " + networkSpeedPerSecondInBytes / 125000 + "Mbps");
-		// Initialize counters by calling generateProfilingData once and ignore the return value
-		// generateProfilingDataCompression(System.currentTimeMillis()); //TODO: Fix me
 	}
 
 	InternalInstanceProfilingData generateProfilingData(long timestamp) throws ProfilingException {
@@ -108,7 +98,8 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader("/proc/meminfo"));
+			final FileReader memReader = new FileReader(PROC_MEMINFO);
+			final BufferedReader in = new BufferedReader(memReader);
 
 			long freeMemory = 0;
 			long totalMemory = 0;
@@ -170,7 +161,7 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader("/proc/net/dev"));
+			final BufferedReader in = new BufferedReader(new FileReader(PROC_NET_DEV));
 
 			long receivedSum = 0;
 			long transmittedSum = 0;
@@ -212,7 +203,7 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader("/proc/stat"));
+			final BufferedReader in = new BufferedReader(new FileReader(PROC_STAT));
 			final String output = in.readLine();
 			if (output == null) {
 				throw new ProfilingException("Cannot read CPU utilization, return value is null");
@@ -291,208 +282,5 @@ public class InstanceProfiler /* implements CompressionInstanceProfiler */{ // T
 			throw new ProfilingException("Error while reading CPU utilization: " + StringUtils.stringifyException(nfe));
 		}
 
-	}
-
-	// @Override //TODO: Fix me
-	/*
-	 * public InternalInstanceProfilingDataCompression generateProfilingDataCompression(
-	 * long timestamp) {
-	 * final long profilingInterval = timestamp - lastTimestamp;
-	 * final InternalInstanceProfilingDataCompression profilingData = new
-	 * InternalInstanceProfilingDataCompression(this.instanceConnectionInfo,
-	 * (int) profilingInterval);
-	 * try {
-	 * updateCPUUtilization(profilingData);
-	 * } catch (ProfilingException e) {
-	 * // TODO Auto-generated catch block
-	 * e.printStackTrace();
-	 * }
-	 * //updateMemoryUtilization(profilingData);
-	 * try {
-	 * updateNetworkUtilization(profilingData);
-	 * profilingData.setGoodput((long)(networkSpeedPerSecondInBytes * 0.8));
-	 * } catch (ProfilingException e) {
-	 * // TODO Auto-generated catch block
-	 * e.printStackTrace();
-	 * }
-	 * //Update timestamp
-	 * this.lastTimestamp = timestamp;
-	 * return profilingData;
-	 * }
-	 */
-
-	/*
-	 * private void updateNetworkUtilization(InternalInstanceProfilingDataCompression profilingData) throws
-	 * ProfilingException {
-	 * try {
-	 * final BufferedReader in = new BufferedReader(new FileReader("/proc/net/dev"));
-	 * long receivedSum = 0;
-	 * long transmittedSum = 0;
-	 * String output;
-	 * while((output = in.readLine()) != null) {
-	 * final Matcher networkMatcher = NETWORK_PATTERN.matcher(output);
-	 * if(!networkMatcher.matches()) {
-	 * continue;
-	 * }
-	 * if (output.indexOf(this.interfaceName) != -1){
-	 */
-	/*
-	 * Extract information according to
-	 * http://linuxdevcenter.com/pub/a/linux/2000/11/16/LinuxAdmin.html
-	 */
-	/*
-	 * receivedSum += Long.parseLong(networkMatcher.group(1));
-	 * transmittedSum += Long.parseLong(networkMatcher.group(2));
-	 * break;
-	 * }
-	 * }
-	 * in.close();
-	 * profilingData.setReceivedBytes(receivedSum - this.lastReceivedBytes);
-	 * profilingData.setTransmittedBytes(transmittedSum - this.lastTramsmittedBytes);
-	 * //Store values for next call
-	 * this.lastReceivedBytes = receivedSum;
-	 * this.lastTramsmittedBytes = transmittedSum;
-	 * } catch(IOException ioe) {
-	 * throw new ProfilingException("Error while reading network utilization: " + StringUtils.stringifyException(ioe));
-	 * } catch(NumberFormatException nfe) {
-	 * throw new ProfilingException("Error while reading network utilization: " + StringUtils.stringifyException(nfe));
-	 * }
-	 * }
-	 */
-
-	/*
-	 * private void updateCPUUtilization(InternalInstanceProfilingDataCompression profilingData) throws
-	 * ProfilingException {
-	 * try {
-	 * final BufferedReader in = new BufferedReader(new FileReader("/proc/stat"));
-	 * final String output = in.readLine();
-	 * if(output == null) {
-	 * throw new ProfilingException("Cannot read CPU utilization, return value is null");
-	 * }
-	 * in.close();
-	 * final Matcher cpuMatcher = CPU_PATTERN.matcher(output);
-	 * if(!cpuMatcher.matches()) {
-	 * throw new ProfilingException("Cannot extract CPU utilization from output \"" + output + "\"");
-	 * }
-	 */
-
-	/*
-	 * Extract the information from the read line according to
-	 * http://www.linuxhowtos.org/System/procstat.htm
-	 */
-
-	/*
-	 * final long cpuUser = Long.parseLong(cpuMatcher.group(1));
-	 * final long cpuNice = Long.parseLong(cpuMatcher.group(2));
-	 * final long cpuSys = Long.parseLong(cpuMatcher.group(3));
-	 * final long cpuIdle = Long.parseLong(cpuMatcher.group(4));
-	 * final long cpuIOWait = Long.parseLong(cpuMatcher.group(5));
-	 * final long cpuIrq = Long.parseLong(cpuMatcher.group(6));
-	 * final long cpuSoftirq = Long.parseLong(cpuMatcher.group(7));
-	 * //Calculate deltas
-	 * final long deltaCpuUser = cpuUser - this.lastCpuUser;
-	 * final long deltaCpuNice = cpuNice - this.lastCpuNice;
-	 * final long deltaCpuSys = cpuSys - this.lastCpuSys;
-	 * final long deltaCpuIdle = cpuIdle - this.lastCpuIdle;
-	 * final long deltaCpuIOWait = cpuIOWait - this.lastCpuIOWait;
-	 * final long deltaCpuIrq = cpuIrq - this.lastCpuIrq;
-	 * final long deltaCpuSoftirq = cpuSoftirq - this.lastCpuSoftirq;
-	 * final long deltaSum = deltaCpuUser + deltaCpuNice + deltaCpuSys + deltaCpuIdle + deltaCpuIOWait + deltaCpuIrq +
-	 * deltaCpuSoftirq;
-	 * //Set the percentage values for the profiling data object
-	 * if (deltaSum > 0){
-	 * profilingData.setIdleCPU((int)((deltaCpuIdle*PERCENT)/deltaSum));
-	 * profilingData.setUserCPU((int)((deltaCpuUser*PERCENT)/deltaSum));
-	 * profilingData.setSystemCPU((int)((deltaCpuSys*PERCENT)/deltaSum));
-	 * profilingData.setIoWaitCPU((int)((deltaCpuIOWait*PERCENT)/deltaSum));
-	 * }else{
-	 * profilingData.setIdleCPU((int)(deltaCpuIdle));
-	 * profilingData.setUserCPU((int)(deltaCpuUser));
-	 * profilingData.setSystemCPU((int)(deltaCpuSys));
-	 * profilingData.setIoWaitCPU((int)(deltaCpuIOWait));
-	 * }
-	 * //Store values for next call
-	 * this.lastCpuUser = cpuUser;
-	 * this.lastCpuNice = cpuNice;
-	 * this.lastCpuSys = cpuSys;
-	 * this.lastCpuIdle = cpuIdle;
-	 * this.lastCpuIOWait = cpuIOWait;
-	 * this.lastCpuIrq = cpuIrq;
-	 * this.lastCpuSoftirq = cpuSoftirq;
-	 * } catch(IOException ioe) {
-	 * throw new ProfilingException("Error while reading CPU utilization: " + StringUtils.stringifyException(ioe));
-	 * } catch(NumberFormatException nfe) {
-	 * throw new ProfilingException("Error while reading CPU utilization: " + StringUtils.stringifyException(nfe));
-	 * }
-	 * }
-	 */
-
-	private void gatherNetworkInformation() throws ProfilingException {
-
-		try {
-			// first check /etc/network/interfaces to find out which eth fits our IP
-			BufferedReader in = new BufferedReader(new FileReader("/etc/network/interfaces"));
-			String instanceAdress = this.instanceConnectionInfo.getAddress().getHostAddress();
-
-			String output;
-			String eth = "";
-			boolean found = false;
-			int foundEths = 0;
-			while ((output = in.readLine()) != null) {
-				int ethIndex = output.indexOf("eth");
-				if (ethIndex != -1) {
-					eth = output.substring(ethIndex, ethIndex + 4);
-					foundEths++;
-					continue;
-				}
-
-				int ipIndex = output.indexOf(instanceAdress);
-				if (ipIndex != -1) {
-					found = true;
-					this.interfaceName = eth;
-					break;
-				}
-
-			}
-
-			if (!found && foundEths == 1)
-				this.interfaceName = eth;
-
-			in.close();
-
-			if (found) {
-				// now try to figure out the interface speed
-				in = new BufferedReader(new FileReader("/var/log/dmesg"));
-
-				while ((output = in.readLine()) != null) {
-					int ethIndex = output.indexOf(eth);
-					if (ethIndex != -1) {
-						int speedIndex = output.indexOf("Mbps");
-						if (speedIndex != -1) {
-							int speedIndex2 = output.indexOf('1', speedIndex - 6);
-							if (speedIndex2 != -1) {
-								String speed = output.substring(speedIndex2, speedIndex);
-								int ethspeed = Integer.parseInt(speed);
-								this.networkSpeedPerSecondInBytes = ethspeed * 125000;
-							}
-
-							break;
-						}
-
-						continue;
-					}
-
-				}
-
-				in.close();
-			}
-
-		} catch (IOException ioe) {
-			throw new ProfilingException("Error while reading network utilization: "
-				+ StringUtils.stringifyException(ioe));
-		} catch (NumberFormatException nfe) {
-			throw new ProfilingException("Error while reading network utilization: "
-				+ StringUtils.stringifyException(nfe));
-		}
 	}
 }

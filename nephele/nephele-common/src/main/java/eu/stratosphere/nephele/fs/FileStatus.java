@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.fs;
 
 /**
@@ -59,9 +65,9 @@ public interface FileStatus {
 	long getAccessTime();
 
 	/**
-	 * Is this a directory?
+	 * Checks if this object represents a directory.
 	 * 
-	 * @return true if this is a directory
+	 * @return <code>true</code> if this is a directory, <code>false</code> otherwise
 	 */
 	boolean isDir();
 

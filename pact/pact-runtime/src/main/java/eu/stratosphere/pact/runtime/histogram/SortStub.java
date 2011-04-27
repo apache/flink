@@ -17,7 +17,7 @@ public class SortStub extends MapStub<PactInteger, PactInteger, PactInteger, Pac
 	}
 
 	@Override
-	protected void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
+	public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
 		collector = out;
 		values.add(value);
 	}

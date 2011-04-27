@@ -27,7 +27,7 @@ public class SampleStub extends MapStub<PactInteger, PactInteger, PactInteger, P
 	}
 	
 	@Override
-	protected void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
+	public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
 		if(rnd.nextInt() % (int)(1/selectivity) == 0) {
 			out.collect(key, key);
 		}

@@ -18,13 +18,10 @@ package eu.stratosphere.pact.runtime.test.util;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Random;
 
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 
 /**
@@ -287,11 +284,6 @@ public final class TestData {
 			counter++;
 			return generator.next();
 		}
-
-		@Override
-		public List<AbstractInputChannel<KeyValuePair<Key, Value>>> getInputChannels() {
-			return Collections.emptyList();
-		}
 	}
 
 	/**
@@ -310,11 +302,6 @@ public final class TestData {
 
 		public KeyValuePair<Key, Value> next() {
 			return iterator.next();
-		}
-
-		@Override
-		public List<AbstractInputChannel<KeyValuePair<Key, Value>>> getInputChannels() {
-			return Collections.emptyList();
 		}
 	}
 }

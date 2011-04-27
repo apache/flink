@@ -16,12 +16,10 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
@@ -35,7 +33,6 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be read from this record reader
  */
 
-// FIXME added Writer<T> to make this at least mock-able ... still requires refactoring (en)
 public class RecordReader<T extends Record> implements Reader<T> {
 
 	/**
@@ -307,15 +304,6 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	}
 
 	/**
-	 * Returns the list of InputChannels that feed this RecordReader.
-	 * 
-	 * @return the list of InputChannels that feed this RecordReader
-	 */
-	public List<AbstractInputChannel<T>> getInputChannels() {
-		return this.inputGate.getInputChannels();
-	}
-
-	/**
 	 * Registers a new listener object with the assigned input gate.
 	 * 
 	 * @param inputGateListener
@@ -326,19 +314,45 @@ public class RecordReader<T extends Record> implements Reader<T> {
 		this.inputGate.registerInputGateListener(inputGateListener);
 	}
 
-	public void subscribeToEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Subscribes the listener object to receive events of the given type.
+	 * 
+	 * @param eventListener
+	 *        the listener object to register
+	 * @param eventType
+	 *        the type of event to register the listener for
+	 */
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to input gate
-		this.inputGate.subscribeToEvent(eventNotifiable, eventType);
+		this.inputGate.subscribeToEvent(eventListener, eventType);
 	}
 
-	public void unsubscribeFromEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Removes the subscription for events of the given type for the listener object.
+	 * 
+	 * @param eventListener
+	 *        the listener object to cancel the subscription for
+	 * @param eventType
+	 *        the type of the event to cancel the subscription for
+	 */
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to input gate
-		this.inputGate.unsubscribeFromEvent(eventNotifiable, eventType);
+		this.inputGate.unsubscribeFromEvent(eventListener, eventType);
 	}
 
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	/**
+	 * Publishes an event.
+	 * 
+	 * @param event
+	 *        the event to be published
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
+	 */
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Delegate call to input gate
 		this.inputGate.publishEvent(event);

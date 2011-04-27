@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * An ExecutionGroupVertex is created for every JobVertex of the initial job graph. It represents a number of execution
@@ -325,16 +326,13 @@ public class ExecutionGroupVertex {
 			ChannelType channelType, boolean userDefinedChannelType, CompressionLevel compressionLevel,
 			boolean userDefinedCompressionLevel) throws GraphConversionException {
 
-		// First, check if there is already an edge leading to the same group vertex
-		List<ExecutionGroupEdge> edges = this.getForwardEdges(groupVertex);
-		if (edges.size() > 0) {
-			if (channelType != edges.get(0).getChannelType()) {
-				if (userDefinedChannelType) {
-					throw new GraphConversionException("Multiple channels leading from " + getName() + " to "
-						+ groupVertex + " with different different types");
-				} else {
-					// If not user requested, simply overwrite the channelType
-					channelType = edges.get(0).getChannelType();
+		synchronized (this.forwardLinks) {
+
+			if (indexOfOutputGate < this.forwardLinks.size()) {
+				final ExecutionGroupEdge previousEdge = this.forwardLinks.get(indexOfOutputGate);
+				if (previousEdge != null) {
+					throw new GraphConversionException("Output gate " + indexOfOutputGate + " of" + getName()
+						+ " already has an outgoing edge");
 				}
 			}
 		}
@@ -416,7 +414,7 @@ public class ExecutionGroupVertex {
 
 		ExecutionStage executionStage = null;
 
-		synchronized (this.executionStage) {
+		synchronized (this) {
 			executionStage = this.executionStage;
 		}
 
@@ -489,13 +487,15 @@ public class ExecutionGroupVertex {
 			while (this.getCurrentNumberOfGroupMembers() < newNumberOfMembers) {
 
 				synchronized (this.groupMembers) {
-					final ExecutionVertex vertex = this.groupMembers.get(0).splitVertex();
-					// vertex.setInstance(new DummyInstance(vertex.getInstance().getType()));
-					this.groupMembers.add(vertex);
+					try {
+						final ExecutionVertex vertex = this.groupMembers.get(0).splitVertex();
+						// vertex.setInstance(new DummyInstance(vertex.getInstance().getType()));
+						this.groupMembers.add(vertex);
+					} catch (Exception e) {
+						throw new GraphConversionException(StringUtils.stringifyException(e));
+					}
 				}
 			}
-
-			System.out.println("Number of members is now " + this.groupMembers.size());
 		}
 
 		// After the number of members is adjusted we start rewiring
@@ -526,8 +526,6 @@ public class ExecutionGroupVertex {
 
 			while (it.hasNext()) {
 				final ExecutionGroupEdge edge = it.next();
-				System.out.println("Unwiring " + this.getName() + " to " + edge.getTargetVertex().getName()
-					+ "(forwards)");
 				this.executionGraph.unwire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
 					edge.getIndexOfInputGate());
 			}
@@ -538,8 +536,6 @@ public class ExecutionGroupVertex {
 			Iterator<ExecutionGroupEdge> it = this.backwardLinks.iterator();
 			while (it.hasNext()) {
 				final ExecutionGroupEdge edge = it.next();
-				System.out.println("Unwiring " + edge.getSourceVertex().getName() + " to " + this.getName()
-					+ "(backwards)");
 				this.executionGraph.unwire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
 					edge.getIndexOfInputGate());
 			}
@@ -572,8 +568,7 @@ public class ExecutionGroupVertex {
 	 * Sets the input splits that should be assigned to this group vertex.
 	 * 
 	 * @param inputSplits
-	 * @param inputSplits
-	 *        the input splits that should be assigned to this group vertex
+	 *        the input splits that shall be assigned to this group vertex
 	 */
 	public synchronized void setInputSplits(InputSplit[] inputSplits) {
 		this.inputSplits = inputSplits;
@@ -787,13 +782,10 @@ public class ExecutionGroupVertex {
 		}
 		final List<AllocatedResource> availableInstances = collectAvailabbleResources();
 
-		System.out.println(getName() + ": requires " + numberOfRequiredInstances + " instances, has available "
-			+ availableInstances.size() + " instances");
-
 		// Check if the number of available instances is sufficiently large, if not generate new instances
 		while (availableInstances.size() < numberOfRequiredInstances) {
 			final AllocatedResource newAllocatedResource = new AllocatedResource(DummyInstance
-				.createDummyInstance(this.instanceType), null);
+				.createDummyInstance(this.instanceType), this.instanceType, null);
 			availableInstances.add(newAllocatedResource);
 		}
 

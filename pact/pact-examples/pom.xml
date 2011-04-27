@@ -21,16 +21,16 @@
 
     <dependency>
     	<groupId>eu.stratosphere</groupId>
-    	<artifactId>pact-compiler</artifactId>
-    	<version>${version}</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>eu.stratosphere</groupId>
     	<artifactId>pact-common</artifactId>
     	<version>${version}</version>
     </dependency>
     
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-runtime</artifactId>
+    	<version>${version}</version>
+    	<scope>test</scope>
+    </dependency>
   </dependencies>
 
   <reporting>
@@ -45,6 +45,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
+        
       <!-- KMeansIteration -->
           <execution>
             <id>KMeansIteration</id>
@@ -65,6 +66,29 @@
               <includes>
                 <include>**/datamining/KMeansIteration.class</include>
                 <include>**/datamining/KMeansIteration$*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+	  <!-- Pairwise Shortest Paths -->
+          <execution>
+            <id>PairwiseSP</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>PairwiseSP</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.graph.PairwiseSP</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/graph/PairwiseSP.class</include>
+                <include>**/graph/PairwiseSP$*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -111,6 +135,29 @@
               <includes>
                 <include>**/relational/TPCHQuery3.class</include>
                 <include>**/relational/TPCHQuery3$*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+          
+          <execution>
+            <id>TPCHQueryAsterix</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQueryAsterix</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQueryAsterix</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQueryAsterix.class</include>
+                <include>**/relational/TPCHQueryAsterix$*.class</include>
                 <include>**/relational/util/*.class</include>
               </includes>
             </configuration>

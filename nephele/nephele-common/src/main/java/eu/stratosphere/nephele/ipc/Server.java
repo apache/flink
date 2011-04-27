@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.ipc;
 
 import java.io.ByteArrayInputStream;
@@ -52,7 +58,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.ipc.metrics.RpcMetrics;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
@@ -148,8 +153,6 @@ public abstract class Server {
 
 	// connections to nuke
 	// during a cleanup
-
-	protected RpcMetrics rpcMetrics;
 
 	private int maxQueueSize;
 
@@ -258,6 +261,8 @@ public abstract class Server {
 		// two cleanup runs
 		private int backlogLength = 128;
 
+		private volatile boolean shutDown = false;
+
 		public Listener()
 							throws IOException {
 			address = new InetSocketAddress(bindAddress, port);
@@ -314,8 +319,7 @@ public abstract class Server {
 						}
 					}
 					if (c.timedOut(currentTime)) {
-						if (LOG.isDebugEnabled())
-							LOG.debug(getName() + ": disconnecting client " + c.getHostAddress());
+						
 						closeConnection(c);
 						numNuked++;
 						end--;
@@ -366,7 +370,6 @@ public abstract class Server {
 				} catch (InterruptedException e) {
 					if (running) { // unexpected -- log it
 						LOG.info(getName() + " caught: " + e.toString());
-						e.printStackTrace();
 					}
 				} catch (Exception e) {
 					closeCurrentConnection(key, e);
@@ -390,14 +393,18 @@ public abstract class Server {
 					closeConnection(connectionList.remove(0));
 				}
 			}
+
+			this.shutDown = true;
+		}
+
+		public boolean isShutDown() {
+			return this.shutDown;
 		}
 
 		private void closeCurrentConnection(SelectionKey key, Throwable e) {
 			if (key != null) {
 				Connection c = (Connection) key.attachment();
 				if (c != null) {
-					if (LOG.isDebugEnabled())
-						LOG.debug(getName() + ": disconnecting client " + c.getHostAddress());
 					closeConnection(c);
 					c = null;
 				}
@@ -426,9 +433,6 @@ public abstract class Server {
 					connectionList.add(numConnections, c);
 					numConnections++;
 				}
-				if (LOG.isDebugEnabled())
-					LOG.debug("Server connection from " + c.toString() + "; # active connections: " + numConnections
-						+ "; # queued calls: " + callQueue.size());
 			}
 		}
 
@@ -450,9 +454,6 @@ public abstract class Server {
 				count = -1; // so that the (count < 0) block is executed
 			}
 			if (count < 0) {
-				if (LOG.isDebugEnabled())
-					LOG.debug(getName() + ": disconnecting client " + c.getHostAddress()
-						+ ". Number of active connections: " + numConnections);
 				closeConnection(c);
 				c = null;
 			} else {
@@ -482,6 +483,8 @@ public abstract class Server {
 		private int pending; // connections waiting to register
 
 		final static int PURGE_INTERVAL = 900000; // 15mins
+
+		private volatile boolean shutDown = false;
 
 		Responder()
 					throws IOException {
@@ -522,7 +525,6 @@ public abstract class Server {
 					// If there were some calls that have not been sent out for a
 					// long time, discard them.
 					//
-					LOG.debug("Checking for old call responses.");
 					ArrayList<Call> calls;
 
 					// get the list of channels from list of keys.
@@ -561,6 +563,12 @@ public abstract class Server {
 				}
 			}
 			LOG.info("Stopping " + this.getName());
+
+			this.shutDown = true;
+		}
+
+		public boolean isShutDown() {
+			return this.shutDown;
 		}
 
 		private void doAsyncWrite(SelectionKey key) throws IOException {
@@ -630,9 +638,7 @@ public abstract class Server {
 					//
 					call = responseQueue.removeFirst();
 					SocketChannel channel = call.connection.channel;
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(getName() + ": responding to #" + call.id + " from " + call.connection);
-					}
+					
 					//
 					// Send as much data as we can in the non-blocking fashion
 					//
@@ -646,10 +652,6 @@ public abstract class Server {
 							done = true; // no more data for this channel.
 						} else {
 							done = false; // more calls pending to be sent.
-						}
-						if (LOG.isDebugEnabled()) {
-							LOG.debug(getName() + ": responding to #" + call.id + " from " + call.connection
-								+ " Wrote " + numBytes + " bytes.");
 						}
 					} else {
 						//
@@ -674,10 +676,6 @@ public abstract class Server {
 							} finally {
 								decPending();
 							}
-						}
-						if (LOG.isDebugEnabled()) {
-							LOG.debug(getName() + ": responding to #" + call.id + " from " + call.connection
-								+ " Wrote partial " + numBytes + " bytes.");
 						}
 					}
 					error = false; // everything went off well
@@ -789,10 +787,6 @@ public abstract class Server {
 			this.lastContact = lastContact;
 		}
 
-		public long getLastContact() {
-			return lastContact;
-		}
-
 		/* Return true if the connection has no outstanding rpc */
 		private boolean isIdle() {
 			return rpcCount == 0;
@@ -884,7 +878,7 @@ public abstract class Server {
 					protocol = getProtocolClass(header.getProtocol());
 				}
 			} catch (ClassNotFoundException cnfe) {
-				cnfe.printStackTrace();
+				LOG.error(cnfe);
 				throw new IOException("Unknown protocol: " + header.getProtocol());
 			}
 
@@ -894,8 +888,6 @@ public abstract class Server {
 			DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data.array()));
 			int id = dis.readInt(); // try to read an id
 
-			if (LOG.isDebugEnabled())
-				LOG.debug(" got #" + id);
 
 			IOReadableWritable invocation = newInstance(invocationClass); // read param
 			invocation.read(dis);
@@ -928,6 +920,9 @@ public abstract class Server {
 
 	/** Handles queued calls . */
 	private class Handler extends Thread {
+
+		private volatile boolean shutDown = false;
+
 		public Handler(int instanceNumber) {
 			this.setDaemon(true);
 			this.setName("IPC Server handler " + instanceNumber + " on " + port);
@@ -941,9 +936,6 @@ public abstract class Server {
 			while (running) {
 				try {
 					final Call call = callQueue.take(); // pop the queue; maybe blocked here
-
-					if (LOG.isDebugEnabled())
-						LOG.debug(getName() + ": has #" + call.id + " from " + call.connection);
 
 					String errorClass = null;
 					String error = null;
@@ -966,8 +958,14 @@ public abstract class Server {
 				}
 			}
 			LOG.info(getName() + ": exiting");
+
+			this.shutDown = true;
 		}
 
+		public boolean isShutDown() {
+
+			return this.shutDown;
+		}
 	}
 
 	protected Server(String bindAddress, int port, Class<? extends IOReadableWritable> paramClass, int handlerCount)
@@ -978,7 +976,7 @@ public abstract class Server {
 	/**
 	 * Constructs a server listening on the named port and address. Parameters passed must
 	 * be of the named class. The <code>handlerCount</handlerCount> determines
-   * the number of handler threads that will be used to process calls.
+	 * the number of handler threads that will be used to process calls.
 	 */
 	protected Server(String bindAddress, int port, Class<? extends IOReadableWritable> invocationClass,
 			int handlerCount, String serverName)
@@ -997,7 +995,6 @@ public abstract class Server {
 		// Start the listener here and let it bind to the port
 		listener = new Listener();
 		this.port = listener.getAddress().getPort();
-		this.rpcMetrics = new RpcMetrics(serverName, Integer.toString(this.port), this);
 		this.tcpNoDelay = false;
 
 		// Create the responder here
@@ -1087,8 +1084,50 @@ public abstract class Server {
 		listener.doStop();
 		responder.interrupt();
 		notifyAll();
-		if (this.rpcMetrics != null) {
-			this.rpcMetrics.shutdown();
+
+		// Wait until shut down of handlers is complete
+		if (this.handlers != null) {
+
+			while (true) {
+
+				int i = 0;
+				for (; i < this.handlerCount; i++) {
+					if (this.handlers[i] != null) {
+						if (!this.handlers[i].isShutDown()) {
+							break;
+						}
+					}
+				}
+
+				if (i < this.handlerCount) {
+					try {
+						wait(100);
+					} catch (InterruptedException e) {
+						break;
+					}
+				} else {
+					// exit while loop
+					break;
+				}
+			}
+		}
+
+		// Wait until shut down of responder is complete
+		while (!this.responder.isShutDown()) {
+			try {
+				wait(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
+
+		// Wait until shut down of listener is complete
+		while (!this.listener.isShutDown()) {
+			try {
+				wait(100);
+			} catch (InterruptedException e) {
+				break;
+			}
 		}
 	}
 

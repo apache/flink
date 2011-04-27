@@ -137,8 +137,7 @@ public class WebInterfaceServer {
 			+ planDumpDir.getAbsolutePath() + "'.");
 
 		LOG.debug("Web-frontend will submit jobs to nephele job-manager on "
-			+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS) + ", port "
+			+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
 			+ config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 			+ ".");
 

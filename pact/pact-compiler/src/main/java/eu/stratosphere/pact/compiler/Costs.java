@@ -91,11 +91,10 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	}
 
 	/**
-	 * Adds the given costs to this costs. If for one of the different cost components (network, secondary storage),
+	 * Adds the given costs to these costs. If for one of the different cost components (network, secondary storage),
 	 * the costs are unknown, the resulting costs will be unknown.
 	 * 
-	 * @param other
-	 *        The costs to add.
+	 * @param other The costs to add.
 	 */
 	public void addCosts(Costs other) {
 		if (this.secondaryStorageCost == -1 || other.secondaryStorageCost == -1) {
@@ -108,6 +107,28 @@ public class Costs implements Comparable<Costs>, Cloneable {
 			this.networkCost = -1;
 		} else {
 			this.networkCost += other.networkCost;
+		}
+	}
+	
+	/**
+	 * Subtracts the given costs from these costs. If the given costs are unknown, then these costs are remain unchanged.
+	 *  
+	 * @param other The costs to subtract.
+	 */
+	public void subtractCosts(Costs other)
+	{
+		if (this.secondaryStorageCost != -1 && other.secondaryStorageCost != -1) {
+			this.secondaryStorageCost -= other.secondaryStorageCost;
+			if (this.secondaryStorageCost < 0) {
+				this.secondaryStorageCost = -1;
+			}
+		}
+		
+		if (this.networkCost != -1 && other.networkCost != -1) {
+			this.networkCost -= other.networkCost;
+			if (this.networkCost < 0) {
+				this.networkCost = -1;
+			}
 		}
 	}
 

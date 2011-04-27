@@ -35,10 +35,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.client.nephele.api.ProgramInvocationException;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 
@@ -75,34 +77,23 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	// ------------------------------------------------------------------------
 
-	private final File jobStoreDirectory; // the directory containing the uploaded jobs
+	private final File jobStoreDirectory;				// the directory containing the uploaded jobs
 
-	private final File planDumpDirectory; // the directory to dump the optimizer plans to
+	private final File planDumpDirectory;				// the directory to dump the optimizer plans to
 
-	private final Map<Long, PactProgram> submittedJobs; // map from UIDs to the running jobs
+	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
 
-	private final Random rand; // random number generator for UIDs
+	private final Random rand;							// random number generator for UIDs
 
-	private final Client client;
+	private final Client client;						// the client used to compile and submit jobs
 
-	// public JobSubmissionServlet(EmbeddedRuntime runtime, File jobDir, File planDir)
-	// {
-	// client = new Client(runtime);
-	//		
-	// this.jobStoreDirectory = jobDir;
-	// this.planDumpDirectory = planDir;
-	//		
-	// this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, PactProgram>());
-	//		
-	// this.rand = new Random(System.currentTimeMillis());
-	// }
 
 	public JobSubmissionServlet(Configuration nepheleConfig, File jobDir, File planDir) {
 		this.client = new Client(nepheleConfig);
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
-		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, PactProgram>());
+		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, JobGraph>());
 
 		this.rand = new Random(System.currentTimeMillis());
 	}
@@ -166,26 +157,44 @@ public class JobSubmissionServlet extends HttpServlet {
 			String[] options = params.isEmpty() ? new String[0] : (String[]) params.toArray(new String[params.size()]);
 			PactProgram pactProgram = null;
 			OptimizedPlan optPlan = null;
+			
 			try {
 				if (assemblerClass == null) {
 					pactProgram = new PactProgram(jarFile, options);
 				} else {
 					pactProgram = new PactProgram(jarFile, assemblerClass, options);
 				}
-				optPlan = pactProgram.getOptimizedPlan();
-			} catch (ProgramInvocationException pie) {
+				
+				optPlan = client.getOptimizedPlan(pactProgram);
+			}
+			catch (ProgramInvocationException pie) {
 				showErrorPage(resp, "An error occurred while invoking the pact program: <br/>" + pie.getMessage());
 				return;
-			} catch (ErrorInPlanAssemblerException eipe) {
+			}
+			catch (ErrorInPlanAssemblerException eipe) {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				eipe.getCause().printStackTrace(w);
+				eipe.printStackTrace(w);
 
 				showErrorPage(resp, "An error occurred in the pact assembler class:<br/><br/>"
-					+ eipe.getCause().getMessage() + "<br/><br/><pre>" + sw.toString() + "</pre>");
+					+ eipe.getMessage() + "<br/>"
+					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
 				return;
-			} catch (Throwable t) {
+			}
+			catch (CompilerException cex) {
+				// collect the stack trace
+				StringWriter sw = new StringWriter();
+				PrintWriter w = new PrintWriter(sw);
+				cex.printStackTrace(w);
+
+				showErrorPage(resp, "An error occurred in the compiler:<br/><br/>"
+					+ cex.getMessage() + "<br/>"
+					+ (cex.getCause()!= null?"Caused by: " + cex.getCause().getMessage():"")
+					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
+				return;
+			}
+			catch (Throwable t) {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
@@ -214,14 +223,14 @@ public class JobSubmissionServlet extends HttpServlet {
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					try {
-						client.run(pactProgram);
+						client.run(pactProgram, optPlan);
 					} catch (Throwable t) {
 						LOG.error("Error submitting job to the job-manager.", t);
 						showErrorPage(resp, t.getMessage());
 						return;
 					}
 				} else {
-					submittedJobs.put(uid, pactProgram);
+					submittedJobs.put(uid, client.getJobGraph(pactProgram, optPlan));
 				}
 
 				// redirect to the plan display page
@@ -258,8 +267,8 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			// get the retained job
-			PactProgram pactProgram = submittedJobs.remove(uid);
-			if (pactProgram == null) {
+			JobGraph job = submittedJobs.remove(uid);
+			if (job == null) {
 				resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
 					"No job with the given uid was retained for later submission.");
 				return;
@@ -267,7 +276,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				client.run(pactProgram);
+				client.run(job);
 			} catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
 				resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);

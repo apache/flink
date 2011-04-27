@@ -17,7 +17,6 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,7 +33,6 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
@@ -46,13 +44,13 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * input and one or multiple outputs. It is provided with a MapStub
  * implementation.
  * <p>
- * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>run()</code> method
- * of the MapStub.
+ * The MapTask creates an iterator over all key-value pairs of its input and hands that 
+ * to the <code>map()</code> method of the MapStub.
  * 
  * @see eu.stratosphere.pact.common.stub.MapStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class MapTask extends AbstractTask {
 
 	// obtain MapTask logger
@@ -62,7 +60,7 @@ public class MapTask extends AbstractTask {
 	private RecordReader<KeyValuePair<Key, Value>> reader;
 
 	// output collector
-	private Collector<Key, Value> output;
+	private OutputCollector<Key, Value> output;
 
 	// map stub implementation
 	private MapStub stub;
@@ -70,6 +68,9 @@ public class MapTask extends AbstractTask {
 	// task configuration (including stub parameters)
 	private TaskConfig config;
 
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -107,14 +108,14 @@ public class MapTask extends AbstractTask {
 		 * Iterator over all input key-value pairs. The iterator wraps the input
 		 * reader of the Nepehele task.
 		 */
-		Iterator<Pair<Key, Value>> input = new Iterator<Pair<Key, Value>>() {
+		Iterator<KeyValuePair<Key, Value>> input = new Iterator<KeyValuePair<Key, Value>>() {
 
 			public boolean hasNext() {
 				return reader.hasNext();
 			}
 
 			@Override
-			public Pair<Key, Value> next() {
+			public KeyValuePair<Key, Value> next() {
 				try {
 					return reader.next();
 				} catch (IOException e) {
@@ -132,18 +133,45 @@ public class MapTask extends AbstractTask {
 
 		// open stub implementation
 		stub.open();
-		// run stub implementation
-		stub.run(input, output);
+		try {
+			// run stub implementation
+			callStub(input, output);
+		} catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
+		}
 		// close output collector
 		output.close();
 		// close stub implementation
 		stub.close();
 
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception {
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
-
+	
 	/**
 	 * Initializes the stub implementation and configuration.
 	 * 
@@ -215,8 +243,11 @@ public class MapTask extends AbstractTask {
 	 */
 	private void initOutputCollector() {
 
-		// create collection for writers
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		boolean fwdCopyFlag = false;
+		
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+		
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -225,11 +256,30 @@ public class MapTask extends AbstractTask {
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-			// add writer to collection
-			writers.add(writer);
-		}
 
-		// create collector and register all writers
-		output = new OutputCollector(writers);
+			// add writer to output collector
+			// the first writer does not need to send a copy
+			// all following must send copies
+			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
+			output.addWriter(writer, fwdCopyFlag);
+			fwdCopyFlag = true;
+		}
+	}
+	
+	/**
+	 * This method is called with an iterator over all k-v pairs that this MapTask processes.
+	 * It calls {@link MapStub#map(Key, Value, Collector)} for each pair. 
+	 * 
+	 * @param in
+	 *        Iterator over all key-value pairs that this MapTask processes
+	 * @param out
+	 *        A collector for the output of the map() function.
+	 */
+	private void callStub(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out)
+	{
+		while (!this.taskCanceled && in.hasNext()) {
+			KeyValuePair<Key, Value> pair = in.next();
+			this.stub.map(pair.getKey(), pair.getValue(), out);
+		}
 	}
 }

@@ -16,113 +16,131 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.DataInput;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemoryBacked;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 
 /**
  * An abstract base class for IO buffers.
  * 
  * @author Alexander Alexandrov
- * @param <T>
- *        the type of the underlying memory segment.
+ * @author Stephan Ewen
  */
-abstract public class Buffer extends MemoryBacked {
-	/**
-	 * Position in the underlying memory.
-	 */
-	protected int position;
+public abstract class Buffer {
 
 	/**
-	 * Limit of the underlying memory.
+	 * The memory segment that backs this buffer.
 	 */
-	protected int limit;
+	protected MemorySegment memory;
 
 	// -------------------------------------------------------------------------
-	// Constructors / Destructors
+	//                     Constructors / Destructors
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Creates an unbound buffer. {@code position} and {@code limit} are set to
-	 * 0.
+	 * Creates an unbound buffer. {@code position} and {@code limit} are set to 0.
 	 */
-	public Buffer() {
-		super();
-		position = 0;
-		limit = 0;
-	}
-
-	/**
-	 * Returns the number of remaining bytes (computed as the difference between
-	 * the {@code limit} and the {@code position}).
-	 */
-	protected final int getRemainingBytes() {
-		return limit - position;
-	}
-
-	/**
-	 * Returns the current position of this buffer.
-	 * 
-	 * @return
-	 */
-	public final int getPosition() {
-		return position;
-	}
-
-	/**
-	 * Binds the IO buffer to a {@link MemorySegment} and resets is with the
-	 * limit set to the memory segment's {@code size}. If the buffer is already
-	 * bound, the operation has no effect.
-	 */
-	@Override
-	public final boolean bind(MemorySegment memory) {
-		if (super.bind(memory)) {
-			reset(memory.size);
-			return true;
-		} else {
-			return false;
+	public Buffer(MemorySegment s) {
+		if (s == null || s.isFree()) {
+			throw new IllegalArgumentException("Memory nmust not be null or free.");
 		}
+		
+		this.memory = s;
 	}
-
+	
 	/**
-	 * Resets the {@link DataInputView} and {@link DataOutputView} of the
-	 * memory, sets the position to zero and the limit to the provided {@code l} value.
+	 * Clears all references to the used memory and returns the memory.
 	 * 
-	 * @param l
-	 *        the new limit to be set
+	 * @return The memory segment used by this buffer.
 	 */
-	public final void reset(int l) {
-		memory.inputView.reset();
-		memory.outputView.reset();
-		position = 0;
-		limit = l;
+	public MemorySegment dispose() {
+		MemorySegment s = this.memory;
+		this.memory = null;
+		return s;
 	}
-
-	/**
-	 * Resets the {@link DataInputView} and {@link DataOutputView} of the
-	 * memory, sets the position to zero but leaves the limit unchanged.
-	 */
-	public final void reset() {
-		memory.inputView.reset();
-		memory.outputView.reset();
-		position = 0;
-	}
-
+	
 	/**
 	 * An input buffer for IOReadableWritable objects.
 	 * 
 	 * @author Alexander Alexandrov
+	 * @author Stephan Ewen
 	 */
-	public static class Input extends Buffer {
-		public Input() {
-			super();
+	public static final class Input extends Buffer {
+		
+		/**
+		 * The input view around the memory from which is read.
+		 */
+		private final DataInputView inView;
+		
+		/**
+		 * The current position in the buffer.
+		 */
+		private int position;
+		
+		/**
+		 * The position for repeated reads.
+		 */
+		private int repeatPosition;
+		
+		/**
+		 * Limit of the contents in the underlying memory.
+		 */
+		private int limit;
+		
+		
+		public Input(MemorySegment memory) {
+			super(memory);
+			
+			this.inView = memory.inputView;
+			this.inView.reset();
 		}
+		
+		/**
+		 * Gets the current position of this buffer.
+		 * 
+		 * @return THe current position.
+		 */
+		public final int getPosition() {
+			return this.position;
+		}
+		
+		/**
+		 * Gets the number of bytes that remain in this buffer, which is the difference between the buffer's
+		 * limit and its current position.
+		 * 
+		 * @return The number of remaining bytes.
+		 */
+		public final int getRemainingBytes() {
+			return this.limit - this.position;
+		}
+		
+		/**
+		 * Rewinds this buffer, such that the position is zero and the limit is kept.
+		 */
+		public final void rewind() {
+			this.position = 0;
+			this.repeatPosition = 0;
+			this.inView.reset();
+		}
+		
+		/**
+		 * Resets the buffer such that the position is zero and the limit is set to the given value.
+		 * 
+		 * @param limit The new limit.
+		 */
+		public final void reset(int limit) {
+			if (limit < 0) {
+				throw new IllegalArgumentException();
+			}
+			rewind();
+			this.limit = limit;
+		}
+		
 
 		/**
 		 * Reads an {@code IOReadableWritable} from the underlying memory
@@ -130,70 +148,117 @@ abstract public class Buffer extends MemoryBacked {
 		 * calling it's {@link IOReadableWritable#read(DataInput)} operation
 		 * with the backing memory's {@link DataInputView}.
 		 * 
-		 * @param object
-		 *        to read in from the buffer
-		 * @return a boolean value indicating whether the read was successfull
-		 * @throws UnboundMemoryBackedException
+		 * @param object The object to read from the buffer.
+		 * @return True, if the read was successful, false otherwise.
 		 */
 		public boolean read(IOReadableWritable object) {
-			if (!isBound()) {
-				throw new UnboundMemoryBackedException();
-			}
 
+			final int pos = this.position;
+			
 			try {
-				if (position >= limit) {
+				if (pos >= this.limit) {
 					return false;
 				}
-
-				memory.inputView.skip(4); // skip serialized length
-				object.read(memory.inputView); // read object
-				position = memory.inputView.getPosition(); // update current read position
-				return position <= limit; // ok if read limit was not exceeded while reading
-			} catch (IOException e) {
+				
+				object.read(inView); // read object
+				
+				final int newPos = this.inView.getPosition();
+				
+				if (newPos > limit) {
+					return false;
+				}
+				
+				// ok if read limit was not exceeded while reading
+				this.repeatPosition = pos; // update position for repeated read
+				this.position = newPos;
+				
+				return true;
+			}
+			catch (IOException e) {
+				// I/O exception indicates unsuccessful read due to end of buffer
+				// we need to set the input view back to that position where it tried to read
+				this.inView.setPosition(pos);
 				return false;
 			}
 		}
+		
+		/**
+		 * Reads the most recently read {@code IOReadableWritable} from the underlying memory
+		 * segment again into the provided {@link IOReadableWritable} object by
+		 * calling it's {@link IOReadableWritable#read(DataInput)} operation 
+		 * with the backing memory's {@link DataInputView}.
+		 * 
+		 * @param object The object to read from the buffer.
+		 * @return True, if the read was successful, false otherwise.
+		 */
+		public boolean repeatRead(IOReadableWritable object) {
+
+			try {
+				if (this.repeatPosition >= this.limit) {
+					return false;
+				}
+				this.inView.setPosition(repeatPosition);
+				object.read(this.inView); // read object
+				return true;
+			}
+			catch (IOException e) {
+				throw new RuntimeException("This should not happen: A repeated read failed when the initial read succeeded.");
+			}
+		}
+		
+		/**
+		 * Copies the bytes that remain in the buffer into the given array.
+		 * 
+		 * @param target The target array to copy the remaining bytes into.
+		 * @throws IOException Thrown, if the input buffer is already exhausted.
+		 * @throws ArrayIndexOutOfBoundsException Thrown, if the target array is too small for the remaining bytes.
+		 */
+		public void copyRemainingBytes(byte[] target) throws IOException {
+			this.inView.readFully(target, 0, getRemainingBytes());
+			this.position = this.inView.getPosition();
+		}
+		
+		/**
+		 * Reads the next byte from this input.
+		 * 
+		 * @throws IOException Thrown, if the input buffer is exhausted.
+		 * @throws ArrayIndexOutOfBoundsException Thrown, if the target array is too small for the remaining bytes.
+		 */
+		public int getNextByte() throws IOException {
+			if (this.position >= this.limit) {
+				throw new EOFException();
+			}
+			
+			int b = this.inView.readByte();
+			b &= 0xff;
+			this.position = this.inView.getPosition();
+			return b;
+		}
 
 		/**
-		 * Reads the buffer from a Java NIO {@link FileChannel}. Upon reading,
-		 * the serialized {@link IOReadableWritable} lengths are traversed to
-		 * compute the buffer limit and eventually the channel position and the
-		 * buffer limit are adapted accordingly.
+		 * Reads the buffer from a Java NIO {@link java.nio.FileChannel}.
 		 * 
-		 * @param channel
-		 *        the NIO file channel to read from
-		 * @throws IOException
-		 *         thrown by the {@link FileChannel#read(java.nio.ByteBuffer)} method.
-		 * @throws UnboundMemoryBackedException
+		 * @param channel The NIO file channel to read from
+		 * @throws IOException Thrown by the {@link FileChannel#read(java.nio.ByteBuffer)} method.
 		 */
-		public void readFromChannel(FileChannel channel) throws IOException {
-			if (!isBound()) {
-				throw new UnboundMemoryBackedException();
+		public void readFromChannel(FileChannel channel) throws IOException
+		{
+			final long bytesRemaining = channel.size() - channel.position();
+			
+			// check if the channel is already exhausted
+			if (bytesRemaining < 1) {
+				this.position = 0;
+				this.limit = 0;
+				return;
 			}
-
-			// read either the full buffer size or the remaining bytes from the channel
-			int limit = (int) Math.min(memory.size, channel.size() - channel.position());
-			channel.read(memory.wrap(0, limit));
-
-			// find the end of the last fully contained object in the buffer
-			int readableBytes = 0, currentObjectLength = 0;
-			while (readableBytes + currentObjectLength <= limit) {
-				// accumulate next serialized object length
-				readableBytes += currentObjectLength;
-
-				// if next object length goes beyond the limit, break
-				if (readableBytes + 4 >= limit) {
-					break;
-				}
-
-				// else get next object length
-				currentObjectLength = 4 + memory.randomAccessView.getInt(readableBytes);
-			}
-
-			// reset buffer with the limit set to the number of readable bytes
-			reset(readableBytes);
-			// adapt channel position for next buffer
-			channel.position(channel.position() - (limit - readableBytes));
+			
+			final int toRead = (int) Math.min(this.memory.size(), bytesRemaining);
+			
+			int bytesRead = channel.read(memory.wrap(0, toRead));
+			
+			this.position = 0;
+			this.limit = bytesRead;
+			this.inView.reset();
 		}
 	}
 
@@ -202,37 +267,32 @@ abstract public class Buffer extends MemoryBacked {
 	 * 
 	 * @author Alexander Alexandrov
 	 */
-	public static class Output extends Buffer {
+	public static final class Output extends Buffer {
 
-		public Output() {
-			super();
+		private final DataOutputView outView;
+		
+		public Output(MemorySegment memory) {
+			super(memory);
+			
+			this.outView = memory.outputView;
+			this.outView.reset();
 		}
 
 		/**
-		 * Tries to write the provided {@link IOReadableWritable} to the
-		 * underlying memory segment by calling the object's {@link IOReadableWritable#read(DataInput)} operation with
-		 * the backing
-		 * memory {@link DataInputView}.
+		 * Tries to write the provided {@link IOReadableWritable} to the underlying memory segment by calling
+		 * the object's {@link IOReadableWritable#write(DataOutput)} operation with the backing memory
+		 * {@link DataOutputView}.
 		 * 
-		 * @param object
-		 *        to write out to the buffer
-		 * @return a boolean value indicating whether the write was successful
-		 * @throws UnboundMemoryBackedException
+		 * @param object Object to be written out to the buffer.
+		 * @return A boolean value indicating whether the write was successful.
 		 */
 		public boolean write(IOReadableWritable object) {
-			if (!isBound()) {
-				throw new UnboundMemoryBackedException();
-			}
-
+			final int pos = this.outView.getPosition();
 			try {
-				memory.outputView.skip(4); // reserve bytes for length
-				object.write(memory.outputView); // serialize object
-				memory.randomAccessView.putInt(position, memory.outputView.getPosition() - position - 4); // serialize
-				// object
-				// length
-				position = memory.outputView.getPosition(); // update current write position
+				object.write(this.outView);
 				return true;
 			} catch (IOException e) {
+				this.outView.setPosition(pos);
 				return false;
 			}
 		}
@@ -243,13 +303,26 @@ abstract public class Buffer extends MemoryBacked {
 		 * @param channel
 		 * @throws IOException
 		 */
-		public void writeToChannel(FileChannel channel) throws IOException {
-			if (!isBound()) {
-				new UnboundMemoryBackedException();
-			}
-
-			channel.write(memory.wrap(0, position));
-			reset(memory.size);
+		public void writeToChannel(FileChannel channel) throws IOException
+		{
+			channel.write(this.memory.wrap(0, this.outView.getPosition()));
+		}
+		
+		/**
+		 * Resets this output buffer by setting the position to the beginning.
+		 */
+		public void rewind() {
+			this.outView.reset();
+		}
+		
+		/**
+		 * Gets the current position from this buffer.
+		 * 
+		 * @return The current position;
+		 */
+		public int getPosition()
+		{
+			return this.outView.getPosition();
 		}
 	}
 
@@ -261,13 +334,13 @@ abstract public class Buffer extends MemoryBacked {
 	 * Enumeration class for the different buffer types.
 	 * 
 	 * @author Alexander Alexandrov
-	 * @param <T>
-	 *        the buffer class identified by the {@code Type} instance
+	 * @param <T> The buffer class identified by the {@code Type} instance
 	 */
 	public static final class Type<T extends Buffer> {
-		public static Type<Input> INPUT = new Type<Input>(Input.class);
+		
+		public static final Type<Input> INPUT = new Type<Input>(Input.class);
 
-		public static Type<Output> OUTPUT = new Type<Output>(Output.class);
+		public static final Type<Output> OUTPUT = new Type<Output>(Output.class);
 
 		public final Class<T> clazz;
 

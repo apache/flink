@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
+import java.io.File;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
@@ -65,7 +67,7 @@ public class LocalClusterProvider extends ClusterProvider {
 			return;
 		}
 
-		String nepheleConfigDir = System.getProperty("user.dir") + "/tmp/nephele/config";
+		String nepheleConfigDir = System.getProperty("java.io.tmpdir") + "/minicluster/nephele/config";
 		if (filesystemProvider == null) {
 			startFS();
 		}
@@ -73,7 +75,7 @@ public class LocalClusterProvider extends ClusterProvider {
 		if(this.config.getString(Constants.FILESYSTEM_TYPE, "").equals("mini_hdfs")) {
 			hdfsConfigDir = ((HDFSProvider)filesystemProvider).getConfigDir();
 		}
-		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir, numTaskTrackers);
+		nephele = new NepheleMiniCluster(nepheleConfigDir, hdfsConfigDir);
 		nepheleRunning = true;
 	}
 
@@ -95,20 +97,14 @@ public class LocalClusterProvider extends ClusterProvider {
 
 		nephele.stop();
 		nepheleRunning = false;
+		
+		File f = new File(System.getProperty("java.io.tmpdir") + "/minicluster");
+		f.delete();
 	}
 
 	@Override
 	public void submitJobAndWait(JobGraph jobGraph, String jarFilePath) throws Exception {
 		nephele.submitJobAndWait(jobGraph);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#clearHDFS()
-	 */
-	@Override
-	protected void clearFS() throws Exception {
-		filesystemProvider.delete("/", true);
 	}
 
 }

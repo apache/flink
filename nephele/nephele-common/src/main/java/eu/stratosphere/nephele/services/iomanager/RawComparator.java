@@ -22,6 +22,7 @@ import java.util.Comparator;
  * 
  * @see java.util.Comparator
  */
-public interface RawComparator {
-	int compare(byte[] key1, byte[] key2, int start1, int start2, int len1, int len2);
+public interface RawComparator
+{
+	int compare(byte[] key1, byte[] key2, int start1, int start2);
 }

@@ -16,10 +16,8 @@
 package eu.stratosphere.nephele.services.memorymanager;
 
 /**
- * <p>
  * Base class for memory backed objects. This class should be implemented by all objects depending on (possibly more
  * than one) {@link MemorySegment}s during their life span.
- * </p>
  * <p>
  * {@code MemoryBacked} objects are injected with the required {@code
  * MemorySegment}s from an external memory management component via the {@link MemoryBacked#bind(MemorySegment)} method.
@@ -35,7 +33,7 @@ package eu.stratosphere.nephele.services.memorymanager;
  * 
  * @author Alexander Alexandrov
  */
-abstract public class MemoryBacked {
+public abstract class MemoryBacked {
 
 	/**
 	 * The underlying memory segment.
@@ -46,19 +44,22 @@ abstract public class MemoryBacked {
 	 * A boolean flag indicating whether the buffer is bound to an underlying
 	 * memory or not.
 	 */
-	protected boolean isBound;
+	private boolean isBound;
 
 	// -------------------------------------------------------------------------
-	// Constructors / Destructors
+	//                       Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	public MemoryBacked() {
+	/**
+	 * Default constructor to initialize the <tt>MemoryBacked</tt>.
+	 */
+	protected MemoryBacked() {
 		this.memory = null;
 		this.isBound = false;
 	}
 
 	// -------------------------------------------------------------------------
-	// API
+	//                               Binding
 	// -------------------------------------------------------------------------
 
 	/**
@@ -81,8 +82,8 @@ abstract public class MemoryBacked {
 	 * {@link UnboundMemoryBackedException} if
 	 * the object is not bound.
 	 * 
-	 * @return the released {@code MemorySegment}
-	 * @throws UnboundMemoryBackedException
+	 * @return The released {@code MemorySegment}.
+	 * @throws UnboundMemoryBackedException Thrown, if this object was not bound to a {@link MemorySegment}.
 	 */
 	public MemorySegment unbind() throws UnboundMemoryBackedException {
 		if (!isBound()) {
@@ -100,7 +101,7 @@ abstract public class MemoryBacked {
 	/**
 	 * Checks if the buffer is bound.
 	 * 
-	 * @return true if the buffer is bound
+	 * @return True, if the buffer is bound.
 	 */
 	public final boolean isBound() {
 		return isBound;

@@ -26,14 +26,11 @@ import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
-import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
+import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.contextcheck.ContextChecker;
 
@@ -72,9 +69,9 @@ public class PactProgram {
 	 */
 	public PactProgram(File jarFile, String... args)
 													throws ProgramInvocationException {
-		this.assemblerClass = getPactAssemblerFromJar(jarFile);
 		this.jarFile = jarFile;
 		this.args = args;
+		this.assemblerClass = getPactAssemblerFromJar(jarFile);
 	}
 
 	/**
@@ -144,48 +141,15 @@ public class PactProgram {
 	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
 	 *          missing parameters for generation.
 	 */
-	public OptimizedPlan getPreOptimizedPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
+	public OptimizedPlan getPreviewPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		Plan plan = getPlan();
 		if(plan != null) {
-			return getPreOptimizedPlan(plan);
+			return PactCompiler.createPreOptimizedPlan(plan);
 		} else {
 			return null;
 		}
 	}
-
-	/**
-	 * Returns the optimized plan, based on input file sizes and cluster
-	 * configuration.
-	 * 
-	 * @return
-	 * 			The analyzed and optimized plan. 
-	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
-	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *          missing parameters for generation.
-	 */
-	public OptimizedPlan getOptimizedPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		return getOptimizedPlan(getPlan());
-	}
-
-	/**
-	 * Returns the JobGraph corresponding to the generated optimized plan.
-	 * The JobGraph can be send to the nephele cluster for execution.
-	 * 
-	 * @return The optimized JobGraph of the PactProgram.
-	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
-	 * @throws ErrorInPlanAssemblerException
-	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *          missing parameters for generation.
-	 */
-	public JobGraph getCompiledPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		return getCompiledPlan(getOptimizedPlan());
-	}
-
+	
 	/**
 	 * Returns the File object of the jar file that is used as base for the
 	 * pact program.
@@ -209,7 +173,7 @@ public class PactProgram {
 	 *          missing parameters for generation.
 	 */
 	public String getDescription() throws ProgramInvocationException {
-		PlanAssembler assembler = createPlanAssembler(assemblerClass);
+		PlanAssembler assembler = createAssemblerFromJar(assemblerClass);
 		if (assembler instanceof PlanAssemblerDescription) {
 			return ((PlanAssemblerDescription) assembler).getDescription();
 		} else {
@@ -246,58 +210,6 @@ public class PactProgram {
 	}
 
 	/**
-	 * Returns the analyzed plan without any optimizations.
-	 * 
-	 * @param plan
-	 * 		the plan that should be pre-optimized
-	 * @return 
-	 * 			the analyzed plan without any optimizations.
-	 */
-	protected OptimizedPlan getPreOptimizedPlan(Plan plan) {
-		// TODO: Can this be instantiated statically?
-		PactCompiler compiler = new PactCompiler();
-
-		// perform the actual compilation
-		OptimizedPlan optPlan = compiler.createPreOptimizedPlan(plan);
-		return optPlan;
-	}
-
-	/**
-	 * Generates the optimized plan from the basic plan.
-	 * 
-	 * @param plan
-	 * 		plan that should be optimized
-	 * @return
-	 * 		the optimized plan
-	 */
-	protected OptimizedPlan getOptimizedPlan(Plan plan) {
-		// TODO: Can this be instantiated statically?
-		PactCompiler compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator());
-
-		// perform the actual compilation
-		OptimizedPlan optPlan = compiler.compile(plan);
-		return optPlan;
-	}
-
-	/**
-	 * Returns the JobGraph corresponding to the generated optimized plan.
-	 * The JobGraph can be send to the nephele cluster for execution.
-	 * 
-	 * @param optPlan
-	 * 		The optimized plan which should be compiled
-	 * @return The optimized JobGraph of the PactProgram.
-	 */
-	protected JobGraph getCompiledPlan(OptimizedPlan optPlan) {
-		JobGraph jobGraph = null;
-
-		// now run the code generator that creates the nephele schedule
-		JobGraphGenerator codeGen = new JobGraphGenerator();
-		jobGraph = codeGen.compileJobGraph(optPlan);
-
-		return jobGraph;
-	}
-
-	/**
 	 * Takes the jar described by the given file and invokes its pact assembler class to
 	 * assemble a plan. The assembler class name is either passed through a parameter,
 	 * or it is read from the manifest of the jar. The assembler is handed the given options
@@ -317,7 +229,7 @@ public class PactProgram {
 	 */
 	protected Plan createPlanFromJar(Class<? extends PlanAssembler> clazz, String[] options)
 			throws ProgramInvocationException, ErrorInPlanAssemblerException {
-		PlanAssembler assembler = createPlanAssembler(clazz);
+		PlanAssembler assembler = createAssemblerFromJar(clazz);
 
 		// run the user-provided assembler class
 		try {
@@ -337,7 +249,7 @@ public class PactProgram {
 	 * @throws ProgramInvocationException
 	 * 		is thrown if class can't be found or instantiated
 	 */
-	protected PlanAssembler createPlanAssembler(Class<? extends PlanAssembler> clazz)
+	protected PlanAssembler createAssemblerFromJar(Class<? extends PlanAssembler> clazz)
 			throws ProgramInvocationException {
 		// we have the class. now create a classloader that can load the
 		// contents of the jar
@@ -359,31 +271,6 @@ public class PactProgram {
 		return assembler;
 	}
 
-	/**
-	 * Calls the compiler to compile the plan and generated the final job graph from it.
-	 * 
-	 * @param pactPlan
-	 * 		input plan
-	 * @return
-	 * 		executable job graph
-	 */
-	protected JobGraph compilePlan(Plan pactPlan) {
-		// TODO: Can this be instantiated statically?
-		PactCompiler compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator());
-
-		// perform the actual compilation
-		OptimizedPlan optPlan = null;
-		JobGraph jobGraph = null;
-
-		// first run the pact compiler and optimizer
-		optPlan = compiler.compile(pactPlan);
-
-		// now run the code generator that creates the nephele schedule
-		JobGraphGenerator codeGen = new JobGraphGenerator();
-		jobGraph = codeGen.compileJobGraph(optPlan);
-
-		return jobGraph;
-	}
 
 	private Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile) throws ProgramInvocationException {
 		JarFile jar = null;

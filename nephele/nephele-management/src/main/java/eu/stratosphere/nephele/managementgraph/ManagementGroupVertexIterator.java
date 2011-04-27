@@ -31,7 +31,7 @@ import java.util.Stack;
  * 
  * @author warneke
  */
-public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVertex> {
+public final class ManagementGroupVertexIterator implements Iterator<ManagementGroupVertex> {
 
 	/**
 	 * Stores whether the group graph is traversed starting from the input or the output vertices.
@@ -68,7 +68,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	 * 
 	 * @author warneke
 	 */
-	private class TraversalEntry {
+	private static class TraversalEntry {
 
 		/**
 		 * The group vertex this entry is created for.
@@ -88,7 +88,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 		 * @param currentEdge
 		 *        the edge index to use to visit the next group vertex
 		 */
-		public TraversalEntry(ManagementGroupVertex groupVertex, int currentEdge) {
+		public TraversalEntry(final ManagementGroupVertex groupVertex, final int currentEdge) {
 			this.groupVertex = groupVertex;
 			this.currentEdge = currentEdge;
 		}
@@ -131,7 +131,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	 *        the number of the stage whose vertices should be traversed or -1 if all stages should be included in the
 	 *        traversal
 	 */
-	public ManagementGroupVertexIterator(ManagementGraph managementGraph, boolean forward, int stage) {
+	public ManagementGroupVertexIterator(final ManagementGraph managementGraph, final boolean forward, final int stage) {
 
 		this.forward = forward;
 		this.stage = stage;
@@ -150,7 +150,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 
 		if (this.entryVertices.size() > 0) {
 			final TraversalEntry te = new TraversalEntry(this.entryVertices.get(0), 0);
-			traversalStack.push(te);
+			this.traversalStack.push(te);
 		}
 	}
 
@@ -161,7 +161,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	 * @param stage
 	 *        the number of the stage whose input vertices should be collected
 	 */
-	private void collectStartVertices(ManagementStage stage) {
+	private void collectStartVertices(final ManagementStage stage) {
 
 		for (int i = 0; i < stage.getNumberOfGroupVertices(); i++) {
 
@@ -193,7 +193,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	 * @return <code>true</code> if all incoming or outgoing edges (depends on the forward switch) come from other
 	 *         stages, <code>false</code> otherwise
 	 */
-	private boolean allConnectionsFromOtherStage(ManagementGroupVertex groupVertex, boolean forward) {
+	private boolean allConnectionsFromOtherStage(final ManagementGroupVertex groupVertex, final boolean forward) {
 
 		if (forward) {
 			for (int i = 0; i < groupVertex.getNumberOfBackwardEdges(); i++) {
@@ -218,10 +218,10 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	@Override
 	public boolean hasNext() {
 
-		if (traversalStack.isEmpty()) {
+		if (this.traversalStack.isEmpty()) {
 
-			numVisitedEntryVertices++;
-			if (this.entryVertices.size() <= numVisitedEntryVertices) {
+			this.numVisitedEntryVertices++;
+			if (this.entryVertices.size() <= this.numVisitedEntryVertices) {
 				return false;
 			}
 		}
@@ -236,35 +236,35 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	@Override
 	public ManagementGroupVertex next() {
 
-		if (traversalStack.isEmpty()) {
+		if (this.traversalStack.isEmpty()) {
 
-			final TraversalEntry newentry = new TraversalEntry(this.entryVertices.get(numVisitedEntryVertices), 0);
-			traversalStack.push(newentry);
+			final TraversalEntry newentry = new TraversalEntry(this.entryVertices.get(this.numVisitedEntryVertices), 0);
+			this.traversalStack.push(newentry);
 		}
 
-		final ManagementGroupVertex returnVertex = traversalStack.peek().getGroupVertex();
+		final ManagementGroupVertex returnVertex = this.traversalStack.peek().getGroupVertex();
 
 		// Propose vertex to be visited next
 		do {
 
-			final TraversalEntry te = traversalStack.peek();
+			final TraversalEntry te = this.traversalStack.peek();
 
 			// Check if we can traverse deeper into the graph
 			final ManagementGroupVertex candidateVertex = getCandidateVertex(te, forward);
 			if (candidateVertex == null) {
 				// Pop it from the stack
-				traversalStack.pop();
+				this.traversalStack.pop();
 			} else {
 				// Create new entry and put it on the stack
 				final TraversalEntry newte = new TraversalEntry(candidateVertex, 0);
-				traversalStack.add(newte);
+				this.traversalStack.add(newte);
 				break;
 			}
 
-		} while (!traversalStack.isEmpty());
+		} while (!this.traversalStack.isEmpty());
 
 		// Mark vertex as already visited
-		alreadyVisited.add(returnVertex);
+		this.alreadyVisited.add(returnVertex);
 
 		return returnVertex;
 
@@ -281,7 +281,7 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 	 *        reverse order
 	 * @return a candidate group vertex which could potentially be visited next
 	 */
-	private ManagementGroupVertex getCandidateVertex(TraversalEntry te, boolean forward) {
+	private ManagementGroupVertex getCandidateVertex(final TraversalEntry te, final boolean forward) {
 
 		while (true) {
 
@@ -308,13 +308,13 @@ public class ManagementGroupVertexIterator implements Iterator<ManagementGroupVe
 			te.increaseCurrentEdge();
 
 			// If stage >= 0, tmp must be in the same stage as te.getGroupVertex()
-			if (stage >= 0) {
-				if (tmp.getStageNumber() != stage) {
+			if (this.stage >= 0) {
+				if (tmp.getStageNumber() != this.stage) {
 					continue;
 				}
 			}
 
-			if (!alreadyVisited.contains(tmp)) {
+			if (!this.alreadyVisited.contains(tmp)) {
 				return tmp;
 			}
 		}

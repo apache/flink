@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,15 +33,16 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
+import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorter;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
+import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -59,24 +59,15 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @see eu.stratosphere.pact.common.stub.ReduceStub
  * @author Fabian Hueske
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class CombineTask extends AbstractTask {
-
-	// number of sort buffers to use
-	private int NUM_SORT_BUFFERS;
-
-	// size of each sort buffer in MB
-	private int SIZE_SORT_BUFFER;
-
-	// memory to be used for IO buffering
-	private int MEMORY_IO;
-
-	// maximum number of file handles
-	private int MAX_NUM_FILEHANLDES;
 
 	// obtain CombineTask logger
 	private static final Log LOG = LogFactory.getLog(CombineTask.class);
 
+	// the minimal amount of memory for the task to operate
+	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
+	
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
 
@@ -87,8 +78,14 @@ public class CombineTask extends AbstractTask {
 	private TaskConfig config;
 
 	// task config including stub parameters
-	private Collector output;
+	private OutputCollector output;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
 
+	// cancel flag
+	private volatile boolean taskCanceled = false;
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -116,7 +113,8 @@ public class CombineTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception {
+	public void invoke() throws Exception 
+	{
 		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -124,21 +122,61 @@ public class CombineTask extends AbstractTask {
 		LOG.debug("Start obtaining iterator: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		
 		// obtain combining iterator
-		final Iterator<KeyValuePair<Key, Value>> iterator = getCombiningIterator();
-		LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
+		try {
+			sortedInputProvider = obtainInput();
+			Iterator<KeyValuePair<Key, Value>> iterator = sortedInputProvider.getIterator();
+			KeyGroupedIterator<Key, Value> kgIterator = new KeyGroupedIterator<Key, Value>(iterator);
 
-		// iterate over combined pairs
-		while (iterator.hasNext()) {
-			// get next combined pair
-			KeyValuePair<Key, Value> pair = iterator.next();
-			// output combined pair
-			output.collect(pair.getKey(), pair.getValue());
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			
+			ReduceStub stub = this.stub;
+			OutputCollector output = this.output;
+
+			// iterate over combined pairs
+			while (!this.taskCanceled && kgIterator.nextKey()) {
+				stub.combine(kgIterator.getKey(), kgIterator.getValues(), output);
+			}
+		
+		} catch (Exception ex) {
+			// drop, if the task was canceled
+			if (!this.taskCanceled) {
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				throw ex;
+			}
 		}
-
-		LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+		
+		finally {
+			if (sortedInputProvider != null) {
+				sortedInputProvider.close();
+			}
+		}
+		
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		this.taskCanceled = true;
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
@@ -152,13 +190,26 @@ public class CombineTask extends AbstractTask {
 	private void initStub() throws RuntimeException {
 
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
-		// set up memory and io parameters
-		NUM_SORT_BUFFERS = config.getNumSortBuffer();
-		SIZE_SORT_BUFFER = config.getSortBufferSize() * 1024 * 1024;
-		MEMORY_IO = config.getIOBufferSize() * 1024 * 1024;
-		MAX_NUM_FILEHANLDES = config.getMergeFactor();
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		
+		// test minimum memory requirements
+		long strategyMinMem = 0;
+		
+		switch (config.getLocalStrategy()) {
+			case COMBININGSORT:
+				strategyMinMem = MIN_REQUIRED_MEMORY;
+				break;
+		}
+		
+		if (this.availableMemory < strategyMinMem) {
+			throw new RuntimeException(
+					"The Combine task was initialized with too little memory for local strategy "+
+					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+				    "Required is at least " + strategyMinMem + " bytes.");
+		}
 
 		try {
 			// obtain stub implementation class
@@ -215,18 +266,17 @@ public class CombineTask extends AbstractTask {
 			throw new RuntimeException("CombineTask has more than one output");
 		}
 
-		// create collection for output collector
-		LinkedList<RecordWriter<KeyValuePair<Key, Value>>> writers = new LinkedList<RecordWriter<KeyValuePair<Key, Value>>>();
+		// create output collector
+		output = new OutputCollector<Key, Value>();
+		
 		// obtain OutputEmitter from output ship strategy
 		OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(0));
 		// create writer
 		RecordWriter<KeyValuePair<Key, Value>> writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 			(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-		// add writer to collection
-		writers.add(writer);
-
-		// create collector and register the output writer
-		output = new OutputCollector(writers);
+		
+		// add writer to output collector
+		output.addWriter(writer, false);
 	}
 
 	/**
@@ -238,7 +288,7 @@ public class CombineTask extends AbstractTask {
 	 * @throws RuntimeException
 	 *         Throws RuntimeException if it is not possible to obtain a combined iterator.
 	 */
-	private Iterator<KeyValuePair<Key, Value>> getCombiningIterator() throws RuntimeException {
+	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
 
 		// obtain the MemoryManager of the TaskManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
@@ -274,15 +324,17 @@ public class CombineTask extends AbstractTask {
 
 			try {
 				// instantiate a combining sort-merger
-				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
-					ioManager, NUM_SORT_BUFFERS, SIZE_SORT_BUFFER, MEMORY_IO, MAX_NUM_FILEHANLDES, keySerialization,
-					valSerialization, keyComparator, reader, 0.1f, this, true);
+				SortMerger<Key, Value> sortMerger = new AsynchronousPartialSorter(memoryManager,
+					ioManager, this.availableMemory, keySerialization,
+					valSerialization, keyComparator, reader, this);
 				// obtain and return a grouped iterator from the combining sort-merger
-				return sortMerger.getIterator();
-			} catch (MemoryAllocationException mae) {
+				return sortMerger;
+			}
+			catch (MemoryAllocationException mae) {
 				throw new RuntimeException(
 					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
-			} catch (IOException ioe) {
+			}
+			catch (IOException ioe) {
 				throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
 			}
 

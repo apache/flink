@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.jobgraph.JobStatus;
+import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
@@ -36,17 +37,25 @@ public class JobEvent extends AbstractEvent {
 	private JobStatus currentJobStatus;
 
 	/**
+	 * An optional message attached to the event, possibly <code>null</code>.
+	 */
+	private String optionalMessage = null;
+
+	/**
 	 * Constructs a new job event object.
 	 * 
 	 * @param timestamp
 	 *        the timestamp of the event
 	 * @param currentJobStatus
 	 *        the current status of the job
+	 * @param optionalMessage
+	 *        an optional message that shall be attached to this event, possibly <code>null</code>
 	 */
-	public JobEvent(long timestamp, JobStatus currentJobStatus) {
+	public JobEvent(long timestamp, JobStatus currentJobStatus, String optionalMessage) {
 		super(timestamp);
 
 		this.currentJobStatus = currentJobStatus;
+		this.optionalMessage = optionalMessage;
 	}
 
 	/**
@@ -69,6 +78,9 @@ public class JobEvent extends AbstractEvent {
 
 		// Read job status
 		this.currentJobStatus = EnumUtils.readEnum(in, JobStatus.class);
+
+		// Read optional message
+		this.optionalMessage = StringRecord.readString(in);
 	}
 
 	/**
@@ -80,6 +92,9 @@ public class JobEvent extends AbstractEvent {
 
 		// Write job status
 		EnumUtils.writeEnum(out, this.currentJobStatus);
+
+		// Write optional message
+		StringRecord.writeString(out, this.optionalMessage);
 	}
 
 	/**
@@ -89,6 +104,16 @@ public class JobEvent extends AbstractEvent {
 	 */
 	public JobStatus getCurrentJobStatus() {
 		return this.currentJobStatus;
+	}
+
+	/**
+	 * Returns the optional message that is possibly attached to this event.
+	 * 
+	 * @return the optional message, possibly <code>null</code>.
+	 */
+	public String getOptionalMessage() {
+
+		return this.optionalMessage;
 	}
 
 	/**
@@ -119,7 +144,16 @@ public class JobEvent extends AbstractEvent {
 			return false;
 		}
 
-		return true;
+		if (this.optionalMessage == null) {
+
+			if (jobEvent.getOptionalMessage() == null) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		return this.optionalMessage.equals(jobEvent.getOptionalMessage());
 	}
 
 	/**

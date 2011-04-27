@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
 public abstract class AbstractDirectOutputChannel<T extends Record> extends AbstractOutputChannel<T> {
+
 	/**
 	 * The connected direct input channel.
 	 */
@@ -122,7 +123,7 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestClose() {
+	public void requestClose() throws InterruptedException {
 
 		this.closeRequested = true;
 		if (this.connectedDirectInputChannel == null) {
@@ -144,7 +145,7 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 	}
 
 	@SuppressWarnings("unchecked")
-	private AbstractDirectInputChannel<T> getConnectedInputChannel() throws IOException {
+	private AbstractDirectInputChannel<T> getConnectedInputChannel() throws IOException, InterruptedException {
 
 		AbstractDirectInputChannel<T> directInputChannel = null;
 
@@ -159,12 +160,7 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 				return directInputChannel;
 			}
 
-			try {
-				Thread.sleep(CONNECTION_SLEEP_INTERVAL);
-			} catch (InterruptedException e) {
-				// We need to finish this operation, otherwise the proper shutdown of the consumer is at risk
-				e.printStackTrace();
-			}
+			Thread.sleep(CONNECTION_SLEEP_INTERVAL);
 		}
 
 		throw new IOException("Cannot find corresponding in-memory input channel for in-memory output channel "
@@ -182,8 +178,11 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void transferEvent(AbstractEvent event) throws IOException {
+	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		if (this.connectedDirectInputChannel == null) {
 			this.connectedDirectInputChannel = getConnectedInputChannel();
@@ -192,8 +191,24 @@ public abstract class AbstractDirectOutputChannel<T extends Record> extends Abst
 		this.connectedDirectInputChannel.processEvent(event);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void flush() {
-		// TODO: Implement me
+	public void flush() throws IOException, InterruptedException {
+		if (this.connectedDirectInputChannel == null) {
+			this.connectedDirectInputChannel = getConnectedInputChannel();
+		}
+
+		this.connectedDirectInputChannel.requestFlush();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseResources() {
+
+		this.closeRequested = true;
 	}
 }

@@ -15,6 +15,11 @@
 
 package eu.stratosphere.nephele.io.library;
 
+import java.util.Iterator;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -32,18 +37,20 @@ public class DirectoryReader extends AbstractFileInputTask {
 	// buffer
 	private byte[] buffer;
 
+	private static final Log LOG = LogFactory.getLog(DirectoryReader.class);
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void invoke() throws Exception {
 
-		final FileInputSplit[] splits = getFileInputSplits();
+		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 		FileRecord fr = null;
 
-		for (int i = 0; i < splits.length; i++) {
+		while (splitIterator.hasNext()) {
 
-			final FileInputSplit split = splits[i];
+			final FileInputSplit split = splitIterator.next();
 
 			final long start = split.getStart();
 			final long end = start + split.getLength();
@@ -58,7 +65,7 @@ public class DirectoryReader extends AbstractFileInputTask {
 						output.emit(fr);
 					} catch (InterruptedException e) {
 						// TODO: Respond to interruption properly
-						e.printStackTrace();
+						LOG.error(e);
 					}
 				}
 				fr = new FileRecord(split.getPath().getName());
@@ -85,7 +92,7 @@ public class DirectoryReader extends AbstractFileInputTask {
 				output.emit(fr);
 			} catch (InterruptedException e) {
 				// TODO: Respond to interruption properly
-				e.printStackTrace();
+				LOG.error(e);
 			}
 	}
 

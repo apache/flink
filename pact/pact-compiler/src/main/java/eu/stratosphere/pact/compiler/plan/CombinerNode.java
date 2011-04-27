@@ -56,6 +56,13 @@ public class CombinerNode extends OptimizerNode {
 			this.estimatedNumRecords = predecessor.estimatedNumRecords;
 			this.estimatedOutputSize = predecessor.estimatedOutputSize;
 		}
+		
+		// copy the child's branch-plan map
+		if (this.branchPlan == null) {
+			this.branchPlan = predecessor.branchPlan;
+		} else if (predecessor.branchPlan != null) {
+			this.branchPlan.putAll(predecessor.branchPlan);
+		}
 	}
 
 	@Override
@@ -68,8 +75,11 @@ public class CombinerNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return true;
+	public int getMemoryConsumerCount() {
+		switch(this.localStrategy) {
+			case COMBININGSORT: return 1;
+			default:	        return 0;
+		}
 	}
 
 	@Override

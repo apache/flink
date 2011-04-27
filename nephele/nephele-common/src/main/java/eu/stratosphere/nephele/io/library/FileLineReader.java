@@ -15,7 +15,8 @@
 
 package eu.stratosphere.nephele.io.library;
 
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
+import java.util.Iterator;
+
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -36,23 +37,20 @@ public class FileLineReader extends AbstractFileInputTask {
 	@Override
 	public void invoke() throws Exception {
 
-		FileInputSplit[] splits = getFileInputSplits();
+		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
 
-		int j = 0;
+		while (splitIterator.hasNext()) {
 
-		System.out.println("+++ Number of splits: " + splits.length);
-		for (int i = 0; i < splits.length; i++) {
-
-			FileInputSplit split = splits[i];
+			final FileInputSplit split = splitIterator.next();
 
 			long start = split.getStart();
 			long length = split.getLength();
 
-			FileSystem fs = FileSystem.get(split.getPath().toUri());
+			final FileSystem fs = FileSystem.get(split.getPath().toUri());
 
-			FSDataInputStream fdis = fs.open(split.getPath());
+			final FSDataInputStream fdis = fs.open(split.getPath());
 
-			LineReader lineReader = new LineReader(fdis, start, length, (1024 * 1024));
+			final LineReader lineReader = new LineReader(fdis, start, length, (1024 * 1024));
 
 			byte[] line = lineReader.readLine();
 

@@ -30,7 +30,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.JobManager;
@@ -41,9 +40,6 @@ import eu.stratosphere.pact.test.util.FileWriter;
  * @author Erik Nijkamp
  */
 public class NepheleMiniCluster {
-	private static final long DEFAULT_MEMORY_SIZE = -1;
-
-	private static final int DEFAULT_NUM_TASK_TRACKERS = 1;
 
 	private static final boolean DEFAULT_VISUALIZER_ENABLED = false;
 
@@ -53,8 +49,6 @@ public class NepheleMiniCluster {
 
 	private final String hdfsConfigDir;
 
-	private final long memorySize;
-
 	private final boolean visualizerEnabled;
 
 	private Thread runner;
@@ -62,26 +56,14 @@ public class NepheleMiniCluster {
 	private JobManager jobManager;
 
 	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir)
-																			throws Exception {
-		this(nepheleConfigDir, hdfsConfigDir, DEFAULT_NUM_TASK_TRACKERS);
-	}
-
-	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir, int numTaskTrackers)
 																									throws Exception {
-		this(nepheleConfigDir, hdfsConfigDir, numTaskTrackers, DEFAULT_MEMORY_SIZE, DEFAULT_VISUALIZER_ENABLED);
+		this(nepheleConfigDir, hdfsConfigDir, DEFAULT_VISUALIZER_ENABLED);
 	}
 
-	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir, int numTaskTrackers, long memorySize)
-																													throws Exception {
-		this(nepheleConfigDir, hdfsConfigDir, numTaskTrackers, memorySize, DEFAULT_VISUALIZER_ENABLED);
-	}
-
-	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir, int numTaskTrackers, long memorySize,
-			boolean visualizerEnabled)
+	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir, boolean visualizerEnabled)
 										throws Exception {
 		this.nepheleConfigDir = nepheleConfigDir;
 		this.hdfsConfigDir = hdfsConfigDir;
-		this.memorySize = memorySize;
 		this.visualizerEnabled = visualizerEnabled;
 
 		initJobManager();
@@ -102,30 +84,18 @@ public class NepheleMiniCluster {
 
 		// submit
 		JobClient jobClient = new JobClient(jobGraph, configuration);
-		if (!jobClient.submitJobAndWait()) {
-			throw new Exception("The job did not finish correctly.");
-		}
+		jobClient.submitJobAndWait();
 	}
 
 	// ------------------------------------------------------------------------
 	// Private methods
 	// ------------------------------------------------------------------------
 
-	private void initJobManager() throws Exception {
-		// determine memory to use. reserve about one half of the currently available memory
-		long memory = this.memorySize;
-
-		if (memory < 1) {
-			Runtime r = Runtime.getRuntime();
-			memory = r.maxMemory() - r.totalMemory() + r.freeMemory();
-			memory /= 2;
-			memory /= (1024 * 1024);
-		}
-
-		final InstanceType instanceType = new InstanceType("default-local", 1, 1, (int) memory, 1, 0);
-
+	private void initJobManager() throws Exception
+	{
 		// config
 		final String nepheleConfigDirJob = nepheleConfigDir + "/job";
+		final int jobManagerRpcPort = ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT;
 		final int rpcPort = 6501, dataPort = 7501;
 
 		new FileWriter()
@@ -159,6 +129,10 @@ public class NepheleMiniCluster {
 					"        <value>" + getLocalIpAddress() + "</value>",
 					"    </property>",
 					"    <property>",
+					"        <key>" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + "</key>",
+					"        <value>" + jobManagerRpcPort + "</value>",
+					"    </property>",
+					"    <property>",
 					"        <key>" + ConfigConstants.TASK_MANAGER_IPC_PORT_KEY + "</key>",
 					"        <value>" + rpcPort + "</value>",
 					"    </property>",
@@ -175,14 +149,6 @@ public class NepheleMiniCluster {
 					"        <value>" + (visualizerEnabled ? "true" : "false") + "</value>",
 					"    </property>",
 					"    <property>",
-					"        <key>" + ConfigConstants.JOBMANAGER_LOCALINSTANCE_TYPE_KEY + "</key>",
-					"        <value>" + instanceType.toStringRepresentation() + "</value>",
-					"    </property>",
-					"    <property>",
-					"        <key>taskmanager.memory.size</key>",
-					"        <value>" + instanceType.getMemorySize() + "</value>",
-					"    </property>",
-					"    <property>",
 					"        <key>channel.network.allowSpilling</key>",
 					"        <value>true</value>",
 					"    </property>",
@@ -192,22 +158,18 @@ public class NepheleMiniCluster {
 			.write(
 					"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
 					"<configuration>",
-					"    <property>",
-					"        <key>pact.parallelization.degree</key>",
-					"        <value>1</value>",
-					"    </property>",
-					"    <property>",
-					"        <key>pact.parallelization.intra-node-degree</key>",
-					"        <value>1</value>",
-					"    </property>",
-					"    <property>",
-					"        <key>pact.parallelization.maxmachines</key>",
-					"        <value>1</value>",
-					"    </property>",
-					"    <property>",
-					"        <key>pact.parallelization.default-instance-type</key>",
-					"        <value>" + instanceType.toStringRepresentation() + "</value>",
-					"    </property>",
+//					"    <property>",
+//					"        <key>pact.parallelization.degree</key>",
+//					"        <value>1</value>",
+//					"    </property>",
+//					"    <property>",
+//					"        <key>pact.parallelization.intra-node-degree</key>",
+//					"        <value>1</value>",
+//					"    </property>",
+//					"    <property>",
+//					"        <key>pact.parallelization.maxmachines</key>",
+//					"        <value>1</value>",
+//					"    </property>",
 					"</configuration>")
 			.close();
 
@@ -237,7 +199,7 @@ public class NepheleMiniCluster {
 	@SuppressWarnings("deprecation")
 	public void stop() throws Exception {
 		if (jobManager != null) {
-			jobManager.cleanUp();
+			jobManager.shutdown();
 		}
 
 		if (runner != null) {

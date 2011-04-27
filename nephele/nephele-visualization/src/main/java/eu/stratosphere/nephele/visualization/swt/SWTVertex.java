@@ -128,8 +128,8 @@ public class SWTVertex extends AbstractSWTVertex {
 		case FINISHED:
 			returnColor = ColorScheme.getVertexFinishedBackgroundColor(device);
 			break;
-		case CANCELLING:
-		case CANCELLED:
+		case CANCELING:
+		case CANCELED:
 			returnColor = ColorScheme.getVertexCancelBackgroundColor(device);
 			break;
 		case FAILED:

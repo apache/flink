@@ -55,6 +55,8 @@ public class PactConnection {
 	private ShipStrategy shipStrategy; // The data distribution strategy
 
 	private TempMode tempMode; // indicates whether and where the connection needs to be temped by a TempTask
+	
+	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -105,6 +107,19 @@ public class PactConnection {
 		this.targetPact = target;
 		this.shipStrategy = shipStrategy;
 		this.tempMode = tempMode;
+		
+		// set replication factor
+		// TODO: replication factor must be propagated until resolved by PACT code (i.e. Match or Cross)
+		switch (shipStrategy) {
+			case BROADCAST:
+				this.replicationFactor = target.getDegreeOfParallelism();
+				break;
+			case SFR:
+				throw new CompilerException("SFR Shipping Strategy not supported yet.");
+			default:
+				this.replicationFactor = 1;
+				break;
+		}
 	}
 
 	/**
@@ -124,6 +139,7 @@ public class PactConnection {
 		this.targetPact = target;
 
 		this.shipStrategy = template.shipStrategy;
+		this.replicationFactor = template.replicationFactor;
 		this.tempMode = template.tempMode;
 
 		this.interestingProps = template.interestingProps;
@@ -163,13 +179,38 @@ public class PactConnection {
 	 *        The shipping strategy to be applied to this connection.
 	 */
 	public void setShipStrategy(ShipStrategy strategy) {
-		// TODO: Arvid: this should be checked within the compiler
-		// // this check is for debugging purposes: it checks, that a ship strategy (other than none)
-		// // is not changed by the compiler
-		// if (this.shipStrategy != ShipStrategy.NONE && this.shipStrategy != strategy) {
-		// throw new CompilerException("Internal error: Compiler attempts to change a fixed shipping strategy.");
-		// }
-
+		// adjust the ship strategy to the interesting properties, if necessary
+		if (strategy == ShipStrategy.FORWARD && sourcePact.getDegreeOfParallelism() < targetPact.getDegreeOfParallelism()) {
+			// check, whether we have an interesting property on partitioning. if so, make sure that we use a
+			// forward strategy that preserves that partitioning by locally routing the keys correctly
+			if (this.interestingProps != null) {
+				for (InterestingProperties props : this.interestingProps) {
+					PartitionProperty pp = props.getGlobalProperties().getPartitioning();
+					if (pp == PartitionProperty.HASH_PARTITIONED || pp == PartitionProperty.ANY) {
+						strategy = ShipStrategy.PARTITION_LOCAL_HASH;
+						break;
+					}
+					else if (pp == PartitionProperty.RANGE_PARTITIONED) {
+						throw new CompilerException("Range partitioning during forwards with changing degree " +
+								"of parallelism is currently not handled!");
+					}
+				}
+			}
+		}
+		
+		// set the replication factor of this connection
+		// TODO: replication factor must be propagated until resolved by PACT code (i.e. Match or Cross)
+		switch (strategy) {
+			case BROADCAST:
+				this.replicationFactor = targetPact.getDegreeOfParallelism();
+				break;
+			case SFR:
+				throw new CompilerException("SFR Shipping Strategy not supported yet.");
+			default:
+				this.replicationFactor = 1;
+				break;
+		}
+		
 		this.shipStrategy = strategy;
 	}
 
@@ -241,6 +282,15 @@ public class PactConnection {
 	public void setTempMode(TempMode tempMode) {
 		this.tempMode = tempMode;
 	}
+	
+	/**
+	 * Returns the replication factor of the connection.
+	 * 
+	 * @return The replication factor of the connection.
+	 */
+	public int getReplicationFactor() {
+		return this.replicationFactor;
+	}
 
 	/**
 	 * Gets the global properties of the data after this connection.
@@ -248,7 +298,7 @@ public class PactConnection {
 	 * @return The global data properties of the output data.
 	 */
 	public GlobalProperties getGlobalProperties() {
-		return PactConnection.getGlobalPropertiesAfterConnection(sourcePact, shipStrategy);
+		return PactConnection.getGlobalPropertiesAfterConnection(sourcePact, targetPact, shipStrategy);
 	}
 
 	/**
@@ -257,7 +307,7 @@ public class PactConnection {
 	 * @return The local data properties of the output data.
 	 */
 	public LocalProperties getLocalProperties() {
-		return PactConnection.getLocalPropertiesAfterConnection(sourcePact, shipStrategy);
+		return PactConnection.getLocalPropertiesAfterConnection(sourcePact, targetPact, shipStrategy);
 	}
 
 	/*
@@ -304,7 +354,7 @@ public class PactConnection {
 	 * 
 	 * @return The properties of the data after this channel.
 	 */
-	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, ShipStrategy shipMode) {
+	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
 
 		switch (shipMode) {
@@ -319,7 +369,10 @@ public class PactConnection {
 			gp.setKeyOrder(Order.NONE);
 			break;
 		case FORWARD:
-			// nothing changes
+			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
+				gp.setKeyOrder(Order.NONE);
+			}
+			// nothing else changes
 			break;
 		case NONE:
 			throw new CompilerException(
@@ -338,12 +391,21 @@ public class PactConnection {
 	 * 
 	 * @return The properties of the data after a channel using the given strategy.
 	 */
-	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, ShipStrategy shipMode) {
+	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		LocalProperties lp = source.getLocalProperties().createCopy();
 
 		if (shipMode == null || shipMode == ShipStrategy.NONE) {
 			throw new CompilerException("Cannot determine properties if shipping strategy is not defined.");
-		} else if (shipMode != ShipStrategy.FORWARD) {
+		}
+		else if (shipMode == ShipStrategy.FORWARD) {
+			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
+				// any order is destroyed by the random merging of the inputs
+				lp.setKeyOrder(Order.NONE);
+				// keys are only grouped if they are unique
+				lp.setKeysGrouped(lp.isKeyUnique());
+			}
+		}
+		else {
 			lp.reset();
 		}
 

@@ -21,37 +21,32 @@ import java.net.InetSocketAddress;
 
 import org.junit.Test;
 
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cloud.CloudInstance;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 public class CloudInstanceTest {
 
-	@Test
-	public void testGetUniqueFilename() {
-
+	private CloudInstance constructSmallCloudInstance() {
+		
 		final NetworkTopology networkTopology = NetworkTopology.createEmptyTopology();
-
-		final CloudInstance ci = new CloudInstance("i-1234ABCD", new InstanceType("m1.small", 1, 1, 2048, 40, 10),
+		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(1, 2048L*1024L*1024L, 2048L*1024L*1024L);
+		
+		final CloudInstance cloudInstance = new CloudInstance("i-1234ABCD",
+			InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),
 			"wenjun", new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121),
-			1234567890, networkTopology.getRootNode(), networkTopology);
-
-		ChannelID id = new ChannelID();
-		String filename = ci.getUniqueFilename(id);
-
-		assertEquals(filename, ci.getUniqueFilename(id));
+			1234567890, networkTopology.getRootNode(), networkTopology, hardwareDescription);
+		
+		return cloudInstance;
 	}
-
+	
 	@Test
 	public void testHeartBeat() {
 
-		final NetworkTopology networkTopology = NetworkTopology.createEmptyTopology();
-
-		final CloudInstance ci = new CloudInstance("i-1234ABCD", new InstanceType("m1.small", 1, 1, 2048, 40, 10),
-			"wenjun", new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121),
-			System.currentTimeMillis(), networkTopology.getRootNode(), networkTopology);
+		final CloudInstance ci = constructSmallCloudInstance();
 
 		long lastHeartBeat = ci.getLastReceivedHeartBeat();
 		try {

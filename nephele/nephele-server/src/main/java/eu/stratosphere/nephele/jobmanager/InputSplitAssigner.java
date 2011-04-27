@@ -24,6 +24,8 @@ import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.template.InputSplit;
 
 //TODO: Make this pluggable
@@ -41,7 +43,7 @@ public class InputSplitAssigner {
 	 * 
 	 * @author fhueske
 	 */
-	private class QueueElem implements Comparable<QueueElem> {
+	private static class QueueElem implements Comparable<QueueElem> {
 		private long noAssignedSplits;
 
 		private long noLocalSplits;
@@ -85,8 +87,10 @@ public class InputSplitAssigner {
 		}
 
 		public boolean hostsSplit(String[] splitLocations) {
+
 			String hostName = this.vertex.getAllocatedResource().getInstance().getInstanceConnectionInfo()
 				.getHostName();
+
 			for (int i = 0; i < splitLocations.length; i++) {
 				if (hostName.toLowerCase().equals(splitLocations[i].toLowerCase())) {
 					return true;
@@ -116,16 +120,18 @@ public class InputSplitAssigner {
 
 	private PriorityQueue<QueueElem> vertexPrioQueue = new PriorityQueue<QueueElem>();
 
-	private Log LOG = LogFactory.getLog(InputSplitAssigner.class);
+	private final Log LOG = LogFactory.getLog(InputSplitAssigner.class);
 
 	/**
 	 * Assigns input splits to all tasks of an ExecutionVertex
 	 * 
 	 * @param vertex
 	 *        ExecutionVertex for which InputSplits will be assigned
+	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not yet
+	 *         been assigned to a real instance, <code>true/code> otherwise
 	 * @throws ExecutionFailureException
 	 */
-	public static void assignInputSplits(ExecutionVertex vertex) throws ExecutionFailureException {
+	public static boolean assignInputSplits(ExecutionVertex vertex) throws ExecutionFailureException {
 
 		if (!vertex.isInputVertex()) {
 			throw new ExecutionFailureException("Trying to assign splits to a NOT-InputSplit");
@@ -135,7 +141,7 @@ public class InputSplitAssigner {
 			instance = new InputSplitAssigner();
 		}
 
-		instance.assignInputSplits(vertex.getGroupVertex());
+		return instance.assignInputSplits(vertex.getGroupVertex());
 	}
 
 	/*
@@ -174,14 +180,18 @@ public class InputSplitAssigner {
 
 		// for each ExecutionVertex
 		while (this.vertexPrioQueue.size() > 0) {
-			QueueElem topElem = this.vertexPrioQueue.poll();
+
+			final QueueElem topElem = this.vertexPrioQueue.poll();
 			// check if vertex has an input split assigned
 			if (topElem.getNoAssignedSplits() == 0) {
-				throw new ExecutionFailureException("Execution vertex "
-					+ topElem.getVertex().getName()
-					+ " on "
-					+ topElem.getVertex().getAllocatedResource().getInstance().getInstanceConnectionInfo()
-						.getHostName() + " (" + topElem.getVertex().getID() + ") has no input split assigned");
+				/*
+				 * throw new ExecutionFailureException("Execution vertex "
+				 * + topElem.getVertex().getName()
+				 * + " on "
+				 * + topElem.getVertex().getAllocatedResource().getInstance().getInstanceConnectionInfo()
+				 * .getHostName() + " (" + topElem.getVertex().getID() + ") has no input split assigned");
+				 */
+				continue;
 			}
 			LOG.info(topElem.getNoAssignedSplits() + ": "
 				+ topElem.getVertex().getAllocatedResource().getInstance().getInstanceConnectionInfo().getHostName());
@@ -207,15 +217,16 @@ public class InputSplitAssigner {
 	private void addFileSplit(InputSplit inputSplit) throws ExecutionFailureException {
 
 		// get locations of the split
-		String[] splitLocations = inputSplit.getHostNames();
+		final String[] splitLocations = inputSplit.getHostNames();
 
 		// check that the split has at least one location
-		if (splitLocations.length == 0)
+		if (splitLocations.length == 0 && inputSplit.getLength() > 0) {
 			throw new ExecutionFailureException("No known location for input splits " + inputSplit);
+		}
 
 		boolean added = false;
 		// temp PriorityQueue
-		PriorityQueue<QueueElem> newVertexPrioQueue = new PriorityQueue<QueueElem>();
+		final PriorityQueue<QueueElem> newVertexPrioQueue = new PriorityQueue<QueueElem>();
 
 		// for each Vertex in the PrioQueue
 		while (this.vertexPrioQueue.size() > 0) {
@@ -242,7 +253,7 @@ public class InputSplitAssigner {
 			// priority queue was fully read but split was not assigned
 			// -> split cannot be locally read by any vertex
 			// assign split to the top element of the queue (vertex with least assigned splits)
-			QueueElem topElem = newVertexPrioQueue.poll();
+			final QueueElem topElem = newVertexPrioQueue.poll();
 			topElem.assignInputSplit(inputSplit);
 			newVertexPrioQueue.add(topElem);
 		}
@@ -257,12 +268,22 @@ public class InputSplitAssigner {
 	 *        ExecutionGraph the ExecutionGroupVertex belongs to
 	 * @param groupVertex
 	 *        ExecutionGroupVertex who's InputSplits will be assigned
+	 * @return <code>false</code> if the instance assignment could not be done because at least one vertex has not yet
+	 *         been assigned to a real instance, <code>true/code> otherwise
 	 * @throws ExecutionFailureException
 	 */
-	private void assignInputSplits(ExecutionGroupVertex groupVertex) throws ExecutionFailureException {
+	private boolean assignInputSplits(ExecutionGroupVertex groupVertex) throws ExecutionFailureException {
+
+		for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
+
+			final AllocatedResource ar = groupVertex.getGroupMember(i).getAllocatedResource();
+			if (ar.getInstance() instanceof DummyInstance) {
+				return false;
+			}
+		}
 
 		// get all InputSplits
-		InputSplit[] inputSplits = groupVertex.getInputSplits();
+		final InputSplit[] inputSplits = groupVertex.getInputSplits();
 		// check that there are InputSplits
 		if (inputSplits == null) {
 			throw new ExecutionFailureException("Group vertex" + groupVertex.getName()
@@ -286,6 +307,8 @@ public class InputSplitAssigner {
 
 		// empty prio queue for next assignment
 		vertexPrioQueue.clear();
+
+		return true;
 	}
 
 }

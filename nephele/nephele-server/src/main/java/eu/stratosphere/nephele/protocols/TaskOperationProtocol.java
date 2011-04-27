@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
+import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
@@ -85,4 +86,23 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
+
+	/**
+	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
+	 * 
+	 * @param listOfVertexIDs
+	 *        the list of vertex IDs which identify the checkpoints to be removed
+	 * @throws IOException
+	 *         if an error occurs during this remote procedure call
+	 */
+	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
+
+	/**
+	 * Triggers the task manager write the current utilization of its read and write buffers to its logs.
+	 * This method is primarily for debugging purposes.
+	 * 
+	 * @throws IOException
+	 *         throws if an error occurs while transmitting the request
+	 */
+	void logBufferUtilization() throws IOException;
 }

@@ -17,6 +17,7 @@ package eu.stratosphere.pact.common.type.base;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
@@ -47,7 +48,7 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testN_Integer() {
+	public void testPactInteger() {
 		PactInteger int0 = new PactInteger(10);
 		// test value retrieval
 		Assert.assertEquals(10, int0.getValue());
@@ -76,13 +77,14 @@ public class PrimitiveDataTypeTest {
 			Assert.assertEquals(int2.getValue(), int2n.getValue());
 			Assert.assertEquals(int3.compareTo(int3n), 0);
 			Assert.assertEquals(int3.getValue(), int3n.getValue());
-		} catch (Exception e) {
-			Assert.assertTrue(false);
+		}
+		catch (Exception e) {
+			Assert.fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testN_Double() {
+	public void testPactDouble() {
 		PactDouble double0 = new PactDouble(10.2);
 		// test value retrieval
 		Assert.assertEquals(10.2, double0.getValue());
@@ -117,7 +119,7 @@ public class PrimitiveDataTypeTest {
 	}
 
 	@Test
-	public void testN_String() {
+	public void testPactString() {
 		PactString string0 = new PactString("This is a test");
 		// test value retrieval
 		Assert.assertEquals("This is a test", string0.toString());
@@ -149,6 +151,39 @@ public class PrimitiveDataTypeTest {
 			Assert.assertEquals(string3.toString(), string3n.toString());
 		} catch (Exception e) {
 			Assert.assertTrue(false);
+		}
+	}
+	
+	@Test
+	public void testPactNull() {
+		
+		final PactNull pn1 = new PactNull();
+		final PactNull pn2 = new PactNull();
+		
+		Assert.assertEquals("PactNull not equal to other PactNulls.", pn1, pn2);
+		Assert.assertEquals("PactNull not equal to other PactNulls.", pn2, pn1);
+		
+		Assert.assertFalse("PactNull equal to other null.", pn1.equals(null));
+		
+		// test serialization
+		final PactNull pn = new PactNull();
+		final int numWrites = 13;
+		
+		try {
+			// write it multiple times
+			for (int i = 0; i < numWrites; i++) {
+				pn.write(mOut);
+			}
+			
+			// read it multiple times
+			for (int i = 0; i < numWrites; i++) {
+				pn.read(mIn);
+			}
+			
+			Assert.assertEquals("Reading PactNull does not consume the same data as was written.", mIn.available(), 0);
+		}
+		catch (IOException ioex) {
+			Assert.fail("An exception occurred in the testcase: " + ioex.getMessage());
 		}
 	}
 

@@ -94,8 +94,8 @@ public class MapNode extends SingleInputNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
+	public int getMemoryConsumerCount() {
+		return 0;
 	}
 
 	/*
@@ -138,11 +138,18 @@ public class MapNode extends SingleInputNode {
 				}
 			}
 
-			// estimate the number of rows
 			this.estimatedNumRecords = -1;
-			if (hints.getSelectivity() > 0.0f && pred.estimatedNumRecords != -1) {
-				this.estimatedNumRecords = (long) (pred.estimatedNumRecords * hints.getSelectivity()) + 1;
-
+			// estimate the number of rows
+			if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
+				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
+			} else if (pred.estimatedNumRecords >= 0){
+				// estimate number of stub calls
+				long estNumStubCalls = pred.estimatedNumRecords;
+			
+				// estimate number of emitted rows
+				this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
+				
+				// if we have the records and a values/key hints, use that to reversely estimate the number of keys
 				if (hints.getAvgNumValuesPerKey() >= 1.0f) {
 					long v = (long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) + 1;
 					if (this.estimatedKeyCardinality == -1) {
@@ -151,11 +158,7 @@ public class MapNode extends SingleInputNode {
 						this.estimatedKeyCardinality = Math.min(this.estimatedKeyCardinality, v);
 					}
 				}
-			} else if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
-				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-			} else {
-				// we assume that the data size of the mapper is non-increasing
-				this.estimatedNumRecords = pred.estimatedNumRecords;
+				
 			}
 
 			// estimate the output size
@@ -241,8 +244,8 @@ public class MapNode extends SingleInputNode {
 
 			ShipStrategy ss = input.getShipStrategy() == ShipStrategy.NONE ? ShipStrategy.FORWARD : input
 				.getShipStrategy();
-			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, ss);
-			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, ss);
+			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
+			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
 
 			// we take each input and add a mapper to it
 			// the properties of the inputs are copied
@@ -251,8 +254,8 @@ public class MapNode extends SingleInputNode {
 
 			// now, the properties (copied from the inputs) are filtered by the
 			// output contracts
-			nMap.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-			nMap.getLocalProperties().getPreservedAfterContract(getOutputContract());
+			nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
+			nMap.getLocalProperties().filterByOutputContract(getOutputContract());
 
 			// copy the cumulative costs and set the costs of the map itself to zero
 			estimator.costOperator(nMap);

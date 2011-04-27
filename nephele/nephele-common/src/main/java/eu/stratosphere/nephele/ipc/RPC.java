@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.ipc;
 
 import java.io.DataInput;
@@ -32,7 +38,6 @@ import java.util.HashMap;
 import javax.net.SocketFactory;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.metrics.util.MetricsTimeVaryingRate;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -64,12 +69,14 @@ public class RPC {
 
 	/** A method invocation, including the method name and its parameters. */
 	private static class Invocation implements IOReadableWritable {
+
 		private String methodName;
 
 		private Class<? extends IOReadableWritable>[] parameterClasses;
 
 		private IOReadableWritable[] parameters;
 
+		@SuppressWarnings("unused")
 		public Invocation() {
 		}
 
@@ -99,14 +106,15 @@ public class RPC {
 		// TODO: See if type safety can be improved here
 		@SuppressWarnings("unchecked")
 		public void read(DataInput in) throws IOException {
-			methodName = StringRecord.readString(in);
-			parameters = new IOReadableWritable[in.readInt()];
-			parameterClasses = new Class[parameters.length];
+
+			this.methodName = StringRecord.readString(in);
+			this.parameters = new IOReadableWritable[in.readInt()];
+			this.parameterClasses = new Class[parameters.length];
 
 			for (int i = 0; i < parameters.length; i++) {
 
 				// Read class name for parameter and try to get class to that name
-				String className = StringRecord.readString(in);
+				final String className = StringRecord.readString(in);
 				try {
 					parameterClasses[i] = ClassUtils.getRecordByName(className);
 				} catch (ClassNotFoundException cnfe) {
@@ -114,14 +122,18 @@ public class RPC {
 				}
 
 				// See if parameter is null
-				boolean isNonNull = in.readBoolean();
-				if (isNonNull) {
+				if (in.readBoolean()) {
 					try {
-						parameters[i] = parameterClasses[i].newInstance();
+						final String parameterClassName = StringRecord.readString(in);
+						final Class<? extends IOReadableWritable> parameterClass = ClassUtils
+							.getRecordByName(parameterClassName);
+						parameters[i] = parameterClass.newInstance();
 					} catch (IllegalAccessException iae) {
 						throw new IOException(iae.toString());
 					} catch (InstantiationException ie) {
 						throw new IOException(ie.toString());
+					} catch (ClassNotFoundException cnfe) {
+						throw new IOException(cnfe.toString());
 					}
 					// Object will do everything else on its own
 					parameters[i].read(in);
@@ -140,6 +152,7 @@ public class RPC {
 					out.writeBoolean(false);
 				} else {
 					out.writeBoolean(true);
+					StringRecord.writeString(out, parameters[i].getClass().getName());
 					parameters[i].write(out);
 				}
 			}
@@ -221,11 +234,6 @@ public class RPC {
 
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 
-			final boolean logDebug = LOG.isDebugEnabled();
-			long startTime = 0;
-			if (logDebug) {
-				startTime = System.currentTimeMillis();
-			}
 			// TODO clean up
 			IOReadableWritable[] castArgs = null;
 			if (args != null) {
@@ -240,20 +248,17 @@ public class RPC {
 						castArgs[i] = (IOReadableWritable) args[i];
 				}
 			}
-			IOReadableWritable value = client.call(new Invocation(method, castArgs), address, method
+			final IOReadableWritable value = this.client.call(new Invocation(method, castArgs), this.address, method
 				.getDeclaringClass());
-			if (logDebug) {
-				long callTime = System.currentTimeMillis() - startTime;
-				LOG.debug("Call: " + method.getName() + " " + callTime);
-			}
+
 			return value;
 		}
 
 		/* close the IPC client that's responsible for this invoker's RPCs */
 		synchronized private void close() {
-			if (!isClosed) {
-				isClosed = true;
-				CLIENTS.stopClient(client);
+			if (!this.isClosed) {
+				this.isClosed = true;
+				CLIENTS.stopClient(this.client);
 			}
 		}
 	}
@@ -348,15 +353,13 @@ public class RPC {
 	 * port and address.
 	 */
 	public static Server getServer(final Object instance, final String bindAddress, final int port,
-			final int numHandlers, final boolean verbose) throws IOException {
-		return new Server(instance, bindAddress, port, numHandlers, verbose);
+			final int numHandlers) throws IOException {
+		return new Server(instance, bindAddress, port, numHandlers);
 	}
 
 	/** An RPC Server. */
 	public static class Server extends eu.stratosphere.nephele.ipc.Server {
 		private Object instance;
-
-		private boolean verbose;
 
 		/**
 		 * Construct an RPC server.
@@ -372,7 +375,7 @@ public class RPC {
 		 */
 		public Server(Object instance, String bindAddress, int port)
 																	throws IOException {
-			this(instance, bindAddress, port, 1, false);
+			this(instance, bindAddress, port, 1);
 		}
 
 		private static String classNameBase(String className) {
@@ -396,69 +399,41 @@ public class RPC {
 		 *        the port to listen for connections on
 		 * @param numHandlers
 		 *        the number of method handler threads to run
-		 * @param verbose
-		 *        whether each call should be logged
 		 */
-		public Server(Object instance, String bindAddress, int port, int numHandlers, boolean verbose)
-																										throws IOException {
+		public Server(Object instance, String bindAddress, int port, int numHandlers) throws IOException {
 			super(bindAddress, port, Invocation.class, numHandlers, classNameBase(instance.getClass().getName()));
 			this.instance = instance;
-			this.verbose = verbose;
 		}
 
 		public IOReadableWritable call(Class<?> protocol, IOReadableWritable param, long receivedTime)
 				throws IOException {
+			
 			try {
-				Invocation call = (Invocation) param;
-				if (verbose)
-					log("Call: " + call);
-
-				Method method = protocol.getMethod(call.getMethodName(), call.getParameterClasses());
+				
+				final Invocation call = (Invocation) param;
+				
+				final Method method = protocol.getMethod(call.getMethodName(), call.getParameterClasses());
 				method.setAccessible(true);
 
-				long startTime = System.currentTimeMillis();
-				Object value = method.invoke((Object) instance, (Object[]) call.getParameters());
-
-				int processingTime = (int) (System.currentTimeMillis() - startTime);
-				int qTime = (int) (startTime - receivedTime);
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Served: " + call.getMethodName() + " queueTime= " + qTime + " procesingTime= "
-						+ processingTime);
-				}
-				rpcMetrics.rpcQueueTime.inc(qTime);
-				rpcMetrics.rpcProcessingTime.inc(processingTime);
-
-				MetricsTimeVaryingRate m = (MetricsTimeVaryingRate) rpcMetrics.registry.get(call.getMethodName());
-				if (m == null) {
-					m = new MetricsTimeVaryingRate(call.getMethodName(), rpcMetrics.registry);
-				}
-				m.inc(processingTime);
-
-				if (verbose)
-					log("Return: " + value);
+				final Object value = method.invoke((Object) instance, (Object[]) call.getParameters());
 
 				return (IOReadableWritable) value;
 
 			} catch (InvocationTargetException e) {
-				Throwable target = e.getTargetException();
+				
+				final Throwable target = e.getTargetException();
 				if (target instanceof IOException) {
 					throw (IOException) target;
 				} else {
-					IOException ioe = new IOException(target.toString());
+					final IOException ioe = new IOException(target.toString());
 					ioe.setStackTrace(target.getStackTrace());
 					throw ioe;
 				}
 			} catch (Throwable e) {
-				IOException ioe = new IOException(e.toString());
+				final IOException ioe = new IOException(e.toString());
 				ioe.setStackTrace(e.getStackTrace());
 				throw ioe;
 			}
 		}
-	}
-
-	private static void log(String value) {
-		if (value != null && value.length() > 55)
-			value = value.substring(0, 55) + "...";
-		LOG.info(value);
 	}
 }

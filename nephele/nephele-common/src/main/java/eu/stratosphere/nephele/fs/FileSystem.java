@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.fs;
 
 import java.io.FileNotFoundException;
@@ -76,6 +82,9 @@ public abstract class FileSystem {
 			this.authority = authority;
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
 		public boolean equals(Object obj) {
 
@@ -103,6 +112,23 @@ public abstract class FileSystem {
 			}
 
 			return false;
+		}
+		
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public int hashCode() {
+			
+			if(this.scheme != null) {
+				return this.scheme.hashCode();
+			}
+			
+			if(this.authority != null) {
+				return this.authority.hashCode();
+			}
+			
+			return super.hashCode();
 		}
 	}
 

@@ -19,11 +19,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionNotifiable;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
-public class EnvironmentListenerImpl implements ExecutionNotifiable {
+public class EnvironmentListenerImpl implements ExecutionListener {
 
 	private static final Log LOG = LogFactory.getLog(EnvironmentListenerImpl.class);
 
@@ -38,39 +38,6 @@ public class EnvironmentListenerImpl implements ExecutionNotifiable {
 		this.executionVertexID = id;
 	}
 
-	/*
-	 * public void reportCPUUtilization(long timestamp, long totalCPUTime, long totalCPUUserTime, long totalCPUWaitTime,
-	 * long totalCPUBlockTime) {
-	 * //Check if the received values are valid
-	 * if(totalCPUTime < 0 || totalCPUUserTime < 0 || totalCPUWaitTime < 0 || totalCPUBlockTime < 0) {
-	 * return;
-	 * }
-	 * //Calculate the length of the measured interval
-	 * final long interval = (timestamp - this.lastTimestamp);
-	 * final long cputime = totalCPUTime - this.lastTotalCPUTime;
-	 * final long usrtime = totalCPUUserTime - this.lastTotalCPUUserTime;
-	 * final long systime = cputime - usrtime;
-	 * final long waitime = totalCPUWaitTime - this.lastTotalCPUWaitTime;
-	 * final long blktime = totalCPUBlockTime - this.lastTotalCPUBlockTime;
-	 * final InternalExecutionVertexThreadProfilingData threadData = new InternalExecutionVertexThreadProfilingData(
-	 * this.environment.getJobID(),
-	 * this.executionVertexID,
-	 * (int) interval,
-	 * (int) ((usrtime*PERCENT)/interval),
-	 * (int) ((systime*PERCENT)/interval),
-	 * (int) ((blktime*PERCENT)/interval),
-	 * (int) ((waitime*PERCENT)/interval));
-	 * //Publish thread profiling data
-	 * this.taskManagerProfiler.publishProfilingData(threadData);
-	 * //Finally, prepare for next call of this method
-	 * this.lastTimestamp = timestamp;
-	 * this.lastTotalCPUTime = totalCPUTime;
-	 * this.lastTotalCPUUserTime = totalCPUUserTime;
-	 * this.lastTotalCPUWaitTime = totalCPUWaitTime;
-	 * this.lastTotalCPUBlockTime = totalCPUBlockTime;
-	 * }
-	 */
-
 	/**
 	 * {@inheritDoc}
 	 */
@@ -84,12 +51,13 @@ public class EnvironmentListenerImpl implements ExecutionNotifiable {
 			break;
 		case FINISHING:
 		case FINISHED:
-		case CANCELLED:
+		case CANCELING:
+		case CANCELED:
 		case FAILED:
 			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(ee, ee.getExecutingThread());
 			break;
 		default:
-			LOG.error("Unexpected state transition to " + " for vertex " + this.executionVertexID);
+			LOG.error("Unexpected state transition to " + newExecutionState + " for vertex " + this.executionVertexID);
 			break;
 		}
 	}

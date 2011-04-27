@@ -65,7 +65,9 @@ public class CompressionLoader {
 					continue;
 				}
 
-				LOG.debug("Trying to load compression library " + libraryClass);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Trying to load compression library " + libraryClass);
+				}
 				final CompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
 				if (compressionLibrary == null) {
 					LOG.error("Cannot load " + libraryClass);
@@ -82,9 +84,11 @@ public class CompressionLoader {
 	/**
 	 * Returns the path to the native libraries or <code>null</code> if an error occurred.
 	 * 
+	 * @param libraryClass
+	 *        the name of this compression library's wrapper class including full package name
 	 * @return the path to the native libraries or <code>null</code> if an error occurred
 	 */
-	private static String getNativeLibraryPath() {
+	private static String getNativeLibraryPath(final String libraryClass) {
 
 		final ClassLoader cl = ClassLoader.getSystemClassLoader();
 		if (cl == null) {
@@ -92,11 +96,10 @@ public class CompressionLoader {
 			return null;
 		}
 
-		final String classLocation = "eu/stratosphere/nephele/io/compression/library/zlib/ZlibLibrary.class"; // TODO:
-		// Use
-		// other
-		// class
-		// here
+		final String classLocation = libraryClass.replace('.', '/') + ".class";
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Class location is " + classLocation);
+		}
 
 		final URL location = cl.getResource(classLocation);
 		if (location == null) {
@@ -105,7 +108,6 @@ public class CompressionLoader {
 		}
 
 		final String locationString = location.toString();
-		// System.out.println("LOCATION: " + locationString);
 		if (locationString.contains(".jar!")) { // Class if inside of a deployed jar file
 
 			// Create and return path to native library cache
@@ -144,109 +146,6 @@ public class CompressionLoader {
 		}
 	}
 
-	/**
-	 * Initialize the CompressionLoader, load all native compression libraries and prepare Compression-Decision-Model.
-	 */
-	/*
-	 * public static void init2() {
-	 * init();
-	 * String compressionTrainingFile = GlobalConfiguration.getString("taskmanager.compression.trainingfile.default",
-	 * "/home/akli/uni/diplom/nephele-new/nephele/nephele-common/src/native/default_compression_training_data.dat");
-	 * String compressionDecisionModel =
-	 * GlobalConfiguration.getString("taskmanager.compression.decisionmodel.classname",
-	 * "eu.stratosphere.nephele.io.compression.dynamic.TestModel");
-	 * if(GlobalConfiguration.getBoolean(ENABLE_THROUGHPUT_ANALYZER_KEY, false)) {
-	 * final String address = GlobalConfiguration.getString(THROUGHPUT_ANALYZER_IPC_ADDRESS_KEY,
-	 * DEFAULT_THROUGHPUT_ANALYZER_IPC_ADDRESS);
-	 * final int port = GlobalConfiguration.getInteger(THROUGHPUT_ANALYZER_IPC_PORT_KEY,
-	 * DEFAULT_THROUGHPUT_ANALYZER_IPC_PORT);
-	 * InetSocketAddress throughputAnalyzerAddress = new InetSocketAddress(address, port);
-	 * //Try to create local stub for the ThroughputAnalyzer
-	 * ThroughputAnalyzerProtocol throughput = null; //TODO: Fix me
-	 * try {
-	 * throughput = (ThroughputAnalyzerProtocol) RPC.getProxy(ThroughputAnalyzerProtocol.class,
-	 * throughputAnalyzerAddress, NetUtils.getSocketFactory());
-	 * } catch (IOException e) {
-	 * LOG.error("Error during load of ThroughputAnalyzer");
-	 * LOG.error(StringUtils.stringifyException(e));
-	 * //System.exit(FAILURERETURNCODE);
-	 * }
-	 * throughputAnalyzer = throughput;
-	 * LOG.info("ThroughputAnalyzer loaded!");
-	 * }
-	 * //initCompressionDecisionModel(compressionDecisionModel, compressionTrainingFile); //TODO: Fix me
-	 * }
-	 */
-
-	/*
-	 * public static void initCompressionDecisionModel(String modelName, String pathToTrainingFile){
-	 * if (modelName.compareTo(IOWaitModel.class.getName()) == 0){
-	 * if (instance != null && initWithProfiler(instance)){
-	 * decisionModel = DecisionModel.IOWAIT_MODEL;
-	 * LOG.info("CompressionLoader: Using IOWaitModel for Dynamic Compression.");
-	 * }else{
-	 * decisionModel = DecisionModel.TEST_MODEL;
-	 * LOG.warn(
-	 * "CompressionLoader: Could not load IOWaitModel for Dynamic Compression - Using TestModel with Lzo Compression.");
-	 * }
-	 * }else if (modelName.compareTo(ThroughputModel.class.getName()) == 0){
-	 * if (throughputAnalyzer != null){
-	 * decisionModel = DecisionModel.THROUGHPUT_MODEL;
-	 * LOG.info("CompressionLoader: Using ThroughputModel for Dynamic Compression.");
-	 * }else{
-	 * decisionModel = DecisionModel.TEST_MODEL;
-	 * LOG.warn(
-	 * "CompressionLoader: Could not load ThroughputModel for Dynamic Compression - Using TestModel with Lzo Compression."
-	 * );
-	 * }
-	 * }else if (modelName.compareTo(ExtendedThroughputModel.class.getName()) == 0){
-	 * if (throughputAnalyzer != null){
-	 * decisionModel = DecisionModel.EXTENDED_THROUGHPUT_MODEL;
-	 * LOG.info("CompressionLoader: Using ExtendedThroughputModel for Dynamic Compression.");
-	 * }else{
-	 * decisionModel = DecisionModel.TEST_MODEL;
-	 * LOG.warn(
-	 * "CompressionLoader: Could not load ExtendedThroughputModel for Dynamic Compression - Using TestModel with Lzo Compression."
-	 * );
-	 * }
-	 * }else if (modelName.compareTo(NumericModel.class.getName()) == 0){
-	 * if (instance != null && initWithProfiler(instance)){
-	 * decisionModel = DecisionModel.NUMERIC_MODEL;
-	 * LOG.info("CompressionLoader: Using NumericModel for Dynamic Compression.");
-	 * }else{
-	 * decisionModel = DecisionModel.TEST_MODEL;
-	 * LOG.warn(
-	 * "CompressionLoader: Could not load NumericModel for Dynamic Compression - Using TestModel with Lzo Compression."
-	 * );
-	 * }
-	 * }else if (modelName.compareTo(TrainedModel.class.getName()) == 0){
-	 * if (pathToTrainingFile != null && initWithTrainingset(pathToTrainingFile)){
-	 * decisionModel = DecisionModel.TRAINED_MODEL;
-	 * LOG.info("CompressionLoader: Using TrainedModel for Dynamic Compression.");
-	 * }else{
-	 * decisionModel = DecisionModel.TEST_MODEL;
-	 * LOG.warn(
-	 * "CompressionLoader: Could not load TrainedModel for Dynamic Compression - Using TestModel with Lzo Compression."
-	 * );
-	 * }
-	 * }else if (modelName.compareTo(ExtendedTrainedModel.class.getName()) == 0){
-	 * if (pathToTrainingFile != null && initWithTrainingset(pathToTrainingFile) && throughputAnalyzer != null){
-	 * decisionModel = DecisionModel.EXTENDED_TRAINED_MODEL;
-	 * LOG.info("CompressionLoader: Using ExtendedTrainedModel for Dynamic Compression.");
-	 * }else{
-	 * decisionModel = DecisionModel.TEST_MODEL;
-	 * LOG.warn(
-	 * "CompressionLoader: Could not load ExtendedTrainedModel for Dynamic Compression - Using TestModel with Lzo Compression."
-	 * );
-	 * }
-	 * }else{
-	 * LOG.info("DecisionModel for Dynamic Compression not set or unknown ( " + modelName +
-	 * " ) - Using TestModel with Lzo Compression.");
-	 * decisionModel = DecisionModel.TEST_MODEL;
-	 * }
-	 * }
-	 */
-
 	@SuppressWarnings("unchecked")
 	private static CompressionLibrary initCompressionLibrary(String libraryClass) {
 
@@ -281,54 +180,23 @@ public class CompressionLoader {
 		CompressionLibrary compressionLibrary;
 
 		try {
-			compressionLibrary = constructor.newInstance(getNativeLibraryPath());
+			compressionLibrary = constructor.newInstance(getNativeLibraryPath(libraryClass));
 		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		} catch (InstantiationException e) {
-			e.printStackTrace();
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		} catch (InvocationTargetException e) {
-			e.printStackTrace();
-			LOG.error(e);
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
 		}
 
 		return compressionLibrary;
 	}
-
-	/*
-	 * private static boolean initWithTrainingset(String fileName){
-	 * File f = new File(fileName);
-	 * if (f.exists() && f.isFile()){
-	 * FileInputStream fis;
-	 * ObjectInputStream ois;
-	 * try {
-	 * fis = new FileInputStream(f);
-	 * ois = new ObjectInputStream(fis);
-	 * trainingSet = (TrainingResults) ois.readObject();
-	 * ois.close();
-	 * return true;
-	 * } catch (FileNotFoundException e1) {
-	 * // TODO Auto-generated catch block
-	 * e1.printStackTrace();
-	 * } catch (IOException e2) {
-	 * // TODO Auto-generated catch block
-	 * e2.printStackTrace();
-	 * } catch (ClassNotFoundException e3) {
-	 * // TODO Auto-generated catch block
-	 * e3.printStackTrace();
-	 * }
-	 * }
-	 * return false;
-	 * }
-	 */
 
 	public static synchronized CompressionLibrary getCompressionLibraryByCompressionLevel(CompressionLevel level) {
 
@@ -409,12 +277,6 @@ public class CompressionLoader {
 		}
 	}
 
-	/*
-	 * public static boolean isThroughputAnalyzerLoaded(){
-	 * return throughputAnalyzer != null;
-	 * }
-	 */
-
 	public static synchronized int getUncompressedBufferSize(int compressedBufferSize, CompressionLevel cl) {
 
 		final CompressionLibrary c = compressionLibraries.get(cl);
@@ -453,48 +315,4 @@ public class CompressionLoader {
 			return uncompressedBufferSize;
 		}
 	}
-
-	/*
-	 * public static void reportDatapackageSend(int compressorID, int dataID, int bytes, int uncompressedBytes, int
-	 * uncompressedBufferSize, int compressionLevel){
-	 * if (throughputAnalyzer != null)
-	 * throughputAnalyzer.reportDatapackageSend(new IntegerRecord(compressorID), new IntegerRecord(dataID), new
-	 * IntegerRecord(bytes), new IntegerRecord(uncompressedBytes), new IntegerRecord(uncompressedBufferSize), new
-	 * IntegerRecord(compressionLevel));
-	 * }
-	 * public static void reportDatapackageReceive(int dataID){
-	 * if (throughputAnalyzer != null)
-	 * throughputAnalyzer.reportDatapackageReceive(new IntegerRecord(dataID));
-	 * }
-	 * public static ThroughputAnalyzerResult getAverageCommunicationTimeForCompressor(int compressorID){
-	 * if (throughputAnalyzer != null)
-	 * return throughputAnalyzer.getAverageCommunicationTimeForCompressor(new IntegerRecord(compressorID));
-	 * else{
-	 * return new ThroughputAnalyzerResult();
-	 * }
-	 * }
-	 * public static double getCurrentBandwidthInBytesPerNS(ChannelType type){
-	 * switch(type){
-	 * case FILE:
-	 * return 0.042; //0.084Byte/ns = 83886.08Byte/ms = 83886080Byte/s = 80MByte/s (assumed average read and write
-	 * performance is 80MByte/s - result divided by 2 because we have to write and read)
-	 * case NETWORK:
-	 * InternalInstanceProfilingDataCompression pc =
-	 * profiler.generateProfilingDataCompression(System.currentTimeMillis());
-	 * if (pc.getGoodput() == 0){
-	 * LOG.warn("Could not determine speed of network connection. Using 100MBit/s" );
-	 * return 0.0131*0.8; //0.0131Byte/ns = 13107.2Byte/ms = 13107200Byte/s = 100MBit/s (more than 80% are not
-	 * realistic)
-	 * }else
-	 * return pc.getGoodput()/1000000000; //getGoodput gives speed per second in bytes, we need per nanosecond
-	 * //return 0.131*0.8; //0.131Byte/ns = 131072Byte/ms = 131072000Byte/s = 1000MBit/s (more than 80% are not
-	 * realistic)
-	 * case INMEMORY:
-	 * return 1;
-	 * }
-	 * LOG.error("Unknown Channel Type! " + type);
-	 * return 1;
-	 * }
-	 */
-
 }

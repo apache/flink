@@ -16,14 +16,24 @@
 package eu.stratosphere.pact.common.type;
 
 /**
- * @TODO
- * @author DIMA
+ * Merged and replaced by KeyValuePair.
+ * 
+ * Will soon be removed.
  */
-public class Pair<K extends Key, V extends Value> {
+@Deprecated
+public class Pair<K extends Key, V extends Value>  {
+	
+	// key object
 	protected K key;
-
+	// value object
 	protected V value;
 
+	/**
+	 * Initializes a Pair with the specified key and value object.
+	 * 
+	 * @param key
+	 * @param value
+	 */
 	public Pair(final K key, final V value) {
 		if (key == null)
 			throw new NullPointerException("key must not be null");
@@ -35,7 +45,7 @@ public class Pair<K extends Key, V extends Value> {
 	}
 
 	/**
-	 * Implementing classes must set the key/value to non-null values in their constructor.
+	 * Initializes a Pair with null-key and null-value.
 	 */
 	protected Pair() {
 	}
@@ -43,7 +53,7 @@ public class Pair<K extends Key, V extends Value> {
 	/**
 	 * Returns the key.
 	 * 
-	 * @return the key
+	 * @return The key.
 	 */
 	public K getKey() {
 		return this.key;
@@ -53,7 +63,7 @@ public class Pair<K extends Key, V extends Value> {
 	 * Sets the key to the specified value.
 	 * 
 	 * @param key
-	 *        the key to set
+	 *        The new key.
 	 */
 	public void setKey(final K key) {
 		if (key == null)
@@ -65,7 +75,7 @@ public class Pair<K extends Key, V extends Value> {
 	/**
 	 * Returns the value.
 	 * 
-	 * @return the value
+	 * @return The value.
 	 */
 	public V getValue() {
 		return this.value;
@@ -75,7 +85,7 @@ public class Pair<K extends Key, V extends Value> {
 	 * Sets the value to the specified value.
 	 * 
 	 * @param value
-	 *        the value to set
+	 *        The new value.
 	 */
 	public void setValue(final V value) {
 		if (value == null)

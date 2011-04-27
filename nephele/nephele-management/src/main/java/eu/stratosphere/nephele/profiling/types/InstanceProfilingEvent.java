@@ -22,46 +22,129 @@ import java.io.IOException;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
- * This interface allows to retrieve profiling data about
- * an instance which is currently used for a Nephele task
- * execution.
+ * Instance profiling events are a special subclass of profiling events. They contain profiling information about the
+ * utilization of a particular instance during a job execution.
+ * <p>
+ * This class is not thread-safe.
  * 
+ * @author warneke
  * @author stanik
  */
 public abstract class InstanceProfilingEvent extends ProfilingEvent {
 
+	/**
+	 * The interval of time this profiling event covers in milliseconds.
+	 */
 	private int profilingInterval;
 
+	/**
+	 * The percentage of time the CPU(s) spent in state IOWAIT during the profiling interval.
+	 */
 	private int ioWaitCPU;
 
+	/**
+	 * The percentage of time the CPU(s) spent in state IDLE during the profiling interval.
+	 */
 	private int idleCPU;
 
+	/**
+	 * The percentage of time the CPU(s) spent in state USER during the profiling interval.
+	 */
 	private int userCPU;
 
+	/**
+	 * The percentage of time the CPU(s) spent in state SYSTEM during the profiling interval.
+	 */
 	private int systemCPU;
 
+	/**
+	 * The percentage of time the CPU(s) spent in state HARD_IRQ during the profiling interval.
+	 */
 	private int hardIrqCPU;
 
+	/**
+	 * The percentage of time the CPU(s) spent in state SOFT_IRQ during the profiling interval.
+	 */
 	private int softIrqCPU;
 
+	/**
+	 * The total amount of this instance's main memory in bytes.
+	 */
 	private long totalMemory;
 
+	/**
+	 * The free amount of this instance's main memory in bytes.
+	 */
 	private long freeMemory;
 
+	/**
+	 * The amount of main memory the instance uses for file buffers.
+	 */
 	private long bufferedMemory;
 
+	/**
+	 * The amount of main memory the instance uses as cache memory.
+	 */
 	private long cachedMemory;
 
+	/**
+	 * The amount of main memory the instance uses for cached swaps.
+	 */
 	private long cachedSwapMemory;
 
+	/**
+	 * The number of bytes received via network during the profiling interval.
+	 */
 	private long receivedBytes;
 
+	/**
+	 * The number of bytes transmitted via network during the profiling interval.
+	 */
 	private long transmittedBytes;
 
-	public InstanceProfilingEvent(int profilingInterval, int ioWaitCPU, int idleCPU, int userCPU, int systemCPU,
-			int hardIrqCPU, int softIrqCPU, long totalMemory, long freeMemory, long bufferedMemory, long cachedMemory,
-			long cachedSwapMemory, long receivedBytes, long transmittedBytes, JobID jobID, long timestamp,
-			long profilingTimestamp) {
+	/**
+	 * Constructs a new instance profiling event.
+	 * 
+	 * @param profilingInterval
+	 *        the interval of time this profiling event covers in milliseconds
+	 * @param ioWaitCPU
+	 *        the percentage of time the CPU(s) spent in state IOWAIT during the profiling interval
+	 * @param idleCPU
+	 *        the percentage of time the CPU(s) spent in state IDLE during the profiling interval
+	 * @param userCPU
+	 *        the percentage of time the CPU(s) spent in state USER during the profiling interval
+	 * @param systemCPU
+	 *        the percentage of time the CPU(s) spent in state SYSTEM during the profiling interval
+	 * @param hardIrqCPU
+	 *        the percentage of time the CPU(s) spent in state HARD_IRQ during the profiling interval
+	 * @param softIrqCPU
+	 *        the percentage of time the CPU(s) spent in state SOFT_IRQ during the profiling interval
+	 * @param totalMemory
+	 *        the total amount of this instance's main memory in bytes
+	 * @param freeMemory
+	 *        the free amount of this instance's main memory in bytes
+	 * @param bufferedMemory
+	 *        the amount of main memory the instance uses for file buffers
+	 * @param cachedMemory
+	 *        the amount of main memory the instance uses as cache memory
+	 * @param cachedSwapMemory
+	 *        The amount of main memory the instance uses for cached swaps
+	 * @param receivedBytes
+	 *        the number of bytes received via network during the profiling interval
+	 * @param transmittedBytes
+	 *        the number of bytes transmitted via network during the profiling interval
+	 * @param jobID
+	 *        the ID of this job this profiling event belongs to
+	 * @param timestamp
+	 *        the time stamp of this profiling event's creation
+	 * @param profilingTimestamp
+	 *        the time stamp relative to the beginning of the job's execution
+	 */
+	public InstanceProfilingEvent(final int profilingInterval, final int ioWaitCPU, final int idleCPU,
+			final int userCPU, final int systemCPU, final int hardIrqCPU, final int softIrqCPU, final long totalMemory,
+			final long freeMemory, final long bufferedMemory, final long cachedMemory, final long cachedSwapMemory,
+			final long receivedBytes, final long transmittedBytes, final JobID jobID, final long timestamp,
+			final long profilingTimestamp) {
 
 		super(jobID, timestamp, profilingTimestamp);
 
@@ -84,136 +167,138 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		this.transmittedBytes = transmittedBytes;
 	}
 
+	/**
+	 * Default constructor for serialization/deserialization.
+	 */
 	public InstanceProfilingEvent() {
 		super();
 	}
 
 	/**
-	 * The interval in milliseconds to which the rest
-	 * of the profiling data relates to.
+	 * Returns the interval of time this profiling event covers in milliseconds.
 	 * 
-	 * @return the profiling interval given in milliseconds
+	 * @return the interval of time this profiling event covers in milliseconds
 	 */
-	public int getProfilingInterval() {
+	public final int getProfilingInterval() {
 		return this.profilingInterval;
 	}
 
 	/**
 	 * Returns the total amount of memory of the corresponding instance.
 	 * 
-	 * @return the total amount of memory in KB
+	 * @return the total amount of memory in bytes
 	 */
-	public long getTotalMemory() {
+	public final long getTotalMemory() {
 		return this.totalMemory;
 	}
 
 	/**
 	 * Returns the amount of free memory of the corresponding instance.
 	 * 
-	 * @return the amount of free memory in KB
+	 * @return the amount of free memory in bytes.
 	 */
-	public long getFreeMemory() {
+	public final long getFreeMemory() {
 		return this.freeMemory;
 	}
 
 	/**
-	 * Returns the amount of memory, in KB, used for file buffers.
+	 * Returns the amount of memory, in bytes, used for file buffers.
 	 * 
-	 * @return the amount of memory used for file buffers in KB
+	 * @return the amount of memory used for file buffers in bytes
 	 */
-	public long getBufferedMemory() {
+	public final long getBufferedMemory() {
 		return this.bufferedMemory;
 	}
 
 	/**
-	 * Returns the amount of memory, in KB, used as cache memory.
+	 * Returns the amount of memory, in bytes, used as cache memory.
 	 * 
-	 * @return the amount of memory used as cache memory in KB
+	 * @return the amount of memory used as cache memory in bytes
 	 */
-	public long getCachedMemory() {
+	public final long getCachedMemory() {
 		return this.cachedMemory;
 	}
 
 	/**
-	 * Returns the amount of swap, in KB, used as cache memory.
+	 * Returns the amount of swap, in bytes, used as cache memory.
 	 * 
-	 * @return the amount of, in KB, used as cache memory
+	 * @return the amount of, in bytes, used as cache memory
 	 */
-	public long getCachedSwapMemory() {
+	public final long getCachedSwapMemory() {
 		return this.cachedSwapMemory;
 	}
 
-	// TODO: Adapt this method
 	/**
-	 * Returns the users CPU utilization in percent in the last period.
-	 * Time spent running non-kernel code. (user time, including nice time)
+	 * Returns the percentage of time the CPU(s) spent in state USER during the profiling interval.
+	 * 
+	 * @return the percentage of time the CPU(s) spent in state USER during the profiling interval
 	 */
-	public int getUserCPU() {
+	public final int getUserCPU() {
 		return this.userCPU;
 	}
 
-	// TODO: Adapt this method
 	/**
-	 * Returns the system CPU utilization in percent in the last period.
-	 * Time spent running kernel code. (system time)
+	 * Returns the percentage of time the CPU(s) spent in state SYSTEM during the profiling interval.
+	 * 
+	 * @return the percentage of time the CPU(s) spent in state SYSTEM during the profiling interval
 	 */
-	public int getSystemCPU() {
+	public final int getSystemCPU() {
 		return this.systemCPU;
 	}
 
-	// TODO: Adapt this method
 	/**
-	 * Returns the idle CPU utilization in percent in the last period.
-	 * Time spent idle. Prior to Linux 2.5.41, this includes IO-wait time.
+	 * Returns the percentage of time the CPU(s) spent in state IDLE during the profiling interval. Prior to Linux
+	 * 2.5.41, this includes IO-wait time.
+	 * 
+	 * @return the percentage of time the CPU(s) spent in state IDLE during the profiling interval
 	 */
-	public int getIdleCPU() {
+	public final int getIdleCPU() {
 		return this.idleCPU;
 	}
 
-	// TODO: Adapt this method
 	/**
-	 * Returns the IO wait CPU utilization in percent in the last period.
-	 * Time spent waiting for IO. Prior to Linux 2.5.41, included in idle.
+	 * Returns the percentage of time the CPU(s) spent in state IOWAIT during the profiling interval. Prior to Linux
+	 * 2.5.41, included in idle.
+	 * 
+	 * @return the percentage of time the CPU(s) spent in state IOWAIT during the profiling interval.
 	 */
-	public int getIOWaitCPU() {
+	public final int getIOWaitCPU() {
 		return this.ioWaitCPU;
 	}
 
 	/**
-	 * Returns the percentage of time the CPU spent servicing hard interrupts in the last period.
+	 * Returns the percentage of time the CPU(s) spent in state HARD_IRQ during the profiling interval.
 	 * 
-	 * @return the percentage of time the CPU spent servicing hard interrupts
+	 * @return the percentage of time the CPU(s) spent in state HARD_IRQ during the profiling interval
 	 */
-	public int getHardIrqCPU() {
+	public final int getHardIrqCPU() {
 		return this.hardIrqCPU;
 	}
 
 	/**
-	 * Returns the percentage of time the CPU spent servicing soft interrupts in the last period.
+	 * Returns the percentage of time the CPU(s) spent in state SOFT_IRQ during the profiling interval.
 	 * 
-	 * @return the percentage of time the CPU spent servicing soft interrupts
+	 * @return the percentage of time the CPU(s) spent in state SOFT_IRQ during the profiling interval
 	 */
-	public int getSoftIrqCPU() {
+	public final int getSoftIrqCPU() {
 		return this.softIrqCPU;
 	}
 
 	/**
-	 * Returns the number of bytes received on all interfaces in the
-	 * last period.
+	 * Returns the number of bytes received via network during the profiling interval.
 	 * 
-	 * @return the number of bytes received on all interfaces
+	 * @return the number of bytes received via network during the profiling interval
 	 */
-	public long getReceivedBytes() {
+	public final long getReceivedBytes() {
 		return this.receivedBytes;
 	}
 
 	/**
-	 * Returns the number of bytes transmitted via all interfaces in the
-	 * last period.
+	 * Returns the number of bytes transmitted via network during the profiling interval.
 	 * 
-	 * @return the number of bytes transmitted via all interfaces
+	 * @return the number of bytes transmitted via network during the profiling interval
 	 */
-	public long getTransmittedBytes() {
+	public final long getTransmittedBytes() {
 		return this.transmittedBytes;
 	}
 
@@ -221,7 +306,7 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 
 		this.profilingInterval = in.readInt();
@@ -247,7 +332,7 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		out.writeInt(this.profilingInterval);
@@ -273,7 +358,7 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!super.equals(obj)) {
 			return false;
@@ -341,5 +426,20 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		long hashCode = getJobID().hashCode() + getTimestamp() + getProfilingTimestamp();
+		hashCode += (this.profilingInterval + this.ioWaitCPU + this.idleCPU + this.userCPU + this.systemCPU
+			+ this.hardIrqCPU + this.softIrqCPU);
+		hashCode += (this.totalMemory + this.freeMemory + this.bufferedMemory + this.cachedMemory + this.cachedSwapMemory);
+		hashCode -= Integer.MAX_VALUE;
+
+		return (int) (hashCode % Integer.MAX_VALUE);
 	}
 }

@@ -38,6 +38,7 @@ import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.CombinerNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
@@ -52,6 +53,7 @@ import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapTask;
 import eu.stratosphere.pact.runtime.task.MatchTask;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
+import eu.stratosphere.pact.runtime.task.SelfMatchTask;
 import eu.stratosphere.pact.runtime.task.TempTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -70,16 +72,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	
 	public static final Log LOG = LogFactory.getLog(JobGraphGenerator.class);
 	
-	private static final int DEFAUTL_MERGE_FACTOR = 64; // the number of streams to merge at once
-
-	private static final int MIN_IO_BUFFER_SIZE = 1;
-
-	private static final int MAX_IO_BUFFER_SIZE = 16;
-
-	private static final int MIN_SORT_HEAP = 4;
-
-	private static final int MAX_SORT_HEAP_BUFFER_SIZE = 2047;
-
+	private static final int DEFAULT_MERGE_FACTOR = 64; // the number of streams to merge at once
+	
 	// ------------------------------------------------------------------------
 
 	private JobGraph jobGraph; // the job that is currently built
@@ -190,10 +184,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			default:
 				throw new Exception("Unknown PACT type: " + node.getPactType());
 			}
-		} catch (NotEnoughMemoryException nemex) {
-			throw new CompilerException("The available memory portion of " + node.getMemoryPerTask()
-				+ " megabytes is not sufficient for the task '" + node.toString()
-				+ "' Decrease the intra-node parallelism or use instances with more memory.");
 		} catch (Exception e) {
 			throw new CompilerException(
 				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
@@ -381,30 +371,72 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private JobTaskVertex generateMatchVertex(OptimizerNode matchNode) throws CompilerException {
 		// create task vertex
 		JobTaskVertex matchVertex = new JobTaskVertex(matchNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		matchVertex.setTaskClass(MatchTask.class);
 
 		// get task configuration object
 		TaskConfig matchConfig = new TaskConfig(matchVertex.getConfiguration());
 		// set user code class
 		matchConfig.setStubClass(matchNode.getPactContract().getStubClass());
 
-		// set local strategy
 		switch (matchNode.getLocalStrategy()) {
-		case SORTMERGE:
-			matchConfig.setLocalStrategy(LocalStrategy.SORTMERGE);
+		case SORT_BOTH_MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			break;
+		case SORT_FIRST_MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			break;
+		case SORT_SECOND_MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			break;
+		case MERGE:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		case HYBRIDHASH_FIRST:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			break;
 		case HYBRIDHASH_SECOND:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 			break;
 		case MMHASH_FIRST:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_FIRST);
 			break;
 		case MMHASH_SECOND:
+			// set task class
+			matchVertex.setTaskClass(MatchTask.class);
+			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_SECOND);
+			break;
+		case SORT_SELF_NESTEDLOOP:
+			// set task class
+			matchVertex.setTaskClass(SelfMatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+			break;
+		case SELF_NESTEDLOOP:
+			// set task class
+			matchVertex.setTaskClass(SelfMatchTask.class);
+			// set local strategy
+			matchConfig.setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
 			break;
 		default:
 			throw new CompilerException("Invalid local strategy for 'Match' (" + matchNode.getName() + "): "
@@ -455,7 +487,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ crossNode.getLocalStrategy());
 		}
 
-		crossConfig.setIOBufferSize(crossNode.getMemoryPerTask());
+		assignMemory(crossConfig, crossNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		crossConfig.setStubParameters(crossNode.getPactContract().getStubParameters());
@@ -481,8 +513,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// set local strategy
 		switch (coGroupNode.getLocalStrategy()) {
-		case SORTMERGE:
-			coGroupConfig.setLocalStrategy(LocalStrategy.SORTMERGE);
+		case SORT_BOTH_MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			break;
+		case SORT_FIRST_MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			break;
+		case SORT_SECOND_MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			break;
+		case MERGE:
+			coGroupConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		default:
 			throw new CompilerException("Invalid local strategy for 'CoGroup' (" + coGroupNode.getName() + "): "
@@ -515,7 +556,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		sourceVertex.setFilePath(new Path(contract.getFilePath()));
 
 		// get task configuration object
-		DataSourceTask.Config sourceConfig = new DataSourceTask.Config(sourceVertex.getConfiguration());
+		DataSourceTask.DataSourceConfig sourceConfig = new DataSourceTask.DataSourceConfig(sourceVertex.getConfiguration());
 		// set user code class
 		sourceConfig.setStubClass(contract.getStubClass());
 		// set format parameter
@@ -551,7 +592,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		sinkVertex.setFilePath(new Path(((DataSinkContract<?, ?>) sinkNode.getPactContract()).getFilePath()));
 
 		// get task configuration object
-		DataSinkTask.Config sinkConfig = new DataSinkTask.Config(sinkVertex.getConfiguration());
+		DataSinkTask.DataSinkConfig sinkConfig = new DataSinkTask.DataSinkConfig(sinkVertex.getConfiguration());
 		// set user code class
 		sinkConfig.setStubClass(((DataSinkContract<?, ?>) sinkNode.getPactContract()).getStubClass());
 		// set format parameter
@@ -589,7 +630,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set key and value classes
 		tempConfig.setStubClass(stubClass);
 
-		tempConfig.setIOBufferSize(2);
+		assignMemory(tempConfig, PactCompiler.DEFAULT_TEMP_TASK_MEMORY);
 
 		// set degree of parallelism
 		tempVertex.setNumberOfSubtasks(dop);
@@ -739,17 +780,24 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		switch (connection.getShipStrategy()) {
 		case FORWARD:
-			channelType = ChannelType.INMEMORY;
+		case PARTITION_LOCAL_HASH:
+			int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
+			int sourceInnerDOP = connection.getSourcePact().getInstancesPerMachine();
+			int sourceNumInstances = (int) Math.ceil((double) sourceDOP / (double) sourceInnerDOP);
+			
+			int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
+			int targetInnerDOP = connection.getTargetPact().getInstancesPerMachine();
+			int targetNumInstances = (int) Math.ceil((double) targetDOP / (double) targetInnerDOP);
+			
+			channelType = sourceNumInstances == targetNumInstances ? ChannelType.INMEMORY : ChannelType.NETWORK;
 			break;
 		case PARTITION_HASH:
-			channelType = ChannelType.NETWORK;
-			break;
 		case BROADCAST:
-			channelType = ChannelType.NETWORK;
-			break;
 		case SFR:
 			channelType = ChannelType.NETWORK;
 			break;
+		default:
+			throw new IllegalArgumentException("Unsupported ship-strategy: " + connection.getShipStrategy().name());
 		}
 
 		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
@@ -823,51 +871,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	// Assigning Memory
 	// ------------------------------------------------------------------------
 
-	private void assignMemory(TaskConfig config, int memSize) {
-		// this code currently has a very simple way of assigning space to the I/O and sort buffers
-		// in future releases, we plan to design the sort-component in a more adaptive fashion,
-		// making it distribute its memory among sort and merge space by itself
-
-		int ioMem, sortMem, numSortBuffers, sortBufferSize;
-
-		// decide how to divide the memory between sort and I/O space
-		if (memSize > 512) {
-			ioMem = MAX_IO_BUFFER_SIZE;
-		} else if (memSize > 64) {
-			ioMem = memSize / 32;
-		} else if (memSize > 32) {
-			ioMem = 2;
-		} else if (memSize > MIN_SORT_HEAP + MIN_IO_BUFFER_SIZE) {
-			ioMem = MIN_IO_BUFFER_SIZE;
-		} else {
-			throw new NotEnoughMemoryException();
-		}
-		sortMem = memSize - ioMem;
-
-		// decide how to divide the sort memory among different buffers
-		if (sortMem > 3 * MAX_SORT_HEAP_BUFFER_SIZE) {
-			numSortBuffers = sortMem / MAX_SORT_HEAP_BUFFER_SIZE + 1;
-			// correct rounding loss
-			numSortBuffers = sortMem / (sortMem / numSortBuffers);
-		} else if (sortMem > 3 * 64) {
-			numSortBuffers = 3;
-		} else if (sortMem >= 2 * MIN_SORT_HEAP) {
-			numSortBuffers = 2;
-		} else {
-			numSortBuffers = 1;
-		}
-		sortBufferSize = sortMem / numSortBuffers;
-
-		// set the config
-		config.setIOBufferSize(ioMem);
-		config.setMergeFactor(DEFAUTL_MERGE_FACTOR);
-		config.setNumSortBuffer(numSortBuffers);
-		config.setSortBufferSize(sortBufferSize);
+	private void assignMemory(TaskConfig config, int memSize)
+	{
+		config.setMemorySize(memSize * 1024L * 1024L);
+		config.setNumFilehandles(DEFAULT_MERGE_FACTOR);
 	}
 
 	// ------------------------------------------------------------------------
 
-	private static final class NotEnoughMemoryException extends RuntimeException {
-		private static final long serialVersionUID = -1996018032841078865L;
-	}
 }

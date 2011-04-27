@@ -36,7 +36,6 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be emitted with this record writer
  */
 
-// FIXME added Writer<T> to make this at least mock-able ... still requires refactoring (en)
 public class RecordWriter<T extends Record> implements Writer<T> {
 
 	/**
@@ -100,7 +99,7 @@ public class RecordWriter<T extends Record> implements Writer<T> {
 	 */
 	// TODO: See if type safety can be improved here
 	@SuppressWarnings("unchecked")
-	private void connectOutputGate(Class<T> outputClass, ChannelSelector selector) {
+	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector) {
 
 		// See if there are any unbound input gates left we can connect to
 		if (this.environment.hasUnboundOutputGates()) {
@@ -156,25 +155,51 @@ public class RecordWriter<T extends Record> implements Writer<T> {
 		return outputGate;
 	}
 
-	public void subscribeToEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Subscribes the listener object to receive events of the given type.
+	 * 
+	 * @param eventListener
+	 *        the listener object to register
+	 * @param eventType
+	 *        the type of event to register the listener for
+	 */
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to output gate
-		this.outputGate.subscribeToEvent(eventNotifiable, eventType);
+		this.outputGate.subscribeToEvent(eventListener, eventType);
 	}
 
-	public void unsubscribeFromEvent(EventListener eventNotifiable, Class<? extends AbstractTaskEvent> eventType) {
+	/**
+	 * Removes the subscription for events of the given type for the listener object.
+	 * 
+	 * @param eventListener
+	 *        the listener object to cancel the subscription for
+	 * @param eventType
+	 *        the type of the event to cancel the subscription for
+	 */
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to output gate
-		this.outputGate.unsubscribeFromEvent(eventNotifiable, eventType);
+		this.outputGate.unsubscribeFromEvent(eventListener, eventType);
 	}
 
-	public void publishEvent(AbstractTaskEvent event) throws IOException {
+	/**
+	 * Publishes an event.
+	 * 
+	 * @param event
+	 *        the event to be published
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
+	 */
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Delegate call to output gate
 		this.outputGate.publishEvent(event);
 	}
 
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		// Delegate call to output gate
 		this.outputGate.flush();
 	}

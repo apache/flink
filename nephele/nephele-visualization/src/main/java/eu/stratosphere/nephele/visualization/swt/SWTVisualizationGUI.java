@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,6 +29,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.FillLayout;
@@ -35,18 +37,26 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.swt.widgets.Widget;
 
+import eu.stratosphere.nephele.client.AbstractJobResult;
+import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.EventList;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
-import eu.stratosphere.nephele.event.job.NewJobEvent;
+import eu.stratosphere.nephele.event.job.JobEvent;
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
+import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
+import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementGate;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
@@ -73,9 +83,13 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private static final Log LOG = LogFactory.getLog(SWTVisualizationGUI.class);
 
+	private static final String JAVA_DOC_URL = "http://www.stratosphere.eu/";
+
 	private final int QUERYINTERVAL;
 
 	private final Display display;
+
+	private final Menu menuBar;
 
 	private final Shell shell;
 
@@ -89,7 +103,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private long lastClickTime = 0;
 
-	private Map<JobID, GraphVisualizationData> visualizableJobs = new HashMap<JobID, GraphVisualizationData>();
+	private Map<JobID, GraphVisualizationData> recentJobs = new HashMap<JobID, GraphVisualizationData>();
 
 	/**
 	 * Set to filter duplicate events received from the job manager.
@@ -102,7 +116,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		this.QUERYINTERVAL = queryInterval;
 
 		this.display = new Display();
-		this.shell = new Shell(display);
+		this.shell = new Shell(this.display);
 
 		this.detectBottlenecks = GlobalConfiguration.getBoolean("visualization.bottleneckDetection.enable", false);
 
@@ -126,7 +140,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		horizontalSash.setLayoutData(new GridData(GridData.FILL_BOTH));
 
 		final Group jobGroup = new Group(horizontalSash, SWT.NONE);
-		jobGroup.setText("Visualizable Jobs");
+		jobGroup.setText("Recent Jobs");
 		jobGroup.setLayout(new FillLayout());
 
 		this.jobTree = new Tree(jobGroup, SWT.SINGLE | SWT.BORDER);
@@ -136,6 +150,127 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		this.jobTabFolder.addSelectionListener(this);
 
 		horizontalSash.setWeights(new int[] { 2, 8 });
+
+		// Construct the menu
+		this.menuBar = new Menu(this.shell, SWT.BAR);
+
+		final MenuItem fileMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
+		fileMenuItem.setText("&File");
+
+		final Menu fileMenu = new Menu(this.shell, SWT.DROP_DOWN);
+		fileMenuItem.setMenu(fileMenu);
+
+		final MenuItem fileExitItem = new MenuItem(fileMenu, SWT.PUSH);
+		fileExitItem.setText("E&xit");
+		fileExitItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(SelectionEvent arg0) {
+				shell.close();
+				display.dispose();
+			}
+		});
+
+		final MenuItem jobMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
+		jobMenuItem.setText("&Job");
+
+		final Menu jobMenu = new Menu(this.shell, SWT.DROP_DOWN);
+		jobMenuItem.setMenu(jobMenu);
+
+		final MenuItem cancelJobItem = new MenuItem(jobMenu, SWT.PUSH);
+		cancelJobItem.setText("&Cancel job");
+		cancelJobItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(SelectionEvent arg0) {
+				cancelJob();
+				shell.setMenuBar(null);
+			}
+		});
+
+		final MenuItem diagnosisMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
+		diagnosisMenuItem.setText("&Diagnosis");
+
+		final Menu diagnosisMenu = new Menu(this.shell, SWT.DROP_DOWN);
+		diagnosisMenuItem.setMenu(diagnosisMenu);
+
+		final MenuItem diagnosisLBUItem = new MenuItem(diagnosisMenu, SWT.PUSH);
+		diagnosisLBUItem.setText("&Log buffer utilization");
+		diagnosisLBUItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(SelectionEvent arg0) {
+				logBufferUtilization();
+				shell.setMenuBar(null);
+			}
+		});
+
+		final MenuItem helpMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
+		helpMenuItem.setText("&Help");
+
+		final Menu helpMenu = new Menu(this.shell, SWT.DROP_DOWN);
+		helpMenuItem.setMenu(helpMenu);
+
+		final MenuItem helpJavaDocItem = new MenuItem(helpMenu, SWT.PUSH);
+		helpJavaDocItem.setText("&View JavaDoc...");
+		helpJavaDocItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(SelectionEvent arg0) {
+				viewJavaDoc();
+				shell.setMenuBar(null);
+			}
+		});
+
+		// Insert a separator before the last item in the help menu
+		new MenuItem(helpMenu, SWT.SEPARATOR);
+
+		final MenuItem helpAboutItem = new MenuItem(helpMenu, SWT.PUSH);
+		helpAboutItem.setText("&About...");
+		helpAboutItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(SelectionEvent arg0) {
+				showAboutDialog();
+				shell.setMenuBar(null);
+			}
+		});
+
+		// Make sure we display the menu whenever the user presses ALT
+		this.display.addFilter(SWT.KeyDown, new Listener() {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void handleEvent(final Event arg0) {
+
+				if (arg0.keyCode == SWT.ALT) {
+
+					if (shell.getMenuBar() == null) {
+						shell.setMenuBar(menuBar);
+					} else {
+						shell.setMenuBar(null);
+					}
+				}
+
+			}
+		});
+
+		// Make sure the menu disappears whenever the user clicks on something other than the menu
+		this.display.addFilter(SWT.MouseDown, new Listener() {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void handleEvent(final Event arg0) {
+
+				if (shell.getMenuBar() != null) {
+					shell.setMenuBar(null);
+				}
+			}
+		});
 
 		// Launch the timer that will query for events
 		this.display.timerExec(QUERYINTERVAL * 1000, this);
@@ -162,11 +297,17 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		jobTabItem.setControl(swtTabItem);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void widgetDefaultSelected(SelectionEvent arg0) {
 		// Nothing to do here
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void widgetSelected(SelectionEvent arg0) {
 
@@ -273,23 +414,23 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		try {
 
 			// Check for new jobs
-			final EventList<NewJobEvent> newJobs = jobManager.getNewJobs();
+			final List<RecentJobEvent> newJobs = this.jobManager.getRecentJobs();
 			if (!newJobs.isEmpty()) {
-				final Iterator<NewJobEvent> it = newJobs.getEvents();
+				final Iterator<RecentJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
-					final NewJobEvent newJobEvent = it.next();
+					final RecentJobEvent newJobEvent = it.next();
 					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable());
 				}
 			}
 
 			// Check for all other events
-			synchronized (this.visualizableJobs) {
+			synchronized (this.recentJobs) {
 
-				final Iterator<JobID> it = this.visualizableJobs.keySet().iterator();
+				final Iterator<JobID> it = this.recentJobs.keySet().iterator();
 				while (it.hasNext()) {
 
 					final JobID jobID = it.next();
-					final EventList<AbstractEvent> events = this.jobManager.getEvents(jobID);
+					final List<AbstractEvent> events = this.jobManager.getEvents(jobID);
 
 					if (!events.isEmpty()) {
 
@@ -301,9 +442,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 							}
 						}
 
-						final GraphVisualizationData graphVisualizationData = this.visualizableJobs.get(jobID);
+						final GraphVisualizationData graphVisualizationData = this.recentJobs.get(jobID);
 
-						final Iterator<AbstractEvent> eventIt = events.getEvents();
+						final Iterator<AbstractEvent> eventIt = events.iterator();
 						while (eventIt.hasNext()) {
 
 							final AbstractEvent event = eventIt.next();
@@ -353,9 +494,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable) throws IOException {
 
-		synchronized (this.visualizableJobs) {
+		synchronized (this.recentJobs) {
 
-			if (this.visualizableJobs.containsKey(jobID)) {
+			if (this.recentJobs.containsKey(jobID)) {
 				// We already know this job
 				return;
 			}
@@ -404,7 +545,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			jobItem.setText(jobName + " (" + jobID.toString() + ")");
 			jobItem.setData(graphVisualizationData);
 
-			this.visualizableJobs.put(jobID, graphVisualizationData);
+			this.recentJobs.put(jobID, graphVisualizationData);
 		}
 	}
 
@@ -465,6 +606,17 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			final ManagementVertex vertex = graph.getVertexByID(executionStateChangeEvent.getVertexID());
 			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
 
+		} else if (event instanceof VertexAssignmentEvent) {
+
+			final VertexAssignmentEvent vertexAssignmentEvent = (VertexAssignmentEvent) event;
+			final ManagementGraph graph = graphVisualizationData.getManagementGraph();
+			final ManagementVertex vertex = graph.getVertexByID(vertexAssignmentEvent.getVertexID());
+			vertex.setInstanceName(vertexAssignmentEvent.getInstanceName());
+			vertex.setInstanceType(vertexAssignmentEvent.getInstanceType());
+		} else if (event instanceof JobEvent) {
+			// Ignore this type of event
+		} else if (event instanceof VertexEvent) {
+			// Ignore this type of event
 		} else {
 			System.out.println("Unknown event: " + event);
 		}
@@ -507,5 +659,113 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				it.remove();
 			}
 		}
+	}
+
+	private void logBufferUtilization() {
+
+		if (this.jobTree.getItemCount() == 0) {
+			final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+			msgBox.setText("No job available");
+			msgBox.setMessage("Unable to log buffer utilization because no job is available.");
+			msgBox.open();
+			return;
+		}
+
+		final TreeItem[] selectedItems = this.jobTree.getSelection();
+		if (selectedItems.length == 0) {
+			final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_INFORMATION);
+			msgBox.setText("No job selected");
+			msgBox
+				.setMessage("Please select at least one job for which the current buffer utilization shall be logged.");
+			msgBox.open();
+			return;
+		}
+
+		for (int i = 0; i < selectedItems.length; i++) {
+
+			final TreeItem selectedItem = selectedItems[i];
+			final GraphVisualizationData visualizationData = (GraphVisualizationData) selectedItem.getData();
+			if (visualizationData == null) {
+				continue;
+			}
+
+			try {
+				this.jobManager.logBufferUtilization(visualizationData.getJobID());
+			} catch (IOException ioe) {
+				final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+				msgBox.setText("Logging failed for job " + visualizationData.getJobID());
+				msgBox.setMessage("Logging of buffer utilization failed for job " + visualizationData.getJobID()
+					+ ":\r\n\r\n" + ioe.getMessage());
+			}
+		}
+
+		final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_INFORMATION);
+		msgBox.setText("Logging succesfull");
+		msgBox
+			.setMessage("The buffer utilization of the selected jobs have been successfully written to the instances' log files.");
+		msgBox.open();
+	}
+
+	private void showAboutDialog() {
+
+		final SWTAboutDialog aboutDialog = new SWTAboutDialog(this.shell);
+		aboutDialog.open();
+	}
+
+	private void viewJavaDoc() {
+
+		org.eclipse.swt.program.Program.launch(JAVA_DOC_URL);
+	}
+
+	private void cancelJob() {
+
+		if (this.jobTree.getItemCount() == 0) {
+			final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+			msgBox.setText("No job available");
+			msgBox.setMessage("No job to cancel.");
+			msgBox.open();
+			return;
+		}
+
+		final TreeItem[] selectedItems = this.jobTree.getSelection();
+		if (selectedItems.length == 0) {
+			final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_INFORMATION);
+			msgBox.setText("No job selected");
+			msgBox.setMessage("Please select at least one job to cancel.");
+			msgBox.open();
+			return;
+		}
+
+		for (int i = 0; i < selectedItems.length; i++) {
+
+			final TreeItem selectedItem = selectedItems[i];
+			final GraphVisualizationData visualizationData = (GraphVisualizationData) selectedItem.getData();
+			if (visualizationData == null) {
+				continue;
+			}
+
+			try {
+				final JobCancelResult cjr = this.jobManager.cancelJob(visualizationData.getJobID());
+
+				if (cjr.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
+					final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+					msgBox.setText("Canceling job " + visualizationData.getJobID() + " failed");
+					msgBox.setMessage("Canceling job " + visualizationData.getJobID()
+						+ " failed:\r\n\r\n" + cjr.getDescription());
+				}
+
+			} catch (IOException ioe) {
+				final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_ERROR);
+				msgBox.setText("Canceling job " + visualizationData.getJobID() + " failed");
+				msgBox.setMessage("Canceling job " + visualizationData.getJobID()
+					+ " failed:\r\n\r\n" + ioe.getMessage());
+			}
+		}
+
+		final MessageBox msgBox = new MessageBox(this.shell, SWT.OK | SWT.ICON_INFORMATION);
+		msgBox.setText("Job(s) succesfully canceled");
+		msgBox.setMessage("The selected jobs have been successfully canceled.");
+		msgBox.open();
+
 	}
 }

@@ -70,7 +70,7 @@ public class AdaptiveSampleStub extends MapStub<PactInteger, PactInteger, PactIn
 	}
 	
 	@Override
-	protected void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
+	public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
 		this.out = out;
 		
 		/*

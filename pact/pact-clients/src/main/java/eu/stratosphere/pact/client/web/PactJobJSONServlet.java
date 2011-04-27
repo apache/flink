@@ -74,7 +74,7 @@ public class PactJobJSONServlet extends HttpServlet {
 		// create the pact plan
 		try {
 			PactProgram pactProgram = new PactProgram(jarFile, new String[0]);
-			OptimizedPlan optPlan = pactProgram.getPreOptimizedPlan();
+			OptimizedPlan optPlan = pactProgram.getPreviewPlan();
 			String programDescription = pactProgram.getDescription();
 			
 			resp.setStatus(HttpServletResponse.SC_OK);

@@ -15,10 +15,7 @@
 
 package eu.stratosphere.pact.common.stub;
 
-import java.util.Iterator;
-
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
@@ -45,28 +42,6 @@ public abstract class MapStub<IK extends Key, IV extends Value, OK extends Key, 
 		SingleInputStub<IK, IV, OK, OV> {
 
 	/**
-	 * This method is currently final. We might make it available for overwriting in the future.
-	 * <p>
-	 * Default implementation of the <code>run()</code> method. Calls the <code>map()</code> method for each individual
-	 * input key-value pair and forwards its output.
-	 * <p>
-	 * This method is called with an iterator over all k-v pairs that this thread will process. The input data of this
-	 * method is not deterministic.
-	 * 
-	 * @param in
-	 *        Iterator over all key-value pairs that this thread will
-	 *        process
-	 * @param out
-	 *        A collector for the output of the mapper.
-	 */
-	public final void run(Iterator<Pair<IK, IV>> in, Collector<OK, OV> out) {
-		while (in.hasNext()) {
-			Pair<IK, IV> pair = in.next();
-			map(pair.getKey(), pair.getValue(), out);
-		}
-	}
-
-	/**
 	 * This method must be implemented to provide a user implementation of a mapper.
 	 * It is called for each individual key-value pair.
 	 * 
@@ -77,6 +52,6 @@ public abstract class MapStub<IK extends Key, IV extends Value, OK extends Key, 
 	 * @param out
 	 *        A collector that collects all output pairs.
 	 */
-	protected abstract void map(IK key, IV value, Collector<OK, OV> out);
+	public abstract void map(IK key, IV value, Collector<OK, OV> out);
 
 }

@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
@@ -51,11 +52,11 @@ import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
  * @author Fabian Hueske
  */
 public abstract class TestBase extends TestCase {
-	private static final int MINIMUM_HEAP_SIZE_MB = 512;
+	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	private static final Log LOG = LogFactory.getLog(TestBase.class);
 
-	private static ClusterProvider cluster;
+	protected static ClusterProvider cluster;
 
 	protected final Configuration config;
 
@@ -100,9 +101,21 @@ public abstract class TestBase extends TestCase {
 		preSubmit();
 
 		// submit job
-		JobGraph jobGraph = getJobGraph();
-		cluster.submitJobAndWait(jobGraph, getJarFilePath());
-
+		JobGraph jobGraph = null;
+		try {
+			jobGraph = getJobGraph();
+		} catch(Exception e) {
+			LOG.error(e);
+			Assert.fail("Failed to obtain JobGraph!");
+		}
+		
+		try {
+			cluster.submitJobAndWait(jobGraph, getJarFilePath());
+		} catch(Exception e) {
+			LOG.error(e);
+			Assert.fail("Job execution failed!");
+		}
+		
 		// post-submit
 		postSubmit();
 	}
@@ -142,7 +155,7 @@ public abstract class TestBase extends TestCase {
 				p.load(new FileInputStream(configFile));
 
 				for (String key : p.stringPropertyNames()) {
-					if (key.equals(testClassName)) {
+					if (key.endsWith(testClassName)) {
 						for (String config : p.getProperty(key).split(",")) {
 							clusterConfigs.add(config);
 						}
@@ -152,7 +165,7 @@ public abstract class TestBase extends TestCase {
 		}
 
 		if (clusterConfigs.isEmpty()) {
-			LOG.warn("no test config defined for test-class '" + testClassName + "'");
+			LOG.warn("No test config defined for test-class '" + testClassName + "'. Using default config: '"+Constants.DEFAULT_TEST_CONFIG+"'.");	
 			clusterConfigs.add(Constants.DEFAULT_TEST_CONFIG);
 		}
 
@@ -185,6 +198,29 @@ public abstract class TestBase extends TestCase {
 	 * @param hdfsPath
 	 */
 	protected void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
+
+		Comparator<String> defaultStrComp = new Comparator<String>() {
+			@Override
+			public int compare(String arg0, String arg1) {
+				return arg0.compareTo(arg1);
+			}
+		};
+		
+		this.compareResultsByLinesInMemory(expectedResultStr, resultPath, defaultStrComp);
+	}
+	
+	/**
+	 * Compares the expectedResultString and the file(s) in the HDFS linewise.
+	 * Both results (expected and computed) are held in memory. Hence, this
+	 * method should not be used to compare large results.
+	 * 
+	 * The line comparator is used to compare lines from the expected and result set.
+	 * 
+	 * @param expectedResult
+	 * @param hdfsPath
+	 * @param comp Line comparator
+	 */
+	protected void compareResultsByLinesInMemory(String expectedResultStr, String resultPath, Comparator<String> comp) throws Exception {
 
 		ArrayList<String> resultFiles = new ArrayList<String>();
 
@@ -230,8 +266,8 @@ public abstract class TestBase extends TestCase {
 		while (!expectedResult.isEmpty()) {
 			String expectedLine = expectedResult.poll();
 			String computedLine = computedResult.poll();
-			LOG.debug("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
+			LOG.info("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
+			Assert.assertTrue("Computed and expected lines differ", comp.compare(expectedLine, computedLine) == 0);
 		}
 	}
 

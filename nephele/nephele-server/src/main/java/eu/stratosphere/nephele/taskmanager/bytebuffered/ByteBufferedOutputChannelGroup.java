@@ -15,7 +15,10 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
+import java.io.IOException;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
@@ -37,7 +40,7 @@ import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
  * 
  * @author warneke
  */
-public class ByteBufferedOutputChannelGroup {
+public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 
 	/**
 	 * The byte buffered channel manager.
@@ -52,7 +55,12 @@ public class ByteBufferedOutputChannelGroup {
 	/**
 	 * The common channel type of all of the task's output channels, possibly <code>null</code>.
 	 */
-	private final ChannelType channelType;
+	private final ChannelType commonChannelType;
+
+	/**
+	 * Stores those channels which current hold at least one write buffer
+	 */
+	private final Set<ByteBufferedOutputChannelWrapper> channelsWithWriteBuffers = new HashSet<ByteBufferedOutputChannelWrapper>();
 
 	/**
 	 * Constructs a new byte buffered output channel group object.
@@ -61,20 +69,20 @@ public class ByteBufferedOutputChannelGroup {
 	 *        the byte buffered channel manager this object is attached to
 	 * @param checkpointManager
 	 *        the checkpoint manager used to create ephemeral checkpoints
-	 * @param channelType
+	 * @param commonChannelType
 	 *        the channel type all of the channels attached to this group have in common, possibly <code>null</code>
 	 * @param executionVertexID
 	 *        the id of the execution vertex this channel group object belongs to
 	 */
 	public ByteBufferedOutputChannelGroup(ByteBufferedChannelManager byteBufferedChannelManager,
-			CheckpointManager checkpointManager, ChannelType channelType, ExecutionVertexID executionVertexID) {
+			CheckpointManager checkpointManager, ChannelType commonChannelType, ExecutionVertexID executionVertexID) {
 
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.channelType = channelType;
-		if (channelType == ChannelType.FILE) {
+		this.commonChannelType = commonChannelType;
+		if (commonChannelType == ChannelType.FILE) {
 			// For file channels, we always store data in the checkpoint
 			this.ephemeralCheckpoint = EphemeralCheckpoint.forFileChannel(checkpointManager, executionVertexID);
-		} else if (channelType == ChannelType.NETWORK) {
+		} else if (commonChannelType == ChannelType.NETWORK) {
 			// For network channels, we decide online whether to use checkpoints
 			this.ephemeralCheckpoint = EphemeralCheckpoint.forNetworkChannel(checkpointManager, executionVertexID);
 		} else {
@@ -97,9 +105,13 @@ public class ByteBufferedOutputChannelGroup {
 	 *        the channel wrapper which called this method
 	 * @param outgoingTransferEnvelope
 	 *        the transfer envelope to be forwarded
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while processing the envelope
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
 	public void processEnvelope(ByteBufferedOutputChannelWrapper channelWrapper,
-			TransferEnvelope outgoingTransferEnvelope) {
+			TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
 
 		final TransferEnvelopeProcessingLog processingLog = outgoingTransferEnvelope.getProcessingLog();
 
@@ -110,7 +122,7 @@ public class ByteBufferedOutputChannelGroup {
 
 			// Look for a close event
 			final EventList eventList = outgoingTransferEnvelope.getEventList();
-			if (!eventList.isEmpty() && this.channelType == ChannelType.FILE) {
+			if (!eventList.isEmpty() && this.commonChannelType == ChannelType.FILE) {
 
 				final Iterator<AbstractEvent> it = eventList.iterator();
 				while (it.hasNext()) {
@@ -134,6 +146,10 @@ public class ByteBufferedOutputChannelGroup {
 		if (processingLog.mustBeSentViaNetwork()) {
 			this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(outgoingTransferEnvelope);
 		}
+
+		if (outgoingTransferEnvelope.getBuffer() != null) {
+			this.channelsWithWriteBuffers.remove(channelWrapper);
+		}
 	}
 
 	/**
@@ -141,11 +157,13 @@ public class ByteBufferedOutputChannelGroup {
 	 * transfer envelope. The processing log determines whether the envelope
 	 * is later written to the checkpoint, sent via the network, or both.
 	 * 
+	 * @param individualChannelType
+	 *        the type of the individual channel asking for the processing log
 	 * @return the newly created processing log.
 	 */
-	public TransferEnvelopeProcessingLog getProcessingLog() {
+	public TransferEnvelopeProcessingLog getProcessingLog(final ChannelType individualChannelType) {
 
-		return new TransferEnvelopeProcessingLog((this.channelType == ChannelType.NETWORK),
+		return new TransferEnvelopeProcessingLog((individualChannelType == ChannelType.NETWORK),
 			(this.ephemeralCheckpoint != null));
 	}
 
@@ -182,8 +200,56 @@ public class ByteBufferedOutputChannelGroup {
 	 * @throws InterruptedException
 	 *         thrown if the task thread is interrupted while waiting for the buffers
 	 */
-	public BufferPairResponse requestEmptyWriteBuffers(BufferPairRequest byteBufferPair) throws InterruptedException {
+	public BufferPairResponse requestEmptyWriteBuffers(ByteBufferedOutputChannelWrapper wrapper,
+			BufferPairRequest byteBufferPair) throws InterruptedException {
 
-		return this.byteBufferedChannelManager.requestEmptyWriteBuffers(byteBufferPair);
+		final BufferPairResponse bufferPairResponse = this.byteBufferedChannelManager
+			.requestEmptyWriteBuffers(this, byteBufferPair);
+
+		if (bufferPairResponse.getCompressedDataBuffer() != null
+			|| bufferPairResponse.getUncompressedDataBuffer() != null) {
+
+			this.channelsWithWriteBuffers.add(wrapper);
+		}
+
+		return bufferPairResponse;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void outOfWriteBuffers() throws InterruptedException {
+
+		final Iterator<ByteBufferedOutputChannelWrapper> it = this.channelsWithWriteBuffers.iterator();
+		int minRemaining = -1;
+		ByteBufferedOutputChannelWrapper minWrapper = null;
+
+		while (it.hasNext()) {
+
+			final ByteBufferedOutputChannelWrapper wrapper = it.next();
+			final int remaining = wrapper.getRemainingBytesOfWorkingBuffer();
+			if (remaining > 0) {
+
+				if (minWrapper == null) {
+					minWrapper = wrapper;
+					minRemaining = remaining;
+				} else {
+					if (remaining < minRemaining) {
+						minRemaining = remaining;
+						minWrapper = wrapper;
+					}
+				}
+			}
+		}
+
+		if (minWrapper != null) {
+
+			try {
+				minWrapper.flush();
+			} catch (IOException ioe) {
+				minWrapper.reportIOException(ioe);
+			}
+		}
 	}
 }

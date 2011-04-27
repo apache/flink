@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class represents the general buffer abstraction that is used by Nephele
@@ -29,7 +30,7 @@ import java.nio.channels.WritableByteChannel;
  * Each buffer is expected to be written and read exactly once. Initially, the every buffer is in write mode. Before
  * reading from the buffer, it must be explicitly switched to read mode.
  * <p>
- * This class if thread-safe.
+ * This class is in general not thread-safe.
  * 
  * @author warneke
  */
@@ -39,7 +40,12 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * The concrete buffer implementation to which all method calls on
 	 * this object are delegated.
 	 */
-	private InternalBuffer internalBuffer = null;
+	private final InternalBuffer internalBuffer;
+
+	/**
+	 * Stores whether this buffer has already been recycled.
+	 */
+	private final AtomicBoolean isRecycled = new AtomicBoolean(false);
 
 	/**
 	 * Constructs a new buffer object.
@@ -170,11 +176,14 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	/**
 	 * Recycles the buffer. In case of a memory backed buffer, the internal memory buffer
 	 * is returned to a global buffer queue. In case of a file backed buffer, the temporary
-	 * file created for this buffer is deleted.
+	 * file created for this buffer is deleted. A buffer can only be recycled once. Calling this method more than once
+	 * will therefore have no effect.
 	 */
 	public void recycleBuffer() {
 
-		this.internalBuffer.recycleBuffer();
+		if (this.isRecycled.compareAndSet(false, true)) {
+			this.internalBuffer.recycleBuffer();
+		}
 	}
 
 	/**

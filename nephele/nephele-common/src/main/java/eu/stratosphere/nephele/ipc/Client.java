@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.ipc;
 
 import java.net.Socket;
@@ -294,9 +300,7 @@ public class Client {
 			short ioFailures = 0;
 			short timeoutFailures = 0;
 			try {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Connecting to " + server);
-				}
+
 				while (true) {
 					try {
 						this.socket = socketFactory.createSocket();
@@ -416,10 +420,6 @@ public class Client {
 			}
 		}
 
-		public InetSocketAddress getRemoteAddress() {
-			return server;
-		}
-
 		/*
 		 * Send a ping to the server if the time elapsed
 		 * since last I/O activity is equal to or greater than the ping interval
@@ -435,18 +435,17 @@ public class Client {
 			}
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
 		public void run() {
-			if (LOG.isDebugEnabled())
-				LOG.debug(getName() + ": starting, having connections " + connections.size());
 
 			while (waitForWork()) {// wait here for work - read or close connection
 				receiveResponse();
 			}
 
 			close();
-
-			if (LOG.isDebugEnabled())
-				LOG.debug(getName() + ": stopped, remaining connections " + connections.size());
 		}
 
 		/**
@@ -462,8 +461,6 @@ public class Client {
 			DataOutputBuffer d = null;
 			try {
 				synchronized (this.out) {
-					if (LOG.isDebugEnabled())
-						LOG.debug(getName() + " sending #" + call.id);
 
 					// for serializing the
 					// data to be written
@@ -501,27 +498,26 @@ public class Client {
 			try {
 				int id = in.readInt(); // try to read an id
 
-				if (LOG.isDebugEnabled())
-					LOG.debug(getName() + " got value #" + id);
+				final Call call = calls.remove(id);
 
-				Call call = calls.remove(id);
-
-				int state = in.readInt(); // read call status
+				final int state = in.readInt(); // read call status
 				if (state == Status.SUCCESS.state) {
 					IOReadableWritable value = null;
 					boolean isNotNull = in.readBoolean();
 					if (isNotNull) {
-						String returnClassName = StringRecord.readString(in);
+						final String returnClassName = StringRecord.readString(in);
 						Class<? extends IOReadableWritable> c = null;
 						try {
 							c = ClassUtils.getRecordByName(returnClassName);
 						} catch (ClassNotFoundException e) {
-							e.printStackTrace();
+							LOG.error(e);
 						}
 						try {
 							value = c.newInstance();
-						} catch (Exception e) {
-							e.printStackTrace();
+						} catch (InstantiationException e) {
+							LOG.error(e);
+						} catch (IllegalAccessException e) {
+							LOG.error(e);
 						}
 						value.read(in); // read value
 					}
@@ -564,34 +560,27 @@ public class Client {
 			IOUtils.closeStream(in);
 
 			// clean up all calls
-			if (closeException == null) {
-				if (!calls.isEmpty()) {
+			if (this.closeException == null) {
+				if (!this.calls.isEmpty()) {
 					LOG.warn("A connection is closed for no cause and calls are not empty");
 
 					// clean up calls anyway
-					closeException = new IOException("Unexpected closed connection");
+					this.closeException = new IOException("Unexpected closed connection");
 					cleanupCalls();
 				}
 			} else {
-				// log the info
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("closing ipc connection to " + server + ": " + closeException.getMessage(),
-						closeException);
-				}
 
 				// cleanup calls
 				cleanupCalls();
 			}
-			if (LOG.isDebugEnabled())
-				LOG.debug(getName() + ": closed");
 		}
 
 		/* Cleanup all calls and mark them as done */
 		private void cleanupCalls() {
-			Iterator<Entry<Integer, Call>> itor = calls.entrySet().iterator();
+			final Iterator<Entry<Integer, Call>> itor = this.calls.entrySet().iterator();
 			while (itor.hasNext()) {
-				Call c = itor.next().getValue();
-				c.setException(closeException); // local exception
+				final Call c = itor.next().getValue();
+				c.setException(this.closeException); // local exception
 				itor.remove();
 			}
 		}
@@ -599,11 +588,12 @@ public class Client {
 
 	/** Call implementation used for parallel calls. */
 	private class ParallelCall extends Call {
-		private ParallelResults results;
 
-		private int index;
+		private final ParallelResults results;
 
-		public ParallelCall(IOReadableWritable param, ParallelResults results, int index) {
+		private final int index;
+
+		public ParallelCall(final IOReadableWritable param, final ParallelResults results, final int index) {
 			super(param);
 			this.results = results;
 			this.index = index;
@@ -611,28 +601,24 @@ public class Client {
 
 		/** Deliver result to result collector. */
 		protected void callComplete() {
-			results.callComplete(this);
+			this.results.callComplete(this);
 		}
 	}
 
 	/** Result collector for parallel calls. */
 	private static class ParallelResults {
+		
 		private IOReadableWritable[] values;
 
 		private int size;
 
 		private int count;
 
-		public ParallelResults(int size) {
-			this.values = new IOReadableWritable[size];
-			this.size = size;
-		}
-
 		/** Collect a result. */
 		public synchronized void callComplete(ParallelCall call) {
-			values[call.index] = call.value; // store the value
-			count++; // count it
-			if (count == size) // if all values are in
+			this.values[call.index] = call.value; // store the value
+			this.count++; // count it
+			if (this.count == this.size) // if all values are in
 				notify(); // then notify waiting caller
 		}
 	}
@@ -640,14 +626,11 @@ public class Client {
 	/**
 	 * Construct an IPC client whose values are of the given {@link Writable} class.
 	 */
-	public Client(SocketFactory factory) {
+	public Client(final SocketFactory factory) {
 		this.maxIdleTime = 10000;
 		this.maxRetries = 10;
 		this.tcpNoDelay = false;
 		this.pingInterval = DEFAULT_PING_INTERVAL;
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("The ping interval is" + this.pingInterval + "ms.");
-		}
 		this.socketFactory = factory;
 	}
 
@@ -667,7 +650,7 @@ public class Client {
 	 * @return this client's socket factory
 	 */
 	SocketFactory getSocketFactory() {
-		return socketFactory;
+		return this.socketFactory;
 	}
 
 	/**
@@ -675,23 +658,20 @@ public class Client {
 	 * using this client.
 	 */
 	public void stop() {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Stopping client");
-		}
-
-		if (!running.compareAndSet(true, false)) {
+		
+		if (!this.running.compareAndSet(true, false)) {
 			return;
 		}
 
 		// wake up all connections
-		synchronized (connections) {
-			for (Connection conn : connections.values()) {
+		synchronized (this.connections) {
+			for (final Connection conn : this.connections.values()) {
 				conn.interrupt();
 			}
 		}
 
 		// wait until all connections are closed
-		while (!connections.isEmpty()) {
+		while (!this.connections.isEmpty()) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {

@@ -19,6 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -26,9 +27,9 @@ import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.OutputContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
@@ -81,7 +82,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		 * Initializes a coordinate vector.
 		 * 
 		 * @param coordinates
-		 *            The coordinate vector of a multi-dimensional point.
+		 *        The coordinate vector of a multi-dimensional point.
 		 */
 		public CoordVector(Double[] coordinates) {
 			this.coordinates = new double[coordinates.length];
@@ -94,7 +95,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		 * Initializes a coordinate vector.
 		 * 
 		 * @param coordinates
-		 *            The coordinate vector of a multi-dimensional point.
+		 *        The coordinate vector of a multi-dimensional point.
 		 */
 		public CoordVector(double[] coordinates) {
 			this.coordinates = coordinates;
@@ -114,7 +115,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		 * second coordinate vector.
 		 * 
 		 * @param cv
-		 *            The coordinate vector to which the distance is computed.
+		 *        The coordinate vector to which the distance is computed.
 		 * @return The Euclidian distance to coordinate vector cv. If cv has a
 		 *         different length than this coordinate vector, -1 is returned.
 		 */
@@ -225,11 +226,11 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		 * Initialized the distance from a data point to a cluster center.
 		 * 
 		 * @param dataPoint
-		 *            The coordinate vector of the data point.
+		 *        The coordinate vector of the data point.
 		 * @param clusterId
-		 *            The id of the cluster center.
+		 *        The id of the cluster center.
 		 * @param distance
-		 *            The distance from the data point to the cluster center.
+		 *        The distance from the data point to the cluster center.
 		 */
 		public Distance(CoordVector dataPoint, PactInteger clusterId, PactDouble distance) {
 			this.dataPoint = dataPoint;
@@ -311,9 +312,9 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		 * Initializes a CoordVectorCountSum.
 		 * 
 		 * @param count
-		 *            The count value of the pre-aggregated average value.
+		 *        The count value of the pre-aggregated average value.
 		 * @param pointSum
-		 *            The sum value of the pre-aggregated average value.
+		 *        The sum value of the pre-aggregated average value.
 		 */
 		public CoordVectorCountSum(PactInteger count, CoordVector pointSum) {
 			super(count, pointSum);
@@ -392,10 +393,17 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	 * @author Fabian Hueske
 	 */
 	public static class PointOutFormat extends TextOutputFormat<PactInteger, CoordVector> {
+
+		private static DecimalFormat df = new DecimalFormat("####0.00");
+		static {
+			DecimalFormatSymbols dfSymbols = new DecimalFormatSymbols();
+			dfSymbols.setDecimalSeparator('.');
+			df.setDecimalFormatSymbols(dfSymbols);
+		}
+
 		@Override
 		public byte[] writeLine(KeyValuePair<PactInteger, CoordVector> pair) {
 			StringBuilder line = new StringBuilder();
-			DecimalFormat df = new DecimalFormat("####0.00");
 
 			line.append(pair.getKey().getValue());
 
@@ -609,11 +617,11 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		 * Sums two coordiante vectors by summing up each of their coordinates.
 		 * 
 		 * @param cvToAddTo
-		 *            The coordinate vector to which the other vector is added.
-		 *            This vector is returned.
+		 *        The coordinate vector to which the other vector is added.
+		 *        This vector is returned.
 		 * @param cvToBeAdded
-		 *            The coordinate vector which is added to the other vector.
-		 *            This vector is not modified.
+		 *        The coordinate vector which is added to the other vector.
+		 *        This vector is not modified.
 		 * @return Null if the coordinate vectors differ in their lengths.
 		 *         Otherwise, the coordinate vector to which the other vector
 		 *         was added.
@@ -641,19 +649,11 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 	@Override
 	public Plan getPlan(String... args) {
 
-		int noSubTasks = 1;
-		String dataPointInput = "";
-		String clusterInput = "";
-		String output = "";
-
-		// check for the correct number of job parameters
-		if (args.length == 4) {
-			// parse job parameters
-			noSubTasks = Integer.parseInt(args[0]);
-			dataPointInput = args[1];
-			clusterInput = args[2];
-			output = args[3];
-		}
+		// parse job parameters
+		int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String dataPointInput = (args.length > 1 ? args[1] : "");
+		String clusterInput = (args.length > 2 ? args[2] : "");
+		String output = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for data point input
 		DataSourceContract<PactInteger, CoordVector> dataPoints = new DataSourceContract<PactInteger, CoordVector>(
@@ -706,7 +706,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 
 	@Override
 	public String getDescription() {
-		return "Parameters: [dop] [data-points] [cluster-centers] [output]";
+		return "Parameters: [noSubStasks] [dataPoints] [clusterCenters] [output]";
 	}
 
 }

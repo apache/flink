@@ -32,17 +32,17 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Pair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
  * @author Erik Nijkamp
- * @param <K>
- *        The type of the key.
- * @param <V>
- *        The type of the value.
+ * @author Stephan Ewen
+ * 
+ * @param <K> The type of the key.
+ * @param <V> The type of the value.
  */
-public final class BufferSortable<K extends Key, V extends Value> extends MemoryBacked implements IndexedSortable {
+public final class BufferSortable<K extends Key, V extends Value> extends MemoryBacked implements IndexedSortable
+{
 	/**
 	 * Logging.
 	 */
@@ -60,7 +60,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	protected int position;
 
 	// ------------------------------------------------------------------------
-	// Serialization / Deserialization
+	//                     Serialization / Deserialization
 	// ------------------------------------------------------------------------
 
 	private final MemoryIOWrapper memoryWrapper;
@@ -80,7 +80,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	private final Deserializer<V> valDeserializer;
 
 	// ------------------------------------------------------------------------
-	// Key/Value accounting
+	//                      Key/Value accounting
 	// ------------------------------------------------------------------------
 
 	private static final int KEYSTART = 0; // key offset in acct
@@ -89,7 +89,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 	private static final int ACCTSIZE = 2; // total #fields in acct
 
-	private static final int RECSIZE = (ACCTSIZE + 1) * 4; // acct bytes per record
+	private static final int RECSIZE = (ACCTSIZE + 1) * 4; // acct bytes per record // TODO why +1? (en)
 
 	private int[] kvoffsets; // indices into kvindices
 
@@ -100,7 +100,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	private int kvlast; // last key position in kvindices
 
 	// -------------------------------------------------------------------------
-	// Constructors / Destructors
+	//                     Constructors / Destructors
 	// -------------------------------------------------------------------------
 
 	public BufferSortable(MemorySegment memory, RawComparator comparator, SerializationFactory<K> keySerialization,
@@ -125,7 +125,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	}
 
 	// -------------------------------------------------------------------------
-	// Memory Segment
+	//                         Memory Segment
 	// -------------------------------------------------------------------------
 
 	/*
@@ -138,7 +138,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	public boolean bind(MemorySegment memory) {
 		if (super.bind(memory)) {
 			// accounting
-			int segmentSize = memory.size;
+			int segmentSize = memory.size();
 
 			int recordCapacity = (int) (segmentSize * kvindicesperc);
 			recordCapacity -= recordCapacity % RECSIZE;
@@ -176,11 +176,11 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	}
 
 	// -------------------------------------------------------------------------
-	// Buffering
+	//                                 Buffering
 	// -------------------------------------------------------------------------
 
 	protected int getRemainingBytes() {
-		return memory.size - memory.outputView.getPosition();
+		return memory.size() - memory.outputView.getPosition();
 	}
 
 	protected boolean isEmpty() {
@@ -192,7 +192,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	}
 
 	// -------------------------------------------------------------------------
-	// Retrieving and Writing
+	//                             Retrieving and Writing
 	// -------------------------------------------------------------------------
 
 	/**
@@ -256,7 +256,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	 * @throws IOException
 	 * @throws UnboundMemoryBackedException
 	 */
-	public boolean write(Pair<K, V> pair) {
+	public boolean write(KeyValuePair<K, V> pair) {
 		try {
 			// increment index
 			final int kvnext = (kvindex + 1);
@@ -320,6 +320,8 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 			// start and end within memory segment
 			int kvstart = kvindices[index + KEYSTART];
 			int kvend = kvindices[index + ACCTSIZE] - 4;
+			// -> kvend = kvstart of next pair
+			// -> 4 = kv-length -> see write(...)
 
 			// for the last written pair kvindices[index + ACCTSIZE] does not exist
 			if (kvstart == kvlast) {
@@ -381,29 +383,17 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 	@Override
 	public int compare(int i, int j) {
+		final byte[] backingArray = memory.randomAccessView.getBackingArray();
+		
 		// index
 		final int ii = kvoffsets[i];
 		final int ij = kvoffsets[j];
 
 		// keys
-		int indexi = kvindices[ii + KEYSTART];
-		int lengthi = kvindices[ii + VALSTART] - kvindices[ii + KEYSTART];
-
-		byte[] keyi = new byte[lengthi];
-		memory.randomAccessView.get(indexi, keyi);
-
-		int indexj = kvindices[ij + KEYSTART];
-		int lengthj = kvindices[ij + VALSTART] - kvindices[ij + KEYSTART];
-
-		byte[] keyj = new byte[lengthj];
-		memory.randomAccessView.get(indexj, keyj);
-
-		// indexi = memory.randomAccessView.translateOffset(indexi);
-		// indexj = memory.randomAccessView.translateOffset(indexj);
-
-		// sort by key
-		// return comparator.compare(backingArray, backingArray, indexi, indexj, lengthi, lengthj);
-		return comparator.compare(keyi, keyj, 0, 0, keyi.length, keyj.length);
+		final int indexi = memory.randomAccessView.translateOffset(kvindices[ii + KEYSTART]);
+		final int indexj = memory.randomAccessView.translateOffset(kvindices[ij + KEYSTART]);
+		
+		return comparator.compare(backingArray, backingArray, indexi, indexj);
 	}
 
 	@Override

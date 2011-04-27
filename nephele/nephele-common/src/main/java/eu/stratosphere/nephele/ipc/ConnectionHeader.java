@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.ipc;
 
 import java.io.DataInput;
@@ -34,37 +40,42 @@ class ConnectionHeader implements IOReadableWritable {
 	}
 
 	/**
-	 * Create a new {@link ConnectionHeader} with the given <code>protocol</code> and {@link UserGroupInformation}.
+	 * Creates a new {@link ConnectionHeader} with the given <code>protocol</code>.
 	 * 
 	 * @param protocol
-	 *        protocol used for communication between the IPC client
-	 *        and the server
-	 * @param ugi
-	 *        {@link UserGroupInformation} of the client communicating with
-	 *        the server
+	 *        protocol used for communication between the IPC client and the server
 	 */
 	public ConnectionHeader(String protocol) {
 		this.protocol = protocol;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		protocol = StringRecord.readString(in);
-		if (protocol.isEmpty()) {
-			protocol = null;
-		}
+	public void read(final DataInput in) throws IOException {
+
+		this.protocol = StringRecord.readString(in);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		StringRecord.writeString(out, (protocol == null) ? "" : protocol);
+	public void write(final DataOutput out) throws IOException {
+
+		StringRecord.writeString(out, this.protocol);
 	}
 
 	public String getProtocol() {
-		return protocol;
+		return this.protocol;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public String toString() {
-		return protocol;
+		return this.protocol;
 	}
 }

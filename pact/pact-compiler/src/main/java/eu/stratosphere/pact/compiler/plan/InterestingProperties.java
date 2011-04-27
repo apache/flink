@@ -295,8 +295,8 @@ public class InterestingProperties implements Cloneable {
 
 			// process all interesting properties
 			for (InterestingProperties p : props) {
-				boolean nonTrivial = p.getGlobalProperties().getPreservedAfterContract(contract);
-				nonTrivial |= p.getLocalProperties().getPreservedAfterContract(contract);
+				boolean nonTrivial = p.getGlobalProperties().filterByOutputContract(contract);
+				nonTrivial |= p.getLocalProperties().filterByOutputContract(contract);
 
 				if (nonTrivial) {
 					preserved.add(p);

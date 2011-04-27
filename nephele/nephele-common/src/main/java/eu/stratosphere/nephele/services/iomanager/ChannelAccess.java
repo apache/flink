@@ -15,110 +15,107 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
-import java.util.Collection;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
-import eu.stratosphere.nephele.services.ServiceException;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
- * A base class for reading from / writing to a file system file.
+ * A base class for readers and writers that read data from I/O manager channels, or write data to them.
+ * Requests handled by channels that inherit from this class are executed asynchronously, which allows
+ * write-behind for writers and pre-fetching for readers.
  * 
  * @author Alexander Alexandrov
- * @param <T>
- *        the buffer type used for the underlying IO operations
+ * @author Stephan Ewen
+ * 
+ * @param <T> The buffer type used for the underlying IO operations.
  */
-public abstract class ChannelAccess<T extends Buffer> {
+public abstract class ChannelAccess<T extends Buffer>
+{
 	/**
 	 * The ID of the underlying channel.
 	 */
 	protected final Channel.ID id;
 
 	/**
-	 * The file described by the Channel.ID.
-	 */
-	protected final RandomAccessFile file;
-
-	/**
 	 * A file channel for NIO access to the file.
 	 */
 	protected final FileChannel fileChannel;
-
+	
 	/**
 	 * A request queue for submitting asynchronous requests to the corresponding
 	 * IO worker thread.
 	 */
-	protected final BlockingQueue<IORequest<T>> requestQueue;
-
+	protected final RequestQueue<IORequest<T>> requestQueue;
+	
 	/**
-	 * A reference to the current IO buffer.
+	 * An exception that was encountered by the asynchronous request handling thread.
 	 */
-	protected T currentBuffer;
-
+	protected volatile IOException exception;
+	
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Reentrant lock used for synchronization between the ChannelAccess objects
-	 * and the IO worker threads.
+	 * Creates a new channel to the path indicated by the given ID. The channel hands IO requests to
+	 * the given request queue to be processed.
+	 * 
+	 * @param channelID The id describing the path of the file that the channel accessed.
+	 * @param requestQueue The queue that this channel hands its IO requests to.
+	 * @param writeEnabled Flag describing whether the channel should be opened in read/write mode, rather
+	 *                     than in read-only mode.
+	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
-	protected final ReentrantLock lock;
-
-	/**
-	 * A condition variable indicating that all pending IO requests have been
-	 * completed.
-	 */
-	protected final Condition allRequestsHandled;
-
-	/**
-	 * A boolean flag indicating that the {@link ChannelAccess#close()} method
-	 * has already been invoked.
-	 */
-	protected boolean isClosing;
-
-	// -------------------------------------------------------------------------
-	// Constructors / Destructors
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Constructor.
-	 */
-	protected ChannelAccess(Channel.ID channelID, BlockingQueue<IORequest<T>> requestQueue)
-																							throws ServiceException {
+	protected ChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue, boolean writeEnabled)
+	throws IOException
+	{
+		if (channelID == null || requestQueue == null) {
+			throw new NullPointerException();
+		}
+		
+		this.id = channelID;
+		this.requestQueue = requestQueue;
+		
 		try {
-			this.id = channelID;
-			this.file = new RandomAccessFile(id.getPath(), "rw");
-			this.fileChannel = this.file.getChannel();
-
-			this.requestQueue = requestQueue;
-
-			this.lock = new ReentrantLock();
-			this.allRequestsHandled = lock.newCondition();
-			this.isClosing = false;
-		} catch (IOException e) {
-			throw new ServiceException(e);
+			RandomAccessFile file = new RandomAccessFile(id.getPath(), writeEnabled ? "rw" : "r");
+			this.fileChannel = file.getChannel();
+		}
+		catch (IOException e) {
+			throw new IOException("Channel to path '" + channelID.getPath() + "' could not be opened.", e);
 		}
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Release resources and return the externally supplied memory segments.
+	 * Checks, whether this channel has been closed;
 	 * 
-	 * @throws ServiceException
+	 * @return True, if the channel has been closed, false otherwise.
 	 */
-	public abstract Collection<MemorySegment> close() throws ServiceException;
-
+	public abstract boolean isClosed();
+	
 	/**
-	 * Handle a processed {@code buffer}. This method is invoked by the
-	 * asynchronous IO worker threads upon completion of the IO request with the
-	 * provided {@code buffer}.
+	 * This method is invoked by the asynchronous I/O thread to return a buffer after the I/O request
+	 * completed.
 	 * 
-	 * @param buffer
+	 * @param buffer The buffer to be returned.
 	 */
-	protected abstract void handleProcessedBuffer(T buffer);
-
+	protected abstract void returnBuffer(T buffer); 
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the channel ID of this channel.
+	 * 
+	 * @return This channel's ID.
+	 */
+	public final Channel.ID getChannelID()
+	{
+		return this.id;
+	}
+	
 	/**
 	 * Deletes this channel by physically removing the file beneath it.
 	 * This method may only be called on a closed channel.
@@ -127,34 +124,68 @@ public abstract class ChannelAccess<T extends Buffer> {
 		if (fileChannel.isOpen()) {
 			throw new IllegalStateException("Cannot delete a channel that is open.");
 		}
-
+	
 		// make a best effort to delete the file. Don't report exceptions
 		try {
 			File f = new File(this.id.getPath());
 			if (f.exists()) {
 				f.delete();
 			}
-		} catch (Throwable t) {
+		} catch (Throwable t) {}
+	}
+	
+	/**
+	 * Handles a processed <tt>Buffer</tt>. This method is invoked by the
+	 * asynchronous IO worker threads upon completion of the IO request with the
+	 * provided buffer and/or an exception that occurred while processing the request
+	 * for that buffer.
+	 * 
+	 * @param buffer The buffer to be processed.
+	 */
+	final void handleProcessedBuffer(T buffer, IOException ex) {
+		
+		if (ex != null && this.exception == null) {
+			this.exception = ex;
+		}
+		
+		returnBuffer(buffer);
+	}
+	
+	/**
+	 * Checks the exception state of this channel. The channel is erroneous, if one of its requests could not
+	 * be processed correctly.
+	 * 
+	 * @throws IOException Thrown, if the channel is erroneous. The thrown exception contains the original exception
+	 *                     that defined the erroneous state as its cause.
+	 */
+	protected final void checkErroneous() throws IOException
+	{
+		if (this.exception != null) {
+			throw new IOException("The channel is erroneous.", this.exception);
 		}
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * An wrapper class for submitting IO requests to a centralized asynchronous
 	 * IO worker thread. A request consists of an IO buffer to be processed and
-	 * a reference to the {@link ChannelAccess} object submitting the request.
+	 * a reference to the {@link StreamChannelAccess} object submitting the request.
 	 * 
 	 * @author Alexander Alexandrov
-	 * @param <T>
-	 *        The buffer type for this request
+	 * @param <T> The buffer type for this request.
 	 */
-	protected static final class IORequest<T extends Buffer> {
-		protected final ChannelAccess<T> channelAccess;
+	protected static final class IORequest<T extends Buffer>
+	{
+		protected final ChannelAccess<T> channel;
 
 		protected final T buffer;
 
-		protected IORequest(ChannelAccess<T> channelWrapper, T buffer) {
-			this.channelAccess = channelWrapper;
+		protected IORequest(ChannelAccess<T> targetChannel, T buffer) {
+			this.channel = targetChannel;
 			this.buffer = buffer;
 		}
+		
 	}
+
 }

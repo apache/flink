@@ -83,16 +83,7 @@
 	</build>
 
     <dependencyManagement>
-        <!--
-        this section defines the module versions that are used if nothing
-        else is specified.
-        -->
         <dependencies>
-            <dependency>
-                <groupId>com.google.collections</groupId>
-                <artifactId>google-collections</artifactId>
-                <version>1.0-rc4</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -102,7 +93,7 @@
 
     <modules>
       <module>nephele-common</module>
-	  <module>nephele-management</module>
+      <module>nephele-management</module>
       <module>nephele-profiling</module>
       <module>nephele-queuescheduler</module>
       <module>nephele-ec2cloudmanager</module>
@@ -110,9 +101,6 @@
       <module>nephele-hdfs</module>
       <module>nephele-visualization</module>
       <module>nephele-server</module>
-      <!--
-      <module>nephele-compression</module>
-      -->
       <module>nephele-examples</module>
     </modules>
 </project>
