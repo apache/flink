@@ -36,6 +36,13 @@
     	<type>jar</type>
     	<scope>test</scope>
     </dependency>
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-clients</artifactId>
+    	<version>0.1</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
   </dependencies>
 
   <reporting>

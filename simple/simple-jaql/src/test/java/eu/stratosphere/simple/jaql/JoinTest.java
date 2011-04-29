@@ -2,11 +2,12 @@ package eu.stratosphere.simple.jaql;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.Comparison.BinaryOperator;
+import eu.stratosphere.sopremo.Comparison;
 import eu.stratosphere.sopremo.BooleanExpression;
-import eu.stratosphere.sopremo.BooleanExpression.BinaryOperator;
 import eu.stratosphere.sopremo.Condition;
-import eu.stratosphere.sopremo.Transformation;
-import eu.stratosphere.sopremo.ValueAssignment;
+import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.ValueAssignment;
 import eu.stratosphere.sopremo.operator.Join;
 import eu.stratosphere.sopremo.operator.Source;
 
@@ -32,7 +33,7 @@ public class JoinTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseEquiJoin() {
-		Condition condition = new Condition(new BooleanExpression(createPath("0", "id"), BinaryOperator.EQUAL,
+		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL,
 			createPath("1", "userid")));
 
 		Transformation transformation = new Transformation();
@@ -45,7 +46,7 @@ public class JoinTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseEquiJoinWithIterationVariables() {
-		Condition condition = new Condition(new BooleanExpression(createPath("0", "id"), BinaryOperator.EQUAL,
+		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL,
 			createPath("1", "userid")));
 
 		Transformation transformation = new Transformation();
@@ -58,7 +59,7 @@ public class JoinTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseLeftOuterEquiJoinWithIterationVariables() {
-		Condition condition = new Condition(new BooleanExpression(createPath("0", "id"), BinaryOperator.EQUAL,
+		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL,
 			createPath("1", "userid")));
 
 		Transformation transformation = new Transformation();

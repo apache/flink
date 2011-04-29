@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
-import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.PactNull;
 
 /**
  * Tests {@link JsonInputFormat}.
@@ -47,7 +47,7 @@ public class JsonInputFormatTest {
 
 		JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		KeyValuePair<PactLong, PactJsonObject> pair = inputFormat.createPair();
+		KeyValuePair<PactNull, PactJsonObject> pair = inputFormat.createPair();
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
 			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextPair(pair));
@@ -74,7 +74,7 @@ public class JsonInputFormatTest {
 
 		JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		KeyValuePair<PactLong, PactJsonObject> pair = inputFormat.createPair();
+		KeyValuePair<PactNull, PactJsonObject> pair = inputFormat.createPair();
 
 		if (!inputFormat.reachedEnd()) {
 			if (!inputFormat.nextPair(pair))

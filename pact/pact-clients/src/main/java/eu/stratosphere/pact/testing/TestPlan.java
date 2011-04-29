@@ -206,6 +206,18 @@ public class TestPlan implements Closeable {
 
 		TestPlanTestCase.addTestPlan(this);
 	}
+	/**
+	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
+	 * {@link DataSinkContract}s. However, it
+	 * is also possible to add arbitrary Contracts, to which DataSinkContracts
+	 * are automatically added.
+	 * 
+	 * @param contracts
+	 *        a list of Contracts with at least one element.
+	 */
+	public TestPlan(final Collection<? extends Contract> contracts) {
+		this(contracts.toArray(new Contract[contracts.size()]));
+	}
 
 	/**
 	 * Locally executes the {@link ExecutionGraph}.
@@ -725,13 +737,13 @@ public class TestPlan implements Closeable {
 		return builder.toString();
 	}
 
-	static DataSinkContract<Key, Value> createDefaultSink(final String name) {
+	public static DataSinkContract<Key, Value> createDefaultSink(final String name) {
 		return new DataSinkContract<Key, Value>(SequentialOutputFormat.class,
 				getTestPlanFile("output"), name);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	static DataSourceContract<Key, Value> createDefaultSource(final String name) {
+	public static DataSourceContract<Key, Value> createDefaultSource(final String name) {
 		return new DataSourceContract(SequentialInputFormat.class,
 				getTestPlanFile("input"), name);
 	}

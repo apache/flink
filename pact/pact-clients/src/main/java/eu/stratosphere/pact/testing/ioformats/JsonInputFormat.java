@@ -28,6 +28,7 @@ import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.PactNull;
 
 /**
  * Reads json files with Jackson. The resulting key/value pair consists of an id and a {@link PactJsonObject}. The id is
@@ -35,11 +36,9 @@ import eu.stratosphere.pact.common.type.base.PactLong;
  * 
  * @author Arvid Heise
  */
-public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
+public class JsonInputFormat extends InputFormat<PactNull, PactJsonObject> {
 
 	private boolean array;
-
-	private long currentId;
 
 	private boolean end;
 
@@ -61,22 +60,21 @@ public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
 	}
 
 	@Override
-	public KeyValuePair<PactLong, PactJsonObject> createPair() {
-		return new KeyValuePair<PactLong, PactJsonObject>(new PactLong(), new PactJsonObject());
+	public KeyValuePair<PactNull, PactJsonObject> createPair() {
+		return new KeyValuePair<PactNull, PactJsonObject>(PactNull.getInstance(), new PactJsonObject());
 	}
 
 	@Override
 	protected void initTypes() {
-		this.ok = PactLong.class;
+		this.ok = PactNull.class;
 		this.ov = PactJsonObject.class;
 	}
 
 	@Override
-	public boolean nextPair(final KeyValuePair<PactLong, PactJsonObject> pair) throws JsonProcessingException,
+	public boolean nextPair(final KeyValuePair<PactNull, PactJsonObject> pair) throws JsonProcessingException,
 			IOException {
 
 		if (!this.end) {
-			pair.getKey().setValue(this.currentId++);
 			pair.getValue().setValue(this.parser.readValueAsTree());
 			checkEnd();
 			return true;
@@ -88,7 +86,6 @@ public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
 	@Override
 	public void open() throws JsonParseException, IOException {
 		this.end = false;
-		this.currentId = 0;
 		this.parser = new JsonFactory().createJsonParser(this.stream);
 		this.parser.setCodec(new ObjectMapper());
 		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)

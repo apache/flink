@@ -175,8 +175,20 @@ public class TestPairs<K extends Key, V extends Value> implements
 		return this;
 	}
 
-	private void assignMemory(final TaskConfig config, final int memSize)
-	{
+	/**
+	 * Adds one pair.
+	 * 
+	 * @param pair
+	 *        the pair to add
+	 * @return this
+	 */
+	public TestPairs<K, V> add(final KeyValuePair<K, V> pair) {
+		this.pairs.add(pair);
+		setEmpty(false);
+		return this;
+	}
+
+	private void assignMemory(final TaskConfig config, final int memSize) {
 		// set the config
 		config.setMemorySize(((long) memSize) * 1024L * 1024L);
 		config.setNumFilehandles(DEFAUTL_MERGE_FACTOR);

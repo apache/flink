@@ -41,8 +41,8 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
@@ -58,7 +58,6 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactList;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -199,7 +198,7 @@ public class TestPlanTest extends TestPlanTestCase {
 	 */
 	@Test
 	public void completeTestPasses() {
-		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
+		final DataSourceContract<PactNull, PactJsonObject> read = createInput(JsonInputFormat.class,
 			"TestPlan/test.json");
 
 		final MapContract<Key, Value, Key, Value> map =
@@ -251,7 +250,7 @@ public class TestPlanTest extends TestPlanTestCase {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
+		final DataSourceContract<PactNull, PactJsonObject> read = createInput(JsonInputFormat.class,
 			"TestPlan/test.json");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,

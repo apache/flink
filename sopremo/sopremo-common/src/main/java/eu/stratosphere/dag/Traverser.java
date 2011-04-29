@@ -83,11 +83,12 @@ public class Traverser<Node> {
 	}
 
 	private void gatherNodes(Node node) {
-		if (!nodes.contains(node)) {
-			this.nodes.add(node);
-			for (Node child : navigator.getConnectedNodes(node))
-				gatherNodes(child);
-		}
+		if (!nodes.contains(node))
+			if (node != null) {
+				this.nodes.add(node);
+				for (Node child : navigator.getConnectedNodes(node))
+					gatherNodes(child);
+			}
 	}
 
 	private class Level {
@@ -160,7 +161,7 @@ public class Traverser<Node> {
 
 	private boolean isIndependent(Node node, Collection<Node> usedNodes) {
 		for (Object input : this.navigator.getConnectedNodes(node))
-			if (!usedNodes.contains(input))
+			if (input != null && !usedNodes.contains(input))
 				return false;
 		return true;
 	}

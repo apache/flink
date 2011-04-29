@@ -1,15 +1,22 @@
 package eu.stratosphere.sopremo.operator;
 
-import eu.stratosphere.sopremo.JsonPath;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.pact.common.type.base.PactJsonObject;
+import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
+import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Transformation;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.Transformation;
 
 public class Source extends Operator {
 	private String inputName;
 
 	private DataType type;
 
-	private JsonPath adhocValue;
+	private EvaluableExpression adhocValue;
 
 	public Source(DataType type, String inputName) {
 		super(Transformation.IDENTITY);
@@ -17,20 +24,32 @@ public class Source extends Operator {
 		this.type = type;
 	}
 
-	public Source(JsonPath adhocValue) {
+	public Source(EvaluableExpression adhocValue) {
 		super(Transformation.IDENTITY);
 		this.adhocValue = adhocValue;
 		this.type = DataType.ADHOC;
 	}
 
 	@Override
+	public PactModule asPactModule() {
+		if (this.type == DataType.ADHOC)
+			throw new UnsupportedOperationException();
+		PactModule pactModule = new PactModule(1, 1);
+		DataSourceContract<PactNull, PactJsonObject> contract = new DataSourceContract<PactNull, PactJsonObject>(
+			JsonInputFormat.class, inputName);
+		pactModule.getOutput(0).setInput(contract);
+		pactModule.setInput(0, contract);
+		return pactModule;
+	}
+
+	@Override
 	public String toString() {
-		switch (type) {
+		switch (this.type) {
 		case ADHOC:
-			return "Source [" + adhocValue + "]";
+			return "Source [" + this.adhocValue + "]";
 
 		default:
-			return "Source [" + inputName + "]";
+			return "Source [" + this.inputName + "]";
 		}
 	}
 
@@ -38,9 +57,9 @@ public class Source extends Operator {
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + ((adhocValue == null) ? 0 : adhocValue.hashCode());
-		result = prime * result + ((inputName == null) ? 0 : inputName.hashCode());
-		result = prime * result + ((type == null) ? 0 : type.hashCode());
+		result = prime * result + (this.adhocValue == null ? 0 : this.adhocValue.hashCode());
+		result = prime * result + (this.inputName == null ? 0 : this.inputName.hashCode());
+		result = prime * result + this.type.hashCode();
 		return result;
 	}
 
@@ -50,23 +69,34 @@ public class Source extends Operator {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		Source other = (Source) obj;
-		if (type != other.type)
+		if (this.type != other.type)
 			return false;
-		if (inputName == null) {
+		if (this.inputName == null) {
 			if (other.inputName != null)
 				return false;
-		} else if (!inputName.equals(other.inputName))
+		} else if (!this.inputName.equals(other.inputName))
 			return false;
-		if (adhocValue == null) {
+		if (this.adhocValue == null) {
 			if (other.adhocValue != null)
 				return false;
-		} else if (!adhocValue.deepEquals(other.adhocValue))
+		} else if (!this.adhocValue.equals(other.adhocValue))
 			return false;
 		return true;
 	}
 
-	
+	public String getInputName() {
+		return inputName;
+	}
+
+	public DataType getType() {
+		return type;
+	}
+
+	public EvaluableExpression getAdhocValue() {
+		return adhocValue;
+	}
+
 }

@@ -34,9 +34,9 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Arvid Heise
  */
 public class PactJsonObject implements Value {
-	private static JsonFactory Factory = new JsonFactory();
+	private static JsonFactory FACTORY = new JsonFactory();
 
-	private static ObjectMapper ObjectMapper = new ObjectMapper();
+	private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	private final PactString serializationString = new PactString();
 
@@ -46,22 +46,32 @@ public class PactJsonObject implements Value {
 	 * Initializes PactJsonObject with an empty {@link ObjectNode}.
 	 */
 	public PactJsonObject() {
-		this.value = ObjectMapper.createObjectNode();
+		this.value = OBJECT_MAPPER.createObjectNode();
+	}
+
+	/**
+	 * Initializes PactJsonObject with the given {@link JsonNode}.
+	 * 
+	 * @param value
+	 *        the value that is wrapped
+	 */
+	public PactJsonObject(JsonNode value) {
+		this.value = value;
 	}
 
 	@Override
 	public void read(final DataInput in) throws IOException {
 		this.serializationString.read(in);
-		JsonParser parser = Factory.createJsonParser(this.serializationString.toString());
-		parser.setCodec(ObjectMapper);
+		JsonParser parser = FACTORY.createJsonParser(this.serializationString.toString());
+		parser.setCodec(OBJECT_MAPPER);
 		this.value = parser.readValueAsTree();
 	}
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		final StringWriter writer = new StringWriter();
-		JsonGenerator generator = Factory.createJsonGenerator(writer);
-		generator.setCodec(ObjectMapper);
+		JsonGenerator generator = FACTORY.createJsonGenerator(writer);
+		generator.setCodec(OBJECT_MAPPER);
 		generator.writeTree(this.value);
 		this.serializationString.setValue(writer.toString());
 		this.serializationString.write(out);

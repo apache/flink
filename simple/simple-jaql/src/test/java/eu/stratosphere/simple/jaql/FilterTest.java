@@ -2,11 +2,13 @@ package eu.stratosphere.simple.jaql;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BooleanExpression;
-import eu.stratosphere.sopremo.BooleanExpression.BinaryOperator;
+import eu.stratosphere.sopremo.Comparison;
+import eu.stratosphere.sopremo.Comparison.BinaryOperator;
 import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Condition.Combination;
-import eu.stratosphere.sopremo.JsonPath;
+import eu.stratosphere.sopremo.UnaryExpression;
+import eu.stratosphere.sopremo.expressions.Constant;
+import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.operator.DataType;
 import eu.stratosphere.sopremo.operator.Selection;
 import eu.stratosphere.sopremo.operator.Sink;
@@ -27,46 +29,43 @@ public class FilterTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseAdhocInputFilter() {
-		Condition selectionCondition = new Condition(new BooleanExpression(new JsonPath.Input(0), BinaryOperator.EQUAL,
-			new JsonPath.Constant(2L)));
+		Condition selectionCondition = new Condition(new Comparison(new Input(0), BinaryOperator.EQUAL,
+			new Constant(2L)));
 		assertParseResult(new Selection(selectionCondition, new Source(createJsonArray(1L, 2L, 3L))),
 			"[1, 2, 3] -> filter $ == 2");
 	}
 
 	@Test
 	public void shouldParseCombinedFilter() {
-		Condition incomeCond = new Condition(new BooleanExpression(createPath("$", "income"), BinaryOperator.GREATER,
-				new JsonPath.Constant(30000L)));
-		Condition selectionCondition = new Condition(new BooleanExpression(createPath("$", "mgr")), Combination.OR,
-			incomeCond);
+		Condition selectionCondition = new Condition(Combination.OR,
+			new UnaryExpression(createPath("$", "mgr")),
+			new Comparison(createPath("$", "income"), BinaryOperator.GREATER, new Constant(30000L)));
 		assertParseResult(new Selection(selectionCondition, employeeSource()),
 			employeeJaql() + "employees -> filter $.mgr or $.income > 30000;");
 	}
 
 	@Test
 	public void shouldParseCombinedFilterWithIterationVariable() {
-		Condition incomeCond = new Condition(new BooleanExpression(createPath("$", "income"), BinaryOperator.GREATER,
-				new JsonPath.Constant(30000L)));
-		Condition selectionCondition = new Condition(new BooleanExpression(createPath("$", "mgr")), Combination.OR,
-			incomeCond);
+		Condition selectionCondition = new Condition(Combination.OR,
+			new UnaryExpression(createPath("$", "mgr")),
+			new Comparison(createPath("$", "income"), BinaryOperator.GREATER, new Constant(30000L)));
 		assertParseResult(new Selection(selectionCondition, employeeSource()),
 			employeeJaql() + "employees -> filter each emp emp.mgr or emp.income > 30000;");
 	}
 
 	@Test
 	public void shouldParseCombinedFilterWithIterationVariableAndParens() {
-		Condition incomeCond = new Condition(new BooleanExpression(createPath("$", "income"), BinaryOperator.GREATER,
-				new JsonPath.Constant(30000L)));
-		Condition selectionCondition = new Condition(new BooleanExpression(createPath("$", "mgr")), Combination.OR,
-			incomeCond);
+		Condition selectionCondition = new Condition(Combination.OR,
+			new UnaryExpression(createPath("$", "mgr")),
+			new Comparison(createPath("$", "income"), BinaryOperator.GREATER, new Constant(30000L)));
 		assertParseResult(new Selection(selectionCondition, employeeSource()),
 			employeeJaql() + "employees -> filter each emp (emp.mgr or emp.income > 30000);");
 	}
 
 	@Test
 	public void shouldParseFilterPipeline() {
-		Condition selectionCondition = new Condition(new BooleanExpression(createPath("$", "name"),
-			BinaryOperator.NOT_EQUAL, new JsonPath.Constant("")));
+		Condition selectionCondition = new Condition(new Comparison(createPath("$", "name"),
+			BinaryOperator.NOT_EQUAL, new Constant("")));
 		Selection selection = new Selection(selectionCondition, new Source(DataType.HDFS, "in.json"));
 		assertParseResult(new Sink(DataType.HDFS, "out.json", selection),
 			"read(hdfs(\"in.json\")) -> filter $.name != \"\" -> write(hdfs(\"out.json\"))");

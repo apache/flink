@@ -5,9 +5,9 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Transformation;
+import eu.stratosphere.sopremo.expressions.Transformation;
 
-public class ConditionalOperator extends Operator {
+public abstract class ConditionalOperator extends Operator {
 
 	private Condition condition;
 

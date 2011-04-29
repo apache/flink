@@ -1,6 +1,6 @@
 import java.io.FileInputStream;
 
-import eu.stratosphere.simple.jaql.JaqlPlanCreator;
+import eu.stratosphere.simple.jaql.QueryParser;
 
 public class ParserTest {
 	public static void main(String[] args) throws Exception {
@@ -14,20 +14,20 @@ public class ParserTest {
 		// JaqlTree walker = new JaqlTree(nodes);
 		// tree = (CommonTree) walker.downup(tree, true); // walk t, trace transforms
 		// System.out.println("transformed tree: " + toStringTree(tree));
-//
-//		Jaql jaql = new Jaql() {
-//			{
-//				rewriter = new RewriteEngine();
-//			}
-//		};
-//		//jaql.enableRewrite(false);
-//		jaql.setInput("test", new FileInputStream("test.jaql"));
-////		jaql.setInput("test", new FileInputStream("scrub.jaql"));
-//		Expr expr = jaql.expr();
-//		System.out.println(expr);
+		//
+		// Jaql jaql = new Jaql() {
+		// {
+		// rewriter = new RewriteEngine();
+		// }
+		// };
+		// //jaql.enableRewrite(false);
+		// jaql.setInput("test", new FileInputStream("test.jaql"));
+		// // jaql.setInput("test", new FileInputStream("scrub.jaql"));
+		// Expr expr = jaql.expr();
+		// System.out.println(expr);
 
-		System.out.println(new JaqlPlanCreator().getPlan(new FileInputStream("test.jaql")));
-		
+		System.out.println(new QueryParser().getPlan(new FileInputStream("test.jaql")));
+
 		System.exit(0);
 
 	}

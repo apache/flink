@@ -1,37 +1,38 @@
 package eu.stratosphere.sopremo;
 
+import java.util.Arrays;
 import java.util.List;
 
-public class Condition {
-	private BooleanExpression comparison;
+import eu.stratosphere.sopremo.Condition.Combination;
+
+public class Condition extends BooleanExpression {
+	private BooleanExpression[] expressions;
 
 	private Combination combination;
 
-	private Condition chainedCondition;
-
-	public Condition(BooleanExpression comparison, Combination combination, Condition condition) {
-		this.comparison = comparison;
-		this.combination = chainedCondition != null ? combination : null;
-		this.chainedCondition = condition;
+	public Condition(Combination combination, BooleanExpression... expressions) {
+		this.expressions = expressions;
+		this.combination = expressions.length > 1 ? combination : Combination.AND;
 	}
 
-	public Condition(BooleanExpression comparison) {
-		this(comparison, null, null);
+	public Condition(BooleanExpression expression) {
+		this(null, expression);
 	}
 
-	public static Condition chain(List<Condition> conditions, Combination combination) {
-		for (int index = 1; index < conditions.size(); index++) {
-			conditions.get(index - 1).combination = combination;
-			conditions.get(index - 1).chainedCondition = conditions.get(index);
-		}
-		return conditions.isEmpty() ? null : conditions.get(0);
-	}
+	// public static Condition chain(List<Condition> conditions, Combination combination) {
+	// for (int index = 1; index < conditions.size(); index++) {
+	// conditions.get(index - 1).combination = combination;
+	// conditions.get(index - 1).chainedCondition = conditions.get(index);
+	// }
+	// return conditions.isEmpty() ? null : conditions.get(0);
+	// }
 
 	@Override
 	public String toString() {
-		if (this.chainedCondition == null)
-			return this.comparison.toString();
-		return String.format("%s %s %s", this.comparison, this.combination, this.chainedCondition);
+		StringBuilder builder = new StringBuilder(this.expressions[0].toString());
+		for (int index = 1; index < this.expressions.length; index++)
+			builder.append(' ').append(this.combination).append(' ').append(this.expressions[index]);
+		return builder.toString();
 	}
 
 	public static enum Combination {
@@ -42,9 +43,8 @@ public class Condition {
 	public int hashCode() {
 		final int prime = 41;
 		int result = 1;
-		result = prime * result + ((combination == null) ? 0 : combination.hashCode());
-		result = prime * result + ((chainedCondition == null) ? 0 : chainedCondition.hashCode());
-		result = prime * result + comparison.hashCode();
+		result = prime * result + this.combination.hashCode();
+		result = prime * result + Arrays.hashCode(this.expressions);
 		return result;
 	}
 
@@ -54,20 +54,22 @@ public class Condition {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		Condition other = (Condition) obj;
-		if (chainedCondition == null) {
-			if (other.chainedCondition != null)
-				return false;
-		} else if (!chainedCondition.equals(other.chainedCondition))
-			return false;
-		if (combination == null) {
-			if (other.combination != null)
-				return false;
-		} else if (!combination.equals(other.combination))
-			return false;
-		return comparison.equals(other.comparison);
+		return this.combination == other.combination && Arrays.equals(this.expressions, other.expressions);
+	}
+
+	public static Condition valueOf(List<BooleanExpression> childConditions, Combination combination) {
+		if (childConditions.size() == 1)
+			return valueOf(childConditions.get(0));
+		return new Condition(combination, childConditions.toArray(new BooleanExpression[childConditions.size()]));
+	}
+
+	public static Condition valueOf(BooleanExpression expression) {
+		if (expression instanceof Condition)
+			return (Condition) expression;
+		return new Condition(expression);
 	}
 
 }
