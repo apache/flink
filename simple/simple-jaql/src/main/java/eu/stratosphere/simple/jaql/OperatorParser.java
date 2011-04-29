@@ -1,0 +1,283 @@
+package eu.stratosphere.simple.jaql;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
+
+import com.ibm.jaql.lang.core.Var;
+import com.ibm.jaql.lang.expr.core.ArrayExpr;
+import com.ibm.jaql.lang.expr.core.BindingExpr;
+import com.ibm.jaql.lang.expr.core.ConstExpr;
+import com.ibm.jaql.lang.expr.core.Expr;
+import com.ibm.jaql.lang.expr.core.FilterExpr;
+import com.ibm.jaql.lang.expr.core.ForExpr;
+import com.ibm.jaql.lang.expr.core.GroupByExpr;
+import com.ibm.jaql.lang.expr.core.JoinExpr;
+import com.ibm.jaql.lang.expr.core.TransformExpr;
+import com.ibm.jaql.lang.expr.core.VarExpr;
+import com.ibm.jaql.lang.expr.io.AbstractHandleFn;
+import com.ibm.jaql.lang.expr.io.ReadFn;
+import com.ibm.jaql.lang.expr.io.WriteFn;
+
+import eu.stratosphere.reflect.TypeHandler;
+import eu.stratosphere.reflect.TypeHandlerListener;
+import eu.stratosphere.reflect.TypeSpecificHandler;
+import eu.stratosphere.simple.jaql.QueryParser.Binding;
+import eu.stratosphere.sopremo.BooleanExpression;
+import eu.stratosphere.sopremo.Comparison;
+import eu.stratosphere.sopremo.Comparison.BinaryOperator;
+import eu.stratosphere.sopremo.Condition;
+import eu.stratosphere.sopremo.Condition.Combination;
+import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.expressions.FieldAccess;
+import eu.stratosphere.sopremo.expressions.Input;
+import eu.stratosphere.sopremo.expressions.Mapping;
+import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.ValueAssignment;
+import eu.stratosphere.sopremo.operator.Aggregation;
+import eu.stratosphere.sopremo.operator.DataType;
+import eu.stratosphere.sopremo.operator.Join;
+import eu.stratosphere.sopremo.operator.Projection;
+import eu.stratosphere.sopremo.operator.Selection;
+import eu.stratosphere.sopremo.operator.Sink;
+import eu.stratosphere.sopremo.operator.Source;
+
+class OperatorParser implements JaqlToSopremoParser<Operator> {
+	private final class BindingScoper implements TypeHandlerListener<Expr, Operator> {
+		@Override
+		public void afterConversion(Expr in, Object[] params, Operator out) {
+			// if (!(in instanceof BindingExpr))
+			// operatorParameters.removeLast();
+			OperatorParser.this.queryParser.expressionToOperators.put(in, out);
+		}
+
+		@Override
+		public void afterHierarchicalConversion(Expr in, Object[] params, Operator out) {
+			if (!(in instanceof BindingExpr))
+				OperatorParser.this.queryParser.bindings.removeScope();
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public void beforeConversion(Expr in, Object[] params) {
+			OperatorParser.this.queryParser.operatorInputs.addLast((List<Operator>) params[0]);
+		}
+
+		@Override
+		public void beforeHierarchicalConversion(Expr in, Object[] params) {
+			if (!(in instanceof BindingExpr))
+				OperatorParser.this.queryParser.bindings.addScope();
+		}
+	}
+
+	private final class AdhocSourceConverter implements OpConverter<ArrayExpr> {
+		@Override
+		public Operator convert(ArrayExpr expr, List<Operator> childOperators) {
+			if (expr.parent() instanceof BindingExpr)
+				return new Source(OperatorParser.this.queryParser.parsePath(expr));
+			return null;
+		}
+	}
+
+	private final class SourceConverter implements OpConverter<ReadFn> {
+		@Override
+		public Operator convert(ReadFn expr, List<Operator> childOperators) {
+			return new Source(DataType.HDFS,
+				((ConstExpr) ((AbstractHandleFn) expr.child(0)).location()).value.toString());
+		}
+	}
+
+	private final class AggregationConverter implements OpConverter<GroupByExpr> {
+		@Override
+		public Operator convert(GroupByExpr expr, List<Operator> childOperators) {
+			int n = expr.numInputs();
+			List<Path> groupStatements = new ArrayList<Path>();
+			for (int index = 0; index < n; index++) {
+				OperatorParser.this.queryParser.bindings.set("$", new Binding(null,
+					new Input(index)));
+				Path groupStatement = (Path) OperatorParser.this.queryParser.parsePath(expr.byBinding().child(
+					index));
+				if (groupStatement != null) {
+					OperatorParser.this.queryParser.bindings.set(expr.getAsVar(index).taggedName(), new Binding(null,
+						new Input(index)));
+					groupStatements.add(groupStatement);
+				}
+				if (index > 0)
+					childOperators.add(OperatorParser.this.queryParser.parseOperator(expr.inBinding().child(index)));
+			}
+			Transformation collectTransformation = OperatorParser.this.queryParser
+				.parseTransformation(((ArrayExpr) expr.collectExpr()).child(0));
+			return new Aggregation(collectTransformation, groupStatements.isEmpty() ? Aggregation.NO_GROUPING
+				: groupStatements, childOperators);
+		}
+	}
+
+	private final class JoinConverter implements OpConverter<JoinExpr> {
+		private List<String> inputAliases = new ArrayList<String>();
+
+		@Override
+		public Operator convert(JoinExpr expr, List<Operator> childOperators) {
+			Condition condition = this.parseCondition(expr);
+
+			if (this.inputAliases.size() < childOperators.size())
+				this.inputAliases.addAll(Arrays.asList(new String[childOperators.size() - this.inputAliases.size()]));
+			for (int index = 0; index < childOperators.size(); index++)
+				childOperators.set(index, this.withoutNameBinding(childOperators.get(index), index));
+
+			Join join = new Join(this.parseTransformation(expr, childOperators.size()), condition, childOperators);
+			for (int index = 0; index < expr.numBindings(); index++)
+				if (expr.binding(index).preserve)
+					join.withOuterJoin(childOperators.get(index));
+			return join;
+		}
+
+		private Condition parseCondition(JoinExpr expr) {
+			List<List<Path>> onPaths = new ArrayList<List<Path>>();
+			for (int index = 0; index < expr.numBindings(); index++) {
+				Expr onExpr = expr.onExpr(index);
+				ArrayList<Path> onPath = new ArrayList<Path>();
+				if (onExpr instanceof ArrayExpr)
+					for (int i = 0; i < onExpr.numChildren(); i++)
+						onPath.add((Path) OperatorParser.this.queryParser.parsePath(onExpr.child(i)));
+				else
+					onPath.add((Path) OperatorParser.this.queryParser.parsePath(onExpr));
+
+				for (Path path : onPath)
+					// leave out intermediate variable
+					path.getFragments().remove(1);
+				onPaths.add(onPath);
+			}
+
+			List<BooleanExpression> expressions = new ArrayList<BooleanExpression>();
+			for (int index = 0; index < onPaths.get(0).size(); index++)
+				expressions.add(new Comparison(onPaths.get(0).get(index), BinaryOperator.EQUAL, onPaths.get(1).get(
+					index)));
+			return Condition.valueOf(expressions, Combination.AND);
+		}
+
+		private Transformation parseTransformation(JoinExpr expr, int numInputs) {
+			OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new Input(0)));
+			Transformation transformation = OperatorParser.this.queryParser.parseTransformation(((ForExpr) expr
+				.parent().parent()).collectExpr());
+			for (int inputIndex = 0; inputIndex < numInputs; inputIndex++) {
+				Path alias = new Path(new Input(0), new FieldAccess(
+					this.inputAliases.get(inputIndex)));
+				transformation.replace(alias, new Path(new Input(inputIndex)));
+			}
+			return transformation;
+		}
+
+		private Operator withoutNameBinding(Operator operator, int inputIndex) {
+			if (operator instanceof Projection && operator.getTransformation().getMappingSize() == 1) {
+				Mapping mapping = operator.getTransformation().getMapping(0);
+				if (mapping instanceof ValueAssignment
+					&& ((ValueAssignment) mapping).getTransformation() instanceof Input) {
+					Operator coreInput = operator.getInputOperators().get(
+						((Input) ((ValueAssignment) mapping).getTransformation()).getIndex());
+					Iterator<Entry<String, Binding>> iterator = OperatorParser.this.queryParser.bindings.getAll()
+						.entrySet().iterator();
+
+					// replace bindings to core input
+					while (iterator.hasNext()) {
+						Binding binding = iterator.next().getValue();
+						if (binding.getTransformed() == operator)
+							binding.setTransformed(coreInput);
+					}
+					this.inputAliases.set(inputIndex, mapping.getTarget());
+					return coreInput;
+				}
+			}
+			return operator;
+		}
+	}
+
+	private final class TransformationConverter implements OpConverter<TransformExpr> {
+		@Override
+		public Operator convert(TransformExpr expr, List<Operator> childOperators) {
+			return new Projection(OperatorParser.this.queryParser.parseTransformation(expr), childOperators.get(0));
+		}
+	}
+
+	private final class SelectionConverter implements OpConverter<FilterExpr> {
+		@Override
+		public Operator convert(FilterExpr expr, List<Operator> childOperators) {
+			return new Selection(OperatorParser.this.queryParser.parseCondition(expr), childOperators.get(0));
+		}
+	}
+
+	private final class SinkConverter implements OpConverter<WriteFn> {
+		@Override
+		public Operator convert(WriteFn expr, List<Operator> childOperators) {
+			return new Sink(DataType.HDFS, ((AbstractHandleFn) expr.descriptor()).location().toString(),
+				childOperators.get(0));
+		}
+	}
+
+	final class BindingExtractor<Output> implements TypeHandler<BindingExpr, Output> {
+
+		private BindingExtractor() {
+		}
+
+		public Output convert(BindingExpr expr, List<Object> children) {
+			// System.out.println(expr);
+			if (children.isEmpty() && expr.numChildren() == 0)
+				return null;
+
+			if (expr.var == Var.UNUSED)
+				return null;
+
+			Expr valueExpr;
+			switch (expr.type) {
+			case IN:
+				valueExpr = expr.inExpr();
+				break;
+			case EQ:
+				valueExpr = expr.eqExpr();
+				break;
+			default:
+				System.out.println("unhandled binding");
+				return null;
+			}
+
+			Object transformedExpr = null;
+			if (!children.isEmpty())
+				transformedExpr = children.get(0);
+			else if (valueExpr instanceof VarExpr)
+				transformedExpr = OperatorParser.this.queryParser.bindings.get(valueExpr.toString()).getTransformed();
+			else
+				transformedExpr = OperatorParser.this.queryParser.parseTransformation(valueExpr).simplify();
+			// if (transformedExpr == null)
+			// transformedExpr = JaqlPlanCreator.this.parsePath(valueExpr);
+			OperatorParser.this.queryParser.bindings
+				.set(expr.var.taggedName(), new Binding(valueExpr, transformedExpr));
+
+			return null;
+		}
+	}
+
+	private static interface OpConverter<I extends Expr> extends TypeHandler<I, Operator> {
+		public abstract Operator convert(I expr, List<Operator> childOperators);
+	}
+
+	QueryParser queryParser;
+
+	private TypeSpecificHandler<Expr, Operator, TypeHandler<Expr, Operator>> operatorConverter = new TypeSpecificHandler<Expr, Operator, TypeHandler<Expr, Operator>>();
+
+	@SuppressWarnings("unchecked")
+	public OperatorParser(QueryParser queryParser) {
+		this.queryParser = queryParser;
+		this.operatorConverter.addListener(new BindingScoper());
+		this.operatorConverter.registerAll(new SinkConverter(), new SelectionConverter(),
+			new TransformationConverter(), new JoinConverter(), new AggregationConverter(), new SourceConverter(),
+			new AdhocSourceConverter(), new BindingExtractor<Operator>());
+	}
+
+	@Override
+	public Operator parse(Expr expr) {
+		return this.operatorConverter.handleRecursively(ExprNavigator.INSTANCE, expr);
+	}
+
+}
