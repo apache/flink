@@ -55,25 +55,25 @@ public class Printer<Node> {
 		private Map<List<Direction>, String> connectorStrings = new HashMap<List<Direction>, String>();
 
 		public BoxConnectorProvider() {
-			put(new ArrayList<Direction>(), "");
+			this.put(new ArrayList<Direction>(), "");
 
-			put(Arrays.asList(Direction.TOP, Direction.DOWN), "\u2502");
-			put(Arrays.asList(Direction.TOP, Direction.RIGHT), "\u2514");
-			put(Arrays.asList(Direction.TOP, Direction.LEFT), "\u2518");
-			put(Arrays.asList(Direction.RIGHT, Direction.DOWN), "\u250C");
-			put(Arrays.asList(Direction.LEFT, Direction.DOWN), "\u2510");
-			put(Arrays.asList(Direction.LEFT, Direction.RIGHT), "\u2500");
+			this.put(Arrays.asList(Direction.TOP, Direction.DOWN), "\u2502");
+			this.put(Arrays.asList(Direction.TOP, Direction.RIGHT), "\u2514");
+			this.put(Arrays.asList(Direction.TOP, Direction.LEFT), "\u2518");
+			this.put(Arrays.asList(Direction.RIGHT, Direction.DOWN), "\u250C");
+			this.put(Arrays.asList(Direction.LEFT, Direction.DOWN), "\u2510");
+			this.put(Arrays.asList(Direction.LEFT, Direction.RIGHT), "\u2500");
 
-			put(Arrays.asList(Direction.TOP, Direction.TOP, Direction.LEFT, Direction.DOWN), "\u2526");
-			put(Arrays.asList(Direction.TOP, Direction.TOP, Direction.RIGHT, Direction.DOWN), "\u251E");
-			put(Arrays.asList(Direction.TOP, Direction.RIGHT, Direction.DOWN, Direction.DOWN),
+			this.put(Arrays.asList(Direction.TOP, Direction.TOP, Direction.LEFT, Direction.DOWN), "\u2526");
+			this.put(Arrays.asList(Direction.TOP, Direction.TOP, Direction.RIGHT, Direction.DOWN), "\u251E");
+			this.put(Arrays.asList(Direction.TOP, Direction.RIGHT, Direction.DOWN, Direction.DOWN),
 				"\u251F");
-			put(Arrays.asList(Direction.TOP, Direction.LEFT, Direction.DOWN, Direction.DOWN), "\u2527");
+			this.put(Arrays.asList(Direction.TOP, Direction.LEFT, Direction.DOWN, Direction.DOWN), "\u2527");
 		}
 
 		private void put(List<Direction> list, String string) {
-			Collections.sort(list, EnumComparator);
-			connectorStrings.put(list, string);
+			Collections.sort(list, this.EnumComparator);
+			this.connectorStrings.put(list, string);
 		}
 
 		private Comparator<Enum<?>> EnumComparator = new Comparator<Enum<?>>() {
@@ -91,9 +91,9 @@ public class Printer<Node> {
 				directionList.add(connector.getFrom());
 				directionList.add(connector.getTo());
 			}
-			Collections.sort(directionList, EnumComparator);
+			Collections.sort(directionList, this.EnumComparator);
 
-			return connectorStrings.get(directionList);
+			return this.connectorStrings.get(directionList);
 		};
 	}
 
@@ -138,6 +138,8 @@ public class Printer<Node> {
 	public Printer(Navigator<Node> navigator, Collection<Node> startNodes) {
 		this.navigator = navigator;
 		this.nodes = startNodes;
+		for (Node node : startNodes)
+			this.gatherNodes(node);
 	}
 
 	/**
@@ -164,7 +166,7 @@ public class Printer<Node> {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		while (startNodes.hasNext())
-			this.nodes.add(startNodes.next());
+			this.gatherNodes(startNodes.next());
 	}
 
 	/**
@@ -179,7 +181,7 @@ public class Printer<Node> {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		for (Node node : startNodes)
-			this.nodes.add(node);
+			this.gatherNodes(node);
 	}
 
 	/**
@@ -194,13 +196,15 @@ public class Printer<Node> {
 	public Printer(Navigator<Node> navigator, Node rootNode) {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
-		gatherNodes(rootNode);
+		this.gatherNodes(rootNode);
 	}
 
 	private void gatherNodes(Node node) {
-		this.nodes.add(node);
-		for (Node child : navigator.getConnectedNodes(node))
-			gatherNodes(child);
+		if (!this.nodes.contains(node)) {
+			this.nodes.add(node);
+			for (Node child : this.navigator.getConnectedNodes(node))
+				this.gatherNodes(child);
+		}
 	}
 
 	/**
@@ -281,7 +285,7 @@ public class Printer<Node> {
 		}
 
 		public List<Object> getLevelNodes() {
-			return levelNodes;
+			return this.levelNodes;
 		}
 
 		@Override
@@ -322,7 +326,7 @@ public class Printer<Node> {
 
 		public int indexOf(Object input) {
 			int index = 0;
-			for (Object node : getLevelNodes()) {
+			for (Object node : this.getLevelNodes()) {
 				if (node == input)
 					return index;
 				index++;
@@ -429,19 +433,19 @@ public class Printer<Node> {
 				Level level = this.levels.get(levelIndex);
 				for (int sourceIndex = 0; sourceIndex < level.levelNodes.size(); sourceIndex++) {
 					Object node = level.levelNodes.get(sourceIndex);
-					increaseDownline(sourceIndex, level.getLinks(node).size());
+					this.increaseDownline(sourceIndex, level.getLinks(node).size());
 					this.printNode(node);
 				}
 				this.appender.append("\n");
 
-				printConnections(levelIndex, level);
+				this.printConnections(levelIndex, level);
 			}
 		}
 
 		private void increaseDownline(int index, int count) {
-			while (printDownline.size() < index + 1)
-				printDownline.add(0);
-			printDownline.set(index, printDownline.getInt(index) + count);
+			while (this.printDownline.size() < index + 1)
+				this.printDownline.add(0);
+			this.printDownline.set(index, this.printDownline.getInt(index) + count);
 		}
 
 		private void printConnections(int levelIndex, Level level) throws IOException {
@@ -461,8 +465,8 @@ public class Printer<Node> {
 						this.printConnection(sourceIndex, targetIndex);
 						printedConnection = true;
 
-						increaseDownline(sourceIndex, -1);
-						increaseDownline(targetIndex, 1);
+						this.increaseDownline(sourceIndex, -1);
+						this.increaseDownline(targetIndex, 1);
 					}
 				}
 				if (!printedConnection)
@@ -473,48 +477,50 @@ public class Printer<Node> {
 		private void append(int index, ConnectorProvider.Connector connector, ConnectorProvider.Connector padding)
 				throws IOException {
 			String connectorString = "";
-			if (index < printDownline.size() && printDownline.getInt(index) > 0) {
+			if (index < this.printDownline.size() && this.printDownline.getInt(index) > 0) {
 				if (connector != null)
-					connectorString = connectorProvider.getConnectorString(connector,
+					connectorString = Printer.this.connectorProvider.getConnectorString(connector,
 						ConnectorProvider.Connector.TOP_DOWN);
 				else
-					connectorString = connectorProvider.getConnectorString(ConnectorProvider.Connector.TOP_DOWN);
+					connectorString = Printer.this.connectorProvider
+						.getConnectorString(ConnectorProvider.Connector.TOP_DOWN);
 			} else if (connector != null)
-				connectorString = connectorProvider.getConnectorString(connector);
+				connectorString = Printer.this.connectorProvider.getConnectorString(connector);
 
 			String paddedString = String.format(this.widthString, connectorString);
 			if (padding != null)
-				paddedString = paddedString.replaceAll(" ", connectorProvider.getConnectorString(padding));
+				paddedString = paddedString.replaceAll(" ", Printer.this.connectorProvider.getConnectorString(padding));
 			this.appender.append(paddedString);
 		}
 
 		private void printConnection(int sourceIndex, int targetIndex) throws IOException {
 			int startIndex = Math.min(sourceIndex, targetIndex);
 			for (int index = 0; index < startIndex; index++)
-				append(index, null, null);
+				this.append(index, null, null);
 
-			if (sourceIndex != -1) {
+			if (sourceIndex != -1)
 				if (sourceIndex < targetIndex) {
-					append(startIndex, ConnectorProvider.Connector.TOP_RIGHT, ConnectorProvider.Connector.LEFT_RIGHT);
+					this.append(startIndex, ConnectorProvider.Connector.TOP_RIGHT,
+						ConnectorProvider.Connector.LEFT_RIGHT);
 					for (int index = sourceIndex + 1; index < targetIndex; index++)
-						append(index, null, ConnectorProvider.Connector.LEFT_RIGHT);
+						this.append(index, null, ConnectorProvider.Connector.LEFT_RIGHT);
 				} else if (sourceIndex == targetIndex)
-					append(startIndex, null, null);
+					this.append(startIndex, null, null);
 				else {
-					append(startIndex, ConnectorProvider.Connector.RIGHT_DOWN, ConnectorProvider.Connector.RIGHT_LEFT);
+					this.append(startIndex, ConnectorProvider.Connector.RIGHT_DOWN,
+						ConnectorProvider.Connector.RIGHT_LEFT);
 					for (int index = targetIndex + 1; index < sourceIndex; index++)
-						append(index, null, ConnectorProvider.Connector.RIGHT_LEFT);
+						this.append(index, null, ConnectorProvider.Connector.RIGHT_LEFT);
 				}
-			}
 
 			int endIndex = Math.max(sourceIndex, targetIndex);
 			if (sourceIndex < targetIndex)
-				append(endIndex, ConnectorProvider.Connector.LEFT_DOWN, null);
+				this.append(endIndex, ConnectorProvider.Connector.LEFT_DOWN, null);
 			else if (sourceIndex > targetIndex)
-				append(endIndex, ConnectorProvider.Connector.TOP_LEFT, null);
+				this.append(endIndex, ConnectorProvider.Connector.TOP_LEFT, null);
 
-			for (int index = endIndex + 1; index < printDownline.size(); index++)
-				append(index, null, null);
+			for (int index = endIndex + 1; index < this.printDownline.size(); index++)
+				this.append(index, null, null);
 
 			this.appender.append("\n");
 		}
@@ -522,11 +528,12 @@ public class Printer<Node> {
 		@SuppressWarnings("unchecked")
 		private void printNode(Object node) throws IOException {
 			if (node instanceof Placeholder)
-				this.appender.append(String.format(this.widthString, ((Placeholder) node).toString(connectorProvider)));
+				this.appender.append(String.format(this.widthString,
+					((Placeholder) node).toString(Printer.this.connectorProvider)));
 			else {
 				String nodeString = this.nodePrinter.toString((Node) node);
-				if (nodeString.length() > width)
-					nodeString = nodeString.substring(0, width);
+				if (nodeString.length() > this.width)
+					nodeString = nodeString.substring(0, this.width);
 				this.appender.append(String.format(this.widthString, nodeString));
 			}
 		}

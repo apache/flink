@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
 
-
 public class ArrayAccess extends EvaluableExpression {
 
 	private int startIndex, endIndex;
@@ -27,7 +26,7 @@ public class ArrayAccess extends EvaluableExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node) {
 		// TODO:
-		return node.get(startIndex);
+		return node.get(this.startIndex);
 	}
 
 	@Override

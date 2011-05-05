@@ -8,7 +8,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import eu.stratosphere.sopremo.expressions.Arithmetic;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
-import eu.stratosphere.sopremo.expressions.Function;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
 import eu.stratosphere.sopremo.expressions.Transformation;

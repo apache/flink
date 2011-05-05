@@ -35,7 +35,8 @@ public class ReflectUtilTest {
 	}
 
 	@SuppressWarnings("serial")
-	private static class NestedMap extends HashMap<LinkedList<ArrayList<String>>, HashMap<ArrayList<Integer>, NestedList>> {
+	private static class NestedMap extends
+			HashMap<LinkedList<ArrayList<String>>, HashMap<ArrayList<Integer>, NestedList>> {
 		// no reimplementation since only the static binding of types is tested
 	}
 
@@ -87,10 +88,13 @@ public class ReflectUtilTest {
 	 */
 	@Test
 	public void testMultipleNestingBounds() {
-		final BoundType stringArrayListLinkedList = BoundType.of(LinkedList.class, BoundType.of(ArrayList.class, BoundType.of(String.class)));
-		final BoundType integerArrayListHashMap = BoundType.of(HashMap.class, array(BoundType.of(ArrayList.class, BoundType.of(Integer.class)),
+		final BoundType stringArrayListLinkedList = BoundType.of(LinkedList.class,
+			BoundType.of(ArrayList.class, BoundType.of(String.class)));
+		final BoundType integerArrayListHashMap = BoundType.of(HashMap.class,
+			array(BoundType.of(ArrayList.class, BoundType.of(Integer.class)),
 				BoundType.of(NestedList.class)));
-		assertArrayEquals(array(stringArrayListLinkedList, integerArrayListHashMap), ReflectUtil.getStaticBoundTypes(NestedMap.class));
+		assertArrayEquals(array(stringArrayListLinkedList, integerArrayListHashMap),
+			ReflectUtil.getStaticBoundTypes(NestedMap.class));
 	}
 
 	/**
@@ -99,7 +103,8 @@ public class ReflectUtilTest {
 	@Test
 	public void testNestedBounds() {
 		final BoundType stringArrayList = BoundType.of(ArrayList.class, BoundType.of(String.class));
-		assertArrayEquals(bindToArray(LinkedList.class, stringArrayList), ReflectUtil.getStaticBoundTypes(NestedList.class));
+		assertArrayEquals(bindToArray(LinkedList.class, stringArrayList),
+			ReflectUtil.getStaticBoundTypes(NestedList.class));
 	}
 
 	/**

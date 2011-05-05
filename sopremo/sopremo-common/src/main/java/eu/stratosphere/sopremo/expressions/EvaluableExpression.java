@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.NoSuchElementException;
+
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
@@ -12,12 +12,11 @@ import org.codehaus.jackson.node.JsonNodeFactory;
 import eu.stratosphere.sopremo.SopremoType;
 
 public abstract class EvaluableExpression implements SopremoType {
-	private final class EvenlyPickingIterator implements Iterator<JsonNode> {
+	protected final class EvenlyPickingIterator extends AbstractIterator<JsonNode> {
+
 		private final Iterator<JsonNode>[] inputs;
 
 		JsonNode[] currentNodes;
-
-		boolean hasNext = true;
 
 		private EvenlyPickingIterator(Iterator<JsonNode>[] inputs) {
 			this.inputs = inputs;
@@ -26,115 +25,51 @@ public abstract class EvaluableExpression implements SopremoType {
 		}
 
 		@Override
-		public boolean hasNext() {
-			return this.hasNext;
-		}
-
-		@Override
-		public JsonNode next() {
-			if (this.hasNext)
-				throw new NoSuchElementException();
-			JsonNode result = EvaluableExpression.this.evaluate(this.currentNodes);
-			this.loadNext();
-			return result;
-		}
-
-		private void loadNext() {
+		protected JsonNode loadNext() {
 			for (int index = 0; index < this.inputs.length; index++) {
 				if (!this.inputs[index].hasNext()) {
-					this.hasNext = true;
-					break;
+					this.noMoreElements();
+					return null;
 				}
 				this.currentNodes[index] = this.inputs[index].next();
 			}
-		}
 
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+			return EvaluableExpression.this.evaluate(this.currentNodes);
 		}
 	}
 
-	private final class ConcatenatingIterator implements Iterator<JsonNode> {
+	protected final class ConcatenatingIterator extends AbstractIterator<JsonNode> {
 		private final Deque<Iterator<JsonNode>> inputs;
-
-		JsonNode currentNode;
-
-		boolean hasNext = true;
 
 		private ConcatenatingIterator(Iterator<JsonNode>[] inputs) {
 			this.inputs = new LinkedList<Iterator<JsonNode>>(Arrays.asList(inputs));
-			this.loadNext();
 		}
 
 		@Override
-		public boolean hasNext() {
-			return this.hasNext;
-		}
-
-		@Override
-		public JsonNode next() {
-			if (this.hasNext)
-				throw new NoSuchElementException();
-			JsonNode result = EvaluableExpression.this.evaluate(this.currentNode);
-			this.loadNext();
-			return result;
-		}
-
-		private void loadNext() {
+		protected JsonNode loadNext() {
 			while (!this.inputs.isEmpty()) {
 				Iterator<JsonNode> iterator = this.inputs.getFirst();
 				if (!iterator.hasNext())
 					this.inputs.pop();
-				else {
-					this.currentNode = iterator.next();
-					return;
-				}
+				else
+					return EvaluableExpression.this.evaluate(iterator.next());
 			}
-			this.hasNext = false;
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+			return this.noMoreElements();
 		}
 	}
 
-	private final class EvaluatingIterator implements Iterator<JsonNode> {
+	protected final class EvaluatingIterator extends AbstractIterator<JsonNode> {
 		private final Iterator<JsonNode> input;
-
-		JsonNode currentNode;
-
-		boolean hasNext = true;
 
 		private EvaluatingIterator(Iterator<JsonNode> input) {
 			this.input = input;
-			this.loadNext();
 		}
 
 		@Override
-		public boolean hasNext() {
-			return this.hasNext;
-		}
-
-		@Override
-		public JsonNode next() {
-			if (this.hasNext)
-				throw new NoSuchElementException();
-			JsonNode result = EvaluableExpression.this.evaluate(this.currentNode);
-			this.loadNext();
-			return result;
-		}
-
-		private void loadNext() {
-			this.hasNext = this.input.hasNext();
-			if (this.hasNext)
-				this.currentNode = this.input.next();
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+		protected JsonNode loadNext() {
+			if (this.input.hasNext())
+				return EvaluableExpression.this.evaluate(this.input.next());
+			return this.noMoreElements();
 		}
 	}
 
@@ -165,7 +100,5 @@ public abstract class EvaluableExpression implements SopremoType {
 		return this.evaluate(nodes[0]);
 	}
 
-	public JsonNode evaluate(JsonNode node) {
-		return node;
-	}
+	public abstract JsonNode evaluate(JsonNode node);
 }

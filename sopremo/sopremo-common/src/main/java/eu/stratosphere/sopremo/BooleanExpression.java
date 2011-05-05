@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo;
 
-import org.codehaus.jackson.JsonNode;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
-public abstract class BooleanExpression implements SopremoType {
-//	public abstract boolean evaluate(JsonNode node);
+public abstract class BooleanExpression extends EvaluableExpression implements SopremoType {
+	// public abstract boolean evaluate(JsonNode node);
 }

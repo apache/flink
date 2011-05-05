@@ -23,7 +23,7 @@ public class Traverser<Node> {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		for (Node node : startNodes)
-			gatherNodes(node);
+			this.gatherNodes(node);
 	}
 
 	/**
@@ -50,7 +50,7 @@ public class Traverser<Node> {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		while (startNodes.hasNext())
-			gatherNodes(startNodes.next());
+			this.gatherNodes(startNodes.next());
 	}
 
 	/**
@@ -65,7 +65,7 @@ public class Traverser<Node> {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
 		for (Node node : startNodes)
-			gatherNodes(node);
+			this.gatherNodes(node);
 	}
 
 	/**
@@ -79,15 +79,15 @@ public class Traverser<Node> {
 	public Traverser(Navigator<Node> navigator, Node rootNode) {
 		this.navigator = navigator;
 		this.nodes = new ArrayList<Node>();
-		gatherNodes(rootNode);
+		this.gatherNodes(rootNode);
 	}
 
 	private void gatherNodes(Node node) {
-		if (!nodes.contains(node))
+		if (!this.nodes.contains(node))
 			if (node != null) {
 				this.nodes.add(node);
-				for (Node child : navigator.getConnectedNodes(node))
-					gatherNodes(child);
+				for (Node child : this.navigator.getConnectedNodes(node))
+					this.gatherNodes(child);
 			}
 	}
 
@@ -113,7 +113,7 @@ public class Traverser<Node> {
 		}
 
 		public List<Node> getLevelNodes() {
-			return levelNodes;
+			return this.levelNodes;
 		}
 
 		@Override
@@ -123,7 +123,7 @@ public class Traverser<Node> {
 
 		public int indexOf(Object input) {
 			int index = 0;
-			for (Object node : getLevelNodes()) {
+			for (Object node : this.getLevelNodes()) {
 				if (node == input)
 					return index;
 				index++;
@@ -167,9 +167,8 @@ public class Traverser<Node> {
 	}
 
 	public void traverse(TraverseListener<Node> listener) {
-		for (Level level : this.getLevels()) {
+		for (Level level : this.getLevels())
 			for (Node node : level.getLevelNodes())
 				listener.nodeTraversed(node);
-		}
 	}
 }

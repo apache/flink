@@ -3,8 +3,6 @@ package eu.stratosphere.sopremo.expressions;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.SopremoType;
 
 public abstract class Mapping extends EvaluableExpression implements SopremoType {
@@ -20,7 +18,7 @@ public abstract class Mapping extends EvaluableExpression implements SopremoType
 	private String target;
 
 	public String getTarget() {
-		return target;
+		return this.target;
 	}
 
 	public void setTarget(String target) {
@@ -32,15 +30,15 @@ public abstract class Mapping extends EvaluableExpression implements SopremoType
 
 	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
 		ois.defaultReadObject();
-		if (target.equals(NO_TARGET))
-			target = NO_TARGET;
+		if (this.target.equals(NO_TARGET))
+			this.target = NO_TARGET;
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + target.hashCode();
+		result = prime * result + this.target.hashCode();
 		return result;
 	}
 
@@ -50,9 +48,9 @@ public abstract class Mapping extends EvaluableExpression implements SopremoType
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		Mapping other = (Mapping) obj;
-		return target.equals(other.target);
+		return this.target.equals(other.target);
 	}
 }

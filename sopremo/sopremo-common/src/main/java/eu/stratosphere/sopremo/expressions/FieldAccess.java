@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
 
-
 public class FieldAccess extends EvaluableExpression {
 
 	private String field;
@@ -23,7 +22,7 @@ public class FieldAccess extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node) {
-		return node.get(field);
+		return node.get(this.field);
 	}
 
 	@Override

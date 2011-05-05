@@ -42,7 +42,7 @@ public class SopremoPlan {
 	}
 
 	public Collection<Operator> getSinks() {
-		return sinks;
+		return this.sinks;
 	}
 
 	@Override
@@ -52,7 +52,7 @@ public class SopremoPlan {
 
 	public List<Operator> getAllNodes() {
 		final List<Operator> nodes = new ArrayList<Operator>();
-		new Traverser<Operator>(new OperatorNavigator(), sinks).traverse(new TraverseListener<Operator>() {
+		new Traverser<Operator>(new OperatorNavigator(), this.sinks).traverse(new TraverseListener<Operator>() {
 			@Override
 			public void nodeTraversed(Operator node) {
 				nodes.add(node);
@@ -63,14 +63,14 @@ public class SopremoPlan {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Plan asPactPlan() {
-		return new Plan((Collection) assemblePact());
+		return new Plan((Collection) this.assemblePact());
 	}
 
 	Collection<Contract> assemblePact() {
 		final Map<Operator, PactModule> modules = new IdentityHashMap<Operator, PactModule>();
 		final Map<Operator, Contract[]> operatorOutputs = new IdentityHashMap<Operator, Contract[]>();
 
-		new Traverser<Operator>(new OperatorNavigator(), sinks).traverse(new TraverseListener<Operator>() {
+		new Traverser<Operator>(new OperatorNavigator(), this.sinks).traverse(new TraverseListener<Operator>() {
 			@Override
 			public void nodeTraversed(Operator node) {
 				PactModule module = node.asPactModule();
@@ -93,20 +93,20 @@ public class SopremoPlan {
 
 			Collection<Contract> contracts = module.getAllContracts();
 			for (Contract contract : contracts) {
-				Contract[] inputs = getInputs(contract);
+				Contract[] inputs = this.getInputs(contract);
 				for (int index = 0; index < inputs.length; index++) {
 					int inputIndex = moduleInputs.indexOf(inputs[index]);
-					if (inputIndex != -1) {
+					if (inputIndex != -1 && inputIndex < operator.getInputs().size()) {
 						Output input = operator.getInputs().get(inputIndex);
 						inputs[index] = operatorOutputs.get(input.getOperator())[input.getIndex()];
 					}
 				}
-				setInputs(contract, inputs);
+				this.setInputs(contract, inputs);
 			}
 		}
 
 		List<Contract> pactSinks = new ArrayList<Contract>();
-		for (Operator sink : sinks) {
+		for (Operator sink : this.sinks) {
 			DataSinkContract<PactNull, PactJsonObject>[] outputs = modules.get(sink).getOutputStubs();
 			for (DataSinkContract<PactNull, PactJsonObject> outputStub : outputs) {
 				Contract output = outputStub;
@@ -125,16 +125,19 @@ public class SopremoPlan {
 		if (contract instanceof DualInputContract)
 			return new Contract[] { ((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getFirstInput(),
 				((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getSecondInput() };
+		if (contract instanceof DataSinkContract<?, ?>)
+			return new Contract[] { ((DataSinkContract<?, ?>) contract).getInput() };
 		return new Contract[0];
 	}
 
 	private void setInputs(Contract contract, Contract[] inputs) {
 		if (contract instanceof SingleInputContract)
 			((SingleInputContract<?, ?, ?, ?>) contract).setInput(inputs[0]);
-		if (contract instanceof DualInputContract) {
+		else if (contract instanceof DualInputContract) {
 			((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setFirstInput(inputs[0]);
 			((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setSecondInput(inputs[1]);
-		}
+		} else if (contract instanceof DataSinkContract)
+			((DataSinkContract<?, ?>) contract).setInput(inputs[0]);
 	}
 
 	public static void main(String[] args) throws IOException {

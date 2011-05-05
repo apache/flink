@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ObjectNode;
 
@@ -12,6 +11,24 @@ import eu.stratosphere.reflect.TypeSpecificHandler;
 
 public class Transformation extends Mapping {
 	public static final Transformation IDENTITY = new Transformation();
+
+	public static final Transformation CONCATENATION = new Transformation() {
+		@Override
+		public JsonNode evaluate(JsonNode... nodes) {
+			ObjectNode objectNode = NODE_FACTORY.objectNode();
+			for (JsonNode jsonNode : nodes)
+				if (!jsonNode.isNull())
+					// deepCopy(objectNode, jsonNode);
+					objectNode.putAll((ObjectNode) jsonNode);
+			return objectNode;
+		}
+
+		// private void deepCopy(ObjectNode objectNode, JsonNode jsonNode) {
+		// for (int index = 0; index > jsonNode.size(); index++) {
+		//
+		// }
+		// }
+	};
 
 	private List<Mapping> mappings = new ArrayList<Mapping>();
 
@@ -26,10 +43,10 @@ public class Transformation extends Mapping {
 	}
 
 	public EvaluableExpression asPath() {
-		if (getMappingSize() == 0)
+		if (this.getMappingSize() == 0)
 			return null;
 
-		Mapping mapping = getMapping(0);
+		Mapping mapping = this.getMapping(0);
 		if (mapping instanceof ValueAssignment)
 			return ((ValueAssignment) mapping).getTransformation();
 		return null;
@@ -43,7 +60,7 @@ public class Transformation extends Mapping {
 	}
 
 	public List<Mapping> getMappings() {
-		return mappings;
+		return this.mappings;
 	}
 
 	public int getMappingSize() {
@@ -55,21 +72,21 @@ public class Transformation extends Mapping {
 	}
 
 	public Object simplify() {
-		if (getTarget() == null && mappings.size() == 1 && mappings.get(0).getTarget() == null
-			&& mappings.get(0) instanceof ValueAssignment)
-			return ((ValueAssignment) mappings.get(0)).getTransformation();
+		if (this.getTarget() == null && this.mappings.size() == 1 && this.mappings.get(0).getTarget() == null
+			&& this.mappings.get(0) instanceof ValueAssignment)
+			return ((ValueAssignment) this.mappings.get(0)).getTransformation();
 		return this;
 	}
 
 	@Override
 	protected void toString(StringBuilder builder) {
 		if (this.getTarget() != NO_TARGET)
-			builder.append(getTarget()).append("=");
+			builder.append(this.getTarget()).append("=");
 		builder.append("[");
 		for (int index = 0; index < this.mappings.size(); index++) {
 			if (index > 0)
 				builder.append(", ");
-			mappings.get(index).toString(builder);
+			this.mappings.get(index).toString(builder);
 		}
 		builder.append("]");
 	}
@@ -78,8 +95,8 @@ public class Transformation extends Mapping {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + (array ? 1231 : 1237);
-		result = prime * result + mappings.hashCode();
+		result = prime * result + (this.array ? 1231 : 1237);
+		result = prime * result + this.mappings.hashCode();
 		return result;
 	}
 
@@ -89,10 +106,10 @@ public class Transformation extends Mapping {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		Transformation other = (Transformation) obj;
-		return super.equals(obj) && array == other.array && mappings.equals(other.mappings);
+		return super.equals(obj) && this.array == other.array && this.mappings.equals(other.mappings);
 	}
 
 	private static TypeSpecificHandler<Mapping, Mapping, TypeHandler<Mapping, Mapping>> PathReplacer = new TypeSpecificHandler<Mapping, Mapping, TypeHandler<Mapping, Mapping>>();

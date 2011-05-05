@@ -17,7 +17,7 @@ public class ValueAssignment extends Mapping {
 	}
 
 	public EvaluableExpression getTransformation() {
-		return expression;
+		return this.expression;
 	}
 
 	public void setTransformation(EvaluableExpression transformation) {
@@ -30,15 +30,15 @@ public class ValueAssignment extends Mapping {
 	@Override
 	protected void toString(StringBuilder builder) {
 		if (this.getTarget() != NO_TARGET)
-			builder.append(getTarget()).append("=");
-		expression.toString(builder);
+			builder.append(this.getTarget()).append("=");
+		this.expression.toString(builder);
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 61;
 		int result = super.hashCode();
-		result = prime * result + expression.hashCode();
+		result = prime * result + this.expression.hashCode();
 		return result;
 	}
 
@@ -48,14 +48,14 @@ public class ValueAssignment extends Mapping {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		ValueAssignment other = (ValueAssignment) obj;
-		return super.equals(obj) && expression.equals(other.expression);
+		return super.equals(obj) && this.expression.equals(other.expression);
 	}
 
 	@Override
 	public JsonNode evaluate(JsonNode node) {
-		return expression.evaluate(node);
+		return this.expression.evaluate(node);
 	}
 }

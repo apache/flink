@@ -1,7 +1,9 @@
 package eu.stratosphere.sopremo;
 
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.BooleanNode;
 
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public class UnaryExpression extends BooleanExpression {
 	private EvaluableExpression expr1;
@@ -18,10 +20,17 @@ public class UnaryExpression extends BooleanExpression {
 	}
 
 	@Override
-	public String toString() {
+	protected void toString(StringBuilder builder) {
 		if (this.negate)
-			return String.format("!%s", this.expr1);
-		return this.expr1.toString();
+			builder.append("!");
+		builder.append(this.expr1);
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node) {
+		if (this.negate)
+			return node == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
+		return node;
 	}
 
 	@Override

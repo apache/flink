@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.jasper.tagplugins.jstl.core.Out;
-
 import eu.stratosphere.dag.Navigator;
 
 public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHandler<InputType, OutputBase>> {
@@ -35,14 +33,14 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 			for (Method method : methods)
 				if (method.getDeclaringClass() == handler.getClass()) {
 					method.setAccessible(true);
-					callback = method;
+					this.callback = method;
 					break;
 				}
 
-			AppendChildren annotation = getAnnotation(handlerClass, callback, AppendChildren.class);
+			AppendChildren annotation = this.getAnnotation(handlerClass, this.callback, AppendChildren.class);
 			if (annotation != null)
-				appendIndex = annotation.fromIndex();
-			stopRecursion = getAnnotation(handlerClass, callback, Leaf.class) != null;
+				this.appendIndex = annotation.fromIndex();
+			this.stopRecursion = this.getAnnotation(handlerClass, this.callback, Leaf.class) != null;
 		}
 
 		private <A extends Annotation> A getAnnotation(Class<?> handlerClass, Method callback, Class<A> annotationClass) {
@@ -53,23 +51,23 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 		}
 
 		public boolean isStopRecursion() {
-			return stopRecursion;
+			return this.stopRecursion;
 		}
 
 		public Handler getHandler() {
-			return handler;
+			return this.handler;
 		}
 
 		public boolean shouldAppendChildren() {
-			return appendIndex != -1;
+			return this.appendIndex != -1;
 		}
 
 		public int getAppendIndex() {
-			return appendIndex;
+			return this.appendIndex;
 		}
 
 		public Method getCallback() {
-			return callback;
+			return this.callback;
 		}
 	}
 
@@ -88,7 +86,7 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 	@SuppressWarnings("unchecked")
 	public <Type extends InputType> TypeSpecificHandler<InputType, OutputBase, Handler> register(
 			TypeHandler<Type, ? extends OutputBase> handler) {
-		register(handler,
+		this.register(handler,
 			new Class[] { ReflectUtil.getBindingOfSuperclass(handler.getClass(), TypeHandler.class).getParameters()[0]
 				.getType() });
 		return this;
@@ -98,7 +96,7 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 	public TypeSpecificHandler<InputType, OutputBase, Handler> registerAll(
 			TypeHandler<? extends InputType, ? extends OutputBase>... handlers) {
 		for (TypeHandler<? extends InputType, ? extends OutputBase> handler : handlers)
-			register(handler, new Class[] { ReflectUtil.getBindingOfSuperclass(handler.getClass(), TypeHandler.class)
+			this.register(handler, new Class[] { ReflectUtil.getBindingOfSuperclass(handler.getClass(), TypeHandler.class)
 				.getParameters()[0].getType() });
 		return this;
 	}
@@ -163,7 +161,7 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 			listener.beforeHierarchicalConversion(in, params);
 		List<OutputBase> childTypes = new ArrayList<OutputBase>();
 
-		if (handlerInfo == null || !handlerInfo.stopRecursion) {
+		if (handlerInfo == null || !handlerInfo.stopRecursion)
 			for (InputType child : navigator.getConnectedNodes(in)) {
 				OutputBase handledResult = this.handleRecursively(navigator, child, params);
 				if (this.flattenCollection && handledResult instanceof Collection<?>)
@@ -171,12 +169,11 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 				else if (handledResult != null)
 					childTypes.add(handledResult);
 			}
-		}
-		childTypes.addAll(lastChildren);
+		childTypes.addAll(this.lastChildren);
 
 		Object[] parameters = new Object[params.length + 1];
 		parameters[0] = childTypes;
-		lastChildren = handlerInfo.shouldAppendChildren() ? childTypes.subList(handlerInfo.getAppendIndex(),
+		this.lastChildren = handlerInfo.shouldAppendChildren() ? childTypes.subList(handlerInfo.getAppendIndex(),
 			childTypes.size()) : Collections.EMPTY_LIST;
 		System.arraycopy(params, 0, parameters, 1, params.length);
 		OutputBase convertedType = this.handle(in, parameters);
@@ -192,7 +189,7 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 
 	@SuppressWarnings("unchecked")
 	public Handler getHandler(Class<?> clazz) {
-		HandlerInfo<InputType, OutputBase, TypeHandler<InputType, OutputBase>> handlerInfo = getHandlerInfo(clazz);
+		HandlerInfo<InputType, OutputBase, TypeHandler<InputType, OutputBase>> handlerInfo = this.getHandlerInfo(clazz);
 		return handlerInfo == null ? null : (Handler) handlerInfo.handler;
 	}
 

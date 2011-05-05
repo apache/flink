@@ -24,7 +24,12 @@ import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.BooleanNode;
+import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.ObjectNode;
+import org.codehaus.jackson.node.TextNode;
+import org.codehaus.jackson.node.ValueNode;
 
 import eu.stratosphere.pact.common.type.Value;
 
@@ -139,5 +144,72 @@ public class PactJsonObject implements Value {
 	@Override
 	public String toString() {
 		return this.value.toString();
+	}
+
+	public static class Key extends PactJsonObject implements eu.stratosphere.pact.common.type.Key {
+
+		public Key() {
+			super();
+		}
+
+		public Key(ValueNode value) {
+			super(value);
+		}
+
+		public Key(ArrayNode value) {
+			super(value);
+		}
+
+		@Override
+		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
+			JsonNode value1 = getValue(), value2 = ((Key) o).getValue();
+			return compare(value1, value2);
+		}
+
+		private static int compare(JsonNode value1, JsonNode value2) {
+			if (value1.getClass() != value2.getClass())
+				throw new ClassCastException();
+			if (value1 instanceof ArrayNode)
+				return compareArrays(value1, value2);
+			if (value1 instanceof TextNode)
+				return value1.getTextValue().compareTo(value2.getTextValue());
+			if (value1 instanceof BooleanNode)
+				return (value1.getBooleanValue() == value2.getBooleanValue() ? 0 : (value1.getBooleanValue() ? 1 : -1));
+			if (value1 instanceof NumericNode) {
+				// TODO: optimize
+				return value1.getDecimalValue().compareTo(value2.getDecimalValue());
+			}
+
+			return 0;
+		}
+
+		private static int compareArrays(JsonNode value1, JsonNode value2) {
+			if (value1.size() != value2.size())
+				return value1.size() - value2.size();
+			for (int index = 0, size = value1.size(); index < size; index++) {
+				int comparisonResult = compare(value1.get(index), value2.get(index));
+				if (comparisonResult != 0)
+					return comparisonResult;
+			}
+			return 0;
+		}
+	}
+
+	public static Key keyOf(JsonNode node) {
+		if (node instanceof ValueNode)
+			return new Key((ValueNode) node);
+		if (node instanceof ArrayNode && isValidArray(node))
+			return new Key((ArrayNode) node);
+		throw new IllegalArgumentException();
+	}
+
+	private static boolean isValidArray(JsonNode node) {
+		for (int index = 0, size = node.size(); index < size; index++) {
+			if (node.get(index) instanceof ArrayNode && !isValidArray(node.get(index)))
+				return false;
+			if (node.get(index) instanceof ValueNode)
+				return false;
+		}
+		return true;
 	}
 }

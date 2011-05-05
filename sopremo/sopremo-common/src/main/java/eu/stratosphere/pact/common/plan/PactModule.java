@@ -18,6 +18,8 @@ import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+import eu.stratosphere.dag.Printer;
+import eu.stratosphere.dag.Printer.NodePrinter;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
@@ -63,11 +65,11 @@ public class PactModule implements Visitable<Contract> {
 	}
 
 	public DataSourceContract<PactNull, PactJsonObject>[] getInputStubs() {
-		return inputStubs;
+		return this.inputStubs;
 	}
 
 	public DataSinkContract<PactNull, PactJsonObject>[] getOutputStubs() {
-		return outputStubs;
+		return this.outputStubs;
 	}
 
 	public void setOutput(int index, DataSinkContract<PactNull, PactJsonObject> contract) {
@@ -83,7 +85,7 @@ public class PactModule implements Visitable<Contract> {
 			if (this.outputStubs[index].getInput() == null)
 				throw new IllegalStateException(String.format("%d. output is not connected", index));
 
-		final Collection<Contract> visitedContracts = getAllContracts();
+		final Collection<Contract> visitedContracts = this.getAllContracts();
 
 		for (int index = 0; index < this.inputStubs.length; index++)
 			if (!visitedContracts.contains(this.inputStubs[index]))
@@ -92,7 +94,7 @@ public class PactModule implements Visitable<Contract> {
 
 	public Collection<Contract> getAllContracts() {
 		final Map<Contract, Boolean> visitedContracts = new IdentityHashMap<Contract, Boolean>();
-		accept(new Visitor<Contract>() {
+		this.accept(new Visitor<Contract>() {
 
 			@Override
 			public boolean preVisit(Contract visitable) {
@@ -118,6 +120,20 @@ public class PactModule implements Visitable<Contract> {
 	public void accept(Visitor<Contract> visitor) {
 		for (Contract output : this.outputStubs)
 			output.accept(visitor);
+	}
+
+	@Override
+	public String toString() {
+		return toString(outputStubs);
+	}
+
+	public static String toString(Contract[] sinks) {
+		return new Printer<Contract>(new ContractNavigator(), sinks).toString(new NodePrinter<Contract>() {
+			@Override
+			public String toString(Contract node) {
+				return String.format("%s [%s]", node.getClass().getSimpleName(), node.getName());
+			}
+		}, 80);
 	}
 
 }

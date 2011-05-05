@@ -105,9 +105,8 @@ public class ReflectUtil {
 				minDistance = entry.getValue();
 				minConstructor = entry.getKey();
 				minCount = 1;
-			} else if (entry.getValue() == minDistance) {
+			} else if (entry.getValue() == minDistance)
 				minCount++;
-			}
 
 		return minCount == 1 ? minConstructor : null;
 	}
@@ -172,13 +171,12 @@ public class ReflectUtil {
 		if (superClass.isInterface()) {
 			Class<?>[] interfaces = subclass.getInterfaces();
 			int minDistance = Integer.MAX_VALUE;
-			for (Class<?> xface : interfaces) {
+			for (Class<?> xface : interfaces)
 				if (xface == superClass) {
 					minDistance = 1;
 					break;
 				} else if (superClass.isAssignableFrom(xface))
 					minDistance = Math.min(minDistance, getDistance(superClass, xface));
-			}
 			return minDistance;
 		}
 
@@ -236,15 +234,15 @@ public class ReflectUtil {
 	@SuppressWarnings("serial")
 	private final static Map<Class<?>, Class<?>> BoxingClasses = new IdentityHashMap<Class<?>, Class<?>>() {
 		{
-			put(java.lang.Boolean.TYPE, java.lang.Boolean.class);
-			put(java.lang.Character.TYPE, java.lang.Character.class);
-			put(java.lang.Byte.TYPE, java.lang.Byte.class);
-			put(java.lang.Short.TYPE, java.lang.Short.class);
-			put(java.lang.Integer.TYPE, java.lang.Integer.class);
-			put(java.lang.Long.TYPE, java.lang.Long.class);
-			put(java.lang.Float.TYPE, java.lang.Float.class);
-			put(java.lang.Double.TYPE, java.lang.Double.class);
-			put(java.lang.Void.TYPE, java.lang.Void.class);
+			this.put(java.lang.Boolean.TYPE, java.lang.Boolean.class);
+			this.put(java.lang.Character.TYPE, java.lang.Character.class);
+			this.put(java.lang.Byte.TYPE, java.lang.Byte.class);
+			this.put(java.lang.Short.TYPE, java.lang.Short.class);
+			this.put(java.lang.Integer.TYPE, java.lang.Integer.class);
+			this.put(java.lang.Long.TYPE, java.lang.Long.class);
+			this.put(java.lang.Float.TYPE, java.lang.Float.class);
+			this.put(java.lang.Double.TYPE, java.lang.Double.class);
+			this.put(java.lang.Void.TYPE, java.lang.Void.class);
 		}
 	};
 
@@ -399,14 +397,13 @@ public class ReflectUtil {
 	public static BoundType getBindingsOfDirectSuperclass(BoundType type, ParameterizedType superclass) {
 		Type[] actualTypeArguments = superclass.getActualTypeArguments();
 		BoundType[] arguments = new BoundType[actualTypeArguments.length];
-		for (int index = 0; index < actualTypeArguments.length; index++) {
+		for (int index = 0; index < actualTypeArguments.length; index++)
 			if (actualTypeArguments[index] instanceof TypeVariable<?>)
 				arguments[index] = resolveType(type, (TypeVariable<?>) actualTypeArguments[index]);
 			else if (actualTypeArguments[index] instanceof ParameterizedType)
 				arguments[index] = getBindingsOfDirectSuperclass(type, (ParameterizedType) actualTypeArguments[index]);
 			else
 				arguments[index] = BoundType.of((Class<?>) actualTypeArguments[index]);
-		}
 		return BoundType.of((Class<?>) superclass.getRawType(), arguments);
 	}
 

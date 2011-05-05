@@ -206,6 +206,7 @@ public class TestPlan implements Closeable {
 
 		TestPlanTestCase.addTestPlan(this);
 	}
+
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
 	 * {@link DataSinkContract}s. However, it
@@ -217,6 +218,15 @@ public class TestPlan implements Closeable {
 	 */
 	public TestPlan(final Collection<? extends Contract> contracts) {
 		this(contracts.toArray(new Contract[contracts.size()]));
+	}
+
+	/**
+	 * Returns all {@link DataSinkContract}s of this test plan.
+	 * 
+	 * @return the sinks
+	 */
+	public List<DataSinkContract<?, ?>> getSinks() {
+		return sinks;
 	}
 
 	/**
@@ -301,17 +311,17 @@ public class TestPlan implements Closeable {
 		for (final DataSinkContract<?, ?> dataSinkContract : existingSinks)
 			// need a format which is deserializable without configuration
 			if (dataSinkContract.getStubClass() != SequentialOutputFormat.class) {
-				
+
 				final DataSinkContract<Key, Value> safeSink = createDefaultSink(dataSinkContract.getName());
 				safeSink.setInput(dataSinkContract.getInput());
-				
+
 				wrappedSinks.add(dataSinkContract);
 				wrappedSinks.add(safeSink);
-				
-				this.expectedOutputs.put(safeSink,this.getExpectedOutput(dataSinkContract));
-				this.actualOutputs.put(safeSink,this.getActualOutput(dataSinkContract));
+
+				this.expectedOutputs.put(safeSink, this.getExpectedOutput(dataSinkContract));
+				this.actualOutputs.put(safeSink, this.getActualOutput(dataSinkContract));
 				this.getActualOutput(dataSinkContract).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
-				
+
 			} else {
 				wrappedSinks.add(dataSinkContract);
 				this.getActualOutput(dataSinkContract).fromFile(
@@ -326,26 +336,26 @@ public class TestPlan implements Closeable {
 	 * Creates a data sink which replicates the data to both given output sinks.
 	 */
 	/*
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private DataSinkContract<Key, Value> createSplittingSink(
-			final DataSinkContract<?, ?> dataSinkContract,
-			final DataSinkContract<Key, Value> safeSink) {
-		final DataSinkContract<Key, Value> wrappedSink = new DataSinkContract<Key, Value>(
-				SplittingOutputFormat.class, dataSinkContract.getFilePath());
-		SplittingOutputFormat
-				.addOutputFormat(wrappedSink.getFormatParameters(),
-						(Class<? extends OutputFormat>) dataSinkContract
-								.getStubClass(),
-						dataSinkContract.getFilePath(), dataSinkContract
-								.getStubParameters());
-		SplittingOutputFormat.addOutputFormat(
-				wrappedSink.getFormatParameters(),
-				(Class<? extends OutputFormat>) safeSink.getStubClass(),
-				safeSink.getFilePath(), safeSink.getStubParameters());
-		wrappedSink.setInput(dataSinkContract.getInput());
-		return wrappedSink;
-	}
-	*/
+	 * @SuppressWarnings({ "unchecked", "rawtypes" })
+	 * private DataSinkContract<Key, Value> createSplittingSink(
+	 * final DataSinkContract<?, ?> dataSinkContract,
+	 * final DataSinkContract<Key, Value> safeSink) {
+	 * final DataSinkContract<Key, Value> wrappedSink = new DataSinkContract<Key, Value>(
+	 * SplittingOutputFormat.class, dataSinkContract.getFilePath());
+	 * SplittingOutputFormat
+	 * .addOutputFormat(wrappedSink.getFormatParameters(),
+	 * (Class<? extends OutputFormat>) dataSinkContract
+	 * .getStubClass(),
+	 * dataSinkContract.getFilePath(), dataSinkContract
+	 * .getStubParameters());
+	 * SplittingOutputFormat.addOutputFormat(
+	 * wrappedSink.getFormatParameters(),
+	 * (Class<? extends OutputFormat>) safeSink.getStubClass(),
+	 * safeSink.getFilePath(), safeSink.getStubParameters());
+	 * wrappedSink.setInput(dataSinkContract.getInput());
+	 * return wrappedSink;
+	 * }
+	 */
 
 	/**
 	 * Sets the degree of parallelism for every node in the plan.
@@ -702,27 +712,52 @@ public class TestPlan implements Closeable {
 						.iterator();
 				final Iterator<KeyValuePair<Key, Value>> expectedIterator = expectedValues
 						.iterator();
-				final int index = 0;
+				Key currentKey = null;
+				int itemIndex = 0;
+				List<KeyValuePair<Key, Value>> expectedPairsWithCurrentKey = new ArrayList<KeyValuePair<Key, Value>>();
 				while (actualIterator.hasNext() && expectedIterator.hasNext()) {
-					final Object expected = expectedIterator.next(), actual = actualIterator
-							.next();
-					try {
-						Assert.assertEquals(expected, actual);
-					} catch (final AssertionFailedError e) {
-						throw new ArrayComparisonFailure(String.format(
-								"Data sink %s contains unexpected values: ",
-								dataSinkContract.getName()), e, index);
+
+					final KeyValuePair<Key, Value> expected = expectedIterator.next();
+					if (currentKey == null || expected.getKey().compareTo(currentKey) != 0) {
+						KeyValuePair<Key, Value> unmatched = matchAllExpectedItems(actualIterator,
+							expectedPairsWithCurrentKey);
+						if (unmatched != null)
+							throw new ArrayComparisonFailure(String.format(
+								"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
+								new AssertionFailedError(Assert.format(" ", expectedPairsWithCurrentKey, unmatched)),
+								itemIndex + expectedPairsWithCurrentKey.size() - 1);
+
+						currentKey = expected.getKey();
 					}
+					expectedPairsWithCurrentKey.add(expected);
+
+					itemIndex++;
 				}
 
+				KeyValuePair<Key, Value> unmatched = matchAllExpectedItems(actualIterator, expectedPairsWithCurrentKey);
+				if (unmatched != null)
+					throw new ArrayComparisonFailure(String.format(
+						"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
+						new AssertionFailedError(Assert.format(" ", expectedPairsWithCurrentKey, unmatched)),
+						itemIndex - expectedPairsWithCurrentKey.size());
+
 				if (expectedIterator.hasNext())
-					fail("More elements expected: "
-							+ toString(expectedIterator),
-							dataSinkContract.getName());
+					fail("More elements expected: " + toString(expectedIterator), dataSinkContract.getName());
 				if (actualIterator.hasNext())
-					fail("Less elements expected: " + toString(actualIterator),
-							dataSinkContract.getName());
+					fail("Less elements expected: " + toString(actualIterator), dataSinkContract.getName());
 			}
+	}
+
+	private KeyValuePair<Key, Value> matchAllExpectedItems(final Iterator<KeyValuePair<Key, Value>> actualIterator,
+			List<KeyValuePair<Key, Value>> expectedPairsWithCurrentKey)
+			throws ArrayComparisonFailure {
+		while (!expectedPairsWithCurrentKey.isEmpty()) {
+			// match
+			final KeyValuePair<Key, Value> actual = actualIterator.next();
+			if (!expectedPairsWithCurrentKey.remove(actual))
+				return actual;
+		}
+		return null;
 	}
 
 	private Object toString(Iterator<KeyValuePair<Key, Value>> iterator) {

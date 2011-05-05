@@ -2,6 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.Arrays;
 
+import org.codehaus.jackson.JsonNode;
+
+import eu.stratosphere.sopremo.EvaluationException;
 
 public class Function extends EvaluableExpression {
 
@@ -24,6 +27,11 @@ public class Function extends EvaluableExpression {
 				builder.append(", ");
 		}
 		builder.append(')');
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node) {
+		throw new EvaluationException();
 	}
 
 	@Override

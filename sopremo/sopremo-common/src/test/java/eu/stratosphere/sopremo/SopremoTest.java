@@ -16,7 +16,6 @@ import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestPlanTestCase;
-import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
@@ -24,33 +23,11 @@ import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.ValueAssignment;
 import eu.stratosphere.sopremo.operator.DataType;
 import eu.stratosphere.sopremo.operator.Source;
 
 public class SopremoTest extends TestPlanTestCase {
-	public class MockupSource extends Source {
-		private Operator operator;
-
-		private int index;
-
-		public MockupSource(Operator operator, int index) {
-			super(DataType.ADHOC, operator.getName() + "-input" + index);
-			this.operator = operator;
-			this.index = index;
-		}
-
-		@Override
-		public PactModule asPactModule() {
-			PactModule pactModule = new PactModule(1, 1);
-			DataSourceContract contract = TestPlan.createDefaultSource(getInputName());
-			pactModule.getOutput(0).setInput(contract);
-			pactModule.setInput(0, contract);
-			return pactModule;
-		}
-	}
 
 	public static EvaluableExpression createJsonArray(Object... constants) {
 		EvaluableExpression[] elements = new EvaluableExpression[constants.length];
@@ -60,16 +37,6 @@ public class SopremoTest extends TestPlanTestCase {
 			else
 				elements[index] = new Constant(constants[index]);
 		return new ArrayCreation(elements);
-	}
-
-	public static EvaluableExpression createObject(Object... fields) {
-		if (fields.length % 2 != 0)
-			throw new IllegalArgumentException();
-		ValueAssignment[] assignments = new ValueAssignment[fields.length / 2];
-		for (int index = 0; index < assignments.length; index++) {
-			assignments[index] = new ValueAssignment(fields[2 * index].toString(), new Constant(fields[2 * index + 1]));
-		}
-		return new ObjectCreation(assignments);
 	}
 
 	public static Path createPath(String... parts) {
@@ -96,31 +63,33 @@ public class SopremoTest extends TestPlanTestCase {
 		return new Path(fragments);
 	}
 
-	protected TestPlan createTestPlan(SopremoPlan sopremoPlan) {
-		for (Operator operator : sopremoPlan.getAllNodes()) {
-			List<Output> inputs = operator.getInputs();
-			for (int index = 0; index < inputs.size(); index++) {
-				if (inputs.get(index) == null)
-					inputs.set(index, new MockupSource(operator, index).getOutput(0));
-			}
-			operator.setInputs(inputs);
-		}
-
-		TestPlan testPlan = new TestPlan(sopremoPlan.assemblePact());
-		return testPlan;
-	}
+	// protected TestPlan createTestPlan(SopremoPlan sopremoPlan) {
+	// for (Operator operator : sopremoPlan.getAllNodes()) {
+	// List<Output> inputs = operator.getInputs();
+	// for (int index = 0; index < inputs.size(); index++)
+	// if (inputs.get(index) == null)
+	// inputs.set(index, new MockupSource(operator, index).getOutput(0));
+	// operator.setInputs(inputs);
+	// }
+	//
+	// TestPlan testPlan = new TestPlan(sopremoPlan.assemblePact());
+	// return testPlan;
+	// }
 
 	protected static JsonNodeFactory NODE_FACTORY = JsonNodeFactory.instance;
 
 	protected static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	public static KeyValuePair<Key, Value> createJsonObject(Object... fields) {
+	public static PactJsonObject createJsonObject(Object... fields) {
 		if (fields.length % 2 != 0)
 			throw new IllegalArgumentException();
 		ObjectNode objectNode = NODE_FACTORY.objectNode();
-		for (int index = 0; index < fields.length; index += 2) {
+		for (int index = 0; index < fields.length; index += 2)
 			objectNode.put(fields[index].toString(), OBJECT_MAPPER.valueToTree(fields[index + 1]));
-		}
-		return new KeyValuePair<Key, Value>(PactNull.INSTANCE, new PactJsonObject(objectNode));
+		return new PactJsonObject(objectNode);
+	}
+
+	public static PactJsonObject createJsonValue(Object value) {
+		return new PactJsonObject(OBJECT_MAPPER.valueToTree(value));
 	}
 }

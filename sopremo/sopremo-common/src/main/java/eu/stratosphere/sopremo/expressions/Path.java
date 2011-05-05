@@ -2,10 +2,10 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
-
 
 public class Path extends EvaluableExpression {
 
@@ -13,18 +13,16 @@ public class Path extends EvaluableExpression {
 
 	public Path(List<EvaluableExpression> fragments) {
 		this.fragments = fragments;
-		for (EvaluableExpression evaluableExpression : fragments) {
+		for (EvaluableExpression evaluableExpression : fragments)
 			if (evaluableExpression instanceof Path)
 				throw new IllegalArgumentException();
-		}
 	}
 
 	public Path(EvaluableExpression... fragments) {
 		this.fragments = Arrays.asList(fragments);
-		for (EvaluableExpression evaluableExpression : fragments) {
+		for (EvaluableExpression evaluableExpression : fragments)
 			if (evaluableExpression instanceof Path)
 				throw new IllegalArgumentException();
-		}
 	}
 
 	public static Path replace(Path path, Path pathToFind, Path replacePath) {
@@ -68,12 +66,23 @@ public class Path extends EvaluableExpression {
 		return fragmentNode;
 	}
 
-	public EvaluableExpression getSelector(int distance) {
-		return this.fragments.get(distance);
+	@Override
+	public JsonNode evaluate(JsonNode... nodes) {
+		if (this.fragments.size() == 0)
+			return nodes[0];
+
+		JsonNode fragmentNode = this.fragments.get(0).evaluate(nodes);
+		for (EvaluableExpression fragment : this.fragments.subList(1, fragments.size()))
+			fragmentNode = fragment.evaluate(fragmentNode);
+		return fragmentNode;
+	}
+
+	public EvaluableExpression getFragment(int index) {
+		return this.fragments.get(index);
 	}
 
 	public List<EvaluableExpression> getFragments() {
-		return fragments;
+		return this.fragments;
 	}
 
 	public void add(EvaluableExpression fragment) {
@@ -84,7 +93,7 @@ public class Path extends EvaluableExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + fragments.hashCode();
+		result = prime * result + this.fragments.hashCode();
 		return result;
 	}
 
@@ -94,10 +103,10 @@ public class Path extends EvaluableExpression {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		Path other = (Path) obj;
-		return fragments.equals(other.fragments);
+		return this.fragments.equals(other.fragments);
 	}
 
 	@Override

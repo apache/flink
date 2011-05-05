@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
 
-
 public class Constant extends EvaluableExpression {
 	// TODO: adjust to json model
 	private Object constant;
@@ -17,7 +16,7 @@ public class Constant extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node) {
-		return OBJECT_MAPPER.valueToTree(constant);
+		return OBJECT_MAPPER.valueToTree(this.constant);
 	}
 
 	public int asInt() {

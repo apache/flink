@@ -12,7 +12,6 @@ import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.LongNode;
 import org.codehaus.jackson.node.NumericNode;
 
-
 public class Arithmetic extends EvaluableExpression {
 	public static enum ArithmeticOperator {
 		PLUS("+") {
@@ -132,18 +131,18 @@ public class Arithmetic extends EvaluableExpression {
 		}
 
 		NumericNode evaluate(NumericNode a, NumericNode b) {
-			switch (getWiderType(a.getNumberType(), b.getNumberType())) {
+			switch (this.getWiderType(a.getNumberType(), b.getNumberType())) {
 			case BIG_DECIMAL:
-				return DecimalNode.valueOf(evaluateBigDecimal(a.getDecimalValue(), b.getDecimalValue()));
+				return DecimalNode.valueOf(this.evaluateBigDecimal(a.getDecimalValue(), b.getDecimalValue()));
 			case DOUBLE:
 			case FLOAT:
-				return DoubleNode.valueOf(evaluateDouble(a.getDoubleValue(), b.getDoubleValue()));
+				return DoubleNode.valueOf(this.evaluateDouble(a.getDoubleValue(), b.getDoubleValue()));
 			case BIG_INTEGER:
-				return BigIntegerNode.valueOf(evaluateBigInteger(a.getBigIntegerValue(), b.getBigIntegerValue()));
+				return BigIntegerNode.valueOf(this.evaluateBigInteger(a.getBigIntegerValue(), b.getBigIntegerValue()));
 			case LONG:
-				return LongNode.valueOf(evaluateLong(a.getLongValue(), b.getLongValue()));
+				return LongNode.valueOf(this.evaluateLong(a.getLongValue(), b.getLongValue()));
 			default:
-				return IntNode.valueOf(evaluateInt(a.getIntValue(), b.getIntValue()));
+				return IntNode.valueOf(this.evaluateInt(a.getIntValue(), b.getIntValue()));
 			}
 		}
 
@@ -189,7 +188,7 @@ public class Arithmetic extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node) {
-		return operator.evaluate((NumericNode) op1.evaluate(node), (NumericNode) op2.evaluate(node));
+		return this.operator.evaluate((NumericNode) this.op1.evaluate(node), (NumericNode) this.op2.evaluate(node));
 	}
 
 	@Override

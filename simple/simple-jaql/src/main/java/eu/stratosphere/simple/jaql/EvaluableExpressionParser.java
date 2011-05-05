@@ -164,7 +164,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 			for (int index = 0; index < childPaths.size(); index++) {
 				if (childPaths.get(index) instanceof Path) {
 					Path path = (Path) childPaths.get(index);
-					childPaths.set(index, path.getSelector(0));
+					childPaths.set(index, path.getFragment(0));
 					childPaths.addAll(index + 1, path.getFragments().subList(1, path.getFragments().size()));
 					index += path.getFragments().size() - 1;
 				}

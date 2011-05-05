@@ -15,17 +15,21 @@ public class Sink extends Operator {
 
 	public Sink(DataType type, String outputName, Operator input) {
 		super(Transformation.IDENTITY, input);
-		if (type == DataType.ADHOC)
-			throw new IllegalArgumentException();
+		// if (type == DataType.ADHOC)
+		// throw new IllegalArgumentException();
 		this.outputName = outputName;
 		this.type = type;
+	}
+
+	public String getOutputName() {
+		return outputName;
 	}
 
 	@Override
 	public PactModule asPactModule() {
 		PactModule pactModule = new PactModule(1, 1);
 		DataSinkContract<PactNull, PactJsonObject> contract = new DataSinkContract<PactNull, PactJsonObject>(
-			JsonOutputFormat.class, outputName);
+			JsonOutputFormat.class, this.outputName);
 		contract.setInput(pactModule.getInput(0));
 		pactModule.setOutput(0, contract);
 		return pactModule;
@@ -33,7 +37,7 @@ public class Sink extends Operator {
 
 	@Override
 	public String toString() {
-		return "Sink [" + outputName + "]";
+		return "Sink [" + this.outputName + "]";
 	}
 
 }

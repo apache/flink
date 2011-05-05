@@ -3,10 +3,15 @@ package eu.stratosphere.sopremo;
 import java.util.Arrays;
 import java.util.List;
 
-import eu.stratosphere.sopremo.Condition.Combination;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.BooleanNode;
 
 public class Condition extends BooleanExpression {
 	private BooleanExpression[] expressions;
+
+	public BooleanExpression[] getExpressions() {
+		return this.expressions;
+	}
 
 	private Combination combination;
 
@@ -26,17 +31,52 @@ public class Condition extends BooleanExpression {
 	// }
 	// return conditions.isEmpty() ? null : conditions.get(0);
 	// }
-
 	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder(this.expressions[0].toString());
+	protected void toString(StringBuilder builder) {
+		builder.append(this.expressions[0]);
 		for (int index = 1; index < this.expressions.length; index++)
 			builder.append(' ').append(this.combination).append(' ').append(this.expressions[index]);
-		return builder.toString();
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode... nodes) {
+		if (this.expressions.length == 1)
+			return this.expressions[0].evaluate(nodes);
+		return this.combination.evaluate(this.expressions, nodes);
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node) {
+		if (this.expressions.length == 1)
+			return this.expressions[0].evaluate(node);
+		return this.combination.evaluate(this.expressions, node);
 	}
 
 	public static enum Combination {
-		AND, OR;
+		AND {
+			@Override
+			public JsonNode evaluate(BooleanExpression[] expressions, JsonNode... nodes) {
+				for (BooleanExpression booleanExpression : expressions)
+					if (expressions[0].evaluate(nodes) == BooleanNode.FALSE)
+						return BooleanNode.FALSE;
+				return BooleanNode.TRUE;
+			}
+		},
+		OR {
+			@Override
+			public JsonNode evaluate(BooleanExpression[] expressions, JsonNode... nodes) {
+				for (BooleanExpression booleanExpression : expressions)
+					if (expressions[0].evaluate(nodes) == BooleanNode.TRUE)
+						return BooleanNode.TRUE;
+				return BooleanNode.FALSE;
+			}
+		};
+
+		public abstract JsonNode evaluate(BooleanExpression[] expressions, JsonNode... nodes);
+	}
+
+	public Combination getCombination() {
+		return this.combination;
 	}
 
 	@Override

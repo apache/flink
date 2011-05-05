@@ -1,12 +1,10 @@
 package eu.stratosphere.sopremo.operator;
 
-import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
-import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Transformation;
@@ -36,7 +34,7 @@ public class Source extends Operator {
 			throw new UnsupportedOperationException();
 		PactModule pactModule = new PactModule(1, 1);
 		DataSourceContract<PactNull, PactJsonObject> contract = new DataSourceContract<PactNull, PactJsonObject>(
-			JsonInputFormat.class, inputName);
+			JsonInputFormat.class, this.inputName);
 		pactModule.getOutput(0).setInput(contract);
 		pactModule.setInput(0, contract);
 		return pactModule;
@@ -88,15 +86,15 @@ public class Source extends Operator {
 	}
 
 	public String getInputName() {
-		return inputName;
+		return this.inputName;
 	}
 
 	public DataType getType() {
-		return type;
+		return this.type;
 	}
 
 	public EvaluableExpression getAdhocValue() {
-		return adhocValue;
+		return this.adhocValue;
 	}
 
 }

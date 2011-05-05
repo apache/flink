@@ -3,6 +3,9 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.Arrays;
 import java.util.List;
 
+import org.codehaus.jackson.JsonNode;
+
+import eu.stratosphere.sopremo.EvaluationException;
 
 public class ObjectCreation extends EvaluableExpression {
 	private ValueAssignment[] assignments;
@@ -23,6 +26,11 @@ public class ObjectCreation extends EvaluableExpression {
 	@Override
 	public int hashCode() {
 		return 53 + Arrays.hashCode(this.assignments);
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node) {
+		throw new EvaluationException();
 	}
 
 	@Override

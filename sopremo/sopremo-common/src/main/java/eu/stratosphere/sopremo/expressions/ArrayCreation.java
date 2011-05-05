@@ -25,7 +25,7 @@ public class ArrayCreation extends EvaluableExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node) {
 		ArrayNode arrayNode = NODE_FACTORY.arrayNode();
-		for (EvaluableExpression expression : elements)
+		for (EvaluableExpression expression : this.elements)
 			arrayNode.add(expression.evaluate(node));
 		return arrayNode;
 	}

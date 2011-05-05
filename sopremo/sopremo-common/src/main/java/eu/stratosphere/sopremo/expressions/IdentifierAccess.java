@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
+import org.codehaus.jackson.JsonNode;
+
+import eu.stratosphere.sopremo.EvaluationException;
 
 public class IdentifierAccess extends EvaluableExpression {
 	private String identifier;
@@ -16,6 +19,11 @@ public class IdentifierAccess extends EvaluableExpression {
 	@Override
 	public int hashCode() {
 		return 31 + this.identifier.hashCode();
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node) {
+		throw new EvaluationException();
 	}
 
 	@Override
