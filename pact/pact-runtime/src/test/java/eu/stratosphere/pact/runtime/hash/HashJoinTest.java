@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.hash;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -93,7 +94,7 @@ public class HashJoinTest
 	
 	
 	@Test
-	public void testHashTableBuilding()
+	public void testHashTableBuilding() throws IOException
 	{
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
 		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(1000000, 3, false);
@@ -120,8 +121,13 @@ public class HashJoinTest
 		// ----------------------------------------------------------------------------------------
 		
 		HashJoin<PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger>(buildInput, probeInput, memSegments, ioManager);
-		join.buildInitialTable(buildInput);
+		join.open();
 		
+		
+		
+		join.close();
+		
+		memMan.release(memSegments);
 		
 		// ----------------------------------------------------------------------------------------
 		

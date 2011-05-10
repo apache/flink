@@ -19,8 +19,6 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-
 
 /**
  * A base class for readers and writers that accept read or write requests for whole blocks.
@@ -28,13 +26,14 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * segment of the block is added to a queue to be returned.
  * 
  * @author Stephan Ewen
- * @param <T> The buffer type used for the underlying IO operations.
+ * @param <T> The buffer type used for the underlying IO operations, which is sent as a request.
+ * @param <R> The type of segment asynchronously returned from the access. 
  */
 public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess<T>
 {	
 	/**
 	 * The lock that is used during closing to synchronize the thread that waits for all
-	 * requests to be handled, and the asynchronous I/I thread.
+	 * requests to be handled, and the asynchronous I/O thread.
 	 */
 	private final Object closeLock = new Object();
 	
@@ -46,7 +45,7 @@ public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess
 	/**
 	 * The queue containing the empty buffers that are ready to be reused.
 	 */
-	protected final LinkedBlockingQueue<MemorySegment> returnBuffers;
+	protected final LinkedBlockingQueue<T> returnBuffers;
 	
 	/**
 	 * Flag marking this channel as closed;
@@ -68,7 +67,7 @@ public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
 	protected BlockChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnQueue, boolean writeEnabled)
+			LinkedBlockingQueue<T> returnQueue, boolean writeEnabled)
 	throws IOException
 	{
 		super(channelID, requestQueue, writeEnabled);
@@ -97,8 +96,7 @@ public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess
 	@Override
 	protected void returnBuffer(T buffer)
 	{
-		final MemorySegment s = buffer.dispose();
-		this.returnBuffers.add(s);
+		this.returnBuffers.add(buffer);
 		
 		// decrement the number of missing buffers. If we are currently closing, notify the 
 		if (this.closed) {
@@ -135,8 +133,9 @@ public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess
 				// only then is everything guaranteed to be consistent.{
 				while (this.requestsNotReturned.get() > 0) {
 					try {
-						// we add a timeout here, because it is not completely guaranteed that the
+						// we add a timeout here, because it is not guaranteed that the
 						// decrementing during buffer return and the check here are deadlock free.
+						// the deadlock situation is however unlikely and caught by the timeout
 						this.closeLock.wait(1000);
 						checkErroneous();
 					}

@@ -28,7 +28,6 @@ import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -42,6 +41,7 @@ import eu.stratosphere.pact.common.type.Value;
  * <pre>
  * +----------------------------- Bucket x ----------------------------
  * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
+ * | next-bucket-in-chain-pointer (8 bytes) | reserved (4 bytes) |
  * |
  * |hashCode 1 (4 bytes) | hashCode 2 (4 bytes) | hashCode 3 (4 bytes) |
  * | ... hashCode n-1 (4 bytes) | hashCode n (4 bytes)
@@ -50,6 +50,7 @@ import eu.stratosphere.pact.common.type.Value;
  * | ... pointer n-1 (8 bytes) | pointer n (8 bytes)
  * +---------------------------- Bucket x + 1--------------------------
  * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
+ * | next-bucket-in-chain-pointer (8 bytes) | reserved (4 bytes) |
  * |
  * |hashCode 1 (4 bytes) | hashCode 2 (4 bytes) | hashCode 3 (4 bytes) |
  * | ... hashCode n-1 (4 bytes) | hashCode n (4 bytes)
@@ -73,24 +74,53 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	private static final int MAX_NUM_PARTITIONS = Byte.MAX_VALUE;
 	
-	private static final int NUM_INTRA_BUCKET_BITS = 10;
-	
-	private static final int HASH_BUCKET_SIZE = 0x1 << NUM_INTRA_BUCKET_BITS;
-	
-	private static final int BUCKET_HEADER_LENGTH = 12;
-	
-	private static final int BUCKET_STATUS_SPILLED = 1;
-	
-	private static final int BUCKET_STATUS_IN_MEMORY = 0;
-	
 	private static final int DEFAULT_RECORD_LEN = 100;
+	
+	/**
+	 * The length of the hash code stored in the bucket.
+	 */
+	private static final int HASH_CODE_LEN = 4;
+	
+	/**
+	 * The length of a pointer from a hash bucket to the record in the buffers.
+	 */
+	private static final int POINTER_LEN = 8;
 	
 	/**
 	 * The storage overhead per record, in bytes. This corresponds to the space in the
 	 * actual hash table buckets, consisting of a 4 byte hash value and an 8 byte
 	 * pointer.
 	 */
-	private static final int RECORD_OVERHEAD_BYTES = 12;
+	private static final int RECORD_OVERHEAD_BYTES = HASH_CODE_LEN + POINTER_LEN;
+	
+	// -------------------------- Bucket Size and Structure -------------------------------------
+	
+	private static final int NUM_INTRA_BUCKET_BITS = 10;
+	
+	private static final int HASH_BUCKET_SIZE = 0x1 << NUM_INTRA_BUCKET_BITS;
+	
+	private static final int BUCKET_HEADER_LENGTH = 16;
+	
+	private static final int NUM_ENTRIES_PER_BUCKET = (HASH_BUCKET_SIZE - BUCKET_HEADER_LENGTH) / RECORD_OVERHEAD_BYTES;
+	
+	private static final int BUCKET_POINTER_START_OFFSET = BUCKET_HEADER_LENGTH + (NUM_ENTRIES_PER_BUCKET * HASH_CODE_LEN);
+	
+	// ------------------------------ Bucket Header Fields ------------------------------
+	
+	private static final int HEADER_PARTITION_OFFSET = 0;
+	
+	private static final int HEADER_STATUS_OFFSET = 1;
+	
+	private static final int HEADER_COUNT_OFFSET = 2;
+	
+	private static final int HEADER_FORWARD_OFFSET = 4;	
+	
+	
+	private static final long BUCKET_FORWARD_POINTER_NOT_SET = -1L;
+	
+	private static final byte BUCKET_STATUS_SPILLED = 1;
+	
+	private static final byte BUCKET_STATUS_IN_MEMORY = 0;
 	
 	
 	// ------------------------------------------------------------------------
@@ -116,7 +146,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 * The queue of buffers that can be used for write-behind. Any buffer that is written
 	 * asynchronously to disk is returned through this queue. hence, it may sometimes contain more
 	 */
-	private final LinkedBlockingQueue<MemorySegment> writeBehindBuffers;
+	private final LinkedBlockingQueue<Buffer.Output> writeBehindBuffers;
 	
 	/**
 	 * The I/O manager used to instantiate writers for the spilled partitions.
@@ -159,9 +189,11 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	private Channel.Enumerator currentEnumerator;
 	
-	private ArrayList<RandomAccessView> overflowBuckets;
+	private MemorySegment[] buckets;
 	
-	private RandomAccessView[] buckets;
+	private int numBuckets;
+	
+	
 	
 	
 
@@ -176,6 +208,13 @@ public class HashJoin<K extends Key, V extends Value>
 	// ------------------------------------------------------------------------
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
+	
+	public HashJoin(Iterator<KeyValuePair<K, V>> buildSideInput, Iterator<KeyValuePair<K, V>> probeSideInput,
+			List<MemorySegment> memorySegments,
+			IOManager ioManager)
+	{
+		this(buildSideInput, probeSideInput, memorySegments, ioManager, DEFAULT_RECORD_LEN);
+	}
 	
 	public HashJoin(Iterator<KeyValuePair<K, V>> buildSideInput, Iterator<KeyValuePair<K, V>> probeSideInput,
 			List<MemorySegment> memorySegments,
@@ -213,13 +252,12 @@ public class HashJoin<K extends Key, V extends Value>
 		this.bucketsPerSegmentBits = log2floor(bucketsPerSegment);
 		
 		// take away the write behind buffers
-		this.writeBehindBuffers = new LinkedBlockingQueue<MemorySegment>();
+		this.writeBehindBuffers = new LinkedBlockingQueue<Buffer.Output>();
 		for (int i = getNumWriteBehindBuffers(memorySegments.size()); i > 0; --i)
 		{
-			this.writeBehindBuffers.add(memorySegments.remove(memorySegments.size() - 1));
+			this.writeBehindBuffers.add(new Buffer.Output(memorySegments.remove(memorySegments.size() - 1)));
 		}
 		
-		// create the list that tracks which partitions are currently created
 		this.partitionsBeingBuilt = new ArrayList<HashJoin.Partition>();
 	}
 	
@@ -231,7 +269,7 @@ public class HashJoin<K extends Key, V extends Value>
 	public void open() throws IOException
 	{
 		// open builds the initial table by consuming the build-side input
-		buildInitialTable(probeSideInput);
+		buildInitialTable(this.probeSideInput);
 	}
 	
 	public void next() throws IOException
@@ -260,12 +298,15 @@ public class HashJoin<K extends Key, V extends Value>
 	{
 		// create the partitions
 		final int partitionFanOut = getPartitioningFanOutNoEstimates(this.availableMemory.size());
+		if (partitionFanOut > MAX_NUM_PARTITIONS) {
+			throw new RuntimeException("Hash join created ");
+		}
 		createPartitions(partitionFanOut);
 		
 		// set up the table structure. the write behind buffers are taken away, as are one buffer per partition
 		final int numBuckets = getInitialTableSize(this.availableMemory.size(), this.segmentSize, 
 			partitionFanOut, this.avgRecordLen);
-		
+		initTable(numBuckets, 0, (byte) partitionFanOut);
 		
 		// go over the complete input
 		while (input.hasNext())
@@ -277,6 +318,181 @@ public class HashJoin<K extends Key, V extends Value>
 	}
 	
 	
+
+	
+	
+	/**
+	 * @param pair
+	 * @param hashCode
+	 * @throws IOException
+	 */
+	private final void insertIntoTable(final KeyValuePair<K, V> pair, final int hashCode)
+	throws IOException
+	{
+		final int posHashCode = hashCode % this.numBuckets;
+		
+		// get the bucket for the given hash code
+		final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
+		final int bucketInSegmentPos = (posHashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
+		final MemorySegment bucket = this.buckets[bucketArrayPos];
+		
+		// get the basic characteristics of the bucket
+		final int partitionNumber = bucket.get(bucketInSegmentPos + HEADER_PARTITION_OFFSET);
+		final int bucketStatus = bucket.get(bucketInSegmentPos + HEADER_STATUS_OFFSET);
+		
+		// get the partition descriptor for the bucket
+		if (partitionNumber < 0 || partitionNumber >= this.partitionsBeingBuilt.size()) {
+			throw new RuntimeException("Error: Hash structures in Hash-Join are corrupt. Invalid partition number for bucket.");
+		}
+		final Partition p = this.partitionsBeingBuilt.get(partitionNumber);
+		
+		// --------- Step 1: Get the partition for this pair and put the pair into the buffer ---------
+		
+		long pointer = p.insertIntoBuffer(pair);
+		if (pointer == -1) {
+			// element was not written because the buffer was full. get the next buffer.
+			// if no buffer is available, we need to spill a partition
+			MemorySegment nextSeg = getNextBuffer();
+			if (nextSeg == null) {
+				spillPartition();
+				nextSeg = getNextBuffer();
+				if (nextSeg == null) {
+					throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
+				}
+			}
+			
+			// add the buffer to the partition.
+			p.addBuffer(nextSeg);
+			
+			// retry to write into the buffer
+			pointer = p.insertIntoBuffer(pair);
+			if (pointer == -1) {
+				// retry failed, throw an exception
+				throw new IOException("Record could not be added to fresh buffer. Probably cause: Record length exceeds buffer size limit.");
+			}
+		}
+		
+		// --------- Step 2: Add the pointer and the hash code to the hash bucket ---------
+		
+		if (p.isInMemory()) {
+			// in-memory partition: add the pointer and the hash-value to the list
+			// find the position to put the hash code and pointer
+			final short count = bucket.getShort(bucketInSegmentPos + HEADER_COUNT_OFFSET);
+			if (count < NUM_ENTRIES_PER_BUCKET)
+			{
+				// we are good in our current bucket, put the values
+				bucket.putInt(bucketInSegmentPos + BUCKET_HEADER_LENGTH + (count * HASH_CODE_LEN), hashCode);	// hash code
+				bucket.putLong(bucketInSegmentPos + BUCKET_POINTER_START_OFFSET + (count * POINTER_LEN), pointer); // pointer
+				bucket.putShort(bucketInSegmentPos + HEADER_COUNT_OFFSET, (short) (count + 1)); // update count
+			}
+			else {
+				// we need to go to the overflow buckets
+				final long originalForwardPointer = bucket.getLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET);
+				final long forwardForNewBucket;
+				
+				if (originalForwardPointer != BUCKET_FORWARD_POINTER_NOT_SET) {
+					
+					// forward pointer set
+					final int overflowSegNum = (int) ((originalForwardPointer >>> 32) & 0xffffffff);
+					final MemorySegment seg = p.overflowSegments[overflowSegNum];
+					final int segOffset = (int) (originalForwardPointer & 0xffffffff);
+					
+					final short obCount = seg.getShort(segOffset + HEADER_COUNT_OFFSET);
+					
+					// check if there is space in this overflow bucket
+					if (obCount < NUM_ENTRIES_PER_BUCKET) {
+						// space in this bucket and we are done
+						seg.putInt(segOffset + BUCKET_HEADER_LENGTH + (obCount * HASH_CODE_LEN), hashCode);	// hash code
+						seg.putLong(segOffset + BUCKET_POINTER_START_OFFSET + (obCount * POINTER_LEN), pointer); // pointer
+						seg.putShort(segOffset + HEADER_COUNT_OFFSET, (short) (obCount + 1)); // update count
+						return;
+					}
+					else {
+						// no space here, we need a new bucket. this current overflow bucket will be the
+						// target of the new overflow bucket
+						forwardForNewBucket = originalForwardPointer;
+					}
+				}
+				else {
+					// no overflow bucket yet, so we need a first one
+					forwardForNewBucket = BUCKET_FORWARD_POINTER_NOT_SET;
+				}
+				
+				// we need a new overflow bucket
+				MemorySegment overflowSeg;
+				final int overflowBucketNum;
+				final int overflowBucketOffset;
+				
+				
+				// first, see if there is space for an overflow bucket remaining in the last overflow segment
+				if (p.nextOverflowBucket == 0) {
+					// no space left in last bucket, or no bucket yet, so create an overflow segment
+					overflowSeg = getNextBuffer();
+					if (overflowSeg == null) {
+						// no memory available to create overflow bucket. we need to spill a partition
+						// and then re-call this function to insert the element
+						final int spilledPart = spillPartition();
+						if (spilledPart == partitionNumber) {
+							// this bucket is no longer in-memory
+							return;
+						}
+						overflowSeg = getNextBuffer();
+						if (overflowSeg == null) {
+							throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling a partition.");
+						}
+					}
+					overflowBucketOffset = 0;
+					overflowBucketNum = p.numOverflowSegments;
+					
+					// add the new overflow segment
+					if (p.overflowSegments.length <= p.numOverflowSegments) {
+						MemorySegment[] newSegsArray = new MemorySegment[p.overflowSegments.length * 2];
+						System.arraycopy(p.overflowSegments, 0, newSegsArray, 0, p.overflowSegments.length);
+						p.overflowSegments = newSegsArray;
+					}
+					p.overflowSegments[p.numOverflowSegments] = overflowSeg;
+					p.numOverflowSegments++;
+				}
+				else {
+					// there is space in the last overflow bucket
+					overflowBucketNum = p.numOverflowSegments - 1;
+					overflowSeg = p.overflowSegments[overflowBucketNum];
+					overflowBucketOffset = p.nextOverflowBucket << NUM_INTRA_BUCKET_BITS;
+				}
+				
+				// next overflow bucket is one ahead. if the segment is full, the next will be at the beginning
+				// of a new segment
+				p.nextOverflowBucket = (p.nextOverflowBucket == this.bucketsPerSegmentMask ? 
+						0 : p.nextOverflowBucket + 1);
+				
+				// insert the new overflow bucket in the chain of buckets
+				// 1) set the old forward pointer
+				// 2) let the bucket in the main table point to this one
+				overflowSeg.putLong(overflowBucketOffset + HEADER_FORWARD_OFFSET, forwardForNewBucket);
+				final long pointerToNewBucket = (((long) overflowBucketNum) << 32) | ((long) overflowBucketOffset);
+				bucket.putLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET, pointerToNewBucket);
+				
+				// finally, insert the values into the overflow buckets
+				overflowSeg.putInt(overflowBucketOffset + BUCKET_HEADER_LENGTH, hashCode);	// hash code
+				overflowSeg.putLong(overflowBucketOffset + BUCKET_POINTER_START_OFFSET, pointer); // pointer
+				
+				// set the count to one
+				overflowSeg.putShort(overflowBucketOffset + HEADER_COUNT_OFFSET, (short) 1); 
+			}
+
+		}
+		else {
+			return;
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                          Setup and Tear Down of Structures
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * @param numPartitions
+	 */
 	private void createPartitions(int numPartitions)
 	{
 		// sanity check
@@ -295,89 +511,59 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 	}
 	
+
 	
-	private final void insertIntoTable(final KeyValuePair<K, V> pair, int hashCode)
-	throws IOException
+	/**
+	 * @param numBuckets
+	 * @param partitionLevel
+	 * @param numPartitions
+	 * @return
+	 */
+	private void initTable(int numBuckets, int partitionLevel, byte numPartitions)
 	{
-		// get the bucket for the given hash code
-		final int bucketArrayPos = hashCode >> this.bucketsPerSegmentBits;
-		final int bucketInSegmentPos = (hashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
-		final RandomAccessView bucket = this.buckets[bucketArrayPos];
+		final int bucketsPerSegment = this.bucketsPerSegmentMask + 1;
+		final int numSegs = (numBuckets >>> this.bucketsPerSegmentBits) + 1;
+		final MemorySegment[] table = new MemorySegment[numSegs];
 		
-		// get the basic characteristics of the bucket
-		final int partitionNumber = bucket.get(bucketInSegmentPos);
-		final int bucketStatus = bucket.getInt(bucketInSegmentPos + 1);
-		
-		// get the partition descriptor for the bucket
-		if (partitionNumber < 0 || partitionNumber >= this.partitionsBeingBuilt.size()) {
-			throw new RuntimeException("Error: Hash structures in Hash-Join are corrupt. Invalid partition number for bucket.");
-		}
-		final Partition p = this.partitionsBeingBuilt.get(partitionNumber);
-		
-		// --------- Step 1: Get the partition for this pair and put the pair into the buffer ---------
-		long pointer = p.insertIntoBuffer(pair);
-		if (pointer == -1) {
-			// element was not written because the buffer was full. get the next buffer.
-			// if no buffer is available, we need to spill a partition
-			MemorySegment nextSeg = getNextBuffer();
-			if (nextSeg == null) {
-				spillPartition();
-				nextSeg = getNextBuffer();
-				if (nextSeg == null) {
-					throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
-				}
+		// go over all segments that are part of the table
+		for (int i = 0, bucket = 0; i < numSegs && bucket < numBuckets; i++) {
+			final MemorySegment seg = this.availableMemory.remove(this.availableMemory.size() - 1);
+			
+			// go over all buckets in the segment
+			for (int k = 0; k < bucketsPerSegment && bucket < numBuckets; k++, bucket++) {
+				final int bucketOffset = k * HASH_BUCKET_SIZE;	
+				
+				// compute the partition that the bucket corresponds to
+				final byte partition = partition(bucket, partitionLevel, numPartitions);
+				
+				// initialize the header fields
+				seg.put(bucketOffset + HEADER_PARTITION_OFFSET, partition);
+				seg.put(bucketOffset + HEADER_STATUS_OFFSET, BUCKET_STATUS_IN_MEMORY);
+				seg.putShort(bucketOffset + HEADER_COUNT_OFFSET, (short) 0);
+				seg.putLong(bucketOffset + HEADER_FORWARD_OFFSET, BUCKET_FORWARD_POINTER_NOT_SET);
 			}
 			
-			// add the buffer to the partition. giving a partition a new buffer may free up one or more previously used 
-			// buffers, if the partition is spilled. Take those buffers back in that case.
-			p.addBuffer(nextSeg);
-			
-			// retry to write into the buffer
-			pointer = p.insertIntoBuffer(pair);
-			if (pointer == -1) {
-				// retry failed, throw an exception
-				throw new IOException("Record could not be added to fresh buffer. Probably cause: Record length exceeds buffer size limit.");
-			}
+			table[i] = seg;
 		}
 		
-		// --------- Step 2: Add the pointer and the hash code to the hash bucket ---------
-		
-		if (p.isInMemory()) {
-			// in-memory partition: add the pointer and the hash-value to the list
-			// find the position to put the hash code and pointer
-			final int nextPos = bucket.getInt(bucketInSegmentPos + 2);
-			if (nextPos == -1) {
-				// bucket full, we need to go to the overflow buckets
-			}
-			else if (nextPos + 12 > HASH_BUCKET_SIZE) {
-				// we need to create our first overflow bucket
-			}
-			else {
-				// we are good in our current bucket
-				bucket.putInt(bucketInSegmentPos + nextPos, hashCode);
-				bucket.putLong(bucketInSegmentPos + nextPos + 4, pointer);
-				bucket.putInt(bucketInSegmentPos + 2, nextPos + 12);
-			}
-		}
-		else {
-			// spilled partition. check if this already transformed into a bit-vector
-			if (bucketStatus == BUCKET_STATUS_IN_MEMORY) {
-				// first access to the bucket since its partition was spilled. turn the bucket into a bit-vector
-			}
-			
-			
-			throw new RuntimeException("Spilled buckets are not supported at the moment.");
-		}
+		this.buckets = table;
+		this.numBuckets = numBuckets;
 	}
 	
-	private final RandomAccessView[] initTable(int numBuckets, int partitionLevel)
+	private void releaseTable()
 	{
-		final int numSegs = numBuckets >> this.bucketsPerSegmentBits;
-		final RandomAccessView[] table = new RandomAccessView[numSegs];
+		// set the counters back
+		this.numBuckets = 0;
 		
-		for (int i = 0, bucket = 0; i < numSegs; i++) {
+		for (int i = 0; i < this.buckets.length; i++) {
+			this.availableMemory.add(this.buckets[i]);
 		}
+		this.buckets = null;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                    Memory Handling
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Gets the next buffer to be used with the hash-table, either for an in-memory partition, or for the
@@ -394,7 +580,7 @@ public class HashJoin<K extends Key, V extends Value>
 		// check if the list directly offers memory
 		int s = this.availableMemory.size();
 		if (s > 0) {
-			return this.availableMemory.get(s -1);
+			return this.availableMemory.remove(s-1);
 		}
 		
 		// check if there are write behind buffers that actually are to be used for the hash table
@@ -403,7 +589,7 @@ public class HashJoin<K extends Key, V extends Value>
 			// grab at least one, no matter what
 			MemorySegment toReturn;
 			try {
-				toReturn = this.writeBehindBuffers.take();
+				toReturn = this.writeBehindBuffers.take().dispose();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("Hybrid Hash Join was interrupted while taking a buffer.");
@@ -411,9 +597,9 @@ public class HashJoin<K extends Key, V extends Value>
 			this.writeBehindBuffersAvailable--;
 			
 			// grab as many more buffers as are available directly
-			MemorySegment currSeg = null;
-			while (this.writeBehindBuffersAvailable > 0 && (currSeg = this.writeBehindBuffers.poll()) != null) {
-				this.availableMemory.add(currSeg);
+			Buffer.Output currBuff = null;
+			while (this.writeBehindBuffersAvailable > 0 && (currBuff = this.writeBehindBuffers.poll()) != null) {
+				this.availableMemory.add(currBuff.dispose());
 				this.writeBehindBuffersAvailable--;
 			}
 			
@@ -451,13 +637,13 @@ public class HashJoin<K extends Key, V extends Value>
 		if (this.currentEnumerator == null) {
 			this.currentEnumerator = this.ioManager.createChannelEnumerator();
 		}
-		int numBuffersFreed = p.spillPartition(this.ioManager, this.currentEnumerator.next());
+		int numBuffersFreed = p.spillPartition(this.availableMemory, this.ioManager, this.currentEnumerator.next());
 		this.writeBehindBuffersAvailable += numBuffersFreed;
 		
 		// grab as many buffers as are available directly
-		MemorySegment currSeg = null;
-		while (this.writeBehindBuffersAvailable > 0 && (currSeg = this.writeBehindBuffers.poll()) != null) {
-			this.availableMemory.add(currSeg);
+		Buffer.Output currBuff = null;
+		while (this.writeBehindBuffersAvailable > 0 && (currBuff = this.writeBehindBuffers.poll()) != null) {
+			this.availableMemory.add(currBuff.dispose());
 			this.writeBehindBuffersAvailable--;
 		}
 		
@@ -534,7 +720,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 * @param code The integer to be hashed.
 	 * @return The hash code for the integer.
 	 */
-	public static final int partition(int code, int level)
+	public static final byte partition(int code, int level, byte maxParts)
 	{
 		int a = (code & 0xff) + ((code >>> 8) & 0xff) + ((code >>> 16) & 0xff) + ((code >>> 24) & 0xff);
 		int b = 0x9e3779b1;
@@ -555,7 +741,9 @@ public class HashJoin<K extends Key, V extends Value>
 		c ^= b;
 		c -= (b << 24) | (b >>> 8);
 		
-		return c;
+		c = (c & 0xff) ^ ((c >>> 8) & 0xff) ^ ((c >>> 16) & 0xff) ^ ((c >>> 24) & 0xff);
+		c = (c >= 0 ?  c : -(c + 1));
+		return (byte) (c % maxParts);
 	}
 	
 	/**
@@ -575,7 +763,7 @@ public class HashJoin<K extends Key, V extends Value>
 		code = (code + 0xd3a2646c) ^ (code << 9);
 		code = (code + 0xfd7046c5) + (code << 3);
 		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
-		return code;
+		return code >= 0 ? code : - (code + 1);
 	}
 	
 	/**
@@ -614,16 +802,23 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	private static final class Partition
 	{
-		private final ArrayList<Buffer.Output> partitionBuffers;	// this partition's buffers
+		private final ArrayList<MemorySegment> partitionBuffers;	// this partition's buffers
 		
-		private final LinkedBlockingQueue<MemorySegment> writeBehindBuffers;	// queue for write buffers
+		private final LinkedBlockingQueue<Buffer.Output> bufferReturnQueue;	// queue to return write buffers
 		
-		private BlockChannelWriter spillingWriter;					// the channel writer, if partition is spilled
+		private MemorySegment currentPartitionBuffer;
 		
-		private long recordCounter;									// number of records in this partition
+		private MemorySegment[] overflowSegments;
 		
-		private int blockCounter;									// number of blocks in this partition
+		private BlockChannelWriter spillingWriter;			// the channel writer, if partition is spilled
 		
+		private long recordCounter;							// number of records in this partition
+		
+		private int blockCounter;							// number of blocks in this partition
+		
+		private int numOverflowSegments;					// the number of actual segments in the overflowSegments array
+		
+		private int nextOverflowBucket;						// the next free bucket in the current overflow segment
 		
 		/**
 		 * Creates a new partition, initially in memory, with one buffer.
@@ -631,12 +826,16 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @param initialBuffer The initial buffer for this partition.
 		 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 		 */
-		private Partition(MemorySegment initialBuffer, LinkedBlockingQueue<MemorySegment> writeBehindBuffers)
+		private Partition(MemorySegment initialBuffer, LinkedBlockingQueue<Buffer.Output> bufferReturnQueue)
 		{
-			this.partitionBuffers = new ArrayList<Buffer.Output>(4);
-			this.writeBehindBuffers = writeBehindBuffers;
+			this.partitionBuffers = new ArrayList<MemorySegment>(4);
+			this.bufferReturnQueue = bufferReturnQueue;
 			this.recordCounter = 0;
 			this.blockCounter = 0;
+			
+			this.overflowSegments = new MemorySegment[2];
+			this.numOverflowSegments = 0;
+			this.nextOverflowBucket = 0;
 			
 			addBuffer(initialBuffer);
 		}
@@ -670,33 +869,39 @@ public class HashJoin<K extends Key, V extends Value>
 		{
 			if (isInMemory())
 			{
-				final int bufferNum = this.partitionBuffers.size() - 1;
-				final Buffer.Output targetBuffer = this.partitionBuffers.get(bufferNum);
-				final long pointer = (((long) bufferNum) << 32) | targetBuffer.getPosition();
+				final int bufferNum = this.blockCounter - 1;
+				final MemorySegment targetBuffer = this.currentPartitionBuffer;
+				final long pointer = (((long) bufferNum) << 32) | targetBuffer.outputView.getPosition();
 
-				if (targetBuffer.write(object)) {
+				try {
+					object.write(targetBuffer.outputView);
 					this.recordCounter++;
 					return pointer;
 				}
-				else {
+				catch (IOException ioex) {
 					// signal buffer full
 					return -1;
 				}
 			}
 			else {
 				// partition is a spilled partition
-				final Buffer.Output targetBuffer = this.partitionBuffers.get(0);
-				if (!targetBuffer.write(object))
-				{
+				try {
+					object.write(this.currentPartitionBuffer.outputView);
+				}
+				catch (IOException ioex) {
+					final MemorySegment toSpill = this.currentPartitionBuffer;
+					this.currentPartitionBuffer = null;
+					
 					// buffer is full, send this buffer off
-					this.partitionBuffers.clear();
-					spillBuffer(targetBuffer);
+					spillBuffer(toSpill);
 					
 					// get a new one and insert the object
 					addBuffer(getNextWriteBehindBuffer());
-					final Buffer.Output newBuffer = this.partitionBuffers.get(0);
 					
-					if (!newBuffer.write(object)) {
+					try {
+						object.write(this.currentPartitionBuffer.outputView);
+					}
+					catch (IOException iioex) {
 						throw new IOException("Record could not be added to fresh buffer. " +
 								"Probably cause: Record length exceeds buffer size limit.");
 					}
@@ -715,35 +920,56 @@ public class HashJoin<K extends Key, V extends Value>
 		 */
 		public void addBuffer(MemorySegment segment)
 		{
-			// simply add the buffer
-			Buffer.Output buffer = new Buffer.Output(segment);
-			this.partitionBuffers.add(buffer);
+			// write 4 bytes for the block number
+			segment.putInt(0, this.blockCounter);
+			
+			// skip 4 bytes for the remaining header
+			segment.outputView.setPosition(8);
+			
+			// save the old buffer
+			if (this.currentPartitionBuffer != null) {
+				this.partitionBuffers.add(this.currentPartitionBuffer);
+			}
+			
+			// now add the buffer
+			this.currentPartitionBuffer = segment;
 			this.blockCounter++;
 		}
 		
 		/**
 		 * Spills this partition to disk and sets it up such that it continues spilling records that are added to
-		 * it.
+		 * it. The spilling process must free at least one buffer, either in the partition's record buffers, or in
+		 * the memory segments for overflow buckets.
+		 * The partition immediately takes back one buffer to use it for further spilling.
 		 * 
+		 * @param target The list to which memory segments from overflow buckets are added.
 		 * @param ioAccess The I/O manager to be used to create a writer to disk.
 		 * @param targetChannel The id of the target channel for this partition.
 		 * @return The number of buffers that were freed by spilling this partition.
 		 * @throws IOException Thrown, if the writing failed.
 		 */
-		public int spillPartition(IOManager ioAccess, Channel.ID targetChannel)
+		public int spillPartition(List<MemorySegment> target, IOManager ioAccess,
+				Channel.ID targetChannel)
 		throws IOException
 		{
 			if (!isInMemory()) {
 				throw new RuntimeException("Bug in Hybrid Hash Join: " +
 						"Request to spill a partition that has already been spilled.");
 			}
-			if (this.blockCounter < 2) {
+			if (this.blockCounter + this.numOverflowSegments < 2) {
 				throw new RuntimeException("Bug in Hybrid Hash Join: " +
 					"Request to spill a partition with less than two buffers.");
 			}
 			
+			for (int i = 0; i < this.numOverflowSegments; i++) {
+				target.add(this.overflowSegments[i]);
+			}
+			this.overflowSegments = null;
+			this.numOverflowSegments = 0;
+			this.nextOverflowBucket = 0;
+			
 			// create the channel block writer
-			this.spillingWriter = ioAccess.createBlockChannelWriter(targetChannel, this.writeBehindBuffers);
+			this.spillingWriter = ioAccess.createBlockChannelWriter(targetChannel, this.bufferReturnQueue);
 			int numBlocks = this.partitionBuffers.size();
 			
 			// spill all blocks and release them
@@ -752,11 +978,9 @@ public class HashJoin<K extends Key, V extends Value>
 			}
 			this.partitionBuffers.clear();
 			
-			// reclaim one buffer
-			addBuffer(getNextWriteBehindBuffer());
-			
+			// we keep the block that is currently being filled, as it is most likely not full, yet
 			// return the number of blocks that become available
-			return numBlocks - 1;
+			return numBlocks;
 		}
 		
 		/**
@@ -765,10 +989,11 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @param buffer
 		 * @throws IOException
 		 */
-		private final void spillBuffer(Buffer.Output buffer)
+		private final void spillBuffer(MemorySegment buffer)
 		throws IOException
 		{
-			this.spillingWriter.writeBlock(buffer);
+			buffer.putInt(4, buffer.outputView.getPosition());
+			this.spillingWriter.writeBlock(new Buffer.Output(buffer));
 		}
 		
 		/**
@@ -780,7 +1005,8 @@ public class HashJoin<K extends Key, V extends Value>
 		private final MemorySegment getNextWriteBehindBuffer() throws IOException
 		{
 			try {
-				return this.writeBehindBuffers.take();
+				final Buffer.Output buffer = this.bufferReturnQueue.take();
+				return buffer.dispose();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("Hybrid Hash Join Partition was interrupted while taking a buffer.");

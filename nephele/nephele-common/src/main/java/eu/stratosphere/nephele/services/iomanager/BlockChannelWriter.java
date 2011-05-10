@@ -18,8 +18,6 @@ package eu.stratosphere.nephele.services.iomanager;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-
 
 /**
  *
@@ -30,7 +28,7 @@ public class BlockChannelWriter extends BlockChannelAccess<Buffer.Output>
 	
 	
 	protected BlockChannelWriter(Channel.ID channelID, RequestQueue<IORequest<Buffer.Output>> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnSegments)
+			LinkedBlockingQueue<Buffer.Output> returnSegments)
 	throws IOException
 	{
 		super(channelID, requestQueue, returnSegments, true);
@@ -40,7 +38,10 @@ public class BlockChannelWriter extends BlockChannelAccess<Buffer.Output>
 	
 	public void writeBlock(Buffer.Output buffer) throws IOException
 	{
-		// current buffer is full, check the error state of this channel
+		// make sure the entire buffer is written
+		buffer.markEndAsPosition();
+		
+		// check the error state of this channel
 		checkErroneous();
 		
 		// write the current buffer and get the next one

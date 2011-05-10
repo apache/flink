@@ -449,8 +449,9 @@ public class MemorySegment
 	 */
 	public final short getShort(int index) {
 		if (index >= 0 && index < this.size - 1) {
-			return (short) (((this.memory[this.offset + index + 0] & 0xff) << 8) | ((this.memory[this.offset
-				+ index + 1] & 0xff) << 0));
+			return (short) (
+					((this.memory[this.offset + index + 0] & 0xff) << 8) |
+					((this.memory[this.offset + index + 1] & 0xff) << 0) );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
