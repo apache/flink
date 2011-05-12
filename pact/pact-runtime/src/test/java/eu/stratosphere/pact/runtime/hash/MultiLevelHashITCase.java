@@ -40,9 +40,9 @@ import eu.stratosphere.pact.runtime.hash.util.StepRangeIterator;
  * @author Matthias Ringwald
  * 
  */
-public class MultiLevelHashTest {
+public class MultiLevelHashITCase {
 
-	private static final Log LOG = LogFactory.getLog(MultiLevelHashTest.class);
+	private static final Log LOG = LogFactory.getLog(MultiLevelHashITCase.class);
 
 	private static final long SEED = 561349061987311L;
 
