@@ -14,35 +14,33 @@ import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
-import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.BooleanExpression;
 import eu.stratosphere.sopremo.Comparison;
 import eu.stratosphere.sopremo.Condition;
+import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Condition.Combination;
 import eu.stratosphere.sopremo.ElementExpression;
+import eu.stratosphere.sopremo.ElementExpression.Quantor;
+import eu.stratosphere.sopremo.JsonUtils;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.Transformation;
 
 public class Join extends ConditionalOperator {
 	private BitSet outerJoinFlag = new BitSet();
 
-	public Join(Transformation transformation, Condition condition, Operator... inputs) {
+	public Join(Evaluable transformation, Condition condition, Operator... inputs) {
 		super(transformation, condition, inputs);
 	}
 
-	public Join(Transformation transformation, Condition condition, List<Operator> inputs) {
+	public Join(Evaluable transformation, Condition condition, List<Operator> inputs) {
 		super(transformation, condition, inputs);
 	}
 
@@ -62,89 +60,91 @@ public class Join extends ConditionalOperator {
 
 	public static class InnerJoinStub extends
 			MatchStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
-		private Transformation transformation;
+		private Evaluable transformation;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.transformation = getTransformation(parameters, "transformation");
+			this.transformation = getEvaluableExpression(parameters, "transformation");
 		}
 
 		@Override
 		public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
 				Collector<PactNull, PactJsonObject> out) {
-			out.collect(PactNull.getInstance(),
-				new PactJsonObject(this.transformation.evaluate(value1.getValue(), value2.getValue())));
+			JsonNode result = this.transformation.evaluate(JsonUtils.asArray(value1.getValue(), value2.getValue()));
+			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
 
 	public static class AntiJoinStub extends
 			CoGroupStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
-		private Transformation transformation;
+		private Evaluable transformation;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.transformation = getTransformation(parameters, "transformation");
+			this.transformation = getEvaluableExpression(parameters, "transformation");
 		}
 
 		@Override
 		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
 				Collector<PactNull, PactJsonObject> out) {
 			if (!values2.hasNext())
-				while (values1.hasNext())
-					out.collect(PactNull.getInstance(),
-						new PactJsonObject(transformation.evaluate(values1.next().getValue())));
+				while (values1.hasNext()) {
+					JsonNode result = this.transformation.evaluate(JsonUtils.asArray(values1.next().getValue()));
+					out.collect(PactNull.getInstance(), new PactJsonObject(result));
+				}
 		}
 	}
 
 	public static class SemiJoinStub extends
 			CoGroupStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
-		private Transformation transformation;
+		private Evaluable transformation;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.transformation = getTransformation(parameters, "transformation");
+			this.transformation = getEvaluableExpression(parameters, "transformation");
 		}
 
 		@Override
 		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
 				Collector<PactNull, PactJsonObject> out) {
 			if (values2.hasNext())
-				while (values1.hasNext())
-					out.collect(PactNull.getInstance(),
-						new PactJsonObject(transformation.evaluate(values1.next().getValue())));
+				while (values1.hasNext()) {
+					JsonNode result = this.transformation.evaluate(JsonUtils.asArray(values1.next().getValue()));
+					out.collect(PactNull.getInstance(), new PactJsonObject(result));
+				}
 		}
 	}
 
 	public static class ThetaJoinStub extends
 			CrossStub<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> {
-		private Transformation transformation;
+		private Evaluable transformation;
 
 		private Comparison comparison;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.transformation = getTransformation(parameters, "transformation");
+			this.transformation = getEvaluableExpression(parameters, "transformation");
 			this.comparison = getObject(parameters, "comparison", Comparison.class);
 		}
 
 		@Override
 		public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2,
 				PactJsonObject value2, Collector<PactNull, PactJsonObject> out) {
-			if (this.comparison.evaluate(value1.getValue(), value2.getValue()) == BooleanNode.TRUE)
-				out.collect(PactNull.getInstance(),
-					new PactJsonObject(this.transformation.evaluate(value1.getValue(), value2.getValue())));
+			JsonNode inputPair = JsonUtils.asArray(value1.getValue(), value2.getValue());
+			if (this.comparison.evaluate(inputPair) == BooleanNode.TRUE)
+				out.collect(PactNull.getInstance(), new PactJsonObject(this.transformation.evaluate(inputPair)));
 		}
 	}
 
 	public static class OuterJoinStub extends
 			CoGroupStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
-		private Transformation transformation;
+		private Evaluable transformation;
 
 		private boolean leftOuter, rightOuter;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.transformation = getTransformation(parameters, "transformation");
+			this.transformation = getEvaluableExpression(parameters, "transformation");
 			this.leftOuter = parameters.getBoolean("leftOuter", false);
 			this.rightOuter = parameters.getBoolean("rightOuter", false);
 		}
@@ -156,22 +156,22 @@ public class Join extends ConditionalOperator {
 			if (!values1.hasNext()) {
 				// special case: no items from first source
 				// emit all values of the second source
-				if (this.leftOuter)
+				if (this.rightOuter)
 					while (values2.hasNext())
 						out.collect(PactNull.getInstance(),
-							new PactJsonObject(this.transformation.evaluate(NullNode.getInstance(), values2.next()
-								.getValue())));
+							new PactJsonObject(this.transformation.evaluate(
+								JsonUtils.asArray(NullNode.getInstance(), values2.next().getValue()))));
 				return;
 			}
 
 			if (!values2.hasNext()) {
 				// special case: no items from second source
 				// emit all values of the first source
-				if (this.rightOuter)
+				if (this.leftOuter)
 					while (values1.hasNext())
 						out.collect(PactNull.getInstance(),
-							new PactJsonObject(this.transformation.evaluate(NullNode.getInstance(), values1.next()
-								.getValue())));
+							new PactJsonObject(this.transformation.evaluate(
+								JsonUtils.asArray(values1.next().getValue(), NullNode.getInstance()))));
 				return;
 			}
 
@@ -184,7 +184,7 @@ public class Join extends ConditionalOperator {
 				JsonNode secondSourceNode = values2.next().getValue();
 				for (JsonNode firstSourceNode : firstSourceNodes)
 					out.collect(PactNull.getInstance(),
-						new PactJsonObject(this.transformation.evaluate(firstSourceNode, secondSourceNode)));
+						new PactJsonObject(this.transformation.evaluate(JsonUtils.asArray(firstSourceNode, secondSourceNode))));
 			}
 		}
 	}
@@ -209,7 +209,7 @@ public class Join extends ConditionalOperator {
 			else
 				throw new UnsupportedOperationException();
 
-			setTransformation(join.getStubParameters(), "transformation", this.getTransformation());
+			setEvaluableExpression(join.getStubParameters(), "transformation", this.getEvaluableExpression());
 		}
 
 		return module;
@@ -258,7 +258,7 @@ public class Join extends ConditionalOperator {
 
 		// select strategy
 		DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> join = null;
-		if (comparison.isNotIn())
+		if (comparison.getQuantor() == Quantor.EXISTS_NOT_IN)
 			join = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject>(
 				AntiJoinStub.class);
 		else
@@ -270,7 +270,6 @@ public class Join extends ConditionalOperator {
 		join.setSecondInput(in2);
 		return join;
 	}
-
 
 	public boolean isOuterJoin(Operator operator) {
 		int index = this.getInputOperators().indexOf(operator);

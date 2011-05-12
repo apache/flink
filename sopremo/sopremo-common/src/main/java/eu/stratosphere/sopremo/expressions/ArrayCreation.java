@@ -6,10 +6,12 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
-public class ArrayCreation extends EvaluableExpression {
-	private EvaluableExpression[] elements;
+import eu.stratosphere.sopremo.Evaluable;
 
-	public ArrayCreation(EvaluableExpression... elements) {
+public class ArrayCreation extends EvaluableExpression {
+	private Evaluable[] elements;
+
+	public ArrayCreation(Evaluable... elements) {
 		this.elements = elements;
 	}
 
@@ -25,7 +27,7 @@ public class ArrayCreation extends EvaluableExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node) {
 		ArrayNode arrayNode = NODE_FACTORY.arrayNode();
-		for (EvaluableExpression expression : this.elements)
+		for (Evaluable expression : this.elements)
 			arrayNode.add(expression.evaluate(node));
 		return arrayNode;
 	}

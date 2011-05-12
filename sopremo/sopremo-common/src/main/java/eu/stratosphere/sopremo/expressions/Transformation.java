@@ -1,25 +1,32 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.dag.Navigator;
 import eu.stratosphere.reflect.TypeHandler;
 import eu.stratosphere.reflect.TypeSpecificHandler;
+import eu.stratosphere.sopremo.Evaluable;
 
 public class Transformation extends Mapping {
-	public static final Transformation IDENTITY = new Transformation();
 
 	public static final Transformation CONCATENATION = new Transformation() {
 		@Override
-		public JsonNode evaluate(JsonNode... nodes) {
+		public JsonNode evaluate(JsonNode node) {
 			ObjectNode objectNode = NODE_FACTORY.objectNode();
-			for (JsonNode jsonNode : nodes)
+			Iterator<JsonNode> elements = node.getElements();
+			while (elements.hasNext()) {
+				JsonNode jsonNode = elements.next();
 				if (!jsonNode.isNull())
 					// deepCopy(objectNode, jsonNode);
 					objectNode.putAll((ObjectNode) jsonNode);
+			}
 			return objectNode;
 		}
 
@@ -42,7 +49,7 @@ public class Transformation extends Mapping {
 		super(target);
 	}
 
-	public EvaluableExpression asPath() {
+	public Evaluable asPath() {
 		if (this.getMappingSize() == 0)
 			return null;
 
@@ -72,10 +79,15 @@ public class Transformation extends Mapping {
 	}
 
 	public Object simplify() {
-		if (this.getTarget() == null && this.mappings.size() == 1 && this.mappings.get(0).getTarget() == null
-			&& this.mappings.get(0) instanceof ValueAssignment)
+		if (isSimpleValueMapping())
 			return ((ValueAssignment) this.mappings.get(0)).getTransformation();
 		return this;
+	}
+
+	private boolean isSimpleValueMapping() {
+		return this.getTarget() == NO_TARGET && this.mappings.size() == 1
+			&& this.mappings.get(0).getTarget() == NO_TARGET
+			&& this.mappings.get(0) instanceof ValueAssignment;
 	}
 
 	@Override
@@ -126,7 +138,7 @@ public class Transformation extends Mapping {
 		}, ValueAssignment.class);
 	}
 
-	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
+	public void replace(Evaluable toReplace, Evaluable replaceFragment) {
 		PathReplacer.handleRecursively(new MappingNavigator(), this, toReplace, replaceFragment);
 	}
 
@@ -141,6 +153,31 @@ public class Transformation extends Mapping {
 		}
 	}
 
+	//
+	// @Override
+	// protected JsonNode aggregate(Iterator<JsonNode>... inputs) {
+	// if (this == IDENTITY)
+	// return inputs[0].next();
+	// if (isSimpleValueMapping())
+	// return this.mappings.get(0).aggregate(inputs);
+	// ObjectNode transformedNode = OBJECT_MAPPER.createObjectNode();
+	// for (Mapping mapping : this.mappings)
+	// transformedNode.put(mapping.getTarget(), mapping.aggregate(inputs));
+	// return transformedNode;
+	// }
+	//
+	// @Override
+	// protected JsonNode aggregate(Iterator<JsonNode> input) {
+	// if (this == IDENTITY)
+	// return input.next();
+	// if (isSimpleValueMapping())
+	// return this.mappings.get(0).aggregate(input);
+	// ObjectNode transformedNode = OBJECT_MAPPER.createObjectNode();
+	// for (Mapping mapping : this.mappings)
+	// transformedNode.put(mapping.getTarget(), mapping.aggregate(input));
+	// return transformedNode;
+	// }
+	//
 	@Override
 	public JsonNode evaluate(JsonNode node) {
 		if (this == IDENTITY)
@@ -150,4 +187,14 @@ public class Transformation extends Mapping {
 			transformedNode.put(mapping.getTarget(), mapping.evaluate(node));
 		return transformedNode;
 	}
+//
+//	@Override
+//	public JsonNode evaluate(EvaluationContext context) {
+//		if (this == IDENTITY)
+//			return context.asSingleSourceIterator().next();
+//		ObjectNode transformedNode = OBJECT_MAPPER.createObjectNode();
+//		for (Mapping mapping : this.mappings)
+//			transformedNode.put(mapping.getTarget(), mapping.evaluate(context));
+//		return transformedNode;
+//	}
 }

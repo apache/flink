@@ -1,6 +1,12 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.Iterator;
+
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.ArrayNode;
+
+import eu.stratosphere.sopremo.AbstractIterator;
+import eu.stratosphere.sopremo.operator.StreamArray;
 
 public class FieldAccess extends EvaluableExpression {
 
@@ -21,7 +27,25 @@ public class FieldAccess extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(final JsonNode node) {
+		if (node.isArray()) {
+			if (node instanceof StreamArray)
+				return new StreamArray(new AbstractIterator<JsonNode>() {
+					Iterator<JsonNode> children = node.iterator();
+
+					@Override
+					protected JsonNode loadNext() {
+						if (!children.hasNext())
+							return noMoreElements();
+						return children.next().get(field);
+					}
+				});
+			// spread
+			ArrayNode arrayNode = new ArrayNode(NODE_FACTORY);
+			for (int index = 0, size = node.size(); index < size; index++)
+				arrayNode.add(node.get(index).get(this.field));
+			return arrayNode;
+		}
 		return node.get(this.field);
 	}
 

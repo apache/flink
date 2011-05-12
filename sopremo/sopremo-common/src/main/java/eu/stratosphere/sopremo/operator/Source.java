@@ -5,8 +5,8 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
+import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Transformation;
 
 public class Source extends Operator {
@@ -14,7 +14,7 @@ public class Source extends Operator {
 
 	private DataType type;
 
-	private EvaluableExpression adhocValue;
+	private Evaluable adhocValue;
 
 	public Source(DataType type, String inputName) {
 		super(Transformation.IDENTITY);
@@ -22,7 +22,7 @@ public class Source extends Operator {
 		this.type = type;
 	}
 
-	public Source(EvaluableExpression adhocValue) {
+	public Source(Evaluable adhocValue) {
 		super(Transformation.IDENTITY);
 		this.adhocValue = adhocValue;
 		this.type = DataType.ADHOC;
@@ -93,7 +93,7 @@ public class Source extends Operator {
 		return this.type;
 	}
 
-	public EvaluableExpression getAdhocValue() {
+	public Evaluable getAdhocValue() {
 		return this.adhocValue;
 	}
 

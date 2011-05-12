@@ -12,6 +12,8 @@ import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.LongNode;
 import org.codehaus.jackson.node.NumericNode;
 
+import eu.stratosphere.sopremo.Evaluable;
+
 public class Arithmetic extends EvaluableExpression {
 	public static enum ArithmeticOperator {
 		PLUS("+") {
@@ -130,7 +132,7 @@ public class Arithmetic extends EvaluableExpression {
 			this.sign = sign;
 		}
 
-		NumericNode evaluate(NumericNode a, NumericNode b) {
+		public NumericNode evaluate(NumericNode a, NumericNode b) {
 			switch (this.getWiderType(a.getNumberType(), b.getNumberType())) {
 			case BIG_DECIMAL:
 				return DecimalNode.valueOf(this.evaluateBigDecimal(a.getDecimalValue(), b.getDecimalValue()));
@@ -169,9 +171,9 @@ public class Arithmetic extends EvaluableExpression {
 
 	private Arithmetic.ArithmeticOperator operator;
 
-	private EvaluableExpression op1, op2;
+	private Evaluable op1, op2;
 
-	public Arithmetic(EvaluableExpression op1, Arithmetic.ArithmeticOperator operator, EvaluableExpression op2) {
+	public Arithmetic(Evaluable op1, Arithmetic.ArithmeticOperator operator, Evaluable op2) {
 		this.operator = operator;
 		this.op1 = op1;
 		this.op2 = op2;

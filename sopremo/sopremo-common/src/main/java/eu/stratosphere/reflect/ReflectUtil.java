@@ -162,7 +162,24 @@ public class ReflectUtil {
 		return candidateDistances;
 	}
 
-	private static int getDistance(Class<?> superClass, Class<?> subclass) {
+	/**
+	 * Returns the hierarchical distance between a class and a derived class. <br>
+	 * For instance,
+	 * <ul>
+	 * <li><code>getDistance(Integer.class, Integer.class) == 0</code>
+	 * <li><code>getDistance(Number.class, Integer.class) == 1</code>
+	 * <li><code>getDistance(Object.class, Integer.class) == 2</code>
+	 * <li><code>getDistance(Comparable.class, Integer.class) == 1</code>
+	 * <li><code>getDistance(Serializable.class, Integer.class) == 2</code>.
+	 * </ul>
+	 * 
+	 * @param superClass
+	 *        the super class in the hierarchy
+	 * @param subclass
+	 *        the sub class of the hierarchy
+	 * @return the minimum distance
+	 */
+	public static int getDistance(Class<?> superClass, Class<?> subclass) {
 		if (superClass == subclass)
 			return 0;
 		if (!superClass.isAssignableFrom(subclass))

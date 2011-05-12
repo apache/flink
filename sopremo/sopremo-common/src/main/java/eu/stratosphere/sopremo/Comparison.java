@@ -5,16 +5,15 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.TextNode;
 
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public class Comparison extends BooleanExpression {
-	private EvaluableExpression expr1, expr2;
+	private Evaluable expr1, expr2;
 
-	public EvaluableExpression getExpr1() {
+	public Evaluable getExpr1() {
 		return this.expr1;
 	}
 
-	public EvaluableExpression getExpr2() {
+	public Evaluable getExpr2() {
 		return this.expr2;
 	}
 
@@ -74,7 +73,8 @@ public class Comparison extends BooleanExpression {
 		public boolean evaluate(JsonNode e1, JsonNode e2) {
 			if (e1 instanceof NumericNode && e2 instanceof NumericNode)
 				// TODO: improve efficiency
-				return this.evaluateComparable(((NumericNode) e1).getDecimalValue(), ((NumericNode) e2).getDecimalValue());
+				return this.evaluateComparable(((NumericNode) e1).getDecimalValue(),
+					((NumericNode) e2).getDecimalValue());
 			if (e1 instanceof TextNode && e2 instanceof TextNode)
 				return this.evaluateComparable(e1.getTextValue(), e2.getTextValue());
 			throw new EvaluationException("Cannot compare %s %s %s", e1, this, e2);
@@ -85,7 +85,7 @@ public class Comparison extends BooleanExpression {
 		}
 	}
 
-	public Comparison(EvaluableExpression expr1, BinaryOperator binaryOperator, EvaluableExpression expr2) {
+	public Comparison(Evaluable expr1, BinaryOperator binaryOperator, Evaluable expr2) {
 		this.expr1 = expr1;
 		this.binaryOperator = binaryOperator;
 		this.expr2 = expr2;
@@ -100,12 +100,6 @@ public class Comparison extends BooleanExpression {
 	// public Iterator<JsonNode> evaluate(Iterator<JsonNode> input) {
 	// return binaryOperator.evaluate(expr1.evaluate(input), expr2.evaluate(input));
 	// }
-
-	@Override
-	public JsonNode evaluate(JsonNode... nodes) {
-		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(nodes), this.expr2.evaluate(nodes)));
-	}
-
 	@Override
 	public JsonNode evaluate(JsonNode node) {
 		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node), this.expr2.evaluate(node)));

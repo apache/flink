@@ -3,19 +3,18 @@ package eu.stratosphere.sopremo;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public class UnaryExpression extends BooleanExpression {
-	private EvaluableExpression expr1;
+	private Evaluable expr1;
 
 	private boolean negate = false;
 
-	public UnaryExpression(EvaluableExpression expr1, boolean negate) {
+	public UnaryExpression(Evaluable expr1, boolean negate) {
 		this.expr1 = expr1;
 		this.negate = negate;
 	}
 
-	public UnaryExpression(EvaluableExpression booleanExpr) {
+	public UnaryExpression(Evaluable booleanExpr) {
 		this(booleanExpr, false);
 	}
 
@@ -29,8 +28,8 @@ public class UnaryExpression extends BooleanExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node) {
 		if (this.negate)
-			return node == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
-		return node;
+			return expr1.evaluate(node) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
+		return expr1.evaluate(node);
 	}
 
 	@Override

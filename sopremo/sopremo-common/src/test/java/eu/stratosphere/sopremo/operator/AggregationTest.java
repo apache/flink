@@ -4,24 +4,13 @@ import java.util.Arrays;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.BooleanExpression;
-import eu.stratosphere.sopremo.Comparison;
-import eu.stratosphere.sopremo.Condition;
-import eu.stratosphere.sopremo.Condition.Combination;
-import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
-import eu.stratosphere.sopremo.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.UnaryExpression;
-import eu.stratosphere.sopremo.expressions.Arithmetic;
-import eu.stratosphere.sopremo.expressions.Function;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Path;
 import eu.stratosphere.sopremo.expressions.Transformation;
 import eu.stratosphere.sopremo.expressions.ValueAssignment;
-import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
-import eu.stratosphere.sopremo.expressions.Constant;
 
 public class AggregationTest extends SopremoTest {
 
@@ -31,33 +20,33 @@ public class AggregationTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("dept", createPath("0", "dept")));
+		transformation.addMapping(new ValueAssignment("dept", createPath("0", "dept", "[0]")));
 		transformation.addMapping(new ValueAssignment("deptName", createPath("1", "[0]", "name")));
 		transformation.addMapping(new ValueAssignment("emps", createPath("0", "[*]", "id")));
-		transformation.addMapping(new ValueAssignment("numEmps", new Function("count", createPath("0", "dept"))));
+		transformation.addMapping(new ValueAssignment("numEmps", new FunctionCall("count", createPath("0", "dept"))));
 		sopremoPlan.getOutputOperator(0).setInputOperators(
 			new Aggregation(transformation, Arrays.asList(createPath("0", "dept"), createPath("1", "did")), sopremoPlan
 				.getInputOperators(0, 2)));
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("id", 1L, "dept", 1L, "income", 12000L)).
-			add(createJsonObject("id", 2L, "dept", 1L, "income", 13000L)).
-			add(createJsonObject("id", 3L, "dept", 2L, "income", 15000L)).
-			add(createJsonObject("id", 4L, "dept", 1L, "income", 10000L)).
-			add(createJsonObject("id", 5L, "dept", 3L, "income", 8000L)).
-			add(createJsonObject("id", 6L, "dept", 2L, "income", 5000L)).
-			add(createJsonObject("id", 7L, "dept", 1L, "income", 24000L));
+			add(createJsonObject("id", 1, "dept", 1, "income", 12000)).
+			add(createJsonObject("id", 2, "dept", 1, "income", 13000)).
+			add(createJsonObject("id", 3, "dept", 2, "income", 15000)).
+			add(createJsonObject("id", 4, "dept", 1, "income", 10000)).
+			add(createJsonObject("id", 5, "dept", 3, "income", 8000)).
+			add(createJsonObject("id", 6, "dept", 2, "income", 5000)).
+			add(createJsonObject("id", 7, "dept", 1, "income", 24000));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("did", 1L, "name", "development")).
-			add(createJsonObject("did", 2L, "name", "marketing")).
-			add(createJsonObject("did", 3L, "name", "sales"));
+			add(createJsonObject("did", 1, "name", "development")).
+			add(createJsonObject("did", 2, "name", "marketing")).
+			add(createJsonObject("did", 3, "name", "sales"));
 		sopremoPlan.getOutput(0).
 			addExpected(
-				createJsonObject("dept", 1L, "deptName", "development", "emps", new long[] { 1L, 2L, 4L, 7L },
-					"numEmps", 4L)).
+				createJsonObject("dept", 1, "deptName", "development", "emps", new int[] { 1, 2, 4, 7 },
+					"numEmps", 4)).
 			addExpected(
-				createJsonObject("dept", 2L, "deptName", "marketing", "emps", new long[] { 3L, 6L }, "numEmps", 2L)).
-			addExpected(createJsonObject("dept", 3L, "deptName", "sales", "emps", new long[] { 5L }, "numEmps", 1L));
+				createJsonObject("dept", 2, "deptName", "marketing", "emps", new int[] { 3, 6 }, "numEmps", 2)).
+			addExpected(createJsonObject("dept", 3, "deptName", "sales", "emps", new int[] { 5 }, "numEmps", 1));
 
 		sopremoPlan.run();
 	}
@@ -67,23 +56,23 @@ public class AggregationTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
 		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("d", createPath("$", "dept")));
-		transformation.addMapping(new ValueAssignment("total", new Function("sum", createPath("$", "[*]", "income"))));
+		transformation.addMapping(new ValueAssignment("d", createPath("dept", "[0]")));
+		transformation.addMapping(new ValueAssignment("total", new FunctionCall("sum", createPath("[*]", "income"))));
 		sopremoPlan.getOutputOperator(0).setInputOperators(
-			new Aggregation(transformation, Arrays.asList(createPath("$", "dept")), sopremoPlan.getInputOperator(0)));
+			new Aggregation(transformation, Arrays.asList(createPath("dept")), sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("id", 1L, "dept", 1L, "income", 12000L)).
-			add(createJsonObject("id", 2L, "dept", 1L, "income", 13000L)).
-			add(createJsonObject("id", 3L, "dept", 2L, "income", 15000L)).
-			add(createJsonObject("id", 4L, "dept", 1L, "income", 10000L)).
-			add(createJsonObject("id", 5L, "dept", 3L, "income", 8000L)).
-			add(createJsonObject("id", 6L, "dept", 2L, "income", 5000L)).
-			add(createJsonObject("id", 7L, "dept", 1L, "income", 24000L));
+			add(createJsonObject("id", 1, "dept", 1, "income", 12000)).
+			add(createJsonObject("id", 2, "dept", 1, "income", 13000)).
+			add(createJsonObject("id", 3, "dept", 2, "income", 15000)).
+			add(createJsonObject("id", 4, "dept", 1, "income", 10000)).
+			add(createJsonObject("id", 5, "dept", 3, "income", 8000)).
+			add(createJsonObject("id", 6, "dept", 2, "income", 5000)).
+			add(createJsonObject("id", 7, "dept", 1, "income", 24000));
 		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("d", 1L, "total", 59000L)).
-			addExpected(createJsonObject("d", 2L, "total", 20000L)).
-			addExpected(createJsonObject("d", 3L, "total", 8000L));
+			addExpected(createJsonObject("d", 1, "total", 59000)).
+			addExpected(createJsonObject("d", 2, "total", 20000)).
+			addExpected(createJsonObject("d", 3, "total", 8000));
 
 		sopremoPlan.run();
 	}
@@ -92,21 +81,20 @@ public class AggregationTest extends SopremoTest {
 	public void shouldPerformSimpleGroupBy() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment(new Function("count", new Input(0))));
 		sopremoPlan.getOutputOperator(0).setInputOperators(
-			new Aggregation(transformation, Aggregation.NO_GROUPING, sopremoPlan.getInputOperator(0)));
+			new Aggregation(new FunctionCall("count", EvaluableExpression.IDENTITY), Aggregation.NO_GROUPING, sopremoPlan
+				.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("id", 1L, "dept", 1L, "income", 12000L)).
-			add(createJsonObject("id", 2L, "dept", 1L, "income", 13000L)).
-			add(createJsonObject("id", 3L, "dept", 2L, "income", 15000L)).
-			add(createJsonObject("id", 4L, "dept", 1L, "income", 10000L)).
-			add(createJsonObject("id", 5L, "dept", 3L, "income", 8000L)).
-			add(createJsonObject("id", 6L, "dept", 2L, "income", 5000L)).
-			add(createJsonObject("id", 7L, "dept", 1L, "income", 24000L));
+			add(createJsonObject("id", 1, "dept", 1, "income", 12000)).
+			add(createJsonObject("id", 2, "dept", 1, "income", 13000)).
+			add(createJsonObject("id", 3, "dept", 2, "income", 15000)).
+			add(createJsonObject("id", 4, "dept", 1, "income", 10000)).
+			add(createJsonObject("id", 5, "dept", 3, "income", 8000)).
+			add(createJsonObject("id", 6, "dept", 2, "income", 5000)).
+			add(createJsonObject("id", 7, "dept", 1, "income", 24000));
 		sopremoPlan.getOutput(0).
-			addExpected(createJsonValue(7L));
+			addExpected(createJsonValue(7));
 
 		sopremoPlan.run();
 	}

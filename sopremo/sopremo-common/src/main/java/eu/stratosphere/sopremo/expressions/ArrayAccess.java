@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.ArrayNode;
 
 public class ArrayAccess extends EvaluableExpression {
 
@@ -23,9 +24,20 @@ public class ArrayAccess extends EvaluableExpression {
 		return this.startIndex == 0 && this.endIndex == -1;
 	}
 
+	public boolean isSelectingRange() {
+		return this.startIndex != this.endIndex;
+	}
+
 	@Override
 	public JsonNode evaluate(JsonNode node) {
-		// TODO:
+		if (isSelectingAll())
+			return node;
+		if (isSelectingRange()) {
+			ArrayNode arrayNode = new ArrayNode(NODE_FACTORY);
+			for (int index = startIndex; index < endIndex; index++)
+				arrayNode.add(node.get(index));
+			return arrayNode;
+		}
 		return node.get(this.startIndex);
 	}
 

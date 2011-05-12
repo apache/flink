@@ -7,24 +7,34 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.BooleanNode;
 
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public class ElementExpression extends BooleanExpression {
-	private EvaluableExpression elementExpr, setExpr;
+	public static enum Quantor {
+		EXISTS_IN, EXISTS_NOT_IN {
+			@Override
+			protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
+				return super.evaluate(element, set) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
+			}
+		};
 
-	private boolean notIn;
+		protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
+			while (set.hasNext())
+				if (asIterator(element).equals(set.next()))
+					return BooleanNode.TRUE;
+			return BooleanNode.FALSE;
+		}
+	};
 
-	public ElementExpression(EvaluableExpression elementExpr, EvaluableExpression setExpr, boolean notIn) {
+	private Evaluable elementExpr, setExpr;
+
+	private Quantor quantor;
+
+	public ElementExpression(Evaluable elementExpr, Quantor quantor, Evaluable setExpr) {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
-		this.notIn = notIn;
+		this.quantor = quantor;
 	}
 
-	public ElementExpression(EvaluableExpression elementExpr, EvaluableExpression setExpr) {
-		this(elementExpr, setExpr, false);
-	}
-
-	
 	// @Override
 	// public Iterator<JsonNode> evaluate(Iterator<JsonNode>... inputs) {
 	// return new AbstractIterator<JsonNode>() {
@@ -43,45 +53,37 @@ public class ElementExpression extends BooleanExpression {
 	// return super.evaluate(input);
 	// }
 
-	public EvaluableExpression getElementExpr() {
+	public Evaluable getElementExpr() {
 		return elementExpr;
 	}
 
-	public EvaluableExpression getSetExpr() {
+	public Evaluable getSetExpr() {
 		return setExpr;
 	}
 
-	public boolean isNotIn() {
-		return notIn;
+	public Quantor getQuantor() {
+		return quantor;
 	}
 
 	@Override
 	public JsonNode evaluate(JsonNode node) {
-		return this.isIn(this.elementExpr.evaluate(node), this.asIterator(this.setExpr.evaluate(node))) != this.notIn ? BooleanNode.TRUE
-			: BooleanNode.FALSE;
+		return quantor.evaluate(this.elementExpr.evaluate(node), this.asIterator(this.setExpr.evaluate(node)));
 	}
+//
+//	@Override
+//	public JsonNode evaluate(JsonNode... nodes) {
+//		return quantor.evaluate(this.elementExpr.evaluate(nodes), this.asIterator(this.setExpr.evaluate(nodes)));
+//	}
 
-	@Override
-	public JsonNode evaluate(JsonNode... nodes) {
-		return this.isIn(this.elementExpr.evaluate(nodes), this.asIterator(this.setExpr.evaluate(nodes))) != this.notIn ? BooleanNode.TRUE
-			: BooleanNode.FALSE;
-	}
-
-	private Iterator<JsonNode> asIterator(JsonNode evaluate) {
+	static Iterator<JsonNode> asIterator(JsonNode evaluate) {
 		if (evaluate instanceof ArrayNode)
 			return ((ArrayNode) evaluate).iterator();
 		return Arrays.asList(evaluate).iterator();
 	}
 
-	private boolean isIn(JsonNode element, Iterator<JsonNode> set) {
-		while (set.hasNext())
-			if (this.asIterator(element).equals(set.next()))
-				return true;
-		return false;
-	}
-
 	@Override
 	protected void toString(StringBuilder builder) {
-		builder.append(this.elementExpr).append(this.notIn ? " \u2209 " : " \u2208 ").append(this.setExpr);
+		builder.append(this.elementExpr).append(this.quantor == Quantor.EXISTS_NOT_IN ? " \u2209 " : " \u2208 ")
+			.append(this.setExpr);
 	}
 }

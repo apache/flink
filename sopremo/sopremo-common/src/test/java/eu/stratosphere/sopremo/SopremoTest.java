@@ -29,11 +29,11 @@ import eu.stratosphere.sopremo.operator.Source;
 
 public class SopremoTest extends TestPlanTestCase {
 
-	public static EvaluableExpression createJsonArray(Object... constants) {
-		EvaluableExpression[] elements = new EvaluableExpression[constants.length];
+	public static Evaluable createJsonArray(Object... constants) {
+		Evaluable[] elements = new Evaluable[constants.length];
 		for (int index = 0; index < elements.length; index++)
 			if (constants[index] instanceof EvaluableExpression)
-				elements[index] = (EvaluableExpression) constants[index];
+				elements[index] = (Evaluable) constants[index];
 			else
 				elements[index] = new Constant(constants[index]);
 		return new ArrayCreation(elements);

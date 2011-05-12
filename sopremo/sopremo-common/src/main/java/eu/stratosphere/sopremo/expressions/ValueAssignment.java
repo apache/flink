@@ -1,6 +1,10 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.Iterator;
+
 import org.codehaus.jackson.JsonNode;
+
+import eu.stratosphere.sopremo.Evaluable;
 
 public class ValueAssignment extends Mapping {
 	public static final String COPY_ALL_FIELDS = "*";
@@ -16,7 +20,7 @@ public class ValueAssignment extends Mapping {
 		this(NO_TARGET, transformation);
 	}
 
-	public EvaluableExpression getTransformation() {
+	public Evaluable getTransformation() {
 		return this.expression;
 	}
 
@@ -58,4 +62,14 @@ public class ValueAssignment extends Mapping {
 	public JsonNode evaluate(JsonNode node) {
 		return this.expression.evaluate(node);
 	}
+
+//	@Override
+//	protected JsonNode aggregate(Iterator<JsonNode> input) {
+//		return expression.aggregate(input);
+//	}
+//
+//	@Override
+//	protected JsonNode aggregate(Iterator<JsonNode>... inputs) {
+//		return expression.aggregate(inputs);
+//	}
 }

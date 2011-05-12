@@ -111,8 +111,8 @@ public class SopremoTestPlan {
 			return this.operator;
 		}
 
-		public Output addExpected(PactJsonObject createJsonObject) {
-			this.expected.add(this.expected);
+		public Output addExpected(PactJsonObject object) {
+			this.expected.add(new KeyValuePair(PactNull.getInstance(), object));
 			return this;
 		}
 
@@ -124,7 +124,7 @@ public class SopremoTestPlan {
 		}
 
 		public void prepare(TestPlan testPlan) {
-			if (operator instanceof MockupSource)
+			if (operator instanceof MockupSink)
 				testPlan.getExpectedOutput(index).add((TestPairs) expected);
 		}
 	}
@@ -188,5 +188,7 @@ public class SopremoTestPlan {
 		for (Output output : outputs)
 			output.prepare(testPlan);
 		testPlan.run();
+		System.out.println(testPlan.getExpectedOutput());
+		System.out.println(testPlan.getActualOutput());
 	}
 }

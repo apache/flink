@@ -200,7 +200,7 @@ public class PactJsonObject implements Value {
 			return new Key((ValueNode) node);
 		if (node instanceof ArrayNode && isValidArray(node))
 			return new Key((ArrayNode) node);
-		throw new IllegalArgumentException();
+		throw new IllegalArgumentException(node.getClass().getSimpleName());
 	}
 
 	private static boolean isValidArray(JsonNode node) {

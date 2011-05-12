@@ -18,21 +18,21 @@ public class ProjectionTest extends SopremoTest {
 	@Test
 	public void shouldProjectSomeFields() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
-		
+
 		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("c", new Arithmetic(createPath("$", "a"),
-			ArithmeticOperator.PLUS, createPath("$", "b"))));
+		transformation.addMapping(new ValueAssignment("sum", new Arithmetic(createPath("a"),
+			ArithmeticOperator.PLUS, createPath("b"))));
 		sopremoPlan.getOutputOperator(0).setInputOperators(
 			new Projection(transformation, sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("a", 1L, "b", 4L)).
-			add(createJsonObject("a", 2L, "b", 5L)).
-			add(createJsonObject("a", -1L, "b", 4L));
+			add(createJsonObject("a", 1, "b", 4)).
+			add(createJsonObject("a", 2, "b", 5)).
+			add(createJsonObject("a", -1, "b", 4));
 		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("sum", 5L)).
-			addExpected(createJsonObject("sum", 7L)).
-			addExpected(createJsonObject("sum", 3L));
+			addExpected(createJsonObject("sum", 5)).
+			addExpected(createJsonObject("sum", 7)).
+			addExpected(createJsonObject("sum", 3));
 
 		sopremoPlan.run();
 	}

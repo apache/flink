@@ -4,19 +4,20 @@ import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.Condition;
+import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public abstract class ConditionalOperator extends Operator {
 
 	private Condition condition;
 
-	public ConditionalOperator(Transformation transformation, Condition condition, List<Operator> inputs) {
+	public ConditionalOperator(Evaluable transformation, Condition condition, List<Operator> inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
 	}
 
-	public ConditionalOperator(Transformation transformation, Condition condition, Operator... inputs) {
+	public ConditionalOperator(Evaluable transformation, Condition condition, Operator... inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
 	}
@@ -29,8 +30,8 @@ public abstract class ConditionalOperator extends Operator {
 	public String toString() {
 		StringBuilder builder = new StringBuilder(this.getName());
 		builder.append(" on ").append(this.condition);
-		if (this.getTransformation() != Transformation.IDENTITY)
-			builder.append(" to ").append(this.getTransformation());
+		if (this.getEvaluableExpression() != EvaluableExpression.IDENTITY)
+			builder.append(" to ").append(this.getEvaluableExpression());
 		return builder.toString();
 	}
 

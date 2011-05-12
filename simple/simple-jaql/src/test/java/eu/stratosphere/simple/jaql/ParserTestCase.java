@@ -8,6 +8,7 @@ import org.junit.Assert;
 
 import com.ibm.jaql.lang.expr.core.Expr;
 
+import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
@@ -26,11 +27,11 @@ public class ParserTestCase {
 		assertParseResult(new SopremoPlan(expected), jaqlScript);
 	}
 
-	public static void assertParseResult(EvaluableExpression expected, String jaqlScript) {
+	public static void assertParseResult(Evaluable expected, String jaqlScript) {
 		QueryParser jaqlPlanCreator = new QueryParser();
 		Expr parsedScript = jaqlPlanCreator.parseScript(new ByteArrayInputStream(jaqlScript.getBytes()));
 
-		EvaluableExpression parsedPath = jaqlPlanCreator.parsePath(parsedScript);
+		Evaluable parsedPath = jaqlPlanCreator.parsePath(parsedScript);
 		Assert.assertEquals(expected, parsedPath);
 	}
 
@@ -64,17 +65,17 @@ public class ParserTestCase {
 	}
 
 	// TODO: elimate duplicate doe -> SopremoTest
-	public static EvaluableExpression createJsonArray(Object... constants) {
-		EvaluableExpression[] elements = new EvaluableExpression[constants.length];
+	public static Evaluable createJsonArray(Object... constants) {
+		Evaluable[] elements = new Evaluable[constants.length];
 		for (int index = 0; index < elements.length; index++)
 			if (constants[index] instanceof EvaluableExpression)
-				elements[index] = (EvaluableExpression) constants[index];
+				elements[index] = (Evaluable) constants[index];
 			else
 				elements[index] = new Constant(constants[index]);
 		return new ArrayCreation(elements);
 	}
 
-	public static EvaluableExpression createObject(Object... fields) {
+	public static Evaluable createObject(Object... fields) {
 		if (fields.length % 2 != 0)
 			throw new IllegalArgumentException();
 		ValueAssignment[] assignments = new ValueAssignment[fields.length / 2];

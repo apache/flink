@@ -9,7 +9,6 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
@@ -17,26 +16,27 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.JsonUtils;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.AbstractIterator;
 import eu.stratosphere.sopremo.expressions.Constant;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.Transformation;
 
 public class Aggregation extends Operator {
 	public final static List<Path> NO_GROUPING = new ArrayList<Path>();
 
 	private List<Path> groupings;
 
-	public Aggregation(Transformation transformation, List<Path> grouping, Operator... inputs) {
+	public Aggregation(Evaluable transformation, List<Path> grouping, Operator... inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
 		this.groupings = grouping;
 	}
 
-	public Aggregation(Transformation transformation, List<Path> grouping, List<Operator> inputs) {
+	public Aggregation(Evaluable transformation, List<Path> grouping, List<Operator> inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
@@ -46,40 +46,37 @@ public class Aggregation extends Operator {
 	public static class OneSourceAggregationStub extends
 			ReduceStub<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> {
 
-		private Transformation transformation;
+		private Evaluable transformation;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.transformation = getTransformation(parameters, "transformation");
+			this.transformation = getEvaluableExpression(parameters, "transformation");
 		}
 
 		@Override
 		public void reduce(PactJsonObject.Key key, final Iterator<PactJsonObject> values,
 				Collector<PactNull, PactJsonObject> out) {
-			final Iterator<JsonNode> transformedJsons = transformation.evaluate(new UnwrappingIterator(values));
-
-			while (transformedJsons.hasNext())
-				out.collect(PactNull.getInstance(), new PactJsonObject(transformedJsons.next()));
+			JsonNode result = transformation.evaluate(new StreamArray(new UnwrappingIterator(values)));
+			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
 
 	public static class TwoSourceAggregationStub extends
 			CoGroupStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
-		private Transformation transformation;
+		private Evaluable transformation;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.transformation = getTransformation(parameters, "transformation");
+			this.transformation = getEvaluableExpression(parameters, "transformation");
 		}
 
 		@Override
 		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
 				Collector<PactNull, PactJsonObject> out) {
-			final Iterator<JsonNode> transformedJsons = transformation.evaluate(new UnwrappingIterator(values1),
-				new UnwrappingIterator(values2));
-
-			while (transformedJsons.hasNext())
-				out.collect(PactNull.getInstance(), new PactJsonObject(transformedJsons.next()));
+			JsonNode result = transformation.evaluate(JsonUtils.asArray(
+				new StreamArray(new UnwrappingIterator(values1)),
+				new StreamArray(new UnwrappingIterator(values2))));
+			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
 
@@ -102,7 +99,8 @@ public class Aggregation extends Operator {
 				OneSourceAggregationStub.class);
 			module.getOutput(0).setInput(aggregationReduce);
 			aggregationReduce.setInput(keyExtractors.get(0));
-			setTransformation(aggregationReduce.getStubParameters(), "transformation", this.getTransformation());
+			setEvaluableExpression(aggregationReduce.getStubParameters(), "transformation",
+				this.getEvaluableExpression());
 			break;
 
 		default:
@@ -111,7 +109,8 @@ public class Aggregation extends Operator {
 			module.getOutput(0).setInput(aggregationCoGroup);
 			aggregationCoGroup.setFirstInput(keyExtractors.get(0));
 			aggregationCoGroup.setSecondInput(keyExtractors.get(1));
-			setTransformation(aggregationCoGroup.getStubParameters(), "transformation", this.getTransformation());
+			setEvaluableExpression(aggregationCoGroup.getStubParameters(), "transformation",
+				this.getEvaluableExpression());
 			break;
 		}
 
@@ -123,8 +122,8 @@ public class Aggregation extends Operator {
 		StringBuilder builder = new StringBuilder(this.getName());
 		if (this.groupings != null)
 			builder.append(" on ").append(this.groupings);
-		if (this.getTransformation() != Transformation.IDENTITY)
-			builder.append(" to ").append(this.getTransformation());
+		if (this.getEvaluableExpression() != EvaluableExpression.IDENTITY)
+			builder.append(" to ").append(this.getEvaluableExpression());
 		return builder.toString();
 	}
 

@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.expressions;
+package eu.stratosphere.sopremo;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -6,17 +6,23 @@ import java.util.NoSuchElementException;
 public abstract class AbstractIterator<T> implements Iterator<T> {
 	private boolean initialized;
 
-	boolean hasNext;
+	private boolean hasNext = true;
 
 	private T currentValue;
 
 	public AbstractIterator() {
 	}
 
+	protected boolean isInitialized() {
+		return initialized;
+	}
+	
 	@Override
 	public boolean hasNext() {
-		if (!this.initialized)
+		if (!this.initialized) {
 			this.currentValue = this.loadNext();
+			initialized = true;
+		}
 		return this.hasNext;
 	}
 
@@ -29,8 +35,10 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 	public T next() {
 		if (!this.hasNext)
 			throw new NoSuchElementException();
-		if (!this.initialized)
+		if (!this.initialized) {
 			this.currentValue = this.loadNext();
+			initialized = true;
+		}
 
 		T value = this.currentValue;
 		this.currentValue = this.loadNext();

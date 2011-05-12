@@ -374,7 +374,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 						this.inputGateListeners[i].waitingForAnyChannel();
 					}
 				}
-				this.availableChannels.wait();
+				this.availableChannels.wait(100);
 			}
 
 			return this.availableChannels.removeFirst().intValue();

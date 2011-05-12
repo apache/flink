@@ -1,79 +1,45 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.Arrays;
-import java.util.Deque;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
+import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SopremoType;
 
-public abstract class EvaluableExpression implements SopremoType {
-	protected final class EvenlyPickingIterator extends AbstractIterator<JsonNode> {
+public abstract class EvaluableExpression implements SopremoType, Evaluable {
+	//
+	// protected final class EvaluatingIterator extends AbstractIterator<JsonNode> {
+	// private final Iterator<JsonNode> input;
+	//
+	// private EvaluatingIterator(Iterator<JsonNode> input) {
+	// this.input = input;
+	// }
+	//
+	// @Override
+	// protected JsonNode loadNext() {
+	// if (this.input.hasNext())
+	// return EvaluableExpression.this.evaluate(this.input.next());
+	// return this.noMoreElements();
+	// }
+	// }
 
-		private final Iterator<JsonNode>[] inputs;
+	public static final Evaluable UNKNOWN = new IdentifierAccess("?");
 
-		JsonNode[] currentNodes;
+	public static final Evaluable IDENTITY = new EvaluableExpression() {
+		// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>[] inputs) {
+		// return inputs[0];
+		// };
+		public JsonNode evaluate(JsonNode node) {
+			return node;
+		};
 
-		private EvenlyPickingIterator(Iterator<JsonNode>[] inputs) {
-			this.inputs = inputs;
-			this.currentNodes = new JsonNode[inputs.length];
-			this.loadNext();
-		}
-
-		@Override
-		protected JsonNode loadNext() {
-			for (int index = 0; index < this.inputs.length; index++) {
-				if (!this.inputs[index].hasNext()) {
-					this.noMoreElements();
-					return null;
-				}
-				this.currentNodes[index] = this.inputs[index].next();
-			}
-
-			return EvaluableExpression.this.evaluate(this.currentNodes);
-		}
-	}
-
-	protected final class ConcatenatingIterator extends AbstractIterator<JsonNode> {
-		private final Deque<Iterator<JsonNode>> inputs;
-
-		private ConcatenatingIterator(Iterator<JsonNode>[] inputs) {
-			this.inputs = new LinkedList<Iterator<JsonNode>>(Arrays.asList(inputs));
-		}
-
-		@Override
-		protected JsonNode loadNext() {
-			while (!this.inputs.isEmpty()) {
-				Iterator<JsonNode> iterator = this.inputs.getFirst();
-				if (!iterator.hasNext())
-					this.inputs.pop();
-				else
-					return EvaluableExpression.this.evaluate(iterator.next());
-			}
-			return this.noMoreElements();
-		}
-	}
-
-	protected final class EvaluatingIterator extends AbstractIterator<JsonNode> {
-		private final Iterator<JsonNode> input;
-
-		private EvaluatingIterator(Iterator<JsonNode> input) {
-			this.input = input;
-		}
-
-		@Override
-		protected JsonNode loadNext() {
-			if (this.input.hasNext())
-				return EvaluableExpression.this.evaluate(this.input.next());
-			return this.noMoreElements();
-		}
-	}
-
-	public static final EvaluableExpression Unknown = new IdentifierAccess("?");
+		protected void toString(StringBuilder builder) {
+		};
+	};
 
 	protected abstract void toString(StringBuilder builder);
 
@@ -88,17 +54,28 @@ public abstract class EvaluableExpression implements SopremoType {
 
 	protected static JsonNodeFactory NODE_FACTORY = JsonNodeFactory.instance;
 
-	public Iterator<JsonNode> evaluate(Iterator<JsonNode>... inputs) {
-		return new EvenlyPickingIterator(inputs);
-	}
+	// public abstract void evaluate(EvaluationContext context);
 
-	public Iterator<JsonNode> evaluate(Iterator<JsonNode> input) {
-		return new EvaluatingIterator(input);
-	}
-
-	public JsonNode evaluate(JsonNode... nodes) {
-		return this.evaluate(nodes[0]);
-	}
-
+	// public abstract Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>... inputs);
+	//
+	// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode> input) {
+	// // return new EvaluatingIterator(input);
+	// return Arrays.asList(aggregate(input)).iterator();
+	// }
+	//
+	// protected JsonNode aggregate(Iterator<JsonNode> input) {
+	// throw new EvaluationException();
+	// }
+	//
+	// protected JsonNode aggregate(Iterator<JsonNode>... inputs) {
+	// return aggregate(inputs[0]);
+	// }
+	//
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.Evaluable#evaluate(org.codehaus.jackson.JsonNode)
+	 */
+	@Override
 	public abstract JsonNode evaluate(JsonNode node);
+	//
+	// public abstract JsonNode evaluate(JsonNode node);
 }

@@ -34,21 +34,21 @@ public class Input extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node) {
-		return node;
+		return node.get(index);
 	}
-	
-	@Override
-	public Iterator<JsonNode> evaluate(Iterator<JsonNode> input) {
-		return input;
-	}
-	
-	@Override
-	public Iterator<JsonNode> evaluate(Iterator<JsonNode>... inputs) {
-		return inputs[index];
-	}
-	
-	@Override
-	public JsonNode evaluate(JsonNode... nodes) {
-		return nodes[index];
-	}
+//	
+//	@Override
+//	public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode> input) {
+//		return input;
+//	}
+//	
+//	@Override
+//	public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>... inputs) {
+//		return inputs[index];
+//	}
+//	
+//	@Override
+//	public JsonNode evaluate(JsonNode... nodes) {
+//		return nodes[index];
+//	}
 }

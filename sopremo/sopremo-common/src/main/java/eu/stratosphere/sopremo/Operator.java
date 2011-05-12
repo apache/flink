@@ -13,6 +13,8 @@ import java.util.List;
 
 import org.apache.commons.codec.binary.Base64;
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.JsonNodeFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -22,11 +24,10 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.expressions.AbstractIterator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public abstract class Operator implements SopremoType {
 	public class Output {
@@ -52,7 +53,7 @@ public abstract class Operator implements SopremoType {
 
 	public static class KeyExtractionStub extends
 			MapStub<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-		private EvaluableExpression evaluableExpression;
+		private Evaluable evaluableExpression;
 
 		@Override
 		public void configure(Configuration parameters) {
@@ -83,41 +84,45 @@ public abstract class Operator implements SopremoType {
 	protected Contract addKeyExtraction(PactModule module, Path expr) {
 		MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject> selectionMap =
 			new MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject>(KeyExtractionStub.class);
-		selectionMap.setInput(module.getInput(this.getInputIndex(expr)));
+		int inputIndex = this.getInputIndex(expr);
+		selectionMap.setInput(module.getInput(inputIndex));
 		setObject(selectionMap.getStubParameters(), "extraction",
-			Path.replace(expr, new Path(expr.getFragment(0)), new Path(new Input(0))));
+			Path.replace(expr, new Path(new Input(inputIndex)), new Path()));
 
 		return selectionMap;
 	}
 
 	protected int getInputIndex(Path expr) {
-		return ((Input) expr.getFragment(0)).getIndex();
+		Evaluable fragment = expr.getFragment(0);
+		if (fragment instanceof Input)
+			return ((Input) fragment).getIndex();
+		return 0;
 	}
 
 	private List<Operator.Output> inputs;
 
-	private Transformation transformation;
+	private Evaluable transformation;
 
 	private String name;
 
 	private Output[] outputs;
 
-	public Operator(String name, Transformation transformation,
+	public Operator(String name, Evaluable transformation,
 			Operator... inputs) {
 		this(name, transformation, Arrays.asList(inputs));
 	}
 
-	protected Operator(Transformation transformation,
+	protected Operator(Evaluable transformation,
 			Operator... inputs) {
 		this(null, transformation, inputs);
 	}
 
-	protected Operator(Transformation transformation,
+	protected Operator(Evaluable transformation,
 			List<Operator> inputs) {
 		this(null, transformation, inputs);
 	}
 
-	public Operator(String name, Transformation transformation,
+	public Operator(String name, Evaluable transformation,
 			List<Operator> inputs) {
 		if (transformation == null || inputs == null)
 			throw new NullPointerException();
@@ -133,22 +138,22 @@ public abstract class Operator implements SopremoType {
 		return this.outputs[index];
 	}
 
-	public Operator(String name, int numberOfOutputs, Transformation transformation,
+	public Operator(String name, int numberOfOutputs, Evaluable transformation,
 			Operator.Output... inputs) {
 		this(name, numberOfOutputs, transformation, Arrays.asList(inputs));
 	}
 
-	protected Operator(Transformation transformation, int numberOfOutputs,
+	protected Operator(Evaluable transformation, int numberOfOutputs,
 			Operator.Output... inputs) {
 		this(null, 1, transformation, inputs);
 	}
 
-	protected Operator(Transformation transformation, int numberOfOutputs,
+	protected Operator(Evaluable transformation, int numberOfOutputs,
 			List<Operator.Output> inputs) {
 		this(null, numberOfOutputs, transformation, inputs);
 	}
 
-	public Operator(String name, int numberOfOutputs, Transformation transformation,
+	public Operator(String name, int numberOfOutputs, Evaluable transformation,
 			List<Operator.Output> inputs) {
 		if (transformation == null || inputs == null)
 			throw new NullPointerException();
@@ -204,11 +209,11 @@ public abstract class Operator implements SopremoType {
 		return this.inputs;
 	}
 
-	public Transformation getTransformation() {
+	public Evaluable getEvaluableExpression() {
 		return this.transformation;
 	}
 
-	public void setTransformation(Transformation transformation) {
+	public void setEvaluableExpression(Evaluable transformation) {
 		if (transformation == null)
 			throw new NullPointerException("transformation must not be null");
 
@@ -231,8 +236,8 @@ public abstract class Operator implements SopremoType {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(this.getName());
-		if (this.getTransformation() != Transformation.IDENTITY)
-			builder.append(" to ").append(this.getTransformation());
+		if (this.getEvaluableExpression() != EvaluableExpression.IDENTITY)
+			builder.append(" to ").append(this.getEvaluableExpression());
 		return builder.toString();
 	}
 
@@ -257,15 +262,15 @@ public abstract class Operator implements SopremoType {
 		return this.name.equals(other.name) && this.transformation.equals(other.transformation);
 	}
 
-	protected static void setTransformation(Configuration config, String key, Transformation transformation) {
+	protected static void setEvaluableExpression(Configuration config, String key, Evaluable transformation) {
 		config.setString(key, objectToString(transformation));
 	}
 
-	protected static Transformation getTransformation(Configuration config, String key) {
+	protected static Evaluable getEvaluableExpression(Configuration config, String key) {
 		String string = config.getString(key, null);
 		if (string == null)
 			return null;
-		return (Transformation) stringToObject(string);
+		return (Evaluable) stringToObject(string);
 	}
 
 	protected static Object stringToObject(String string) {

@@ -39,13 +39,6 @@ public class Condition extends BooleanExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode... nodes) {
-		if (this.expressions.length == 1)
-			return this.expressions[0].evaluate(nodes);
-		return this.combination.evaluate(this.expressions, nodes);
-	}
-
-	@Override
 	public JsonNode evaluate(JsonNode node) {
 		if (this.expressions.length == 1)
 			return this.expressions[0].evaluate(node);
@@ -55,24 +48,24 @@ public class Condition extends BooleanExpression {
 	public static enum Combination {
 		AND {
 			@Override
-			public JsonNode evaluate(BooleanExpression[] expressions, JsonNode... nodes) {
+			public JsonNode evaluate(BooleanExpression[] expressions, JsonNode node) {
 				for (BooleanExpression booleanExpression : expressions)
-					if (expressions[0].evaluate(nodes) == BooleanNode.FALSE)
+					if (booleanExpression.evaluate(node) == BooleanNode.FALSE)
 						return BooleanNode.FALSE;
 				return BooleanNode.TRUE;
 			}
 		},
 		OR {
 			@Override
-			public JsonNode evaluate(BooleanExpression[] expressions, JsonNode... nodes) {
+			public JsonNode evaluate(BooleanExpression[] expressions, JsonNode node) {
 				for (BooleanExpression booleanExpression : expressions)
-					if (expressions[0].evaluate(nodes) == BooleanNode.TRUE)
+					if (booleanExpression.evaluate(node) == BooleanNode.TRUE)
 						return BooleanNode.TRUE;
 				return BooleanNode.FALSE;
 			}
 		};
 
-		public abstract JsonNode evaluate(BooleanExpression[] expressions, JsonNode... nodes);
+		public abstract JsonNode evaluate(BooleanExpression[] expressions, JsonNode node);
 	}
 
 	public Combination getCombination() {

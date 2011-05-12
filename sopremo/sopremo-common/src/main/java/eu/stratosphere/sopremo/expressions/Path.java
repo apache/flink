@@ -7,20 +7,22 @@ import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 
+import eu.stratosphere.sopremo.Evaluable;
+
 public class Path extends EvaluableExpression {
 
 	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 
 	public Path(List<EvaluableExpression> fragments) {
 		this.fragments = fragments;
-		for (EvaluableExpression evaluableExpression : fragments)
+		for (Evaluable evaluableExpression : fragments)
 			if (evaluableExpression instanceof Path)
 				throw new IllegalArgumentException();
 	}
 
 	public Path(EvaluableExpression... fragments) {
 		this.fragments = Arrays.asList(fragments);
-		for (EvaluableExpression evaluableExpression : fragments)
+		for (Evaluable evaluableExpression : fragments)
 			if (evaluableExpression instanceof Path)
 				throw new IllegalArgumentException();
 	}
@@ -61,18 +63,7 @@ public class Path extends EvaluableExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node) {
 		JsonNode fragmentNode = node;
-		for (EvaluableExpression fragment : this.fragments)
-			fragmentNode = fragment.evaluate(fragmentNode);
-		return fragmentNode;
-	}
-
-	@Override
-	public JsonNode evaluate(JsonNode... nodes) {
-		if (this.fragments.size() == 0)
-			return nodes[0];
-
-		JsonNode fragmentNode = this.fragments.get(0).evaluate(nodes);
-		for (EvaluableExpression fragment : this.fragments.subList(1, fragments.size()))
+		for (Evaluable fragment : this.fragments)
 			fragmentNode = fragment.evaluate(fragmentNode);
 		return fragmentNode;
 	}

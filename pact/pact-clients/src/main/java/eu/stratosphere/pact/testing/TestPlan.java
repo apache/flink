@@ -148,6 +148,7 @@ public class TestPlan implements Closeable {
 			if (newExecutionState == ExecutionState.FAILED) {
 				TestPlan.this.erroneousVertex = this.executionVertex;
 				TestPlan.this.executionError = optionalMessage;
+				ee.cancelExecution();			
 			}
 		}
 
@@ -741,6 +742,8 @@ public class TestPlan implements Closeable {
 						new AssertionFailedError(Assert.format(" ", expectedPairsWithCurrentKey, unmatched)),
 						itemIndex - expectedPairsWithCurrentKey.size());
 
+				if (!expectedPairsWithCurrentKey.isEmpty())
+					fail("More elements expected: " + toString(expectedPairsWithCurrentKey.iterator()), dataSinkContract.getName());
 				if (expectedIterator.hasNext())
 					fail("More elements expected: " + toString(expectedIterator), dataSinkContract.getName());
 				if (actualIterator.hasNext())
@@ -751,7 +754,7 @@ public class TestPlan implements Closeable {
 	private KeyValuePair<Key, Value> matchAllExpectedItems(final Iterator<KeyValuePair<Key, Value>> actualIterator,
 			List<KeyValuePair<Key, Value>> expectedPairsWithCurrentKey)
 			throws ArrayComparisonFailure {
-		while (!expectedPairsWithCurrentKey.isEmpty()) {
+		while (!expectedPairsWithCurrentKey.isEmpty() && actualIterator.hasNext()) {
 			// match
 			final KeyValuePair<Key, Value> actual = actualIterator.next();
 			if (!expectedPairsWithCurrentKey.remove(actual))

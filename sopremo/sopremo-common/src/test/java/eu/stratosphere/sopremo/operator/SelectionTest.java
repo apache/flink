@@ -23,21 +23,21 @@ public class SelectionTest extends SopremoTest {
 	public void shouldSelectSomeEntries() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		Comparison incomeComparison = new Comparison(createPath("0", "income"), BinaryOperator.GREATER, new Constant(
+		Comparison incomeComparison = new Comparison(createPath("income"), BinaryOperator.GREATER, new Constant(
 			30000));
-		UnaryExpression mgrFlag = new UnaryExpression(createPath("0", "mgr"));
+		UnaryExpression mgrFlag = new UnaryExpression(createPath("mgr"));
 		Condition condition = new Condition(Combination.OR, mgrFlag, incomeComparison);
 		sopremoPlan.getOutputOperator(0).setInputOperators(
 			new Selection(condition, sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "income", 20000L, "mgr", false)).
-			add(createJsonObject("name", "Vince Wayne", "income", 32500L, "mgr", false)).
-			add(createJsonObject("name", "Jane Dean", "income", 72000L, "mgr", true)).
-			add(createJsonObject("name", "Alex Smith", "income", 25000L, "mgr", false));
+			add(createJsonObject("name", "Jon Doe", "income", 20000, "mgr", false)).
+			add(createJsonObject("name", "Vince Wayne", "income", 32500, "mgr", false)).
+			add(createJsonObject("name", "Jane Dean", "income", 72000, "mgr", true)).
+			add(createJsonObject("name", "Alex Smith", "income", 25000, "mgr", false));
 		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("name", "Jon Doe", "income", 20000L, "mgr", false)).
-			addExpected(createJsonObject("name", "Jane Dean", "income", 72000L, "mgr", true));
+			addExpected(createJsonObject("name", "Vince Wayne", "income", 32500, "mgr", false)).
+			addExpected(createJsonObject("name", "Jane Dean", "income", 72000, "mgr", true));
 
 		sopremoPlan.run();
 	}
