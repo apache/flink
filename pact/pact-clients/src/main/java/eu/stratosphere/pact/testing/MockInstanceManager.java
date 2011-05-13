@@ -41,14 +41,13 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  */
 class MockInstanceManager implements InstanceManager {
 
-	private static InstanceType DEFAULT = LocalInstanceManager
-			.createDefaultInstanceType();
+	public static InstanceType DEFAULT_INSTANCE_TYPE = LocalInstanceManager.createDefaultInstanceType();
 
 	@SuppressWarnings("serial")
 	private static final HashMap<InstanceType, InstanceTypeDescription> TYPE_DESCRIPTIONS = new HashMap<InstanceType, InstanceTypeDescription>() {
 		{
-			put(DEFAULT, InstanceTypeDescriptionFactory.construct(DEFAULT,
-					MockInstance.DESCRIPTION, 1));
+			put(DEFAULT_INSTANCE_TYPE,
+				InstanceTypeDescriptionFactory.construct(DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1));
 		}
 	};
 
@@ -62,18 +61,18 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	private final AllocatedResource allocatedResource = new AllocatedResource(
-			new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT, new AllocationID());
+			new MockInstance(DEFAULT_INSTANCE_TYPE, NETWORK_TOPOLOGY), DEFAULT_INSTANCE_TYPE, new AllocationID());
 
 	private InstanceListener instanceListener;
 
 	@Override
 	public InstanceType getDefaultInstanceType() {
-		return DEFAULT;
+		return DEFAULT_INSTANCE_TYPE;
 	}
 
 	@Override
 	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
-		return DEFAULT;
+		return DEFAULT_INSTANCE_TYPE;
 	}
 
 	@Override
@@ -85,7 +84,7 @@ class MockInstanceManager implements InstanceManager {
 	public InstanceType getSuitableInstanceType(final int minNumComputeUnits,
 			final int minNumCPUCores, final int minMemorySize,
 			final int minDiskCapacity, final int maxPricePerHour) {
-		return DEFAULT;
+		return DEFAULT_INSTANCE_TYPE;
 	}
 
 	@Override

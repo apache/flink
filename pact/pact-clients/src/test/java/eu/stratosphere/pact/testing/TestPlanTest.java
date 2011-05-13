@@ -70,7 +70,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * 
  * @author Arvid Heise
  */
-public class TestPlanTest extends TestPlanTestCase {
+public class TestPlanTest {
 	/**
 	 * Pair of {@link PactInteger}s.
 	 * 
@@ -598,7 +598,13 @@ public class TestPlanTest extends TestPlanTestCase {
 		assertTestRunFails(testPlan);
 	}
 
-	private void assertTestRunFails(TestPlan testPlan) {
+	/**
+	 * Fails if the test plan does not fail.
+	 * 
+	 * @param testPlan
+	 *        the test plan expected to fail
+	 */
+	public static void assertTestRunFails(TestPlan testPlan) {
 		boolean failed = false;
 		try {
 			testPlan.run();
@@ -620,6 +626,58 @@ public class TestPlanTest extends TestPlanTestCase {
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
 		testPlan.run();
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} succeeds with values having the same key.
+	 */
+	@Test
+	public void shouldMatchValuesWithSameKey() {
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(1), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test3")).
+			add(new PactInteger(2), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(2), new PactString("test3"));
+		// randomize values
+		testPlan.getExpectedOutput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test3")).
+			add(new PactInteger(1), new PactString("test2")).
+			add(new PactInteger(2), new PactString("test3"));
+		testPlan.run();
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} succeeds with values having the same key.
+	 */
+	@Test
+	public void shouldFailWithEqualValuesWithSameKey() {
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(1), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test3")).
+			add(new PactInteger(2), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(2), new PactString("test3"));
+		// randomize values
+		testPlan.getExpectedOutput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test3")).
+			add(new PactInteger(1), new PactString("test3")). // <-- duplicate
+			add(new PactInteger(2), new PactString("test3"));
+		assertTestRunFails(testPlan);
 	}
 
 	/**

@@ -18,8 +18,10 @@ package eu.stratosphere.pact.testing;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -46,6 +48,8 @@ import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.InputSplitAssigner;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
@@ -60,6 +64,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
@@ -148,7 +153,7 @@ public class TestPlan implements Closeable {
 			if (newExecutionState == ExecutionState.FAILED) {
 				TestPlan.this.erroneousVertex = this.executionVertex;
 				TestPlan.this.executionError = optionalMessage;
-				ee.cancelExecution();			
+				ee.cancelExecution();
 			}
 		}
 
@@ -162,6 +167,11 @@ public class TestPlan implements Closeable {
 				final Thread userThread) {
 		}
 	}
+
+	private static final InstanceTypeDescription MOCK_INSTANCE_DESCRIPTION = InstanceTypeDescriptionFactory.construct(
+		MockInstanceManager.DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1);
+
+	private static DataSinkContract<?, ?> ALL_SINKS = null;
 
 	private final Map<DataSinkContract<?, ?>, TestPairs<?, ?>> actualOutputs = new IdentityHashMap<DataSinkContract<?, ?>, TestPairs<?, ?>>();
 
@@ -183,6 +193,10 @@ public class TestPlan implements Closeable {
 
 	private final List<DataSourceContract<?, ?>> sources = new ArrayList<DataSourceContract<?, ?>>();
 
+	private final Map<DataSinkContract<?, ?>, FuzzyTestValueSimilarity<?>> fuzzySimilarity = new HashMap<DataSinkContract<?, ?>, FuzzyTestValueSimilarity<?>>();
+
+	private final Map<DataSinkContract<?, ?>, FuzzyTestValueMatcher<?>> fuzzyMatchers = new HashMap<DataSinkContract<?, ?>, FuzzyTestValueMatcher<?>>();
+
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
 	 * {@link DataSinkContract}s. However, it
@@ -196,6 +210,8 @@ public class TestPlan implements Closeable {
 		if (contracts.length == 0)
 			throw new IllegalArgumentException();
 
+		this.fuzzyMatchers.put(ALL_SINKS, new EqualityValueMatcher<Value>());
+
 		final Configuration config = new Configuration();
 		config.setString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_KEY,
 				"standard,1,1,200,1,1");
@@ -204,8 +220,6 @@ public class TestPlan implements Closeable {
 		this.contracts = new InputOutputAdder().process(contracts);
 
 		this.findSinksAndSources();
-
-		TestPlanTestCase.addTestPlan(this);
 	}
 
 	/**
@@ -227,7 +241,155 @@ public class TestPlan implements Closeable {
 	 * @return the sinks
 	 */
 	public List<DataSinkContract<?, ?>> getSinks() {
-		return sinks;
+		return this.sinks;
+	}
+
+	/**
+	 * Set the allowed delta for PactDouble values to match expected and actual values that differ due to inaccuracies
+	 * in the floating point calculation.
+	 * 
+	 * @param delta
+	 *        the delta that the actual value is allowed to differ from the expected value.
+	 */
+	public void setAllowedPactDoubleDelta(double delta) {
+		setFuzzyValueMatcher(new NaiveFuzzyValueMatcher<PactDouble>());
+		setFuzzyValueSimilarity(new DoubleValueSimilarity(delta));
+	}
+
+	/**
+	 * Sets a fuzzy similarity measure for the values of the given data sink.
+	 * 
+	 * @param <V>
+	 *        the value type
+	 * @param sink
+	 *        the data sink
+	 * @param similarity
+	 *        the similarity measure to use
+	 */
+	public <V extends Value> void setFuzzyValueSimilarity(DataSinkContract<?, ? extends V> sink,
+			FuzzyTestValueSimilarity<V> similarity) {
+		this.fuzzySimilarity.put(sink, similarity);
+	}
+
+	/**
+	 * Sets a fuzzy similarity measure for the values of all data sinks.
+	 * 
+	 * @param similarity
+	 *        the similarity measure to use
+	 */
+	public void setFuzzyValueSimilarity(FuzzyTestValueSimilarity<?> similarity) {
+		this.fuzzySimilarity.put(ALL_SINKS, similarity);
+	}
+
+	/**
+	 * Removes the fuzzy similarity measure of the given data sink.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 */
+	public void removeFuzzyValueSimilarity(DataSinkContract<?, ?> sink) {
+		this.fuzzySimilarity.remove(sink);
+	}
+
+	/**
+	 * Returns the fuzzy similarity measure of the given data sink. If no measure has been explicitly set for this sink,
+	 * the measure for all sinks is returned if set.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 * @param <V>
+	 *        the value type
+	 * @return the similarity measure
+	 */
+	@SuppressWarnings("unchecked")
+	public <V extends Value> FuzzyTestValueSimilarity<V> getFuzzySimilarity(DataSinkContract<?, ? extends V> sink) {
+		FuzzyTestValueSimilarity<?> matcher = this.fuzzySimilarity.get(sink);
+		if (matcher == null)
+			matcher = this.fuzzySimilarity.get(ALL_SINKS);
+		return (FuzzyTestValueSimilarity<V>) matcher;
+	}
+
+	/**
+	 * Returns the default fuzzy similarity measure of all data sinks.
+	 * 
+	 * @return the similarity measure
+	 */
+	public FuzzyTestValueSimilarity<?> getFuzzySimilarity() {
+		return this.fuzzySimilarity.get(ALL_SINKS);
+	}
+
+	/**
+	 * Sets a fuzzy global matcher for the values of the given data sink.
+	 * 
+	 * @param <V>
+	 *        the value type
+	 * @param sink
+	 *        the data sink
+	 * @param matcher
+	 *        the global matcher to use
+	 */
+	public <V extends Value> void setFuzzyValueMatcher(DataSinkContract<?, ? extends V> sink,
+			FuzzyTestValueMatcher<V> matcher) {
+		this.fuzzyMatchers.put(sink, matcher);
+	}
+
+	/**
+	 * Sets a fuzzy global matcher for the values of all data sinks.
+	 * 
+	 * @param matcher
+	 *        the global matcher to use
+	 */
+	public void setFuzzyValueMatcher(FuzzyTestValueMatcher<?> matcher) {
+		this.fuzzyMatchers.put(ALL_SINKS, matcher);
+	}
+
+	/**
+	 * Removes the fuzzy global matcher of the given data sink.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 */
+	public void removeFuzzyValueMatcher(DataSinkContract<?, ?> sink) {
+		this.fuzzyMatchers.remove(sink);
+	}
+
+	/**
+	 * Returns the global matcher of the given data sink. If no measure has been explicitly set for this sink,
+	 * the matcher for all sinks is returned if set.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 * @param <V>
+	 *        the value type
+	 * @return the global matcher
+	 */
+	@SuppressWarnings("unchecked")
+	public <V extends Value> FuzzyTestValueMatcher<V> getFuzzyMatcher(DataSinkContract<?, ? extends V> sink) {
+		FuzzyTestValueMatcher<?> matcher = this.fuzzyMatchers.get(sink);
+		if (matcher == null)
+			matcher = this.fuzzyMatchers.get(ALL_SINKS);
+		return (FuzzyTestValueMatcher<V>) matcher;
+	}
+
+	/**
+	 * Returns the default fuzzy global matcher of all data sinks.
+	 * 
+	 * @return the global matcher
+	 */
+	public FuzzyTestValueMatcher<?> getFuzzyMatcher() {
+		return this.fuzzyMatchers.get(ALL_SINKS);
+	}
+
+	/**
+	 * Allowed delta for PactDouble values, default value is 0.
+	 * 
+	 * @return the allowed delta
+	 */
+	public double getAllowedPactDoubleDelta() {
+		FuzzyTestValueSimilarity<?> matcher = this.fuzzySimilarity.get(ALL_SINKS);
+		if (matcher instanceof DoubleValueSimilarity)
+			return ((DoubleValueSimilarity) matcher).getDelta();
+		return 0;
 	}
 
 	/**
@@ -290,10 +452,9 @@ public class TestPlan implements Closeable {
 				}
 			});
 
-		for (DataSourceContract<?, ?> source : this.sources) {
-			getInput(source).fromFile(source.getStubClass(),
+		for (DataSourceContract<?, ?> source : this.sources)
+			this.getInput(source).fromFile(source.getStubClass(),
 					source.getFilePath());
-		}
 	}
 
 	/**
@@ -371,9 +532,9 @@ public class TestPlan implements Closeable {
 			@Override
 			public boolean preVisit(final Contract visitable) {
 				int degree = TestPlan.this.getDegreeOfParallelism();
-				if (visitable instanceof DataSourceContract<?, ?>) {
+				if (visitable instanceof DataSourceContract<?, ?>)
 					degree = 1;
-				} else if (degree > 1 && visitable instanceof DataSinkContract<?, ?>) {
+				else if (degree > 1 && visitable instanceof DataSinkContract)
 					try {
 						Path path = new Path(
 								((DataSinkContract<?, ?>) visitable)
@@ -390,12 +551,13 @@ public class TestPlan implements Closeable {
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-				}
 				visitable.setDegreeOfParallelism(degree);
 				return true;
 			}
 		});
 	}
+
+	// public void setDoubleT
 
 	/**
 	 * Returns the first output {@link TestPairs} of the TestPlan. If multiple
@@ -474,7 +636,7 @@ public class TestPlan implements Closeable {
 		this.syncDegreeOfParallelism(plan);
 		this.initAdhocInputs();
 
-		final OptimizedPlan optimizedPlan = compile(plan);
+		final OptimizedPlan optimizedPlan = this.compile(plan);
 		this.replaceShippingStrategy(optimizedPlan);
 		final JobGraph jobGraph = new JobGraphGenerator()
 				.compileJobGraph(optimizedPlan);
@@ -487,8 +649,8 @@ public class TestPlan implements Closeable {
 	}
 
 	private OptimizedPlan compile(final Plan plan) {
-		final OptimizedPlan optimizedPlan = new PactCompiler(
-				new CostEstimator()).compile(plan);
+		final OptimizedPlan optimizedPlan = new PactCompiler(null, new CostEstimator(), new InetSocketAddress(0))
+			.compile(plan, MOCK_INSTANCE_DESCRIPTION);
 		return optimizedPlan;
 	}
 
@@ -527,7 +689,7 @@ public class TestPlan implements Closeable {
 	 *         contract
 	 */
 	public Contract getOutputOfContract(Contract contract) {
-		return getOutputsOfContract(contract)[0];
+		return this.getOutputsOfContract(contract)[0];
 	}
 
 	/**
@@ -715,52 +877,71 @@ public class TestPlan implements Closeable {
 						.iterator();
 				Key currentKey = null;
 				int itemIndex = 0;
-				List<KeyValuePair<Key, Value>> expectedPairsWithCurrentKey = new ArrayList<KeyValuePair<Key, Value>>();
+				List<Value> expectedValuesWithCurrentKey = new ArrayList<Value>();
+				List<Value> actualValuesWithCurrentKey = new ArrayList<Value>();
 				while (actualIterator.hasNext() && expectedIterator.hasNext()) {
 
 					final KeyValuePair<Key, Value> expected = expectedIterator.next();
-					if (currentKey == null || expected.getKey().compareTo(currentKey) != 0) {
-						KeyValuePair<Key, Value> unmatched = matchAllExpectedItems(actualIterator,
-							expectedPairsWithCurrentKey);
-						if (unmatched != null)
-							throw new ArrayComparisonFailure(String.format(
-								"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
-								new AssertionFailedError(Assert.format(" ", expectedPairsWithCurrentKey, unmatched)),
-								itemIndex + expectedPairsWithCurrentKey.size() - 1);
-
+					if (currentKey == null)
 						currentKey = expected.getKey();
-					}
-					expectedPairsWithCurrentKey.add(expected);
+					else if (expected.getKey().compareTo(currentKey) != 0)
+						this.matchValues(dataSinkContract, actualIterator, currentKey, itemIndex,
+							expectedValuesWithCurrentKey, actualValuesWithCurrentKey);
+					expectedValuesWithCurrentKey.add(expected.getValue());
 
 					itemIndex++;
 				}
 
-				KeyValuePair<Key, Value> unmatched = matchAllExpectedItems(actualIterator, expectedPairsWithCurrentKey);
-				if (unmatched != null)
-					throw new ArrayComparisonFailure(String.format(
-						"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
-						new AssertionFailedError(Assert.format(" ", expectedPairsWithCurrentKey, unmatched)),
-						itemIndex - expectedPairsWithCurrentKey.size());
+				// remaining values
+				if (!expectedValuesWithCurrentKey.isEmpty())
+					this.matchValues(dataSinkContract, actualIterator, currentKey, itemIndex,
+						expectedValuesWithCurrentKey, actualValuesWithCurrentKey);
 
-				if (!expectedPairsWithCurrentKey.isEmpty())
-					fail("More elements expected: " + toString(expectedPairsWithCurrentKey.iterator()), dataSinkContract.getName());
-				if (expectedIterator.hasNext())
-					fail("More elements expected: " + toString(expectedIterator), dataSinkContract.getName());
-				if (actualIterator.hasNext())
-					fail("Less elements expected: " + toString(actualIterator), dataSinkContract.getName());
+				// if (!expectedPairsWithCurrentKey.isEmpty())
+				// fail("More elements expected: " + toString(expectedPairsWithCurrentKey.iterator()),
+				// dataSinkContract.getName());
+				if (!expectedValuesWithCurrentKey.isEmpty() || expectedIterator.hasNext())
+					fail("More elements expected: " + expectedValuesWithCurrentKey + this.toString(expectedIterator),
+						dataSinkContract.getName());
+				if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
+					fail("Less elements expected: " + actualValuesWithCurrentKey + this.toString(actualIterator),
+						dataSinkContract.getName());
 			}
 	}
 
-	private KeyValuePair<Key, Value> matchAllExpectedItems(final Iterator<KeyValuePair<Key, Value>> actualIterator,
-			List<KeyValuePair<Key, Value>> expectedPairsWithCurrentKey)
+	private void matchValues(final DataSinkContract<?, ?> dataSinkContract,
+			final Iterator<KeyValuePair<Key, Value>> actualIterator, Key currentKey, int itemIndex,
+			List<Value> expectedValuesWithCurrentKey, List<Value> actualValuesWithCurrentKey)
 			throws ArrayComparisonFailure {
-		while (!expectedPairsWithCurrentKey.isEmpty() && actualIterator.hasNext()) {
-			// match
-			final KeyValuePair<Key, Value> actual = actualIterator.next();
-			if (!expectedPairsWithCurrentKey.remove(actual))
-				return actual;
+		KeyValuePair<Key, Value> actualPair = null;
+		while (actualIterator.hasNext()) {
+			actualPair = actualIterator.next();
+			int keyComparison = actualPair.getKey().compareTo(currentKey);
+			if (keyComparison < 0)
+				throw new ArrayComparisonFailure(String.format(
+					"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
+					new AssertionFailedError(Assert.format(" ",
+						new KeyValuePair<Key, Value>(currentKey, expectedValuesWithCurrentKey.get(0)), actualPair)),
+					itemIndex + expectedValuesWithCurrentKey.size() - 1);
+			if (keyComparison != 0)
+				break;
+			actualValuesWithCurrentKey.add(actualPair.getValue());
+			actualPair = null;
 		}
-		return null;
+
+		FuzzyTestValueMatcher<Value> fuzzyMatcher = this.getFuzzyMatcher(dataSinkContract);
+		FuzzyTestValueSimilarity<Value> fuzzySimilarity = this.getFuzzySimilarity(dataSinkContract);
+		fuzzyMatcher.removeMatchingValues(fuzzySimilarity, expectedValuesWithCurrentKey,
+			actualValuesWithCurrentKey);
+
+		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
+			throw new ArrayComparisonFailure(String.format(
+				"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
+				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey,
+					actualValuesWithCurrentKey)), itemIndex + expectedValuesWithCurrentKey.size() - 1);
+
+		if (actualPair != null)
+			actualValuesWithCurrentKey.add(actualPair.getValue());
 	}
 
 	private Object toString(Iterator<KeyValuePair<Key, Value>> iterator) {
@@ -775,11 +956,27 @@ public class TestPlan implements Closeable {
 		return builder.toString();
 	}
 
+	/**
+	 * Creates a default sink with the given name. This sink may be used with ad-hoc values added to the corresponding
+	 * {@link TestPairs}.
+	 * 
+	 * @param name
+	 *        the name of the sink
+	 * @return the created sink
+	 */
 	public static DataSinkContract<Key, Value> createDefaultSink(final String name) {
 		return new DataSinkContract<Key, Value>(SequentialOutputFormat.class,
 				getTestPlanFile("output"), name);
 	}
 
+	/**
+	 * Creates a default source with the given name. This sink may be used with ad-hoc values added to the corresponding
+	 * {@link TestPairs}.
+	 * 
+	 * @param name
+	 *        the name of the source
+	 * @return the created source
+	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static DataSourceContract<Key, Value> createDefaultSource(final String name) {
 		return new DataSourceContract(SequentialInputFormat.class,

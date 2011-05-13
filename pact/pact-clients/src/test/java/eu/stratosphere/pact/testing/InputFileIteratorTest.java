@@ -77,8 +77,8 @@ public class InputFileIteratorTest {
 	@Test
 	public void emptyIteratorIfInputFileDoesNotExists() throws IOException {
 		String testPlanFile = TestPlan.getTestPlanFile("fileIteratorTest");
-		SequentialInputFormat<Key, Value> inputFormat = (SequentialInputFormat<Key, Value>) FormatUtil.createInputFormat(
-			SequentialInputFormat.class, testPlanFile, null);
+		SequentialInputFormat<Key, Value> inputFormat = FormatUtil.createInputFormat(SequentialInputFormat.class,
+			testPlanFile, null);
 		InputFileIterator<Key, Value> inputFileIterator = new InputFileIterator<Key, Value>(true, inputFormat);
 
 		AssertUtil.assertIteratorEquals("input file iterator is not empty", Arrays.asList().iterator(),
@@ -140,8 +140,8 @@ public class InputFileIteratorTest {
 		for (KeyValuePair keyValuePair : pairs)
 			output.writePair(keyValuePair);
 		output.close();
-		SequentialInputFormat<Key, Value> inputFormat = (SequentialInputFormat<Key, Value>) FormatUtil.createInputFormat(
-			SequentialInputFormat.class, testPlanFile, null);
+		SequentialInputFormat<Key, Value> inputFormat = FormatUtil.createInputFormat(SequentialInputFormat.class,
+			testPlanFile, null);
 		InputFileIterator<Key, Value> inputFileIterator = new InputFileIterator<Key, Value>(reusePairs, inputFormat);
 		return inputFileIterator;
 	}

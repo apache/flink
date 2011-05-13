@@ -142,13 +142,11 @@ public class PactString implements Key {
 		for (int i = 0; i < this.value.length(); i++) {
 			int c = this.value.charAt(i);
 
-			if (c < maxBit)
-				out.write(c);
-			else
-				while (c >= maxBit) {
-					out.write(c | maxBit);
-					c >>= 7;
-				}
+			while (c >= maxBit) {
+				out.write(c | maxBit);
+				c >>= 7;
+			}
+			out.write(c);
 		}
 	}
 
