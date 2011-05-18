@@ -6,6 +6,7 @@ import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
 import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.Transformation;
 
@@ -29,7 +30,7 @@ public class Source extends Operator {
 	}
 
 	@Override
-	public PactModule asPactModule() {
+	public PactModule asPactModule(EvaluationContext context) {
 		if (this.type == DataType.ADHOC)
 			throw new UnsupportedOperationException();
 		PactModule pactModule = new PactModule(1, 1);

@@ -8,6 +8,7 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Path extends EvaluableExpression {
 
@@ -61,10 +62,10 @@ public class Path extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		JsonNode fragmentNode = node;
 		for (Evaluable fragment : this.fragments)
-			fragmentNode = fragment.evaluate(fragmentNode);
+			fragmentNode = fragment.evaluate(fragmentNode, context);
 		return fragmentNode;
 	}
 

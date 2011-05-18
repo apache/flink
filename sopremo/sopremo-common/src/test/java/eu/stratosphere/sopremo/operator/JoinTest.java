@@ -3,15 +3,15 @@ package eu.stratosphere.sopremo.operator;
 import org.junit.Test;
 
 import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.Comparison;
-import eu.stratosphere.sopremo.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.ElementExpression.Quantor;
-import eu.stratosphere.sopremo.Condition;
-import eu.stratosphere.sopremo.ElementExpression;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.expressions.Comparison;
+import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.ElementExpression;
 import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.ElementExpression.Quantor;
 
 public class JoinTest extends SopremoTest {
 

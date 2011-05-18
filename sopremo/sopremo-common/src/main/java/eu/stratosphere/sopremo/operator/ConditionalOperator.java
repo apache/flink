@@ -3,9 +3,9 @@ package eu.stratosphere.sopremo.operator;
 import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public abstract class ConditionalOperator extends Operator {
@@ -52,17 +52,6 @@ public abstract class ConditionalOperator extends Operator {
 		if (this.getClass() != obj.getClass())
 			return false;
 		return super.equals(obj) && this.condition.equals(((ConditionalOperator) obj).condition);
-	}
-
-	protected static void setCondition(Configuration config, String key, Condition condition) {
-		config.setString(key, objectToString(condition));
-	}
-
-	protected static Condition getCondition(Configuration config, String key) {
-		String string = config.getString(key, null);
-		if (string == null)
-			return null;
-		return (Condition) stringToObject(string);
 	}
 
 }

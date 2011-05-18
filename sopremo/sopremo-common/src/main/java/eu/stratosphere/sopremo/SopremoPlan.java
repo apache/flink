@@ -22,17 +22,20 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.Operator.Output;
+import eu.stratosphere.sopremo.function.BuiltinFunctions;
 import eu.stratosphere.sopremo.operator.Sink;
 
 public class SopremoPlan {
 	private Collection<Operator> sinks;
+	private EvaluationContext context = new EvaluationContext();
 
 	public SopremoPlan(Operator... sinks) {
-		this.sinks = Arrays.asList(sinks);
+		this( Arrays.asList(sinks));
 	}
 
 	public SopremoPlan(Collection<Operator> sinks) {
 		this.sinks = sinks;
+		context.getFunctionRegistry().register(BuiltinFunctions.class);
 	}
 
 	public static class PlanPrinter extends Printer<Operator> {
@@ -73,7 +76,7 @@ public class SopremoPlan {
 		new Traverser<Operator>(new OperatorNavigator(), this.sinks).traverse(new TraverseListener<Operator>() {
 			@Override
 			public void nodeTraversed(Operator node) {
-				PactModule module = node.asPactModule();
+				PactModule module = node.asPactModule(context);
 				modules.put(node, module);
 				DataSinkContract<PactNull, PactJsonObject>[] outputStubs = module.getOutputStubs();
 				Contract[] outputContracts = new Contract[outputStubs.length];

@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.expressions;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.EvaluationContext;
 
 public class IdentifierAccess extends EvaluableExpression {
 	private String identifier;
@@ -22,7 +23,7 @@ public class IdentifierAccess extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		throw new EvaluationException();
 	}
 

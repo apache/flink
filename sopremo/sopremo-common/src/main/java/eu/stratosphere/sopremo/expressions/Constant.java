@@ -2,6 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
 
+import eu.stratosphere.sopremo.EvaluationContext;
+
 public class Constant extends EvaluableExpression {
 	// TODO: adjust to json model
 	private Object constant;
@@ -15,7 +17,7 @@ public class Constant extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		return OBJECT_MAPPER.valueToTree(this.constant);
 	}
 

@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.expressions;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
+import eu.stratosphere.sopremo.EvaluationContext;
+
 public class ArrayAccess extends EvaluableExpression {
 
 	private int startIndex, endIndex;
@@ -29,7 +31,7 @@ public class ArrayAccess extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		if (isSelectingAll())
 			return node;
 		if (isSelectingRange()) {

@@ -5,8 +5,9 @@ import java.util.Iterator;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
-import eu.stratosphere.sopremo.AbstractIterator;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.operator.StreamArray;
+import eu.stratosphere.util.AbstractIterator;
 
 public class FieldAccess extends EvaluableExpression {
 
@@ -27,7 +28,7 @@ public class FieldAccess extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node) {
+	public JsonNode evaluate(final JsonNode node, EvaluationContext context) {
 		if (node.isArray()) {
 			if (node instanceof StreamArray)
 				return new StreamArray(new AbstractIterator<JsonNode>() {

@@ -5,6 +5,7 @@ import java.util.Iterator;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationContext;
 
 public class ValueAssignment extends Mapping {
 	public static final String COPY_ALL_FIELDS = "*";
@@ -59,8 +60,8 @@ public class ValueAssignment extends Mapping {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
-		return this.expression.evaluate(node);
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		return this.expression.evaluate(node, context);
 	}
 
 //	@Override

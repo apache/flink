@@ -8,19 +8,15 @@ import java.io.ObjectOutputStream;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.codec.binary.Base64;
-import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
@@ -28,6 +24,7 @@ import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.operator.SopremoMap;
 
 public abstract class Operator implements SopremoType {
 	public class Output {
@@ -50,55 +47,6 @@ public abstract class Operator implements SopremoType {
 			return String.format("%s@%d", this.getOperator(), this.index + 1);
 		}
 	}
-
-	public static class KeyExtractionStub extends
-			MapStub<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-		private Evaluable evaluableExpression;
-
-		@Override
-		public void configure(Configuration parameters) {
-			this.evaluableExpression = getObject(parameters, "extraction", EvaluableExpression.class);
-		}
-
-		@Override
-		public void map(PactNull key, PactJsonObject value, Collector<PactJsonObject.Key, PactJsonObject> out) {
-			out.collect(PactJsonObject.keyOf(this.evaluableExpression.evaluate(value.getValue())), value);
-		}
-	}
-
-	protected static class UnwrappingIterator extends AbstractIterator<JsonNode> {
-		private final Iterator<PactJsonObject> values;
-
-		public UnwrappingIterator(Iterator<PactJsonObject> values) {
-			this.values = values;
-		}
-
-		@Override
-		protected JsonNode loadNext() {
-			if (!values.hasNext())
-				return noMoreElements();
-			return values.next().getValue();
-		}
-	}
-
-	protected Contract addKeyExtraction(PactModule module, Path expr) {
-		MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject> selectionMap =
-			new MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject>(KeyExtractionStub.class);
-		int inputIndex = this.getInputIndex(expr);
-		selectionMap.setInput(module.getInput(inputIndex));
-		setObject(selectionMap.getStubParameters(), "extraction",
-			Path.replace(expr, new Path(new Input(inputIndex)), new Path()));
-
-		return selectionMap;
-	}
-
-	protected int getInputIndex(Path expr) {
-		Evaluable fragment = expr.getFragment(0);
-		if (fragment instanceof Input)
-			return ((Input) fragment).getIndex();
-		return 0;
-	}
-
 	private List<Operator.Output> inputs;
 
 	private Evaluable transformation;
@@ -220,7 +168,7 @@ public abstract class Operator implements SopremoType {
 		this.transformation = transformation;
 	}
 
-	public abstract PactModule asPactModule();
+	public abstract PactModule asPactModule(EvaluationContext context);
 
 	public String getName() {
 		return this.name;
@@ -260,57 +208,6 @@ public abstract class Operator implements SopremoType {
 			return false;
 		Operator other = (Operator) obj;
 		return this.name.equals(other.name) && this.transformation.equals(other.transformation);
-	}
-
-	protected static void setEvaluableExpression(Configuration config, String key, Evaluable transformation) {
-		config.setString(key, objectToString(transformation));
-	}
-
-	protected static Evaluable getEvaluableExpression(Configuration config, String key) {
-		String string = config.getString(key, null);
-		if (string == null)
-			return null;
-		return (Evaluable) stringToObject(string);
-	}
-
-	protected static Object stringToObject(String string) {
-		Object object = null;
-		try {
-			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(Base64.decodeBase64(string
-				.getBytes())));
-			object = in.readObject();
-			in.close();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
-		return object;
-	}
-
-	protected static String objectToString(Object transformation) {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		try {
-			ObjectOutputStream out = new ObjectOutputStream(bos);
-			out.writeObject(transformation);
-			out.close();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		}
-		String string = new String(Base64.encodeBase64(bos.toByteArray()));
-		return string;
-	}
-
-	protected static void setObject(Configuration config, String key, Object object) {
-		config.setString(key, objectToString(object));
-	}
-
-	@SuppressWarnings("unchecked")
-	protected static <T> T getObject(Configuration config, String key, Class<T> objectClass) {
-		String string = config.getString(key, null);
-		if (string == null)
-			return null;
-		return (T) stringToObject(string);
 	}
 
 }

@@ -4,7 +4,7 @@ import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.sopremo.AbstractIterator;
+import eu.stratosphere.util.AbstractIterator;
 
 public abstract class MappingExpression extends EvaluableExpression {
 

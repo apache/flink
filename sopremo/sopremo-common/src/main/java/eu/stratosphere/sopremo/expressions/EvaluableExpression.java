@@ -8,6 +8,7 @@ import org.codehaus.jackson.node.JsonNodeFactory;
 
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoType;
 
 public abstract class EvaluableExpression implements SopremoType, Evaluable {
@@ -33,7 +34,7 @@ public abstract class EvaluableExpression implements SopremoType, Evaluable {
 		// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>[] inputs) {
 		// return inputs[0];
 		// };
-		public JsonNode evaluate(JsonNode node) {
+		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 			return node;
 		};
 
@@ -75,7 +76,7 @@ public abstract class EvaluableExpression implements SopremoType, Evaluable {
 	 * @see eu.stratosphere.sopremo.expressions.Evaluable#evaluate(org.codehaus.jackson.JsonNode)
 	 */
 	@Override
-	public abstract JsonNode evaluate(JsonNode node);
+	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
 	//
 	// public abstract JsonNode evaluate(JsonNode node);
 }

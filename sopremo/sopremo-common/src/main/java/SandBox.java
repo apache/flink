@@ -6,6 +6,7 @@ import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.map.ObjectMapper;
 
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
@@ -25,7 +26,7 @@ public class SandBox {
 		parser.setCodec(new ObjectMapper());
 		JsonNode value = parser.readValueAsTree();
 
-		System.out.println(transformation.evaluate(value));
+		System.out.println(transformation.evaluate(value, new EvaluationContext()));
 
 		// System.out.println(transformation);
 		// String str = objectToString(transformation);

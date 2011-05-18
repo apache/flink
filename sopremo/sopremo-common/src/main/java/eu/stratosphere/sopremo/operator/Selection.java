@@ -6,11 +6,12 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.Condition;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.Transformation;
 
 public class Selection extends ConditionalOperator {
@@ -19,30 +20,31 @@ public class Selection extends ConditionalOperator {
 		super(Transformation.IDENTITY, condition, input);
 	}
 
-	public static class SelectionStub extends MapStub<PactNull, PactJsonObject, PactNull, PactJsonObject> {
+	public static class SelectionStub extends SopremoMap<PactNull, PactJsonObject, Key, PactJsonObject> {
 		private Condition condition;
 
 		@Override
 		public void configure(Configuration parameters) {
-			this.condition = getCondition(parameters, "condition");
+			this.condition = PactUtil.getObject(parameters, "condition", Condition.class);
 		}
 
 		@Override
-		public void map(PactNull key, PactJsonObject value, Collector<PactNull, PactJsonObject> out) {
-			if (this.condition.evaluate(value.getValue()) == BooleanNode.TRUE)
+		public void map(PactNull key, PactJsonObject value, Collector<Key, PactJsonObject> out) {
+			if (this.condition.evaluate(value.getValue(), getContext()) == BooleanNode.TRUE)
 				out.collect(key, value);
 		}
 
 	}
 
 	@Override
-	public PactModule asPactModule() {
+	public PactModule asPactModule(EvaluationContext context) {
 		PactModule module = new PactModule(1, 1);
-		MapContract<PactNull, PactJsonObject, PactNull, PactJsonObject> selectionMap = new MapContract<PactNull, PactJsonObject, PactNull, PactJsonObject>(
+		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> selectionMap = new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(
 			SelectionStub.class);
 		module.getOutput(0).setInput(selectionMap);
 		selectionMap.setInput(module.getInput(0));
-		setCondition(selectionMap.getStubParameters(), "condition", this.getCondition());
+		PactUtil.setObject(selectionMap.getStubParameters(), "condition", this.getCondition());
+		PactUtil.setTransformationAndContext(selectionMap.getStubParameters(), null, context);
 		return module;
 	}
 }

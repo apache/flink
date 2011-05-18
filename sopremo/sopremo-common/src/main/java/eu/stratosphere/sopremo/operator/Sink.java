@@ -5,6 +5,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.Transformation;
 
@@ -26,7 +27,7 @@ public class Sink extends Operator {
 	}
 
 	@Override
-	public PactModule asPactModule() {
+	public PactModule asPactModule(EvaluationContext context) {
 		PactModule pactModule = new PactModule(1, 1);
 		DataSinkContract<PactNull, PactJsonObject> contract = new DataSinkContract<PactNull, PactJsonObject>(
 			JsonOutputFormat.class, this.outputName);

@@ -6,10 +6,11 @@ import java.util.Iterator;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
+import eu.stratosphere.sopremo.function.BuiltinFunctions;
 
 public class FunctionCall extends EvaluableExpression {
 
@@ -35,17 +36,19 @@ public class FunctionCall extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		// System.err.println("undefined function " + this.name);
 		JsonNode[] params = new JsonNode[paramExprs.length];
-		for (int index = 0; index < params.length; index++) 
-			params[index] = paramExprs[index].evaluate(node);
-		if (name.equals("count"))
-			return BuiltinFunctions.count(JsonUtils.asArray(params));
-		if (name.equals("sum"))
-			return BuiltinFunctions.sum(JsonUtils.asArray(params));
+		for (int index = 0; index < params.length; index++)
+			params[index] = paramExprs[index].evaluate(node, context);
+		// if (name.equals("count"))
+		// return BuiltinFunctions.count(JsonUtils.asArray(params));
+		// if (name.equals("sum"))
+		// return BuiltinFunctions.sum(JsonUtils.asArray(params));
+		//
+		// throw new EvaluationException("undefined function " + this.name);
 
-		throw new EvaluationException("undefined function " + this.name);
+		return context.getFunctionRegistry().evaluate(name, JsonUtils.asArray(params), context);
 	}
 
 	//
@@ -63,7 +66,8 @@ public class FunctionCall extends EvaluableExpression {
 	public boolean equals(Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.name.equals(((FunctionCall) obj).name) && Arrays.equals(this.paramExprs, ((FunctionCall) obj).paramExprs);
+		return this.name.equals(((FunctionCall) obj).name)
+			&& Arrays.equals(this.paramExprs, ((FunctionCall) obj).paramExprs);
 	}
 
 }

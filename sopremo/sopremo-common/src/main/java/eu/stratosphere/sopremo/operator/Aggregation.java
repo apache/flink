@@ -6,17 +6,16 @@ import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.Constant;
@@ -43,74 +42,55 @@ public class Aggregation extends Operator {
 		this.groupings = grouping;
 	}
 
-	public static class OneSourceAggregationStub extends
-			ReduceStub<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> {
-
-		private Evaluable transformation;
-
-		@Override
-		public void configure(Configuration parameters) {
-			this.transformation = getEvaluableExpression(parameters, "transformation");
-		}
-
+	public static class OneSourceAggregationStub extends SopremoReduce<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> {
 		@Override
 		public void reduce(PactJsonObject.Key key, final Iterator<PactJsonObject> values,
-				Collector<PactNull, PactJsonObject> out) {
-			JsonNode result = transformation.evaluate(new StreamArray(new UnwrappingIterator(values)));
+				Collector<Key, PactJsonObject> out) {
+			JsonNode result = getTransformation().evaluate(new StreamArray(new UnwrappingIterator(values)), getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
 
-	public static class TwoSourceAggregationStub extends
-			CoGroupStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
-		private Evaluable transformation;
-
-		@Override
-		public void configure(Configuration parameters) {
-			this.transformation = getEvaluableExpression(parameters, "transformation");
-		}
-
+	public static class TwoSourceAggregationStub extends SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
 		@Override
 		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<PactNull, PactJsonObject> out) {
-			JsonNode result = transformation.evaluate(JsonUtils.asArray(
+				Collector<Key, PactJsonObject> out) {
+			JsonNode result = getTransformation().evaluate(JsonUtils.asArray(
 				new StreamArray(new UnwrappingIterator(values1)),
-				new StreamArray(new UnwrappingIterator(values2))));
+				new StreamArray(new UnwrappingIterator(values2))), getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
 
 	@Override
-	public PactModule asPactModule() {
+	public PactModule asPactModule(EvaluationContext context) {
 		if (this.getInputOperators().size() > 2)
 			throw new UnsupportedOperationException();
 
 		PactModule module = new PactModule(this.getInputOperators().size(), 1);
 		List<Contract> keyExtractors = new ArrayList<Contract>();
 		for (Path grouping : groupings)
-			keyExtractors.add(addKeyExtraction(module, grouping));
+			keyExtractors.add(PactUtil.addKeyExtraction(module, grouping, context));
 
 		switch (groupings.size()) {
 		case 0:
-			keyExtractors.add(addKeyExtraction(module, new Path(new Input(0), new Constant(1L))));
+			keyExtractors.add(PactUtil.addKeyExtraction(module, new Path(new Input(0), new Constant(1L)), context));
 
 		case 1:
-			ReduceContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> aggregationReduce = new ReduceContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject>(
+			ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> aggregationReduce = new ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
 				OneSourceAggregationStub.class);
 			module.getOutput(0).setInput(aggregationReduce);
 			aggregationReduce.setInput(keyExtractors.get(0));
-			setEvaluableExpression(aggregationReduce.getStubParameters(), "transformation",
-				this.getEvaluableExpression());
+			PactUtil.setTransformationAndContext(aggregationReduce.getStubParameters(), this.getEvaluableExpression(), context);
 			break;
 
 		default:
-			CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> aggregationCoGroup = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactNull, PactJsonObject>(
-					TwoSourceAggregationStub.class);
+			CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> aggregationCoGroup = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject>(
+				TwoSourceAggregationStub.class);
 			module.getOutput(0).setInput(aggregationCoGroup);
 			aggregationCoGroup.setFirstInput(keyExtractors.get(0));
 			aggregationCoGroup.setSecondInput(keyExtractors.get(1));
-			setEvaluableExpression(aggregationCoGroup.getStubParameters(), "transformation",
-				this.getEvaluableExpression());
+			PactUtil.setTransformationAndContext(aggregationCoGroup.getStubParameters(), this.getEvaluableExpression(), context);
 			break;
 		}
 

@@ -26,7 +26,7 @@ public class SopremoTestPlan {
 		}
 
 		@Override
-		public PactModule asPactModule() {
+		public PactModule asPactModule(EvaluationContext context) {
 			PactModule pactModule = new PactModule(1, 1);
 			DataSourceContract contract = TestPlan.createDefaultSource(this.getInputName());
 			pactModule.getOutput(0).setInput(contract);
@@ -44,7 +44,7 @@ public class SopremoTestPlan {
 		}
 
 		@Override
-		public PactModule asPactModule() {
+		public PactModule asPactModule(EvaluationContext context) {
 			PactModule pactModule = new PactModule(1, 1);
 			DataSinkContract contract = TestPlan.createDefaultSink(this.getOutputName());
 			contract.setInput(pactModule.getInput(0));

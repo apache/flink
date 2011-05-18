@@ -13,12 +13,13 @@ import eu.stratosphere.dag.Navigator;
 import eu.stratosphere.reflect.TypeHandler;
 import eu.stratosphere.reflect.TypeSpecificHandler;
 import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Transformation extends Mapping {
 
 	public static final Transformation CONCATENATION = new Transformation() {
 		@Override
-		public JsonNode evaluate(JsonNode node) {
+		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 			ObjectNode objectNode = NODE_FACTORY.objectNode();
 			Iterator<JsonNode> elements = node.getElements();
 			while (elements.hasNext()) {
@@ -179,12 +180,12 @@ public class Transformation extends Mapping {
 	// }
 	//
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		if (this == IDENTITY)
 			return node;
 		ObjectNode transformedNode = OBJECT_MAPPER.createObjectNode();
 		for (Mapping mapping : this.mappings)
-			transformedNode.put(mapping.getTarget(), mapping.evaluate(node));
+			transformedNode.put(mapping.getTarget(), mapping.evaluate(node, context));
 		return transformedNode;
 	}
 //

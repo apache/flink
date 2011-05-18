@@ -6,6 +6,7 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.EvaluationContext;
 
 public class ObjectCreation extends EvaluableExpression {
 	private ValueAssignment[] assignments;
@@ -29,7 +30,7 @@ public class ObjectCreation extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		throw new EvaluationException();
 	}
 

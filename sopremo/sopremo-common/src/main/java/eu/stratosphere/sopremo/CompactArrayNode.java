@@ -5,17 +5,15 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.JsonToken;
-import org.codehaus.jackson.JsonParser.NumberType;
 import org.codehaus.jackson.map.SerializerProvider;
 import org.codehaus.jackson.node.ContainerNode;
-import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
+
+import eu.stratosphere.util.AbstractIterator;
 
 public class CompactArrayNode extends ContainerNode {
 	private JsonNode[] children;
@@ -54,11 +52,11 @@ public class CompactArrayNode extends ContainerNode {
 	public boolean isArray() {
 		return true;
 	}
-	
+
 	public JsonNode[] getChildren() {
-		return children;
+		return this.children;
 	}
-	
+
 	@Override
 	public List<String> findValuesAsText(String fieldName, List<String> foundSoFar) {
 		return null;
@@ -66,12 +64,12 @@ public class CompactArrayNode extends ContainerNode {
 
 	@Override
 	public int size() {
-		return children.length;
+		return this.children.length;
 	}
 
 	@Override
 	public JsonNode get(int index) {
-		return children[index];
+		return this.children[index];
 	}
 
 	@Override
@@ -91,9 +89,9 @@ public class CompactArrayNode extends ContainerNode {
 
 			@Override
 			protected JsonNode loadNext() {
-				if (index < children.length)
-					return children[index++];
-				return noMoreElements();
+				if (this.index < CompactArrayNode.this.children.length)
+					return CompactArrayNode.this.children[this.index++];
+				return this.noMoreElements();
 			}
 		};
 	}
@@ -109,19 +107,19 @@ public class CompactArrayNode extends ContainerNode {
 
 	@Override
 	public JsonNode path(int index) {
-		return children[index];
+		return this.children[index];
 	}
 
 	@Override
 	public String toString() {
-		return Arrays.toString(children);
+		return Arrays.toString(this.children);
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + Arrays.hashCode(children);
+		result = prime * result + Arrays.hashCode(this.children);
 		return result;
 	}
 
@@ -131,10 +129,10 @@ public class CompactArrayNode extends ContainerNode {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		CompactArrayNode other = (CompactArrayNode) obj;
-		if (!Arrays.equals(children, other.children))
+		if (!Arrays.equals(this.children, other.children))
 			return false;
 		return true;
 	}

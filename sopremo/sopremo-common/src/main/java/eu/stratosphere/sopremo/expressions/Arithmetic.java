@@ -13,6 +13,7 @@ import org.codehaus.jackson.node.LongNode;
 import org.codehaus.jackson.node.NumericNode;
 
 import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Arithmetic extends EvaluableExpression {
 	public static enum ArithmeticOperator {
@@ -189,8 +190,8 @@ public class Arithmetic extends EvaluableExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node) {
-		return this.operator.evaluate((NumericNode) this.op1.evaluate(node), (NumericNode) this.op2.evaluate(node));
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		return this.operator.evaluate((NumericNode) this.op1.evaluate(node, context), (NumericNode) this.op2.evaluate(node, context));
 	}
 
 	@Override
