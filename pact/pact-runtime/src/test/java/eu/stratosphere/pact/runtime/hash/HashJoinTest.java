@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -29,6 +30,7 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.hash.HashJoin.HashBucketIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import static org.junit.Assert.assertEquals;
@@ -94,13 +96,13 @@ public class HashJoinTest
 	
 	
 	@Test
-	public void testHashTableBuilding() throws IOException
+	public void testInMemoryHashJoin() throws IOException
 	{
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(1000000, 3, false);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(10000, 3, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(1000000, 10, false);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(10000, 10, true);
 		
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -108,7 +110,7 @@ public class HashJoinTest
 		
 		try {
 			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 4096 * 8);
+			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
@@ -118,18 +120,41 @@ public class HashJoinTest
 		// create the I/O access for spilling
 		IOManager ioManager = new IOManager();
 		
+		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
+		
 		// ----------------------------------------------------------------------------------------
 		
 		HashJoin<PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger>(buildInput, probeInput, memSegments, ioManager);
 		join.open();
 		
+		int numKeys = 0;
 		
+		while (join.nextKey()) {
+			numKeys++;
+			int numBuildValues = 0;
+			int numProbeValues = 0;
+			
+			Iterator<PactInteger> probeIter = join.getProbeSideIterator();
+			while (probeIter.hasNext()) {
+				numProbeValues++;
+				probeIter.next();
+			}
+			Assert.assertEquals("Wrong number of values from probe-side for a key", 10, numProbeValues);
+			
+			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
+			while (buildSide.next(pair)) {
+				numBuildValues++;
+			}
+			Assert.assertEquals("Wrong number of values from build-side for a key", 3, numBuildValues);
+			
+		}
 		
 		join.close();
 		
-		memMan.release(memSegments);
 		
 		// ----------------------------------------------------------------------------------------
+		
+		memMan.release(memSegments);
 		
 		// shut down I/O manager and Memory Manager and verify the correct shutdown
 		ioManager.shutdown();

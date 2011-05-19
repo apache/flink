@@ -56,16 +56,16 @@ public interface MatchTaskIterator<K extends Key, V1 extends Value, V2 extends V
 	K getKey();
 
 	/**
-	 * Returns an iterable over the left input values for the current key.
+	 * Returns an iterator over the first input values for the current key.
 	 * 
-	 * @return an iterable over the left input values for the current key.
+	 * @return an iterator over the first input values for the current key.
 	 */
 	Iterator<V1> getValues1();
 
 	/**
-	 * Returns an iterable over the left input values for the current key.
+	 * Returns an iterator over the second input values for the current key.
 	 * 
-	 * @return an iterable over the left input values for the current key.
+	 * @return an iterator over the second input values for the current key.
 	 */
 	Iterator<V2> getValues2();
 }
