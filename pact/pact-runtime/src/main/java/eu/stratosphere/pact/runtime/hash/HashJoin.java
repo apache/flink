@@ -28,8 +28,8 @@ import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -196,6 +196,11 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	private final ArrayList<Partition> partitionsBeingBuilt;
 	
+	/**
+	 * The partitions that have been spilled previously and are pending to be processed.
+	 */
+	private final ArrayList<Partition> partitionsPending;
+	
 	private HashBucketIterator<K, V> bucketIterator;
 	
 	private ProbeSideIterator<K, V> probeIterator;
@@ -286,6 +291,7 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		
 		this.partitionsBeingBuilt = new ArrayList<HashJoin.Partition>();
+		this.partitionsPending = new ArrayList<HashJoin.Partition>();
 	}
 	
 	
@@ -307,8 +313,10 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	public boolean nextKey() throws IOException
 	{
-		if (this.probeIterator.nextKey()) {
-			final K currKey = this.probeIterator.getCurrentKey();
+		final ProbeSideIterator<K, V> probeIter = this.probeIterator;
+		
+		while (probeIter.nextKey()) {
+			final K currKey = probeIter.getCurrentKey();
 			
 			final int hash = hash(currKey.hashCode(), this.currentRecursionDepth);
 			final int posHashCode = hash % this.numBuckets;
@@ -322,11 +330,33 @@ public class HashJoin<K extends Key, V extends Value>
 			final int partitionNumber = bucket.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
 			final Partition p = this.partitionsBeingBuilt.get(partitionNumber);
 			
-			this.bucketIterator.set(bucket, p.overflowSegments, p.partitionBuffers, currKey, hash, bucketInSegmentOffset);
-			return true;
+			// for an in-memory partition, process set the return iterators, else spill the probe records
+			if (p.isInMemory()) {
+				this.bucketIterator.set(bucket, p.overflowSegments, p.inMemoryBuffers, currKey, hash, bucketInSegmentOffset);
+				return true;
+			}
+			else {
+				while (probeIter.hasNext()) {
+					final KeyValuePair<K, V> nextPair = probeIter.nextPair();
+					p.insertIntoProbeBuffer(nextPair);
+				}
+			}
 		}
 		
-		// this partition is done!
+		// -------------- partition done ---------------
+		
+		// finalize and cleanup the partitions of the current table
+		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
+			Partition p = this.partitionsBeingBuilt.get(i);
+			p.finalizeProbePhase(this.availableMemory, this.partitionsPending);
+		}
+		this.partitionsBeingBuilt.clear();
+		
+		// release the table memory
+		releaseTable();
+		
+		// check if there are pending partitions
+		
 		return false;
 	}
 	
@@ -369,6 +399,11 @@ public class HashJoin<K extends Key, V extends Value>
 		clearPartitions();
 		
 		// clear the partitions that are still to be done (that have files on disk)
+		for (int i = 0; i < this.partitionsPending.size(); i++) {
+			final Partition p = this.partitionsPending.get(i);
+			p.buildSideChannel.deleteChannel();
+			p.buildSideChannel.deleteChannel();
+		}
 		
 		// return the write-behind buffers
 		for (int i = 0; i < this.numWriteBehindBuffers; i++) {
@@ -400,7 +435,7 @@ public class HashJoin<K extends Key, V extends Value>
 		if (partitionFanOut > MAX_NUM_PARTITIONS) {
 			throw new RuntimeException("Hash join created ");
 		}
-		createPartitions(partitionFanOut);
+		createPartitions(partitionFanOut, 0);
 		
 		// set up the table structure. the write behind buffers are taken away, as are one buffer per partition
 		final int numBuckets = getInitialTableSize(this.availableMemory.size(), this.segmentSize, 
@@ -418,7 +453,7 @@ public class HashJoin<K extends Key, V extends Value>
 		// finalize the partitions
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
 			Partition p = this.partitionsBeingBuilt.get(i);
-			p.finalizeBuildPhase();
+			p.finalizeBuildPhase(this.ioManager, this.currentEnumerator);
 		}
 	}
 	
@@ -448,7 +483,7 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		// --------- Step 1: Get the partition for this pair and put the pair into the buffer ---------
 		
-		long pointer = p.insertIntoBuffer(pair);
+		long pointer = p.insertIntoBuildBuffer(pair);
 		if (pointer == -1) {
 			// element was not written because the buffer was full. get the next buffer.
 			// if no buffer is available, we need to spill a partition
@@ -462,10 +497,10 @@ public class HashJoin<K extends Key, V extends Value>
 			}
 			
 			// add the buffer to the partition.
-			p.addBuffer(nextSeg);
+			p.addBuildSideBuffer(nextSeg);
 			
 			// retry to write into the buffer
-			pointer = p.insertIntoBuffer(pair);
+			pointer = p.insertIntoBuildBuffer(pair);
 			if (pointer == -1) {
 				// retry failed, throw an exception
 				throw new IOException("Record could not be added to fresh buffer. Probably cause: Record length exceeds buffer size limit.");
@@ -593,7 +628,7 @@ public class HashJoin<K extends Key, V extends Value>
 	/**
 	 * @param numPartitions
 	 */
-	protected void createPartitions(int numPartitions)
+	protected void createPartitions(int numPartitions, int recursionLevel)
 	{
 		// sanity check
 		if (this.availableMemory.size() < numPartitions) {
@@ -604,29 +639,54 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		this.partitionsBeingBuilt.clear();
 		for (int i = 0; i < numPartitions; i++) {
-			Partition p = new Partition(
+			Partition p = new Partition(i,recursionLevel,
 				this.availableMemory.remove(this.availableMemory.size() - 1),
 				this.writeBehindBuffers);
 			this.partitionsBeingBuilt.add(p);
 		}
 	}
 	
+	/**
+	 * This method clears all partitions currently residing (partially) in memory. It releases all memory
+	 * and deletes all spilled partitions.
+	 * <p>
+	 * This method is intended for a hard cleanup in the case that the join is aborted.
+	 */
 	protected void clearPartitions()
 	{
 		for (int i = this.partitionsBeingBuilt.size() - 1; i >= 0; --i)
 		{
 			Partition p = this.partitionsBeingBuilt.get(i);
-			this.availableMemory.add(p.currentPartitionBuffer);
-			p.currentPartitionBuffer = null;
+			if (p.currentPartitionBuffer != null) {
+				this.availableMemory.add(p.currentPartitionBuffer);
+				p.currentPartitionBuffer = null;
+			}
 			
 			// return the overflow segments
-			for (int k = 0; k < p.numOverflowSegments; k++) {
-				this.availableMemory.add(p.overflowSegments[k]);
+			if (p.overflowSegments != null) {
+				for (int k = 0; k < p.numOverflowSegments; k++) {
+					this.availableMemory.add(p.overflowSegments[k]);
+				}
 			}
 			
 			// return the partition buffers
-			for (int k = p.partitionBuffers.size() - 1; k >= 0; --k) {
-				this.availableMemory.add(p.partitionBuffers.get(k));
+			for (int k = p.inMemoryBuffers.size() - 1; k >= 0; --k) {
+				this.availableMemory.add(p.inMemoryBuffers.get(k));
+			}
+			
+			// clear the channels
+			try {
+				if (p.buildSideChannel != null) {
+					p.buildSideChannel.close();
+					p.buildSideChannel.deleteChannel();
+				}
+				if (p.probeSideChannel != null) {
+					p.probeSideChannel.close();
+					p.probeSideChannel.deleteChannel();
+				}
+			}
+			catch (IOException ioex) {
+				throw new RuntimeException("Error deleting the partition files. Some temporary files might not be removed.");
 			}
 		}
 		this.partitionsBeingBuilt.clear();
@@ -677,10 +737,12 @@ public class HashJoin<K extends Key, V extends Value>
 		// set the counters back
 		this.numBuckets = 0;
 		
-		for (int i = 0; i < this.buckets.length; i++) {
-			this.availableMemory.add(this.buckets[i]);
+		if (this.buckets != null) {
+			for (int i = 0; i < this.buckets.length; i++) {
+				this.availableMemory.add(this.buckets[i]);
+			}
+			this.buckets = null;
 		}
-		this.buckets = null;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -701,17 +763,14 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		for (int i = 0; i < partitions.size(); i++) {
 			Partition p = partitions.get(i);
-			if (p.isInMemory() && p.blockCounter > largestNumBlocks) {
-				largestNumBlocks = p.blockCounter;
+			if (p.isInMemory() && p.buildSideBlockCounter > largestNumBlocks) {
+				largestNumBlocks = p.buildSideBlockCounter;
 				largestPartNum = i;
 			}
 		}
 		final Partition p = partitions.get(largestPartNum);
 		
 		// spill the partition
-		if (this.currentEnumerator == null) {
-			this.currentEnumerator = this.ioManager.createChannelEnumerator();
-		}
 		int numBuffersFreed = p.spillPartition(this.availableMemory, this.ioManager, this.currentEnumerator.next());
 		this.writeBehindBuffersAvailable += numBuffersFreed;
 		
@@ -853,13 +912,17 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	public static final int hash(int code, int level)
 	{
+		final int rotation = level * 11;
+		
+		code = (code << rotation) | (code >>> -rotation);
+
 		code = (code + 0x7ed55d16) + (code << 12);
 		code = (code ^ 0xc761c23c) ^ (code >>> 19);
 		code = (code + 0x165667b1) + (code << 5);
 		code = (code + 0xd3a2646c) ^ (code << 9);
 		code = (code + 0xfd7046c5) + (code << 3);
 		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
-		return code >= 0 ? code : - (code + 1);
+		return code >= 0 ? code : -(code + 1);
 	}
 	
 	/**
@@ -874,14 +937,12 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	public static final int log2floor(int value) throws ArithmeticException
 	{
-		if (value == 0) {
+		if (value == 0)
 			throw new ArithmeticException("Logarithm of zero is undefined.");
-		}
 		
 		int log = 0;
-		while ((value = value >>> 1) != 0) {
+		while ((value = value >>> 1) != 0)
 			log++;
-		}
 		
 		return log;
 	}
@@ -896,25 +957,51 @@ public class HashJoin<K extends Key, V extends Value>
 	 * buffers that contain the records, or it may be spilled. In the latter case, it has only a single
 	 * partition buffer in which it collects records to be spilled once the block is full.
 	 */
-	private static final class Partition
+	/**
+	 *
+	 *
+	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+	 */
+	protected static final class Partition
 	{
-		private final ArrayList<MemorySegment> partitionBuffers;	// this partition's buffers
+		// --------------------------------- Table Structure Auxiliaries ------------------------------------
 		
-		private final LinkedBlockingQueue<Buffer.Output> bufferReturnQueue;	// queue to return write buffers
-		
-		private MemorySegment currentPartitionBuffer;
-		
-		private MemorySegment[] overflowSegments;
-		
-		private BlockChannelWriter spillingWriter;			// the channel writer, if partition is spilled
-		
-		private long recordCounter;							// number of records in this partition
-		
-		private int blockCounter;							// number of blocks in this partition
+		private MemorySegment[] overflowSegments;			// segments in which overflow buckets from the table structure are stored
 		
 		private int numOverflowSegments;					// the number of actual segments in the overflowSegments array
 		
 		private int nextOverflowBucket;						// the next free bucket in the current overflow segment
+	
+		// -------------------------------------- Record Buffers --------------------------------------------
+		
+		private MemorySegment currentPartitionBuffer;		// the partition buffer into which elements are put (build and probe side)
+		
+		private final ArrayList<MemorySegment> inMemoryBuffers;	// this partition's buffers
+		
+		// ------------------------------------------ Spilling ----------------------------------------------
+		
+		private BlockChannelWriter buildSideChannel;		// the channel writer for the build side, if partition is spilled
+		
+		private BlockChannelWriter probeSideChannel;		// the channel writer from the probe side, if partition is spilled
+		
+		private long buildSideRecordCounter;				// number of build-side records in this partition
+		
+		private long probeSideRecordCounter;				// number of probe-side records in this partition 
+		
+		private int buildSideBlockCounter;					// number of build-side blocks in this partition
+		
+		private int probeBlockCounter;						// number of probe-side blocks in this partition
+		
+		private final LinkedBlockingQueue<Buffer.Output> bufferReturnQueue;	// queue to return write buffers
+
+		// ----------------------------------------- General ------------------------------------------------
+		
+		private final int partitionNumber;					// the number of the partition
+		
+		private final int recursionLevel;					// the recursion level on which this partition lives
+		
+		
+		// --------------------------------------------------------------------------------------------------
 		
 		/**
 		 * Creates a new partition, initially in memory, with one buffer.
@@ -922,18 +1009,45 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @param initialBuffer The initial buffer for this partition.
 		 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 		 */
-		private Partition(MemorySegment initialBuffer, LinkedBlockingQueue<Buffer.Output> bufferReturnQueue)
+		private Partition(int partitionNumber, int recursionLevel,
+				MemorySegment initialBuffer, LinkedBlockingQueue<Buffer.Output> bufferReturnQueue)
 		{
-			this.partitionBuffers = new ArrayList<MemorySegment>(4);
+			this.partitionNumber = partitionNumber;
+			this.recursionLevel = recursionLevel;
+			
+			this.inMemoryBuffers = new ArrayList<MemorySegment>(4);
 			this.bufferReturnQueue = bufferReturnQueue;
-			this.recordCounter = 0;
-			this.blockCounter = 0;
+			this.buildSideRecordCounter = 0;
+			this.buildSideBlockCounter = 1;
 			
 			this.overflowSegments = new MemorySegment[2];
 			this.numOverflowSegments = 0;
 			this.nextOverflowBucket = 0;
 			
-			addBuffer(initialBuffer);
+			initBuffer(initialBuffer, 0);
+			this.currentPartitionBuffer = initialBuffer;
+		}
+
+		// --------------------------------------------------------------------------------------------------
+		
+		/**
+		 * Gets the partition number of this partition.
+		 * 
+		 * @return This partition's number.
+		 */
+		public int getPartitionNumber()
+		{
+			return this.partitionNumber;
+		}
+		
+		/**
+		 * Gets this partition's recursion level.
+		 * 
+		 * @return The partition's recursion level.
+		 */
+		public int getRecursionLevel()
+		{
+			return this.recursionLevel;
 		}
 		
 		/**
@@ -943,8 +1057,10 @@ public class HashJoin<K extends Key, V extends Value>
 		 */
 		public final boolean isInMemory()
 		{
-			return this.spillingWriter == null;
+			return this.buildSideChannel == null;
 		}
+		
+		// --------------------------------------------------------------------------------------------------
 		
 		/**
 		 * Inserts the given object into the current buffer. This method returns a pointer that
@@ -961,56 +1077,86 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @return A pointer to the object in the partition, or <code>-1</code>, if the partition buffers are full.
 		 * @throws IOException Thrown, when this is a spilled partition and the write failed.
 		 */
-		public final long insertIntoBuffer(IOReadableWritable object) throws IOException
+		public final long insertIntoBuildBuffer(IOReadableWritable object) throws IOException
 		{
+			final int offset = insertIntoCurrentBuffer(object);
+			
 			if (isInMemory())
 			{
-				final int bufferNum = this.blockCounter - 1;
-				final MemorySegment targetBuffer = this.currentPartitionBuffer;
-				final long pointer = (((long) bufferNum) << 32) | targetBuffer.outputView.getPosition();
-
-				try {
-					object.write(targetBuffer.outputView);
-					this.recordCounter++;
-					return pointer;
+				if (offset >= 0) {
+					this.buildSideRecordCounter++;
+					return (((long) (this.buildSideBlockCounter - 1)) << 32) | offset;
 				}
-				catch (IOException ioex) {
+				else {
 					// signal buffer full
 					return -1;
 				}
 			}
 			else {
 				// partition is a spilled partition
-				try {
-					object.write(this.currentPartitionBuffer.outputView);
-				}
-				catch (IOException ioex) {
-					final MemorySegment toSpill = this.currentPartitionBuffer;
-					this.currentPartitionBuffer = null;
-					
+				if (offset == -1) {
 					// buffer is full, send this buffer off
-					spillBuffer(toSpill);
+					spillBuffer(this.currentPartitionBuffer, this.buildSideChannel);
 					
 					// get a new one and insert the object
-					addBuffer(getNextWriteBehindBuffer());
+					this.currentPartitionBuffer = getNextWriteBehindBuffer();
+					initBuffer(this.currentPartitionBuffer, this.buildSideBlockCounter);
+					this.buildSideBlockCounter++;
 					
-					try {
-						object.write(this.currentPartitionBuffer.outputView);
-					}
-					catch (IOException iioex) {
+					if (insertIntoBuildBuffer(object) == -1) {
 						throw new IOException("Record could not be added to fresh buffer. " +
 								"Probably cause: Record length exceeds buffer size limit.");
 					}
 				}
 				
-				this.recordCounter++;
+				this.buildSideRecordCounter++;
 				return 0;
 			}
 		}
 		
-		public int getNumberOfMemoryBuffersHeld()
+		
+		public final void insertIntoProbeBuffer(IOReadableWritable object) throws IOException
 		{
-			return this.partitionBuffers.size() + this.numOverflowSegments;
+			final int offset = insertIntoCurrentBuffer(object);
+			if (offset == -1) {
+				// buffer is full, send this buffer off
+				spillBuffer(this.currentPartitionBuffer, this.probeSideChannel);
+				
+				// get a new one and insert the object
+				this.currentPartitionBuffer = getNextWriteBehindBuffer();
+				initBuffer(this.currentPartitionBuffer, this.probeBlockCounter);
+				this.probeBlockCounter++;
+				
+				if (insertIntoBuildBuffer(object) == -1) {
+					throw new IOException("Record could not be added to fresh buffer. " +
+							"Probably cause: Record length exceeds buffer size limit.");
+				}
+			}
+			
+			this.probeSideRecordCounter++;
+		}
+		
+		
+		private final int insertIntoCurrentBuffer(IOReadableWritable record)
+		{
+			final DataOutputView outView = this.currentPartitionBuffer.outputView;
+			final int startPos = this.currentPartitionBuffer.outputView.getPosition();
+			
+			// partition is a spilled partition
+			try {
+//				this.currentPartitionBuffer.outputView.skip(2);
+				record.write(outView);
+//				final int len = outView.getPosition() - startPos - 2;
+//				if (len > 0x7fff) {
+//					throw new RuntimeException("Record too long for serialization logic.");
+//				}
+//				this.currentPartitionBuffer.putShort(startPos, (short) len);
+				return startPos;
+			}
+			catch (IOException ioex) {
+				outView.setPosition(startPos);
+				return -1;
+			}
 		}
 		
 		/**
@@ -1019,22 +1165,16 @@ public class HashJoin<K extends Key, V extends Value>
 		 * 
 		 * @param segment The new buffer for this partition.
 		 */
-		public void addBuffer(MemorySegment segment)
+		public void addBuildSideBuffer(MemorySegment segment)
 		{
-			// write 4 bytes for the block number
-			segment.putInt(0, this.blockCounter);
-			
-			// skip 4 bytes for the remaining header
-			segment.outputView.setPosition(8);
+			initBuffer(segment, this.buildSideBlockCounter);
 			
 			// save the old buffer
-			if (this.currentPartitionBuffer != null) {
-				this.partitionBuffers.add(this.currentPartitionBuffer);
-			}
+			this.inMemoryBuffers.add(this.currentPartitionBuffer);
 			
 			// now add the buffer
 			this.currentPartitionBuffer = segment;
-			this.blockCounter++;
+			this.buildSideBlockCounter++;
 		}
 		
 		/**
@@ -1053,15 +1193,17 @@ public class HashJoin<K extends Key, V extends Value>
 				Channel.ID targetChannel)
 		throws IOException
 		{
+			// sanity checks
 			if (!isInMemory()) {
 				throw new RuntimeException("Bug in Hybrid Hash Join: " +
 						"Request to spill a partition that has already been spilled.");
 			}
-			if (this.blockCounter + this.numOverflowSegments < 2) {
+			if (this.buildSideBlockCounter + this.numOverflowSegments < 2) {
 				throw new RuntimeException("Bug in Hybrid Hash Join: " +
 					"Request to spill a partition with less than two buffers.");
 			}
 			
+			// return the memory from the overflow segments
 			for (int i = 0; i < this.numOverflowSegments; i++) {
 				target.add(this.overflowSegments[i]);
 			}
@@ -1070,28 +1212,96 @@ public class HashJoin<K extends Key, V extends Value>
 			this.nextOverflowBucket = 0;
 			
 			// create the channel block writer
-			this.spillingWriter = ioAccess.createBlockChannelWriter(targetChannel, this.bufferReturnQueue);
-			int numBlocks = this.partitionBuffers.size();
+			this.buildSideChannel = ioAccess.createBlockChannelWriter(targetChannel, this.bufferReturnQueue);
+			int numBlocks = this.inMemoryBuffers.size();
 			
 			// spill all blocks and release them
 			for (int i = 0; i < numBlocks; i++) {
-				spillBuffer(this.partitionBuffers.get(i));
+				spillBuffer(this.inMemoryBuffers.get(i), this.buildSideChannel);
 			}
-			this.partitionBuffers.clear();
+			this.inMemoryBuffers.clear();
 			
 			// we keep the block that is currently being filled, as it is most likely not full, yet
 			// return the number of blocks that become available
 			return numBlocks;
 		}
 		
-		public void finalizeBuildPhase()
+		
+		/**
+		 * @param spilledPartitions
+		 * @param ioAccess
+		 * @param probeChannelEnumerator
+		 * @throws IOException
+		 */
+		public void finalizeBuildPhase(IOManager ioAccess, Channel.Enumerator probeChannelEnumerator)
+		throws IOException
 		{
 			if (isInMemory()) {
-				this.partitionBuffers.add(this.currentPartitionBuffer);
+				this.inMemoryBuffers.add(this.currentPartitionBuffer);
 			}
 			else {
-				throw new RuntimeException("Spilled Partitions not supported!");
+				// spilled partition
+				// write the last buffer and close the channel
+				spillBuffer(this.currentPartitionBuffer, this.buildSideChannel);
+				this.buildSideChannel.close();
+				
+				// create the channel for the probe side and claim one buffer for it
+				this.probeSideChannel = ioAccess.createBlockChannelWriter(probeChannelEnumerator.next(), this.bufferReturnQueue);
+				this.currentPartitionBuffer = getNextWriteBehindBuffer();
+				initBuffer(this.currentPartitionBuffer, 0);
+				this.probeBlockCounter = 1;
 			}
+		}
+		
+		/**
+		 * @param freeMemory
+		 * @param spilledPartitions
+		 * @throws IOException
+		 */
+		public void finalizeProbePhase(List<MemorySegment> freeMemory, List<Partition> spilledPartitions)
+		throws IOException
+		{
+			if (isInMemory()) {
+				// in this case, return all memory buffers
+				freeMemory.add(this.currentPartitionBuffer);
+				this.currentPartitionBuffer = null;
+				
+				// return the overflow segments
+				if (this.overflowSegments != null) {
+					for (int k = 0; k < this.numOverflowSegments; k++) {
+						freeMemory.add(this.overflowSegments[k]);
+					}
+				}
+				
+				// return the partition buffers
+				for (int k = this.inMemoryBuffers.size() - 1; k >= 0; --k) {
+					freeMemory.add(this.inMemoryBuffers.get(k));
+				}
+				this.inMemoryBuffers.clear();
+			}
+			else {
+				// flush the last probe side buffer and register this partition as pending
+				spillBuffer(this.currentPartitionBuffer, this.probeSideChannel);
+				this.probeSideChannel.close();
+				
+				spilledPartitions.add(this);
+			}
+		}
+		
+		/**
+		 * Initializes a memory segment to be used as a record buffer for the hash table. This method
+		 * records the block sequence number and reserves header space.
+		 * 
+		 * @param segment The segment to be initialized.
+		 * @param blockNumber The sequence number of the block in the collection of blocks.
+		 */
+		private final void initBuffer(MemorySegment segment, int blockNumber)
+		{
+			// write 4 bytes for the block number
+			segment.putInt(0, blockNumber);
+			
+			// skip 4 bytes for the remaining header
+			segment.outputView.setPosition(8);
 		}
 		
 		/**
@@ -1100,11 +1310,11 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @param buffer
 		 * @throws IOException
 		 */
-		private final void spillBuffer(MemorySegment buffer)
+		private final void spillBuffer(MemorySegment buffer, BlockChannelWriter writer)
 		throws IOException
 		{
 			buffer.putInt(4, buffer.outputView.getPosition());
-			this.spillingWriter.writeBlock(new Buffer.Output(buffer));
+			writer.writeBlock(new Buffer.Output(buffer));
 		}
 		
 		/**
@@ -1127,6 +1337,10 @@ public class HashJoin<K extends Key, V extends Value>
 	} // end partition 
 	
 	
+	
+	/**
+	 *
+	 */
 	public static final class HashBucketIterator<K extends Key, V extends Value>
 	{
 		private MemorySegment bucket;
@@ -1222,15 +1436,16 @@ public class HashJoin<K extends Key, V extends Value>
 	} // end HashBucketIterator
 	
 
+	/**
+	 *
+	 */
 	protected static final class ProbeSideIterator<K extends Key, V extends Value> implements Iterator<V>
 	{
 		private final Iterator<KeyValuePair<K, V>> source;
 		
 		private K currentKey;
 		
-		private K nextKey;
-		
-		private V nextValue;
+		private KeyValuePair<K, V> nextPair;
 		
 		private boolean nextIsNewKey;
 		
@@ -1246,7 +1461,7 @@ public class HashJoin<K extends Key, V extends Value>
 		protected boolean nextKey()
 		{
 			if (this.nextIsNewKey) {
-				this.currentKey = this.nextKey;
+				this.currentKey = this.nextPair.getKey();
 				this.nextIsNewKey = false;
 				return true;
 			}
@@ -1257,15 +1472,13 @@ public class HashJoin<K extends Key, V extends Value>
 				if (!key.equals(this.currentKey)) {
 					// reached next key
 					this.currentKey = key;
-					this.nextKey = key;
-					this.nextValue = nextPair.getValue();
+					this.nextPair = nextPair;
 					return true;
 				}
 			}
 			
 			this.currentKey = null;
-			this.nextKey = null;
-			this.nextValue = null;
+			this.nextPair = null;
 			return false;
 		}
 		
@@ -1283,14 +1496,13 @@ public class HashJoin<K extends Key, V extends Value>
 			if (this.nextIsNewKey) {
 				return false;
 			}
-			else if (this.nextKey != null) {
+			else if (this.nextPair != null) {
 				return true;
 			}
 			else if (this.source.hasNext()) {
 				final KeyValuePair<K, V> nextPair = this.source.next();
 				final K key = nextPair.getKey();
-				this.nextKey = key;
-				this.nextValue = nextPair.getValue();
+				this.nextPair = nextPair;
 				
 				if (key.equals(this.currentKey)) {
 					return true;
@@ -1312,10 +1524,9 @@ public class HashJoin<K extends Key, V extends Value>
 		@Override
 		public V next()
 		{
-			if (!this.nextIsNewKey && (this.nextKey != null || hasNext())) {
-				final V next = this.nextValue;
-				this.nextKey = null;
-				this.nextValue = null;
+			if (!this.nextIsNewKey && (this.nextPair != null || hasNext())) {
+				final V next = this.nextPair.getValue();
+				this.nextPair = null;
 				return next;
 			}
 			else {
@@ -1330,6 +1541,18 @@ public class HashJoin<K extends Key, V extends Value>
 		public void remove()
 		{
 			throw new UnsupportedOperationException();
+		}
+		
+		public KeyValuePair<K, V> nextPair()
+		{
+			if (!this.nextIsNewKey && (this.nextPair != null || hasNext())) {
+				final KeyValuePair<K, V> next = this.nextPair;
+				this.nextPair = null;
+				return next;
+			}
+			else {
+				throw new NoSuchElementException();
+			}
 		}
 		
 	} // end ProbeSideIterator

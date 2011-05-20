@@ -98,11 +98,15 @@ public class HashJoinTest
 	@Test
 	public void testInMemoryHashJoin() throws IOException
 	{
+		final int NUM_KEYS = 100000;
+		final int BUILD_VALS_PER_KEY = 3;
+		final int PROBE_VALS_PER_KEY = 10;
+		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(100000, 3, false);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(100000, 10, true);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 		
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -139,20 +143,17 @@ public class HashJoinTest
 				numProbeValues++;
 				probeIter.next();
 			}
-			Assert.assertEquals("Wrong number of values from probe-side for a key", 10, numProbeValues);
+			Assert.assertEquals("Wrong number of values from probe-side for a key", PROBE_VALS_PER_KEY, numProbeValues);
 			
 			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(pair)) {
 				numBuildValues++;
 			}
 			
-			if (3 != numBuildValues) {
-				System.out.println("prob");
-			}
-			
-			Assert.assertEquals("Wrong number of values from build-side for a key", 3, numBuildValues);
+			Assert.assertEquals("Wrong number of values from build-side for a key", BUILD_VALS_PER_KEY, numBuildValues);
 			
 		}
+		Assert.assertEquals("Wrong number of keys", NUM_KEYS, numKeys);
 		
 		join.close();
 		
@@ -174,11 +175,15 @@ public class HashJoinTest
 	@Test
 	public void testSpillingHashJoinOneRecursion() throws IOException
 	{
+		final int NUM_KEYS = 1000000;
+		final int BUILD_VALS_PER_KEY = 3;
+		final int PROBE_VALS_PER_KEY = 10;
+		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(1000000, 3, false);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(1000000, 10, true);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 		
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -215,20 +220,16 @@ public class HashJoinTest
 				numProbeValues++;
 				probeIter.next();
 			}
-			Assert.assertEquals("Wrong number of values from probe-side for a key", 10, numProbeValues);
+			Assert.assertEquals("Wrong number of values from probe-side for a key", PROBE_VALS_PER_KEY, numProbeValues);
 			
 			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(pair)) {
 				numBuildValues++;
 			}
 			
-			if (3 != numBuildValues) {
-				System.out.println("prob");
-			}
-			
-			Assert.assertEquals("Wrong number of values from build-side for a key", 3, numBuildValues);
-			
+			Assert.assertEquals("Wrong number of values from build-side for a key", BUILD_VALS_PER_KEY, numBuildValues);	
 		}
+//		Assert.assertEquals("Wrong number of keys", NUM_KEYS, numKeys);
 		
 		join.close();
 		

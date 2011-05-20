@@ -152,21 +152,7 @@ public class MultiLevelHashITCase {
 
 class MultiLevelHashTester {
 
-	private static final Log LOG = LogFactory
-			.getLog(MultiLevelHashTester.class);
-
-	static int hash(int code, int level) {
-		// TODO use hash function from pact code
-		code = Integer.rotateLeft(code, level * 11);
-
-		code = (code + 0x7ed55d16) + (code << 12);
-		code = (code ^ 0xc761c23c) ^ (code >>> 19);
-		code = (code + 0x165667b1) + (code << 5);
-		code = (code + 0xd3a2646c) ^ (code << 9);
-		code = (code + 0xfd7046c5) + (code << 3);
-		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
-		return code >= 0 ? code : -(code + 1);
-	}
+	private static final Log LOG = LogFactory.getLog(MultiLevelHashTester.class);
 
 	private final int maxLevel;
 	private final Iterator<Integer> importIterator;
@@ -266,7 +252,7 @@ class MultiLevelHashTester {
 			HashMap<Integer, Object> mapForCurrentLevel = rootMap;
 
 			for (int i = 0; i < maxLevel - 1; i++) {
-				int hashValue = hash(nextValue, i);
+				int hashValue = HashJoin.hash(nextValue, i);
 				int bucket = rangeCalculators[i].getBucket(hashValue);
 				Object nextObject = mapForCurrentLevel.get(bucket);
 				if (nextObject == null) {
@@ -279,7 +265,7 @@ class MultiLevelHashTester {
 				}
 			}
 
-			int lastHashValue = hash(nextValue, maxLevel - 1);
+			int lastHashValue = HashJoin.hash(nextValue, maxLevel - 1);
 			int deepestBucketNr = rangeCalculators[maxLevel - 1]
 					.getBucket(lastHashValue);
 			Object countOnDeepestLevel = mapForCurrentLevel
