@@ -2,16 +2,14 @@ package eu.stratosphere.sopremo.operator;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.ElementExpression;
-import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ElementExpression.Quantor;
+import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 
 public class JoinTest extends SopremoTest {
 
@@ -21,7 +19,7 @@ public class JoinTest extends SopremoTest {
 
 		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
-		Join join = new Join(Transformation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputOperators(join);
 
 		sopremoPlan.getInput(0).
@@ -52,7 +50,7 @@ public class JoinTest extends SopremoTest {
 
 		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
-		Join join = new Join(Transformation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperator(0));
 		sopremoPlan.getOutputOperator(0).setInputOperators(join);
@@ -87,7 +85,7 @@ public class JoinTest extends SopremoTest {
 
 		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
-		Join join = new Join(Transformation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperator(1));
 		sopremoPlan.getOutputOperator(0).setInputOperators(join);
@@ -123,7 +121,7 @@ public class JoinTest extends SopremoTest {
 
 		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
-		Join join = new Join(Transformation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputOperators(join);
@@ -161,7 +159,7 @@ public class JoinTest extends SopremoTest {
 
 		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.LESS, createPath("1",
 			"userid")));
-		Join join = new Join(Transformation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputOperators(join);
@@ -201,9 +199,9 @@ public class JoinTest extends SopremoTest {
 	public void shouldPerformAntiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Condition condition = new Condition(new ElementExpression(createPath("0", "DeptName"), Quantor.EXISTS_NOT_IN,
+		Condition condition = new Condition(new ElementInSetExpression(createPath("0", "DeptName"), Quantor.EXISTS_NOT_IN,
 			createPath("1", "Name")));
-		Join join = new Join(Transformation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputOperators(join);
@@ -227,9 +225,9 @@ public class JoinTest extends SopremoTest {
 	public void shouldPerformSemiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Condition condition = new Condition(new ElementExpression(createPath("0", "DeptName"), Quantor.EXISTS_IN,
+		Condition condition = new Condition(new ElementInSetExpression(createPath("0", "DeptName"), Quantor.EXISTS_IN,
 			createPath("1", "Name")));
-		Join join = new Join(Transformation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputOperators(join);

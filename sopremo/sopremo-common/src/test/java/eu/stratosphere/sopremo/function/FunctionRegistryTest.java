@@ -15,88 +15,89 @@ import eu.stratosphere.sopremo.JsonUtils;
 
 public class FunctionRegistryTest {
 	private FunctionRegistry registry;
+
 	private EvaluationContext context;
 
 	@Before
 	public void setup() {
-		context = new EvaluationContext();
-		registry = context.getFunctionRegistry();
+		this.context = new EvaluationContext();
+		this.registry = this.context.getFunctionRegistry();
 	}
 
 	@Test
 	public void shouldAddJavaFunctions() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
-		Assert.assertEquals("should have been 2 functions", 2, registry.getRegisteredFunctions().size());
-		for (Function function : registry.getRegisteredFunctions().values())
+		Assert.assertEquals("should have been 2 functions", 2, this.registry.getRegisteredFunctions().size());
+		for (Function function : this.registry.getRegisteredFunctions().values())
 			Assert.assertEquals("should have been a java function", JavaFunction.class, function.getClass());
 
-		Assert.assertEquals("should have been 5 count signatures", 5, ((JavaFunction) registry.getFunction("count"))
+		Assert.assertEquals("should have been 5 count signatures", 5, ((JavaFunction) this.registry.getFunction("count"))
 			.getSignatures().size());
-		Assert.assertEquals("should have been 1 sum signatures", 1, ((JavaFunction) registry.getFunction("sum"))
+		Assert.assertEquals("should have been 1 sum signatures", 1, ((JavaFunction) this.registry.getFunction("sum"))
 			.getSignatures().size());
 	}
 
 	@Test
 	public void shouldInvokeExactMatchingJavaFunction() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(TWO_INT_NODE,
-			registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2)), context));
+			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
+				JsonUtils.NODE_FACTORY.numberNode(2)), this.context));
 	}
 
 	@Test
 	public void shouldInvokeArrayJavaFunctionForArrayNode() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
-		Assert.assertSame(ARRAY_NODE, registry.evaluate("count", JsonUtils.NODE_FACTORY.arrayNode(), context));
+		Assert.assertSame(ARRAY_NODE, this.registry.evaluate("count", JsonUtils.NODE_FACTORY.arrayNode(), this.context));
 	}
 
 	@Test
 	public void shouldInvokeMostSpecificVarargJavaFunction() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(ONE_INT_VARARG_NODE,
-			registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.numberNode(3)), context));
+			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
+				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.numberNode(3)), this.context));
 		Assert.assertSame(ONE_INT_VARARG_NODE,
-			registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1)), context));
+			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1)), this.context));
 	}
 
 	@Test
 	public void shouldInvokeFallbackJavaFunction() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
-		Assert.assertSame(GENERIC_NODE, registry.evaluate("count", JsonUtils.NODE_FACTORY.objectNode(), context));
+		Assert.assertSame(GENERIC_NODE, this.registry.evaluate("count", JsonUtils.NODE_FACTORY.objectNode(), this.context));
 	}
 
 	@Test
 	public void shouldInvokeGenericVarargJavaFunctionsIfNoExactMatch() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(GENERIC_VARARG_NODE,
-			registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.objectNode(),
-				JsonUtils.NODE_FACTORY.objectNode(), JsonUtils.NODE_FACTORY.objectNode()), context));
+			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.objectNode(),
+				JsonUtils.NODE_FACTORY.objectNode(), JsonUtils.NODE_FACTORY.objectNode()), this.context));
 	}
 
 	@Test
 	public void shouldInvokeDerivedVarargJavaFunction() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(SUM_NODE,
-			registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.numberNode(3)), context));
+			this.registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
+				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.numberNode(3)), this.context));
 		Assert.assertSame(SUM_NODE,
-			registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1)), context));
+			this.registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1)), this.context));
 	}
 
 	@Test(expected = EvaluationException.class)
 	public void shouldFailIfNoApproporiateMatchingJavaFunction() {
-		registry.register(JavaFunctions.class);
+		this.registry.register(JavaFunctions.class);
 
-		registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.textNode("3")), context);
+		this.registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
+				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.textNode("3")), this.context);
 	}
 
 	private static final JsonNode GENERIC_VARARG_NODE = JsonUtils.NODE_FACTORY.textNode("var");

@@ -25,15 +25,14 @@ import com.ibm.jaql.lang.expr.path.PathExpr;
 import com.ibm.jaql.lang.expr.path.PathFieldValue;
 import com.ibm.jaql.lang.expr.path.PathReturn;
 
+import eu.stratosphere.dag.DAGPrinter;
 import eu.stratosphere.dag.Navigator;
-import eu.stratosphere.dag.Printer;
 import eu.stratosphere.simple.jaql.rewrite.RewriteEngine;
-import eu.stratosphere.sopremo.Condition;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.PlanCreator;
+import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.Transformation;
 
 public class QueryParser extends PlanCreator {
 
@@ -77,7 +76,7 @@ public class QueryParser extends PlanCreator {
 		}
 	}
 
-	static class ExprPrinter extends Printer<Expr> {
+	static class ExprPrinter extends DAGPrinter<Expr> {
 
 		private static final class PartialExprNavigator implements Navigator<Expr> {
 			private List<Expr> getChildren(Expr node) {
@@ -120,7 +119,7 @@ public class QueryParser extends PlanCreator {
 
 	private ConditionParser conditionParser = new ConditionParser(this);
 
-	private TransformationParser transformationParser = new TransformationParser(this);
+	private ObjectCreationParser objectCreationParser = new ObjectCreationParser(this);
 
 	private SopremoPlan convert(Expr expr) {
 		// System.out.println(new ExprPrinter(expr).toString(new DirectedAcyclicGraphPrinter.NodePrinter<Expr>() {
@@ -187,8 +186,8 @@ public class QueryParser extends PlanCreator {
 		return expr;
 	}
 
-	Transformation parseTransformation(Expr expr) {
-		return this.transformationParser.parse(expr);
+	EvaluableExpression parseObjectCreation(Expr expr) {
+		return this.objectCreationParser.parse(expr);
 	}
 
 }

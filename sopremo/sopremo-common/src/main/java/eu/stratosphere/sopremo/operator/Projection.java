@@ -17,7 +17,7 @@ public class Projection extends Operator {
 		@Override
 		public void map(PactNull key, PactJsonObject value, Collector<Key, PactJsonObject> out) {
 			out.collect(key,
-				new PactJsonObject(this.getTransformation().evaluate(value.getValue(), getContext())));
+				new PactJsonObject(this.getTransformation().evaluate(value.getValue(), this.getContext())));
 		}
 	}
 

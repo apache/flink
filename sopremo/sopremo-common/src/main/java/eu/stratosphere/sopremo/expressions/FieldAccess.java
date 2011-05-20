@@ -36,9 +36,9 @@ public class FieldAccess extends EvaluableExpression {
 
 					@Override
 					protected JsonNode loadNext() {
-						if (!children.hasNext())
-							return noMoreElements();
-						return children.next().get(field);
+						if (!this.children.hasNext())
+							return this.noMoreElements();
+						return this.children.next().get(FieldAccess.this.field);
 					}
 				});
 			// spread

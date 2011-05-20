@@ -1,16 +1,10 @@
 package eu.stratosphere.sopremo.expressions;
 
 import java.util.Arrays;
-import java.util.Iterator;
-
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-
 import eu.stratosphere.sopremo.Evaluable;
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
-import eu.stratosphere.sopremo.function.BuiltinFunctions;
 
 public class FunctionCall extends EvaluableExpression {
 
@@ -38,9 +32,9 @@ public class FunctionCall extends EvaluableExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		// System.err.println("undefined function " + this.name);
-		JsonNode[] params = new JsonNode[paramExprs.length];
+		JsonNode[] params = new JsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
-			params[index] = paramExprs[index].evaluate(node, context);
+			params[index] = this.paramExprs[index].evaluate(node, context);
 		// if (name.equals("count"))
 		// return BuiltinFunctions.count(JsonUtils.asArray(params));
 		// if (name.equals("sum"))
@@ -48,7 +42,7 @@ public class FunctionCall extends EvaluableExpression {
 		//
 		// throw new EvaluationException("undefined function " + this.name);
 
-		return context.getFunctionRegistry().evaluate(name, JsonUtils.asArray(params), context);
+		return context.getFunctionRegistry().evaluate(this.name, JsonUtils.asArray(params), context);
 	}
 
 	//

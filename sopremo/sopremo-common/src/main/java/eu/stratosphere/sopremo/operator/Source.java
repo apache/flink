@@ -8,7 +8,8 @@ import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 public class Source extends Operator {
 	private String inputName;
@@ -18,13 +19,13 @@ public class Source extends Operator {
 	private Evaluable adhocValue;
 
 	public Source(DataType type, String inputName) {
-		super(Transformation.IDENTITY);
+		super(EvaluableExpression.IDENTITY);
 		this.inputName = inputName;
 		this.type = type;
 	}
 
 	public Source(Evaluable adhocValue) {
-		super(Transformation.IDENTITY);
+		super(EvaluableExpression.IDENTITY);
 		this.adhocValue = adhocValue;
 		this.type = DataType.ADHOC;
 	}

@@ -10,8 +10,7 @@ import org.codehaus.jackson.node.BooleanNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-
-public class ElementExpression extends BooleanExpression {
+public class ElementInSetExpression extends BooleanExpression {
 	public static enum Quantor {
 		EXISTS_IN, EXISTS_NOT_IN {
 			@Override
@@ -32,7 +31,7 @@ public class ElementExpression extends BooleanExpression {
 
 	private Quantor quantor;
 
-	public ElementExpression(Evaluable elementExpr, Quantor quantor, Evaluable setExpr) {
+	public ElementInSetExpression(Evaluable elementExpr, Quantor quantor, Evaluable setExpr) {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
@@ -57,26 +56,28 @@ public class ElementExpression extends BooleanExpression {
 	// }
 
 	public Evaluable getElementExpr() {
-		return elementExpr;
+		return this.elementExpr;
 	}
 
 	public Evaluable getSetExpr() {
-		return setExpr;
+		return this.setExpr;
 	}
 
 	public Quantor getQuantor() {
-		return quantor;
+		return this.quantor;
 	}
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return quantor.evaluate(this.elementExpr.evaluate(node, context), this.asIterator(this.setExpr.evaluate(node, context)));
+		return this.quantor.evaluate(this.elementExpr.evaluate(node, context),
+			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, context)));
 	}
-//
-//	@Override
-//	public JsonNode evaluate(JsonNode... nodes) {
-//		return quantor.evaluate(this.elementExpr.evaluate(nodes), this.asIterator(this.setExpr.evaluate(nodes)));
-//	}
+
+	//
+	// @Override
+	// public JsonNode evaluate(JsonNode... nodes) {
+	// return quantor.evaluate(this.elementExpr.evaluate(nodes), this.asIterator(this.setExpr.evaluate(nodes)));
+	// }
 
 	static Iterator<JsonNode> asIterator(JsonNode evaluate) {
 		if (evaluate instanceof ArrayNode)

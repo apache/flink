@@ -37,12 +37,12 @@ public class JavaFunction extends Function {
 		public int hashCode() {
 			final int prime = 31;
 			int result = 1;
-			result = prime * result + Arrays.hashCode(parameterTypes);
+			result = prime * result + Arrays.hashCode(this.parameterTypes);
 			return result;
 		}
 
 		public Class<?>[] getParameterTypes() {
-			return parameterTypes;
+			return this.parameterTypes;
 		}
 
 		@Override
@@ -51,15 +51,15 @@ public class JavaFunction extends Function {
 				return true;
 			if (obj == null)
 				return false;
-			if (getClass() != obj.getClass())
+			if (this.getClass() != obj.getClass())
 				return false;
 			Signature other = (Signature) obj;
-			return Arrays.equals(parameterTypes, other.parameterTypes);
+			return Arrays.equals(this.parameterTypes, other.parameterTypes);
 		}
 
 		public int getDistance(Signature actualSignature, Method method) {
 			Class<?>[] actualParamTypes = actualSignature.parameterTypes;
-			int nonVarArgs = parameterTypes.length;
+			int nonVarArgs = this.parameterTypes.length;
 			if (method.isVarArgs())
 				nonVarArgs--;
 			if (!method.isVarArgs() && nonVarArgs != actualParamTypes.length)
@@ -69,13 +69,13 @@ public class JavaFunction extends Function {
 
 			int distance = 0;
 			for (int index = 0; index < nonVarArgs; index++) {
-				if (!parameterTypes[index].isAssignableFrom(actualParamTypes[index]))
+				if (!this.parameterTypes[index].isAssignableFrom(actualParamTypes[index]))
 					return NO_MATCH;
-				distance += ReflectUtil.getDistance(parameterTypes[index], actualParamTypes[index]);
+				distance += ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
 			}
 
 			if (method.isVarArgs() && nonVarArgs < actualParamTypes.length) {
-				Class<?> varargType = parameterTypes[nonVarArgs].getComponentType();
+				Class<?> varargType = this.parameterTypes[nonVarArgs].getComponentType();
 				for (int index = nonVarArgs; index < actualParamTypes.length; index++) {
 					if (!varargType.isAssignableFrom(actualParamTypes[index]))
 						return NO_MATCH;
@@ -89,7 +89,7 @@ public class JavaFunction extends Function {
 		@Override
 		public String toString() {
 			StringBuilder builder = new StringBuilder();
-			builder.append("(").append(Arrays.toString(parameterTypes)).append(")");
+			builder.append("(").append(Arrays.toString(this.parameterTypes)).append(")");
 			return builder.toString();
 		}
 	}
@@ -105,21 +105,21 @@ public class JavaFunction extends Function {
 	}
 
 	public Collection<Signature> getSignatures() {
-		return originalSignatures.keySet();
+		return this.originalSignatures.keySet();
 	}
 
 	public void addSignature(Method method) {
-		originalSignatures.put(new Signature(method.getParameterTypes()), method);
+		this.originalSignatures.put(new Signature(method.getParameterTypes()), method);
 		// might be more intelligent in the future
 		// how often are method signatures actually added after first invocation?
-		cachedSignatures.clear();
-		cachedSignatures.putAll(originalSignatures);
+		this.cachedSignatures.clear();
+		this.cachedSignatures.putAll(this.originalSignatures);
 	}
 
 	private void writeObject(ObjectOutputStream oos) throws IOException {
 		oos.defaultWriteObject();
-		oos.writeInt(originalSignatures.size());
-		for (Entry<Signature, Method> entry : originalSignatures.entrySet()) {
+		oos.writeInt(this.originalSignatures.size());
+		for (Entry<Signature, Method> entry : this.originalSignatures.entrySet()) {
 			oos.writeObject(entry.getKey());
 			oos.writeObject(entry.getValue().getDeclaringClass());
 			oos.writeObject(entry.getValue().getParameterTypes());
@@ -130,27 +130,26 @@ public class JavaFunction extends Function {
 	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
 		ois.defaultReadObject();
 		int size = ois.readInt();
-		cachedSignatures = new HashMap<Signature, Method>();
-		originalSignatures = new HashMap<Signature, Method>();
-		for (int index = 0; index < size; index++) {
+		this.cachedSignatures = new HashMap<Signature, Method>();
+		this.originalSignatures = new HashMap<Signature, Method>();
+		for (int index = 0; index < size; index++)
 			try {
-				originalSignatures.put((Signature) ois.readObject(),
-					((Class<?>) ois.readObject()).getDeclaredMethod(getName(), (Class<?>[]) ois.readObject()));
+				this.originalSignatures.put((Signature) ois.readObject(),
+					((Class<?>) ois.readObject()).getDeclaredMethod(this.getName(), (Class<?>[]) ois.readObject()));
 			} catch (NoSuchMethodException e) {
-				throw new EvaluationException("Cannot find registered java function " + getName(), e);
+				throw new EvaluationException("Cannot find registered java function " + this.getName(), e);
 			}
-		}
 	}
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		JsonNode[] params = getParams(node);
-		Class<?>[] paramTypes = getParamTypes(params);
-		Method method = findBestMethod(new Signature(paramTypes));
+		JsonNode[] params = this.getParams(node);
+		Class<?>[] paramTypes = this.getParamTypes(params);
+		Method method = this.findBestMethod(new Signature(paramTypes));
 		if (method == null)
-			throw new EvaluationException(String.format("No method %s found for parameter types %s", getName(),
+			throw new EvaluationException(String.format("No method %s found for parameter types %s", this.getName(),
 				Arrays.toString(paramTypes)));
-		return invoke(method, params);
+		return this.invoke(method, params);
 	}
 
 	public JsonNode invoke(Method method, JsonNode[] paramNodes) {
@@ -170,7 +169,7 @@ public class JavaFunction extends Function {
 			}
 			return (JsonNode) method.invoke(null, params);
 		} catch (Exception e) {
-			throw new EvaluationException("Cannot invoke " + getName() + " with " + Arrays.toString(paramNodes), e);
+			throw new EvaluationException("Cannot invoke " + this.getName() + " with " + Arrays.toString(paramNodes), e);
 		}
 	}
 
@@ -194,14 +193,14 @@ public class JavaFunction extends Function {
 	}
 
 	private Method findBestMethod(Signature signature) {
-		Method method = cachedSignatures.get(signature);
+		Method method = this.cachedSignatures.get(signature);
 		if (method != null)
 			return method;
 
 		int minDistance = NO_MATCH;
 		boolean ambiguous = false;
 		Signature bestSignatureSoFar = null;
-		for (Entry<Signature, Method> originalSignature : originalSignatures.entrySet()) {
+		for (Entry<Signature, Method> originalSignature : this.originalSignatures.entrySet()) {
 			int distance = originalSignature.getKey().getDistance(signature, originalSignature.getValue());
 			if (distance < minDistance) {
 				minDistance = distance;
@@ -215,23 +214,23 @@ public class JavaFunction extends Function {
 			return null;
 
 		if (ambiguous && LOG.isWarnEnabled())
-			warnForAmbiguity(signature, minDistance);
+			this.warnForAmbiguity(signature, minDistance);
 
-		method = minDistance == NO_MATCH ? null : originalSignatures.get(bestSignatureSoFar);
-		cachedSignatures.put(bestSignatureSoFar, method);
+		method = minDistance == NO_MATCH ? null : this.originalSignatures.get(bestSignatureSoFar);
+		this.cachedSignatures.put(bestSignatureSoFar, method);
 		return method;
 	}
 
 	private void warnForAmbiguity(Signature signature, int minDistance) {
 		List<Signature> ambigiousSignatures = new ArrayList<Signature>();
 
-		for (Entry<Signature, Method> originalSignature : originalSignatures.entrySet()) {
+		for (Entry<Signature, Method> originalSignature : this.originalSignatures.entrySet()) {
 			int distance = originalSignature.getKey().getDistance(signature, originalSignature.getValue());
 			if (distance == minDistance)
 				ambigiousSignatures.add(originalSignature.getKey());
 		}
 
 		LOG.warn(String.format("multiple matching signatures found for the method %s and parameters types %s: %s",
-			getName(), Arrays.toString(signature.getParameterTypes()), ambigiousSignatures));
+			this.getName(), Arrays.toString(signature.getParameterTypes()), ambigiousSignatures));
 	}
 }

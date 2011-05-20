@@ -14,14 +14,14 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 	}
 
 	protected boolean isInitialized() {
-		return initialized;
+		return this.initialized;
 	}
-	
+
 	@Override
 	public boolean hasNext() {
 		if (!this.initialized) {
 			this.currentValue = this.loadNext();
-			initialized = true;
+			this.initialized = true;
 		}
 		return this.hasNext;
 	}
@@ -37,7 +37,7 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 			throw new NoSuchElementException();
 		if (!this.initialized) {
 			this.currentValue = this.loadNext();
-			initialized = true;
+			this.initialized = true;
 		}
 
 		T value = this.currentValue;

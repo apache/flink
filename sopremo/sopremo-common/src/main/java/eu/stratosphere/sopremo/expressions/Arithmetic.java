@@ -191,7 +191,8 @@ public class Arithmetic extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return this.operator.evaluate((NumericNode) this.op1.evaluate(node, context), (NumericNode) this.op2.evaluate(node, context));
+		return this.operator.evaluate((NumericNode) this.op1.evaluate(node, context),
+			(NumericNode) this.op2.evaluate(node, context));
 	}
 
 	@Override

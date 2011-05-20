@@ -24,9 +24,8 @@ public class StreamArray extends ContainerNode {
 	public StreamArray(Iterator<JsonNode> nodes) {
 		super(null);
 		// this.nodes = nodes;
-		while (nodes.hasNext()) {
+		while (nodes.hasNext())
 			this.nodes.add(nodes.next());
-		}
 	}
 
 	/*
@@ -52,12 +51,12 @@ public class StreamArray extends ContainerNode {
 
 	@Override
 	public Iterator<JsonNode> getElements() {
-		return nodes.iterator();
+		return this.nodes.iterator();
 	}
 
 	@Override
 	public JsonNode get(int index) {
-		return nodes.get(index);
+		return this.nodes.get(index);
 	}
 
 	@Override
@@ -85,7 +84,7 @@ public class StreamArray extends ContainerNode {
 	public final void serialize(JsonGenerator jg, SerializerProvider provider)
 			throws IOException, JsonProcessingException {
 		jg.writeStartArray();
-		for (JsonNode node : nodes)
+		for (JsonNode node : this.nodes)
 			((BaseJsonNode) node).writeTo(jg);
 		// while (nodes.hasNext())
 		// ((BaseJsonNode) nodes.next()).writeTo(jg);
@@ -141,6 +140,6 @@ public class StreamArray extends ContainerNode {
 
 	@Override
 	public boolean equals(Object o) {
-		return false;
+		return o == this;
 	}
 }

@@ -25,18 +25,17 @@ import eu.stratosphere.reflect.TypeHandler;
 import eu.stratosphere.reflect.TypeHandlerListener;
 import eu.stratosphere.reflect.TypeSpecificHandler;
 import eu.stratosphere.simple.jaql.QueryParser.Binding;
-import eu.stratosphere.sopremo.BooleanExpression;
-import eu.stratosphere.sopremo.Comparison;
-import eu.stratosphere.sopremo.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.Condition;
-import eu.stratosphere.sopremo.Condition.Combination;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.Comparison;
+import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.Condition.Combination;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Mapping;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.Transformation;
-import eu.stratosphere.sopremo.expressions.ValueAssignment;
 import eu.stratosphere.sopremo.operator.Aggregation;
 import eu.stratosphere.sopremo.operator.DataType;
 import eu.stratosphere.sopremo.operator.Join;
@@ -96,10 +95,8 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 			int n = expr.numInputs();
 			List<Path> groupStatements = new ArrayList<Path>();
 			for (int index = 0; index < n; index++) {
-				OperatorParser.this.queryParser.bindings.set("$", new Binding(null,
-					new Input(index)));
-				Path groupStatement = (Path) OperatorParser.this.queryParser.parsePath(expr.byBinding().child(
-					index));
+				OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new Input(index)));
+				Path groupStatement = (Path) OperatorParser.this.queryParser.parsePath(expr.byBinding().child(index));
 				if (groupStatement != null) {
 					OperatorParser.this.queryParser.bindings.set(expr.getAsVar(index).taggedName(), new Binding(null,
 						new Input(index)));
@@ -108,8 +105,8 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 				if (index > 0)
 					childOperators.add(OperatorParser.this.queryParser.parseOperator(expr.inBinding().child(index)));
 			}
-			Transformation collectTransformation = OperatorParser.this.queryParser
-				.parseTransformation(((ArrayExpr) expr.collectExpr()).child(0));
+			EvaluableExpression collectTransformation = OperatorParser.this.queryParser
+				.parseObjectCreation(((ArrayExpr) expr.collectExpr()).child(0));
 			return new Aggregation(collectTransformation, groupStatements.isEmpty() ? Aggregation.NO_GROUPING
 				: groupStatements, childOperators);
 		}
@@ -158,25 +155,24 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 			return Condition.valueOf(expressions, Combination.AND);
 		}
 
-		private Transformation parseTransformation(JoinExpr expr, int numInputs) {
+		private ObjectCreation parseTransformation(JoinExpr expr, int numInputs) {
 			OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new Input(0)));
-			Transformation transformation = OperatorParser.this.queryParser.parseTransformation(((ForExpr) expr
-				.parent().parent()).collectExpr());
+			ObjectCreation transformation = (ObjectCreation) OperatorParser.this.queryParser
+				.parseObjectCreation(((ForExpr) expr.parent().parent()).collectExpr());
 			for (int inputIndex = 0; inputIndex < numInputs; inputIndex++) {
-				Path alias = new Path(new Input(0), new FieldAccess(
-					this.inputAliases.get(inputIndex)));
+				Path alias = new Path(new Input(0), new FieldAccess(this.inputAliases.get(inputIndex)));
 				transformation.replace(alias, new Path(new Input(inputIndex)));
 			}
 			return transformation;
 		}
 
 		private Operator withoutNameBinding(Operator operator, int inputIndex) {
-			if (operator instanceof Projection && operator.getTransformation().getMappingSize() == 1) {
-				Mapping mapping = operator.getTransformation().getMapping(0);
-				if (mapping instanceof ValueAssignment
-					&& ((ValueAssignment) mapping).getTransformation() instanceof Input) {
+			if (operator instanceof Projection && operator.getEvaluableExpression() instanceof ObjectCreation) {
+				ObjectCreation objectCreation = (ObjectCreation) operator.getEvaluableExpression();
+				if (objectCreation.getMappingSize() == 1
+					&& objectCreation.getMapping(0).getExpression() instanceof Input) {
 					Operator coreInput = operator.getInputOperators().get(
-						((Input) ((ValueAssignment) mapping).getTransformation()).getIndex());
+						((Input) objectCreation.getMapping(0).getExpression()).getIndex());
 					Iterator<Entry<String, Binding>> iterator = OperatorParser.this.queryParser.bindings.getAll()
 						.entrySet().iterator();
 
@@ -186,7 +182,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 						if (binding.getTransformed() == operator)
 							binding.setTransformed(coreInput);
 					}
-					this.inputAliases.set(inputIndex, mapping.getTarget());
+					this.inputAliases.set(inputIndex, objectCreation.getMapping(0).getTarget());
 					return coreInput;
 				}
 			}
@@ -197,7 +193,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 	private final class TransformationConverter implements OpConverter<TransformExpr> {
 		@Override
 		public Operator convert(TransformExpr expr, List<Operator> childOperators) {
-			return new Projection(OperatorParser.this.queryParser.parseTransformation(expr), childOperators.get(0));
+			return new Projection(OperatorParser.this.queryParser.parseObjectCreation(expr), childOperators.get(0));
 		}
 	}
 
@@ -248,7 +244,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 			else if (valueExpr instanceof VarExpr)
 				transformedExpr = OperatorParser.this.queryParser.bindings.get(valueExpr.toString()).getTransformed();
 			else
-				transformedExpr = OperatorParser.this.queryParser.parseTransformation(valueExpr).simplify();
+				transformedExpr = OperatorParser.this.queryParser.parseObjectCreation(valueExpr);
 			// if (transformedExpr == null)
 			// transformedExpr = JaqlPlanCreator.this.parsePath(valueExpr);
 			OperatorParser.this.queryParser.bindings

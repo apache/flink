@@ -11,12 +11,12 @@ import com.ibm.jaql.lang.expr.path.PathExpr;
 
 import eu.stratosphere.reflect.TypeHandler;
 import eu.stratosphere.reflect.TypeSpecificHandler;
-import eu.stratosphere.sopremo.BooleanExpression;
-import eu.stratosphere.sopremo.Comparison;
-import eu.stratosphere.sopremo.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.Condition;
-import eu.stratosphere.sopremo.Condition.Combination;
-import eu.stratosphere.sopremo.UnaryExpression;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.Comparison;
+import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.Condition.Combination;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
 
 class ConditionParser implements JaqlToSopremoParser<Condition> {
 

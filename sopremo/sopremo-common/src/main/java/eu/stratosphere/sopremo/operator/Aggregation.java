@@ -42,22 +42,25 @@ public class Aggregation extends Operator {
 		this.groupings = grouping;
 	}
 
-	public static class OneSourceAggregationStub extends SopremoReduce<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> {
+	public static class OneSourceAggregationStub extends
+			SopremoReduce<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> {
 		@Override
 		public void reduce(PactJsonObject.Key key, final Iterator<PactJsonObject> values,
 				Collector<Key, PactJsonObject> out) {
-			JsonNode result = getTransformation().evaluate(new StreamArray(new UnwrappingIterator(values)), getContext());
+			JsonNode result = this.getTransformation().evaluate(new StreamArray(new UnwrappingIterator(values)),
+				this.getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
 
-	public static class TwoSourceAggregationStub extends SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+	public static class TwoSourceAggregationStub extends
+			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
 		@Override
 		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
 				Collector<Key, PactJsonObject> out) {
-			JsonNode result = getTransformation().evaluate(JsonUtils.asArray(
+			JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(
 				new StreamArray(new UnwrappingIterator(values1)),
-				new StreamArray(new UnwrappingIterator(values2))), getContext());
+				new StreamArray(new UnwrappingIterator(values2))), this.getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
@@ -69,19 +72,17 @@ public class Aggregation extends Operator {
 
 		PactModule module = new PactModule(this.getInputOperators().size(), 1);
 		List<Contract> keyExtractors = new ArrayList<Contract>();
-		for (Path grouping : groupings)
+		for (Path grouping : this.groupings)
 			keyExtractors.add(PactUtil.addKeyExtraction(module, grouping, context));
 
-		switch (groupings.size()) {
+		switch (this.groupings.size()) {
 		case 0:
 			keyExtractors.add(PactUtil.addKeyExtraction(module, new Path(new Input(0), new Constant(1L)), context));
+			addSingleSourceAggregation(context, module, keyExtractors);
+			break;
 
 		case 1:
-			ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> aggregationReduce = new ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
-				OneSourceAggregationStub.class);
-			module.getOutput(0).setInput(aggregationReduce);
-			aggregationReduce.setInput(keyExtractors.get(0));
-			PactUtil.setTransformationAndContext(aggregationReduce.getStubParameters(), this.getEvaluableExpression(), context);
+			addSingleSourceAggregation(context, module, keyExtractors);
 			break;
 
 		default:
@@ -90,11 +91,21 @@ public class Aggregation extends Operator {
 			module.getOutput(0).setInput(aggregationCoGroup);
 			aggregationCoGroup.setFirstInput(keyExtractors.get(0));
 			aggregationCoGroup.setSecondInput(keyExtractors.get(1));
-			PactUtil.setTransformationAndContext(aggregationCoGroup.getStubParameters(), this.getEvaluableExpression(), context);
+			PactUtil.setTransformationAndContext(aggregationCoGroup.getStubParameters(), this.getEvaluableExpression(),
+				context);
 			break;
 		}
 
 		return module;
+	}
+
+	private void addSingleSourceAggregation(EvaluationContext context, PactModule module, List<Contract> keyExtractors) {
+		ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> aggregationReduce = new ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
+			OneSourceAggregationStub.class);
+		module.getOutput(0).setInput(aggregationReduce);
+		aggregationReduce.setInput(keyExtractors.get(0));
+		PactUtil.setTransformationAndContext(aggregationReduce.getStubParameters(), this.getEvaluableExpression(),
+			context);
 	}
 
 	@Override

@@ -7,16 +7,8 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
 
-import eu.stratosphere.pact.common.contract.DataSourceContract;
-import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestPlanTestCase;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.Constant;
@@ -24,8 +16,6 @@ import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.operator.DataType;
-import eu.stratosphere.sopremo.operator.Source;
 
 public class SopremoTest extends TestPlanTestCase {
 

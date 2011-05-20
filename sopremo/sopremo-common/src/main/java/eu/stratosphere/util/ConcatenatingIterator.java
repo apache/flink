@@ -5,9 +5,6 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.codehaus.jackson.JsonNode;
-
-
 public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	private final Deque<Iterator<T>> inputs;
 

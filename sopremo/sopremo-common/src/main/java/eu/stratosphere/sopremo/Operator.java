@@ -1,30 +1,12 @@
 package eu.stratosphere.sopremo;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.codec.binary.Base64;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.JsonNodeFactory;
-
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.operator.SopremoMap;
 
 public abstract class Operator implements SopremoType {
 	public class Output {
@@ -47,6 +29,7 @@ public abstract class Operator implements SopremoType {
 			return String.format("%s@%d", this.getOperator(), this.index + 1);
 		}
 	}
+
 	private List<Operator.Output> inputs;
 
 	private Evaluable transformation;

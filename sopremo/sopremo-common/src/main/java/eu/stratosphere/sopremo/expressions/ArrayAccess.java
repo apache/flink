@@ -32,11 +32,11 @@ public class ArrayAccess extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		if (isSelectingAll())
+		if (this.isSelectingAll())
 			return node;
-		if (isSelectingRange()) {
+		if (this.isSelectingRange()) {
 			ArrayNode arrayNode = new ArrayNode(NODE_FACTORY);
-			for (int index = startIndex; index < endIndex; index++)
+			for (int index = this.startIndex; index < this.endIndex; index++)
 				arrayNode.add(node.get(index));
 			return arrayNode;
 		}

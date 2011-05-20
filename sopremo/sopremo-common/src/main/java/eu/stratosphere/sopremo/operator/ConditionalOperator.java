@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.operator;
 
 import java.util.List;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.Condition;

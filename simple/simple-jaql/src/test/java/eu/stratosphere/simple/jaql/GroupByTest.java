@@ -6,10 +6,8 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.Input;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.Transformation;
-import eu.stratosphere.sopremo.expressions.ValueAssignment;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression.*;
 import eu.stratosphere.sopremo.operator.Aggregation;
 import eu.stratosphere.sopremo.operator.Source;
 
@@ -32,12 +30,12 @@ public class GroupByTest extends ParserTestCase {
 			createObject("did", 2L, "name", "marketing"), createObject("did", 3L, "name", "sales")));
 		String deptJaql = "depts = [   {did: 1, name: \"development\"},   {did: 2, name: \"marketing\"},   {did: 3, name: \"sales\"} ]; ";
 
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("dept", createPath("0", "dept")));
-		transformation.addMapping(new ValueAssignment("deptName", createPath("1", "[0]", "name")));
-		transformation.addMapping(new ValueAssignment("emps", createPath("0", "[*]", "id")));
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("dept", createPath("0", "dept"));
+		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
+		transformation.addMapping("emps", createPath("0", "[*]", "id"));
 		Path[] params = { createPath("0") };
-		transformation.addMapping(new ValueAssignment("numEmps", new FunctionCall("count", new Input(0))));
+		transformation.addMapping("numEmps", new FunctionCall("count", new Input(0)));
 		assertParseResult(
 			new Aggregation(transformation, Arrays.asList(createPath("0", "dept"), createPath("1", "did")),
 				this.employeeSource(), depts), this.employeeJaql() + deptJaql + "group employees by g = $.dept as es, "
@@ -47,10 +45,10 @@ public class GroupByTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseGroupByWithSingleSource() {
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("d", createPath("$", "dept")));
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("d", createPath("$", "dept"));
 		Path[] params = { createPath("$", "[*]", "income") };
-		transformation.addMapping(new ValueAssignment("total", new FunctionCall("sum", params)));
+		transformation.addMapping("total", new FunctionCall("sum", params));
 		assertParseResult(
 			new Aggregation(transformation, Arrays.asList(createPath("$", "dept")), this.employeeSource()),
 			this.employeeJaql() + "employees -> group by d = $.dept into {d, total: sum($[*].income)};");
@@ -58,10 +56,10 @@ public class GroupByTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseGroupByWithSingleSourceAndRenaming() {
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("d", createPath("$", "dept")));
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("d", createPath("$", "dept"));
 		Path[] params = { createPath("$", "[*]", "income") };
-		transformation.addMapping(new ValueAssignment("total", new FunctionCall("sum", params)));
+		transformation.addMapping("total", new FunctionCall("sum", params));
 		assertParseResult(
 			new Aggregation(transformation, Arrays.asList(createPath("$", "dept")), this.employeeSource()),
 			this.employeeJaql()
@@ -70,9 +68,7 @@ public class GroupByTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseSimpleGroupBy() {
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment(new FunctionCall("count", new Input(0))));
-		assertParseResult(new Aggregation(transformation, Aggregation.NO_GROUPING, this.employeeSource()),
+		assertParseResult(new Aggregation(new FunctionCall("count", new Input(0)), Aggregation.NO_GROUPING, this.employeeSource()),
 			this.employeeJaql() + "employees -> group into count($);");
 	}
 

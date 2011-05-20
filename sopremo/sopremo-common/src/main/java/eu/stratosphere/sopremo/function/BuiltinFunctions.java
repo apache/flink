@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.function;
 
-import java.util.Arrays;
 import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
@@ -9,7 +8,6 @@ import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.NumericNode;
 
 import eu.stratosphere.sopremo.expressions.Arithmetic;
-import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
 
 public class BuiltinFunctions {
 	protected static ObjectMapper OBJECT_MAPPER = new ObjectMapper();

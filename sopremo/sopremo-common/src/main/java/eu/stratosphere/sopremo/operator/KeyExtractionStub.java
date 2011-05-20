@@ -8,6 +8,6 @@ import eu.stratosphere.pact.common.type.base.PactNull;
 public class KeyExtractionStub extends SopremoMap<PactNull, PactJsonObject, Key, PactJsonObject> {
 	@Override
 	public void map(PactNull key, PactJsonObject value, Collector<Key, PactJsonObject> out) {
-		out.collect(PactJsonObject.keyOf(this.getTransformation().evaluate(value.getValue(), getContext())), value);
+		out.collect(PactJsonObject.keyOf(this.getTransformation().evaluate(value.getValue(), this.getContext())), value);
 	}
 }

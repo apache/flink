@@ -8,9 +8,7 @@ import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
-import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Transformation;
-import eu.stratosphere.sopremo.expressions.ValueAssignment;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 public class AggregationTest extends SopremoTest {
 
@@ -19,11 +17,11 @@ public class AggregationTest extends SopremoTest {
 
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("dept", createPath("0", "dept", "[0]")));
-		transformation.addMapping(new ValueAssignment("deptName", createPath("1", "[0]", "name")));
-		transformation.addMapping(new ValueAssignment("emps", createPath("0", "[*]", "id")));
-		transformation.addMapping(new ValueAssignment("numEmps", new FunctionCall("count", createPath("0", "dept"))));
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("dept", createPath("0", "dept", "[0]"));
+		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
+		transformation.addMapping("emps", createPath("0", "[*]", "id"));
+		transformation.addMapping("numEmps", new FunctionCall("count", createPath("0", "dept")));
 		sopremoPlan.getOutputOperator(0).setInputOperators(
 			new Aggregation(transformation, Arrays.asList(createPath("0", "dept"), createPath("1", "did")), sopremoPlan
 				.getInputOperators(0, 2)));
@@ -55,9 +53,9 @@ public class AggregationTest extends SopremoTest {
 	public void shouldGroupWithSingleSource() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("d", createPath("dept", "[0]")));
-		transformation.addMapping(new ValueAssignment("total", new FunctionCall("sum", createPath("[*]", "income"))));
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("d", createPath("dept", "[0]"));
+		transformation.addMapping("total", new FunctionCall("sum", createPath("[*]", "income")));
 		sopremoPlan.getOutputOperator(0).setInputOperators(
 			new Aggregation(transformation, Arrays.asList(createPath("dept")), sopremoPlan.getInputOperator(0)));
 
@@ -82,8 +80,9 @@ public class AggregationTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
 		sopremoPlan.getOutputOperator(0).setInputOperators(
-			new Aggregation(new FunctionCall("count", EvaluableExpression.IDENTITY), Aggregation.NO_GROUPING, sopremoPlan
-				.getInputOperator(0)));
+			new Aggregation(new FunctionCall("count", EvaluableExpression.IDENTITY), Aggregation.NO_GROUPING,
+				sopremoPlan
+					.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("id", 1, "dept", 1, "income", 12000)).

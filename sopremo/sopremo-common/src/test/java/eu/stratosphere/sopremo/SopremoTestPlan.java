@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo;
 
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
@@ -16,7 +15,7 @@ import eu.stratosphere.sopremo.operator.Sink;
 import eu.stratosphere.sopremo.operator.Source;
 
 public class SopremoTestPlan {
-	public class MockupSource extends Source {
+	public static class MockupSource extends Source {
 
 		private int index;
 
@@ -33,9 +32,30 @@ public class SopremoTestPlan {
 			pactModule.setInput(0, contract);
 			return pactModule;
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = super.hashCode();
+			result = prime * result + this.index;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (!super.equals(obj))
+				return false;
+			if (this.getClass() != obj.getClass())
+				return false;
+			MockupSource other = (MockupSource) obj;
+			return this.index == other.index;
+		}
+
 	}
 
-	public class MockupSink extends Sink {
+	public static class MockupSink extends Sink {
 		private int index;
 
 		public MockupSink(int index) {
@@ -51,9 +71,29 @@ public class SopremoTestPlan {
 			pactModule.setOutput(0, contract);
 			return pactModule;
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = super.hashCode();
+			result = prime * result + this.index;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (!super.equals(obj))
+				return false;
+			if (this.getClass() != obj.getClass())
+				return false;
+			MockupSink other = (MockupSink) obj;
+			return this.index == other.index;
+		}
 	}
 
-	public class Input {
+	public static class Input {
 		private int index;
 
 		private Operator operator;
@@ -86,12 +126,12 @@ public class SopremoTestPlan {
 		}
 
 		public void prepare(TestPlan testPlan) {
-			if (operator instanceof MockupSource)
-				testPlan.getInput(index).add((TestPairs) input);
+			if (this.operator instanceof MockupSource)
+				testPlan.getInput(this.index).add((TestPairs) this.input);
 		}
 	}
 
-	public class Output {
+	public static class Output {
 		private int index;
 
 		private Operator operator;
@@ -124,8 +164,8 @@ public class SopremoTestPlan {
 		}
 
 		public void prepare(TestPlan testPlan) {
-			if (operator instanceof MockupSink)
-				testPlan.getExpectedOutput(index).add((TestPairs) expected);
+			if (this.operator instanceof MockupSink)
+				testPlan.getExpectedOutput(this.index).add((TestPairs) this.expected);
 		}
 	}
 
@@ -183,9 +223,9 @@ public class SopremoTestPlan {
 	public void run() {
 		SopremoPlan sopremoPlan = new SopremoPlan(this.getOutputOperators(0, this.outputs.length));
 		TestPlan testPlan = new TestPlan(sopremoPlan.assemblePact());
-		for (Input input : inputs)
+		for (Input input : this.inputs)
 			input.prepare(testPlan);
-		for (Output output : outputs)
+		for (Output output : this.outputs)
 			output.prepare(testPlan);
 		testPlan.run();
 		System.out.println(testPlan.getExpectedOutput());

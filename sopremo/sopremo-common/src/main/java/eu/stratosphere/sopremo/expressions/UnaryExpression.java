@@ -6,7 +6,6 @@ import org.codehaus.jackson.node.BooleanNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-
 public class UnaryExpression extends BooleanExpression {
 	private Evaluable expr1;
 
@@ -31,8 +30,8 @@ public class UnaryExpression extends BooleanExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		if (this.negate)
-			return expr1.evaluate(node, context) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
-		return expr1.evaluate(node, context);
+			return this.expr1.evaluate(node, context) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
+		return this.expr1.evaluate(node, context);
 	}
 
 	@Override

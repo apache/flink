@@ -8,19 +8,17 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
+import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.Transformation;
-import eu.stratosphere.sopremo.expressions.ValueAssignment;
-import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
 
 public class SandBox {
 
 	public static void main(String[] args) throws JsonProcessingException, IOException {
-		Transformation transformation = new Transformation();
-		transformation.addMapping(new ValueAssignment("target", new Arithmetic(new Path(new Input(0),
-			new FieldAccess("a")), ArithmeticOperator.MULTIPLY, new Path(new Input(0), new FieldAccess("b")))));
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("target", new Arithmetic(new FieldAccess("a"), ArithmeticOperator.MULTIPLY, new FieldAccess("b")));
 
 		JsonParser parser = new JsonFactory().createJsonParser("{\"a\": 4, \"b\": 3}");
 		parser.setCodec(new ObjectMapper());

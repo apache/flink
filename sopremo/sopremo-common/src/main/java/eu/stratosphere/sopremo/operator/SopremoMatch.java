@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.operator;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -21,7 +20,7 @@ public abstract class SopremoMatch<IK extends Key, IV1 extends PactJsonObject, I
 	}
 
 	protected EvaluationContext getContext() {
-		return context;
+		return this.context;
 	}
 
 	protected Evaluable getTransformation() {

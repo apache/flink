@@ -40,7 +40,6 @@ import eu.stratosphere.sopremo.expressions.IdentifierAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.Transformation;
 import eu.stratosphere.sopremo.operator.Aggregation;
 
 class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpression> {
@@ -114,7 +113,8 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 				return new FunctionCall(d.getName(), childPaths.toArray(new EvaluableExpression[childPaths.size()]));
 			}
 			Operator operator = EvaluableExpressionParser.this.queryParser.parseOperator(expr);
-			if (operator instanceof Aggregation && operator.getTransformation().getMappingSize() == 1)
+			if (operator instanceof Aggregation
+				&& ((ObjectCreation) operator.getEvaluableExpression()).getMappingSize() == 1)
 				return new FunctionCall("distinct", childPaths.get(childPaths.size() - 1));
 			// if (queryParser.bindings.get("$").getTransformed().equals(new Fragment.Input(0))
 			// && queryParser.parsePath(expr.collectExpr()).equals(
@@ -151,11 +151,9 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	}
 
 	private final class ObjectCreationConverter implements ExpressionConverter<FixedRecordExpr> {
-		@SuppressWarnings({ "unchecked", "rawtypes" })
 		@Override
 		public Evaluable convert(FixedRecordExpr expr, List<EvaluableExpression> childPaths) {
-			return new ObjectCreation((List) EvaluableExpressionParser.this.queryParser.parseTransformation(expr)
-				.getMappings());
+			return EvaluableExpressionParser.this.queryParser.parseObjectCreation(expr);
 		}
 	}
 
@@ -198,10 +196,8 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 					return new Input(index);
 			}
 
-			if (var instanceof EvaluableExpression)
+			if (var instanceof Evaluable)
 				return (Evaluable) var;
-			if (var instanceof Transformation)
-				return ((Transformation) var).asPath();
 
 			return new IdentifierAccess(expr.var().taggedName());
 		}

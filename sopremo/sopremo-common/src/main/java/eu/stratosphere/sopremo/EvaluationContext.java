@@ -6,6 +6,6 @@ public class EvaluationContext implements SopremoType {
 	private FunctionRegistry functionRegistry = new FunctionRegistry();
 
 	public FunctionRegistry getFunctionRegistry() {
-		return functionRegistry;
+		return this.functionRegistry;
 	}
 }

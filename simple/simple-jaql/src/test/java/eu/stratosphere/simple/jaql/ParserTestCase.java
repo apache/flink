@@ -19,7 +19,6 @@ import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.expressions.ValueAssignment;
 
 public class ParserTestCase {
 
@@ -54,9 +53,9 @@ public class ParserTestCase {
 
 		for (int index = 0; index < expectedNodes.size(); index++) {
 			if (!expectedNodes.get(index).equals(actualNodes.get(index))) {
-				if (!expectedNodes.get(index).getTransformation().equals(actualNodes.get(index).getTransformation()))
+				if (!expectedNodes.get(index).getEvaluableExpression().equals(actualNodes.get(index).getEvaluableExpression()))
 					Assert.fail(String.format("transformation of %d. node differs: %s expected instead of %s", index,
-						expectedNodes.get(index).getTransformation(), actualNodes.get(index).getTransformation()));
+						expectedNodes.get(index).getEvaluableExpression(), actualNodes.get(index).getEvaluableExpression()));
 				else
 					Assert.fail(String.format("%d. node differs: %s expected instead of %s", index,
 						expectedNodes.get(index), actualNodes.get(index)));
@@ -78,9 +77,9 @@ public class ParserTestCase {
 	public static Evaluable createObject(Object... fields) {
 		if (fields.length % 2 != 0)
 			throw new IllegalArgumentException();
-		ValueAssignment[] assignments = new ValueAssignment[fields.length / 2];
+		ObjectCreation.Mapping[] assignments = new ObjectCreation.Mapping[fields.length / 2];
 		for (int index = 0; index < assignments.length; index++) {
-			assignments[index] = new ValueAssignment(fields[2 * index].toString(), new Constant(fields[2 * index + 1]));
+			assignments[index] = new ObjectCreation.Mapping(fields[2 * index].toString(), new Constant(fields[2 * index + 1]));
 		}
 		return new ObjectCreation(assignments);
 	}

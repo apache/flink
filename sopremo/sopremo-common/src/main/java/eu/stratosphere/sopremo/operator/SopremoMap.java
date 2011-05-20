@@ -3,12 +3,12 @@ package eu.stratosphere.sopremo.operator;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public abstract class SopremoMap<IK extends Key, IV extends PactJsonObject, OK extends Key, OV extends PactJsonObject> extends
+public abstract class SopremoMap<IK extends Key, IV extends PactJsonObject, OK extends Key, OV extends PactJsonObject>
+		extends
 		MapStub<IK, IV, OK, OV> {
 	private Evaluable transformation;
 
@@ -21,7 +21,7 @@ public abstract class SopremoMap<IK extends Key, IV extends PactJsonObject, OK e
 	}
 
 	protected EvaluationContext getContext() {
-		return context;
+		return this.context;
 	}
 
 	protected Evaluable getTransformation() {

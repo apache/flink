@@ -1,13 +1,10 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.Iterator;
-
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
 import eu.stratosphere.sopremo.Evaluable;
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoType;
 
@@ -34,10 +31,12 @@ public abstract class EvaluableExpression implements SopremoType, Evaluable {
 		// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>[] inputs) {
 		// return inputs[0];
 		// };
+		@Override
 		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 			return node;
 		};
 
+		@Override
 		protected void toString(StringBuilder builder) {
 		};
 	};
@@ -72,7 +71,8 @@ public abstract class EvaluableExpression implements SopremoType, Evaluable {
 	// return aggregate(inputs[0]);
 	// }
 	//
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.Evaluable#evaluate(org.codehaus.jackson.JsonNode)
 	 */
 	@Override

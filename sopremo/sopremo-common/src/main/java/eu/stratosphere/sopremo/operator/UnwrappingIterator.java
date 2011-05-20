@@ -16,8 +16,8 @@ public class UnwrappingIterator extends AbstractIterator<JsonNode> {
 
 	@Override
 	protected JsonNode loadNext() {
-		if (!values.hasNext())
-			return noMoreElements();
-		return values.next().getValue();
+		if (!this.values.hasNext())
+			return this.noMoreElements();
+		return this.values.next().getValue();
 	}
 }

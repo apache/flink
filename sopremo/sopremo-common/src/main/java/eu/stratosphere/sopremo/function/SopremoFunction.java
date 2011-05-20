@@ -15,6 +15,6 @@ public class SopremoFunction extends Function {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return definition.evaluate(node, context);
+		return this.definition.evaluate(node, context);
 	}
 }

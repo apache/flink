@@ -9,7 +9,7 @@ import org.codehaus.jackson.node.ArrayNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class ArrayCreation extends EvaluableExpression {
+public class ArrayCreation extends ContainerExpression {
 	private Evaluable[] elements;
 
 	public ArrayCreation(Evaluable... elements) {
@@ -36,6 +36,13 @@ public class ArrayCreation extends EvaluableExpression {
 	@Override
 	public int hashCode() {
 		return 53 + Arrays.hashCode(this.elements);
+	}
+
+	@Override
+	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
+		for (int index = 0; index < elements.length; index++)
+			if (elements[index] instanceof ContainerExpression)
+				((ContainerExpression) elements[index]).replace(toReplace, replaceFragment);
 	}
 
 	@Override

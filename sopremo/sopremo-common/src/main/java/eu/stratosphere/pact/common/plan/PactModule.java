@@ -18,8 +18,8 @@ import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-import eu.stratosphere.dag.Printer;
-import eu.stratosphere.dag.Printer.NodePrinter;
+import eu.stratosphere.dag.NodePrinter;
+import eu.stratosphere.dag.DAGPrinter;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
@@ -124,11 +124,11 @@ public class PactModule implements Visitable<Contract> {
 
 	@Override
 	public String toString() {
-		return toString(outputStubs);
+		return toString(this.outputStubs);
 	}
 
 	public static String toString(Contract[] sinks) {
-		return new Printer<Contract>(new ContractNavigator(), sinks).toString(new NodePrinter<Contract>() {
+		return new DAGPrinter<Contract>(new ContractNavigator(), sinks).toString(new NodePrinter<Contract>() {
 			@Override
 			public String toString(Contract node) {
 				return String.format("%s [%s]", node.getClass().getSimpleName(), node.getName());

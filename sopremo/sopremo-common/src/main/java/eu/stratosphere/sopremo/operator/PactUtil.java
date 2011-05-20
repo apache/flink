@@ -27,7 +27,7 @@ public class PactUtil {
 			new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
 		int inputIndex = getInputIndex(expr);
 		selectionMap.setInput(module.getInput(inputIndex));
-		PactUtil.setTransformationAndContext(selectionMap.getStubParameters(), 
+		PactUtil.setTransformationAndContext(selectionMap.getStubParameters(),
 			Path.replace(expr, new Path(new Input(inputIndex)), new Path()), context);
 
 		return selectionMap;

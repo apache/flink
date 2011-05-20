@@ -2,13 +2,13 @@ package eu.stratosphere.simple.jaql;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.Comparison;
-import eu.stratosphere.sopremo.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.Condition;
-import eu.stratosphere.sopremo.Condition.Combination;
-import eu.stratosphere.sopremo.UnaryExpression;
+import eu.stratosphere.sopremo.expressions.Comparison;
+import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.Condition.Combination;
 import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.Input;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.operator.DataType;
 import eu.stratosphere.sopremo.operator.Selection;
 import eu.stratosphere.sopremo.operator.Sink;

@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
@@ -10,7 +9,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class Path extends EvaluableExpression {
+public class Path extends ContainerExpression {
 
 	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 
@@ -26,6 +25,17 @@ public class Path extends EvaluableExpression {
 		for (Evaluable evaluableExpression : fragments)
 			if (evaluableExpression instanceof Path)
 				throw new IllegalArgumentException();
+	}
+
+	@Override
+	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
+		this.fragments = replace(this, wrapAsPath(toReplace), wrapAsPath(replaceFragment)).fragments;
+	}
+
+	private Path wrapAsPath(EvaluableExpression expression) {
+		if (expression instanceof Path)
+			return (Path) expression;
+		return new Path(expression);
 	}
 
 	public static Path replace(Path path, Path pathToFind, Path replacePath) {

@@ -15,5 +15,5 @@ public interface Navigator<Node> {
 	 *        the node
 	 * @return all referenced nodes
 	 */
-	public Iterable<Node> getConnectedNodes(Node node);
+	public Iterable<? extends Node> getConnectedNodes(Node node);
 }

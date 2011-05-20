@@ -15,38 +15,37 @@ public class FunctionRegistry implements SopremoType {
 
 	public FunctionRegistry() {
 	}
-	
+
 	public void register(Function function) {
-		registeredFunctions.put(function.getName(), function);
+		this.registeredFunctions.put(function.getName(), function);
 	}
 
 	public JsonNode evaluate(String functionName, JsonNode node, EvaluationContext context) {
-		return getFunction(functionName).evaluate(node, context);
+		return this.getFunction(functionName).evaluate(node, context);
 	}
 
 	public Function getFunction(String functionName) {
-		return registeredFunctions.get(functionName);
+		return this.registeredFunctions.get(functionName);
 	}
 
 	Map<String, Function> getRegisteredFunctions() {
-		return registeredFunctions;
+		return this.registeredFunctions;
 	}
 
 	public void register(Class<?> javaFunctions) {
-		methodFinder: for (Method method : javaFunctions.getDeclaredMethods()) {
+		methodFinder: for (Method method : javaFunctions.getDeclaredMethods())
 			if ((method.getModifiers() & Modifier.STATIC) != 0
 				&& JsonNode.class.isAssignableFrom(method.getReturnType())) {
 				Class<?>[] parameterTypes = method.getParameterTypes();
-				for (int index = 0; index < parameterTypes.length; index++) {
+				for (int index = 0; index < parameterTypes.length; index++)
 					if (!JsonNode.class.isAssignableFrom(parameterTypes[index])
 						&& !(index == parameterTypes.length - 1 && method.isVarArgs() &&
 								JsonNode.class.isAssignableFrom(parameterTypes[index].getComponentType())))
 						continue methodFinder;
-				}
 
-				Function javaFunction = registeredFunctions.get(method.getName());
+				Function javaFunction = this.registeredFunctions.get(method.getName());
 				if (javaFunction == null)
-					registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
+					this.registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
 				else if (!(javaFunction instanceof JavaFunction))
 					throw new IllegalArgumentException(String.format(
 						"a function with the name %s is already registered and not a java function: %s",
@@ -54,6 +53,5 @@ public class FunctionRegistry implements SopremoType {
 
 				((JavaFunction) javaFunction).addSignature(method);
 			}
-		}
 	}
 }

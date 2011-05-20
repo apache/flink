@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.dag.Printer;
+import eu.stratosphere.dag.DAGPrinter;
 import eu.stratosphere.dag.TraverseListener;
 import eu.stratosphere.dag.Traverser;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -27,18 +27,19 @@ import eu.stratosphere.sopremo.operator.Sink;
 
 public class SopremoPlan {
 	private Collection<Operator> sinks;
+
 	private EvaluationContext context = new EvaluationContext();
 
 	public SopremoPlan(Operator... sinks) {
-		this( Arrays.asList(sinks));
+		this(Arrays.asList(sinks));
 	}
 
 	public SopremoPlan(Collection<Operator> sinks) {
 		this.sinks = sinks;
-		context.getFunctionRegistry().register(BuiltinFunctions.class);
+		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
 	}
 
-	public static class PlanPrinter extends Printer<Operator> {
+	public static class PlanPrinter extends DAGPrinter<Operator> {
 		public PlanPrinter(SopremoPlan plan) {
 			super(new OperatorNavigator(), plan.getAllNodes());
 		}
@@ -76,7 +77,7 @@ public class SopremoPlan {
 		new Traverser<Operator>(new OperatorNavigator(), this.sinks).traverse(new TraverseListener<Operator>() {
 			@Override
 			public void nodeTraversed(Operator node) {
-				PactModule module = node.asPactModule(context);
+				PactModule module = node.asPactModule(SopremoPlan.this.context);
 				modules.put(node, module);
 				DataSinkContract<PactNull, PactJsonObject>[] outputStubs = module.getOutputStubs();
 				Contract[] outputContracts = new Contract[outputStubs.length];

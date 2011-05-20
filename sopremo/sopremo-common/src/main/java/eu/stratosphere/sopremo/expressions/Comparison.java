@@ -9,7 +9,6 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-
 public class Comparison extends BooleanExpression {
 	private Evaluable expr1, expr2;
 
@@ -29,12 +28,14 @@ public class Comparison extends BooleanExpression {
 
 	public static enum BinaryOperator {
 		EQUAL("=") {
-			public <T extends java.lang.Comparable<T>> boolean evaluate(T e1, T e2) {
+			@Override
+			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(T e1, T e2) {
 				return e1.equals(e2);
 			};
 		},
 		NOT_EQUAL("<>") {
-			public <T extends java.lang.Comparable<T>> boolean evaluate(T e1, T e2) {
+			@Override
+			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(T e1, T e2) {
 				return !e1.equals(e2);
 			};
 		},
@@ -106,7 +107,8 @@ public class Comparison extends BooleanExpression {
 	// }
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, context), this.expr2.evaluate(node, context)));
+		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, context),
+			this.expr2.evaluate(node, context)));
 	}
 
 	@Override

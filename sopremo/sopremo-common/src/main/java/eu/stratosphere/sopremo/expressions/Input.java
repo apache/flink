@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.Iterator;
-
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -36,21 +34,21 @@ public class Input extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return node.get(index);
+		return node.get(this.index);
 	}
-//	
-//	@Override
-//	public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode> input) {
-//		return input;
-//	}
-//	
-//	@Override
-//	public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>... inputs) {
-//		return inputs[index];
-//	}
-//	
-//	@Override
-//	public JsonNode evaluate(JsonNode... nodes) {
-//		return nodes[index];
-//	}
+	//
+	// @Override
+	// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode> input) {
+	// return input;
+	// }
+	//
+	// @Override
+	// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>... inputs) {
+	// return inputs[index];
+	// }
+	//
+	// @Override
+	// public JsonNode evaluate(JsonNode... nodes) {
+	// return nodes[index];
+	// }
 }

@@ -16,9 +16,7 @@ import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
@@ -30,8 +28,8 @@ import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.Condition.Combination;
-import eu.stratosphere.sopremo.expressions.ElementExpression;
-import eu.stratosphere.sopremo.expressions.ElementExpression.Quantor;
+import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
+import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.Path;
 
 public class Join extends ConditionalOperator {
@@ -46,7 +44,7 @@ public class Join extends ConditionalOperator {
 	}
 
 	public Join withOuterJoin(Operator... operators) {
-		setOuterJoin(operators);
+		this.setOuterJoin(operators);
 		return this;
 	}
 
@@ -65,7 +63,7 @@ public class Join extends ConditionalOperator {
 		public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
 				Collector<Key, PactJsonObject> out) {
 			JsonNode result = this.getTransformation()
-				.evaluate(JsonUtils.asArray(value1.getValue(), value2.getValue()), getContext());
+				.evaluate(JsonUtils.asArray(value1.getValue(), value2.getValue()), this.getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
@@ -77,7 +75,8 @@ public class Join extends ConditionalOperator {
 				Collector<Key, PactJsonObject> out) {
 			if (!values2.hasNext())
 				while (values1.hasNext()) {
-					JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(values1.next().getValue()), getContext());
+					JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(values1.next().getValue()),
+						this.getContext());
 					out.collect(PactNull.getInstance(), new PactJsonObject(result));
 				}
 		}
@@ -90,7 +89,8 @@ public class Join extends ConditionalOperator {
 				Collector<Key, PactJsonObject> out) {
 			if (values2.hasNext())
 				while (values1.hasNext()) {
-					JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(values1.next().getValue()), getContext());
+					JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(values1.next().getValue()),
+						this.getContext());
 					out.collect(PactNull.getInstance(), new PactJsonObject(result));
 				}
 		}
@@ -107,15 +107,18 @@ public class Join extends ConditionalOperator {
 		}
 
 		@Override
-		public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2, PactJsonObject value2,
+		public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2,
+				PactJsonObject value2,
 				Collector<Key, PactJsonObject> out) {
 			JsonNode inputPair = JsonUtils.asArray(value1.getValue(), value2.getValue());
-			if (this.comparison.evaluate(inputPair, getContext()) == BooleanNode.TRUE)
-				out.collect(PactNull.getInstance(), new PactJsonObject(this.getTransformation().evaluate(inputPair, getContext())));
+			if (this.comparison.evaluate(inputPair, this.getContext()) == BooleanNode.TRUE)
+				out.collect(PactNull.getInstance(),
+					new PactJsonObject(this.getTransformation().evaluate(inputPair, this.getContext())));
 		}
 	}
 
-	public static class OuterJoinStub extends SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+	public static class OuterJoinStub extends
+			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
 		private boolean leftOuter, rightOuter;
 
 		@Override
@@ -134,9 +137,12 @@ public class Join extends ConditionalOperator {
 				// emit all values of the second source
 				if (this.rightOuter)
 					while (values2.hasNext())
-						out.collect(PactNull.getInstance(),
-							new PactJsonObject(this.getTransformation().evaluate(
-								JsonUtils.asArray(NullNode.getInstance(), values2.next().getValue()), getContext())));
+						out.collect(
+							PactNull.getInstance(),
+							new PactJsonObject(this.getTransformation()
+								.evaluate(
+									JsonUtils.asArray(NullNode.getInstance(), values2.next().getValue()),
+									this.getContext())));
 				return;
 			}
 
@@ -145,16 +151,19 @@ public class Join extends ConditionalOperator {
 				// emit all values of the first source
 				if (this.leftOuter)
 					while (values1.hasNext())
-						out.collect(PactNull.getInstance(),
-							new PactJsonObject(this.getTransformation().evaluate(
-								JsonUtils.asArray(values1.next().getValue(), NullNode.getInstance()), getContext())));
+						out.collect(
+							PactNull.getInstance(),
+							new PactJsonObject(this.getTransformation()
+								.evaluate(
+									JsonUtils.asArray(values1.next().getValue(), NullNode.getInstance()),
+									this.getContext())));
 				return;
 			}
 
 			// TODO: use resettable iterator to avoid OOM
 			ArrayList<JsonNode> firstSourceNodes = new ArrayList<JsonNode>();
 			while (values1.hasNext())
-				firstSourceNodes.add((values1.next()).getValue());
+				firstSourceNodes.add(values1.next().getValue());
 
 			while (values2.hasNext()) {
 				JsonNode secondSourceNode = values2.next().getValue();
@@ -162,7 +171,7 @@ public class Join extends ConditionalOperator {
 					out.collect(
 						PactNull.getInstance(),
 						new PactJsonObject(this.getTransformation().evaluate(JsonUtils.asArray(firstSourceNode,
-							secondSourceNode), getContext())));
+							secondSourceNode), this.getContext())));
 			}
 		}
 	}
@@ -181,12 +190,12 @@ public class Join extends ConditionalOperator {
 
 			DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> join;
 			if (expression instanceof Comparison)
-				join = joinFromComparison(module, (Comparison) expression, context);
-			else if (expression instanceof ElementExpression)
-				join = joinFromElementExpression(module, (ElementExpression) expression, context);
+				join = this.joinFromComparison(module, (Comparison) expression, context);
+			else if (expression instanceof ElementInSetExpression)
+				join = this.joinFromElementExpression(module, (ElementInSetExpression) expression, context);
 			else
 				throw new UnsupportedOperationException();
-			
+
 			PactUtil.setTransformationAndContext(join.getStubParameters(), this.getEvaluableExpression(), context);
 		}
 
@@ -230,7 +239,7 @@ public class Join extends ConditionalOperator {
 	}
 
 	private DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> joinFromElementExpression(
-			PactModule module, ElementExpression comparison, EvaluationContext context) {
+			PactModule module, ElementInSetExpression comparison, EvaluationContext context) {
 		Contract in1 = PactUtil.addKeyExtraction(module, (Path) comparison.getElementExpr(), context);
 		Contract in2 = PactUtil.addKeyExtraction(module, (Path) comparison.getSetExpr(), context);
 

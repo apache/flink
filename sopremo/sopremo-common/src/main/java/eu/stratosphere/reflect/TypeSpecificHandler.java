@@ -96,8 +96,9 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 	public TypeSpecificHandler<InputType, OutputBase, Handler> registerAll(
 			TypeHandler<? extends InputType, ? extends OutputBase>... handlers) {
 		for (TypeHandler<? extends InputType, ? extends OutputBase> handler : handlers)
-			this.register(handler, new Class[] { ReflectUtil.getBindingOfSuperclass(handler.getClass(), TypeHandler.class)
-				.getParameters()[0].getType() });
+			this.register(handler,
+				new Class[] { ReflectUtil.getBindingOfSuperclass(handler.getClass(), TypeHandler.class)
+					.getParameters()[0].getType() });
 		return this;
 	}
 
@@ -173,8 +174,8 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 
 		Object[] parameters = new Object[params.length + 1];
 		parameters[0] = childTypes;
-		this.lastChildren = handlerInfo.shouldAppendChildren() ? childTypes.subList(handlerInfo.getAppendIndex(),
-			childTypes.size()) : Collections.EMPTY_LIST;
+		this.lastChildren = handlerInfo != null && handlerInfo.shouldAppendChildren() ? childTypes.subList(
+			handlerInfo.getAppendIndex(), childTypes.size()) : Collections.EMPTY_LIST;
 		System.arraycopy(params, 0, parameters, 1, params.length);
 		OutputBase convertedType = this.handle(in, parameters);
 		for (TypeHandlerListener<InputType, OutputBase> listener : this.handlerListeners)

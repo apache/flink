@@ -307,7 +307,7 @@ public class ReflectUtil {
 					constructor.setAccessible(true);
 				}
 				return true;
-			} catch (Exception e) {
+			} catch (NoSuchMethodException e) {
 				return false;
 			}
 		}
@@ -529,7 +529,7 @@ public class ReflectUtil {
 			Method bestMethod = pickBest(candidateDistances);
 			if (bestMethod == null)
 				throw new IllegalArgumentException(String.format(
-					"more than one suitable method found in %s for name %s and parameters %", type,
+					"more than one suitable method found in %s for name %s and parameters %s", type,
 						function, Arrays.toString(params)));
 			return invoke(bestMethod, object, params);
 		} catch (Exception e) {

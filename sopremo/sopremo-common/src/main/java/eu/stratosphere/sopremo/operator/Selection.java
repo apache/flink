@@ -12,12 +12,13 @@ import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.Transformation;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 public class Selection extends ConditionalOperator {
 
 	public Selection(Condition condition, Operator input) {
-		super(Transformation.IDENTITY, condition, input);
+		super(EvaluableExpression.IDENTITY, condition, input);
 	}
 
 	public static class SelectionStub extends SopremoMap<PactNull, PactJsonObject, Key, PactJsonObject> {
@@ -30,7 +31,7 @@ public class Selection extends ConditionalOperator {
 
 		@Override
 		public void map(PactNull key, PactJsonObject value, Collector<Key, PactJsonObject> out) {
-			if (this.condition.evaluate(value.getValue(), getContext()) == BooleanNode.TRUE)
+			if (this.condition.evaluate(value.getValue(), this.getContext()) == BooleanNode.TRUE)
 				out.collect(key, value);
 		}
 
