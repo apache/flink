@@ -693,7 +693,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 * @return The number of the spilled partition.
 	 */
 	protected int spillPartition() throws IOException
-	{
+	{	
 		// find the largest partition
 		ArrayList<Partition> partitions = this.partitionsBeingBuilt;
 		int largestNumBlocks = 0;
@@ -1214,6 +1214,8 @@ public class HashJoin<K extends Key, V extends Value>
 				this.bucket = this.overflowSegments[overflowSegNum];
 				this.bucketInSegmentOffset = (int) (forwardPointer & 0xffffffff);
 				this.countInSegment = this.bucket.getShort(this.bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+				this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
+				this.numInSegment = 0;
 			}
 		}
 
