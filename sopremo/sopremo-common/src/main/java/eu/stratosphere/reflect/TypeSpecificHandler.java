@@ -16,7 +16,7 @@ import eu.stratosphere.dag.Navigator;
 public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHandler<InputType, OutputBase>> {
 
 	private static class HandlerInfo<InputType, OutputBase, Handler extends TypeHandler<InputType, OutputBase>> {
-		private Method callback;
+		// private Method callback;
 
 		private int appendIndex = -1;
 
@@ -29,18 +29,26 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 			this.handler = (Handler) handler;
 
 			Class<?> handlerClass = handler.getClass();
-			Method[] methods = handlerClass.getMethods();
-			for (Method method : methods)
-				if (method.getDeclaringClass() == handler.getClass()) {
-					method.setAccessible(true);
-					this.callback = method;
-					break;
-				}
+			BoundType bindings = ReflectUtil.getBindingOfSuperclass(handler.getClass(), TypeHandler.class);
+			Method callback;
+			try {
+				callback = handlerClass.getDeclaredMethod("convert",
+					new Class[] { bindings.getParameters()[0].getType(), List.class });
+			} catch (NoSuchMethodException e) {
+				throw new IllegalStateException("class should have implemented the given method");
+			}
+			// Method[] methods = handlerClass.getMethods();
+			// for (Method method : methods)
+			// if (method.getDeclaringClass() == handler.getClass()) {
+			// method.setAccessible(true);
+			// this.callback = method;
+			// break;
+			// }
 
-			AppendChildren annotation = this.getAnnotation(handlerClass, this.callback, AppendChildren.class);
+			AppendChildren annotation = this.getAnnotation(handlerClass, callback, AppendChildren.class);
 			if (annotation != null)
 				this.appendIndex = annotation.fromIndex();
-			this.stopRecursion = this.getAnnotation(handlerClass, this.callback, Leaf.class) != null;
+			this.stopRecursion = this.getAnnotation(handlerClass, callback, Leaf.class) != null;
 		}
 
 		private <A extends Annotation> A getAnnotation(Class<?> handlerClass, Method callback, Class<A> annotationClass) {
@@ -66,9 +74,9 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 			return this.appendIndex;
 		}
 
-		public Method getCallback() {
-			return this.callback;
-		}
+		// public Method getCallback() {
+		// return this.callback;
+		// }
 	}
 
 	private Map<Class<? extends InputType>, HandlerInfo> handlerInfos = new HashMap<Class<? extends InputType>, HandlerInfo>();
@@ -125,21 +133,17 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 				iterator.remove();
 	}
 
-	public OutputBase handle(InputType in, Object... params) {
+	public OutputBase handle(InputType in, List<OutputBase> children) {
 		HandlerInfo<InputType, OutputBase, TypeHandler<InputType, OutputBase>> handlerInfo = this.getHandlerInfo(in
 			.getClass());
 		if (handlerInfo == null)
 			return null;
-		Object[] parameters = new Object[params.length + 1];
-		parameters[0] = in;
-		System.arraycopy(params, 0, parameters, 1, params.length);
 		try {
 			for (TypeHandlerListener<InputType, OutputBase> listener : this.handlerListeners)
-				listener.beforeConversion(in, params);
-			@SuppressWarnings("unchecked")
-			OutputBase converted = (OutputBase) handlerInfo.callback.invoke(handlerInfo.handler, parameters);
+				listener.beforeConversion(in, children);
+			OutputBase converted = handlerInfo.getHandler().convert(in, children);
 			for (TypeHandlerListener<InputType, OutputBase> listener : this.handlerListeners)
-				listener.afterConversion(in, params, converted);
+				listener.afterConversion(in, children, converted);
 			return converted;
 		} catch (Exception e) {
 			throw new IllegalStateException(e);
@@ -155,16 +159,16 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 
 	private List<OutputBase> lastChildren = Collections.EMPTY_LIST;
 
-	public OutputBase handleRecursively(Navigator<InputType> navigator, InputType in, Object... params) {
+	public OutputBase handleRecursively(Navigator<InputType> navigator, InputType in) {
 		HandlerInfo<InputType, OutputBase, TypeHandler<InputType, OutputBase>> handlerInfo = this.getHandlerInfo(in
 			.getClass());
 		for (TypeHandlerListener<InputType, OutputBase> listener : this.handlerListeners)
-			listener.beforeHierarchicalConversion(in, params);
+			listener.beforeHierarchicalConversion(in);
 		List<OutputBase> childTypes = new ArrayList<OutputBase>();
 
 		if (handlerInfo == null || !handlerInfo.stopRecursion)
 			for (InputType child : navigator.getConnectedNodes(in)) {
-				OutputBase handledResult = this.handleRecursively(navigator, child, params);
+				OutputBase handledResult = this.handleRecursively(navigator, child);
 				if (this.flattenCollection && handledResult instanceof Collection<?>)
 					childTypes.addAll((Collection<? extends OutputBase>) handledResult);
 				else if (handledResult != null)
@@ -172,14 +176,11 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 			}
 		childTypes.addAll(this.lastChildren);
 
-		Object[] parameters = new Object[params.length + 1];
-		parameters[0] = childTypes;
 		this.lastChildren = handlerInfo != null && handlerInfo.shouldAppendChildren() ? childTypes.subList(
 			handlerInfo.getAppendIndex(), childTypes.size()) : Collections.EMPTY_LIST;
-		System.arraycopy(params, 0, parameters, 1, params.length);
-		OutputBase convertedType = this.handle(in, parameters);
+		OutputBase convertedType = this.handle(in, childTypes);
 		for (TypeHandlerListener<InputType, OutputBase> listener : this.handlerListeners)
-			listener.afterHierarchicalConversion(in, params, convertedType);
+			listener.afterHierarchicalConversion(in, convertedType);
 		if (convertedType == null && this.passthroughChildren) {
 			if (Collection.class.isAssignableFrom(this.outputBase))
 				return (OutputBase) childTypes;

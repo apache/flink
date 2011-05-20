@@ -47,26 +47,23 @@ import eu.stratosphere.sopremo.operator.Source;
 class OperatorParser implements JaqlToSopremoParser<Operator> {
 	private final class BindingScoper implements TypeHandlerListener<Expr, Operator> {
 		@Override
-		public void afterConversion(Expr in, Object[] params, Operator out) {
-			// if (!(in instanceof BindingExpr))
-			// operatorParameters.removeLast();
+		public void afterConversion(Expr in, List<Operator> children, Operator out) {
 			OperatorParser.this.queryParser.expressionToOperators.put(in, out);
 		}
 
 		@Override
-		public void afterHierarchicalConversion(Expr in, Object[] params, Operator out) {
+		public void afterHierarchicalConversion(Expr in, Operator out) {
 			if (!(in instanceof BindingExpr))
 				OperatorParser.this.queryParser.bindings.removeScope();
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
-		public void beforeConversion(Expr in, Object[] params) {
-			OperatorParser.this.queryParser.operatorInputs.addLast((List<Operator>) params[0]);
+		public void beforeConversion(Expr in, List<Operator> children) {
+			OperatorParser.this.queryParser.operatorInputs.addLast(children);
 		}
 
 		@Override
-		public void beforeHierarchicalConversion(Expr in, Object[] params) {
+		public void beforeHierarchicalConversion(Expr in) {
 			if (!(in instanceof BindingExpr))
 				OperatorParser.this.queryParser.bindings.addScope();
 		}
@@ -217,7 +214,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 		private BindingExtractor() {
 		}
 
-		public Output convert(BindingExpr expr, List<Object> children) {
+		public Output convert(BindingExpr expr, List<Output> children) {
 			// System.out.println(expr);
 			if (children.isEmpty() && expr.numChildren() == 0)
 				return null;

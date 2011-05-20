@@ -72,8 +72,8 @@ class ObjectCreationParser implements JaqlToSopremoParser<EvaluableExpression> {
 		}
 	}
 
-	private static interface MappingConverter<I extends Expr> extends TypeHandler<I, EvaluableExpression> {
-		public Object convert(I expr, List<Object> childEvaluableExpressions);
+	private static interface MappingConverter<I extends Expr> extends TypeHandler<I, Object> {
+//		public Object convert(I expr, List<Object> childEvaluableExpressions);
 	}
 
 	private QueryParser queryParser;

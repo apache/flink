@@ -1,11 +1,13 @@
 package eu.stratosphere.reflect;
 
+import java.util.List;
+
 public interface TypeHandlerListener<InputType, OutputType> {
-	public void beforeConversion(InputType in, Object[] params);
+	public void beforeConversion(InputType in, List<OutputType> children);
 
-	public void afterConversion(InputType in, Object[] params, OutputType out);
+	public void afterConversion(InputType in, List<OutputType> children, OutputType out);
 
-	public void beforeHierarchicalConversion(InputType in, Object[] params);
+	public void beforeHierarchicalConversion(InputType in);
 
-	public void afterHierarchicalConversion(InputType in, Object[] params, OutputType out);
+	public void afterHierarchicalConversion(InputType in, OutputType out);
 }

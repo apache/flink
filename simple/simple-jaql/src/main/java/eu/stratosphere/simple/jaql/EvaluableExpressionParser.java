@@ -46,7 +46,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 
 	private final class AggregationFunctionConverter implements ExpressionConverter<Aggregate> {
 		@Override
-		public Evaluable convert(Aggregate expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(Aggregate expr, List<EvaluableExpression> childPaths) {
 			BuiltInFunctionDescriptor d = BuiltInFunction.getDescriptor(expr.getClass());
 			return new FunctionCall(d.getName(), childPaths.toArray(new EvaluableExpression[childPaths.size()]));
 		}
@@ -55,21 +55,21 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	@AppendChildren(fromIndex = 1)
 	private final class ArrayAccessConverter implements ExpressionConverter<PathIndex> {
 		@Override
-		public Evaluable convert(PathIndex expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(PathIndex expr, List<EvaluableExpression> childPaths) {
 			return new ArrayAccess(((Constant) childPaths.get(0)).asInt());
 		}
 	}
 
 	private final class ArrayCreationConverter implements ExpressionConverter<ArrayExpr> {
 		@Override
-		public Evaluable convert(ArrayExpr expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(ArrayExpr expr, List<EvaluableExpression> childPaths) {
 			return new ArrayCreation(childPaths);
 		}
 	}
 
 	private final class ConstantConverter implements ExpressionConverter<ConstExpr> {
 		@Override
-		public Evaluable convert(ConstExpr expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(ConstExpr expr, List<EvaluableExpression> childPaths) {
 			if (expr.value == null)
 				return null;
 			// TODO: adjust to json model
@@ -90,13 +90,13 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	}
 
 	private static interface ExpressionConverter<I extends Expr> extends TypeHandler<I, EvaluableExpression> {
-		public Evaluable convert(I expr, List<EvaluableExpression> childPaths);
+		public EvaluableExpression convert(I expr, List<EvaluableExpression> childPaths);
 	}
 
 	@AppendChildren(fromIndex = 1)
 	private final class FieldAccessConverter implements ExpressionConverter<PathFieldValue> {
 		@Override
-		public Evaluable convert(PathFieldValue expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(PathFieldValue expr, List<EvaluableExpression> childPaths) {
 			FieldAccess fieldAccess = new FieldAccess(((ConstExpr) expr.nameExpr()).value.toString());
 			// if (childPaths.size() > 1)
 			// spreadFields.put(fieldAccess, childPaths.subList(1, childPaths.size()));
@@ -107,7 +107,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	private final class FunctionConverter implements ExpressionConverter<Expr> {
 		// function fall-back
 		@Override
-		public Evaluable convert(Expr expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(Expr expr, List<EvaluableExpression> childPaths) {
 			if (expr.getClass().getSimpleName().endsWith("Fn")) {
 				BuiltInFunctionDescriptor d = BuiltInFunction.getDescriptor(expr.getClass());
 				return new FunctionCall(d.getName(), childPaths.toArray(new EvaluableExpression[childPaths.size()]));
@@ -140,7 +140,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 		}
 
 		@Override
-		public Evaluable convert(MathExpr expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(MathExpr expr, List<EvaluableExpression> childPaths) {
 			try {
 				int op = (Integer) this.OpField.get(expr);
 				return new Arithmetic(childPaths.get(0), this.OperatorMapping[op], childPaths.get(1));
@@ -152,14 +152,14 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 
 	private final class ObjectCreationConverter implements ExpressionConverter<FixedRecordExpr> {
 		@Override
-		public Evaluable convert(FixedRecordExpr expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(FixedRecordExpr expr, List<EvaluableExpression> childPaths) {
 			return EvaluableExpressionParser.this.queryParser.parseObjectCreation(expr);
 		}
 	}
 
 	private final class PathConverter implements ExpressionConverter<PathExpr> {
 		@Override
-		public Evaluable convert(PathExpr expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(PathExpr expr, List<EvaluableExpression> childPaths) {
 			for (int index = 0; index < childPaths.size(); index++) {
 				if (childPaths.get(index) instanceof Path) {
 					Path path = (Path) childPaths.get(index);
@@ -175,14 +175,14 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	@AppendChildren
 	private final class SpreadOperatorConverter implements ExpressionConverter<PathArrayAll> {
 		@Override
-		public Evaluable convert(PathArrayAll expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(PathArrayAll expr, List<EvaluableExpression> childPaths) {
 			return new ArrayAccess();
 		}
 	}
 
 	private final class VariableLookup implements ExpressionConverter<VarExpr> {
 		@Override
-		public Evaluable convert(VarExpr expr, List<EvaluableExpression> childPaths) {
+		public EvaluableExpression convert(VarExpr expr, List<EvaluableExpression> childPaths) {
 			// if (!expr.var().taggedName().equals("$"))
 			Binding binding = EvaluableExpressionParser.this.queryParser.bindings.get(expr.var().taggedName());
 			if (binding == null)
@@ -196,8 +196,8 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 					return new Input(index);
 			}
 
-			if (var instanceof Evaluable)
-				return (Evaluable) var;
+			if (var instanceof EvaluableExpression)
+				return (EvaluableExpression) var;
 
 			return new IdentifierAccess(expr.var().taggedName());
 		}

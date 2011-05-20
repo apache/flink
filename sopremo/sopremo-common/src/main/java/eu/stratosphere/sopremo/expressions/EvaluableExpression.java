@@ -25,9 +25,9 @@ public abstract class EvaluableExpression implements SopremoType, Evaluable {
 	// }
 	// }
 
-	public static final Evaluable UNKNOWN = new IdentifierAccess("?");
+	public static final EvaluableExpression UNKNOWN = new IdentifierAccess("?");
 
-	public static final Evaluable IDENTITY = new EvaluableExpression() {
+	public static final EvaluableExpression IDENTITY = new EvaluableExpression() {
 		// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode>[] inputs) {
 		// return inputs[0];
 		// };
