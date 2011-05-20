@@ -60,6 +60,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
@@ -167,6 +168,8 @@ public class TestPlan implements Closeable {
 	private final Contract[] contracts;
 
 	private int degreeOfParallelism = 1;
+	
+	private double doubleDelta = 0;
 
 	private volatile ExecutionVertex erroneousVertex = null;
 
@@ -207,6 +210,25 @@ public class TestPlan implements Closeable {
 		TestPlanTestCase.addTestPlan(this);
 	}
 
+	/**
+	 * Set the allowed delta for PactDouble values. This is important because of inaccuracies
+	 * related to floating point calculation.
+	 * 
+	 * @param delta the delta that the actual value is allowed to differ from the expected value.
+	 */
+	public void setAllowedPactDoubleDelta(double delta) {
+		doubleDelta = delta;
+	}
+	
+	/**
+	 * Allowed delta for PactDouble values, default value is 0;
+	 * 
+	 * @return the allowed delta
+	 */
+	public double getAllowedPactDoubleDelta() {
+		return doubleDelta;
+	}
+	
 	/**
 	 * Locally executes the {@link ExecutionGraph}.
 	 */
@@ -373,6 +395,8 @@ public class TestPlan implements Closeable {
 			}
 		});
 	}
+	
+	//public void setDoubleT
 
 	/**
 	 * Returns the first output {@link TestPairs} of the TestPlan. If multiple
@@ -692,10 +716,33 @@ public class TestPlan implements Closeable {
 						.iterator();
 				final int index = 0;
 				while (actualIterator.hasNext() && expectedIterator.hasNext()) {
-					final Object expected = expectedIterator.next(), actual = actualIterator
-							.next();
+					final KeyValuePair<Key, Value> expected = expectedIterator.next(); 
+					final KeyValuePair<Key, Value> actual = actualIterator.next();
 					try {
-						Assert.assertEquals(expected, actual);
+						Key actualKey = actual.getKey();
+						Value actualValue = actual.getValue();
+						Key expectedKey = expected.getKey();
+						Value expectedValue = expected.getValue();
+						
+						//Compare keys
+						if(actualKey instanceof PactDouble && expectedKey instanceof PactDouble) {
+							PactDouble actualDouble = (PactDouble) actualKey;
+							PactDouble expectedDouble = (PactDouble) expectedKey;
+							Assert.assertEquals(expectedDouble.getValue(), 
+									actualDouble.getValue(), doubleDelta);
+						} else {
+							Assert.assertEquals(expectedKey, actualKey);
+						}
+						
+						//Compare values
+						if(actualValue instanceof PactDouble && expectedValue instanceof PactDouble) {
+							PactDouble actualDouble = (PactDouble) actualValue;
+							PactDouble expectedDouble = (PactDouble) expectedValue;
+							Assert.assertEquals(expectedDouble.getValue(), 
+									actualDouble.getValue(), doubleDelta);
+						} else {
+							Assert.assertEquals(expectedValue, actualValue);
+						}
 					} catch (final AssertionFailedError e) {
 						throw new ArrayComparisonFailure(String.format(
 								"Data sink %s contains unexpected values: ",
