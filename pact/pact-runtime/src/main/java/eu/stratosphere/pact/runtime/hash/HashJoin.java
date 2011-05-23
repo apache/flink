@@ -346,16 +346,21 @@ public class HashJoin<K extends Key, V extends Value>
 		// -------------- partition done ---------------
 		
 		// finalize and cleanup the partitions of the current table
+		int buffersAvailable = 0;
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
 			Partition p = this.partitionsBeingBuilt.get(i);
-			p.finalizeProbePhase(this.availableMemory, this.partitionsPending);
+			buffersAvailable += p.finalizeProbePhase(this.availableMemory, this.partitionsPending);
 		}
 		this.partitionsBeingBuilt.clear();
+		this.writeBehindBuffersAvailable += buffersAvailable;
 		
 		// release the table memory
 		releaseTable();
 		
 		// check if there are pending partitions
+		if (!this.partitionsPending.isEmpty()) {
+			
+		}
 		
 		return false;
 	}
@@ -402,11 +407,11 @@ public class HashJoin<K extends Key, V extends Value>
 		for (int i = 0; i < this.partitionsPending.size(); i++) {
 			final Partition p = this.partitionsPending.get(i);
 			p.buildSideChannel.deleteChannel();
-			p.buildSideChannel.deleteChannel();
+			p.probeSideChannel.deleteChannel();
 		}
 		
 		// return the write-behind buffers
-		for (int i = 0; i < this.numWriteBehindBuffers; i++) {
+		for (int i = 0; i < this.numWriteBehindBuffers + this.writeBehindBuffersAvailable; i++) {
 			try {
 				this.availableMemory.add(this.writeBehindBuffers.take().dispose());
 			}
@@ -455,6 +460,12 @@ public class HashJoin<K extends Key, V extends Value>
 			Partition p = this.partitionsBeingBuilt.get(i);
 			p.finalizeBuildPhase(this.ioManager, this.currentEnumerator);
 		}
+	}
+	
+	protected void buildTableFromSpilledPartition(final Partition p)
+	throws IOException
+	{
+		
 	}
 	
 	/**
@@ -1258,7 +1269,7 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @param spilledPartitions
 		 * @throws IOException
 		 */
-		public void finalizeProbePhase(List<MemorySegment> freeMemory, List<Partition> spilledPartitions)
+		public int finalizeProbePhase(List<MemorySegment> freeMemory, List<Partition> spilledPartitions)
 		throws IOException
 		{
 			if (isInMemory()) {
@@ -1267,10 +1278,8 @@ public class HashJoin<K extends Key, V extends Value>
 				this.currentPartitionBuffer = null;
 				
 				// return the overflow segments
-				if (this.overflowSegments != null) {
-					for (int k = 0; k < this.numOverflowSegments; k++) {
-						freeMemory.add(this.overflowSegments[k]);
-					}
+				for (int k = 0; k < this.numOverflowSegments; k++) {
+					freeMemory.add(this.overflowSegments[k]);
 				}
 				
 				// return the partition buffers
@@ -1278,6 +1287,7 @@ public class HashJoin<K extends Key, V extends Value>
 					freeMemory.add(this.inMemoryBuffers.get(k));
 				}
 				this.inMemoryBuffers.clear();
+				return 0;
 			}
 			else {
 				// flush the last probe side buffer and register this partition as pending
@@ -1285,6 +1295,7 @@ public class HashJoin<K extends Key, V extends Value>
 				this.probeSideChannel.close();
 				
 				spilledPartitions.add(this);
+				return 1;
 			}
 		}
 		
