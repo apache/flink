@@ -17,18 +17,22 @@ import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
 
 public class PactUtil {
 
-	public static Contract addKeyExtraction(PactModule module, Path expr, EvaluationContext context) {
+	public static Contract addKeyExtraction(PactModule module, EvaluableExpression expr, EvaluationContext context) {
 		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> selectionMap =
 			new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
-		int inputIndex = getInputIndex(expr);
+		int inputIndex = 0;
+		if (expr instanceof Path) {
+			inputIndex = getInputIndex((Path) expr);
+			expr = Path.replace((Path) expr, new Path(new Input(inputIndex)), new Path());
+		}
 		selectionMap.setInput(module.getInput(inputIndex));
-		PactUtil.setTransformationAndContext(selectionMap.getStubParameters(),
-			Path.replace(expr, new Path(new Input(inputIndex)), new Path()), context);
+		PactUtil.setTransformationAndContext(selectionMap.getStubParameters(), expr, context);
 
 		return selectionMap;
 	}

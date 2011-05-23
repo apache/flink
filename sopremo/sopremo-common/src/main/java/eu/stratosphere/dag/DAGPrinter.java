@@ -6,169 +6,226 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.Formatter;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+
+import eu.stratosphere.dag.DAGLevelPartitioner.Level;
 
 /**
  * Utility class to pretty print arbitrary directed acyclic graphs. It needs a {@link Navigator} to traverse form the
- * start nodes through the graph and optionally a {@link NodePrinter} to format the nodes.
+ * start nodes through the graph and optionally a {@link NodePrinter} to format the nodes.<br>
+ * <br>
+ * The nodes are printed in rows visualizing the dependencies. A dependency of node A is a node B iff there exists an
+ * edge from B to A. The entries in the last row have no incoming edges and thus dependencies. The entries on the next
+ * to last row only depend on nodes on the last row.<br>
+ * All nodes have a maximum width that can be adjusted ({@link #setWidth(int)}). <br>
+ * To visualize the edges, a {@link ConnectorProvider} provides printable strings between the nodes.
  * 
  * @author Arvid Heise
  * @param <Node>
  *        the class of the node
  */
 public class DAGPrinter<Node> {
-	private class ASCIIConnectorProvider implements ConnectorProvider {
-		@Override
-		public String getConnectorString(Connector... connectors) {
-			EnumSet<Connector> connectorSet = EnumSet.of(connectors[0], connectors);
+	/**
+	 * The default width of a column.
+	 */
+	public static final int DEFAULT_COLUMN_WIDTH = 20;
 
-			if (connectorSet.contains(Connector.TOP_LEFT))
-				return "/";
-			if (connectorSet.contains(Connector.TOP_RIGHT))
-				return "\\";
-			if (connectorSet.contains(Connector.RIGHT_DOWN))
-				return "/";
-			if (connectorSet.contains(Connector.LEFT_DOWN))
-				return "\\";
-			if (connectorSet.contains(Connector.TOP_DOWN))
-				return "|";
-			return "-";
-		};
+	private NodePrinter<Node> nodePrinter = new StandardPrinter<Node>();
+
+	private int width = DEFAULT_COLUMN_WIDTH;
+
+	private String widthString = "%-" + this.width + "s";
+
+	private ConnectorProvider connectorProvider = new BoxConnectorProvider();
+
+	/**
+	 * Returns the {@link ConnectorProvider} that provides printable strings for the edges between the nodes.
+	 * 
+	 * @return the connector provider
+	 */
+	public ConnectorProvider getConnectorProvider() {
+		return this.connectorProvider;
 	}
 
-	private class BoxConnectorProvider implements ConnectorProvider {
-		private Map<List<Direction>, String> connectorStrings = new HashMap<List<Direction>, String>();
-
-		private Comparator<Enum<?>> EnumComparator = new Comparator<Enum<?>>() {
-			@Override
-			public int compare(Enum<?> o1, Enum<?> o2) {
-				return o1.ordinal() - o2.ordinal();
-			}
-		};
-
-		public BoxConnectorProvider() {
-			this.put(new ArrayList<Direction>(), "");
-
-			this.put(Arrays.asList(Direction.TOP, Direction.DOWN), "\u2502");
-			this.put(Arrays.asList(Direction.TOP, Direction.RIGHT), "\u2514");
-			this.put(Arrays.asList(Direction.TOP, Direction.LEFT), "\u2518");
-			this.put(Arrays.asList(Direction.RIGHT, Direction.DOWN), "\u250C");
-			this.put(Arrays.asList(Direction.LEFT, Direction.DOWN), "\u2510");
-			this.put(Arrays.asList(Direction.LEFT, Direction.RIGHT), "\u2500");
-
-			this.put(Arrays.asList(Direction.TOP, Direction.TOP, Direction.LEFT, Direction.DOWN), "\u2526");
-			this.put(Arrays.asList(Direction.TOP, Direction.TOP, Direction.RIGHT, Direction.DOWN), "\u251E");
-			this.put(Arrays.asList(Direction.TOP, Direction.RIGHT, Direction.DOWN, Direction.DOWN),
-				"\u251F");
-			this.put(Arrays.asList(Direction.TOP, Direction.LEFT, Direction.DOWN, Direction.DOWN), "\u2527");
-		}
-
-		@Override
-		public String getConnectorString(Connector... connectors) {
-			List<Direction> directionList = new ArrayList<Direction>();
-
-			for (Connector connector : connectors) {
-				directionList.add(connector.getFrom());
-				directionList.add(connector.getTo());
-			}
-			Collections.sort(directionList, this.EnumComparator);
-
-			return this.connectorStrings.get(directionList);
-		}
-
-		private void put(List<Direction> list, String string) {
-			Collections.sort(list, this.EnumComparator);
-			this.connectorStrings.put(list, string);
-		};
+	/**
+	 * Returns the {@link NodePrinter} responsible for formatting the nodes.
+	 * 
+	 * @return the node printer
+	 */
+	public NodePrinter<Node> getNodePrinter() {
+		return this.nodePrinter;
 	}
 
-	private class Level {
-		private IdentityHashMap<Object, List<Object>> outgoings = new IdentityHashMap<Object, List<Object>>();
+	/**
+	 * Returns the maximum width of the nodes.
+	 * 
+	 * @return the maximum width
+	 */
+	public int getWidth() {
+		return this.width;
+	}
 
-		private List<Object> levelNodes = new ArrayList<Object>();
+	/**
+	 * Prints the directed acyclic graph to a string representation where each node is formatted by the specified
+	 * {@link Formatter} format and all structural elements are formatted with the given width.
+	 * 
+	 * @param appendable
+	 *        the target of the print operations
+	 * @param navigator
+	 *        the navigator
+	 * @param startNodes
+	 *        the start nodes
+	 * @throws IOException
+	 *         if an I/O error occurred during the print operation
+	 */
+	public void print(Appendable appendable, Iterable<Node> startNodes, Navigator<Node> navigator) throws IOException {
+		this.print(appendable, startNodes.iterator(), navigator);
+	}
 
-		public Level(List<Node> nodes) {
-			this.levelNodes.addAll(nodes);
+	/**
+	 * Prints the directed acyclic graph to a string representation where each node is formatted by the specified
+	 * {@link Formatter} format and all structural elements are formatted with the given width.
+	 * 
+	 * @param appendable
+	 *        the target of the print operations
+	 * @param navigator
+	 *        the navigator
+	 * @param startNodes
+	 *        the start nodes
+	 * @throws IOException
+	 *         if an I/O error occurred during the print operation
+	 */
+	public void print(Appendable appendable, Iterator<Node> startNodes, Navigator<Node> navigator) throws IOException {
+		new PrintState(appendable, DAGLevelPartitioner.getLevels(startNodes, navigator)).printDAG();
+	}
 
-			// initializes all outgoing links
-			for (Node node : nodes) {
-				ArrayList<Object> links = new ArrayList<Object>();
-				for (Object connectedNode : DAGPrinter.this.navigator.getConnectedNodes(node))
-					links.add(connectedNode);
-				this.outgoings.put(node, links);
-			}
+	/**
+	 * Prints the directed acyclic graph to a string representation where each node is formatted by the specified
+	 * {@link Formatter} format and all structural elements are formatted with the given width.
+	 * 
+	 * @param appendable
+	 *        the target of the print operations
+	 * @param navigator
+	 *        the navigator
+	 * @param startNodes
+	 *        the start nodes
+	 * @throws IOException
+	 *         if an I/O error occurred during the print operation
+	 */
+	public void print(Appendable appendable, Node[] startNodes, Navigator<Node> navigator) throws IOException {
+		this.print(appendable, Arrays.asList(startNodes).iterator(), navigator);
+	}
+
+	/**
+	 * Sets the {@link ConnectorProvider} providing printable strings for the edges between the nodes.
+	 * 
+	 * @param connectorProvider
+	 *        the new connector provider
+	 */
+	public void setConnectorProvider(ConnectorProvider connectorProvider) {
+		if (connectorProvider == null)
+			throw new NullPointerException("connectorProvider must not be null");
+
+		this.connectorProvider = connectorProvider;
+	}
+
+	/**
+	 * Sets the {@link NodePrinter} responsible for formatting the nodes.
+	 * 
+	 * @param nodePrinter
+	 *        the node printer
+	 */
+	public void setNodePrinter(NodePrinter<Node> nodePrinter) {
+		if (nodePrinter == null)
+			throw new NullPointerException("nodePrinter must not be null");
+
+		this.nodePrinter = nodePrinter;
+	}
+
+	/**
+	 * Sets the width of a column of nodes. The default width is
+	 * 
+	 * @param width
+	 */
+	public void setWidth(int width) {
+		this.width = width;
+		this.widthString = "%-" + width + "s";
+	}
+
+	/**
+	 * Converts the directed acyclic graph to a string representation where each node is formatted by the specified
+	 * {@link NodePrinter} and all structural elements are formatted with the given width.
+	 * 
+	 * @param navigator
+	 *        the navigator
+	 * @param startNodes
+	 *        the start nodes
+	 * @return a string representation of the directed acyclic graph
+	 */
+	public String toString(Iterable<Node> startNodes, Navigator<Node> navigator) {
+		return this.toString(startNodes.iterator(), navigator);
+	}
+
+	/**
+	 * Converts the directed acyclic graph to a string representation where each node is formatted by the specified
+	 * {@link NodePrinter} and all structural elements are formatted with the given width.
+	 * 
+	 * @param navigator
+	 *        the navigator
+	 * @param startNodes
+	 *        the start nodes
+	 * @return a string representation of the directed acyclic graph
+	 */
+	public String toString(Iterator<Node> startNodes, Navigator<Node> navigator) {
+		StringBuilder builder = new StringBuilder();
+
+		try {
+			this.print(builder, startNodes, navigator);
+		} catch (IOException e) {
+			// cannot happen since we use a StringBuilder
 		}
 
-		/**
-		 * Adds a connector place holder to the given object. Adds spacers if needed.
-		 * 
-		 * @param placeholderIndex
-		 *        the index of the place holder in list of levelNodes
-		 * @param to
-		 *        the object to link to
-		 * @return the place holder
-		 */
-		public Placeholder addPlaceholder(int placeholderIndex, Object to) {
-			for (int index = this.levelNodes.size(); index < placeholderIndex; index++) {
-				Placeholder emptyPlaceholder = new Placeholder();
-				this.levelNodes.add(emptyPlaceholder);
-				this.outgoings.put(emptyPlaceholder, new ArrayList<Object>());
-			}
+		return builder.toString();
+	}
 
-			for (; placeholderIndex < this.levelNodes.size(); placeholderIndex++) {
-				if (!(this.levelNodes.get(placeholderIndex) instanceof Placeholder))
-					break;
-				if (((Placeholder) this.levelNodes.get(placeholderIndex)).targets.isEmpty()) {
-					this.levelNodes.remove(placeholderIndex);
-					break;
-				}
-			}
+	/**
+	 * Converts the directed acyclic graph to a string representation where each node is formatted by the specified
+	 * {@link NodePrinter} and all structural elements are formatted with the given width.
+	 * 
+	 * @param navigator
+	 *        the navigator
+	 * @param startNodes
+	 *        the start nodes
+	 * @return a string representation of the directed acyclic graph
+	 */
+	public String toString(Node[] startNodes, Navigator<Node> navigator) {
+		return this.toString(Arrays.asList(startNodes), navigator);
+	}
 
-			Placeholder placeholder = new Placeholder(to, placeholderIndex);
-			this.levelNodes.add(placeholderIndex, placeholder);
-			this.outgoings.put(placeholder, new ArrayList<Object>(Arrays.asList(to)));
-			return placeholder;
-		}
+	/**
+	 * Formats node using a given format pattern and {@link String#format(String, Object...)}.
+	 * 
+	 * @author Arvid Heise
+	 * @param <Node>
+	 *        the class of the node
+	 */
+	public static class FormattedNodePrinter<Node> implements NodePrinter<Node> {
+		private final String format;
 
-		public List<Object> getLevelNodes() {
-			return this.levelNodes;
-		}
-
-		public List<Object> getLinks(Object node) {
-			return this.outgoings.get(node);
-		}
-
-		public int indexOf(Object input) {
-			int index = 0;
-			for (Object node : this.getLevelNodes()) {
-				if (node == input)
-					return index;
-				index++;
-			}
-			return -1;
+		private FormattedNodePrinter(String format) {
+			this.format = format;
 		}
 
 		@Override
-		public String toString() {
-			return this.levelNodes.toString();
-		}
-
-		public void updateLink(Object from, Object to, Object placeholder) {
-			this.outgoings.get(from).set(this.outgoings.get(from).indexOf(to), placeholder);
+		public String toString(Object node) {
+			return String.format(this.format, node.toString());
 		}
 	}
 
 	/**
-	 * Place holder to format connections between nodes above several levels. There are two types: spacers and
+	 * Placeholder to format connections between nodes above several levels. There are two types: spacers and
 	 * connectors.
 	 * 
 	 * @author Arvid Heise
@@ -176,77 +233,102 @@ public class DAGPrinter<Node> {
 	private static class Placeholder {
 		private List<Object> targets = new ArrayList<Object>(1);
 
-		private int index;
-
 		/**
 		 * Initializes a spacer.
 		 */
 		public Placeholder() {
 		}
 
-		/**
-		 * Initializes a connector place holder to the given target.
-		 * 
-		 * @param target
-		 *        the target
-		 */
-		public Placeholder(Object target, int index) {
+		Placeholder(Object target) {
 			this.targets.add(target);
-			this.index = index;
-		}
-
-		public int getIndex() {
-			return this.index;
 		}
 
 		public String toString(ConnectorProvider connectorProvider) {
 			if (this.targets.isEmpty())
 				return "";
-			return connectorProvider.getConnectorString(ConnectorProvider.Connector.TOP_DOWN);
+			return connectorProvider.getConnectorString(ConnectorProvider.Route.TOP_DOWN);
 			// return this.targets.isEmpty() ? "" : "|";
 			// return this.targets.isEmpty() ? "" : String.valueOf(index) + targets.toString();
 		}
 	}
 
-	private class State {
+	private class PrintState {
 		private Appendable appender;
 
-		private NodePrinter<Node> nodePrinter;
-
-		private String widthString;
-
-		private List<Level> levels;
+		private List<Level<Object>> levels;
 
 		private IntList printDownline = new IntArrayList();
 
-		private int width;
-
-		private State(Appendable builder, NodePrinter<Node> nodePrinter, int width) {
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		private PrintState(Appendable builder, List<Level<Node>> levels) {
 			this.appender = builder;
-			this.nodePrinter = nodePrinter;
-			this.widthString = "%-" + width + "s";
-			this.width = width;
-
-			this.levels = DAGPrinter.this.getLevels();
-			DAGPrinter.this.addPlaceholders(this.levels);
+			this.levels = (List) levels;
+			this.addPlaceholders(this.levels);
 		}
 
-		private void append(int index, ConnectorProvider.Connector connector, ConnectorProvider.Connector padding)
+		public Placeholder addPlaceholder(Level<Object> level, int placeholderIndex, Object to) {
+			for (int index = level.getLevelNodes().size(); index < placeholderIndex; index++) {
+				Placeholder emptyPlaceholder = new Placeholder();
+				level.add(emptyPlaceholder);
+			}
+
+			for (; placeholderIndex < level.getLevelNodes().size(); placeholderIndex++) {
+				if (!(level.getLevelNodes().get(placeholderIndex) instanceof Placeholder))
+					break;
+				if (((Placeholder) level.getLevelNodes().get(placeholderIndex)).targets.isEmpty()) {
+					level.getLevelNodes().remove(placeholderIndex);
+					break;
+				}
+			}
+
+			Placeholder placeholder = new Placeholder(to);
+			level.add(placeholderIndex, placeholder);
+			level.updateLink(placeholder, null, to);
+			// level.getLevelNodes().add(placeholderIndex, placeholder);
+			// this.outgoings.put(placeholder, new ArrayList<Object>(Arrays.asList(to)));
+			return placeholder;
+		}
+
+		private void addPlaceholders(List<Level<Object>> levels) {
+			for (int levelIndex = levels.size() - 1; levelIndex >= 0; levelIndex--) {
+				Level<Object> level = levels.get(levelIndex);
+				List<Object> levelNodes = level.getLevelNodes();
+
+				int placeHolderIndex = 0;
+				for (int nodeIndex = 0; nodeIndex < levelNodes.size(); nodeIndex++) {
+					Object node = levelNodes.get(nodeIndex);
+
+					List<Object> inputs = level.getLinks(node);
+
+					for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++, placeHolderIndex++) {
+						Object input = inputs.get(inputIndex);
+						if (levels.get(levelIndex - 1).getLevelNodes().indexOf(input) == -1) {
+							Object placeholder = this.addPlaceholder(levels.get(levelIndex - 1), placeHolderIndex,
+								input);
+							level.updateLink(node, input, placeholder);
+						}
+					}
+				}
+			}
+		}
+
+		private void append(int index, ConnectorProvider.Route connector, ConnectorProvider.Route padding)
 				throws IOException {
 			String connectorString = "";
 			if (index < this.printDownline.size() && this.printDownline.getInt(index) > 0) {
 				if (connector != null)
 					connectorString = DAGPrinter.this.connectorProvider.getConnectorString(connector,
-						ConnectorProvider.Connector.TOP_DOWN);
+						ConnectorProvider.Route.TOP_DOWN);
 				else
 					connectorString = DAGPrinter.this.connectorProvider
-						.getConnectorString(ConnectorProvider.Connector.TOP_DOWN);
+						.getConnectorString(ConnectorProvider.Route.TOP_DOWN);
 			} else if (connector != null)
 				connectorString = DAGPrinter.this.connectorProvider.getConnectorString(connector);
 
-			String paddedString = String.format(this.widthString, connectorString);
+			String paddedString = String.format(DAGPrinter.this.widthString, connectorString);
 			if (padding != null)
-				paddedString = paddedString.replaceAll(" ", DAGPrinter.this.connectorProvider.getConnectorString(padding));
+				paddedString = paddedString.replaceAll(" ",
+					DAGPrinter.this.connectorProvider.getConnectorString(padding));
 			this.appender.append(paddedString);
 		}
 
@@ -263,41 +345,41 @@ public class DAGPrinter<Node> {
 
 			if (sourceIndex != -1)
 				if (sourceIndex < targetIndex) {
-					this.append(startIndex, ConnectorProvider.Connector.TOP_RIGHT,
-						ConnectorProvider.Connector.LEFT_RIGHT);
+					this.append(startIndex, ConnectorProvider.Route.TOP_RIGHT,
+						ConnectorProvider.Route.LEFT_RIGHT);
 					for (int index = sourceIndex + 1; index < targetIndex; index++)
-						this.append(index, null, ConnectorProvider.Connector.LEFT_RIGHT);
+						this.append(index, null, ConnectorProvider.Route.LEFT_RIGHT);
 				} else if (sourceIndex == targetIndex)
 					this.append(startIndex, null, null);
 				else {
-					this.append(startIndex, ConnectorProvider.Connector.RIGHT_DOWN,
-						ConnectorProvider.Connector.RIGHT_LEFT);
+					this.append(startIndex, ConnectorProvider.Route.RIGHT_DOWN,
+						ConnectorProvider.Route.RIGHT_LEFT);
 					for (int index = targetIndex + 1; index < sourceIndex; index++)
-						this.append(index, null, ConnectorProvider.Connector.RIGHT_LEFT);
+						this.append(index, null, ConnectorProvider.Route.RIGHT_LEFT);
 				}
 
 			int endIndex = Math.max(sourceIndex, targetIndex);
 			if (sourceIndex < targetIndex)
-				this.append(endIndex, ConnectorProvider.Connector.LEFT_DOWN, null);
+				this.append(endIndex, ConnectorProvider.Route.LEFT_DOWN, null);
 			else if (sourceIndex > targetIndex)
-				this.append(endIndex, ConnectorProvider.Connector.TOP_LEFT, null);
+				this.append(endIndex, ConnectorProvider.Route.TOP_LEFT, null);
 
 			for (int index = endIndex + 1; index < this.printDownline.size(); index++)
 				this.append(index, null, null);
 
-			this.appender.append("\n");
+			this.appender.append('\n');
 		}
 
-		private void printConnections(int levelIndex, Level level) throws IOException {
+		private void printConnections(int levelIndex, Level<Object> level) throws IOException {
 			if (levelIndex > 0) {
 				boolean printedConnection = false;
-				for (int sourceIndex = 0; sourceIndex < level.levelNodes.size(); sourceIndex++) {
-					Object node = level.levelNodes.get(sourceIndex);
+				for (int sourceIndex = 0; sourceIndex < level.getLevelNodes().size(); sourceIndex++) {
+					Object node = level.getLevelNodes().get(sourceIndex);
 
 					List<Object> inputs = level.getLinks(node);
 
 					for (int index = inputs.size() - 1; index >= 0; index--) {
-						int targetIndex = this.levels.get(levelIndex - 1).levelNodes.indexOf(inputs.get(index));
+						int targetIndex = this.levels.get(levelIndex - 1).getLevelNodes().indexOf(inputs.get(index));
 
 						if (sourceIndex == targetIndex)
 							continue;
@@ -316,13 +398,13 @@ public class DAGPrinter<Node> {
 
 		private void printDAG() throws IOException {
 			for (int levelIndex = this.levels.size() - 1; levelIndex >= 0; levelIndex--) {
-				Level level = this.levels.get(levelIndex);
-				for (int sourceIndex = 0; sourceIndex < level.levelNodes.size(); sourceIndex++) {
-					Object node = level.levelNodes.get(sourceIndex);
+				Level<Object> level = this.levels.get(levelIndex);
+				for (int sourceIndex = 0; sourceIndex < level.getLevelNodes().size(); sourceIndex++) {
+					Object node = level.getLevelNodes().get(sourceIndex);
 					this.increaseDownline(sourceIndex, level.getLinks(node).size());
 					this.printNode(node);
 				}
-				this.appender.append("\n");
+				this.appender.append('\n');
 
 				this.printConnections(levelIndex, level);
 			}
@@ -331,285 +413,30 @@ public class DAGPrinter<Node> {
 		@SuppressWarnings("unchecked")
 		private void printNode(Object node) throws IOException {
 			if (node instanceof Placeholder)
-				this.appender.append(String.format(this.widthString,
+				this.appender.append(String.format(DAGPrinter.this.widthString,
 					((Placeholder) node).toString(DAGPrinter.this.connectorProvider)));
 			else {
-				String nodeString = this.nodePrinter.toString((Node) node);
-				if (nodeString.length() > this.width)
-					nodeString = nodeString.substring(0, this.width);
-				this.appender.append(String.format(this.widthString, nodeString));
+				String nodeString = DAGPrinter.this.nodePrinter.toString((Node) node);
+				if (nodeString.length() > DAGPrinter.this.width)
+					nodeString = nodeString.substring(0, DAGPrinter.this.width);
+				this.appender.append(String.format(DAGPrinter.this.widthString, nodeString));
 			}
 		}
 
 	}
 
-	private Collection<Node> nodes;
-
-	private Navigator<Node> navigator;
-
-	private ConnectorProvider connectorProvider = new BoxConnectorProvider();
-
 	/**
-	 * Initializes DirectedAcyclicGraphPrinter with the given {@link Navigator} and the start nodes.
+	 * Default printer, which simply invokes {@link Object#toString()}
 	 * 
-	 * @param navigator
-	 *        the navigator
-	 * @param startNodes
-	 *        the start nodes
+	 * @author Arvid Heise
+	 * @param <Node>
+	 *        the class of the node
 	 */
-	public DAGPrinter(Navigator<Node> navigator, Collection<Node> startNodes) {
-		this.navigator = navigator;
-		this.nodes = startNodes;
-		for (Node node : startNodes)
-			this.gatherNodes(node);
-	}
-
-	/**
-	 * Initializes DirectedAcyclicGraphPrinter with the given {@link Navigator} and the start nodes.
-	 * 
-	 * @param navigator
-	 *        the navigator
-	 * @param startNodes
-	 *        the start nodes
-	 */
-	public DAGPrinter(Navigator<Node> navigator, Iterable<Node> startNodes) {
-		this(navigator, startNodes.iterator());
-	}
-
-	/**
-	 * Initializes DirectedAcyclicGraphPrinter with the given {@link Navigator} and the start nodes.
-	 * 
-	 * @param navigator
-	 *        the navigator
-	 * @param startNodes
-	 *        the start nodes
-	 */
-	public DAGPrinter(Navigator<Node> navigator, Iterator<Node> startNodes) {
-		this.navigator = navigator;
-		this.nodes = new ArrayList<Node>();
-		while (startNodes.hasNext())
-			this.gatherNodes(startNodes.next());
-	}
-
-	/**
-	 * Initializes DirectedAcyclicGraphPrinter with the given {@link Navigator} and the start nodes.
-	 * 
-	 * @param navigator
-	 *        the navigator
-	 * @param startNodes
-	 *        the start nodes
-	 */
-	public DAGPrinter(Navigator<Node> navigator, Node... startNodes) {
-		this.navigator = navigator;
-		this.nodes = new ArrayList<Node>();
-		for (Node node : startNodes)
-			this.gatherNodes(node);
-	}
-
-	/**
-	 * Initializes DirectedAcyclicGraphPrinter with the given {@link Navigator} and all nodes reachable from the root
-	 * node.
-	 * 
-	 * @param navigator
-	 *        the navigator
-	 * @param rootNode
-	 *        the root node
-	 */
-	public DAGPrinter(Navigator<Node> navigator, Node rootNode) {
-		this.navigator = navigator;
-		this.nodes = new ArrayList<Node>();
-		this.gatherNodes(rootNode);
-	}
-
-	private void addPlaceholders(List<Level> levels) {
-		for (int levelIndex = levels.size() - 1; levelIndex >= 0; levelIndex--) {
-			Level level = levels.get(levelIndex);
-			List<Object> levelNodes = level.getLevelNodes();
-
-			int placeHolderIndex = 0;
-			for (int nodeIndex = 0; nodeIndex < levelNodes.size(); nodeIndex++) {
-				Object node = levelNodes.get(nodeIndex);
-
-				List<Object> inputs = level.getLinks(node);
-
-				for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++, placeHolderIndex++) {
-					Object input = inputs.get(inputIndex);
-					if (levels.get(levelIndex - 1).indexOf(input) == -1) {
-						Object placeholder = levels.get(levelIndex - 1).addPlaceholder(placeHolderIndex, input);
-						level.updateLink(node, input, placeholder);
-					}
-				}
-
-				// for (Object input : inputs) {
-				// int targetIndex;
-				// int targetLevelIndex = levelIndex;
-				// do
-				// targetIndex = levels.get(--targetLevelIndex).indexOf(input);
-				// while (targetIndex == -1);
-				// Object placeholder = input;
-				// while (++targetLevelIndex < levelIndex)
-				// placeholder = levels.get(targetLevelIndex).addPlaceholder(targetIndex, placeholder);
-				// if (placeholder != input)
-				// level.updateLink(node, input, placeholder);
-				// }
-
-			}
-		}
-	}
-
-	private void gatherNodes(Node node) {
-		if (!this.nodes.contains(node)) {
-			this.nodes.add(node);
-			for (Node child : this.navigator.getConnectedNodes(node))
-				this.gatherNodes(child);
-		}
-	}
-
-	private List<Level> getLevels() {
-		Collection<Node> remainingNodes = new ArrayList<Node>(this.nodes);
-		List<Node> usedNodes = new ArrayList<Node>();
-		List<Level> levels = new ArrayList<Level>();
-
-		while (!remainingNodes.isEmpty()) {
-			List<Node> independentNodes = new ArrayList<Node>();
-
-			for (Node node : remainingNodes)
-				if (this.isIndependent(node, usedNodes))
-					independentNodes.add(node);
-
-			if (independentNodes.isEmpty())
-				throw new IllegalStateException("graph does not have nodes without input");
-			levels.add(new Level(new ArrayList<Node>(independentNodes)));
-
-			remainingNodes.removeAll(independentNodes);
-			usedNodes.addAll(independentNodes);
+	public static class StandardPrinter<Node> implements NodePrinter<Node> {
+		@Override
+		public String toString(Object node) {
+			return node.toString();
 		}
 
-		return levels;
-	}
-
-	private boolean isIndependent(Node node, Collection<Node> usedNodes) {
-		for (Object input : this.navigator.getConnectedNodes(node))
-			if (!usedNodes.contains(input))
-				return false;
-		return true;
-	}
-
-	/**
-	 * Prints the directed acyclic graph to a string representation where each node is formatted using the
-	 * {@link Object#toString()} method and all structural elements are formatted with the given width.
-	 * 
-	 * @param appendable
-	 *        the target of the print operations
-	 * @param width
-	 *        the width of structural elements
-	 * @throws IOException
-	 *         if an I/O error occurred during the print operation
-	 */
-	public void print(Appendable appendable, final int width) throws IOException {
-		this.print(appendable, new NodePrinter<Node>() {
-			String widthString = "%-" + width + "s";
-
-			@Override
-			public String toString(Node node) {
-				return String.format(this.widthString, node.toString());
-			}
-		}, width);
-	}
-
-	/**
-	 * Prints the directed acyclic graph to a string representation where each node is formatted by the specified
-	 * {@link NodePrinter} and all structural elements are formatted with the given width.
-	 * 
-	 * @param appendable
-	 *        the target of the print operations
-	 * @param nodePrinter
-	 *        the formatter of the nodes
-	 * @param width
-	 *        the width of structural elements
-	 * @throws IOException
-	 *         if an I/O error occurred during the print operation
-	 */
-	public void print(Appendable appendable, NodePrinter<Node> nodePrinter, int width) throws IOException {
-		new State(appendable, nodePrinter, width).printDAG();
-	}
-
-	/**
-	 * Prints the directed acyclic graph to a string representation where each node is formatted by the specified
-	 * {@link Formatter} format and all structural elements are formatted with the given width.
-	 * 
-	 * @param appendable
-	 *        the target of the print operations
-	 * @param format
-	 *        the format of the nodes
-	 * @param width
-	 *        the width of structural elements
-	 * @throws IOException
-	 *         if an I/O error occurred during the print operation
-	 */
-	public void print(Appendable appendable, final String format, int width) throws IOException {
-		this.print(appendable, new NodePrinter<Node>() {
-			@Override
-			public String toString(Node node) {
-				return String.format(format, node.toString());
-			}
-		}, width);
-	}
-
-	/**
-	 * Converts the directed acyclic graph to a string representation where each node is formatted using the
-	 * {@link Object#toString()} method and all structural elements are formatted with the given width.
-	 * 
-	 * @param width
-	 *        the width of structural elements
-	 * @return a string representation of the directed acyclic graph
-	 */
-	public String toString(final int width) {
-		return this.toString(new NodePrinter<Node>() {
-			@Override
-			public String toString(Node node) {
-				return node.toString();
-			}
-		}, width);
-	}
-
-	/**
-	 * Converts the directed acyclic graph to a string representation where each node is formatted by the specified
-	 * {@link NodePrinter} and all structural elements are formatted with the given width.
-	 * 
-	 * @param nodePrinter
-	 *        the formatter of the nodes
-	 * @param width
-	 *        the width of structural elements
-	 * @return a string representation of the directed acyclic graph
-	 */
-	public String toString(NodePrinter<Node> nodePrinter, int width) {
-		StringBuilder builder = new StringBuilder();
-
-		try {
-			new State(builder, nodePrinter, width).printDAG();
-		} catch (IOException e) {
-		}
-
-		return builder.toString();
-	}
-
-	/**
-	 * Converts the directed acyclic graph to a string representation where each node is formatted by the specified
-	 * {@link Formatter} format and all structural elements are formatted with the given width.
-	 * 
-	 * @param format
-	 *        the format of the nodes
-	 * @param width
-	 *        the width of structural elements
-	 * @return a string representation of the directed acyclic graph
-	 */
-	public String toString(final String format, int width) {
-		return this.toString(new NodePrinter<Node>() {
-			@Override
-			public String toString(Node node) {
-				return String.format(format, node.toString());
-			}
-		}, width);
 	}
 }

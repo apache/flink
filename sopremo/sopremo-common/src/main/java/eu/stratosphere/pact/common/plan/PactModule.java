@@ -124,16 +124,15 @@ public class PactModule implements Visitable<Contract> {
 
 	@Override
 	public String toString() {
-		return toString(this.outputStubs);
-	}
-
-	public static String toString(Contract[] sinks) {
-		return new DAGPrinter<Contract>(new ContractNavigator(), sinks).toString(new NodePrinter<Contract>() {
+		DAGPrinter<Contract> dagPrinter = new DAGPrinter<Contract>();
+		dagPrinter.setNodePrinter(new NodePrinter<Contract>() {
 			@Override
 			public String toString(Contract node) {
 				return String.format("%s [%s]", node.getClass().getSimpleName(), node.getName());
 			}
-		}, 80);
+		});
+		dagPrinter.setWidth(80);
+		return dagPrinter.toString(this.outputStubs, ContractNavigator.INSTANCE);
 	}
 
 }

@@ -113,9 +113,8 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 				return new FunctionCall(d.getName(), childPaths.toArray(new EvaluableExpression[childPaths.size()]));
 			}
 			Operator operator = EvaluableExpressionParser.this.queryParser.parseOperator(expr);
-			if (operator instanceof Aggregation
-				&& ((ObjectCreation) operator.getEvaluableExpression()).getMappingSize() == 1)
-				return new FunctionCall("distinct", childPaths.get(childPaths.size() - 1));
+			if (operator instanceof Aggregation && operator.getEvaluableExpression() instanceof Path)
+				return new FunctionCall("distinct", operator.getEvaluableExpression());
 			// if (queryParser.bindings.get("$").getTransformed().equals(new Fragment.Input(0))
 			// && queryParser.parsePath(expr.collectExpr()).equals(
 			// new Fragment.ArrayCreation(new Fragment.Input(0))))

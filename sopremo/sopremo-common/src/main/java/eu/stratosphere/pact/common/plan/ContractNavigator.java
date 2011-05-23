@@ -10,6 +10,8 @@ import eu.stratosphere.pact.common.contract.SingleInputContract;
 
 public class ContractNavigator implements Navigator<Contract> {
 
+	public static final ContractNavigator INSTANCE = new ContractNavigator();
+
 	@Override
 	public Iterable<Contract> getConnectedNodes(Contract node) {
 		if (node instanceof DualInputContract)

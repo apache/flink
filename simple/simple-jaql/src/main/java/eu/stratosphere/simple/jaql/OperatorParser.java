@@ -90,10 +90,11 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 		@Override
 		public Operator convert(GroupByExpr expr, List<Operator> childOperators) {
 			int n = expr.numInputs();
-			List<Path> groupStatements = new ArrayList<Path>();
+			List<EvaluableExpression> groupStatements = new ArrayList<EvaluableExpression>();
 			for (int index = 0; index < n; index++) {
 				OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new Input(index)));
-				Path groupStatement = (Path) OperatorParser.this.queryParser.parsePath(expr.byBinding().child(index));
+				EvaluableExpression groupStatement = OperatorParser.this.queryParser.parsePath(expr.byBinding().child(
+					index));
 				if (groupStatement != null) {
 					OperatorParser.this.queryParser.bindings.set(expr.getAsVar(index).taggedName(), new Binding(null,
 						new Input(index)));

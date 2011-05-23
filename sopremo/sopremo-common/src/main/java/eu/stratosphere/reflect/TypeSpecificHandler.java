@@ -37,13 +37,6 @@ public class TypeSpecificHandler<InputType, OutputBase, Handler extends TypeHand
 			} catch (NoSuchMethodException e) {
 				throw new IllegalStateException("class should have implemented the given method");
 			}
-			// Method[] methods = handlerClass.getMethods();
-			// for (Method method : methods)
-			// if (method.getDeclaringClass() == handler.getClass()) {
-			// method.setAccessible(true);
-			// this.callback = method;
-			// break;
-			// }
 
 			AppendChildren annotation = this.getAnnotation(handlerClass, callback, AppendChildren.class);
 			if (annotation != null)

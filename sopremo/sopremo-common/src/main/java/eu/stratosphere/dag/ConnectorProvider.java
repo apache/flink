@@ -4,34 +4,55 @@ package eu.stratosphere.dag;
  * Returns printable characters for all different kinds of edge intersections.
  * 
  * @see DAGPrinter
- * @author Arvid.Heise
+ * @author Arvid Heise
  */
 public interface ConnectorProvider {
-	static enum Connector {
-		TOP_DOWN(Direction.TOP, Direction.DOWN), TOP_RIGHT(Direction.TOP, Direction.RIGHT), TOP_LEFT(Direction.TOP,
-				Direction.LEFT), LEFT_DOWN(Direction.LEFT, Direction.DOWN), RIGHT_DOWN(Direction.RIGHT,
-				Direction.DOWN), LEFT_RIGHT(Direction.LEFT, Direction.RIGHT), RIGHT_LEFT(Direction.RIGHT,
-				Direction.LEFT);
+	/**
+	 * Returns the string representing all {@link Route}s. The actual string depends on the implementation and may or
+	 * may not account for intersections or several occurrences of the same route.
+	 * 
+	 * @param routes
+	 *        the routes that should be represented
+	 * @return a string representation.
+	 */
+	public String getConnectorString(Route... routes);
 
-		private ConnectorProvider.Direction from, to;
+	/**
+	 * The basic four direction used to compose the complex {@link Route}.
+	 * 
+	 * @author Arvid Heise
+	 */
+	static enum BaseDirection {
+		TOP, DOWN, RIGHT, LEFT
+	};
 
-		private Connector(ConnectorProvider.Direction from, ConnectorProvider.Direction to) {
+	/**
+	 * Represents a line from a starting point to an ending point at a given square.
+	 * 
+	 * @author Arvid Heise
+	 */
+	static enum Route {
+		TOP_DOWN(BaseDirection.TOP, BaseDirection.DOWN),
+		TOP_RIGHT(BaseDirection.TOP, BaseDirection.RIGHT),
+		TOP_LEFT(BaseDirection.TOP, BaseDirection.LEFT),
+		LEFT_DOWN(BaseDirection.LEFT, BaseDirection.DOWN),
+		RIGHT_DOWN(BaseDirection.RIGHT, BaseDirection.DOWN),
+		LEFT_RIGHT(BaseDirection.LEFT, BaseDirection.RIGHT),
+		RIGHT_LEFT(BaseDirection.RIGHT, BaseDirection.LEFT);
+
+		private BaseDirection from, to;
+
+		private Route(BaseDirection from, BaseDirection to) {
 			this.from = from;
 			this.to = to;
 		}
 
-		public ConnectorProvider.Direction getFrom() {
-			return from;
+		public BaseDirection getFrom() {
+			return this.from;
 		}
 
-		public ConnectorProvider.Direction getTo() {
-			return to;
+		public BaseDirection getTo() {
+			return this.to;
 		}
-	};
-
-	static enum Direction {
-		TOP, DOWN, RIGHT, LEFT
-	};
-
-	public String getConnectorString(ConnectorProvider.Connector... connectors);
+	}
 }

@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.dag.DAGPrinter;
-import eu.stratosphere.dag.TraverseListener;
-import eu.stratosphere.dag.Traverser;
+import eu.stratosphere.dag.DAGTraverseListener;
+import eu.stratosphere.dag.DependencyAwareDAGTraverser;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
@@ -39,29 +39,24 @@ public class SopremoPlan {
 		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
 	}
 
-	public static class PlanPrinter extends DAGPrinter<Operator> {
-		public PlanPrinter(SopremoPlan plan) {
-			super(new OperatorNavigator(), plan.getAllNodes());
-		}
-	}
-
 	public Collection<Operator> getSinks() {
 		return this.sinks;
 	}
 
 	@Override
 	public String toString() {
-		return new PlanPrinter(this).toString(80);
+		return new DAGPrinter<Operator>().toString(sinks, OperatorNavigator.INSTANCE);
 	}
 
 	public List<Operator> getAllNodes() {
 		final List<Operator> nodes = new ArrayList<Operator>();
-		new Traverser<Operator>(new OperatorNavigator(), this.sinks).traverse(new TraverseListener<Operator>() {
-			@Override
-			public void nodeTraversed(Operator node) {
-				nodes.add(node);
-			}
-		});
+		DependencyAwareDAGTraverser.INSTANCE.traverse(this.sinks, new OperatorNavigator(),
+			new DAGTraverseListener<Operator>() {
+				@Override
+				public void nodeTraversed(Operator node) {
+					nodes.add(node);
+				}
+			});
 		return nodes;
 	}
 
@@ -74,18 +69,19 @@ public class SopremoPlan {
 		final Map<Operator, PactModule> modules = new IdentityHashMap<Operator, PactModule>();
 		final Map<Operator, Contract[]> operatorOutputs = new IdentityHashMap<Operator, Contract[]>();
 
-		new Traverser<Operator>(new OperatorNavigator(), this.sinks).traverse(new TraverseListener<Operator>() {
-			@Override
-			public void nodeTraversed(Operator node) {
-				PactModule module = node.asPactModule(SopremoPlan.this.context);
-				modules.put(node, module);
-				DataSinkContract<PactNull, PactJsonObject>[] outputStubs = module.getOutputStubs();
-				Contract[] outputContracts = new Contract[outputStubs.length];
-				for (int index = 0; index < outputStubs.length; index++)
-					outputContracts[index] = outputStubs[index].getInput();
-				operatorOutputs.put(node, outputContracts);
-			}
-		});
+		DependencyAwareDAGTraverser.INSTANCE.traverse(this.sinks, OperatorNavigator.INSTANCE,
+			new DAGTraverseListener<Operator>() {
+				@Override
+				public void nodeTraversed(Operator node) {
+					PactModule module = node.asPactModule(SopremoPlan.this.context);
+					modules.put(node, module);
+					DataSinkContract<PactNull, PactJsonObject>[] outputStubs = module.getOutputStubs();
+					Contract[] outputContracts = new Contract[outputStubs.length];
+					for (int index = 0; index < outputStubs.length; index++)
+						outputContracts[index] = outputStubs[index].getInput();
+					operatorOutputs.put(node, outputContracts);
+				}
+			});
 
 		for (PactModule module : modules.values())
 			module.validate();

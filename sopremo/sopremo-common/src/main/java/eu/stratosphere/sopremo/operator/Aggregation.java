@@ -24,18 +24,18 @@ import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
 
 public class Aggregation extends Operator {
-	public final static List<Path> NO_GROUPING = new ArrayList<Path>();
+	public final static List<EvaluableExpression> NO_GROUPING = new ArrayList<EvaluableExpression>();
 
-	private List<Path> groupings;
+	private List<? extends EvaluableExpression> groupings;
 
-	public Aggregation(Evaluable transformation, List<Path> grouping, Operator... inputs) {
+	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, Operator... inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
 		this.groupings = grouping;
 	}
 
-	public Aggregation(Evaluable transformation, List<Path> grouping, List<Operator> inputs) {
+	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, List<Operator> inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
@@ -72,7 +72,7 @@ public class Aggregation extends Operator {
 
 		PactModule module = new PactModule(this.getInputOperators().size(), 1);
 		List<Contract> keyExtractors = new ArrayList<Contract>();
-		for (Path grouping : this.groupings)
+		for (EvaluableExpression grouping : this.groupings)
 			keyExtractors.add(PactUtil.addKeyExtraction(module, grouping, context));
 
 		switch (this.groupings.size()) {

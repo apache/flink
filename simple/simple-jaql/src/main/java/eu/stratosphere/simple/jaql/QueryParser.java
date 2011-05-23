@@ -76,34 +76,27 @@ public class QueryParser extends PlanCreator {
 		}
 	}
 
-	static class ExprPrinter extends DAGPrinter<Expr> {
-
-		private static final class PartialExprNavigator implements Navigator<Expr> {
-			private List<Expr> getChildren(Expr node) {
-				List<Expr> children = new ArrayList<Expr>();
-				for (int index = 0; index < node.numChildren(); index++) {
-					Expr child = node.child(index);
-					if (!(child instanceof ConstExpr) && !(child instanceof VarExpr) && !(child instanceof PathReturn)
-						&& !(child instanceof NameValueBinding) && !(child instanceof PathExpr)
-						&& !(child instanceof RecordExpr) && !(child instanceof CompareExpr)
-						&& !(child instanceof CopyField) && !(child instanceof FixedRecordExpr)
-						&& !(child instanceof CopyRecord)// && !(child
-															// instanceof
-															// BindingExpr)
-						&& !(child instanceof PathFieldValue))
-						children.add(node.child(index));
-				}
-				return children;
+	private static final class PartialExprNavigator implements Navigator<Expr> {
+		private List<Expr> getChildren(Expr node) {
+			List<Expr> children = new ArrayList<Expr>();
+			for (int index = 0; index < node.numChildren(); index++) {
+				Expr child = node.child(index);
+				if (!(child instanceof ConstExpr) && !(child instanceof VarExpr) && !(child instanceof PathReturn)
+					&& !(child instanceof NameValueBinding) && !(child instanceof PathExpr)
+					&& !(child instanceof RecordExpr) && !(child instanceof CompareExpr)
+					&& !(child instanceof CopyField) && !(child instanceof FixedRecordExpr)
+					&& !(child instanceof CopyRecord)// && !(child
+														// instanceof
+														// BindingExpr)
+					&& !(child instanceof PathFieldValue))
+					children.add(node.child(index));
 			}
-
-			@Override
-			public Iterable<Expr> getConnectedNodes(Expr node) {
-				return this.getChildren(node);
-			}
+			return children;
 		}
 
-		public ExprPrinter(Expr expr) {
-			super(new PartialExprNavigator(), expr);
+		@Override
+		public Iterable<Expr> getConnectedNodes(Expr node) {
+			return this.getChildren(node);
 		}
 	}
 
