@@ -30,9 +30,10 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 
 /**
- * The facade for the provided IO manager services.
+ * The facade for the provided I/O manager services.
  * 
  * @author Alexander Alexandrov
+ * @author Stephan Ewen
  */
 public final class IOManager implements UncaughtExceptionHandler
 {
@@ -264,10 +265,12 @@ public final class IOManager implements UncaughtExceptionHandler
 	}
 	
 	/**
-	 * Creates a block channel writer that writes to the given channel.
+	 * Creates a block channel writer that writes to the given channel. The writer writes asynchronously (write-behind),
+	 * accepting write request, carrying them out at some time and returning the written segment to the given queue
+	 * afterwards.
 	 * 
 	 * @param channelID The descriptor for the channel to write to.
-	 * @param returnQueue The queue to put buffers of handled into.
+	 * @param returnQueue The queue to put the written buffers into.
 	 * @return A block channel writer that writes to the given channel.
 	 * @throws IOException Thrown, if the channel for the writer could not be opened.
 	 */
@@ -275,11 +278,32 @@ public final class IOManager implements UncaughtExceptionHandler
 										LinkedBlockingQueue<MemorySegment> returnQueue)
 	throws IOException
 	{
-		if (isClosed) {
+		if (this.isClosed) {
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
 		return new BlockChannelWriter(channelID, this.writer.requestQueue, returnQueue);
+	}
+	
+	/**
+	 * Creates a block channel reader that reads blocks from the given channel. The reader reads asynchronously,
+	 * such that a read request is accepted, carried out at some (close) point in time, and the full segment
+	 * is pushed to the given queue.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @param returnQueue The queue to put the full buffers into.
+	 * @return A block channel reader that reads from the given channel.
+	 * @throws IOException Thrown, if the channel for the reader could not be opened.
+	 */
+	public BlockChannelReader createBlockChannelReader(Channel.ID channelID,
+										LinkedBlockingQueue<MemorySegment> returnQueue)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
+		return new BlockChannelReader(channelID, this.reader.requestQueue, returnQueue);
 	}
 
 	
@@ -292,7 +316,8 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * 
 	 * @return An input buffer storing its data in the given memory segment.
 	 */
-	public static Buffer.Input createInputBuffer(MemorySegment memory) {
+	public static Buffer.Input createInputBuffer(MemorySegment memory)
+	{
 		return new Buffer.Input(memory);
 	}
 
@@ -301,7 +326,8 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * 
 	 * @return An output buffer storing its data in the given memory segment.
 	 */
-	public static Buffer.Output createOutputBuffer(MemorySegment memory) {
+	public static Buffer.Output createOutputBuffer(MemorySegment memory)
+	{
 		return new Buffer.Output(memory);
 	}
 

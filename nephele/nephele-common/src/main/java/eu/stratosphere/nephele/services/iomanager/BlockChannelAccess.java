@@ -116,7 +116,8 @@ public abstract class BlockChannelAccess<R extends IORequest> extends ChannelAcc
 	
 	/**
 	 * Closes the reader and waits until all asynchronous requests that have not yet been handled are
-	 * handled.
+	 * handled. Even if an exception interrupts the closing, the underlying <tt>FileChannel</tt> is
+	 * closed.
 	 * 
 	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if
 	 *                     the closing was interrupted.
@@ -154,4 +155,25 @@ public abstract class BlockChannelAccess<R extends IORequest> extends ChannelAcc
 			}
 		}
 	}
+	
+	/**
+	 * This method waits for until all asynchronous requests not yet been handled to return. When the
+	 * last request has returned, the channel is closed and deleted.
+	 * 
+	 * Even if an exception interrupts the closing, such that not all request are handled,
+	 * the underlying <tt>FileChannel</tt> is closed and deleted.
+	 * 
+	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if
+	 *                     the closing was interrupted.
+	 */
+	public void closeAndDelete() throws IOException
+	{
+		try {
+			close();
+		}
+		finally {
+			deleteChannel();
+		}
+	}
+	
 }

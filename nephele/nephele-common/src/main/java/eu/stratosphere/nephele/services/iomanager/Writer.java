@@ -22,13 +22,29 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
- * Writer interface which encapsulates only the most basic functionality.
+ * Writer interface for a writer with a stream abstraction. The writer is typically created with a collection
+ * of MemorySegments which it internally uses for write-behind logic.
  * 
  * @author Erik Nijkamp
  */
 public interface Writer
 {
+	/**
+	 * Closes the writer. Makes sure all buffered and unwritten data is written and then returns the
+	 * memory segments used by the writer.
+	 * 
+	 * @return The memory segments used internally.
+	 * @throws IOException Thrown, if the writing of buffered data fails.
+	 */
 	Collection<MemorySegment> close() throws IOException;
 
+	/**
+	 * Writes an object to the stream behind the writer. This function typically writes the object into a buffer,
+	 * which is eventually flushed to disk, when full or when the writer is closed.
+	 *  
+	 * @param readable The object to be written.
+	 * @return True, if the object was successfully written, false otherwise.
+	 * @throws IOException Thrown, if the writing process encounters an I/O related error.
+	 */
 	boolean write(IOReadableWritable readable) throws IOException;
 }

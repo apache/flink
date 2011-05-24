@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
+
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -58,6 +59,9 @@ public class BlockChannelWriter extends BlockChannelAccess<WriteRequest>
 
 //--------------------------------------------------------------------------------------------
 
+/**
+ * Special write request that writes an entire memory segment to the block writer.
+ */
 final class SegmentWriteRequest implements WriteRequest
 {
 	private final BlockChannelWriter channel;
