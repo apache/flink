@@ -23,17 +23,22 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
-import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 
 /**
@@ -69,6 +74,8 @@ import eu.stratosphere.pact.common.type.Value;
  */
 public class HashJoin<K extends Key, V extends Value>
 {
+	private static final Log LOG = LogFactory.getLog(HashJoin.class);
+	
 	// ------------------------------------------------------------------------
 	//                         Internal Constants
 	// ------------------------------------------------------------------------
@@ -119,11 +126,17 @@ public class HashJoin<K extends Key, V extends Value>
 	private static final int HEADER_FORWARD_OFFSET = 4;	
 	
 	
-	private static final long BUCKET_FORWARD_POINTER_NOT_SET = ~(0x0L);
+	private static final long BUCKET_FORWARD_POINTER_NOT_SET = ~0x0L;
 	
 	private static final byte BUCKET_STATUS_SPILLED = 1;
 	
 	private static final byte BUCKET_STATUS_IN_MEMORY = 0;
+	
+	// ------------------------------ Partition Header Fields ------------------------------
+	
+	private static final int PARTITION_BLOCK_HEADER_LEN = 8;
+	
+	private static final int PARTITION_BLOCK_SIZE_OFFSET = 4;
 	
 	
 	// ------------------------------------------------------------------------
@@ -139,6 +152,10 @@ public class HashJoin<K extends Key, V extends Value>
 	 * An iterator over the input that will be used to probe the hash-table.
 	 */
 	private final Iterator<KeyValuePair<K, V>> probeSideInput;
+	
+	private final SerializationFactory<K> keySerialization;
+	
+	private final SerializationFactory<V> valueSerialization;
 	
 	/**
 	 * The free memory segments currently available to the hash join.
@@ -205,6 +222,8 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	private ProbeSideIterator<K, V> probeIterator;
 	
+	private BlockChannelReader currentSpilledProbeSide;
+	
 	/**
 	 * The channel enumerator that is used while processing the current partition to create
 	 * channels for the spill partitions it requires.
@@ -240,16 +259,18 @@ public class HashJoin<K extends Key, V extends Value>
 	// ------------------------------------------------------------------------
 	
 	public HashJoin(Iterator<KeyValuePair<K, V>> buildSideInput, Iterator<KeyValuePair<K, V>> probeSideInput,
+			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			List<MemorySegment> memorySegments,
 			IOManager ioManager)
 	{
-		this(buildSideInput, probeSideInput, memorySegments, ioManager, DEFAULT_RECORD_LEN);
+		this(buildSideInput, probeSideInput, keySerialization, valueSerialization,
+			memorySegments, ioManager, DEFAULT_RECORD_LEN);
 	}
 	
 	
 	public HashJoin(Iterator<KeyValuePair<K, V>> buildSideInput, Iterator<KeyValuePair<K, V>> probeSideInput,
-			List<MemorySegment> memorySegments,
-			IOManager ioManager,
+			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
+			List<MemorySegment> memorySegments,	IOManager ioManager,
 			int avgRecordLen)
 	{
 		// some sanity checks first
@@ -264,6 +285,8 @@ public class HashJoin<K extends Key, V extends Value>
 		// assign the members
 		this.buildSideInput = buildSideInput;
 		this.probeSideInput = probeSideInput;
+		this.keySerialization = keySerialization;
+		this.valueSerialization = valueSerialization;
 		this.availableMemory = memorySegments;
 		this.ioManager = ioManager;
 		
@@ -308,6 +331,7 @@ public class HashJoin<K extends Key, V extends Value>
 		// the first prober is the probe-side input
 		this.probeIterator = new ProbeSideIterator<K, V>(this.probeSideInput);
 		
+		// the bucket iterator can remain constant over the time
 		this.bucketIterator = new HashBucketIterator<K, V>();
 	}
 	
@@ -358,11 +382,31 @@ public class HashJoin<K extends Key, V extends Value>
 		releaseTable();
 		
 		// check if there are pending partitions
-		if (!this.partitionsPending.isEmpty()) {
+		if (!this.partitionsPending.isEmpty())
+		{
+			final Partition p = this.partitionsPending.get(0);
 			
+			// build the next table
+			buildTableFromSpilledPartition(p);
+			
+			// set the probe side - gather memory segments for reading
+			MemorySegment seg1 = getNextBuffer();
+			MemorySegment seg2 = getNextBuffer();
+			
+			LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
+			this.currentSpilledProbeSide = this.ioManager.createBlockChannelReader(p.probeSideChannel.getChannelID(), returnQueue);
+			
+			
+			// unregister the pending partition
+			this.partitionsPending.remove(0);
+			
+			// recursively get the next
+			return nextKey();
 		}
-		
-		return false;
+		else {
+			// no more data
+			return false;
+		}
 	}
 	
 	/**
@@ -396,12 +440,24 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		
 		// clear the iterators, so the next call to next() will notice
+		this.bucketIterator = null;
+		this.probeIterator = null;
 		
 		// release the table structure
 		releaseTable();
 		
 		// clear the memory in the partitions
 		clearPartitions();
+		
+		// clear the current probe side channel, if there is one
+		if (this.currentSpilledProbeSide != null) {
+			try {
+				this.currentSpilledProbeSide.closeAndDelete();
+			}
+			catch (Throwable t) {
+				LOG.warn("Could not close and delete the temp file for the current spilled partition probe side.", t);
+			}
+		}
 		
 		// clear the partitions that are still to be done (that have files on disk)
 		for (int i = 0; i < this.partitionsPending.size(); i++) {
@@ -1312,7 +1368,7 @@ public class HashJoin<K extends Key, V extends Value>
 			segment.putInt(0, blockNumber);
 			
 			// skip 4 bytes for the remaining header
-			segment.outputView.setPosition(8);
+			segment.outputView.setPosition(PARTITION_BLOCK_HEADER_LEN);
 		}
 		
 		/**
@@ -1324,7 +1380,7 @@ public class HashJoin<K extends Key, V extends Value>
 		private final void spillBuffer(MemorySegment buffer, BlockChannelWriter writer)
 		throws IOException
 		{
-			buffer.putInt(4, buffer.outputView.getPosition());
+			buffer.putInt(PARTITION_BLOCK_SIZE_OFFSET, buffer.outputView.getPosition());
 			writer.writeBlock(buffer);
 		}
 		
@@ -1346,6 +1402,8 @@ public class HashJoin<K extends Key, V extends Value>
 		
 	} // end partition 
 	
+	
+	// ======================================================================================================
 	
 	
 	/**
@@ -1446,6 +1504,9 @@ public class HashJoin<K extends Key, V extends Value>
 	} // end HashBucketIterator
 	
 
+	// ======================================================================================================
+	
+	
 	/**
 	 *
 	 */
@@ -1566,5 +1627,122 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		
 	} // end ProbeSideIterator
+
 	
+	// ======================================================================================================
+	
+	
+	protected static final class BlockReaderIterator<K extends Key, V extends Value> implements MutableObjectIterator<KeyValuePair<K, V>>
+	{		
+		private MemorySegment currentSegment;
+		
+		private int currentEndPos;
+	
+		private final BlockChannelReader reader;
+		
+		private final LinkedBlockingQueue<MemorySegment> returnQueue;
+		
+		private int numRequestsRemaining;
+		
+		private int numReturnsRemaining;
+		
+		private final List<MemorySegment> freeMemTarget;
+		
+		
+		public BlockReaderIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
+				List<MemorySegment> segments, List<MemorySegment> freeMemTarget, int numBlocks)
+		throws IOException
+		{
+			this.reader = reader;
+			this.returnQueue = returnQueue;
+			this.freeMemTarget = freeMemTarget;
+			
+			this.numRequestsRemaining = numBlocks;
+			
+			// send off the first requests
+			for (; !segments.isEmpty() && this.numRequestsRemaining > 0; numRequestsRemaining--) {
+				this.reader.readBlock(segments.get(segments.size() - 1));
+			}
+			
+			// return the remaining memory, if there is memory left
+			while (!segments.isEmpty()) {
+				freeMemTarget.add(segments.get(segments.size() - 1));
+			}
+
+			this.numReturnsRemaining = numBlocks - 1;
+			
+			try {
+				this.currentSegment = returnQueue.take();
+				this.currentSegment.inputView.setPosition(PARTITION_BLOCK_HEADER_LEN);
+				this.currentEndPos = this.currentSegment.getInt(PARTITION_BLOCK_SIZE_OFFSET);
+			}
+			catch (InterruptedException iex) {
+				throw new RuntimeException(iex);
+			}
+		}
+
+		/* (non-Javadoc)
+		 * @see java.util.Iterator#next()
+		 */
+		@Override
+		public boolean next(KeyValuePair<K, V> target)
+		{
+			if (this.currentSegment != null) {
+				// get the next element from the buffer
+				try {
+					target.read(this.currentSegment.inputView);
+				}
+				catch (IOException ioex) {
+					throw new RuntimeException("Deserialization error while reading record from spilled partition.", ioex);
+				}
+				
+				int pos = this.currentSegment.inputView.getPosition();
+				if (pos < this.currentEndPos) {
+					return true;
+				}
+				else if (pos == this.currentEndPos) {
+					// segment done
+					// send another request, if more blocks remain
+					if (this.numRequestsRemaining > 0) {
+						try {
+							this.reader.readBlock(this.currentSegment);
+							this.numRequestsRemaining--;
+						}
+						catch (IOException ioex) {
+							throw new RuntimeException("Error reading a block from the spilled partition.", ioex);
+						}
+					}
+					else {
+						this.freeMemTarget.add(this.currentSegment);
+					}
+					
+					// grab the next block
+					if (this.numReturnsRemaining > 0) {
+						try {
+							this.currentSegment = this.returnQueue.take();
+							this.currentSegment.inputView.setPosition(PARTITION_BLOCK_HEADER_LEN);
+							this.currentEndPos = this.currentSegment.getInt(PARTITION_BLOCK_SIZE_OFFSET);
+						}
+						catch (InterruptedException iex) {
+							throw new RuntimeException(iex);
+						}
+					}
+					else {
+						this.currentSegment = null;
+					}
+					
+					return true;
+				}
+				else {
+					// serialization error
+					throw new RuntimeException("Deserialization error while reading record from spilled partition. " +
+							"Deserialization consumed more bytes than serialization produced.");
+				}
+			}
+			else {
+				return false;
+			}
+		}
+		
+	} // end BlockReaderIterator
 }

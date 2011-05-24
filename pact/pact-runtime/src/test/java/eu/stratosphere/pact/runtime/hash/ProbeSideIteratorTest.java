@@ -17,7 +17,7 @@ import eu.stratosphere.pact.runtime.hash.HashJoin.ProbeSideIterator;
 
 
 /**
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class ProbeSideIteratorTest
 {

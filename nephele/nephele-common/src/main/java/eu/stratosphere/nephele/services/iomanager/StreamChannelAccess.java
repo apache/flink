@@ -30,7 +30,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  * 
- * @param <T> The buffer type used for the underlying IO operations.
+ * @param <T> The buffer type used for the underlying I/O operations.
+ * @param <R> The type of I/O requests issued by channel.
  */
 public abstract class StreamChannelAccess<T extends Buffer, R extends IORequest> 
 	extends ChannelAccess<T, R>

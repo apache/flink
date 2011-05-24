@@ -23,6 +23,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -31,6 +32,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.hash.HashJoin.HashBucketIterator;
+import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import static org.junit.Assert.assertEquals;
@@ -39,7 +41,7 @@ import static org.junit.Assert.fail;
 /**
  *
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class HashJoinTest
 {
@@ -108,6 +110,9 @@ public class HashJoinTest
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 		
+		final SerializationFactory<PactInteger> keySerialization = new WritableSerializationFactory<PactInteger>(PactInteger.class);
+		final SerializationFactory<PactInteger> valueSerialization = new WritableSerializationFactory<PactInteger>(PactInteger.class);
+		
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
@@ -128,7 +133,8 @@ public class HashJoinTest
 		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger>(buildInput, probeInput, memSegments, ioManager);
+		HashJoin<PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger>(buildInput, probeInput, 
+				keySerialization, valueSerialization, memSegments, ioManager);
 		join.open();
 		
 		int numKeys = 0;
@@ -185,6 +191,9 @@ public class HashJoinTest
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
 		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 		
+		final SerializationFactory<PactInteger> keySerialization = new WritableSerializationFactory<PactInteger>(PactInteger.class);
+		final SerializationFactory<PactInteger> valueSerialization = new WritableSerializationFactory<PactInteger>(PactInteger.class);
+		
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
@@ -205,7 +214,8 @@ public class HashJoinTest
 		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger>(buildInput, probeInput, memSegments, ioManager);
+		HashJoin<PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger>(buildInput, probeInput, 
+				keySerialization, valueSerialization, memSegments, ioManager);
 		join.open();
 		
 		int numKeys = 0;
