@@ -149,7 +149,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 * The queue of buffers that can be used for write-behind. Any buffer that is written
 	 * asynchronously to disk is returned through this queue. hence, it may sometimes contain more
 	 */
-	private final LinkedBlockingQueue<Buffer.Output> writeBehindBuffers;
+	private final LinkedBlockingQueue<MemorySegment> writeBehindBuffers;
 	
 	/**
 	 * The I/O manager used to instantiate writers for the spilled partitions.
@@ -283,11 +283,11 @@ public class HashJoin<K extends Key, V extends Value>
 		this.bucketsPerSegmentBits = log2floor(bucketsPerSegment);
 		
 		// take away the write behind buffers
-		this.writeBehindBuffers = new LinkedBlockingQueue<Buffer.Output>();
+		this.writeBehindBuffers = new LinkedBlockingQueue<MemorySegment>();
 		this.numWriteBehindBuffers = getNumWriteBehindBuffers(memorySegments.size());
 		for (int i = this.numWriteBehindBuffers; i > 0; --i)
 		{
-			this.writeBehindBuffers.add(new Buffer.Output(memorySegments.remove(memorySegments.size() - 1)));
+			this.writeBehindBuffers.add(memorySegments.remove(memorySegments.size() - 1));
 		}
 		
 		this.partitionsBeingBuilt = new ArrayList<HashJoin.Partition>();
@@ -413,7 +413,7 @@ public class HashJoin<K extends Key, V extends Value>
 		// return the write-behind buffers
 		for (int i = 0; i < this.numWriteBehindBuffers + this.writeBehindBuffersAvailable; i++) {
 			try {
-				this.availableMemory.add(this.writeBehindBuffers.take().dispose());
+				this.availableMemory.add(this.writeBehindBuffers.take());
 			}
 			catch (InterruptedException iex) {
 				throw new RuntimeException("Hashtable closing was interrupted");
@@ -786,9 +786,9 @@ public class HashJoin<K extends Key, V extends Value>
 		this.writeBehindBuffersAvailable += numBuffersFreed;
 		
 		// grab as many buffers as are available directly
-		Buffer.Output currBuff = null;
+		MemorySegment currBuff = null;
 		while (this.writeBehindBuffersAvailable > 0 && (currBuff = this.writeBehindBuffers.poll()) != null) {
-			this.availableMemory.add(currBuff.dispose());
+			this.availableMemory.add(currBuff);
 			this.writeBehindBuffersAvailable--;
 		}
 		
@@ -819,7 +819,7 @@ public class HashJoin<K extends Key, V extends Value>
 			// grab at least one, no matter what
 			MemorySegment toReturn;
 			try {
-				toReturn = this.writeBehindBuffers.take().dispose();
+				toReturn = this.writeBehindBuffers.take();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("Hybrid Hash Join was interrupted while taking a buffer.");
@@ -827,9 +827,9 @@ public class HashJoin<K extends Key, V extends Value>
 			this.writeBehindBuffersAvailable--;
 			
 			// grab as many more buffers as are available directly
-			Buffer.Output currBuff = null;
+			MemorySegment currBuff = null;
 			while (this.writeBehindBuffersAvailable > 0 && (currBuff = this.writeBehindBuffers.poll()) != null) {
-				this.availableMemory.add(currBuff.dispose());
+				this.availableMemory.add(currBuff);
 				this.writeBehindBuffersAvailable--;
 			}
 			
@@ -1003,7 +1003,7 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		private int probeBlockCounter;						// number of probe-side blocks in this partition
 		
-		private final LinkedBlockingQueue<Buffer.Output> bufferReturnQueue;	// queue to return write buffers
+		private final LinkedBlockingQueue<MemorySegment> bufferReturnQueue;	// queue to return write buffers
 
 		// ----------------------------------------- General ------------------------------------------------
 		
@@ -1021,7 +1021,7 @@ public class HashJoin<K extends Key, V extends Value>
 		 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 		 */
 		private Partition(int partitionNumber, int recursionLevel,
-				MemorySegment initialBuffer, LinkedBlockingQueue<Buffer.Output> bufferReturnQueue)
+				MemorySegment initialBuffer, LinkedBlockingQueue<MemorySegment> bufferReturnQueue)
 		{
 			this.partitionNumber = partitionNumber;
 			this.recursionLevel = recursionLevel;
@@ -1325,7 +1325,7 @@ public class HashJoin<K extends Key, V extends Value>
 		throws IOException
 		{
 			buffer.putInt(4, buffer.outputView.getPosition());
-			writer.writeBlock(new Buffer.Output(buffer));
+			writer.writeBlock(buffer);
 		}
 		
 		/**
@@ -1337,8 +1337,7 @@ public class HashJoin<K extends Key, V extends Value>
 		private final MemorySegment getNextWriteBehindBuffer() throws IOException
 		{
 			try {
-				final Buffer.Output buffer = this.bufferReturnQueue.take();
-				return buffer.dispose();
+				return this.bufferReturnQueue.take();
 			}
 			catch (InterruptedException iex) {
 				throw new IOException("Hybrid Hash Join Partition was interrupted while taking a buffer.");

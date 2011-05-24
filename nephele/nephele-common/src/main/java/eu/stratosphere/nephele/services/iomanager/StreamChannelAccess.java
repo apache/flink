@@ -32,7 +32,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * 
  * @param <T> The buffer type used for the underlying IO operations.
  */
-public abstract class StreamChannelAccess<T extends Buffer> extends ChannelAccess<T>
+public abstract class StreamChannelAccess<T extends Buffer, R extends IORequest> 
+	extends ChannelAccess<T, R>
 {
 	/**
 	 * The queue containing the empty buffers that are ready to be reused.
@@ -43,6 +44,11 @@ public abstract class StreamChannelAccess<T extends Buffer> extends ChannelAcces
 	 * The number of buffers that this channel worked with.
 	 */
 	private final int numBuffers;
+	
+	/**
+	 * Flag marking this channel as closed;
+	 */
+	protected volatile boolean closed;
 
 	
 	// -------------------------------------------------------------------------
@@ -62,7 +68,7 @@ public abstract class StreamChannelAccess<T extends Buffer> extends ChannelAcces
 	 *                     than in read-only mode.
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
-	protected StreamChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue,
+	protected StreamChannelAccess(Channel.ID channelID, RequestQueue<R> requestQueue,
 			Collection<T> buffers, boolean writeEnabled)
 	throws IOException
 	{
@@ -74,6 +80,16 @@ public abstract class StreamChannelAccess<T extends Buffer> extends ChannelAcces
 		
 		this.numBuffers = buffers.size();
 		this.returnBuffers = new ArrayBlockingQueue<T>(buffers.size(), false);
+	}
+	
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
+	 */
+	@Override
+	public boolean isClosed()
+	{
+		return this.closed;
 	}
 
 	/**
@@ -122,7 +138,10 @@ public abstract class StreamChannelAccess<T extends Buffer> extends ChannelAcces
 	 * @param buffer The buffer to be returned.
 	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
 	 */
-	protected void returnBuffer(T buffer) {
+	@Override
+	protected void returnBuffer(T buffer)
+	{
 		this.returnBuffers.add(buffer);
 	}
+	
 }

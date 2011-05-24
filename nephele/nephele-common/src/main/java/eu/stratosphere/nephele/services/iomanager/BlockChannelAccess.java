@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+
 
 /**
  * A base class for readers and writers that accept read or write requests for whole blocks.
@@ -29,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <T> The buffer type used for the underlying IO operations, which is sent as a request.
  * @param <R> The type of segment asynchronously returned from the access. 
  */
-public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess<T>
+public abstract class BlockChannelAccess<R extends IORequest> extends ChannelAccess<MemorySegment, R>
 {	
 	/**
 	 * The lock that is used during closing to synchronize the thread that waits for all
@@ -43,9 +45,9 @@ public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess
 	protected final AtomicInteger requestsNotReturned = new AtomicInteger(0);
 	
 	/**
-	 * The queue containing the empty buffers that are ready to be reused.
+	 * The queue containing the processed buffers that are ready to be (re)used.
 	 */
-	protected final LinkedBlockingQueue<T> returnBuffers;
+	protected final LinkedBlockingQueue<MemorySegment> returnBuffers;
 	
 	/**
 	 * Flag marking this channel as closed;
@@ -66,8 +68,8 @@ public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess
 	 *                     than in read-only mode.
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
-	protected BlockChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue,
-			LinkedBlockingQueue<T> returnQueue, boolean writeEnabled)
+	protected BlockChannelAccess(Channel.ID channelID, RequestQueue<R> requestQueue,
+			LinkedBlockingQueue<MemorySegment> returnQueue, boolean writeEnabled)
 	throws IOException
 	{
 		super(channelID, requestQueue, writeEnabled);
@@ -94,7 +96,7 @@ public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess
 	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
 	 */
 	@Override
-	protected void returnBuffer(T buffer)
+	protected void returnBuffer(MemorySegment buffer)
 	{
 		this.returnBuffers.add(buffer);
 		

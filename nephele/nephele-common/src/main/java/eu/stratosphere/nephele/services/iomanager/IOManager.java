@@ -26,7 +26,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.services.iomanager.ChannelAccess.IORequest;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 
@@ -257,7 +256,7 @@ public final class IOManager implements UncaughtExceptionHandler
 			boolean deleteFileAfterRead)
 	throws IOException
 	{
-		if (isClosed) {
+		if (this.isClosed) {
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
@@ -273,7 +272,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @throws IOException Thrown, if the channel for the writer could not be opened.
 	 */
 	public BlockChannelWriter createBlockChannelWriter(Channel.ID channelID,
-										LinkedBlockingQueue<Buffer.Output> returnQueue)
+										LinkedBlockingQueue<MemorySegment> returnQueue)
 	throws IOException
 	{
 		if (isClosed) {
@@ -366,10 +365,11 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * A worker thread for asynchronous read.
 	 * 
 	 * @author Alexander Alexandrov
+	 * @author Stephan Ewen
 	 */
 	private static final class ReaderThread extends Thread
 	{
-		protected final RequestQueue<IORequest<Buffer.Input>> requestQueue;
+		protected final RequestQueue<ReadRequest> requestQueue;
 
 		private volatile boolean alive;
 
@@ -377,8 +377,9 @@ public final class IOManager implements UncaughtExceptionHandler
 		// Constructors / Destructors
 		// ---------------------------------------------------------------------
 
-		protected ReaderThread() {
-			this.requestQueue = new RequestQueue<IORequest<Buffer.Input>>();
+		protected ReaderThread()
+		{
+			this.requestQueue = new RequestQueue<ReadRequest>();
 			this.alive = true;
 		}
 		
@@ -387,8 +388,9 @@ public final class IOManager implements UncaughtExceptionHandler
 		 * immediately. All buffers of pending requests are handed back to their channel readers and an exception is
 		 * reported to them, declaring their request queue as closed.
 		 */
-		protected void shutdown() {
-			if (alive) {
+		protected void shutdown()
+		{
+			if (this.alive) {
 				// shut down the thread
 				try {
 					this.alive = false;
@@ -401,8 +403,8 @@ public final class IOManager implements UncaughtExceptionHandler
 				IOException ioex = new IOException("Reading thread has been closed.");
 				
 				while (!this.requestQueue.isEmpty()) {
-					IORequest<Buffer.Input> request = this.requestQueue.poll();
-					request.channel.handleProcessedBuffer(request.buffer, ioex);
+					ReadRequest request = this.requestQueue.poll();
+					request.requestDone(ioex);
 				}
 			}
 		}
@@ -418,7 +420,7 @@ public final class IOManager implements UncaughtExceptionHandler
 			{
 				
 				// get the next buffer. ignore interrupts that are not due to a shutdown.
-				IORequest<Buffer.Input> request = null;
+				ReadRequest request = null;
 				while (request == null) {
 					try {
 						request = this.requestQueue.take();
@@ -436,9 +438,7 @@ public final class IOManager implements UncaughtExceptionHandler
 
 				try {
 					// read buffer from the specified channel
-					if (!request.buffer.memory.isFree()) {
-						request.buffer.readFromChannel(request.channel.fileChannel);
-					}
+					request.read();
 				}
 				catch (IOException e) {
 					ioex = e;
@@ -448,7 +448,7 @@ public final class IOManager implements UncaughtExceptionHandler
 				}
 
 				// invoke the processed buffer handler of the request issuing reader object
-				request.channel.handleProcessedBuffer(request.buffer, ioex);
+				request.requestDone(ioex);
 			} // end while alive
 		}
 		
@@ -459,7 +459,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	 */
 	private static final class WriterThread extends Thread
 	{
-		protected final RequestQueue<IORequest<Buffer.Output>> requestQueue;
+		protected final RequestQueue<WriteRequest> requestQueue;
 
 		private volatile boolean alive;
 
@@ -467,8 +467,9 @@ public final class IOManager implements UncaughtExceptionHandler
 		// Constructors / Destructors
 		// ---------------------------------------------------------------------
 
-		protected WriterThread() {
-			this.requestQueue = new RequestQueue<IORequest<Buffer.Output>>();
+		protected WriterThread()
+		{
+			this.requestQueue = new RequestQueue<WriteRequest>();
 			this.alive = true;
 		}
 
@@ -477,8 +478,9 @@ public final class IOManager implements UncaughtExceptionHandler
 		 * immediately. All buffers of pending requests are handed back to their channel writers and an exception is
 		 * reported to them, declaring their request queue as closed.
 		 */
-		protected void shutdown() {
-			if (alive) {
+		protected void shutdown()
+		{
+			if (this.alive) {
 				// shut down the thread
 				try {
 					this.alive = false;
@@ -490,9 +492,10 @@ public final class IOManager implements UncaughtExceptionHandler
 				// notify all pending write requests that the thread has been shut down
 				IOException ioex = new IOException("Writer thread has been closed.");
 				
-				while (!this.requestQueue.isEmpty()) {
-					IORequest<Buffer.Output> request = this.requestQueue.poll();
-					request.channel.handleProcessedBuffer(request.buffer, ioex);
+				while (!this.requestQueue.isEmpty())
+				{
+					WriteRequest request = this.requestQueue.poll();
+					request.requestDone(ioex);
 				}
 			}
 		}
@@ -506,7 +509,7 @@ public final class IOManager implements UncaughtExceptionHandler
 		{
 			while (this.alive) {
 				
-				IORequest<Buffer.Output> request = null;
+				WriteRequest request = null;
 				
 				// get the next buffer. ignore interrupts that are not due to a shutdown.
 				while (request == null) {
@@ -526,9 +529,7 @@ public final class IOManager implements UncaughtExceptionHandler
 				
 				try {
 					// write buffer to the specified channel
-					if (!request.buffer.memory.isFree()) {
-						request.buffer.writeToChannel(request.channel.fileChannel);
-					}
+					request.write();
 				}
 				catch (IOException e) {
 					ioex = e;
@@ -538,7 +539,7 @@ public final class IOManager implements UncaughtExceptionHandler
 				}
 
 				// invoke the processed buffer handler of the request issuing writer object
-				request.channel.handleProcessedBuffer(request.buffer, ioex);
+				request.requestDone(ioex);
 			} // end while alive
 		}
 		

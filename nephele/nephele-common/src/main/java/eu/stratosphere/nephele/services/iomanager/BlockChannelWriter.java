@@ -18,17 +18,19 @@ package eu.stratosphere.nephele.services.iomanager;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+
 
 /**
  *
  *
  */
-public class BlockChannelWriter extends BlockChannelAccess<Buffer.Output>
+public class BlockChannelWriter extends BlockChannelAccess<WriteRequest>
 {
 	
 	
-	protected BlockChannelWriter(Channel.ID channelID, RequestQueue<IORequest<Buffer.Output>> requestQueue,
-			LinkedBlockingQueue<Buffer.Output> returnSegments)
+	protected BlockChannelWriter(Channel.ID channelID, RequestQueue<WriteRequest> requestQueue,
+			LinkedBlockingQueue<MemorySegment> returnSegments)
 	throws IOException
 	{
 		super(channelID, requestQueue, returnSegments, true);
@@ -36,11 +38,8 @@ public class BlockChannelWriter extends BlockChannelAccess<Buffer.Output>
 	
 
 	
-	public void writeBlock(Buffer.Output buffer) throws IOException
-	{
-		// make sure the entire buffer is written
-		buffer.markEndAsPosition();
-		
+	public void writeBlock(MemorySegment segment) throws IOException
+	{		
 		// check the error state of this channel
 		checkErroneous();
 		
@@ -52,7 +51,40 @@ public class BlockChannelWriter extends BlockChannelAccess<Buffer.Output>
 			this.requestsNotReturned.decrementAndGet();
 			throw new IOException("The writer has been closed.");
 		}
-		this.requestQueue.add(new IORequest<Buffer.Output>(this, buffer));
+		this.requestQueue.add(new SegmentWriteRequest(this, segment));
 	}
 
+}
+
+//--------------------------------------------------------------------------------------------
+
+final class SegmentWriteRequest implements WriteRequest
+{
+	private final BlockChannelWriter channel;
+	
+	private final MemorySegment segment;
+	
+	protected SegmentWriteRequest(BlockChannelWriter targetChannel, MemorySegment segment)
+	{
+		this.channel = targetChannel;
+		this.segment = segment;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
+	 */
+	@Override
+	public void write() throws IOException
+	{
+		this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
+	 */
+	@Override
+	public void requestDone(IOException ioex)
+	{
+		this.channel.handleProcessedBuffer(this.segment, ioex);
+	}
 }
