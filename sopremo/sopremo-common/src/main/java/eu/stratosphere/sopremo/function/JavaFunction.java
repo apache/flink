@@ -85,6 +85,7 @@ public class JavaFunction extends Function {
 			super(parameterTypes);
 		}
 
+		@Override
 		public int getDistance(Signature actualSignature) {
 			Class<?>[] actualParamTypes = actualSignature.parameterTypes;
 			if (actualParamTypes.length == 0)
@@ -111,7 +112,8 @@ public class JavaFunction extends Function {
 			super(parameterTypes);
 		}
 
-		public int getDistance(Signature actualSignature, Method method) {
+		@Override
+		public int getDistance(Signature actualSignature) {
 			Class<?>[] actualParamTypes = actualSignature.parameterTypes;
 			int nonVarArgs = this.parameterTypes.length - 1;
 			if (nonVarArgs > actualParamTypes.length)

@@ -1,21 +1,50 @@
 package eu.stratosphere.util;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
+/**
+ * Concatenates several iterators to one large iterator.<br>
+ * In the beginning, all elements of the first iterator are successively returned. If the first iterator is empty, the
+ * elements of the second iterator are streamed and so on.
+ * 
+ * @author Arvid Heise
+ * @param <T>
+ *        the element type
+ */
 public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
-	private final Deque<Iterator<T>> inputs;
+	private final Deque<Iterator<? extends T>> inputs;
 
-	public ConcatenatingIterator(Iterator<T>... inputs) {
-		this.inputs = new LinkedList<Iterator<T>>(Arrays.asList(inputs));
+	/**
+	 * Initializes a type-safe ConcatenatingIterator with a list of iterators.
+	 * 
+	 * @param iterators
+	 *        the iterators to concatenate
+	 */
+	public ConcatenatingIterator(List<? extends Iterator<? extends T>> iterators) {
+		this.inputs = new LinkedList<Iterator<? extends T>>(iterators);
+	}
+
+	/**
+	 * Initializes a ConcatenatingIterator with an array of iterators. This constructor is not type-safe.
+	 * 
+	 * @param iterators
+	 *        the iterators to concatenate
+	 */
+	@SuppressWarnings("unchecked")
+	public ConcatenatingIterator(Iterator<?>... iterators) {
+		this.inputs = new LinkedList<Iterator<? extends T>>(
+			(Collection<? extends Iterator<? extends T>>) Arrays.asList(iterators));
 	}
 
 	@Override
 	protected T loadNext() {
 		while (!this.inputs.isEmpty()) {
-			Iterator<T> iterator = this.inputs.getFirst();
+			Iterator<? extends T> iterator = this.inputs.getFirst();
 			if (!iterator.hasNext())
 				this.inputs.pop();
 			else

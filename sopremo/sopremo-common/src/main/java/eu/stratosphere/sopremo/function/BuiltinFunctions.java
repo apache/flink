@@ -58,8 +58,7 @@ public class BuiltinFunctions {
 		}
 
 		if (hasStream) {
-			@SuppressWarnings("unchecked")
-			Iterator<JsonNode>[] iterators = new Iterator[params.length];
+			Iterator<?>[] iterators = new Iterator[params.length];
 			for (int index = 0; index < iterators.length; index++)
 				iterators[index] = params[index].iterator();
 			return new StreamArrayNode(new ConcatenatingIterator<JsonNode>(iterators));

@@ -11,7 +11,7 @@ import org.codehaus.jackson.node.ObjectNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoType;
-import eu.stratosphere.util.TransformingIterator;
+import eu.stratosphere.util.ConversionIterator;
 
 public class ObjectCreation extends ContainerExpression<Evaluable> {
 	public static final ObjectCreation CONCATENATION = new ObjectCreation() {
@@ -130,9 +130,9 @@ public class ObjectCreation extends ContainerExpression<Evaluable> {
 
 	@Override
 	public Iterator<Evaluable> iterator() {
-		return new TransformingIterator<Mapping, Evaluable>(mappings.iterator()) {
+		return new ConversionIterator<Mapping, Evaluable>(mappings.iterator()) {
 			@Override
-			protected Evaluable transform(Mapping inputObject) {
+			protected Evaluable convert(Mapping inputObject) {
 				return inputObject.getExpression();
 			}
 		};

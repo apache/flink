@@ -8,7 +8,7 @@ import org.codehaus.jackson.node.ArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.operator.StreamArrayNode;
 import eu.stratosphere.util.AbstractIterator;
-import eu.stratosphere.util.TransformingIterator;
+import eu.stratosphere.util.ConversionIterator;
 
 public class FieldAccess extends EvaluableExpression {
 
@@ -32,9 +32,9 @@ public class FieldAccess extends EvaluableExpression {
 	public JsonNode evaluate(final JsonNode node, EvaluationContext context) {
 		if (node.isArray()) {
 			if (node instanceof StreamArrayNode)
-				return new StreamArrayNode(new TransformingIterator<JsonNode, JsonNode>(node.iterator()) {
+				return new StreamArrayNode(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
 					@Override
-					protected JsonNode transform(JsonNode inputObject) {
+					protected JsonNode convert(JsonNode inputObject) {
 						return inputObject.get(FieldAccess.this.field);
 					}
 				});
