@@ -151,7 +151,7 @@ public class SopremoTestPlan {
 			return this.operator;
 		}
 
-		public Output addExpected(PactJsonObject object) {
+		public Output add(PactJsonObject object) {
 			this.expected.add(new KeyValuePair(PactNull.getInstance(), object));
 			return this;
 		}
@@ -204,12 +204,12 @@ public class SopremoTestPlan {
 		return operators;
 	}
 
-	public Output getOutput(int index) {
+	public Output getExpectedOutput(int index) {
 		return this.outputs[index];
 	}
 
 	public Operator getOutputOperator(int index) {
-		return this.getOutput(index).getOperator();
+		return this.getExpectedOutput(index).getOperator();
 	}
 
 	public void setOutputOperator(int index, Operator operator) {
@@ -228,7 +228,5 @@ public class SopremoTestPlan {
 		for (Output output : this.outputs)
 			output.prepare(testPlan);
 		testPlan.run();
-		System.out.println(testPlan.getExpectedOutput());
-		System.out.println(testPlan.getActualOutput());
 	}
 }

@@ -20,6 +20,7 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
@@ -35,22 +36,22 @@ import eu.stratosphere.sopremo.expressions.Path;
 public class Join extends ConditionalOperator {
 	private BitSet outerJoinFlag = new BitSet();
 
-	public Join(Evaluable transformation, Condition condition, Operator... inputs) {
+	public Join(Evaluable transformation, Condition condition, DataStream... inputs) {
 		super(transformation, condition, inputs);
 	}
 
-	public Join(Evaluable transformation, Condition condition, List<Operator> inputs) {
+	public Join(Evaluable transformation, Condition condition, List<? extends DataStream> inputs) {
 		super(transformation, condition, inputs);
 	}
 
-	public Join withOuterJoin(Operator... operators) {
-		this.setOuterJoin(operators);
+	public Join withOuterJoin(DataStream... inputs) {
+		this.setOuterJoin(inputs);
 		return this;
 	}
 
-	public void setOuterJoin(Operator... operators) {
-		for (Operator operator : operators) {
-			int index = this.getInputOperators().indexOf(operator);
+	public void setOuterJoin(DataStream... inputs) {
+		for (DataStream input : inputs) {
+			int index = this.getInputs().indexOf(input.getSource());
 			if (index == -1)
 				throw new IllegalArgumentException();
 			this.outerJoinFlag.set(index);
@@ -204,8 +205,8 @@ public class Join extends ConditionalOperator {
 
 	private DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> joinFromComparison(
 			PactModule module, Comparison comparison, EvaluationContext context) {
-		Contract in1 = PactUtil.addKeyExtraction(module, (Path) comparison.getExpr1(), context);
-		Contract in2 = PactUtil.addKeyExtraction(module, (Path) comparison.getExpr2(), context);
+		Contract in1 = PactUtil.addKeyExtraction(module, comparison.getExpr1(), context);
+		Contract in2 = PactUtil.addKeyExtraction(module, comparison.getExpr2(), context);
 
 		// select strategy
 		DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> join = null;
@@ -258,8 +259,8 @@ public class Join extends ConditionalOperator {
 		return join;
 	}
 
-	public boolean isOuterJoin(Operator operator) {
-		int index = this.getInputOperators().indexOf(operator);
+	public boolean isOuterJoin(DataStream input) {
+		int index = this.getInputs().indexOf(input.getSource());
 		if (index == -1)
 			throw new IllegalArgumentException();
 		return this.outerJoinFlag.get(index);

@@ -14,6 +14,7 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
@@ -28,14 +29,15 @@ public class Aggregation extends Operator {
 
 	private List<? extends EvaluableExpression> groupings;
 
-	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, Operator... inputs) {
+	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, DataStream... inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
 		this.groupings = grouping;
 	}
 
-	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, List<Operator> inputs) {
+	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping,
+			List<? extends DataStream> inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
@@ -47,7 +49,7 @@ public class Aggregation extends Operator {
 		@Override
 		public void reduce(PactJsonObject.Key key, final Iterator<PactJsonObject> values,
 				Collector<Key, PactJsonObject> out) {
-			JsonNode result = this.getTransformation().evaluate(new StreamArray(new UnwrappingIterator(values)),
+			JsonNode result = this.getTransformation().evaluate(new StreamArrayNode(new UnwrappingIterator(values)),
 				this.getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
@@ -59,8 +61,8 @@ public class Aggregation extends Operator {
 		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
 				Collector<Key, PactJsonObject> out) {
 			JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(
-				new StreamArray(new UnwrappingIterator(values1)),
-				new StreamArray(new UnwrappingIterator(values2))), this.getContext());
+				new StreamArrayNode(new UnwrappingIterator(values1)),
+				new StreamArrayNode(new UnwrappingIterator(values2))), this.getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}

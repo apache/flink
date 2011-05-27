@@ -17,17 +17,7 @@ import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
 
-public class SopremoTest extends TestPlanTestCase {
-
-	public static Evaluable createJsonArray(Object... constants) {
-		Evaluable[] elements = new Evaluable[constants.length];
-		for (int index = 0; index < elements.length; index++)
-			if (constants[index] instanceof EvaluableExpression)
-				elements[index] = (Evaluable) constants[index];
-			else
-				elements[index] = new Constant(constants[index]);
-		return new ArrayCreation(elements);
-	}
+public class SopremoTest {
 
 	public static Path createPath(String... parts) {
 		List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
@@ -72,11 +62,15 @@ public class SopremoTest extends TestPlanTestCase {
 
 	public static PactJsonObject createJsonObject(Object... fields) {
 		if (fields.length % 2 != 0)
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("must have an even number of params");
 		ObjectNode objectNode = NODE_FACTORY.objectNode();
 		for (int index = 0; index < fields.length; index += 2)
 			objectNode.put(fields[index].toString(), OBJECT_MAPPER.valueToTree(fields[index + 1]));
 		return new PactJsonObject(objectNode);
+	}
+
+	public static PactJsonObject createJsonArray(Object... constants) {
+		return new PactJsonObject(OBJECT_MAPPER.valueToTree(constants));
 	}
 
 	public static PactJsonObject createJsonValue(Object value) {

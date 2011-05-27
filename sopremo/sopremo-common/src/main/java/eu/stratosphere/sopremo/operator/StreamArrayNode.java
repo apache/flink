@@ -16,12 +16,12 @@ import org.codehaus.jackson.node.ContainerNode;
 import org.codehaus.jackson.node.MissingNode;
 import org.codehaus.jackson.node.ObjectNode;
 
-public class StreamArray extends ContainerNode {
+public class StreamArrayNode extends ContainerNode {
 	// TODO: fix with Resettable Iterator!
 	// private Iterator<JsonNode> nodes;
 	private List<JsonNode> nodes = new ArrayList<JsonNode>();
 
-	public StreamArray(Iterator<JsonNode> nodes) {
+	public StreamArrayNode(Iterator<JsonNode> nodes) {
 		super(null);
 		// this.nodes = nodes;
 		while (nodes.hasNext())

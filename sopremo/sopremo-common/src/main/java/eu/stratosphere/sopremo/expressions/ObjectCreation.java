@@ -3,18 +3,17 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ObjectNode;
 
+import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoType;
+import eu.stratosphere.util.TransformingIterator;
 
-public class ObjectCreation extends ContainerExpression {
+public class ObjectCreation extends ContainerExpression<Evaluable> {
 	public static final ObjectCreation CONCATENATION = new ObjectCreation() {
 		@Override
 		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
@@ -127,6 +126,16 @@ public class ObjectCreation extends ContainerExpression {
 
 	public int getMappingSize() {
 		return this.mappings.size();
+	}
+
+	@Override
+	public Iterator<Evaluable> iterator() {
+		return new TransformingIterator<Mapping, Evaluable>(mappings.iterator()) {
+			@Override
+			protected Evaluable transform(Mapping inputObject) {
+				return inputObject.getExpression();
+			}
+		};
 	}
 
 	@Override

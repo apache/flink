@@ -23,10 +23,10 @@ public class ProjectionTest extends SopremoTest {
 			add(createJsonObject("a", 1, "b", 4)).
 			add(createJsonObject("a", 2, "b", 5)).
 			add(createJsonObject("a", -1, "b", 4));
-		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("sum", 5)).
-			addExpected(createJsonObject("sum", 7)).
-			addExpected(createJsonObject("sum", 3));
+		sopremoPlan.getExpectedOutput(0).
+			add(createJsonObject("sum", 5)).
+			add(createJsonObject("sum", 7)).
+			add(createJsonObject("sum", 3));
 
 		sopremoPlan.run();
 	}

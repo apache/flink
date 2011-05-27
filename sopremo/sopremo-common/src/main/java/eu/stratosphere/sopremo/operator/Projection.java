@@ -6,6 +6,7 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
@@ -21,7 +22,7 @@ public class Projection extends Operator {
 		}
 	}
 
-	public Projection(Evaluable transformation, Operator input) {
+	public Projection(Evaluable transformation, DataStream input) {
 		super(transformation, input);
 	}
 

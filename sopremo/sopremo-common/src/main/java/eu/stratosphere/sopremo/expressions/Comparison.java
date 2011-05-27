@@ -10,13 +10,13 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Comparison extends BooleanExpression {
-	private Evaluable expr1, expr2;
+	private EvaluableExpression expr1, expr2;
 
-	public Evaluable getExpr1() {
+	public EvaluableExpression getExpr1() {
 		return this.expr1;
 	}
 
-	public Evaluable getExpr2() {
+	public EvaluableExpression getExpr2() {
 		return this.expr2;
 	}
 
@@ -90,7 +90,7 @@ public class Comparison extends BooleanExpression {
 		}
 	}
 
-	public Comparison(Evaluable expr1, BinaryOperator binaryOperator, Evaluable expr2) {
+	public Comparison(EvaluableExpression expr1, BinaryOperator binaryOperator, EvaluableExpression expr2) {
 		this.expr1 = expr1;
 		this.binaryOperator = binaryOperator;
 		this.expr2 = expr2;

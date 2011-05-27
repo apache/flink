@@ -4,12 +4,13 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.ListIterator;
 
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
-public abstract class Operator implements SopremoType {
-	public class Output {
+public abstract class Operator implements SopremoType, DataStream {
+	public class Output implements DataStream {
 		private int index;
 
 		public Output(int index) {
@@ -25,12 +26,38 @@ public abstract class Operator implements SopremoType {
 		}
 
 		@Override
+		public Output getSource() {
+			return this;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + this.index;
+			result = prime * result + this.getOperator().hashCode();
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (this.getClass() != obj.getClass())
+				return false;
+			Output other = (Output) obj;
+			return this.index == other.index && this.getOperator() == other.getOperator();
+		}
+
+		@Override
 		public String toString() {
 			return String.format("%s@%d", this.getOperator(), this.index + 1);
 		}
 	}
 
-	private List<Operator.Output> inputs;
+	private List<Operator.Output> inputs = new ArrayList<Operator.Output>();
 
 	private Evaluable transformation;
 
@@ -38,62 +65,48 @@ public abstract class Operator implements SopremoType {
 
 	private Output[] outputs;
 
-	public Operator(String name, Evaluable transformation,
-			Operator... inputs) {
+	public Operator(String name, Evaluable transformation, DataStream... inputs) {
 		this(name, transformation, Arrays.asList(inputs));
 	}
 
-	protected Operator(Evaluable transformation,
-			Operator... inputs) {
+	protected Operator(Evaluable transformation, DataStream... inputs) {
 		this(null, transformation, inputs);
 	}
 
-	protected Operator(Evaluable transformation,
-			List<Operator> inputs) {
+	protected Operator(Evaluable transformation, List<? extends DataStream> inputs) {
 		this(null, transformation, inputs);
 	}
 
-	public Operator(String name, Evaluable transformation,
-			List<Operator> inputs) {
-		if (transformation == null || inputs == null)
-			throw new NullPointerException();
-		this.inputs = new ArrayList<Operator.Output>();
-		for (Operator operator : inputs)
-			this.inputs.add(operator == null ? null : operator.getOutput(0));
-		this.name = name == null ? this.getClass().getSimpleName() : name;
-		this.transformation = transformation;
-		this.outputs = new Output[] { new Output(0) };
+	public Operator(String name, Evaluable transformation, List<? extends DataStream> inputs) {
+		this(name, 1, transformation, inputs);
 	}
 
 	public Output getOutput(int index) {
 		return this.outputs[index];
 	}
 
-	public Operator(String name, int numberOfOutputs, Evaluable transformation,
-			Operator.Output... inputs) {
+	public Operator(String name, int numberOfOutputs, Evaluable transformation, DataStream... inputs) {
 		this(name, numberOfOutputs, transformation, Arrays.asList(inputs));
 	}
 
-	protected Operator(Evaluable transformation, int numberOfOutputs,
-			Operator.Output... inputs) {
+	protected Operator(Evaluable transformation, int numberOfOutputs, DataStream... inputs) {
 		this(null, 1, transformation, inputs);
 	}
 
-	protected Operator(Evaluable transformation, int numberOfOutputs,
-			List<Operator.Output> inputs) {
+	protected Operator(Evaluable transformation, int numberOfOutputs, List<? extends DataStream> inputs) {
 		this(null, numberOfOutputs, transformation, inputs);
 	}
 
-	public Operator(String name, int numberOfOutputs, Evaluable transformation,
-			List<Operator.Output> inputs) {
+	public Operator(String name, int numberOfOutputs, Evaluable transformation, List<? extends DataStream> inputs) {
 		if (transformation == null || inputs == null)
 			throw new NullPointerException();
-		this.inputs = inputs;
+		for (DataStream input : inputs)			
+			this.inputs.add(input == null ? null : input.getSource());
 		this.name = name == null ? this.getClass().getSimpleName() : name;
 		this.transformation = transformation;
 		this.outputs = new Output[numberOfOutputs];
 		for (int index = 0; index < numberOfOutputs; index++)
-			this.outputs[index] = new Output(index);
+			this.outputs[index] = new Output(index);			
 	}
 
 	public List<Operator> getInputOperators() {
@@ -108,8 +121,24 @@ public abstract class Operator implements SopremoType {
 			public int size() {
 				return Operator.this.inputs.size();
 			}
+
+			@Override
+			public int indexOf(Object o) {
+				ListIterator<Output> e = Operator.this.inputs.listIterator();
+				while (e.hasNext())
+					if (o == e.next())
+						return e.previousIndex();
+				return -1;
+			}
 		};
 	}
+
+	@Override
+	public Output getSource() {
+		return getOutput(0);
+	}
+
+	// public getOperators() {
 
 	public void setInputs(List<Operator.Output> inputs) {
 		if (inputs == null)
@@ -137,6 +166,10 @@ public abstract class Operator implements SopremoType {
 	}
 
 	public List<Operator.Output> getInputs() {
+		return this.inputs;
+	}
+
+	public List<Operator.Output> getInputIndex() {
 		return this.inputs;
 	}
 

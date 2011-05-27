@@ -14,81 +14,128 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.common.plan;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.dag.NodePrinter;
 import eu.stratosphere.dag.DAGPrinter;
+import eu.stratosphere.dag.DAGTraverseListener;
+import eu.stratosphere.dag.DependencyAwareDAGTraverser;
+import eu.stratosphere.dag.NodePrinter;
+import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.DualInputContract;
+import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
 import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
 
 /**
- * 
+ * The PactModule is a subgraph of a {@link PactProgram} with an arbitrary but well-defined number of inputs and
+ * outputs. It is designed to facilitate modularization and thus to increase the maintainability of large
+ * PactPrograms. While the interface of the module are the number of inputs and outputs, the actual implementation
+ * consists of several interconnected {@link Contract}s that are connected to the inputs and outputs of the PactModule.
  */
 public class PactModule implements Visitable<Contract> {
 	/**
-	 * A collection of all outputs in the plan. Since the plan is traversed from the outputs to the sources, this
-	 * collection must contain all the outputs.
+	 * The outputs of the module.
 	 */
-	protected final DataSinkContract<PactNull, PactJsonObject>[] outputStubs;
+	private final DataSinkContract<?, ?>[] outputContracts;
 
-	protected final DataSourceContract<PactNull, PactJsonObject>[] inputStubs;
+	/**
+	 * The inputs of the module.
+	 */
+	private final DataSourceContract<?, ?>[] inputContracts;
 
-	// ------------------------------------------------------------------------
-
-	@SuppressWarnings("unchecked")
+	/**
+	 * Initializes a PactModule having the given number of inputs and outputs.
+	 * 
+	 * @param numberOfInputs
+	 *        the number of inputs
+	 * @param numberOfOutputs
+	 *        the number of outputs.
+	 */
 	public PactModule(int numberOfInputs, int numberOfOutputs) {
-		this.inputStubs = new DataSourceContract[numberOfInputs];
-		for (int index = 0; index < this.inputStubs.length; index++)
-			this.inputStubs[index] = new DataSourceContract<PactNull, PactJsonObject>(JsonInputFormat.class,
+		this.inputContracts = new DataSourceContract[numberOfInputs];
+		for (int index = 0; index < this.inputContracts.length; index++)
+			this.inputContracts[index] = new DataSourceContract<PactNull, PactJsonObject>(JsonInputFormat.class,
 				String.valueOf(index));
-		this.outputStubs = new DataSinkContract[numberOfOutputs];
-		for (int index = 0; index < this.outputStubs.length; index++)
-			this.outputStubs[index] = new DataSinkContract<PactNull, PactJsonObject>(JsonOutputFormat.class,
+		this.outputContracts = new DataSinkContract[numberOfOutputs];
+		for (int index = 0; index < this.outputContracts.length; index++)
+			this.outputContracts[index] = new DataSinkContract<PactNull, PactJsonObject>(JsonOutputFormat.class,
 				String.valueOf(index));
 	}
 
-	// ------------------------------------------------------------------------
-
-	public DataSinkContract<PactNull, PactJsonObject> getOutput(int index) {
-		return this.outputStubs[index];
+	/**
+	 * Returns the output at the specified position.
+	 * 
+	 * @param index
+	 *        the index of the output
+	 * @return the output at the specified position
+	 */
+	public DataSinkContract<?, ?> getOutput(int index) {
+		return this.outputContracts[index];
 	}
 
-	public DataSourceContract<PactNull, PactJsonObject> getInput(int index) {
-		return this.inputStubs[index];
+	/**
+	 * Returns the input at the specified position.
+	 * 
+	 * @param index
+	 *        the index of the input
+	 * @return the input at the specified position
+	 */
+	public DataSourceContract<?, ?> getInput(int index) {
+		return this.inputContracts[index];
 	}
 
-	public DataSourceContract<PactNull, PactJsonObject>[] getInputStubs() {
-		return this.inputStubs;
+	/**
+	 * Returns all inputs of this PactModule.
+	 * 
+	 * @return all inputs
+	 */
+	public DataSourceContract<?, ?>[] getInputs() {
+		return this.inputContracts;
 	}
 
-	public DataSinkContract<PactNull, PactJsonObject>[] getOutputStubs() {
-		return this.outputStubs;
+	/**
+	 * Returns all outputs of this PactModule.
+	 * 
+	 * @return all outputs
+	 */
+	public DataSinkContract<?, ?>[] getOutputs() {
+		return this.outputContracts;
 	}
 
-	public void setOutput(int index, DataSinkContract<PactNull, PactJsonObject> contract) {
-		this.outputStubs[index] = contract;
+	/**
+	 * Replaces the output at the specified position of the given contract. 
+	 * 
+	 * @param index
+	 *        the index of the output
+	 * @param contract
+	 * @return the output at the specified position
+	 */
+	public void setOutput(int index, DataSinkContract<?, ?> contract) {
+		this.outputContracts[index] = contract;
 	}
 
-	public void setInput(int index, DataSourceContract<PactNull, PactJsonObject> contract) {
-		this.inputStubs[index] = contract;
+	public void setInput(int index, DataSourceContract<?, ?> contract) {
+		this.inputContracts[index] = contract;
 	}
 
 	public void validate() {
-		for (int index = 0; index < this.outputStubs.length; index++)
-			if (this.outputStubs[index].getInput() == null)
+		for (int index = 0; index < this.outputContracts.length; index++)
+			if (this.outputContracts[index].getInput() == null)
 				throw new IllegalStateException(String.format("%d. output is not connected", index));
 
 		final Collection<Contract> visitedContracts = this.getAllContracts();
 
-		for (int index = 0; index < this.inputStubs.length; index++)
-			if (!visitedContracts.contains(this.inputStubs[index]))
+		for (int index = 0; index < this.inputContracts.length; index++)
+			if (!visitedContracts.contains(this.inputContracts[index]))
 				throw new IllegalStateException(String.format("%d. input is not connected", index));
 	}
 
@@ -109,6 +156,55 @@ public class PactModule implements Visitable<Contract> {
 		return visitedContracts.keySet();
 	}
 
+	public static PactModule valueOf(Contract... outputs) {
+		final List<Contract> inputs = new ArrayList<Contract>();
+
+		DependencyAwareDAGTraverser.INSTANCE.traverse(outputs, ContractNavigator.INSTANCE,
+			new DAGTraverseListener<Contract>() {
+				@Override
+				public void nodeTraversed(Contract node) {
+					if (node instanceof DataSourceContract<?, ?>)
+						inputs.add(node);
+					else if (node instanceof DataSinkContract<?, ?>
+						&& ((DataSinkContract<?, ?>) node).getInput() == null)
+						inputs.add(node);
+					else if (node instanceof SingleInputContract<?, ?, ?, ?>
+						&& ((SingleInputContract<?, ?, ?, ?>) node).getInput() == null)
+						inputs.add(node);
+					else if (node instanceof DualInputContract<?, ?, ?, ?, ?, ?>) {
+						if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getFirstInput() == null)
+							inputs.add(node);
+						if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getSecondInput() == null)
+							inputs.add(node);
+					}
+				};
+			});
+
+		PactModule module = new PactModule(inputs.size(), outputs.length);
+		for (int index = 0; index < outputs.length; index++)
+			if (outputs[index] instanceof DataSinkContract<?, ?>)
+				module.setOutput(index, (DataSinkContract<?, ?>) outputs[index]);
+			else
+				module.getOutput(index).setInput(outputs[index]);
+
+		for (int index = 0; index < inputs.size(); index++) {
+			Contract node = inputs.get(index);
+			if (node instanceof DataSourceContract<?, ?>)
+				module.setInput(index, (DataSourceContract<?, ?>) node);
+			else if (node instanceof DataSinkContract<?, ?>)
+				((DataSinkContract<?, ?>) node).setInput(module.getInput(index));
+			else if (node instanceof SingleInputContract<?, ?, ?, ?>)
+				((SingleInputContract<?, ?, ?, ?>) node).setInput(module.getInput(index));
+			else if (node instanceof DualInputContract<?, ?, ?, ?, ?, ?>) {
+				if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getFirstInput() != null)
+					((DualInputContract<?, ?, ?, ?, ?, ?>) node).setFirstInput(module.getInput(index));
+				if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getSecondInput() != null)
+					((DualInputContract<?, ?, ?, ?, ?, ?>) node).setSecondInput(module.getInput(index));
+			}
+		}
+		return module;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -118,7 +214,7 @@ public class PactModule implements Visitable<Contract> {
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {
-		for (Contract output : this.outputStubs)
+		for (Contract output : this.outputContracts)
 			output.accept(visitor);
 	}
 
@@ -132,7 +228,7 @@ public class PactModule implements Visitable<Contract> {
 			}
 		});
 		dagPrinter.setWidth(80);
-		return dagPrinter.toString(this.outputStubs, ContractNavigator.INSTANCE);
+		return dagPrinter.toString(this.outputContracts, ContractNavigator.INSTANCE);
 	}
 
 }

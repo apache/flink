@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
@@ -9,7 +10,7 @@ import org.codehaus.jackson.node.ArrayNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class ArrayCreation extends ContainerExpression {
+public class ArrayCreation extends ContainerExpression<Evaluable> {
 	private Evaluable[] elements;
 
 	public ArrayCreation(Evaluable... elements) {
@@ -39,10 +40,8 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
-		for (int index = 0; index < elements.length; index++)
-			if (elements[index] instanceof ContainerExpression)
-				((ContainerExpression) elements[index]).replace(toReplace, replaceFragment);
+	public Iterator<Evaluable> iterator() {
+		return Arrays.asList(elements).iterator();
 	}
 
 	@Override

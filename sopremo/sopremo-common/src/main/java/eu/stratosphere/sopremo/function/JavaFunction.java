@@ -27,7 +27,7 @@ public class JavaFunction extends Function {
 	public static final Log LOG = LogFactory.getLog(JavaFunction.class);
 
 	private static class Signature implements SopremoType {
-		private Class<?>[] parameterTypes;
+		protected final Class<?>[] parameterTypes;
 
 		public Signature(Class<?>[] parameterTypes) {
 			this.parameterTypes = parameterTypes;
@@ -57,30 +57,16 @@ public class JavaFunction extends Function {
 			return Arrays.equals(this.parameterTypes, other.parameterTypes);
 		}
 
-		public int getDistance(Signature actualSignature, Method method) {
+		public int getDistance(Signature actualSignature) {
 			Class<?>[] actualParamTypes = actualSignature.parameterTypes;
-			int nonVarArgs = this.parameterTypes.length;
-			if (method.isVarArgs())
-				nonVarArgs--;
-			if (!method.isVarArgs() && nonVarArgs != actualParamTypes.length)
-				return NO_MATCH;
-			if (method.isVarArgs() && nonVarArgs > actualParamTypes.length)
+			if (this.parameterTypes.length != actualParamTypes.length)
 				return NO_MATCH;
 
 			int distance = 0;
-			for (int index = 0; index < nonVarArgs; index++) {
+			for (int index = 0; index < this.parameterTypes.length; index++) {
 				if (!this.parameterTypes[index].isAssignableFrom(actualParamTypes[index]))
 					return NO_MATCH;
 				distance += ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
-			}
-
-			if (method.isVarArgs() && nonVarArgs < actualParamTypes.length) {
-				Class<?> varargType = this.parameterTypes[nonVarArgs].getComponentType();
-				for (int index = nonVarArgs; index < actualParamTypes.length; index++) {
-					if (!varargType.isAssignableFrom(actualParamTypes[index]))
-						return NO_MATCH;
-					distance += ReflectUtil.getDistance(varargType, actualParamTypes[index]) + 1;
-				}
 			}
 
 			return distance;
@@ -91,6 +77,63 @@ public class JavaFunction extends Function {
 			StringBuilder builder = new StringBuilder();
 			builder.append("(").append(Arrays.toString(this.parameterTypes)).append(")");
 			return builder.toString();
+		}
+	}
+
+	private static class ArraySignature extends Signature {
+		public ArraySignature(Class<?>[] parameterTypes) {
+			super(parameterTypes);
+		}
+
+		public int getDistance(Signature actualSignature) {
+			Class<?>[] actualParamTypes = actualSignature.parameterTypes;
+			if (actualParamTypes.length == 0)
+				return 1;
+
+			Class<?> componentType = this.parameterTypes[0].getComponentType();
+			if (actualParamTypes.length == 1 && actualParamTypes[0].isArray()
+				&& this.parameterTypes[0].isAssignableFrom(actualParamTypes[0]))
+				return ReflectUtil.getDistance(componentType, actualParamTypes[0].getComponentType()) + 1;
+
+			int distance = 1;
+			for (int index = 0; index < actualParamTypes.length; index++) {
+				if (!componentType.isAssignableFrom(actualParamTypes[index]))
+					return NO_MATCH;
+				distance += ReflectUtil.getDistance(componentType, actualParamTypes[index]);
+			}
+
+			return distance;
+		}
+	}
+
+	private static class VarArgSignature extends Signature {
+		public VarArgSignature(Class<?>[] parameterTypes) {
+			super(parameterTypes);
+		}
+
+		public int getDistance(Signature actualSignature, Method method) {
+			Class<?>[] actualParamTypes = actualSignature.parameterTypes;
+			int nonVarArgs = this.parameterTypes.length - 1;
+			if (nonVarArgs > actualParamTypes.length)
+				return NO_MATCH;
+
+			int distance = 0;
+			for (int index = 0; index < nonVarArgs; index++) {
+				if (!this.parameterTypes[index].isAssignableFrom(actualParamTypes[index]))
+					return NO_MATCH;
+				distance += ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
+			}
+
+			if (nonVarArgs < actualParamTypes.length) {
+				Class<?> varargType = this.parameterTypes[nonVarArgs].getComponentType();
+				for (int index = nonVarArgs; index < actualParamTypes.length; index++) {
+					if (!varargType.isAssignableFrom(actualParamTypes[index]))
+						return NO_MATCH;
+					distance += ReflectUtil.getDistance(varargType, actualParamTypes[index]) + 1;
+				}
+			}
+
+			return distance;
 		}
 	}
 
@@ -109,9 +152,18 @@ public class JavaFunction extends Function {
 	}
 
 	public void addSignature(Method method) {
-		this.originalSignatures.put(new Signature(method.getParameterTypes()), method);
-		// might be more intelligent in the future
-		// how often are method signatures actually added after first invocation?
+		Class<?>[] parameterTypes = method.getParameterTypes();
+		Signature signature;
+		if (parameterTypes.length == 1 && parameterTypes[0].isArray()
+			&& JsonNode.class.isAssignableFrom(parameterTypes[0].getComponentType()))
+			signature = new ArraySignature(parameterTypes);
+		else if (method.isVarArgs())
+			signature = new VarArgSignature(parameterTypes);
+		else
+			signature = new Signature(parameterTypes);
+		this.originalSignatures.put(signature, method);
+		// Cache flushing might be more intelligent in the future.
+		// However, how often are method signatures actually added after first invocation?
 		this.cachedSignatures.clear();
 		this.cachedSignatures.putAll(this.originalSignatures);
 	}
@@ -166,7 +218,8 @@ public class JavaFunction extends Function {
 				params = new Object[parameterTypes.length];
 				System.arraycopy(paramNodes, 0, params, 0, varArgIndex);
 				params[varArgIndex] = vararg;
-			}
+			} else if(method.getParameterTypes().length == 1 && params.length != 1)
+				params = new Object[] { params };
 			return (JsonNode) method.invoke(null, params);
 		} catch (Exception e) {
 			throw new EvaluationException("Cannot invoke " + this.getName() + " with " + Arrays.toString(paramNodes), e);
@@ -201,7 +254,7 @@ public class JavaFunction extends Function {
 		boolean ambiguous = false;
 		Signature bestSignatureSoFar = null;
 		for (Entry<Signature, Method> originalSignature : this.originalSignatures.entrySet()) {
-			int distance = originalSignature.getKey().getDistance(signature, originalSignature.getValue());
+			int distance = originalSignature.getKey().getDistance(signature);
 			if (distance < minDistance) {
 				minDistance = distance;
 				bestSignatureSoFar = originalSignature.getKey();
@@ -225,7 +278,7 @@ public class JavaFunction extends Function {
 		List<Signature> ambigiousSignatures = new ArrayList<Signature>();
 
 		for (Entry<Signature, Method> originalSignature : this.originalSignatures.entrySet()) {
-			int distance = originalSignature.getKey().getDistance(signature, originalSignature.getValue());
+			int distance = originalSignature.getKey().getDistance(signature);
 			if (distance == minDistance)
 				ambigiousSignatures.add(originalSignature.getKey());
 		}

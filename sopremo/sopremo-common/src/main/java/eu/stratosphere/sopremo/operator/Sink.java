@@ -5,6 +5,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
+import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
@@ -15,7 +16,7 @@ public class Sink extends Operator {
 
 	private DataType type;
 
-	public Sink(DataType type, String outputName, Operator input) {
+	public Sink(DataType type, String outputName, DataStream input) {
 		super(EvaluableExpression.IDENTITY, input);
 		// if (type == DataType.ADHOC)
 		// throw new IllegalArgumentException();

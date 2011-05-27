@@ -8,10 +8,19 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 
+/**
+ * {@link Navigator} for traversing a graph of {@link Contract}s.
+ * 
+ * @author Arvid Heise
+ * @see Navigator
+ */
 public class ContractNavigator implements Navigator<Contract> {
-
+	/**
+	 * The default stateless instance that should be used in most cases.
+	 */
 	public static final ContractNavigator INSTANCE = new ContractNavigator();
 
+	@SuppressWarnings("rawtypes")
 	@Override
 	public Iterable<Contract> getConnectedNodes(Contract node) {
 		if (node instanceof DualInputContract)

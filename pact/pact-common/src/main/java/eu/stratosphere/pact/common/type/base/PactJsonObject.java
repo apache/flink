@@ -152,12 +152,14 @@ public class PactJsonObject implements Value {
 			super();
 		}
 
-		public Key(ValueNode value) {
+		protected Key(ValueNode value) {
 			super(value);
 		}
 
-		public Key(ArrayNode value) {
+		protected Key(ArrayNode value) {
 			super(value);
+			if(isValidArray(value))
+				throw new IllegalArgumentException("is not a valid array");
 		}
 
 		@Override
@@ -198,7 +200,7 @@ public class PactJsonObject implements Value {
 	public static Key keyOf(JsonNode node) {
 		if (node instanceof ValueNode)
 			return new Key((ValueNode) node);
-		if (node instanceof ArrayNode && isValidArray(node))
+		if (node instanceof ArrayNode)
 			return new Key((ArrayNode) node);
 		throw new IllegalArgumentException(node.getClass().getSimpleName());
 	}

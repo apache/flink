@@ -7,6 +7,8 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.pact.common.IdentityList;
+
 /**
  * Finds successive partitions of independent graph nodes and returns them in ascending order.<br>
  * The partitions are organized level-wise in a way that all nodes of level X are only referenced from nodes of level
@@ -64,11 +66,11 @@ public class DAGLevelPartitioner {
 	 */
 	public static <Node> List<Level<Node>> getLevels(Iterator<Node> startNodes, Navigator<Node> navigator) {
 
-		ArrayList<Node> remainingNodes = new ArrayList<Node>();
+		List<Node> remainingNodes = new IdentityList<Node>();
 		while (startNodes.hasNext())
 			gatherNodes(remainingNodes, navigator, startNodes.next());
 
-		List<Node> usedNodes = new ArrayList<Node>();
+		List<Node> usedNodes = new IdentityList<Node>();
 		List<Level<Node>> levels = new ArrayList<Level<Node>>();
 
 		while (!remainingNodes.isEmpty()) {
@@ -107,8 +109,8 @@ public class DAGLevelPartitioner {
 	}
 
 	private static <Node> boolean isIndependent(Node node, Collection<Node> usedNodes, Navigator<Node> navigator) {
-		for (Object input : navigator.getConnectedNodes(node))
-			if (input != null && !usedNodes.contains(input))
+		for (Object input : navigator.getConnectedNodes(node)) 
+			if (!usedNodes.contains(input))
 				return false;
 		return true;
 	}

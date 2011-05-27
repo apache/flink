@@ -38,13 +38,13 @@ public class AggregationTest extends SopremoTest {
 			add(createJsonObject("did", 1, "name", "development")).
 			add(createJsonObject("did", 2, "name", "marketing")).
 			add(createJsonObject("did", 3, "name", "sales"));
-		sopremoPlan.getOutput(0).
-			addExpected(
+		sopremoPlan.getExpectedOutput(0).
+			add(
 				createJsonObject("dept", 1, "deptName", "development", "emps", new int[] { 1, 2, 4, 7 },
 					"numEmps", 4)).
-			addExpected(
+			add(
 				createJsonObject("dept", 2, "deptName", "marketing", "emps", new int[] { 3, 6 }, "numEmps", 2)).
-			addExpected(createJsonObject("dept", 3, "deptName", "sales", "emps", new int[] { 5 }, "numEmps", 1));
+			add(createJsonObject("dept", 3, "deptName", "sales", "emps", new int[] { 5 }, "numEmps", 1));
 
 		sopremoPlan.run();
 	}
@@ -67,10 +67,10 @@ public class AggregationTest extends SopremoTest {
 			add(createJsonObject("id", 5, "dept", 3, "income", 8000)).
 			add(createJsonObject("id", 6, "dept", 2, "income", 5000)).
 			add(createJsonObject("id", 7, "dept", 1, "income", 24000));
-		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("d", 1, "total", 59000)).
-			addExpected(createJsonObject("d", 2, "total", 20000)).
-			addExpected(createJsonObject("d", 3, "total", 8000));
+		sopremoPlan.getExpectedOutput(0).
+			add(createJsonObject("d", 1, "total", 59000)).
+			add(createJsonObject("d", 2, "total", 20000)).
+			add(createJsonObject("d", 3, "total", 8000));
 
 		sopremoPlan.run();
 	}
@@ -92,8 +92,8 @@ public class AggregationTest extends SopremoTest {
 			add(createJsonObject("id", 5, "dept", 3, "income", 8000)).
 			add(createJsonObject("id", 6, "dept", 2, "income", 5000)).
 			add(createJsonObject("id", 7, "dept", 1, "income", 24000));
-		sopremoPlan.getOutput(0).
-			addExpected(createJsonValue(7));
+		sopremoPlan.getExpectedOutput(0).
+			add(createJsonValue(7));
 
 		sopremoPlan.run();
 	}

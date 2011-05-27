@@ -859,6 +859,9 @@ public class TestPlan implements Closeable {
 
 	@SuppressWarnings("unchecked")
 	private void validateResults() {
+		System.out.println(getExpectedOutput());
+		System.out.println(getActualOutput());
+		
 		for (final DataSinkContract<?, ?> dataSinkContract : this
 				.getDataSinks())
 			// need a format which is deserializable without configuration

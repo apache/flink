@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.codehaus.jackson.JsonNode;
 
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoType;
 
@@ -33,16 +34,12 @@ public class FunctionRegistry implements SopremoType {
 	}
 
 	public void register(Class<?> javaFunctions) {
-		methodFinder: for (Method method : javaFunctions.getDeclaredMethods())
+		for (Method method : javaFunctions.getDeclaredMethods())
 			if ((method.getModifiers() & Modifier.STATIC) != 0
 				&& JsonNode.class.isAssignableFrom(method.getReturnType())) {
 				Class<?>[] parameterTypes = method.getParameterTypes();
-				for (int index = 0; index < parameterTypes.length; index++)
-					if (!JsonNode.class.isAssignableFrom(parameterTypes[index])
-						&& !(index == parameterTypes.length - 1 && method.isVarArgs() &&
-								JsonNode.class.isAssignableFrom(parameterTypes[index].getComponentType())))
-						continue methodFinder;
-
+				if(!isCompatibleSignature(method, parameterTypes))
+					continue;
 				Function javaFunction = this.registeredFunctions.get(method.getName());
 				if (javaFunction == null)
 					this.registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
@@ -53,5 +50,23 @@ public class FunctionRegistry implements SopremoType {
 
 				((JavaFunction) javaFunction).addSignature(method);
 			}
+	}
+
+	private boolean isCompatibleSignature(Method method, Class<?>[] parameterTypes) {
+		boolean compatibleSignature;
+		if (parameterTypes.length == 1 && parameterTypes[0].isArray()
+			&& JsonNode.class.isAssignableFrom(parameterTypes[0].getComponentType()))
+			compatibleSignature = true;
+		else {
+			compatibleSignature = true;
+			for (int index = 0; index < parameterTypes.length; index++)
+				if (!JsonNode.class.isAssignableFrom(parameterTypes[index])
+					&& !(index == parameterTypes.length - 1 && method.isVarArgs() &&
+						JsonNode.class.isAssignableFrom(parameterTypes[index].getComponentType()))) {
+					compatibleSignature = false;
+					break;
+				}
+		}
+		return compatibleSignature;
 	}
 }

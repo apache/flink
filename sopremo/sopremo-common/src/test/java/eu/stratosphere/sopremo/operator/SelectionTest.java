@@ -28,9 +28,9 @@ public class SelectionTest extends SopremoTest {
 			add(createJsonObject("name", "Vince Wayne", "income", 32500, "mgr", false)).
 			add(createJsonObject("name", "Jane Dean", "income", 72000, "mgr", true)).
 			add(createJsonObject("name", "Alex Smith", "income", 25000, "mgr", false));
-		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("name", "Vince Wayne", "income", 32500, "mgr", false)).
-			addExpected(createJsonObject("name", "Jane Dean", "income", 72000, "mgr", true));
+		sopremoPlan.getExpectedOutput(0).
+			add(createJsonObject("name", "Vince Wayne", "income", 32500, "mgr", false)).
+			add(createJsonObject("name", "Jane Dean", "income", 72000, "mgr", true));
 
 		sopremoPlan.run();
 	}

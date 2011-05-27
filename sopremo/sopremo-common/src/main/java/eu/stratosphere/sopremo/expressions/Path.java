@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
@@ -9,27 +10,21 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class Path extends ContainerExpression {
+public class Path extends ContainerExpression<EvaluableExpression> {
 
 	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 
 	public Path(List<EvaluableExpression> fragments) {
-		this.fragments = fragments;
-		for (Evaluable evaluableExpression : fragments)
+		for (EvaluableExpression evaluableExpression : fragments) {
 			if (evaluableExpression instanceof Path)
-				throw new IllegalArgumentException();
+				this.fragments.addAll(((Path) evaluableExpression).fragments);
+			else
+				this.fragments.add(evaluableExpression);
+		}
 	}
 
 	public Path(EvaluableExpression... fragments) {
-		this.fragments = Arrays.asList(fragments);
-		for (Evaluable evaluableExpression : fragments)
-			if (evaluableExpression instanceof Path)
-				throw new IllegalArgumentException();
-	}
-
-	@Override
-	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
-		this.fragments = replace(this, wrapAsPath(toReplace), wrapAsPath(replaceFragment)).fragments;
+		this(Arrays.asList(fragments));
 	}
 
 	private Path wrapAsPath(EvaluableExpression expression) {
@@ -38,27 +33,29 @@ public class Path extends ContainerExpression {
 		return new Path(expression);
 	}
 
-	public static Path replace(Path path, Path pathToFind, Path replacePath) {
-		List<EvaluableExpression> fragments = null;
+	@Override
+	public Iterator<EvaluableExpression> iterator() {
+		return fragments.iterator();
+	}
 
-		final int size = path.fragments.size() - pathToFind.fragments.size() + 1;
+	@Override
+	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
+		super.replace(toReplace, replaceFragment);
+
+		Path pathToFind = this.wrapAsPath(toReplace);
+		Path replacePath = this.wrapAsPath(replaceFragment);
+		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
 		final int findSize = pathToFind.fragments.size();
 		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
 			for (int index = 0; index < findSize; index++)
-				if (!path.fragments.get(startIndex + index).equals(pathToFind.fragments.get(index)))
+				if (!this.fragments.get(startIndex + index).equals(pathToFind.fragments.get(index)))
 					continue findStartIndex;
 
-			if (fragments == null)
-				fragments = new ArrayList<EvaluableExpression>(path.fragments);
-			fragments.subList(startIndex, startIndex + findSize).clear();
-			fragments.addAll(startIndex, replacePath.fragments);
-			startIndex += replacePath.fragments.size();
+			this.fragments.subList(startIndex, startIndex + findSize).clear();
+			this.fragments.addAll(startIndex, replacePath.fragments);
+			size -= findSize - replacePath.fragments.size();
+			// startIndex += replacePath.fragments.size();
 		}
-
-		// no replacements done
-		if (fragments == null)
-			return path;
-		return new Path(fragments);
 	}
 
 	public boolean isPrefix(Path prefix) {

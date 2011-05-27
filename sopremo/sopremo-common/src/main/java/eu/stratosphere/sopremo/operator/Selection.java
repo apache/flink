@@ -9,15 +9,14 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 public class Selection extends ConditionalOperator {
 
-	public Selection(Condition condition, Operator input) {
+	public Selection(Condition condition, DataStream input) {
 		super(EvaluableExpression.IDENTITY, condition, input);
 	}
 
@@ -26,6 +25,7 @@ public class Selection extends ConditionalOperator {
 
 		@Override
 		public void configure(Configuration parameters) {
+			super.configure(parameters);
 			this.condition = PactUtil.getObject(parameters, "condition", Condition.class);
 		}
 

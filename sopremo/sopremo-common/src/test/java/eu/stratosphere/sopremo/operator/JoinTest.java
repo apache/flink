@@ -30,14 +30,14 @@ public class JoinTest extends SopremoTest {
 			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
 			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
 			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
-		sopremoPlan.getOutput(0).
-			addExpected(
+		sopremoPlan.getExpectedOutput(0).
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com"));
 
@@ -63,17 +63,17 @@ public class JoinTest extends SopremoTest {
 			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
 			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
 			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
-		sopremoPlan.getOutput(0).
-			addExpected(
+		sopremoPlan.getExpectedOutput(0).
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com")).
-			addExpected(
+			add(
 				createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 
 		sopremoPlan.run();
@@ -99,17 +99,17 @@ public class JoinTest extends SopremoTest {
 			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
 			add(createJsonObject("userid", 4, "url", "www.nbc.com")).
 			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
-		sopremoPlan.getOutput(0).
-			addExpected(
+		sopremoPlan.getExpectedOutput(0).
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com")).
-			addExpected(
+			add(
 				createJsonObject("userid", 4, "url", "www.nbc.com"));
 
 		sopremoPlan.run();
@@ -135,19 +135,19 @@ public class JoinTest extends SopremoTest {
 			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
 			add(createJsonObject("userid", 4, "url", "www.nbc.com")).
 			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
-		sopremoPlan.getOutput(0).
-			addExpected(
+		sopremoPlan.getExpectedOutput(0).
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
-			addExpected(
+			add(
 				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com")).
-			addExpected(
+			add(
 				createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3)).
-			addExpected(
+			add(
 				createJsonObject("userid", 4, "url", "www.nbc.com"));
 
 		sopremoPlan.run();
@@ -174,21 +174,21 @@ public class JoinTest extends SopremoTest {
 			add(createJsonObject("userid", 4, "url", "www.nbc.com")).
 			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
 		sopremoPlan
-			.getOutput(0)
+			.getExpectedOutput(0)
 			.
-			addExpected(
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 2, "url",
 					"www.cnn.com"))
 			.
-			addExpected(
+			add(
 				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 4, "url",
 					"www.nbc.com"))
 			.
-			addExpected(
+			add(
 				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 4, "url",
 					"www.nbc.com"))
 			.
-			addExpected(
+			add(
 				createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3, "userid", 4, "url",
 					"www.nbc.com"));
 
@@ -214,9 +214,9 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getInput(1).
 			add(createJsonObject("Name", "Sales", "Manager", "Harriet")).
 			add(createJsonObject("Name", "Production", "Manager", "Charles"));
-		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
-			addExpected(createJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance"));
+		sopremoPlan.getExpectedOutput(0).
+			add(createJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
+			add(createJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance"));
 
 		sopremoPlan.run();
 	}
@@ -240,9 +240,9 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getInput(1).
 			add(createJsonObject("Name", "Sales", "Manager", "Harriet")).
 			add(createJsonObject("Name", "Production", "Manager", "Charles"));
-		sopremoPlan.getOutput(0).
-			addExpected(createJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
-			addExpected(createJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
+		sopremoPlan.getExpectedOutput(0).
+			add(createJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
+			add(createJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
 
 		sopremoPlan.run();
 	}

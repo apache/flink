@@ -1,12 +1,14 @@
 package eu.stratosphere.sopremo.expressions;
 
 import java.util.Arrays;
+import java.util.Iterator;
+
 import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
 
-public class FunctionCall extends EvaluableExpression {
+public class FunctionCall extends ContainerExpression<Evaluable> {
 
 	private String name;
 
@@ -27,6 +29,11 @@ public class FunctionCall extends EvaluableExpression {
 				builder.append(", ");
 		}
 		builder.append(')');
+	}
+
+	@Override
+	public Iterator<Evaluable> iterator() {
+		return Arrays.asList(paramExprs).iterator();
 	}
 
 	@Override
