@@ -3,7 +3,7 @@ package eu.stratosphere.dag;
 /**
  * Returns printable characters for all different kinds of edge intersections.
  * 
- * @see DAGPrinter
+ * @see GraphPrinter
  * @author Arvid Heise
  */
 public interface ConnectorProvider {

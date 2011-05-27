@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.dag.DAGPrinter;
-import eu.stratosphere.dag.DAGTraverseListener;
-import eu.stratosphere.dag.DependencyAwareDAGTraverser;
+import eu.stratosphere.dag.GraphPrinter;
+import eu.stratosphere.dag.GraphTraverseListener;
+import eu.stratosphere.dag.DependencyAwareGraphTraverser;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
@@ -103,7 +103,7 @@ public class SopremoPlan {
 		private List<Contract> findPACTSinks() {
 			List<Contract> pactSinks = new ArrayList<Contract>();
 			for (Operator sink : sinks) {
-				DataSinkContract<?, ?>[] outputs = modules.get(sink).getOutputs();
+				DataSinkContract<?, ?>[] outputs = modules.get(sink).getAllOutputs();
 				for (DataSinkContract<?, ?> outputStub : outputs) {
 					Contract output = outputStub;
 					if (!(sink instanceof Sink))
@@ -115,8 +115,8 @@ public class SopremoPlan {
 		}
 
 		private void convertDAGToModules() {
-			DependencyAwareDAGTraverser.INSTANCE.traverse(sinks, OperatorNavigator.INSTANCE,
-				new DAGTraverseListener<Operator>() {
+			DependencyAwareGraphTraverser.INSTANCE.traverse(sinks, OperatorNavigator.INSTANCE,
+				new GraphTraverseListener<Operator>() {
 					@Override
 					public void nodeTraversed(Operator node) {
 						PactModule module = node.asPactModule(SopremoPlan.this.context);
@@ -154,13 +154,13 @@ public class SopremoPlan {
 
 	@Override
 	public String toString() {
-		return new DAGPrinter<Operator>().toString(sinks, OperatorNavigator.INSTANCE);
+		return new GraphPrinter<Operator>().toString(sinks, OperatorNavigator.INSTANCE);
 	}
 
 	public List<Operator> getAllNodes() {
 		final List<Operator> nodes = new ArrayList<Operator>();
-		DependencyAwareDAGTraverser.INSTANCE.traverse(this.sinks, new OperatorNavigator(),
-			new DAGTraverseListener<Operator>() {
+		DependencyAwareGraphTraverser.INSTANCE.traverse(this.sinks, new OperatorNavigator(),
+			new GraphTraverseListener<Operator>() {
 				@Override
 				public void nodeTraversed(Operator node) {
 					nodes.add(node);

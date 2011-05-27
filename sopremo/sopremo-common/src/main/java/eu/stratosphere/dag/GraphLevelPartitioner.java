@@ -7,7 +7,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.pact.common.IdentityList;
+import eu.stratosphere.util.IdentityList;
 
 /**
  * Finds successive partitions of independent graph nodes and returns them in ascending order.<br>
@@ -23,7 +23,7 @@ import eu.stratosphere.pact.common.IdentityList;
  * 
  * @author Arvid Heise
  */
-public class DAGLevelPartitioner {
+public class GraphLevelPartitioner {
 
 	private static <Node> void gatherNodes(List<Node> nodes, Navigator<Node> navigator, Node node) {
 		if (!nodes.contains(node))
@@ -47,7 +47,7 @@ public class DAGLevelPartitioner {
 	 * @throws IllegalStateException
 	 *         if the graph contains cycles
 	 */
-	public static <Node> List<Level<Node>> getLevels(Iterable<Node> startNodes, Navigator<Node> navigator) {
+	public static <Node> List<Level<Node>> getLevels(Iterable<? extends Node> startNodes, Navigator<Node> navigator) {
 		return getLevels(startNodes.iterator(), navigator);
 	}
 
@@ -64,7 +64,7 @@ public class DAGLevelPartitioner {
 	 * @throws IllegalStateException
 	 *         if the graph contains cycles
 	 */
-	public static <Node> List<Level<Node>> getLevels(Iterator<Node> startNodes, Navigator<Node> navigator) {
+	public static <Node> List<Level<Node>> getLevels(Iterator<? extends Node> startNodes, Navigator<Node> navigator) {
 
 		List<Node> remainingNodes = new IdentityList<Node>();
 		while (startNodes.hasNext())
@@ -119,7 +119,7 @@ public class DAGLevelPartitioner {
 	 * A level contains only nodes that depend (are referenced from) on nodes of the previous levels.
 	 * 
 	 * @author Arvid Heise
-	 * @see DAGLevelPartitioner
+	 * @see GraphLevelPartitioner
 	 * @param <Node>
 	 *        the type of the node
 	 */

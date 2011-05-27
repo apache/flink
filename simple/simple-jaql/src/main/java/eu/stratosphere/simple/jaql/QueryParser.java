@@ -25,7 +25,6 @@ import com.ibm.jaql.lang.expr.path.PathExpr;
 import com.ibm.jaql.lang.expr.path.PathFieldValue;
 import com.ibm.jaql.lang.expr.path.PathReturn;
 
-import eu.stratosphere.dag.DAGPrinter;
 import eu.stratosphere.dag.Navigator;
 import eu.stratosphere.simple.jaql.rewrite.RewriteEngine;
 import eu.stratosphere.sopremo.Operator;

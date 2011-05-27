@@ -30,11 +30,11 @@ public class Sink extends Operator {
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		PactModule pactModule = new PactModule(1, 1);
+		PactModule pactModule = new PactModule(1, 0);
 		DataSinkContract<PactNull, PactJsonObject> contract = new DataSinkContract<PactNull, PactJsonObject>(
 			JsonOutputFormat.class, this.outputName);
 		contract.setInput(pactModule.getInput(0));
-		pactModule.setOutput(0, contract);
+		pactModule.addInternalOutput(contract);
 		return pactModule;
 	}
 

@@ -10,7 +10,7 @@ import java.util.Formatter;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.dag.DAGLevelPartitioner.Level;
+import eu.stratosphere.dag.GraphLevelPartitioner.Level;
 
 /**
  * Utility class to pretty print arbitrary directed acyclic graphs. It needs a {@link Navigator} to traverse form the
@@ -26,7 +26,7 @@ import eu.stratosphere.dag.DAGLevelPartitioner.Level;
  * @param <Node>
  *        the class of the node
  */
-public class DAGPrinter<Node> {
+public class GraphPrinter<Node> {
 	/**
 	 * The default width of a column.
 	 */
@@ -80,7 +80,7 @@ public class DAGPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(Appendable appendable, Iterable<Node> startNodes, Navigator<Node> navigator) throws IOException {
+	public void print(Appendable appendable, Iterable<? extends Node> startNodes, Navigator<Node> navigator) throws IOException {
 		this.print(appendable, startNodes.iterator(), navigator);
 	}
 
@@ -97,8 +97,8 @@ public class DAGPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(Appendable appendable, Iterator<Node> startNodes, Navigator<Node> navigator) throws IOException {
-		new PrintState(appendable, DAGLevelPartitioner.getLevels(startNodes, navigator)).printDAG();
+	public void print(Appendable appendable, Iterator<? extends Node> startNodes, Navigator<Node> navigator) throws IOException {
+		new PrintState(appendable, GraphLevelPartitioner.getLevels(startNodes, navigator)).printDAG();
 	}
 
 	/**
@@ -164,7 +164,7 @@ public class DAGPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(Iterable<Node> startNodes, Navigator<Node> navigator) {
+	public String toString(Iterable<? extends Node> startNodes, Navigator<Node> navigator) {
 		return this.toString(startNodes.iterator(), navigator);
 	}
 
@@ -178,7 +178,7 @@ public class DAGPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(Iterator<Node> startNodes, Navigator<Node> navigator) {
+	public String toString(Iterator<? extends Node> startNodes, Navigator<Node> navigator) {
 		StringBuilder builder = new StringBuilder();
 
 		try {
@@ -317,18 +317,18 @@ public class DAGPrinter<Node> {
 			String connectorString = "";
 			if (index < this.printDownline.size() && this.printDownline.getInt(index) > 0) {
 				if (connector != null)
-					connectorString = DAGPrinter.this.connectorProvider.getConnectorString(connector,
+					connectorString = GraphPrinter.this.connectorProvider.getConnectorString(connector,
 						ConnectorProvider.Route.TOP_DOWN);
 				else
-					connectorString = DAGPrinter.this.connectorProvider
+					connectorString = GraphPrinter.this.connectorProvider
 						.getConnectorString(ConnectorProvider.Route.TOP_DOWN);
 			} else if (connector != null)
-				connectorString = DAGPrinter.this.connectorProvider.getConnectorString(connector);
+				connectorString = GraphPrinter.this.connectorProvider.getConnectorString(connector);
 
-			String paddedString = String.format(DAGPrinter.this.widthString, connectorString);
+			String paddedString = String.format(GraphPrinter.this.widthString, connectorString);
 			if (padding != null)
 				paddedString = paddedString.replaceAll(" ",
-					DAGPrinter.this.connectorProvider.getConnectorString(padding));
+					GraphPrinter.this.connectorProvider.getConnectorString(padding));
 			this.appender.append(paddedString);
 		}
 
@@ -413,13 +413,13 @@ public class DAGPrinter<Node> {
 		@SuppressWarnings("unchecked")
 		private void printNode(Object node) throws IOException {
 			if (node instanceof Placeholder)
-				this.appender.append(String.format(DAGPrinter.this.widthString,
-					((Placeholder) node).toString(DAGPrinter.this.connectorProvider)));
+				this.appender.append(String.format(GraphPrinter.this.widthString,
+					((Placeholder) node).toString(GraphPrinter.this.connectorProvider)));
 			else {
-				String nodeString = DAGPrinter.this.nodePrinter.toString((Node) node);
-				if (nodeString.length() > DAGPrinter.this.width)
-					nodeString = nodeString.substring(0, DAGPrinter.this.width);
-				this.appender.append(String.format(DAGPrinter.this.widthString, nodeString));
+				String nodeString = GraphPrinter.this.nodePrinter.toString((Node) node);
+				if (nodeString.length() > GraphPrinter.this.width)
+					nodeString = nodeString.substring(0, GraphPrinter.this.width);
+				this.appender.append(String.format(GraphPrinter.this.widthString, nodeString));
 			}
 		}
 

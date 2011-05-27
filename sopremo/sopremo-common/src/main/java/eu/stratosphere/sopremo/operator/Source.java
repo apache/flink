@@ -34,11 +34,11 @@ public class Source extends Operator {
 	public PactModule asPactModule(EvaluationContext context) {
 		if (this.type == DataType.ADHOC)
 			throw new UnsupportedOperationException();
-		PactModule pactModule = new PactModule(1, 1);
+		PactModule pactModule = new PactModule(0, 1);
 		DataSourceContract<PactNull, PactJsonObject> contract = new DataSourceContract<PactNull, PactJsonObject>(
 			JsonInputFormat.class, this.inputName);
 		pactModule.getOutput(0).setInput(contract);
-		pactModule.setInput(0, contract);
+		//pactModule.setInput(0, contract);
 		return pactModule;
 	}
 

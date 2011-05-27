@@ -26,10 +26,10 @@ public class SopremoTestPlan {
 
 		@Override
 		public PactModule asPactModule(EvaluationContext context) {
-			PactModule pactModule = new PactModule(1, 1);
+			PactModule pactModule = new PactModule(0, 1);
 			DataSourceContract contract = TestPlan.createDefaultSource(this.getInputName());
 			pactModule.getOutput(0).setInput(contract);
-			pactModule.setInput(0, contract);
+//			pactModule.setInput(0, contract);
 			return pactModule;
 		}
 
@@ -65,10 +65,10 @@ public class SopremoTestPlan {
 
 		@Override
 		public PactModule asPactModule(EvaluationContext context) {
-			PactModule pactModule = new PactModule(1, 1);
+			PactModule pactModule = new PactModule(1, 0);
 			DataSinkContract contract = TestPlan.createDefaultSink(this.getOutputName());
 			contract.setInput(pactModule.getInput(0));
-			pactModule.setOutput(0, contract);
+			pactModule.addInternalOutput(contract);
 			return pactModule;
 		}
 
@@ -114,7 +114,7 @@ public class SopremoTestPlan {
 		}
 
 		public Input add(PactJsonObject object) {
-			this.input.add(new KeyValuePair(PactNull.getInstance(), object));
+			this.input.add(new KeyValuePair<PactNull, PactJsonObject>(PactNull.getInstance(), object));
 			return this;
 		}
 
@@ -127,7 +127,7 @@ public class SopremoTestPlan {
 
 		public void prepare(TestPlan testPlan) {
 			if (this.operator instanceof MockupSource)
-				testPlan.getInput(this.index).add((TestPairs) this.input);
+				testPlan.getInput(this.index).add(this.input);
 		}
 	}
 
@@ -152,7 +152,7 @@ public class SopremoTestPlan {
 		}
 
 		public Output add(PactJsonObject object) {
-			this.expected.add(new KeyValuePair(PactNull.getInstance(), object));
+			this.expected.add(new KeyValuePair<PactNull, PactJsonObject>(PactNull.getInstance(), object));
 			return this;
 		}
 
@@ -165,7 +165,7 @@ public class SopremoTestPlan {
 
 		public void prepare(TestPlan testPlan) {
 			if (this.operator instanceof MockupSink)
-				testPlan.getExpectedOutput(this.index).add((TestPairs) this.expected);
+				testPlan.getExpectedOutput(this.index).add((TestPairs<PactNull, PactJsonObject>) this.expected);
 		}
 	}
 

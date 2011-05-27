@@ -9,11 +9,11 @@ import java.util.LinkedList;
 import org.junit.Test;
 
 /**
- * Tests the {@link ReflectUtil} class, especially {@link ReflectUtil#getStaticBoundTypes(Class)}
+ * Tests the {@link BoundTypeUtil} class, especially {@link BoundTypeUtil#getStaticBoundTypes(Class)}
  * 
- * @author Arvid.Heise
+ * @author Arvid Heise
  */
-public class ReflectUtilTest {
+public class BoundTypeUtilTest {
 	@SuppressWarnings("serial")
 	private static class BoundList extends ArrayList<String> {
 		// no reimplementation since only the static binding of types is tested
@@ -59,7 +59,7 @@ public class ReflectUtilTest {
 	@Test
 	public void testBoundOrder() {
 		final Class<?>[] klasses = { String.class, Integer.class };
-		assertArrayEquals(BoundType.arrayOf(klasses), ReflectUtil.getStaticBoundTypes(BoundMap.class));
+		assertArrayEquals(BoundType.arrayOf(klasses), BoundTypeUtil.getStaticBoundTypes(BoundMap.class));
 	}
 
 	/**
@@ -68,7 +68,7 @@ public class ReflectUtilTest {
 	@Test
 	public void testCompletedBounds() {
 		final Class<?>[] klasses = { Integer.class, String.class };
-		assertArrayEquals(BoundType.arrayOf(klasses), ReflectUtil.getStaticBoundTypes(CompletedBoundMap.class));
+		assertArrayEquals(BoundType.arrayOf(klasses), BoundTypeUtil.getStaticBoundTypes(CompletedBoundMap.class));
 	}
 
 	/**
@@ -77,10 +77,10 @@ public class ReflectUtilTest {
 	@Test
 	public void testEmptyBounds() {
 		// no type parameters
-		assertArrayEquals(new Class[0], ReflectUtil.getStaticBoundTypes(ReflectUtilTest.class));
+		assertArrayEquals(new Class[0], BoundTypeUtil.getStaticBoundTypes(BoundTypeUtilTest.class));
 
 		// not statically bound
-		assertArrayEquals(new Class[0], ReflectUtil.getStaticBoundTypes(ArrayList.class));
+		assertArrayEquals(new Class[0], BoundTypeUtil.getStaticBoundTypes(ArrayList.class));
 	}
 
 	/**
@@ -94,7 +94,7 @@ public class ReflectUtilTest {
 			array(BoundType.of(ArrayList.class, BoundType.of(Integer.class)),
 				BoundType.of(NestedList.class)));
 		assertArrayEquals(array(stringArrayListLinkedList, integerArrayListHashMap),
-			ReflectUtil.getStaticBoundTypes(NestedMap.class));
+			BoundTypeUtil.getStaticBoundTypes(NestedMap.class));
 	}
 
 	/**
@@ -104,7 +104,7 @@ public class ReflectUtilTest {
 	public void testNestedBounds() {
 		final BoundType stringArrayList = BoundType.of(ArrayList.class, BoundType.of(String.class));
 		assertArrayEquals(bindToArray(LinkedList.class, stringArrayList),
-			ReflectUtil.getStaticBoundTypes(NestedList.class));
+			BoundTypeUtil.getStaticBoundTypes(NestedList.class));
 	}
 
 	/**
@@ -113,7 +113,7 @@ public class ReflectUtilTest {
 	@Test
 	public void testPartialBounds() {
 		final Class<?>[] klasses = { Integer.class };
-		assertArrayEquals(BoundType.arrayOf(klasses), ReflectUtil.getStaticBoundTypes(PartialBoundMap.class));
+		assertArrayEquals(BoundType.arrayOf(klasses), BoundTypeUtil.getStaticBoundTypes(PartialBoundMap.class));
 	}
 
 	/**
@@ -122,7 +122,7 @@ public class ReflectUtilTest {
 	@Test
 	public void testSimpleBounds() {
 		final Class<?>[] klasses = { String.class };
-		assertArrayEquals(BoundType.arrayOf(klasses), ReflectUtil.getStaticBoundTypes(BoundList.class));
+		assertArrayEquals(BoundType.arrayOf(klasses), BoundTypeUtil.getStaticBoundTypes(BoundList.class));
 	}
 
 }

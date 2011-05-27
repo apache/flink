@@ -1,15 +1,15 @@
 package eu.stratosphere.dag;
 
 /**
- * Callback for nodes found with an {@link DAGTraverser}.
+ * Callback for nodes found with an {@link GraphTraverser}.
  * 
  * @author Arvid Heise
  * @param <Node>
  *        the class of the nodes
  */
-public interface DAGTraverseListener<Node> {
+public interface GraphTraverseListener<Node> {
 	/**
-	 * Called for each node found by a {@link DAGTraverser}.
+	 * Called for each node found by a {@link GraphTraverser}.
 	 * 
 	 * @param node
 	 *        the current node

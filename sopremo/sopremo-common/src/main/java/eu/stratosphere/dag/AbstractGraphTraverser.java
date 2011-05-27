@@ -8,11 +8,11 @@ import java.util.Arrays;
  * 
  * @author Arvid Heise
  */
-public abstract class AbstractDAGTraverser implements DAGTraverser {
+public abstract class AbstractGraphTraverser implements GraphTraverser {
 
 	/**
 	 * Traverses the DAG consisting of the given start nodes and all notes reachable with the navigator and calls the
-	 * specified {@link DAGTraverseListener} for each found node.
+	 * specified {@link GraphTraverseListener} for each found node.
 	 * 
 	 * @param startNodes
 	 *        the initial nodes of the graph
@@ -23,13 +23,13 @@ public abstract class AbstractDAGTraverser implements DAGTraverser {
 	 * @param <Node>
 	 *        the class of the nodes
 	 */
-	public <Node> void traverse(Iterable<Node> startNodes, Navigator<Node> navigator, DAGTraverseListener<Node> listener) {
+	public <Node> void traverse(Iterable<Node> startNodes, Navigator<Node> navigator, GraphTraverseListener<Node> listener) {
 		traverse(startNodes.iterator(), navigator, listener);
 	}
 
 	/**
 	 * Traverses the DAG consisting of the given start nodes and all notes reachable with the navigator and calls the
-	 * specified {@link DAGTraverseListener} for each found node.
+	 * specified {@link GraphTraverseListener} for each found node.
 	 * 
 	 * @param startNodes
 	 *        the initial nodes of the graph
@@ -40,7 +40,7 @@ public abstract class AbstractDAGTraverser implements DAGTraverser {
 	 * @param <Node>
 	 *        the class of the nodes
 	 */
-	public <Node> void traverse(Node[] startNodes, Navigator<Node> navigator, DAGTraverseListener<Node> listener) {
+	public <Node> void traverse(Node[] startNodes, Navigator<Node> navigator, GraphTraverseListener<Node> listener) {
 		traverse(Arrays.asList(startNodes).iterator(), navigator, listener);
 	}
 

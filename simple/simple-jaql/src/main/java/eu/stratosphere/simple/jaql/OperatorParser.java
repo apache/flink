@@ -21,9 +21,9 @@ import com.ibm.jaql.lang.expr.io.AbstractHandleFn;
 import com.ibm.jaql.lang.expr.io.ReadFn;
 import com.ibm.jaql.lang.expr.io.WriteFn;
 
-import eu.stratosphere.reflect.TypeHandler;
-import eu.stratosphere.reflect.TypeHandlerListener;
-import eu.stratosphere.reflect.TypeSpecificHandler;
+import eu.stratosphere.dag.converter.GraphConversionListener;
+import eu.stratosphere.dag.converter.GraphConverter;
+import eu.stratosphere.dag.converter.NodeConverter;
 import eu.stratosphere.simple.jaql.QueryParser.Binding;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
@@ -45,25 +45,25 @@ import eu.stratosphere.sopremo.operator.Sink;
 import eu.stratosphere.sopremo.operator.Source;
 
 class OperatorParser implements JaqlToSopremoParser<Operator> {
-	private final class BindingScoper implements TypeHandlerListener<Expr, Operator> {
+	private final class BindingScoper implements GraphConversionListener<Expr, Operator> {
 		@Override
-		public void afterConversion(Expr in, List<Operator> children, Operator out) {
+		public void afterNodeConversion(Expr in, List<Operator> children, Operator out) {
 			OperatorParser.this.queryParser.expressionToOperators.put(in, out);
 		}
 
 		@Override
-		public void afterHierarchicalConversion(Expr in, Operator out) {
+		public void afterSubgraphConversion(Expr in, Operator out) {
 			if (!(in instanceof BindingExpr))
 				OperatorParser.this.queryParser.bindings.removeScope();
 		}
 
 		@Override
-		public void beforeConversion(Expr in, List<Operator> children) {
+		public void beforeNodeConversion(Expr in, List<Operator> children) {
 			OperatorParser.this.queryParser.operatorInputs.addLast(children);
 		}
 
 		@Override
-		public void beforeHierarchicalConversion(Expr in) {
+		public void beforeSubgraphConversion(Expr in) {
 			if (!(in instanceof BindingExpr))
 				OperatorParser.this.queryParser.bindings.addScope();
 		}
@@ -71,7 +71,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 
 	private final class AdhocSourceConverter implements OpConverter<ArrayExpr> {
 		@Override
-		public Operator convert(ArrayExpr expr, List<Operator> childOperators) {
+		public Operator convertNode(ArrayExpr expr, List<Operator> childOperators) {
 			if (expr.parent() instanceof BindingExpr)
 				return new Source(OperatorParser.this.queryParser.parsePath(expr));
 			return null;
@@ -80,7 +80,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 
 	private final class SourceConverter implements OpConverter<ReadFn> {
 		@Override
-		public Operator convert(ReadFn expr, List<Operator> childOperators) {
+		public Operator convertNode(ReadFn expr, List<Operator> childOperators) {
 			return new Source(DataType.HDFS,
 				((ConstExpr) ((AbstractHandleFn) expr.child(0)).location()).value.toString());
 		}
@@ -88,7 +88,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 
 	private final class AggregationConverter implements OpConverter<GroupByExpr> {
 		@Override
-		public Operator convert(GroupByExpr expr, List<Operator> childOperators) {
+		public Operator convertNode(GroupByExpr expr, List<Operator> childOperators) {
 			int n = expr.numInputs();
 			List<EvaluableExpression> groupStatements = new ArrayList<EvaluableExpression>();
 			for (int index = 0; index < n; index++) {
@@ -114,7 +114,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 		private List<String> inputAliases = new ArrayList<String>();
 
 		@Override
-		public Operator convert(JoinExpr expr, List<Operator> childOperators) {
+		public Operator convertNode(JoinExpr expr, List<Operator> childOperators) {
 			Condition condition = this.parseCondition(expr);
 
 			if (this.inputAliases.size() < childOperators.size())
@@ -190,32 +190,33 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 
 	private final class TransformationConverter implements OpConverter<TransformExpr> {
 		@Override
-		public Operator convert(TransformExpr expr, List<Operator> childOperators) {
+		public Operator convertNode(TransformExpr expr, List<Operator> childOperators) {
 			return new Projection(OperatorParser.this.queryParser.parseObjectCreation(expr), childOperators.get(0));
 		}
 	}
 
 	private final class SelectionConverter implements OpConverter<FilterExpr> {
 		@Override
-		public Operator convert(FilterExpr expr, List<Operator> childOperators) {
+		public Operator convertNode(FilterExpr expr, List<Operator> childOperators) {
 			return new Selection(OperatorParser.this.queryParser.parseCondition(expr), childOperators.get(0));
 		}
 	}
 
 	private final class SinkConverter implements OpConverter<WriteFn> {
 		@Override
-		public Operator convert(WriteFn expr, List<Operator> childOperators) {
+		public Operator convertNode(WriteFn expr, List<Operator> childOperators) {
 			return new Sink(DataType.HDFS, ((AbstractHandleFn) expr.descriptor()).location().toString(),
 				childOperators.get(0));
 		}
 	}
 
-	final class BindingExtractor<Output> implements TypeHandler<BindingExpr, Output> {
+	final class BindingExtractor<Output> implements NodeConverter<BindingExpr, Output> {
 
 		private BindingExtractor() {
 		}
 
-		public Output convert(BindingExpr expr, List<Output> children) {
+		@Override
+		public Output convertNode(BindingExpr expr, List<Output> children) {
 			// System.out.println(expr);
 			if (children.isEmpty() && expr.numChildren() == 0)
 				return null;
@@ -252,13 +253,12 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 		}
 	}
 
-	private static interface OpConverter<I extends Expr> extends TypeHandler<I, Operator> {
-		public abstract Operator convert(I expr, List<Operator> childOperators);
+	private static interface OpConverter<I extends Expr> extends NodeConverter<I, Operator> {
 	}
 
 	QueryParser queryParser;
 
-	private TypeSpecificHandler<Expr, Operator, TypeHandler<Expr, Operator>> operatorConverter = new TypeSpecificHandler<Expr, Operator, TypeHandler<Expr, Operator>>();
+	private GraphConverter<Expr, Operator> operatorConverter = new GraphConverter<Expr, Operator>();
 
 	@SuppressWarnings("unchecked")
 	public OperatorParser(QueryParser queryParser) {
@@ -271,7 +271,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 
 	@Override
 	public Operator parse(Expr expr) {
-		return this.operatorConverter.handleRecursively(ExprNavigator.INSTANCE, expr);
+		return this.operatorConverter.convertGraph(expr, ExprNavigator.INSTANCE);
 	}
 
 }

@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.common;
+package eu.stratosphere.util;
 
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -113,6 +113,39 @@ public class IdentityList<E> extends AbstractList<E> {
 				return true;
 			}
 		return false;
+	}
+
+	@Override
+	public boolean removeAll(Collection<?> c) {
+		boolean modified = false;
+		for (Object object : c)
+			modified |= remove(object);
+		return modified;
+	}
+
+	@Override
+	public boolean containsAll(Collection<?> c) {
+		Iterator<?> e = c.iterator();
+		while (e.hasNext())
+			if (!contains(e.next()))
+				return false;
+		return true;
+	}
+
+	@Override
+	public boolean retainAll(Collection<?> c) {
+		boolean modified = false;
+		Iterator<E> e = iterator();
+		findUnmatchedElement: while (e.hasNext()) {
+			E element = e.next();
+			Iterator<?> otherIterator = c.iterator();
+			while (otherIterator.hasNext())
+				if (element == otherIterator.next())
+					continue findUnmatchedElement;
+			e.remove();
+			modified = true;
+		}
+		return modified;
 	}
 
 	@Override

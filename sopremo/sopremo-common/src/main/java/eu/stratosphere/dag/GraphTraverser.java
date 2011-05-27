@@ -8,10 +8,10 @@ import java.util.Iterator;
  * 
  * @author Arvid Heise
  */
-public interface DAGTraverser {
+public interface GraphTraverser {
 	/**
 	 * Traverses the DAG consisting of the given start nodes and all notes reachable with the navigator and calls the
-	 * specified {@link DAGTraverseListener} for each found node.
+	 * specified {@link GraphTraverseListener} for each found node.
 	 * 
 	 * @param startNodes
 	 *        the initial nodes of the graph
@@ -23,6 +23,6 @@ public interface DAGTraverser {
 	 *        the class of the nodes
 	 */
 	public abstract <Node> void traverse(Iterator<Node> startNodes, Navigator<Node> navigator,
-			DAGTraverseListener<Node> listener);
+			GraphTraverseListener<Node> listener);
 
 }

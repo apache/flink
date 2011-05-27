@@ -105,7 +105,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 
 	private Configuration configuration;
 
-	private Class<? extends InputFormat<K, V>> inputFormatClass;
+	private Class<InputFormat<K, V>> inputFormatClass;
 
 	private final List<KeyValuePair<K, V>> pairs = new ArrayList<KeyValuePair<K, V>>();
 
@@ -142,6 +142,21 @@ public class TestPairs<K extends Key, V extends Value> implements
 	public TestPairs<K, V> add(final Iterable<KeyValuePair<K, V>> pairs) {
 		for (final KeyValuePair<K, V> pair : pairs)
 			this.pairs.add(pair);
+		setEmpty(false);
+		return this;
+	}
+
+	/**
+	 * Adds several pairs at once.
+	 * 
+	 * @param pairs
+	 *        the pairs to add
+	 * @return this
+	 */
+	@SuppressWarnings("unchecked")
+	public TestPairs<K, V> add(final TestPairs<? extends K, ? extends V> pairs) {
+		for (final KeyValuePair<? extends K, ? extends V> pair : pairs)
+			this.pairs.add((KeyValuePair<K, V>) pair);
 		setEmpty(false);
 		return this;
 	}
@@ -316,7 +331,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 			final Class<? extends InputFormat> inputFormatClass,
 			final String file, final Configuration configuration) {
 		this.path = file;
-		this.inputFormatClass = (Class<? extends InputFormat<K, V>>) inputFormatClass;
+		this.inputFormatClass = (Class<InputFormat<K, V>>) inputFormatClass;
 		this.configuration = configuration;
 		setEmpty(false);
 		return this;

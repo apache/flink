@@ -97,7 +97,7 @@ public class BoundType {
 	public BoundType(ParameterizedType type) {
 		this.type = type;
 		this.rawType = (Class<?>) type.getRawType();
-		this.parameters = ReflectUtil.getStaticBoundTypes(type);
+		this.parameters = BoundTypeUtil.getStaticBoundTypes(type);
 	}
 
 	@Override
