@@ -15,6 +15,11 @@ import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.util.AbstractIterator;
 
+/**
+ * Read-only array node wrapping a java array of {@link JsonNode}.
+ * 
+ * @author Arvid Heise
+ */
 public class CompactArrayNode extends ContainerNode {
 	private JsonNode[] children;
 

@@ -161,9 +161,13 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 */
 	@SuppressWarnings("unchecked")
 	public TestPairs<K, V> add(final TestPairs<? extends K, ? extends V> pairs) {
-		for (final KeyValuePair<? extends K, ? extends V> pair : pairs)
-			this.pairs.add((KeyValuePair<K, V>) pair);
-		setEmpty(false);
+		if (pairs.isEmpty())
+			setEmpty();
+		else {
+			for (final KeyValuePair<? extends K, ? extends V> pair : pairs)
+				this.pairs.add((KeyValuePair<K, V>) pair);
+			setEmpty(false);
+		}
 		return this;
 	}
 
@@ -280,10 +284,32 @@ public class TestPairs<K extends Key, V extends Value> implements
 		this.closableManager.close();
 	}
 
-	public void assertEquals(final TestPairs<K, V> expectedValues) {
+	/**
+	 * Asserts that the contained set of pairs is equal to the set of pairs of the given {@link TestPairs}.
+	 * 
+	 * @param expectedValues
+	 *        the other TestPairs defining the expected result
+	 * @throws ArrayComparisonFailure
+	 *         if the sets differ
+	 */
+	public void assertEquals(final TestPairs<K, V> expectedValues) throws ArrayComparisonFailure {
 		assertEquals(expectedValues, new EqualityValueMatcher<V>(), null);
 	}
 
+	/**
+	 * Asserts that the contained set of pairs is fuzzy equal to the set of pairs of the given {@link TestPairs}.<br>
+	 * Pairs from this and the given set with equal key are compared and matched using the provided
+	 * {@link FuzzyTestValueMatcher} and its {@link FuzzyTestValueSimilarity} measure.
+	 * 
+	 * @param expectedValues
+	 *        the other TestPairs defining the expected result
+	 * @param fuzzyMatcher
+	 *        the fuzzy match algorithm used to globally match the values of pairs with equal key
+	 * @param fuzzySimilarity
+	 *        the fuzzy similarity measure used by the matcher or null if supported by the fuzzyMatcher
+	 * @throws ArrayComparisonFailure
+	 *         if the sets differ
+	 */
 	public void assertEquals(final TestPairs<K, V> expectedValues, FuzzyTestValueMatcher<V> fuzzyMatcher,
 			FuzzyTestValueSimilarity<V> fuzzySimilarity) throws ArrayComparisonFailure {
 		final Iterator<KeyValuePair<K, V>> actualIterator = this.iterator();

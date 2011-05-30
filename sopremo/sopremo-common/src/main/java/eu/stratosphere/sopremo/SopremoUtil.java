@@ -30,6 +30,9 @@ public class SopremoUtil {
 			inputIndex = getInputIndex((Path) expr);
 			expr = new Path(expr);
 			((Path) expr).replace(new Path(new Input(inputIndex)), new Path());
+		} else if (expr instanceof Input) {
+			inputIndex = ((Input) expr).getIndex();
+			expr = EvaluableExpression.IDENTITY;
 		}
 		extractionMap.setInput(module.getInput(inputIndex));
 		SopremoUtil.setTransformationAndContext(extractionMap.getStubParameters(), expr, context);
@@ -99,5 +102,12 @@ public class SopremoUtil {
 			EvaluationContext context) {
 		setObject(config, "transformation", transformation);
 		setObject(config, "context", context);
+	}
+
+	public static Contract addKeyRemover(Contract input) {
+		MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> removerMap =
+			new MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject>(KeyRemover.class);
+		removerMap.setInput(input);
+		return removerMap;
 	}
 }

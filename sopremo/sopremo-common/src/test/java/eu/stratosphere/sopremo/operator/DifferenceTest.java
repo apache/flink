@@ -4,21 +4,22 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
-import eu.stratosphere.sopremo.base.Union;
+import eu.stratosphere.sopremo.base.Difference;
+import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.Path;
 
-public class UnionTest extends SopremoTest {
+public class DifferenceTest extends SopremoTest {
 	/**
-	 * Checks whether union of one source produces the source again.
+	 * Checks whether difference of one source produces the source again.
 	 */
 	@Test
 	public void shouldSupportSingleSource() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		Union union = new Union(sopremoPlan.getInputOperator(0));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		Difference difference = new Difference(sopremoPlan.getInputOperator(0));
+		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -33,14 +34,14 @@ public class UnionTest extends SopremoTest {
 	}
 
 	/**
-	 * Checks whether union of more than two source produces the correct result.
+	 * Checks whether difference of more than two source produces the correct result.
 	 */
 	@Test
 	public void shouldSupportThreeSources() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
-		Union union = new Union(sopremoPlan.getInputOperators(0, 3));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 3));
+		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -55,11 +56,7 @@ public class UnionTest extends SopremoTest {
 			add(createJsonValue(3)).
 			add(createJsonValue(5));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3)).
-			add(createJsonValue(4)).
-			add(createJsonValue(5));
+			setEmpty();
 
 		sopremoPlan.run();
 	}
@@ -68,8 +65,8 @@ public class UnionTest extends SopremoTest {
 	public void shouldSupportPrimitives() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
+		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -80,10 +77,7 @@ public class UnionTest extends SopremoTest {
 			add(createJsonValue(2)).
 			add(createJsonValue(4));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3)).
-			add(createJsonValue(4));
+			add(createJsonValue(3));
 
 		sopremoPlan.run();
 	}
@@ -92,8 +86,8 @@ public class UnionTest extends SopremoTest {
 	public void shouldSupportArraysOfPrimitives() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
+		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonArray(1, 2)).
@@ -104,10 +98,7 @@ public class UnionTest extends SopremoTest {
 			add(createJsonArray(3, 4)).
 			add(createJsonArray(7, 8));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonArray(1, 2)).
-			add(createJsonArray(3, 4)).
-			add(createJsonArray(5, 6)).
-			add(createJsonArray(7, 8));
+			add(createJsonArray(5, 6));
 
 		sopremoPlan.run();
 	}
@@ -116,11 +107,11 @@ public class UnionTest extends SopremoTest {
 	public void shouldSupportComplexObject() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
-		union.setKeyExtractors(createPath("0", "name"),
+		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
+		difference.setKeyExtractors(createPath("0", "name"),
 			new Path(new FunctionCall("concat", createPath("1", "first name"),
 				new Constant(" "), createPath("1", "last name"))));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
@@ -131,10 +122,7 @@ public class UnionTest extends SopremoTest {
 			add(createJsonObject("first name", "Jane", "last name", "Doe", "password", "qwertyui", "id", 2)).
 			add(createJsonObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3)).
-			add(createJsonObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4));
+			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 
 		sopremoPlan.run();
 	}

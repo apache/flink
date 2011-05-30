@@ -17,7 +17,7 @@ public class Input extends EvaluableExpression {
 
 	@Override
 	protected void toString(StringBuilder builder) {
-		builder.append("in").append(this.index + 1);
+		builder.append("in").append(this.index);
 	}
 
 	@Override

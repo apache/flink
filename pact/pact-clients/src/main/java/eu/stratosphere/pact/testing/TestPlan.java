@@ -416,8 +416,7 @@ public class TestPlan implements Closeable {
 			}
 		}
 
-		// these fields are set by the ExecutionExceptionHandler in case of an
-		// error
+		// these fields are set by the ExecutionExceptionHandler in case of error
 		if (this.executionError != null)
 			Assert.fail(String.format("Error @ %s: %s", this.erroneousVertex.getName(), this.executionError));
 	}
@@ -903,14 +902,6 @@ public class TestPlan implements Closeable {
 	public static DataSourceContract<Key, Value> createDefaultSource(final String name) {
 		return new DataSourceContract(SequentialInputFormat.class,
 				getTestPlanFile("input"), name);
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <T> T firstOf(final Object[] objects, final Class<T> klazz) {
-		for (final Object object : objects)
-			if (klazz.isInstance(object))
-				return (T) object;
-		return null;
 	}
 
 	static String getTestPlanFile(final String prefix) {

@@ -28,7 +28,7 @@ public class SopremoTestPlan {
 			PactModule pactModule = new PactModule(0, 1);
 			DataSourceContract contract = TestPlan.createDefaultSource(this.getInputName());
 			pactModule.getOutput(0).setInput(contract);
-//			pactModule.setInput(0, contract);
+			// pactModule.setInput(0, contract);
 			return pactModule;
 		}
 
@@ -117,6 +117,11 @@ public class SopremoTestPlan {
 			return this;
 		}
 
+		public Input setEmpty() {
+			this.input.setEmpty();
+			return this;
+		}
+
 		public void setOperator(Operator operator) {
 			if (operator == null)
 				throw new NullPointerException("operator must not be null");
@@ -152,6 +157,11 @@ public class SopremoTestPlan {
 
 		public Output add(PactJsonObject object) {
 			this.expected.add(new KeyValuePair<PactNull, PactJsonObject>(PactNull.getInstance(), object));
+			return this;
+		}
+
+		public Output setEmpty() {
+			this.expected.setEmpty();
 			return this;
 		}
 
