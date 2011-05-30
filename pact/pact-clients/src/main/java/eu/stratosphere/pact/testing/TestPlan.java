@@ -23,17 +23,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import junit.framework.Assert;
-import junit.framework.AssertionFailedError;
-
-import org.junit.internal.ArrayComparisonFailure;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
@@ -62,7 +57,6 @@ import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
@@ -413,7 +407,7 @@ public class TestPlan implements Closeable {
 						.startTask();
 
 				if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
-					fail(submissionResult.getDescription());
+					Assert.fail(submissionResult.getDescription());
 			}
 
 			try {
@@ -425,7 +419,7 @@ public class TestPlan implements Closeable {
 		// these fields are set by the ExecutionExceptionHandler in case of an
 		// error
 		if (this.executionError != null)
-			fail(this.executionError, this.erroneousVertex);
+			Assert.fail(String.format("Error @ %s: %s", this.erroneousVertex.getName(), this.executionError));
 	}
 
 	/**
@@ -842,7 +836,7 @@ public class TestPlan implements Closeable {
 			localScheduler.schedulJob(eg);
 			this.execute(eg, localScheduler);
 		} catch (final Exception e) {
-			fail(e, "plan scheduling");
+			Assert.fail("plan scheduling: " + StringUtils.stringifyException(e));
 		}
 		this.validateResults();
 	}
@@ -859,9 +853,6 @@ public class TestPlan implements Closeable {
 
 	@SuppressWarnings("unchecked")
 	private void validateResults() {
-		System.out.println(getExpectedOutput());
-		System.out.println(getActualOutput());
-		
 		for (final DataSinkContract<?, ?> dataSinkContract : this
 				.getDataSinks())
 			// need a format which is deserializable without configuration
@@ -874,89 +865,17 @@ public class TestPlan implements Closeable {
 				final TestPairs<Key, Value> expectedValues = (TestPairs<Key, Value>) this
 						.getExpectedOutput(dataSinkContract);
 
-				final Iterator<KeyValuePair<Key, Value>> actualIterator = actualValues
-						.iterator();
-				final Iterator<KeyValuePair<Key, Value>> expectedIterator = expectedValues
-						.iterator();
-				Key currentKey = null;
-				int itemIndex = 0;
-				List<Value> expectedValuesWithCurrentKey = new ArrayList<Value>();
-				List<Value> actualValuesWithCurrentKey = new ArrayList<Value>();
-				while (actualIterator.hasNext() && expectedIterator.hasNext()) {
-
-					final KeyValuePair<Key, Value> expected = expectedIterator.next();
-					if (currentKey == null)
-						currentKey = expected.getKey();
-					else if (expected.getKey().compareTo(currentKey) != 0)
-						this.matchValues(dataSinkContract, actualIterator, currentKey, itemIndex,
-							expectedValuesWithCurrentKey, actualValuesWithCurrentKey);
-					expectedValuesWithCurrentKey.add(expected.getValue());
-
-					itemIndex++;
+				FuzzyTestValueMatcher<Value> fuzzyMatcher = this.getFuzzyMatcher(dataSinkContract);
+				FuzzyTestValueSimilarity<Value> fuzzySimilarity = this.getFuzzySimilarity(dataSinkContract);
+				try {
+					actualValues.assertEquals(expectedValues, fuzzyMatcher, fuzzySimilarity);
+				} catch (AssertionError e) {
+					AssertionError assertionError = new AssertionError(dataSinkContract.getName() + ": "
+						+ e.getMessage());
+					assertionError.initCause(e.getCause());
+					throw assertionError;
 				}
-
-				// remaining values
-				if (!expectedValuesWithCurrentKey.isEmpty())
-					this.matchValues(dataSinkContract, actualIterator, currentKey, itemIndex,
-						expectedValuesWithCurrentKey, actualValuesWithCurrentKey);
-
-				// if (!expectedPairsWithCurrentKey.isEmpty())
-				// fail("More elements expected: " + toString(expectedPairsWithCurrentKey.iterator()),
-				// dataSinkContract.getName());
-				if (!expectedValuesWithCurrentKey.isEmpty() || expectedIterator.hasNext())
-					fail("More elements expected: " + expectedValuesWithCurrentKey + this.toString(expectedIterator),
-						dataSinkContract.getName());
-				if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
-					fail("Less elements expected: " + actualValuesWithCurrentKey + this.toString(actualIterator),
-						dataSinkContract.getName());
 			}
-	}
-
-	private void matchValues(final DataSinkContract<?, ?> dataSinkContract,
-			final Iterator<KeyValuePair<Key, Value>> actualIterator, Key currentKey, int itemIndex,
-			List<Value> expectedValuesWithCurrentKey, List<Value> actualValuesWithCurrentKey)
-			throws ArrayComparisonFailure {
-		KeyValuePair<Key, Value> actualPair = null;
-		while (actualIterator.hasNext()) {
-			actualPair = actualIterator.next();
-			int keyComparison = actualPair.getKey().compareTo(currentKey);
-			if (keyComparison < 0)
-				throw new ArrayComparisonFailure(String.format(
-					"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
-					new AssertionFailedError(Assert.format(" ",
-						new KeyValuePair<Key, Value>(currentKey, expectedValuesWithCurrentKey.get(0)), actualPair)),
-					itemIndex + expectedValuesWithCurrentKey.size() - 1);
-			if (keyComparison != 0)
-				break;
-			actualValuesWithCurrentKey.add(actualPair.getValue());
-			actualPair = null;
-		}
-
-		FuzzyTestValueMatcher<Value> fuzzyMatcher = this.getFuzzyMatcher(dataSinkContract);
-		FuzzyTestValueSimilarity<Value> fuzzySimilarity = this.getFuzzySimilarity(dataSinkContract);
-		fuzzyMatcher.removeMatchingValues(fuzzySimilarity, expectedValuesWithCurrentKey,
-			actualValuesWithCurrentKey);
-
-		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
-			throw new ArrayComparisonFailure(String.format(
-				"Data sink %s contains unexpected values: ", dataSinkContract.getName()),
-				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey,
-					actualValuesWithCurrentKey)), itemIndex + expectedValuesWithCurrentKey.size() - 1);
-
-		if (actualPair != null)
-			actualValuesWithCurrentKey.add(actualPair.getValue());
-	}
-
-	private Object toString(Iterator<KeyValuePair<Key, Value>> iterator) {
-		StringBuilder builder = new StringBuilder();
-		for (int index = 0; index < 10 && iterator.hasNext(); index++) {
-			builder.append(iterator.next());
-			if (iterator.hasNext())
-				builder.append(", ");
-		}
-		if (iterator.hasNext())
-			builder.append("...");
-		return builder.toString();
 	}
 
 	/**
@@ -984,22 +903,6 @@ public class TestPlan implements Closeable {
 	public static DataSourceContract<Key, Value> createDefaultSource(final String name) {
 		return new DataSourceContract(SequentialInputFormat.class,
 				getTestPlanFile("input"), name);
-	}
-
-	static void fail(final String e, final Object... objects) {
-		final ExecutionVertex vertex = firstOf(objects, ExecutionVertex.class);
-		final Environment environment = firstOf(objects, Environment.class);
-		String name = firstOf(objects, String.class);
-		if (vertex != null)
-			name = vertex.getName();
-		else if (environment != null)
-			name = environment.getTaskName();
-
-		Assert.fail(name + ": " + e);
-	}
-
-	static void fail(final Throwable e, final Object... objects) {
-		fail(StringUtils.stringifyException(e), objects);
 	}
 
 	@SuppressWarnings("unchecked")

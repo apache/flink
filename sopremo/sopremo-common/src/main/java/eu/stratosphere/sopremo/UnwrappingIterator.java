@@ -4,7 +4,7 @@ import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.AbstractIterator;
 
 public class UnwrappingIterator extends AbstractIterator<JsonNode> {

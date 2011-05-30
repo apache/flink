@@ -12,29 +12,29 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.DataStream;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtils;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoUtil;
-import eu.stratosphere.sopremo.SopremoCoGroup;
-import eu.stratosphere.sopremo.SopremoReduce;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.UnwrappingIterator;
 import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
+import eu.stratosphere.sopremo.pact.SopremoReduce;
 
 public class Aggregation extends Operator {
 	public final static List<EvaluableExpression> NO_GROUPING = new ArrayList<EvaluableExpression>();
 
 	private List<? extends EvaluableExpression> groupings;
 
-	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, DataStream... inputs) {
+	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, JsonStream... inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
@@ -42,7 +42,7 @@ public class Aggregation extends Operator {
 	}
 
 	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping,
-			List<? extends DataStream> inputs) {
+			List<? extends JsonStream> inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
@@ -65,7 +65,7 @@ public class Aggregation extends Operator {
 		@Override
 		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
 				Collector<Key, PactJsonObject> out) {
-			JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(
+			JsonNode result = this.getTransformation().evaluate(JsonUtil.asArray(
 				new StreamArrayNode(new UnwrappingIterator(values1)),
 				new StreamArrayNode(new UnwrappingIterator(values2))), this.getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));

@@ -9,8 +9,8 @@ import java.util.ListIterator;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
-public abstract class Operator implements SopremoType, DataStream {
-	public class Output implements DataStream {
+public abstract class Operator implements SopremoType, JsonStream {
+	public class Output implements JsonStream {
 		private int index;
 
 		public Output(int index) {
@@ -65,19 +65,19 @@ public abstract class Operator implements SopremoType, DataStream {
 
 	private Output[] outputs;
 
-	public Operator(String name, Evaluable transformation, DataStream... inputs) {
+	public Operator(String name, Evaluable transformation, JsonStream... inputs) {
 		this(name, transformation, Arrays.asList(inputs));
 	}
 
-	protected Operator(Evaluable transformation, DataStream... inputs) {
+	protected Operator(Evaluable transformation, JsonStream... inputs) {
 		this(null, transformation, inputs);
 	}
 
-	protected Operator(Evaluable transformation, List<? extends DataStream> inputs) {
+	protected Operator(Evaluable transformation, List<? extends JsonStream> inputs) {
 		this(null, transformation, inputs);
 	}
 
-	public Operator(String name, Evaluable transformation, List<? extends DataStream> inputs) {
+	public Operator(String name, Evaluable transformation, List<? extends JsonStream> inputs) {
 		this(name, 1, transformation, inputs);
 	}
 
@@ -85,22 +85,22 @@ public abstract class Operator implements SopremoType, DataStream {
 		return this.outputs[index];
 	}
 
-	public Operator(String name, int numberOfOutputs, Evaluable transformation, DataStream... inputs) {
+	public Operator(String name, int numberOfOutputs, Evaluable transformation, JsonStream... inputs) {
 		this(name, numberOfOutputs, transformation, Arrays.asList(inputs));
 	}
 
-	protected Operator(Evaluable transformation, int numberOfOutputs, DataStream... inputs) {
+	protected Operator(Evaluable transformation, int numberOfOutputs, JsonStream... inputs) {
 		this(null, 1, transformation, inputs);
 	}
 
-	protected Operator(Evaluable transformation, int numberOfOutputs, List<? extends DataStream> inputs) {
+	protected Operator(Evaluable transformation, int numberOfOutputs, List<? extends JsonStream> inputs) {
 		this(null, numberOfOutputs, transformation, inputs);
 	}
 
-	public Operator(String name, int numberOfOutputs, Evaluable transformation, List<? extends DataStream> inputs) {
+	public Operator(String name, int numberOfOutputs, Evaluable transformation, List<? extends JsonStream> inputs) {
 		if (transformation == null || inputs == null)
 			throw new NullPointerException();
-		for (DataStream input : inputs)			
+		for (JsonStream input : inputs)			
 			this.inputs.add(input == null ? null : input.getSource());
 		this.name = name == null ? this.getClass().getSimpleName() : name;
 		this.transformation = transformation;

@@ -18,17 +18,13 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.DataStream;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtils;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoUtil;
-import eu.stratosphere.sopremo.SopremoCoGroup;
-import eu.stratosphere.sopremo.SopremoCross;
-import eu.stratosphere.sopremo.SopremoMatch;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Condition;
@@ -37,25 +33,29 @@ import eu.stratosphere.sopremo.expressions.Condition.Combination;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
+import eu.stratosphere.sopremo.pact.SopremoCross;
+import eu.stratosphere.sopremo.pact.SopremoMatch;
 
 public class Join extends ConditionalOperator {
 	private BitSet outerJoinFlag = new BitSet();
 
-	public Join(Evaluable transformation, Condition condition, DataStream... inputs) {
+	public Join(Evaluable transformation, Condition condition, JsonStream... inputs) {
 		super(transformation, condition, inputs);
 	}
 
-	public Join(Evaluable transformation, Condition condition, List<? extends DataStream> inputs) {
+	public Join(Evaluable transformation, Condition condition, List<? extends JsonStream> inputs) {
 		super(transformation, condition, inputs);
 	}
 
-	public Join withOuterJoin(DataStream... inputs) {
+	public Join withOuterJoin(JsonStream... inputs) {
 		this.setOuterJoin(inputs);
 		return this;
 	}
 
-	public void setOuterJoin(DataStream... inputs) {
-		for (DataStream input : inputs) {
+	public void setOuterJoin(JsonStream... inputs) {
+		for (JsonStream input : inputs) {
 			int index = this.getInputs().indexOf(input.getSource());
 			if (index == -1)
 				throw new IllegalArgumentException();
@@ -69,7 +69,7 @@ public class Join extends ConditionalOperator {
 		public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
 				Collector<Key, PactJsonObject> out) {
 			JsonNode result = this.getTransformation()
-				.evaluate(JsonUtils.asArray(value1.getValue(), value2.getValue()), this.getContext());
+				.evaluate(JsonUtil.asArray(value1.getValue(), value2.getValue()), this.getContext());
 			out.collect(PactNull.getInstance(), new PactJsonObject(result));
 		}
 	}
@@ -81,7 +81,7 @@ public class Join extends ConditionalOperator {
 				Collector<Key, PactJsonObject> out) {
 			if (!values2.hasNext())
 				while (values1.hasNext()) {
-					JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(values1.next().getValue()),
+					JsonNode result = this.getTransformation().evaluate(JsonUtil.asArray(values1.next().getValue()),
 						this.getContext());
 					out.collect(PactNull.getInstance(), new PactJsonObject(result));
 				}
@@ -95,7 +95,7 @@ public class Join extends ConditionalOperator {
 				Collector<Key, PactJsonObject> out) {
 			if (values2.hasNext())
 				while (values1.hasNext()) {
-					JsonNode result = this.getTransformation().evaluate(JsonUtils.asArray(values1.next().getValue()),
+					JsonNode result = this.getTransformation().evaluate(JsonUtil.asArray(values1.next().getValue()),
 						this.getContext());
 					out.collect(PactNull.getInstance(), new PactJsonObject(result));
 				}
@@ -116,7 +116,7 @@ public class Join extends ConditionalOperator {
 		public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2,
 				PactJsonObject value2,
 				Collector<Key, PactJsonObject> out) {
-			JsonNode inputPair = JsonUtils.asArray(value1.getValue(), value2.getValue());
+			JsonNode inputPair = JsonUtil.asArray(value1.getValue(), value2.getValue());
 			if (this.comparison.evaluate(inputPair, this.getContext()) == BooleanNode.TRUE)
 				out.collect(PactNull.getInstance(),
 					new PactJsonObject(this.getTransformation().evaluate(inputPair, this.getContext())));
@@ -147,7 +147,7 @@ public class Join extends ConditionalOperator {
 							PactNull.getInstance(),
 							new PactJsonObject(this.getTransformation()
 								.evaluate(
-									JsonUtils.asArray(NullNode.getInstance(), values2.next().getValue()),
+									JsonUtil.asArray(NullNode.getInstance(), values2.next().getValue()),
 									this.getContext())));
 				return;
 			}
@@ -161,7 +161,7 @@ public class Join extends ConditionalOperator {
 							PactNull.getInstance(),
 							new PactJsonObject(this.getTransformation()
 								.evaluate(
-									JsonUtils.asArray(values1.next().getValue(), NullNode.getInstance()),
+									JsonUtil.asArray(values1.next().getValue(), NullNode.getInstance()),
 									this.getContext())));
 				return;
 			}
@@ -176,7 +176,7 @@ public class Join extends ConditionalOperator {
 				for (JsonNode firstSourceNode : firstSourceNodes)
 					out.collect(
 						PactNull.getInstance(),
-						new PactJsonObject(this.getTransformation().evaluate(JsonUtils.asArray(firstSourceNode,
+						new PactJsonObject(this.getTransformation().evaluate(JsonUtil.asArray(firstSourceNode,
 							secondSourceNode), this.getContext())));
 			}
 		}
@@ -264,7 +264,7 @@ public class Join extends ConditionalOperator {
 		return join;
 	}
 
-	public boolean isOuterJoin(DataStream input) {
+	public boolean isOuterJoin(JsonStream input) {
 		int index = this.getInputs().indexOf(input.getSource());
 		if (index == -1)
 			throw new IllegalArgumentException();

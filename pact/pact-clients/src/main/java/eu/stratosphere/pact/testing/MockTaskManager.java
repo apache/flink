@@ -18,6 +18,8 @@ package eu.stratosphere.pact.testing;
 import java.io.IOException;
 import java.util.List;
 
+import junit.framework.Assert;
+
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -45,6 +47,7 @@ import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * Mocks the {@link TaskManager} without building up any network connections. It supports memory and file channels for
@@ -169,7 +172,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	private void setupChannels(final ExecutionVertexID id, final Environment ee) {
 		// Check if the task has unbound input/output gates
 		if (ee.hasUnboundInputGates() || ee.hasUnboundOutputGates())
-			TestPlan.fail("Task with ID " + id + " has unbound gates", ee, id);
+			Assert.fail(String.format("Task %s with ID %s has unbound gates", ee.getTaskName(), id));
 		try {
 			// Register input gates
 			for (int i = 0; i < ee.getNumberOfInputGates(); i++)
@@ -178,7 +181,8 @@ class MockTaskManager implements TaskOperationProtocol {
 			for (int i = 0; i < ee.getNumberOfOutputGates(); i++)
 				this.registerOutputChannels(ee.getOutputGate(i));
 		} catch (final ChannelSetupException e) {
-			TestPlan.fail(e, ee, id);
+			Assert.fail(String.format("failed to setup channels @ %s: %s", ee.getTaskName(),
+				StringUtils.stringifyException(e)));
 		}
 	}
 

@@ -22,6 +22,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.junit.Assert;
+
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
@@ -45,7 +48,7 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 
 	private InputFormat<K, V> currentFormat;
 
-	private KeyValuePair<K, V> pair;
+	private KeyValuePair<K, V> nextPair;
 
 	private final boolean reusePair;
 
@@ -64,12 +67,14 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 
 		this.reusePair = reusePair;
 		if (reusePair)
-			this.pair = this.currentFormat.createPair();
+			this.nextPair = this.currentFormat.createPair();
+		this.loadNext();
 	}
 
 	@Override
-	public boolean hasNext() {
-		return this.currentFormat() != null;
+	public void close() throws IOException {
+		for (final InputFormat<K, V> inputFormat : this.inputFormats)
+			inputFormat.close();
 	}
 
 	/**
@@ -90,25 +95,33 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 	}
 
 	@Override
-	public KeyValuePair<K, V> next() {
+	public boolean hasNext() {
+		return this.nextPair != null;
+	}
+
+	private void loadNext() {
+		final InputFormat<K, V> currentFormat = this.currentFormat();
+		if (currentFormat == null) {
+			this.nextPair = null;
+			return;
+		}
+		if (!this.reusePair)
+			this.nextPair = currentFormat.createPair();
 		try {
-			if (!this.hasNext())
-				throw new NoSuchElementException();
-			final InputFormat<K, V> currentFormat = this.currentFormat();
-			if (!this.reusePair)
-				this.pair = currentFormat.createPair();
-			currentFormat.nextPair(this.pair);
-			return this.pair;
+			if (!currentFormat.nextPair(this.nextPair))
+				this.nextPair = null;
 		} catch (final IOException e) {
-			TestPlan.fail(e, "reading expected values");
-			return null;
+			Assert.fail("reading expected values " + StringUtils.stringifyException(e));
 		}
 	}
 
 	@Override
-	public void close() throws IOException {
-		for (final InputFormat<K, V> inputFormat : this.inputFormats)
-			inputFormat.close();
+	public KeyValuePair<K, V> next() {
+		if (!this.hasNext())
+			throw new NoSuchElementException();
+		KeyValuePair<K, V> pair = this.nextPair;
+		this.loadNext();
+		return pair;
 	}
 
 	/**

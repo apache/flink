@@ -6,7 +6,7 @@ import java.util.Iterator;
 import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtils;
+import eu.stratosphere.sopremo.JsonUtil;
 
 public class FunctionCall extends ContainerExpression<Evaluable> {
 
@@ -49,7 +49,7 @@ public class FunctionCall extends ContainerExpression<Evaluable> {
 		//
 		// throw new EvaluationException("undefined function " + this.name);
 
-		return context.getFunctionRegistry().evaluate(this.name, JsonUtils.asArray(params), context);
+		return context.getFunctionRegistry().evaluate(this.name, JsonUtil.asArray(params), context);
 	}
 
 	//

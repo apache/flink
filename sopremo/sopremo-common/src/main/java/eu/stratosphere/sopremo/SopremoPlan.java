@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import eu.stratosphere.dag.DependencyAwareGraphTraverser;
 import eu.stratosphere.dag.GraphPrinter;
 import eu.stratosphere.dag.GraphTraverseListener;
-import eu.stratosphere.dag.DependencyAwareGraphTraverser;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
@@ -19,8 +19,6 @@ import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.base.Source;
@@ -42,7 +40,7 @@ public class SopremoPlan {
 
 			List<Contract> pactSinks = findPACTSinks();
 
-			System.out.println(PactModule.valueOf(pactSinks.toArray(new Contract[0])));
+//			System.out.println(PactModule.valueOf(pactSinks.toArray(new Contract[0])));
 
 			return pactSinks;
 		}

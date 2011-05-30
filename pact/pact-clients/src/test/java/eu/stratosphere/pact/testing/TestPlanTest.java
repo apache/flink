@@ -46,6 +46,8 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
@@ -56,13 +58,10 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactList;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
-import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
@@ -194,12 +193,44 @@ public class TestPlanTest {
 	}
 
 	/**
+	 * Converts a input string (a line) into a KeyValuePair with the string
+	 * being the key and the value being a zero Integer.
+	 */
+	public static class IntegerInFormat extends TextInputFormat<PactNull, PactInteger> {
+		@Override
+		public boolean reachedEnd() {
+			return super.reachedEnd();
+		}
+
+		@Override
+		public boolean readLine(KeyValuePair<PactNull, PactInteger> pair, byte[] line) {
+			System.out.println("in " + new String(line));
+			pair.setValue(new PactInteger(Integer.valueOf(new String(line))));
+			return true;
+		}
+
+	}
+
+	/**
+	 * Writes a (Null,Integer)-KeyValuePair to a string. The output format is:
+	 * "&lt;value&gt;\n"
+	 */
+	public static class IntegerOutFormat extends TextOutputFormat<PactNull, PactInteger> {
+		@Override
+		public byte[] writeLine(KeyValuePair<PactNull, PactInteger> pair) {
+			System.out.println(pair);
+			return String.valueOf(pair.getValue().getValue()).getBytes();
+		}
+
+	}
+
+	/**
 	 * Tests if a {@link TestPlan} can be executed.
 	 */
 	@Test
 	public void completeTestPasses() {
-		final DataSourceContract<PactNull, PactJsonObject> read = createInput(JsonInputFormat.class,
-			"TestPlan/test.json");
+		final DataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
+			"TestPlan/test.txt");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
@@ -250,17 +281,17 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		final DataSourceContract<PactNull, PactJsonObject> read = createInput(JsonInputFormat.class,
-			"TestPlan/test.json");
+		final DataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
+			"TestPlan/test.txt");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
-		DataSinkContract<PactNull, PactJsonObject> output = createOutput(map, JsonOutputFormat.class);
+		DataSinkContract<PactNull, PactInteger> output = createOutput(map, IntegerOutFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
-		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class, getResourcePath("TestPlan/test.json"));
+		testPlan.getExpectedOutput(output).fromFile(IntegerInFormat.class, getResourcePath("TestPlan/test.txt"));
 		testPlan.run();
 	}
 

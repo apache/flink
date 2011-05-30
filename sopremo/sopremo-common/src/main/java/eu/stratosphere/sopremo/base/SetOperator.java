@@ -4,7 +4,7 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.DataStream;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoUtil;
@@ -38,7 +38,7 @@ public abstract class SetOperator extends Operator {
 		}
 	}
 
-	public Path getSetKeyExtractor(DataStream input) {
+	public Path getSetKeyExtractor(JsonStream input) {
 		int index = getInputs().indexOf(input.getSource());
 		if (index == -1)
 			throw new IllegalArgumentException();

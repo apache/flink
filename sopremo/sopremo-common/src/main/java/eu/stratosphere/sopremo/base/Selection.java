@@ -7,19 +7,19 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.DataStream;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoUtil;
-import eu.stratosphere.sopremo.SopremoMap;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.ConditionalOperator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoMap;
 
 public class Selection extends ConditionalOperator {
 
-	public Selection(Condition condition, DataStream input) {
+	public Selection(Condition condition, JsonStream input) {
 		super(EvaluableExpression.IDENTITY, condition, input);
 	}
 

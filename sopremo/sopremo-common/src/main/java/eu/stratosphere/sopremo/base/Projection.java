@@ -4,14 +4,14 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.DataStream;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoUtil;
-import eu.stratosphere.sopremo.SopremoMap;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoMap;
 
 public class Projection extends Operator {
 
@@ -24,7 +24,7 @@ public class Projection extends Operator {
 		}
 	}
 
-	public Projection(Evaluable transformation, DataStream input) {
+	public Projection(Evaluable transformation, JsonStream input) {
 		super(transformation, input);
 	}
 

@@ -4,15 +4,14 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.base.DataType;
 import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.base.Source;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 public class SopremoTestPlan {
 	public static class MockupSource extends Source {

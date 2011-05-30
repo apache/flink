@@ -30,21 +30,6 @@
       <artifactId>nephele-hdfs</artifactId>
       <version>${version}</version>
     </dependency>
-
-    <dependency>
-    	<groupId>org.codehaus.jackson</groupId>
-    	<artifactId>jackson-core-asl</artifactId>
-    	<version>1.7.1</version>
-    	<type>jar</type>
-    	<scope>compile</scope>
-    </dependency>
-    <dependency>
-    	<groupId>org.codehaus.jackson</groupId>
-    	<artifactId>jackson-mapper-asl</artifactId>
-    	<version>1.7.1</version>
-    	<type>jar</type>
-    	<scope>compile</scope>
-    </dependency>
   </dependencies>
 
   <reporting>

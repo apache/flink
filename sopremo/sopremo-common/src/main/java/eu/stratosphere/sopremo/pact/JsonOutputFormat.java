@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.testing.ioformats;
+package eu.stratosphere.sopremo.pact;
 
 import java.io.IOException;
 
@@ -26,7 +26,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 
 /**

@@ -31,10 +31,10 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
-import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
+import eu.stratosphere.sopremo.pact.JsonInputFormat;
+import eu.stratosphere.sopremo.pact.JsonOutputFormat;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 /**
  * The PactModule is a subgraph of a {@link PactProgram} with an arbitrary but well-defined number of inputs and

@@ -11,7 +11,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.JsonUtils;
+import eu.stratosphere.sopremo.JsonUtil;
 
 public class FunctionRegistryTest {
 	private FunctionRegistry registry;
@@ -43,15 +43,15 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(TWO_INT_NODE,
-			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2)), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
+				JsonUtil.NODE_FACTORY.numberNode(2)), this.context));
 	}
 
 	@Test
 	public void shouldInvokeArrayJavaFunctionForArrayNode() {
 		this.registry.register(JavaFunctions.class);
 
-		Assert.assertSame(ARRAY_NODE, this.registry.evaluate("count", JsonUtils.NODE_FACTORY.arrayNode(), this.context));
+		Assert.assertSame(ARRAY_NODE, this.registry.evaluate("count", JsonUtil.NODE_FACTORY.arrayNode(), this.context));
 	}
 
 	@Test
@@ -59,17 +59,17 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(ONE_INT_VARARG_NODE,
-			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.numberNode(3)), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
+				JsonUtil.NODE_FACTORY.numberNode(2), JsonUtil.NODE_FACTORY.numberNode(3)), this.context));
 		Assert.assertSame(ONE_INT_VARARG_NODE,
-			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1)), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1)), this.context));
 	}
 
 	@Test
 	public void shouldInvokeFallbackJavaFunction() {
 		this.registry.register(JavaFunctions.class);
 
-		Assert.assertSame(GENERIC_NODE, this.registry.evaluate("count", JsonUtils.NODE_FACTORY.objectNode(), this.context));
+		Assert.assertSame(GENERIC_NODE, this.registry.evaluate("count", JsonUtil.NODE_FACTORY.objectNode(), this.context));
 	}
 
 	@Test
@@ -77,8 +77,8 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(GENERIC_VARARG_NODE,
-			this.registry.evaluate("count", JsonUtils.asArray(JsonUtils.NODE_FACTORY.objectNode(),
-				JsonUtils.NODE_FACTORY.objectNode(), JsonUtils.NODE_FACTORY.objectNode()), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.objectNode(),
+				JsonUtil.NODE_FACTORY.objectNode(), JsonUtil.NODE_FACTORY.objectNode()), this.context));
 	}
 
 	@Test
@@ -86,31 +86,31 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(SUM_NODE,
-			this.registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.numberNode(3)), this.context));
+			this.registry.evaluate("sum", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
+				JsonUtil.NODE_FACTORY.numberNode(2), JsonUtil.NODE_FACTORY.numberNode(3)), this.context));
 		Assert.assertSame(SUM_NODE,
-			this.registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1)), this.context));
+			this.registry.evaluate("sum", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1)), this.context));
 	}
 
 	@Test(expected = EvaluationException.class)
 	public void shouldFailIfNoApproporiateMatchingJavaFunction() {
 		this.registry.register(JavaFunctions.class);
 
-		this.registry.evaluate("sum", JsonUtils.asArray(JsonUtils.NODE_FACTORY.numberNode(1),
-				JsonUtils.NODE_FACTORY.numberNode(2), JsonUtils.NODE_FACTORY.textNode("3")), this.context);
+		this.registry.evaluate("sum", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
+				JsonUtil.NODE_FACTORY.numberNode(2), JsonUtil.NODE_FACTORY.textNode("3")), this.context);
 	}
 
-	private static final JsonNode GENERIC_VARARG_NODE = JsonUtils.NODE_FACTORY.textNode("var");
+	private static final JsonNode GENERIC_VARARG_NODE = JsonUtil.NODE_FACTORY.textNode("var");
 
-	private static final JsonNode GENERIC_NODE = JsonUtils.NODE_FACTORY.textNode("generic");
+	private static final JsonNode GENERIC_NODE = JsonUtil.NODE_FACTORY.textNode("generic");
 
-	private static final JsonNode ARRAY_NODE = JsonUtils.NODE_FACTORY.textNode("array");
+	private static final JsonNode ARRAY_NODE = JsonUtil.NODE_FACTORY.textNode("array");
 
-	private static final JsonNode TWO_INT_NODE = JsonUtils.NODE_FACTORY.textNode("2 int");
+	private static final JsonNode TWO_INT_NODE = JsonUtil.NODE_FACTORY.textNode("2 int");
 
-	private static final JsonNode ONE_INT_VARARG_NODE = JsonUtils.NODE_FACTORY.textNode("1 int + var");
+	private static final JsonNode ONE_INT_VARARG_NODE = JsonUtil.NODE_FACTORY.textNode("1 int + var");
 
-	private static final JsonNode SUM_NODE = JsonUtils.NODE_FACTORY.textNode("sum");
+	private static final JsonNode SUM_NODE = JsonUtil.NODE_FACTORY.textNode("sum");
 
 	public static class JavaFunctions {
 

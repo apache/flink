@@ -15,17 +15,17 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.DataStream;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoUtil;
-import eu.stratosphere.sopremo.SopremoCoGroup;
 import eu.stratosphere.sopremo.base.Selection.SelectionStub;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 public class Union extends Operator {
 	public final static Path[] BAG_SEMANTIC = new Path[0];
@@ -59,7 +59,7 @@ public class Union extends Operator {
 		return setKeyExtractors.size() > 0;
 	}
 
-	public Path getSetKeyExtractor(DataStream input) {
+	public Path getSetKeyExtractor(JsonStream input) {
 		if (!isWithSetSemantic())
 			return null;
 		int index = getInputs().indexOf(input.getSource());

@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.common.type.base;
+package eu.stratosphere.sopremo.pact;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -32,6 +32,7 @@ import org.codehaus.jackson.node.TextNode;
 import org.codehaus.jackson.node.ValueNode;
 
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
  * Wraps a Jackson {@link JsonNode}.
@@ -146,19 +147,30 @@ public class PactJsonObject implements Value {
 		return this.value.toString();
 	}
 
+	/**
+	 * A subset of possible {@link PactJsonObject}s that can be used as a PACT key.<br>
+	 * Specifically no complex json object may be used since there is no inherent order defined.<br>
+	 * However, (nested) arrays and simple json values may be used.<br>
+	 * Please not that only keys of the same json type are comparable.
+	 * 
+	 * @author Arvid Heise
+	 */
 	public static class Key extends PactJsonObject implements eu.stratosphere.pact.common.type.Key {
 
+		/**
+		 * Serialization construction. Please do not invoke manually.
+		 */
 		public Key() {
 			super();
 		}
 
-		protected Key(ValueNode value) {
+		Key(ValueNode value) {
 			super(value);
 		}
 
-		protected Key(ArrayNode value) {
+		Key(ArrayNode value) {
 			super(value);
-			if(isValidArray(value))
+			if (isValidArray(value))
 				throw new IllegalArgumentException("is not a valid array");
 		}
 
@@ -197,6 +209,15 @@ public class PactJsonObject implements Value {
 		}
 	}
 
+	/**
+	 * Creates a {@link Key} from a JsonNode if it is a suitable json node for a Key.
+	 * 
+	 * @param node
+	 *        the wrapped node
+	 * @return the key wrapping the node
+	 * @throws IllegalArgumentException
+	 *         if the node is not of a comparable type
+	 */
 	public static Key keyOf(JsonNode node) {
 		if (node instanceof ValueNode)
 			return new Key((ValueNode) node);

@@ -2,7 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.List;
 
-import eu.stratosphere.sopremo.DataStream;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
 
@@ -10,12 +10,12 @@ public abstract class ConditionalOperator extends Operator {
 
 	private Condition condition;
 
-	public ConditionalOperator(Evaluable transformation, Condition condition, List<? extends DataStream> inputs) {
+	public ConditionalOperator(Evaluable transformation, Condition condition, List<? extends JsonStream> inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
 	}
 
-	public ConditionalOperator(Evaluable transformation, Condition condition, DataStream... inputs) {
+	public ConditionalOperator(Evaluable transformation, Condition condition, JsonStream... inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
 	}

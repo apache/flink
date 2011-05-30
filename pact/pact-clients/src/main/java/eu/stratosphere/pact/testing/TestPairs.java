@@ -24,11 +24,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import junit.framework.Assert;
+import junit.framework.AssertionFailedError;
+
+import org.junit.internal.ArrayComparisonFailure;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -274,6 +280,85 @@ public class TestPairs<K extends Key, V extends Value> implements
 		this.closableManager.close();
 	}
 
+	public void assertEquals(final TestPairs<K, V> expectedValues) {
+		assertEquals(expectedValues, new EqualityValueMatcher<V>(), null);
+	}
+
+	public void assertEquals(final TestPairs<K, V> expectedValues, FuzzyTestValueMatcher<V> fuzzyMatcher,
+			FuzzyTestValueSimilarity<V> fuzzySimilarity) throws ArrayComparisonFailure {
+		final Iterator<KeyValuePair<K, V>> actualIterator = this.iterator();
+		final Iterator<KeyValuePair<K, V>> expectedIterator = expectedValues.iterator();
+		K currentKey = null;
+		int itemIndex = 0;
+		List<V> expectedValuesWithCurrentKey = new ArrayList<V>();
+		List<V> actualValuesWithCurrentKey = new ArrayList<V>();
+		while (actualIterator.hasNext() && expectedIterator.hasNext()) {
+
+			final KeyValuePair<K, V> expected = expectedIterator.next();
+			if (currentKey == null)
+				currentKey = expected.getKey();
+			else if (expected.getKey().compareTo(currentKey) != 0)
+				matchValues(actualIterator, currentKey, itemIndex, expectedValuesWithCurrentKey,
+					actualValuesWithCurrentKey, fuzzyMatcher, fuzzySimilarity);
+			expectedValuesWithCurrentKey.add(expected.getValue());
+
+			itemIndex++;
+		}
+
+		// remaining values
+		if (!expectedValuesWithCurrentKey.isEmpty())
+			matchValues(actualIterator, currentKey, itemIndex, expectedValuesWithCurrentKey,
+				actualValuesWithCurrentKey, fuzzyMatcher, fuzzySimilarity);
+
+		if (!expectedValuesWithCurrentKey.isEmpty() || expectedIterator.hasNext())
+			Assert.fail("More elements expected: " + expectedValuesWithCurrentKey + toString(expectedIterator));
+		if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
+			Assert.fail("Less elements expected: " + actualValuesWithCurrentKey + toString(actualIterator));
+	}
+
+	private static <K extends Key, V extends Value> void matchValues(final Iterator<KeyValuePair<K, V>> actualIterator,
+			K currentKey,
+			int itemIndex, List<V> expectedValuesWithCurrentKey, List<V> actualValuesWithCurrentKey,
+			FuzzyTestValueMatcher<V> fuzzyMatcher, FuzzyTestValueSimilarity<V> fuzzySimilarity)
+			throws ArrayComparisonFailure {
+		KeyValuePair<K, V> actualPair = null;
+		while (actualIterator.hasNext()) {
+			actualPair = actualIterator.next();
+			int keyComparison = actualPair.getKey().compareTo(currentKey);
+			if (keyComparison < 0)
+				throw new ArrayComparisonFailure("Unexpected values: ", new AssertionFailedError(Assert.format(" ",
+						new KeyValuePair<Key, Value>(currentKey, expectedValuesWithCurrentKey.get(0)), actualPair)),
+					itemIndex + expectedValuesWithCurrentKey.size() - 1);
+			if (keyComparison != 0)
+				break;
+			actualValuesWithCurrentKey.add(actualPair.getValue());
+			actualPair = null;
+		}
+
+		fuzzyMatcher.removeMatchingValues(fuzzySimilarity, expectedValuesWithCurrentKey,
+			actualValuesWithCurrentKey);
+
+		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
+			throw new ArrayComparisonFailure("Unexpected values: ",
+				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey,
+					actualValuesWithCurrentKey)), itemIndex + expectedValuesWithCurrentKey.size() - 1);
+
+		if (actualPair != null)
+			actualValuesWithCurrentKey.add(actualPair.getValue());
+	}
+
+	private static Object toString(Iterator<? extends KeyValuePair<?, ?>> iterator) {
+		StringBuilder builder = new StringBuilder();
+		for (int index = 0; index < 10 && iterator.hasNext(); index++) {
+			builder.append(iterator.next());
+			if (iterator.hasNext())
+				builder.append(", ");
+		}
+		if (iterator.hasNext())
+			builder.append("...");
+		return builder.toString();
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#equals(java.lang.Object)
@@ -289,13 +374,12 @@ public class TestPairs<K extends Key, V extends Value> implements
 			return false;
 		final TestPairs<K, V> other = (TestPairs<K, V>) obj;
 
-		final Iterator<KeyValuePair<K, V>> thisIterator = this.iterator();
-		final Iterator<KeyValuePair<K, V>> otherIterator = other.iterator();
-		while (thisIterator.hasNext() && otherIterator.hasNext())
-			if (!thisIterator.next().equals(otherIterator.next()))
-				return false;
-
-		return thisIterator.hasNext() == otherIterator.hasNext();
+		try {
+			assertEquals(other);
+		} catch (AssertionFailedError e) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -384,10 +468,10 @@ public class TestPairs<K extends Key, V extends Value> implements
 								this.inputFormatClass, this.path,
 								this.configuration));
 			} catch (final IOException e) {
-				TestPlan.fail(e, "reading expected values");
+				Assert.fail("reading expected values: " + StringUtils.stringifyException(e));
 				return null;
 			} catch (final Exception e) {
-				TestPlan.fail(e, "creating input format");
+				Assert.fail("creating input format " + StringUtils.stringifyException(e));
 				return null;
 			}
 

@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import junit.framework.Assert;
+
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
@@ -27,6 +29,7 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * Mocks the localhost as an {@link AbstractInstance}.
@@ -77,7 +80,7 @@ class MockInstance extends AbstractInstance {
 		try {
 			return new InstanceConnectionInfo(InetAddress.getLocalHost(), 0, 0);
 		} catch (final UnknownHostException e) {
-			TestPlan.fail(e, "create connection info");
+			Assert.fail(String.format("create connection info: %s", StringUtils.stringifyException(e)));
 			return null;
 		}
 	}

@@ -2,14 +2,14 @@ package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.pact.JsonInputFormat;
+import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 public class Source extends Operator {
 	private String inputName;

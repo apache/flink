@@ -35,10 +35,9 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	 * @param iterators
 	 *        the iterators to concatenate
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ConcatenatingIterator(Iterator<?>... iterators) {
-		this.inputs = new LinkedList<Iterator<? extends T>>(
-			(Collection<? extends Iterator<? extends T>>) Arrays.asList(iterators));
+		this.inputs = new LinkedList<Iterator<? extends T>>((Collection) Arrays.asList(iterators));
 	}
 
 	@Override

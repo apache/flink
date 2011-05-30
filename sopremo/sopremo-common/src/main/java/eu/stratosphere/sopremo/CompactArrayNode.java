@@ -19,7 +19,7 @@ public class CompactArrayNode extends ContainerNode {
 	private JsonNode[] children;
 
 	public CompactArrayNode(JsonNode[] children) {
-		super(JsonUtils.NODE_FACTORY);
+		super(JsonUtil.NODE_FACTORY);
 		this.children = children;
 	}
 

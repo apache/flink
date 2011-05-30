@@ -4,7 +4,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
-public class JsonUtils {
+public class JsonUtil {
 
 	public static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
