@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;

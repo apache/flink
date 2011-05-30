@@ -6,7 +6,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.operator.StreamArrayNode;
+import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConversionIterator;
 

@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.base;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -25,9 +25,14 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.SopremoUtil;
+import eu.stratosphere.sopremo.SopremoCoGroup;
+import eu.stratosphere.sopremo.SopremoCross;
+import eu.stratosphere.sopremo.SopremoMatch;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.ConditionalOperator;
 import eu.stratosphere.sopremo.expressions.Condition.Combination;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
@@ -104,7 +109,7 @@ public class Join extends ConditionalOperator {
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
-			this.comparison = PactUtil.getObject(parameters, "comparison", Comparison.class);
+			this.comparison = SopremoUtil.getObject(parameters, "comparison", Comparison.class);
 		}
 
 		@Override
@@ -197,7 +202,7 @@ public class Join extends ConditionalOperator {
 			else
 				throw new UnsupportedOperationException();
 
-			PactUtil.setTransformationAndContext(join.getStubParameters(), this.getEvaluableExpression(), context);
+			SopremoUtil.setTransformationAndContext(join.getStubParameters(), this.getEvaluableExpression(), context);
 		}
 
 		return module;
@@ -205,16 +210,16 @@ public class Join extends ConditionalOperator {
 
 	private DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> joinFromComparison(
 			PactModule module, Comparison comparison, EvaluationContext context) {
-		Contract in1 = PactUtil.addKeyExtraction(module, comparison.getExpr1(), context);
-		Contract in2 = PactUtil.addKeyExtraction(module, comparison.getExpr2(), context);
+		Contract in1 = SopremoUtil.addKeyExtraction(module, comparison.getExpr1(), context);
+		Contract in2 = SopremoUtil.addKeyExtraction(module, comparison.getExpr2(), context);
 
 		// select strategy
 		DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> join = null;
 		switch (comparison.getBinaryOperator()) {
 		case EQUAL:
 			if (!this.outerJoinFlag.isEmpty()) {
-				boolean leftOuter = this.outerJoinFlag.get(PactUtil.getInputIndex((Path) comparison.getExpr1()));
-				boolean rightOuter = this.outerJoinFlag.get(PactUtil.getInputIndex((Path) comparison.getExpr2()));
+				boolean leftOuter = this.outerJoinFlag.get(SopremoUtil.getInputIndex((Path) comparison.getExpr1()));
+				boolean rightOuter = this.outerJoinFlag.get(SopremoUtil.getInputIndex((Path) comparison.getExpr2()));
 				join = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject>(
 						OuterJoinStub.class);
 				join.getStubParameters().setBoolean("leftOuter", leftOuter);
@@ -228,7 +233,7 @@ public class Join extends ConditionalOperator {
 		default:
 			join = new CrossContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
 					ThetaJoinStub.class);
-			PactUtil.setObject(join.getStubParameters(), "comparison", comparison);
+			SopremoUtil.setObject(join.getStubParameters(), "comparison", comparison);
 			break;
 
 		}
@@ -241,8 +246,8 @@ public class Join extends ConditionalOperator {
 
 	private DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> joinFromElementExpression(
 			PactModule module, ElementInSetExpression comparison, EvaluationContext context) {
-		Contract in1 = PactUtil.addKeyExtraction(module, (Path) comparison.getElementExpr(), context);
-		Contract in2 = PactUtil.addKeyExtraction(module, (Path) comparison.getSetExpr(), context);
+		Contract in1 = SopremoUtil.addKeyExtraction(module, (Path) comparison.getElementExpr(), context);
+		Contract in2 = SopremoUtil.addKeyExtraction(module, (Path) comparison.getSetExpr(), context);
 
 		// select strategy
 		DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> join = null;

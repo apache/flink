@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.base;
 
 import org.codehaus.jackson.node.BooleanNode;
 
@@ -11,7 +11,10 @@ import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.SopremoUtil;
+import eu.stratosphere.sopremo.SopremoMap;
 import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.ConditionalOperator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public class Selection extends ConditionalOperator {
@@ -26,7 +29,7 @@ public class Selection extends ConditionalOperator {
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
-			this.condition = PactUtil.getObject(parameters, "condition", Condition.class);
+			this.condition = SopremoUtil.getObject(parameters, "condition", Condition.class);
 		}
 
 		@Override
@@ -44,8 +47,8 @@ public class Selection extends ConditionalOperator {
 			SelectionStub.class);
 		module.getOutput(0).setInput(selectionMap);
 		selectionMap.setInput(module.getInput(0));
-		PactUtil.setObject(selectionMap.getStubParameters(), "condition", this.getCondition());
-		PactUtil.setTransformationAndContext(selectionMap.getStubParameters(), null, context);
+		SopremoUtil.setObject(selectionMap.getStubParameters(), "condition", this.getCondition());
+		SopremoUtil.setTransformationAndContext(selectionMap.getStubParameters(), null, context);
 		return module;
 	}
 }

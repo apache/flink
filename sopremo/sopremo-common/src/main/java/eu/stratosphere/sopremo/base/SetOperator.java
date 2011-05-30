@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.base;
 
 import java.util.List;
 
@@ -7,6 +7,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.SopremoUtil;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Path;
 
@@ -30,7 +31,7 @@ public abstract class SetOperator extends Operator {
 
 		// ensures size
 		for (Path keyExtractor : keyExtractors) {
-			int inputIndex = PactUtil.getInputIndex(keyExtractor);
+			int inputIndex = SopremoUtil.getInputIndex(keyExtractor);
 			if (inputIndex == -1)
 				throw new IllegalArgumentException("extractor does not contain input selector: " + keyExtractor);
 			this.setKeyExtractors[inputIndex] = keyExtractor;
@@ -53,13 +54,13 @@ public abstract class SetOperator extends Operator {
 		int numInputs = this.getInputOperators().size();
 		PactModule module = new PactModule(numInputs, 1);
 
-		Contract leftInput = PactUtil.addKeyExtraction(module, getSetKeyExtractor(0), context);
+		Contract leftInput = SopremoUtil.addKeyExtraction(module, getSetKeyExtractor(0), context);
 		for (int index = 1; index < numInputs; index++) {
 
-			Contract rightInput = PactUtil.addKeyExtraction(module, getSetKeyExtractor(index), context);
+			Contract rightInput = SopremoUtil.addKeyExtraction(module, getSetKeyExtractor(index), context);
 			Contract union = createSetContractForInputs(leftInput, rightInput);
 
-			PactUtil.setTransformationAndContext(union.getStubParameters(), null, context);
+			SopremoUtil.setTransformationAndContext(union.getStubParameters(), null, context);
 			leftInput = union;
 		}
 

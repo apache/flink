@@ -26,6 +26,13 @@ import eu.stratosphere.dag.converter.GraphConverter;
 import eu.stratosphere.dag.converter.NodeConverter;
 import eu.stratosphere.simple.jaql.QueryParser.Binding;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.base.Aggregation;
+import eu.stratosphere.sopremo.base.DataType;
+import eu.stratosphere.sopremo.base.Join;
+import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.base.Selection;
+import eu.stratosphere.sopremo.base.Sink;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
@@ -36,13 +43,6 @@ import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.operator.Aggregation;
-import eu.stratosphere.sopremo.operator.DataType;
-import eu.stratosphere.sopremo.operator.Join;
-import eu.stratosphere.sopremo.operator.Projection;
-import eu.stratosphere.sopremo.operator.Selection;
-import eu.stratosphere.sopremo.operator.Sink;
-import eu.stratosphere.sopremo.operator.Source;
 
 class OperatorParser implements JaqlToSopremoParser<Operator> {
 	private final class BindingScoper implements GraphConversionListener<Expr, Operator> {

@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.base;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 
@@ -20,10 +20,10 @@ import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.base.Selection.SelectionStub;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.operator.Selection.SelectionStub;
 
 public class Difference extends SetOperator {
 

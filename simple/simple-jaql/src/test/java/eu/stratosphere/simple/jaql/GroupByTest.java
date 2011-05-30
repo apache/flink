@@ -4,12 +4,12 @@ import java.util.Arrays;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.base.Aggregation;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.operator.Aggregation;
-import eu.stratosphere.sopremo.operator.Source;
 
 public class GroupByTest extends ParserTestCase {
 	public String employeeJaql() {

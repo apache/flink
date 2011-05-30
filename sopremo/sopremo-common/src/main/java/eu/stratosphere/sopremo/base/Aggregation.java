@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.base;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -19,6 +19,11 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtils;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.SopremoUtil;
+import eu.stratosphere.sopremo.SopremoCoGroup;
+import eu.stratosphere.sopremo.SopremoReduce;
+import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.UnwrappingIterator;
 import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
@@ -75,11 +80,11 @@ public class Aggregation extends Operator {
 		PactModule module = new PactModule(this.getInputOperators().size(), 1);
 		List<Contract> keyExtractors = new ArrayList<Contract>();
 		for (EvaluableExpression grouping : this.groupings)
-			keyExtractors.add(PactUtil.addKeyExtraction(module, grouping, context));
+			keyExtractors.add(SopremoUtil.addKeyExtraction(module, grouping, context));
 
 		switch (this.groupings.size()) {
 		case 0:
-			keyExtractors.add(PactUtil.addKeyExtraction(module, new Path(new Input(0), new Constant(1L)), context));
+			keyExtractors.add(SopremoUtil.addKeyExtraction(module, new Path(new Input(0), new Constant(1L)), context));
 			addSingleSourceAggregation(context, module, keyExtractors);
 			break;
 
@@ -93,7 +98,7 @@ public class Aggregation extends Operator {
 			module.getOutput(0).setInput(aggregationCoGroup);
 			aggregationCoGroup.setFirstInput(keyExtractors.get(0));
 			aggregationCoGroup.setSecondInput(keyExtractors.get(1));
-			PactUtil.setTransformationAndContext(aggregationCoGroup.getStubParameters(), this.getEvaluableExpression(),
+			SopremoUtil.setTransformationAndContext(aggregationCoGroup.getStubParameters(), this.getEvaluableExpression(),
 				context);
 			break;
 		}
@@ -106,7 +111,7 @@ public class Aggregation extends Operator {
 			OneSourceAggregationStub.class);
 		module.getOutput(0).setInput(aggregationReduce);
 		aggregationReduce.setInput(keyExtractors.get(0));
-		PactUtil.setTransformationAndContext(aggregationReduce.getStubParameters(), this.getEvaluableExpression(),
+		SopremoUtil.setTransformationAndContext(aggregationReduce.getStubParameters(), this.getEvaluableExpression(),
 			context);
 	}
 

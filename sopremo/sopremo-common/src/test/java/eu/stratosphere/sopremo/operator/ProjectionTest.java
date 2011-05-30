@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
 import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;

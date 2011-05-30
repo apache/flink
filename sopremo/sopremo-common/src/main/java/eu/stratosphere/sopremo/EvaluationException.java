@@ -14,10 +14,6 @@ public class EvaluationException extends RuntimeException {
 		super(message);
 	}
 
-	public EvaluationException(String message, Object... params) {
-		super(String.format(message, params));
-	}
-
 	public EvaluationException(Throwable cause) {
 		super(cause);
 	}

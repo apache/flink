@@ -2,11 +2,11 @@ package eu.stratosphere.simple.jaql;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
 import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
-import eu.stratosphere.sopremo.operator.Projection;
-import eu.stratosphere.sopremo.operator.Source;
 
 public class TransformTest extends ParserTestCase {
 	private static String recordsJaql() {

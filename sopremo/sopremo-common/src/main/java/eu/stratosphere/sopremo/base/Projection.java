@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
@@ -10,6 +10,8 @@ import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.SopremoUtil;
+import eu.stratosphere.sopremo.SopremoMap;
 
 public class Projection extends Operator {
 
@@ -33,7 +35,7 @@ public class Projection extends Operator {
 			ProjectionStub.class);
 		module.getOutput(0).setInput(projectionMap);
 		projectionMap.setInput(module.getInput(0));
-		PactUtil.setTransformationAndContext(projectionMap.getStubParameters(), this.getEvaluableExpression(), context);
+		SopremoUtil.setTransformationAndContext(projectionMap.getStubParameters(), this.getEvaluableExpression(), context);
 		return module;
 	}
 

@@ -22,9 +22,9 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.Operator.Output;
+import eu.stratosphere.sopremo.base.Sink;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.function.BuiltinFunctions;
-import eu.stratosphere.sopremo.operator.Sink;
-import eu.stratosphere.sopremo.operator.Source;
 
 public class SopremoPlan {
 	public class PactAssembler {

@@ -2,12 +2,12 @@ package eu.stratosphere.simple.jaql;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.base.Join;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
-import eu.stratosphere.sopremo.operator.Join;
-import eu.stratosphere.sopremo.operator.Source;
 
 public class JoinTest extends ParserTestCase {
 	private static String usersJaql() {

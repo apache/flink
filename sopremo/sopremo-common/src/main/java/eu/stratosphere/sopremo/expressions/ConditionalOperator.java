@@ -1,12 +1,10 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.expressions;
 
 import java.util.List;
 
 import eu.stratosphere.sopremo.DataStream;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public abstract class ConditionalOperator extends Operator {
 

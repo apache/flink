@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -15,14 +15,12 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.Evaluable;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
 
-public class PactUtil {
+public class SopremoUtil {
 
 	public static Contract addKeyExtraction(PactModule module, EvaluableExpression expr, EvaluationContext context) {
 		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> extractionMap =
@@ -34,7 +32,7 @@ public class PactUtil {
 			((Path) expr).replace(new Path(new Input(inputIndex)), new Path());
 		}
 		extractionMap.setInput(module.getInput(inputIndex));
-		PactUtil.setTransformationAndContext(extractionMap.getStubParameters(), expr, context);
+		SopremoUtil.setTransformationAndContext(extractionMap.getStubParameters(), expr, context);
 
 		return extractionMap;
 	}

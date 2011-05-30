@@ -10,8 +10,8 @@ import org.codehaus.jackson.node.NumericNode;
 
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
-import eu.stratosphere.sopremo.operator.StreamArrayNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 

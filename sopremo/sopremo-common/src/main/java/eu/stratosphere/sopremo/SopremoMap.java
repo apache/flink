@@ -1,11 +1,9 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
-import eu.stratosphere.sopremo.Evaluable;
-import eu.stratosphere.sopremo.EvaluationContext;
 
 public abstract class SopremoMap<IK extends Key, IV extends PactJsonObject, OK extends Key, OV extends PactJsonObject>
 		extends
@@ -16,8 +14,8 @@ public abstract class SopremoMap<IK extends Key, IV extends PactJsonObject, OK e
 
 	@Override
 	public void configure(Configuration parameters) {
-		this.transformation = PactUtil.getObject(parameters, "transformation", Evaluable.class);
-		this.context = PactUtil.getObject(parameters, "context", EvaluationContext.class);
+		this.transformation = SopremoUtil.getObject(parameters, "transformation", Evaluable.class);
+		this.context = SopremoUtil.getObject(parameters, "context", EvaluationContext.class);
 	}
 
 	protected EvaluationContext getContext() {

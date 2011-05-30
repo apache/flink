@@ -10,9 +10,9 @@ import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.operator.DataType;
-import eu.stratosphere.sopremo.operator.Sink;
-import eu.stratosphere.sopremo.operator.Source;
+import eu.stratosphere.sopremo.base.DataType;
+import eu.stratosphere.sopremo.base.Sink;
+import eu.stratosphere.sopremo.base.Source;
 
 public class SopremoTestPlan {
 	public static class MockupSource extends Source {

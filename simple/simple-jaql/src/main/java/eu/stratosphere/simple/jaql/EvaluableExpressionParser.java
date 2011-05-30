@@ -27,6 +27,7 @@ import eu.stratosphere.dag.converter.GraphConverter;
 import eu.stratosphere.dag.converter.NodeConverter;
 import eu.stratosphere.simple.jaql.QueryParser.Binding;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.base.Aggregation;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
 import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
@@ -38,7 +39,6 @@ import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.IdentifierAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
-import eu.stratosphere.sopremo.operator.Aggregation;
 
 class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpression> {
 

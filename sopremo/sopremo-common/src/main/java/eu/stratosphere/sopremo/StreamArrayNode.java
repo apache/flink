@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo;
 
 import java.io.IOException;
 import java.util.ArrayList;

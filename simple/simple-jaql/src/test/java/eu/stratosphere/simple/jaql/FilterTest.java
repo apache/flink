@@ -2,6 +2,10 @@ package eu.stratosphere.simple.jaql;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.base.DataType;
+import eu.stratosphere.sopremo.base.Selection;
+import eu.stratosphere.sopremo.base.Sink;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.Condition;
@@ -9,10 +13,6 @@ import eu.stratosphere.sopremo.expressions.Condition.Combination;
 import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
-import eu.stratosphere.sopremo.operator.DataType;
-import eu.stratosphere.sopremo.operator.Selection;
-import eu.stratosphere.sopremo.operator.Sink;
-import eu.stratosphere.sopremo.operator.Source;
 
 public class FilterTest extends ParserTestCase {
 	private static String employeeJaql() {

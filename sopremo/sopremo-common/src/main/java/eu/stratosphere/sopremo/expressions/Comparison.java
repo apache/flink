@@ -82,7 +82,7 @@ public class Comparison extends BooleanExpression {
 					((NumericNode) e2).getDecimalValue());
 			if (e1 instanceof TextNode && e2 instanceof TextNode)
 				return this.evaluateComparable(e1.getTextValue(), e2.getTextValue());
-			throw new EvaluationException("Cannot compare %s %s %s", e1, this, e2);
+			throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
 		}
 
 		public <T extends Comparable<T>> boolean evaluateComparable(T e1, T e2) {
