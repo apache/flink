@@ -4,6 +4,11 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
+/**
+ * Provides 
+ * 
+ * @author Arvid Heise
+ */
 public class JsonUtil {
 
 	public static ObjectMapper OBJECT_MAPPER = new ObjectMapper();

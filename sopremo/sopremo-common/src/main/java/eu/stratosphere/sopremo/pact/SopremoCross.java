@@ -5,7 +5,6 @@ import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SopremoUtil;
 
 public abstract class SopremoCross<IK1 extends Key, IV1 extends PactJsonObject, IK2 extends Key, IV2 extends PactJsonObject, OK extends Key, OV extends PactJsonObject>
 		extends CrossStub<IK1, IV1, IK2, IV2, OK, OV> {

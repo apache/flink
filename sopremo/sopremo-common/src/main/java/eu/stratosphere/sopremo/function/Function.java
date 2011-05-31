@@ -1,9 +1,9 @@
 package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.Evaluable;
-import eu.stratosphere.sopremo.SopremoType;
+import eu.stratosphere.sopremo.SerializableSopremoType;
 
-public abstract class Function implements Evaluable, SopremoType {
+public abstract class Function implements Evaluable, SerializableSopremoType {
 	private final String name;
 
 	public Function(String name) {

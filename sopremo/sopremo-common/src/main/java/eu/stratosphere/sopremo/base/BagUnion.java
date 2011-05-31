@@ -10,10 +10,10 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoUtil;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class BagUnion extends Operator {
 	public BagUnion(Operator... inputs) {

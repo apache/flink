@@ -23,6 +23,12 @@ import eu.stratosphere.util.AbstractIterator;
 public class CompactArrayNode extends ContainerNode {
 	private JsonNode[] children;
 
+	/**
+	 * Initializes CompactArrayNode with the given {@link JsonNode}s as children.
+	 * 
+	 * @param children
+	 *        the child nodes to wrap
+	 */
 	public CompactArrayNode(JsonNode[] children) {
 		super(JsonUtil.NODE_FACTORY);
 		this.children = children;
@@ -58,6 +64,11 @@ public class CompactArrayNode extends ContainerNode {
 		return true;
 	}
 
+	/**
+	 * Returns the backing array of the children.
+	 * 
+	 * @return the children
+	 */
 	public JsonNode[] getChildren() {
 		return this.children;
 	}

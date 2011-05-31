@@ -2,9 +2,21 @@ package eu.stratosphere.sopremo;
 
 import eu.stratosphere.sopremo.function.FunctionRegistry;
 
-public class EvaluationContext implements SopremoType {
+/**
+ * Provides additional context to the evaluation of {@link Evaluable}s, such as access to all registered functions.
+ * 
+ * @author Arvid Heise
+ */
+public class EvaluationContext implements SerializableSopremoType {
+	private static final long serialVersionUID = 7701485388451926506L;
+
 	private FunctionRegistry functionRegistry = new FunctionRegistry();
 
+	/**
+	 * Returns the {@link FunctionRegistry} containing all registered function in the current evaluation context.
+	 * 
+	 * @return the FunctionRegistry
+	 */
 	public FunctionRegistry getFunctionRegistry() {
 		return this.functionRegistry;
 	}

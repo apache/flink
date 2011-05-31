@@ -10,7 +10,7 @@ import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SopremoType;
+import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.ConversionIterator;
 
 public class ObjectCreation extends ContainerExpression<Evaluable> {
@@ -28,7 +28,7 @@ public class ObjectCreation extends ContainerExpression<Evaluable> {
 		}
 	};
 
-	public static class Mapping implements SopremoType {
+	public static class Mapping implements SerializableSopremoType {
 		private final String target;
 
 		private final EvaluableExpression expression;

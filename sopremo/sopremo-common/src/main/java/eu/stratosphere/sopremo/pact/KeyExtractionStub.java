@@ -1,10 +1,8 @@
-package eu.stratosphere.sopremo;
+package eu.stratosphere.sopremo.pact;
 
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.SopremoMap;
 
 public class KeyExtractionStub extends SopremoMap<PactNull, PactJsonObject, Key, PactJsonObject> {
 	@Override

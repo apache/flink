@@ -32,7 +32,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialInputFormat;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
- * Tests {@link InputFileIterator}.
+ * Tests {@link SplitInputIterator}.
  * 
  * @author Arvid Heise
  */
@@ -45,7 +45,7 @@ public class InputFileIteratorTest {
 	 */
 	@Test
 	public void emptyIteratorShouldReturnNoElements() throws IOException {
-		InputFileIterator<Key, Value> inputFileIterator = createFileIterator(true);
+		SplitInputIterator<Key, Value> inputFileIterator = createFileIterator();
 
 		AssertUtil.assertIteratorEquals("input file iterator is not empty", Arrays.asList().iterator(),
 			inputFileIterator);
@@ -61,7 +61,7 @@ public class InputFileIteratorTest {
 	public void filledIteratorShouldReturnExactlyTheGivenArguments() throws IOException {
 		KeyValuePair<?, ?>[] pairs = { new KeyValuePair<Key, Value>(new PactInteger(1), new PactString("test1")),
 			new KeyValuePair<Key, Value>(new PactInteger(2), new PactString("test2")) };
-		InputFileIterator<Key, Value> inputFileIterator = createFileIterator(true, pairs);
+		SplitInputIterator<Key, Value> inputFileIterator = createFileIterator(pairs);
 
 		AssertUtil.assertIteratorEquals("input file iterator is does not return the right sequence of pairs", Arrays
 			.asList(pairs).iterator(), inputFileIterator);
@@ -79,7 +79,7 @@ public class InputFileIteratorTest {
 		String testPlanFile = TestPlan.getTestPlanFile("fileIteratorTest");
 		SequentialInputFormat<Key, Value> inputFormat = FormatUtil.createInputFormat(SequentialInputFormat.class,
 			testPlanFile, null);
-		InputFileIterator<Key, Value> inputFileIterator = new InputFileIterator<Key, Value>(true, inputFormat);
+		SplitInputIterator<Key, Value> inputFileIterator = new SplitInputIterator<Key, Value>(inputFormat);
 
 		AssertUtil.assertIteratorEquals("input file iterator is not empty", Arrays.asList().iterator(),
 			inputFileIterator);
@@ -95,7 +95,7 @@ public class InputFileIteratorTest {
 	public void failIfReadTwoManyItems() throws IOException {
 		KeyValuePair<?, ?>[] pairs = { new KeyValuePair<Key, Value>(new PactInteger(1), new PactString("test1")),
 			new KeyValuePair<Key, Value>(new PactInteger(2), new PactString("test2")) };
-		InputFileIterator<Key, Value> inputFileIterator = createFileIterator(true, pairs);
+		SplitInputIterator<Key, Value> inputFileIterator = createFileIterator(pairs);
 
 		while (inputFileIterator.hasNext())
 			Assert.assertNotNull(inputFileIterator.next());
@@ -114,16 +114,16 @@ public class InputFileIteratorTest {
 	 *         if an I/O exception occurred
 	 */
 	@Test
-	public void iteratorShouldCreateNewPairsIfSpecified() throws IOException {
+	public void iteratorShouldCreateNewPairs() throws IOException {
 		KeyValuePair<?, ?>[] pairs = { new KeyValuePair<Key, Value>(new PactInteger(1), new PactString("test1")),
 			new KeyValuePair<Key, Value>(new PactInteger(2), new PactString("test2")),
 			new KeyValuePair<Key, Value>(new PactInteger(3), new PactString("test3")) };
-		InputFileIterator<Key, Value> inputFileIterator = createFileIterator(false, pairs);
+		SplitInputIterator<Key, Value> inputFileIterator = createFileIterator(pairs);
 
 		AssertUtil.assertIteratorEquals("input file iterator is does not return the right sequence of pairs", Arrays
 			.asList(pairs).iterator(), inputFileIterator);
 
-		inputFileIterator = createFileIterator(false, pairs);
+		inputFileIterator = createFileIterator(pairs);
 		KeyValuePair<Key, Value> lastPair = null;
 		for (int index = 0; inputFileIterator.hasNext(); index++) {
 			KeyValuePair<Key, Value> currentPair = inputFileIterator.next();
@@ -132,7 +132,7 @@ public class InputFileIteratorTest {
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private InputFileIterator<Key, Value> createFileIterator(boolean reusePairs, KeyValuePair<?, ?>... pairs)
+	private SplitInputIterator<Key, Value> createFileIterator(KeyValuePair<?, ?>... pairs)
 			throws IOException {
 		String testPlanFile = TestPlan.getTestPlanFile("fileIteratorTest");
 		SequentialOutputFormat output = FormatUtil.createOutputFormat(SequentialOutputFormat.class,
@@ -142,7 +142,7 @@ public class InputFileIteratorTest {
 		output.close();
 		SequentialInputFormat<Key, Value> inputFormat = FormatUtil.createInputFormat(SequentialInputFormat.class,
 			testPlanFile, null);
-		InputFileIterator<Key, Value> inputFileIterator = new InputFileIterator<Key, Value>(reusePairs, inputFormat);
+		SplitInputIterator<Key, Value> inputFileIterator = new SplitInputIterator<Key, Value>(inputFormat);
 		return inputFileIterator;
 	}
 }

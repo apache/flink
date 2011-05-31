@@ -78,10 +78,10 @@ public class TestPairs<K extends Key, V extends Value> implements
 			implements Reader<KeyValuePair<K, V>> {
 		KeyValuePair<K, V> currentPair;
 
-		private final InputFileIterator<K, V> inputFileIterator;
+		private final SplitInputIterator<K, V> inputFileIterator;
 
 		private TestPairsReader(
-				final InputFileIterator<K, V> inputFileIterator,
+				final SplitInputIterator<K, V> inputFileIterator,
 				final KeyValuePair<K, V> actualPair) {
 			this.inputFileIterator = inputFileIterator;
 			this.currentPair = actualPair;
@@ -220,11 +220,11 @@ public class TestPairs<K extends Key, V extends Value> implements
 	}
 
 	/**
-	 * Uses {@link UnilateralSortMerger} to sort the files of the {@link InputFileIterator}.
+	 * Uses {@link UnilateralSortMerger} to sort the files of the {@link SplitInputIterator}.
 	 */
 	@SuppressWarnings("unchecked")
 	private Iterator<KeyValuePair<K, V>> createSortedIterator(
-			final InputFileIterator<K, V> inputFileIterator) {
+			final SplitInputIterator<K, V> inputFileIterator) {
 		final KeyValuePair<K, V> actualPair = inputFileIterator.next();
 
 		final TaskConfig config = new TaskConfig(
@@ -487,12 +487,10 @@ public class TestPairs<K extends Key, V extends Value> implements
 
 		if (!this.isAdhoc() && this.inputFormatClass != null) {
 
-			final InputFileIterator<K, V> inputFileIterator;
+			final SplitInputIterator<K, V> inputFileIterator;
 			try {
-				inputFileIterator = new InputFileIterator<K, V>(
-						!this.needsSorting(), FormatUtil.createInputFormats(
-								this.inputFormatClass, this.path,
-								this.configuration));
+				inputFileIterator = new SplitInputIterator<K, V>(FormatUtil.createInputFormats(
+								this.inputFormatClass, this.path, this.configuration));
 			} catch (final IOException e) {
 				Assert.fail("reading expected values: " + StringUtils.stringifyException(e));
 				return null;

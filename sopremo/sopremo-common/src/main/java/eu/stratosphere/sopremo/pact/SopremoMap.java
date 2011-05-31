@@ -5,7 +5,6 @@ import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SopremoUtil;
 
 public abstract class SopremoMap<IK extends Key, IV extends PactJsonObject, OK extends Key, OV extends PactJsonObject>
 		extends

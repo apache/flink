@@ -18,7 +18,6 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.UnwrappingIterator;
 import eu.stratosphere.sopremo.expressions.Constant;
@@ -28,6 +27,7 @@ import eu.stratosphere.sopremo.expressions.Path;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Aggregation extends Operator {
 	public final static List<EvaluableExpression> NO_GROUPING = new ArrayList<EvaluableExpression>();

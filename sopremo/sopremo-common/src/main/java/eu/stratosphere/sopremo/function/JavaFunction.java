@@ -21,12 +21,12 @@ import eu.stratosphere.reflect.ReflectUtil;
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.SopremoType;
+import eu.stratosphere.sopremo.SerializableSopremoType;
 
 public class JavaFunction extends Function {
 	public static final Log LOG = LogFactory.getLog(JavaFunction.class);
 
-	private static class Signature implements SopremoType {
+	private static class Signature implements SerializableSopremoType {
 		protected final Class<?>[] parameterTypes;
 
 		public Signature(Class<?>[] parameterTypes) {

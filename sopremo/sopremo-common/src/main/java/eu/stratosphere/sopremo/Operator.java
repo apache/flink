@@ -9,7 +9,7 @@ import java.util.ListIterator;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
-public abstract class Operator implements SopremoType, JsonStream {
+public abstract class Operator implements SerializableSopremoType, JsonStream {
 	public class Output implements JsonStream {
 		private int index;
 

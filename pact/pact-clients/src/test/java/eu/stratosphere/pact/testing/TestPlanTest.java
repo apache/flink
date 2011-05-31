@@ -204,7 +204,6 @@ public class TestPlanTest {
 
 		@Override
 		public boolean readLine(KeyValuePair<PactNull, PactInteger> pair, byte[] line) {
-			System.out.println("in " + new String(line));
 			pair.setValue(new PactInteger(Integer.valueOf(new String(line))));
 			return true;
 		}
@@ -218,7 +217,6 @@ public class TestPlanTest {
 	public static class IntegerOutFormat extends TextOutputFormat<PactNull, PactInteger> {
 		@Override
 		public byte[] writeLine(KeyValuePair<PactNull, PactInteger> pair) {
-			System.out.println(pair);
 			return String.valueOf(pair.getValue().getValue()).getBytes();
 		}
 

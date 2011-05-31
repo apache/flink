@@ -9,9 +9,9 @@ import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SopremoType;
+import eu.stratosphere.sopremo.SerializableSopremoType;
 
-public class FunctionRegistry implements SopremoType {
+public class FunctionRegistry implements SerializableSopremoType {
 	private Map<String, Function> registeredFunctions = new HashMap<String, Function>();
 
 	public FunctionRegistry() {

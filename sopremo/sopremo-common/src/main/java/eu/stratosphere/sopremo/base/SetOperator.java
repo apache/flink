@@ -7,10 +7,10 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoUtil;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public abstract class SetOperator extends Operator {
 

@@ -5,7 +5,6 @@ import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SopremoUtil;
 
 public abstract class SopremoMatch<IK extends Key, IV1 extends PactJsonObject, IV2 extends PactJsonObject, OK extends Key, OV extends PactJsonObject>
 		extends MatchStub<IK, IV1, IV2, OK, OV> {

@@ -10,12 +10,12 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SopremoUtil;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.ConditionalOperator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Selection extends ConditionalOperator {
 
