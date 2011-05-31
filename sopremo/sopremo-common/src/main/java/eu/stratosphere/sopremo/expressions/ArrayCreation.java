@@ -9,6 +9,7 @@ import org.codehaus.jackson.node.ArrayNode;
 
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.JsonUtil;
 
 public class ArrayCreation extends ContainerExpression<Evaluable> {
 	private Evaluable[] elements;
@@ -28,7 +29,7 @@ public class ArrayCreation extends ContainerExpression<Evaluable> {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		ArrayNode arrayNode = NODE_FACTORY.arrayNode();
+		ArrayNode arrayNode = JsonUtil.NODE_FACTORY.arrayNode();
 		for (Evaluable expression : this.elements)
 			arrayNode.add(expression.evaluate(node, context));
 		return arrayNode;

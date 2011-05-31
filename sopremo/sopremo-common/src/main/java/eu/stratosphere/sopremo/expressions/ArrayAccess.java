@@ -4,6 +4,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.JsonUtil;
 
 public class ArrayAccess extends EvaluableExpression {
 
@@ -35,7 +36,7 @@ public class ArrayAccess extends EvaluableExpression {
 		if (this.isSelectingAll())
 			return node;
 		if (this.isSelectingRange()) {
-			ArrayNode arrayNode = new ArrayNode(NODE_FACTORY);
+			ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
 			for (int index = this.startIndex; index < this.endIndex; index++)
 				arrayNode.add(node.get(index));
 			return arrayNode;

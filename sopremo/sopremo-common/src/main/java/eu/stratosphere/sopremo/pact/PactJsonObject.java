@@ -19,11 +19,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.StringWriter;
 
-import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NumericNode;
@@ -33,6 +31,7 @@ import org.codehaus.jackson.node.ValueNode;
 
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.sopremo.JsonUtil;
 
 /**
  * Wraps a Jackson {@link JsonNode}.
@@ -40,10 +39,6 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * @author Arvid Heise
  */
 public class PactJsonObject implements Value {
-	private static JsonFactory FACTORY = new JsonFactory();
-
-	private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
 	private final PactString serializationString = new PactString();
 
 	private JsonNode value;
@@ -52,7 +47,7 @@ public class PactJsonObject implements Value {
 	 * Initializes PactJsonObject with an empty {@link ObjectNode}.
 	 */
 	public PactJsonObject() {
-		this.value = OBJECT_MAPPER.createObjectNode();
+		this.value = JsonUtil.OBJECT_MAPPER.createObjectNode();
 	}
 
 	/**
@@ -68,16 +63,16 @@ public class PactJsonObject implements Value {
 	@Override
 	public void read(final DataInput in) throws IOException {
 		this.serializationString.read(in);
-		JsonParser parser = FACTORY.createJsonParser(this.serializationString.toString());
-		parser.setCodec(OBJECT_MAPPER);
+		JsonParser parser = JsonUtil.FACTORY.createJsonParser(this.serializationString.toString());
+		parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		this.value = parser.readValueAsTree();
 	}
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		final StringWriter writer = new StringWriter();
-		JsonGenerator generator = FACTORY.createJsonGenerator(writer);
-		generator.setCodec(OBJECT_MAPPER);
+		JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
+		generator.setCodec(JsonUtil.OBJECT_MAPPER);
 		generator.writeTree(this.value);
 		this.serializationString.setValue(writer.toString());
 		this.serializationString.write(out);

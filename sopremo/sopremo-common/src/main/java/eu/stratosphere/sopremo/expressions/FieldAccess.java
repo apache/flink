@@ -6,6 +6,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConversionIterator;
@@ -39,7 +40,7 @@ public class FieldAccess extends EvaluableExpression {
 					}
 				});
 			// spread
-			ArrayNode arrayNode = new ArrayNode(NODE_FACTORY);
+			ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
 			for (int index = 0, size = node.size(); index < size; index++)
 				arrayNode.add(node.get(index).get(this.field));
 			return arrayNode;

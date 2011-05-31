@@ -109,14 +109,7 @@ public class BoundType {
 		if (this.getClass() != obj.getClass())
 			return false;
 		final BoundType other = (BoundType) obj;
-		if (this.rawType == null) {
-			if (other.rawType != null)
-				return false;
-		} else if (!this.rawType.equals(other.rawType))
-			return false;
-		if (!Arrays.equals(this.parameters, other.parameters))
-			return false;
-		return true;
+		return this.rawType.equals(other.rawType) && Arrays.equals(this.parameters, other.parameters);
 	}
 
 	/**

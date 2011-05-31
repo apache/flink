@@ -3,8 +3,6 @@ package eu.stratosphere.sopremo;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.pact.testing.TestPlanTestCase;
@@ -43,37 +41,20 @@ public class SopremoTest {
 		return new Path(fragments);
 	}
 
-	// protected TestPlan createTestPlan(SopremoPlan sopremoPlan) {
-	// for (Operator operator : sopremoPlan.getAllNodes()) {
-	// List<Output> inputs = operator.getInputs();
-	// for (int index = 0; index < inputs.size(); index++)
-	// if (inputs.get(index) == null)
-	// inputs.set(index, new MockupSource(operator, index).getOutput(0));
-	// operator.setInputs(inputs);
-	// }
-	//
-	// TestPlan testPlan = new TestPlan(sopremoPlan.assemblePact());
-	// return testPlan;
-	// }
-
-	protected static JsonNodeFactory NODE_FACTORY = JsonNodeFactory.instance;
-
-	protected static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
 	public static PactJsonObject createJsonObject(Object... fields) {
 		if (fields.length % 2 != 0)
 			throw new IllegalArgumentException("must have an even number of params");
-		ObjectNode objectNode = NODE_FACTORY.objectNode();
+		ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
 		for (int index = 0; index < fields.length; index += 2)
-			objectNode.put(fields[index].toString(), OBJECT_MAPPER.valueToTree(fields[index + 1]));
+			objectNode.put(fields[index].toString(), JsonUtil.OBJECT_MAPPER.valueToTree(fields[index + 1]));
 		return new PactJsonObject(objectNode);
 	}
 
 	public static PactJsonObject createJsonArray(Object... constants) {
-		return new PactJsonObject(OBJECT_MAPPER.valueToTree(constants));
+		return new PactJsonObject(JsonUtil.OBJECT_MAPPER.valueToTree(constants));
 	}
 
 	public static PactJsonObject createJsonValue(Object value) {
-		return new PactJsonObject(OBJECT_MAPPER.valueToTree(value));
+		return new PactJsonObject(JsonUtil.OBJECT_MAPPER.valueToTree(value));
 	}
 }

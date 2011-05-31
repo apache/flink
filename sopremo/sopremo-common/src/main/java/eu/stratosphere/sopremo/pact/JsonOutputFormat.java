@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.JsonUtil;
 
 /**
  * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link PactJsonObject}
@@ -61,8 +62,8 @@ public class JsonOutputFormat extends OutputFormat<PactNull, PactJsonObject> {
 
 	@Override
 	public void open() throws IOException {
-		this.generator = new JsonFactory().createJsonGenerator(this.stream, this.encoding);
-		this.generator.setCodec(new ObjectMapper());
+		this.generator = JsonUtil.FACTORY.createJsonGenerator(this.stream, this.encoding);
+		this.generator.setCodec(JsonUtil.OBJECT_MAPPER);
 		this.generator.writeStartArray();
 	}
 

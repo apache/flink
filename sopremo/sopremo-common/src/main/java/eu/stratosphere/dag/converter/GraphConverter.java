@@ -166,6 +166,21 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(root.getClass());
 		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
 			listener.beforeSubgraphConversion(root);
+		List<OutputType> childTypes = convertChildren(navigator, root, converterInfo);
+
+		this.lastChildren = converterInfo != null && converterInfo.shouldAppendChildren() ? childTypes.subList(
+			converterInfo.getAppendIndex(), childTypes.size()) : Collections.EMPTY_LIST;
+		OutputType convertedType = this.convertNode(root, childTypes);
+		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+			listener.afterSubgraphConversion(root, convertedType);
+		if (convertedType == null)
+			return childTypes.isEmpty() ? null : childTypes.get(0);
+		return convertedType;
+	}
+
+	@SuppressWarnings("unchecked")
+	private List<OutputType> convertChildren(Navigator<InputType> navigator, InputType root,
+			NodeConverterInfo<InputType, OutputType> converterInfo) {
 		List<OutputType> childTypes = new ArrayList<OutputType>();
 
 		if (converterInfo == null || !converterInfo.isStopRecursion())
@@ -177,15 +192,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 					childTypes.add(handledResult);
 			}
 		childTypes.addAll(this.lastChildren);
-
-		this.lastChildren = converterInfo != null && converterInfo.shouldAppendChildren() ? childTypes.subList(
-			converterInfo.getAppendIndex(), childTypes.size()) : Collections.EMPTY_LIST;
-		OutputType convertedType = this.convertNode(root, childTypes);
-		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
-			listener.afterSubgraphConversion(root, convertedType);
-		if (convertedType == null)
-			return childTypes.isEmpty() ? null : childTypes.get(0);
-		return convertedType;
+		return childTypes;
 	}
 
 	/**

@@ -36,9 +36,9 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * 
  * @author Arvid Heise
  */
-public class InputFileIteratorTest {
+public class SplitInputIteratorTest {
 	/**
-	 * Tests if a file iterator of an empty file returns any pairs at all.
+	 * Tests if a input split iterator of an empty file returns any pairs at all.
 	 * 
 	 * @throws IOException
 	 *         if an I/O exception occurred
@@ -52,7 +52,7 @@ public class InputFileIteratorTest {
 	}
 
 	/**
-	 * Tests if a file iterator of an empty file returns any pairs at all.
+	 * Tests if a input split iterator of an empty file returns any pairs at all.
 	 * 
 	 * @throws IOException
 	 *         if an I/O exception occurred
@@ -68,7 +68,7 @@ public class InputFileIteratorTest {
 	}
 
 	/**
-	 * Tests if a file iterator of a non-existent file fails.
+	 * Tests if a input split iterator of a non-existent file fails.
 	 * 
 	 * @throws IOException
 	 *         if an I/O exception occurred
@@ -86,7 +86,7 @@ public class InputFileIteratorTest {
 	}
 
 	/**
-	 * Tests if a file iterator of a non-existent file fails.
+	 * Tests if a input split iterator of a non-existent file fails.
 	 * 
 	 * @throws IOException
 	 *         if an I/O exception occurred
@@ -108,7 +108,7 @@ public class InputFileIteratorTest {
 	}
 
 	/**
-	 * Tests if a file iterator of an empty file returns any pairs at all.
+	 * Tests if a input split iterator of an empty file returns any pairs at all.
 	 * 
 	 * @throws IOException
 	 *         if an I/O exception occurred

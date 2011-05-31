@@ -1,8 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.JsonNodeFactory;
 
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -31,10 +29,6 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 		this.toString(builder);
 		return builder.toString();
 	}
-
-	protected static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-	protected static JsonNodeFactory NODE_FACTORY = JsonNodeFactory.instance;
 
 	/*
 	 * (non-Javadoc)

@@ -28,6 +28,7 @@ import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.JsonUtil;
 
 /**
  * Reads json files with Jackson. The resulting key/value pair consists of an id and a {@link PactJsonObject}. The id is
@@ -85,8 +86,8 @@ public class JsonInputFormat extends InputFormat<PactNull, PactJsonObject> {
 	@Override
 	public void open() throws JsonParseException, IOException {
 		this.end = false;
-		this.parser = new JsonFactory().createJsonParser(this.stream);
-		this.parser.setCodec(new ObjectMapper());
+		this.parser = JsonUtil.FACTORY.createJsonParser(this.stream);
+		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)
 			this.parser.clearCurrentToken();
 		checkEnd();

@@ -3,33 +3,28 @@ package eu.stratosphere.sopremo.function;
 import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.NumericNode;
 
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
 public class BuiltinFunctions {
-	protected static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	private static final JsonNode ZERO = JsonUtil.OBJECT_MAPPER.valueToTree(0);
 
-	protected static JsonNodeFactory NODE_FACTORY = JsonNodeFactory.instance;
-
-	private static final JsonNode ZERO = OBJECT_MAPPER.valueToTree(0);
-
-	private static final JsonNode EMPTY_STRING = OBJECT_MAPPER.valueToTree("");
+	private static final JsonNode EMPTY_STRING = JsonUtil.OBJECT_MAPPER.valueToTree("");
 
 	public static JsonNode count(JsonNode params) {
 		int count = 0;
 		Iterator<JsonNode> iterator = params.iterator();
 		for (; iterator.hasNext(); count++)
 			iterator.next();
-		return OBJECT_MAPPER.valueToTree(count);
+		return JsonUtil.OBJECT_MAPPER.valueToTree(count);
 	}
 
 	public static JsonNode sum(JsonNode params) {
@@ -46,7 +41,7 @@ public class BuiltinFunctions {
 		StringBuilder builder = new StringBuilder();
 		for (JsonNode jsonNode : params) 
 			builder.append(jsonNode.isTextual() ? jsonNode.getTextValue() : jsonNode);
-		return OBJECT_MAPPER.valueToTree(builder);
+		return JsonUtil.OBJECT_MAPPER.valueToTree(builder);
 	}
 
 	public static JsonNode union(JsonNode[] params) {
@@ -64,7 +59,7 @@ public class BuiltinFunctions {
 			return new StreamArrayNode(new ConcatenatingIterator<JsonNode>(iterators));
 		}
 
-		ArrayNode union = NODE_FACTORY.arrayNode();
+		ArrayNode union = JsonUtil.NODE_FACTORY.arrayNode();
 		for (JsonNode param : params)
 			union.addAll((ArrayNode) param);
 		return union;

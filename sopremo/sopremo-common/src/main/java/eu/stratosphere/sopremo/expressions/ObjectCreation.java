@@ -10,6 +10,7 @@ import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.ConversionIterator;
 
@@ -17,7 +18,7 @@ public class ObjectCreation extends ContainerExpression<Evaluable> {
 	public static final ObjectCreation CONCATENATION = new ObjectCreation() {
 		@Override
 		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-			ObjectNode objectNode = NODE_FACTORY.objectNode();
+			ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
 			Iterator<JsonNode> elements = node.getElements();
 			while (elements.hasNext()) {
 				JsonNode jsonNode = elements.next();
@@ -180,7 +181,7 @@ public class ObjectCreation extends ContainerExpression<Evaluable> {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		ObjectNode transformedNode = OBJECT_MAPPER.createObjectNode();
+		ObjectNode transformedNode = JsonUtil.OBJECT_MAPPER.createObjectNode();
 		for (Mapping mapping : this.mappings)
 			mapping.evaluate(transformedNode, node, context);
 		return transformedNode;
