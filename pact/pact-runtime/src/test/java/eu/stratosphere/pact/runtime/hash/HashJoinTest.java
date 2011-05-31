@@ -239,7 +239,7 @@ public class HashJoinTest
 			
 			Assert.assertEquals("Wrong number of values from build-side for a key", BUILD_VALS_PER_KEY, numBuildValues);	
 		}
-//		Assert.assertEquals("Wrong number of keys", NUM_KEYS, numKeys);
+		Assert.assertEquals("Wrong number of keys", NUM_KEYS, numKeys);
 		
 		join.close();
 		

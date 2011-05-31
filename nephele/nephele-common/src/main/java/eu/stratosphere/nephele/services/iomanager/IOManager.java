@@ -305,6 +305,32 @@ public final class IOManager implements UncaughtExceptionHandler
 		
 		return new BlockChannelReader(channelID, this.reader.requestQueue, returnQueue);
 	}
+	
+	/**
+	 * Creates a block channel reader that reads all blocks from the given channel directly in one bulk.
+	 * The reader draws segments to read the blocks into from a supplied list, which must contain as many
+	 * segments as the channel has blocks. After the reader is done, the list with the full segments can be 
+	 * obtained from the reader.
+	 * <p>
+	 * If a channel is not to be read in one bulk, but in multiple smaller batches, a  
+	 * {@link BlockChannelReader} should be used.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @param targetSegments The list to take the segments from into which to read the data.
+	 * @param numBlocks The number of blocks in the channel to read.
+	 * @return A block channel reader that reads from the given channel.
+	 * @throws IOException Thrown, if the channel for the reader could not be opened.
+	 */
+	public BulkBlockChannelReader createBulkBlockChannelReader(Channel.ID channelID,
+			List<MemorySegment> targetSegments,	int numBlocks)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
+		return new BulkBlockChannelReader(channelID, this.reader.requestQueue, targetSegments, numBlocks);
+	}
 
 	
 	// ------------------------------------------------------------------------

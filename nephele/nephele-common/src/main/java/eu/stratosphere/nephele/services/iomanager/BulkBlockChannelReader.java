@@ -16,7 +16,8 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.ArrayList;
+import java.util.List;
 
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
@@ -25,25 +26,31 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  *
  *
  */
-public class BlockChannelReader extends BlockChannelAccess<ReadRequest, LinkedBlockingQueue<MemorySegment>>
+public class BulkBlockChannelReader extends BlockChannelAccess<ReadRequest, ArrayList<MemorySegment>>
 {
 	
 	
-	protected BlockChannelReader(Channel.ID channelID, RequestQueue<ReadRequest> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnSegments)
+	protected BulkBlockChannelReader(Channel.ID channelID, RequestQueue<ReadRequest> requestQueue, 
+			List<MemorySegment> sourceSegments, int numBlocks)
 	throws IOException
 	{
-		super(channelID, requestQueue, returnSegments, false);
+		super(channelID, requestQueue, new ArrayList<MemorySegment>(numBlocks), false);
+		
+		// sanity check
+		if (sourceSegments.size() < numBlocks) {
+			throw new IllegalArgumentException("The list of source memory segments must contain at least" +
+					" as many segments as the number of blocks to read.");
+		}
+		
+		// send read requests for all blocks
+		for (int i = 0; i < numBlocks; i++) {
+			readBlock(sourceSegments.remove(sourceSegments.size() - 1));
+		}
 	}
 	
 
 	
-	/**
-	 * Reads a 
-	 * @param segment
-	 * @throws IOException
-	 */
-	public void readBlock(MemorySegment segment) throws IOException
+	private void readBlock(MemorySegment segment) throws IOException
 	{
 		// check the error state of this channel
 		checkErroneous();
@@ -57,6 +64,17 @@ public class BlockChannelReader extends BlockChannelAccess<ReadRequest, LinkedBl
 			throw new IOException("The reader has been closed.");
 		}
 		this.requestQueue.add(new SegmentReadRequest(this, segment));
+	}
+	
+	public List<MemorySegment> getFullSegments()
+	{
+		synchronized (this.closeLock) {
+			if (!this.isClosed() || this.requestsNotReturned.get() > 0) {
+				throw new IllegalStateException("Full segments can only be obtained after the reader was properly closed.");
+			}
+		}
+		
+		return this.returnBuffers;
 	}
 
 }

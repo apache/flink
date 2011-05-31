@@ -29,6 +29,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
+import eu.stratosphere.nephele.services.iomanager.BulkBlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
@@ -39,6 +40,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.hash.HashJoin.Partition.PartitionIterator;
 
 
 /**
@@ -97,9 +99,15 @@ public class HashJoin<K extends Key, V extends Value>
 	private static final int POINTER_LEN = 8;
 	
 	/**
-	 * The storage overhead per record, in bytes. This corresponds to the space in the
+	 * The number of bytes that the entry in the hash structure occupies, in bytes.
+	 * It corresponds to a 4 byte hash value and an 8 byte pointer.
+	 */
+	private static final int RECORD_TABLE_BYTES = HASH_CODE_LEN + POINTER_LEN;
+	
+	/**
+	 * The total storage overhead per record, in bytes. This corresponds to the space in the
 	 * actual hash table buckets, consisting of a 4 byte hash value and an 8 byte
-	 * pointer.
+	 * pointer, plus the overhead for the stored length field.
 	 */
 	private static final int RECORD_OVERHEAD_BYTES = HASH_CODE_LEN + POINTER_LEN;
 	
@@ -184,6 +192,11 @@ public class HashJoin<K extends Key, V extends Value>
 	private final int segmentSize;
 	
 	/**
+	 * The total number of memory segments available to the hash join.
+	 */
+	private final int totalNumBuffers;
+	
+	/**
 	 * The number of write-behind buffers used.
 	 */
 	private final int numWriteBehindBuffers;
@@ -233,11 +246,6 @@ public class HashJoin<K extends Key, V extends Value>
 	private MemorySegment[] buckets;
 	
 	private int numBuckets;
-	
-	
-	
-	
-
 	
 	/**
 	 * The number of buffers in the write behind queue that are actually not write behind buffers,
@@ -294,6 +302,7 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
+		this.totalNumBuffers = memorySegments.size();
 		this.segmentSize = memorySegments.get(0).size();
 		if ( (this.segmentSize & this.segmentSize - 1) != 0) {
 			throw new IllegalArgumentException("Hash Table requires buffers whose size is a power of 2.");
@@ -390,15 +399,19 @@ public class HashJoin<K extends Key, V extends Value>
 			buildTableFromSpilledPartition(p);
 			
 			// set the probe side - gather memory segments for reading
-			MemorySegment seg1 = getNextBuffer();
-			MemorySegment seg2 = getNextBuffer();
-			
 			LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
 			this.currentSpilledProbeSide = this.ioManager.createBlockChannelReader(p.probeSideChannel.getChannelID(), returnQueue);
 			
+			List<MemorySegment> memory = new ArrayList<MemorySegment>();
+			memory.add(getNextBuffer());
+			memory.add(getNextBuffer());
+			
+			Iterator<KeyValuePair<K, V>> probeReader = new BlockReaderUtilIterator<K, V>(this.currentSpilledProbeSide, returnQueue, memory, this.availableMemory, p.probeBlockCounter, this.keySerialization, this.valueSerialization);
+			this.probeIterator.set(probeReader);
 			
 			// unregister the pending partition
 			this.partitionsPending.remove(0);
+			this.currentRecursionDepth = p.recursionLevel + 1;
 			
 			// recursively get the next
 			return nextKey();
@@ -518,10 +531,73 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 	}
 	
+	/**
+	 * @param p
+	 * @throws IOException
+	 */
 	protected void buildTableFromSpilledPartition(final Partition p)
 	throws IOException
 	{
+		final int nextRecursionLevel = p.recursionLevel + 1;
 		
+		// we distinguish two cases here:
+		// 1) The partition fits entirely into main memory. That is the case if we have enough buffers for
+		//    all partition segments, plus enough buffers to hold the table structure.
+		//    --> We read the partition in as it is and create a hashtable that references only
+		//        that single partition.
+		// 2) We can not guarantee that enough memory segments are available and read the partition
+		//    in, distributing its data among newly created partitions.
+		
+		final int totalBuffersAvailable = this.availableMemory.size() + this.writeBehindBuffersAvailable;
+		if (totalBuffersAvailable != this.totalNumBuffers - this.numWriteBehindBuffers) {
+			throw new RuntimeException("Hash Join bug in memory management: Memory buffers leaked.");
+		}
+		
+		long numBuckets = (p.buildSideRecordCounter * RECORD_TABLE_BYTES) / (HASH_BUCKET_SIZE - BUCKET_HEADER_LENGTH) + 1;
+		
+		// we need to consider the worst case where everything hashes to one bucket which needs to overflow by the same
+		// number of total buckets again.
+		final long totalBuffersNeeded = (numBuckets * 2) / (this.bucketsPerSegmentMask + 1) + p.buildSideBlockCounter + 1;
+		
+		if (totalBuffersNeeded < totalBuffersAvailable)
+		{
+			// we are guaranteed to stay in memory
+			ensureNumBuffersReturned(p.buildSideBlockCounter);
+			
+			// first read the partition in
+			final BulkBlockChannelReader reader = this.ioManager.createBulkBlockChannelReader(p.buildSideChannel.getChannelID(), 
+				this.availableMemory, p.buildSideBlockCounter);
+			reader.closeAndDelete(); // call waits until all is read
+			final List<MemorySegment> partitionBuffers = reader.getFullSegments();
+			final Partition newPart = new Partition(0, nextRecursionLevel, partitionBuffers, p.buildSideRecordCounter);
+			
+			this.partitionsBeingBuilt.add(newPart);
+			
+			// erect the buckets
+			initTable((int) numBuckets, (byte) 1);
+			
+			// now, index the partition through a hash table
+			PartitionIterator<K, V> pIter = newPart.getPartitionIterator(this.keySerialization.newInstance(),
+				this.valueSerialization.newInstance());
+			
+			while (pIter.next()) {
+				final int hashCode = hash(pIter.getHashCode(), nextRecursionLevel);
+				final long pointer = pIter.getPointer();
+				
+				final int posHashCode = hashCode % this.numBuckets;
+				
+				// get the bucket for the given hash code
+				final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
+				final int bucketInSegmentPos = (posHashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
+				final MemorySegment bucket = this.buckets[bucketArrayPos];
+				
+				insertBucketEntry(newPart, bucket, bucketInSegmentPos, hashCode, pointer);
+			}
+		}
+		else {
+			// we need to partition and partially spill
+			throw new RuntimeException("Unsupported!");
+		}
 	}
 	
 	/**
@@ -578,113 +654,127 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		if (p.isInMemory()) {
 			// in-memory partition: add the pointer and the hash-value to the list
-			// find the position to put the hash code and pointer
-			final int count = bucket.getShort(bucketInSegmentPos + HEADER_COUNT_OFFSET);
-			if (count < NUM_ENTRIES_PER_BUCKET)
-			{
-				// we are good in our current bucket, put the values
-				bucket.putInt(bucketInSegmentPos + BUCKET_HEADER_LENGTH + (count * HASH_CODE_LEN), hashCode);	// hash code
-				bucket.putLong(bucketInSegmentPos + BUCKET_POINTER_START_OFFSET + (count * POINTER_LEN), pointer); // pointer
-				bucket.putShort(bucketInSegmentPos + HEADER_COUNT_OFFSET, (short) (count + 1)); // update count
-			}
-			else {
-				// we need to go to the overflow buckets
-				final long originalForwardPointer = bucket.getLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET);
-				final long forwardForNewBucket;
-				
-				if (originalForwardPointer != BUCKET_FORWARD_POINTER_NOT_SET) {
-					
-					// forward pointer set
-					final int overflowSegNum = (int) (originalForwardPointer >>> 32);
-					final int segOffset = (int) (originalForwardPointer & 0xffffffff);
-					final MemorySegment seg = p.overflowSegments[overflowSegNum];
-					
-					final short obCount = seg.getShort(segOffset + HEADER_COUNT_OFFSET);
-					
-					// check if there is space in this overflow bucket
-					if (obCount < NUM_ENTRIES_PER_BUCKET) {
-						// space in this bucket and we are done
-						seg.putInt(segOffset + BUCKET_HEADER_LENGTH + (obCount * HASH_CODE_LEN), hashCode);	// hash code
-						seg.putLong(segOffset + BUCKET_POINTER_START_OFFSET + (obCount * POINTER_LEN), pointer); // pointer
-						seg.putShort(segOffset + HEADER_COUNT_OFFSET, (short) (obCount + 1)); // update count
-						return;
-					}
-					else {
-						// no space here, we need a new bucket. this current overflow bucket will be the
-						// target of the new overflow bucket
-						forwardForNewBucket = originalForwardPointer;
-					}
-				}
-				else {
-					// no overflow bucket yet, so we need a first one
-					forwardForNewBucket = BUCKET_FORWARD_POINTER_NOT_SET;
-				}
-				
-				// we need a new overflow bucket
-				MemorySegment overflowSeg;
-				final int overflowBucketNum;
-				final int overflowBucketOffset;
-				
-				
-				// first, see if there is space for an overflow bucket remaining in the last overflow segment
-				if (p.nextOverflowBucket == 0) {
-					// no space left in last bucket, or no bucket yet, so create an overflow segment
-					overflowSeg = getNextBuffer();
-					if (overflowSeg == null) {
-						// no memory available to create overflow bucket. we need to spill a partition
-						final int spilledPart = spillPartition();
-						if (spilledPart == partitionNumber) {
-							// this bucket is no longer in-memory
-							return;
-						}
-						overflowSeg = getNextBuffer();
-						if (overflowSeg == null) {
-							throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling a partition.");
-						}
-					}
-					overflowBucketOffset = 0;
-					overflowBucketNum = p.numOverflowSegments;
-					
-					// add the new overflow segment
-					if (p.overflowSegments.length <= p.numOverflowSegments) {
-						MemorySegment[] newSegsArray = new MemorySegment[p.overflowSegments.length * 2];
-						System.arraycopy(p.overflowSegments, 0, newSegsArray, 0, p.overflowSegments.length);
-						p.overflowSegments = newSegsArray;
-					}
-					p.overflowSegments[p.numOverflowSegments] = overflowSeg;
-					p.numOverflowSegments++;
-				}
-				else {
-					// there is space in the last overflow bucket
-					overflowBucketNum = p.numOverflowSegments - 1;
-					overflowSeg = p.overflowSegments[overflowBucketNum];
-					overflowBucketOffset = p.nextOverflowBucket << NUM_INTRA_BUCKET_BITS;
-				}
-				
-				// next overflow bucket is one ahead. if the segment is full, the next will be at the beginning
-				// of a new segment
-				p.nextOverflowBucket = (p.nextOverflowBucket == this.bucketsPerSegmentMask ? 
-						0 : p.nextOverflowBucket + 1);
-				
-				// insert the new overflow bucket in the chain of buckets
-				// 1) set the old forward pointer
-				// 2) let the bucket in the main table point to this one
-				overflowSeg.putLong(overflowBucketOffset + HEADER_FORWARD_OFFSET, forwardForNewBucket);
-				final long pointerToNewBucket = (((long) overflowBucketNum) << 32) | ((long) overflowBucketOffset);
-				bucket.putLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET, pointerToNewBucket);
-				
-				// finally, insert the values into the overflow buckets
-				overflowSeg.putInt(overflowBucketOffset + BUCKET_HEADER_LENGTH, hashCode);	// hash code
-				overflowSeg.putLong(overflowBucketOffset + BUCKET_POINTER_START_OFFSET, pointer); // pointer
-				
-				// set the count to one
-				overflowSeg.putShort(overflowBucketOffset + HEADER_COUNT_OFFSET, (short) 1); 
-			}
-
+			insertBucketEntry(p, bucket, bucketInSegmentPos, hashCode, pointer);
 		}
 		else {
 			// partition not in memory, so add nothing to the table at the moment
 			return;
+		}
+	}
+	
+	/**
+	 * @param p
+	 * @param bucket
+	 * @param bucketInSegmentPos
+	 * @param hashCode
+	 * @param pointer
+	 * @throws IOException
+	 */
+	private final void insertBucketEntry(final Partition p, final MemorySegment bucket, final int bucketInSegmentPos, final int hashCode,
+			final long pointer)
+	throws IOException
+	{
+		// find the position to put the hash code and pointer
+		final int count = bucket.getShort(bucketInSegmentPos + HEADER_COUNT_OFFSET);
+		if (count < NUM_ENTRIES_PER_BUCKET)
+		{
+			// we are good in our current bucket, put the values
+			bucket.putInt(bucketInSegmentPos + BUCKET_HEADER_LENGTH + (count * HASH_CODE_LEN), hashCode);	// hash code
+			bucket.putLong(bucketInSegmentPos + BUCKET_POINTER_START_OFFSET + (count * POINTER_LEN), pointer); // pointer
+			bucket.putShort(bucketInSegmentPos + HEADER_COUNT_OFFSET, (short) (count + 1)); // update count
+		}
+		else {
+			// we need to go to the overflow buckets
+			final long originalForwardPointer = bucket.getLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET);
+			final long forwardForNewBucket;
+			
+			if (originalForwardPointer != BUCKET_FORWARD_POINTER_NOT_SET) {
+				
+				// forward pointer set
+				final int overflowSegNum = (int) (originalForwardPointer >>> 32);
+				final int segOffset = (int) (originalForwardPointer & 0xffffffff);
+				final MemorySegment seg = p.overflowSegments[overflowSegNum];
+				
+				final short obCount = seg.getShort(segOffset + HEADER_COUNT_OFFSET);
+				
+				// check if there is space in this overflow bucket
+				if (obCount < NUM_ENTRIES_PER_BUCKET) {
+					// space in this bucket and we are done
+					seg.putInt(segOffset + BUCKET_HEADER_LENGTH + (obCount * HASH_CODE_LEN), hashCode);	// hash code
+					seg.putLong(segOffset + BUCKET_POINTER_START_OFFSET + (obCount * POINTER_LEN), pointer); // pointer
+					seg.putShort(segOffset + HEADER_COUNT_OFFSET, (short) (obCount + 1)); // update count
+					return;
+				}
+				else {
+					// no space here, we need a new bucket. this current overflow bucket will be the
+					// target of the new overflow bucket
+					forwardForNewBucket = originalForwardPointer;
+				}
+			}
+			else {
+				// no overflow bucket yet, so we need a first one
+				forwardForNewBucket = BUCKET_FORWARD_POINTER_NOT_SET;
+			}
+			
+			// we need a new overflow bucket
+			MemorySegment overflowSeg;
+			final int overflowBucketNum;
+			final int overflowBucketOffset;
+			
+			
+			// first, see if there is space for an overflow bucket remaining in the last overflow segment
+			if (p.nextOverflowBucket == 0) {
+				// no space left in last bucket, or no bucket yet, so create an overflow segment
+				overflowSeg = getNextBuffer();
+				if (overflowSeg == null) {
+					// no memory available to create overflow bucket. we need to spill a partition
+					final int spilledPart = spillPartition();
+					if (spilledPart == p.partitionNumber) {
+						// this bucket is no longer in-memory
+						return;
+					}
+					overflowSeg = getNextBuffer();
+					if (overflowSeg == null) {
+						throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling a partition.");
+					}
+				}
+				overflowBucketOffset = 0;
+				overflowBucketNum = p.numOverflowSegments;
+				
+				// add the new overflow segment
+				if (p.overflowSegments.length <= p.numOverflowSegments) {
+					MemorySegment[] newSegsArray = new MemorySegment[p.overflowSegments.length * 2];
+					System.arraycopy(p.overflowSegments, 0, newSegsArray, 0, p.overflowSegments.length);
+					p.overflowSegments = newSegsArray;
+				}
+				p.overflowSegments[p.numOverflowSegments] = overflowSeg;
+				p.numOverflowSegments++;
+			}
+			else {
+				// there is space in the last overflow bucket
+				overflowBucketNum = p.numOverflowSegments - 1;
+				overflowSeg = p.overflowSegments[overflowBucketNum];
+				overflowBucketOffset = p.nextOverflowBucket << NUM_INTRA_BUCKET_BITS;
+			}
+			
+			// next overflow bucket is one ahead. if the segment is full, the next will be at the beginning
+			// of a new segment
+			p.nextOverflowBucket = (p.nextOverflowBucket == this.bucketsPerSegmentMask ? 
+					0 : p.nextOverflowBucket + 1);
+			
+			// insert the new overflow bucket in the chain of buckets
+			// 1) set the old forward pointer
+			// 2) let the bucket in the main table point to this one
+			overflowSeg.putLong(overflowBucketOffset + HEADER_FORWARD_OFFSET, forwardForNewBucket);
+			final long pointerToNewBucket = (((long) overflowBucketNum) << 32) | ((long) overflowBucketOffset);
+			bucket.putLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET, pointerToNewBucket);
+			
+			// finally, insert the values into the overflow buckets
+			overflowSeg.putInt(overflowBucketOffset + BUCKET_HEADER_LENGTH, hashCode);	// hash code
+			overflowSeg.putLong(overflowBucketOffset + BUCKET_POINTER_START_OFFSET, pointer); // pointer
+			
+			// set the count to one
+			overflowSeg.putShort(overflowBucketOffset + HEADER_COUNT_OFFSET, (short) 1); 
 		}
 	}
 	
@@ -849,6 +939,23 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		
 		return largestPartNum;
+	}
+	
+	private final void ensureNumBuffersReturned(final int minRequiredAvailable)
+	{
+		if (minRequiredAvailable > this.availableMemory.size() + this.writeBehindBuffersAvailable) {
+			throw new IllegalArgumentException("More buffers requested available than totally available.");
+		}
+		
+		try {
+			while (this.availableMemory.size() < minRequiredAvailable) {
+				this.availableMemory.add(this.writeBehindBuffers.take());
+				this.writeBehindBuffersAvailable--;
+			}
+		}
+		catch (InterruptedException iex) {
+			throw new RuntimeException("Hash Join was interrupted.");
+		}
 	}
 	
 	/**
@@ -1020,14 +1127,18 @@ public class HashJoin<K extends Key, V extends Value>
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * A partition in a hash table. The partition may be in-memory, in which case it has several partition
+	 * A partition in a hash table. The partition contains the actual records, which are referenced by pointers from
+	 * the hash buckets. The partition may be in-memory, in which case it has several partition
 	 * buffers that contain the records, or it may be spilled. In the latter case, it has only a single
-	 * partition buffer in which it collects records to be spilled once the block is full.
-	 */
-	/**
-	 *
-	 *
-	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+	 * partition buffer in which it collects records to be spilled once the block is full, and a channel writer to
+	 * spill the records.
+	 * <p>
+	 * The partition contains structures relevant to both the build-side and the probe-side. For spilled partitions,
+	 * it contains references to the temp files for both sides, as well as counters for the number of records and
+	 * the number of blocks.
+	 * <p>
+	 * In addition to the structures that contain the actual records, it anchors the lists of overflow buckets for
+	 * partition, because the overflow buckets are typically released together when a partition is spilled.  
 	 */
 	protected static final class Partition
 	{
@@ -1043,7 +1154,7 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		private MemorySegment currentPartitionBuffer;		// the partition buffer into which elements are put (build and probe side)
 		
-		private final ArrayList<MemorySegment> inMemoryBuffers;	// this partition's buffers
+		private final List<MemorySegment> inMemoryBuffers;	// this partition's buffers
 		
 		// ------------------------------------------ Spilling ----------------------------------------------
 		
@@ -1071,8 +1182,12 @@ public class HashJoin<K extends Key, V extends Value>
 		// --------------------------------------------------------------------------------------------------
 		
 		/**
-		 * Creates a new partition, initially in memory, with one buffer.
+		 * Creates a new partition, initially in memory, with one buffer for the build side. The partition is
+		 * initialized to expect record insertions for the build side.
 		 * 
+		 * @param partitionNumber The number of the partition.
+		 * @param recursionLevel The recursion level - zero for partitions from the initial build, <i>n + 1</i> for
+		 *                       partitions that are created from spilled partition with recursion level <i>n</i>. 
 		 * @param initialBuffer The initial buffer for this partition.
 		 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 		 */
@@ -1093,6 +1208,22 @@ public class HashJoin<K extends Key, V extends Value>
 			
 			initBuffer(initialBuffer, 0);
 			this.currentPartitionBuffer = initialBuffer;
+		}
+		
+		private Partition(int partitionNumber, int recursionLevel, List<MemorySegment> buffers,
+				long buildSideRecordCounter)
+		{
+			this.partitionNumber = partitionNumber;
+			this.recursionLevel = recursionLevel;
+			
+			this.inMemoryBuffers = buffers;
+			this.bufferReturnQueue = null;
+			this.buildSideBlockCounter = buffers.size();
+			this.buildSideRecordCounter = buildSideRecordCounter;
+			
+			this.overflowSegments = new MemorySegment[2];
+			this.numOverflowSegments = 0;
+			this.nextOverflowBucket = 0;
 		}
 
 		// --------------------------------------------------------------------------------------------------
@@ -1138,7 +1269,7 @@ public class HashJoin<K extends Key, V extends Value>
 		 * The partition then needs to be assigned another buffer, or it may be spilled.
 		 * <p>
 		 * If the partition is spilled, then this method never returns <code>-1</code>, because the
-		 * partition automatically grabs another write-behind buffer.
+		 * partition automatically grabs another write-behind buffer once the current buffer is full.
 		 * 
 		 * @param object The object to be written to the partition.
 		 * @return A pointer to the object in the partition, or <code>-1</code>, if the partition buffers are full.
@@ -1182,6 +1313,16 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		
 		
+		/**
+		 * Inserts the given record into the probe side buffers. This method is only applicable when the
+		 * partition was spilled while processing the build side. In that case, it inserts the record to into
+		 * the current buffer and add that one to the spilled channel once it is full.
+		 * <p>
+		 * If this method is invoked when the partition is still being built, it has undefined behavior.
+		 *   
+		 * @param object The record to be inserted into the probe side buffers.
+		 * @throws IOException Thrown, if the buffer is full, needs to be spilled, and spilling causes an error.
+		 */
 		public final void insertIntoProbeBuffer(IOReadableWritable object) throws IOException
 		{
 			final int offset = insertIntoCurrentBuffer(object);
@@ -1305,10 +1446,10 @@ public class HashJoin<K extends Key, V extends Value>
 		{
 			if (isInMemory()) {
 				this.inMemoryBuffers.add(this.currentPartitionBuffer);
+				this.currentPartitionBuffer = null;
 			}
 			else {
-				// spilled partition
-				// write the last buffer and close the channel
+				// spilled partition: write the last buffer and close the channel
 				spillBuffer(this.currentPartitionBuffer, this.buildSideChannel);
 				this.buildSideChannel.close();
 				
@@ -1330,13 +1471,14 @@ public class HashJoin<K extends Key, V extends Value>
 		{
 			if (isInMemory()) {
 				// in this case, return all memory buffers
-				freeMemory.add(this.currentPartitionBuffer);
-				this.currentPartitionBuffer = null;
 				
 				// return the overflow segments
 				for (int k = 0; k < this.numOverflowSegments; k++) {
 					freeMemory.add(this.overflowSegments[k]);
 				}
+				this.overflowSegments = null;
+				this.numOverflowSegments = 0;
+				this.nextOverflowBucket = 0;
 				
 				// return the partition buffers
 				for (int k = this.inMemoryBuffers.size() - 1; k >= 0; --k) {
@@ -1348,6 +1490,7 @@ public class HashJoin<K extends Key, V extends Value>
 			else {
 				// flush the last probe side buffer and register this partition as pending
 				spillBuffer(this.currentPartitionBuffer, this.probeSideChannel);
+				this.currentPartitionBuffer = null;
 				this.probeSideChannel.close();
 				
 				spilledPartitions.add(this);
@@ -1400,6 +1543,90 @@ public class HashJoin<K extends Key, V extends Value>
 			}
 		}
 		
+		public <K extends Key, V extends Value> PartitionIterator<K, V> getPartitionIterator(K key, V value)
+		{
+			return new PartitionIterator<K, V>(key, value);
+		}
+		
+		
+		protected final class PartitionIterator<K extends Key, V extends Value>
+		{
+			private final K key;
+			
+			private final V value;
+			
+			private DataInputView currentSeg;
+			
+			private int currentSegNum;
+			
+			private int currentEnd;
+			
+			private int currentHashCode;
+			
+			private long currentPointer;
+			
+			
+			private PartitionIterator(K key, V value)
+			{
+				this.key = key;
+				this.value = value;
+				
+				final MemorySegment seg = Partition.this.inMemoryBuffers.get(0); 
+				this.currentSeg = seg.inputView;
+				this.currentSeg.setPosition(PARTITION_BLOCK_HEADER_LEN);
+				this.currentEnd = seg.getInt(PARTITION_BLOCK_SIZE_OFFSET);
+			}
+			
+			
+			protected final boolean next()
+			{
+				final int pos = this.currentSeg.getPosition();
+				
+				if (pos < this.currentEnd) {
+					// compute the start pointer
+					this.currentPointer = (((long) this.currentSegNum) << 32) | pos;
+					
+					// read key and also the value
+					try {
+						this.key.read(this.currentSeg);
+						this.value.read(this.currentSeg);
+					}
+					catch (IOException e) {
+						throw new RuntimeException("Error while deserializing key/value pair from spilled buffer. " +
+							"Probably cause: Bad Serialization code.", e);
+					}
+					
+					
+					this.currentHashCode = key.hashCode();
+					
+					return true;
+				}
+				else {
+					this.currentSegNum++;
+					if (this.currentSegNum < Partition.this.inMemoryBuffers.size()) {
+						final MemorySegment seg = Partition.this.inMemoryBuffers.get(this.currentSegNum); 
+						this.currentSeg = seg.inputView;
+						this.currentSeg.setPosition(PARTITION_BLOCK_HEADER_LEN);
+						this.currentEnd = seg.getInt(PARTITION_BLOCK_SIZE_OFFSET);
+						return next();
+					}
+					else {
+						return false;
+					}
+				}
+			}
+			
+			protected final int getHashCode()
+			{
+				return this.currentHashCode;
+			}
+			
+			protected final long getPointer()
+			{
+				return this.currentPointer;
+			}
+		}
+		
 	} // end partition 
 	
 	
@@ -1409,13 +1636,13 @@ public class HashJoin<K extends Key, V extends Value>
 	/**
 	 *
 	 */
-	public static final class HashBucketIterator<K extends Key, V extends Value>
+	protected static final class HashBucketIterator<K extends Key, V extends Value> implements MutableObjectIterator<KeyValuePair<K, V>>
 	{
 		private MemorySegment bucket;
 		
 		private MemorySegment[] overflowSegments;
 		
-		private ArrayList<MemorySegment> partitionBuffers;
+		private List<MemorySegment> partitionBuffers;
 		
 		private K searchKey;
 		
@@ -1431,7 +1658,7 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		
 		
-		private void set(MemorySegment bucket, MemorySegment[] overflowSegments, ArrayList<MemorySegment> partitionBuffers,
+		private void set(MemorySegment bucket, MemorySegment[] overflowSegments, List<MemorySegment> partitionBuffers,
 				K searchKey, int searchHashCode, int bucketInSegmentOffset)
 		{
 			this.bucket = bucket;
@@ -1512,7 +1739,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	protected static final class ProbeSideIterator<K extends Key, V extends Value> implements Iterator<V>
 	{
-		private final Iterator<KeyValuePair<K, V>> source;
+		private Iterator<KeyValuePair<K, V>> source;
 		
 		private K currentKey;
 		
@@ -1525,6 +1752,13 @@ public class HashJoin<K extends Key, V extends Value>
 		protected ProbeSideIterator(Iterator<KeyValuePair<K, V>> source)
 		{
 			this.source = source;
+		}
+		
+		protected void set(Iterator<KeyValuePair<K, V>> source) {
+			this.source = source;
+			this.currentKey = null;
+			this.nextPair = null;
+			this.nextIsNewKey = false;
 		}
 		
 		// --------------------------------------------------------------------
@@ -1632,7 +1866,7 @@ public class HashJoin<K extends Key, V extends Value>
 	// ======================================================================================================
 	
 	
-	protected static final class BlockReaderIterator<K extends Key, V extends Value> implements MutableObjectIterator<KeyValuePair<K, V>>
+	protected static class BlockReaderIterator<K extends Key, V extends Value> implements MutableObjectIterator<KeyValuePair<K, V>>
 	{		
 		private MemorySegment currentSegment;
 		
@@ -1661,12 +1895,12 @@ public class HashJoin<K extends Key, V extends Value>
 			
 			// send off the first requests
 			for (; !segments.isEmpty() && this.numRequestsRemaining > 0; numRequestsRemaining--) {
-				this.reader.readBlock(segments.get(segments.size() - 1));
+				this.reader.readBlock(segments.remove(segments.size() - 1));
 			}
 			
 			// return the remaining memory, if there is memory left
 			while (!segments.isEmpty()) {
-				freeMemTarget.add(segments.get(segments.size() - 1));
+				freeMemTarget.add(segments.remove(segments.size() - 1));
 			}
 
 			this.numReturnsRemaining = numBlocks - 1;
@@ -1745,4 +1979,82 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		
 	} // end BlockReaderIterator
+	
+	private static final class BlockReaderUtilIterator<K extends Key, V extends Value> extends BlockReaderIterator<K, V>
+		implements Iterator<KeyValuePair<K, V>>
+	{
+		private final SerializationFactory<K> keySerialization;
+		
+		private final SerializationFactory<V> valueSerialization;
+		
+		private KeyValuePair<K, V> next;
+
+		/**
+		 * @param reader
+		 * @param returnQueue
+		 * @param segments
+		 * @param freeMemTarget
+		 * @param numBlocks
+		 * @throws IOException
+		 */
+		public BlockReaderUtilIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
+				List<MemorySegment> segments, List<MemorySegment> freeMemTarget, int numBlocks,
+				SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization)
+		throws IOException
+		{
+			super(reader, returnQueue, segments, freeMemTarget, numBlocks);
+			
+			this.keySerialization = keySerialization;
+			this.valueSerialization = valueSerialization;
+		}
+
+		/* (non-Javadoc)
+		 * @see java.util.Iterator#hasNext()
+		 */
+		@Override
+		public boolean hasNext()
+		{
+			if (this.next == null) {
+				KeyValuePair<K, V> pair = new KeyValuePair<K, V>(
+						this.keySerialization.newInstance(),
+						this.valueSerialization.newInstance());
+				if (next(pair)) {
+					this.next = pair;
+					return true;
+				}
+				else {
+					return false;
+				}
+			}
+			else {
+				return true;
+			}
+		}
+
+		/* (non-Javadoc)
+		 * @see java.util.Iterator#next()
+		 */
+		@Override
+		public KeyValuePair<K, V> next()
+		{
+			if (this.next != null || hasNext()) {
+				KeyValuePair<K, V> temp = this.next;
+				this.next = null;
+				return temp;
+			}
+			else {
+				throw new NoSuchElementException();
+			}
+		}
+
+		/* (non-Javadoc)
+		 * @see java.util.Iterator#remove()
+		 */
+		@Override
+		public void remove()
+		{
+			throw new UnsupportedOperationException();	
+		}
+		
+	}
 }

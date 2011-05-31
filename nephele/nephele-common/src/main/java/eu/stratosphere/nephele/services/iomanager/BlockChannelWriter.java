@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  *
  *
  */
-public class BlockChannelWriter extends BlockChannelAccess<WriteRequest>
+public class BlockChannelWriter extends BlockChannelAccess<WriteRequest, LinkedBlockingQueue<MemorySegment>>
 {
 	
 	
@@ -55,40 +55,4 @@ public class BlockChannelWriter extends BlockChannelAccess<WriteRequest>
 		this.requestQueue.add(new SegmentWriteRequest(this, segment));
 	}
 
-}
-
-//--------------------------------------------------------------------------------------------
-
-/**
- * Special write request that writes an entire memory segment to the block writer.
- */
-final class SegmentWriteRequest implements WriteRequest
-{
-	private final BlockChannelWriter channel;
-	
-	private final MemorySegment segment;
-	
-	protected SegmentWriteRequest(BlockChannelWriter targetChannel, MemorySegment segment)
-	{
-		this.channel = targetChannel;
-		this.segment = segment;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
-	 */
-	@Override
-	public void write() throws IOException
-	{
-		this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
-	 */
-	@Override
-	public void requestDone(IOException ioex)
-	{
-		this.channel.handleProcessedBuffer(this.segment, ioex);
-	}
 }
