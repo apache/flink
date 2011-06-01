@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.hash;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -44,8 +45,18 @@ import eu.stratosphere.pact.runtime.hash.HashJoin.Partition.PartitionIterator;
 
 
 /**
+ * An implementation of a Hybrid Hash Join. The join starts operating in memory and gradually starts
+ * spilling contents to disk, when the memory is not sufficient. It does not need to know a priori 
+ * how large the input will be.
+ * <p>
+ * The design of this class follows on many parts the design presented in
+ * "Hash joins and hash teams in Microsoft SQL Server", by Goetz Graefe et al. In its current state, the
+ * implementation lacks features like dynamic role reversal, partition tuning, or histogram guided partitioning. 
+ *<p>
  *
  *
+ * <hr>
+ * 
  * The layout of the buckets inside a memory segment is as follows:
  * 
  * <pre>
@@ -78,12 +89,29 @@ public class HashJoin<K extends Key, V extends Value>
 {
 	private static final Log LOG = LogFactory.getLog(HashJoin.class);
 	
+	private static final boolean DEBUG_CHECKS = false;
+	
 	// ------------------------------------------------------------------------
 	//                         Internal Constants
 	// ------------------------------------------------------------------------
 	
+	/**
+	 * The maximum number of recursive partitionings that the join does before giving up.
+	 */
+	private static final int MAX_RECURSION_DEPTH = 2;
+	
+	/**
+	 * The minimum number of memory segments the hash join needs to be supplied with in order to work.
+	 */
 	private static final int MIN_NUM_MEMORY_SEGMENTS = 33;
 	
+	/**
+	 * The maximum number of partitions, which defines the spilling granularity. Each recursion, the
+	 * data is divided maximally into that many partitions, which are processed in one chuck. and the base to the
+	 * logarithm that, when applies to the input size, defines the number of recursions. 
+	 * . Currently set to 127,
+	 * meaning that the hash join st
+	 */
 	private static final int MAX_NUM_PARTITIONS = Byte.MAX_VALUE;
 	
 	private static final int DEFAULT_RECORD_LEN = 100;
@@ -136,7 +164,7 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	private static final long BUCKET_FORWARD_POINTER_NOT_SET = ~0x0L;
 	
-	private static final byte BUCKET_STATUS_SPILLED = 1;
+//	private static final byte BUCKET_STATUS_SPILLED = 1;
 	
 	private static final byte BUCKET_STATUS_IN_MEMORY = 0;
 	
@@ -370,7 +398,7 @@ public class HashJoin<K extends Key, V extends Value>
 			}
 			else {
 				while (probeIter.hasNext()) {
-					final KeyValuePair<K, V> nextPair = probeIter.nextPair();
+					final KeyValuePair<K, V> nextPair = probeIter.next();
 					p.insertIntoProbeBuffer(nextPair);
 				}
 			}
@@ -389,6 +417,36 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		// release the table memory
 		releaseTable();
+		
+		// check that the memory segment book-keeping did not go wrong
+		if (DEBUG_CHECKS) {
+			HashSet<MemorySegment> segSet = new HashSet<MemorySegment>();
+			for (int i = 0; i < this.availableMemory.size(); i++) {
+				MemorySegment seg = this.availableMemory.get(i);
+				if (seg == null) {
+					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
+				}
+				if (segSet.contains(seg)) {
+					throw new RuntimeException("Bookkeeping error: Available Memory Segment booked twice.");
+				}
+				segSet.add(seg);
+			}
+			HashSet<MemorySegment> wbSet = new HashSet<MemorySegment>();
+			Iterator<MemorySegment> wbIter = this.writeBehindBuffers.iterator();
+			while (wbIter.hasNext()) {
+				MemorySegment seg = wbIter.next();
+				if (seg == null) {
+					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
+				}
+				if (segSet.contains(seg)) {
+					throw new RuntimeException("Bookkeeping error: Write-behind buffer also occurred as available memory.");
+				}
+				if (wbSet.contains(seg)) {
+					throw new RuntimeException("Bookkeeping error: Write-behind buffer booked twice");
+				}
+				wbSet.add(seg);
+			}			
+		}
 		
 		// check if there are pending partitions
 		if (!this.partitionsPending.isEmpty())
@@ -425,7 +483,7 @@ public class HashJoin<K extends Key, V extends Value>
 	/**
 	 * @return
 	 */
-	public Iterator<V> getProbeSideIterator()
+	public Iterator<KeyValuePair<K, V>> getProbeSideIterator()
 	{
 		return this.probeIterator;
 	}
@@ -523,7 +581,7 @@ public class HashJoin<K extends Key, V extends Value>
 			final int hashCode = hash(pair.getKey().hashCode(), 0);
 			insertIntoTable(pair, hashCode);
 		}
-		
+
 		// finalize the partitions
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
 			Partition p = this.partitionsBeingBuilt.get(i);
@@ -539,6 +597,9 @@ public class HashJoin<K extends Key, V extends Value>
 	throws IOException
 	{
 		final int nextRecursionLevel = p.recursionLevel + 1;
+		if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
+			
+		}
 		
 		// we distinguish two cases here:
 		// 1) The partition fits entirely into main memory. That is the case if we have enough buffers for
@@ -596,7 +657,41 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		else {
 			// we need to partition and partially spill
-			throw new RuntimeException("Unsupported!");
+			// compute in how many splits, we'd need to partition the result 
+			final int splits = (int) (totalBuffersNeeded / totalBuffersAvailable) + 1;
+			final int partitionFanOut = Math.min(10 * splits /* being conservative */, MAX_NUM_PARTITIONS);
+			
+			final int bucketCount = 432;
+			
+			createPartitions(partitionFanOut, nextRecursionLevel);
+			
+			// set up the table structure. the write behind buffers are taken away, as are one buffer per partition
+			initTable(bucketCount, (byte) partitionFanOut);
+			
+			// go over the complete input and insert every element into the hash table
+			// first set up the reader with some memory.
+			final List<MemorySegment> segments = new ArrayList<MemorySegment>(2);
+			segments.add(getNextBuffer());
+			segments.add(getNextBuffer());
+			
+			final BlockReaderIterator<K, V> reader = new BlockReaderIterator<K, V>(this.ioManager,
+					p.buildSideChannel.getChannelID(), segments, this.availableMemory, p.buildSideBlockCounter);
+			
+			final KeyValuePair<K, V> pair = new KeyValuePair<K, V>(
+					this.keySerialization.newInstance(),
+					this.valueSerialization.newInstance());
+			
+			while (reader.next(pair))
+			{
+				final int hashCode = hash(pair.getKey().hashCode(), nextRecursionLevel);
+				insertIntoTable(pair, hashCode);
+			}
+
+			// finalize the partitions
+			for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
+				Partition part = this.partitionsBeingBuilt.get(i);
+				part.finalizeBuildPhase(this.ioManager, this.currentEnumerator);
+			}
 		}
 	}
 	
@@ -788,9 +883,7 @@ public class HashJoin<K extends Key, V extends Value>
 	protected void createPartitions(int numPartitions, int recursionLevel)
 	{
 		// sanity check
-		if (this.availableMemory.size() < numPartitions) {
-			throw new RuntimeException("Bug in Hybrid Hash Join: Cannot create more partisions than number of available buffers.");
-		}
+		ensureNumBuffersReturned(numPartitions);
 		
 		this.currentEnumerator = this.ioManager.createChannelEnumerator();
 		
@@ -858,12 +951,14 @@ public class HashJoin<K extends Key, V extends Value>
 	protected void initTable(int numBuckets, byte numPartitions)
 	{
 		final int bucketsPerSegment = this.bucketsPerSegmentMask + 1;
-		final int numSegs = (numBuckets >>> this.bucketsPerSegmentBits) + 1;
+		final int numSegs = (numBuckets >>> this.bucketsPerSegmentBits) + ( (numBuckets & this.bucketsPerSegmentMask) == 0 ? 0 : 1);
 		final MemorySegment[] table = new MemorySegment[numSegs];
+		
+		ensureNumBuffersReturned(numSegs);
 		
 		// go over all segments that are part of the table
 		for (int i = 0, bucket = 0; i < numSegs && bucket < numBuckets; i++) {
-			final MemorySegment seg = this.availableMemory.remove(this.availableMemory.size() - 1);
+			final MemorySegment seg = getNextBuffer();
 			
 			// go over all buckets in the segment
 			for (int k = 0; k < bucketsPerSegment && bucket < numBuckets; k++, bucket++) {
@@ -968,7 +1063,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 *                     exception replaces the <tt>InterruptedException</tt> to consolidate the exception
 	 *                     signatures.
 	 */
-	private final MemorySegment getNextBuffer() throws IOException
+	private final MemorySegment getNextBuffer()
 	{
 		// check if the list directly offers memory
 		int s = this.availableMemory.size();
@@ -985,7 +1080,7 @@ public class HashJoin<K extends Key, V extends Value>
 				toReturn = this.writeBehindBuffers.take();
 			}
 			catch (InterruptedException iex) {
-				throw new IOException("Hybrid Hash Join was interrupted while taking a buffer.");
+				throw new RuntimeException("Hybrid Hash Join was interrupted while taking a buffer.");
 			}
 			this.writeBehindBuffersAvailable--;
 			
@@ -1700,7 +1795,7 @@ public class HashJoin<K extends Key, V extends Value>
 							if (key.equals(this.searchKey)) {
 								// match!
 								target.getValue().read(buffer);
-							return true;
+								return true;
 							}
 						}
 						catch (IOException ioex) {
@@ -1737,7 +1832,7 @@ public class HashJoin<K extends Key, V extends Value>
 	/**
 	 *
 	 */
-	protected static final class ProbeSideIterator<K extends Key, V extends Value> implements Iterator<V>
+	protected static final class ProbeSideIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>>
 	{
 		private Iterator<KeyValuePair<K, V>> source;
 		
@@ -1823,11 +1918,7 @@ public class HashJoin<K extends Key, V extends Value>
 			}
 		}
 
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#next()
-		 */
-		@Override
-		public V next()
+		public V nextValue()
 		{
 			if (!this.nextIsNewKey && (this.nextPair != null || hasNext())) {
 				final V next = this.nextPair.getValue();
@@ -1848,7 +1939,11 @@ public class HashJoin<K extends Key, V extends Value>
 			throw new UnsupportedOperationException();
 		}
 		
-		public KeyValuePair<K, V> nextPair()
+		/* (non-Javadoc)
+		 * @see java.util.Iterator#next()
+		 */
+		@Override
+		public KeyValuePair<K, V> next()
 		{
 			if (!this.nextIsNewKey && (this.nextPair != null || hasNext())) {
 				final KeyValuePair<K, V> next = this.nextPair;
@@ -1881,6 +1976,23 @@ public class HashJoin<K extends Key, V extends Value>
 		private int numReturnsRemaining;
 		
 		private final List<MemorySegment> freeMemTarget;
+		
+		
+		public BlockReaderIterator(IOManager ioAccess, Channel.ID channel, List<MemorySegment> segments,
+				List<MemorySegment> freeMemTarget, int numBlocks)
+		throws IOException
+		{
+			this(ioAccess, channel, new LinkedBlockingQueue<MemorySegment>(), segments, freeMemTarget, numBlocks);
+		}
+		
+		
+		public BlockReaderIterator(IOManager ioAccess, Channel.ID channel,  LinkedBlockingQueue<MemorySegment> returnQueue,
+				List<MemorySegment> segments, List<MemorySegment> freeMemTarget, int numBlocks)
+		throws IOException
+		{
+			this(ioAccess.createBlockChannelReader(channel, returnQueue), returnQueue,
+				segments, freeMemTarget, numBlocks);
+		}
 		
 		
 		public BlockReaderIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
@@ -1954,6 +2066,7 @@ public class HashJoin<K extends Key, V extends Value>
 					if (this.numReturnsRemaining > 0) {
 						try {
 							this.currentSegment = this.returnQueue.take();
+							this.numReturnsRemaining--;
 							this.currentSegment.inputView.setPosition(PARTITION_BLOCK_HEADER_LEN);
 							this.currentEndPos = this.currentSegment.getInt(PARTITION_BLOCK_SIZE_OFFSET);
 						}

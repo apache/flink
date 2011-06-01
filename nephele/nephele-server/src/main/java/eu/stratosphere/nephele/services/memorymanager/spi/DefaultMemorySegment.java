@@ -32,7 +32,7 @@ public final class DefaultMemorySegment extends MemorySegment
 
 	// --------------------------------------------------------------------------------------------
 	
-	public DefaultMemorySegment(MemorySegmentDescriptor descriptor, DataInputView inputView, DataOutputView outputView)
+	DefaultMemorySegment(MemorySegmentDescriptor descriptor, DataInputView inputView, DataOutputView outputView)
 	{
 		super(descriptor.memory, descriptor.start, descriptor.size, inputView, outputView);
 		this.descriptor = descriptor;

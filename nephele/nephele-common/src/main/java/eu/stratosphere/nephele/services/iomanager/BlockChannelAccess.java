@@ -90,6 +90,16 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Gets the queue (or list) to which the asynchronous reader adds its elements.
+	 * 
+	 * @return The queue (or list) to which the asynchronous reader adds its elements.
+	 */
+	public C getReturnQueue()
+	{
+		return this.returnBuffers;
+	}
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
 	 */
