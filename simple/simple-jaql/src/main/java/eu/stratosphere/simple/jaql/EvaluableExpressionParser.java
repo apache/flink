@@ -22,9 +22,6 @@ import com.ibm.jaql.lang.expr.path.PathExpr;
 import com.ibm.jaql.lang.expr.path.PathFieldValue;
 import com.ibm.jaql.lang.expr.path.PathIndex;
 
-import eu.stratosphere.dag.converter.AppendChildren;
-import eu.stratosphere.dag.converter.GraphConverter;
-import eu.stratosphere.dag.converter.NodeConverter;
 import eu.stratosphere.simple.jaql.QueryParser.Binding;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.base.Aggregation;
@@ -39,6 +36,9 @@ import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.IdentifierAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.util.dag.converter.AppendChildren;
+import eu.stratosphere.util.dag.converter.GraphConverter;
+import eu.stratosphere.util.dag.converter.NodeConverter;
 
 class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpression> {
 
@@ -110,8 +110,8 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 				return new FunctionCall(d.getName(), childPaths.toArray(new EvaluableExpression[childPaths.size()]));
 			}
 			Operator operator = EvaluableExpressionParser.this.queryParser.parseOperator(expr);
-			if (operator instanceof Aggregation && operator.getEvaluableExpression() instanceof Path)
-				return new FunctionCall("distinct", operator.getEvaluableExpression());
+			if (operator instanceof Aggregation && operator.getTransformation() instanceof Path)
+				return new FunctionCall("distinct", operator.getTransformation());
 			// if (queryParser.bindings.get("$").getTransformed().equals(new Fragment.Input(0))
 			// && queryParser.parsePath(expr.collectExpr()).equals(
 			// new Fragment.ArrayCreation(new Fragment.Input(0))))

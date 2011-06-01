@@ -17,7 +17,7 @@ public class ProjectionTest extends SopremoTest {
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("sum", new Arithmetic(createPath("a"),
 			ArithmeticOperator.PLUS, createPath("b")));
-		sopremoPlan.getOutputOperator(0).setInputOperators(
+		sopremoPlan.getOutputOperator(0).setInputs(
 			new Projection(transformation, sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).

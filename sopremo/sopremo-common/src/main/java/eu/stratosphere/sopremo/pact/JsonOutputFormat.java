@@ -18,11 +18,8 @@ package eu.stratosphere.sopremo.pact;
 import java.io.IOException;
 
 import org.codehaus.jackson.JsonEncoding;
-import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonProcessingException;
-import org.codehaus.jackson.map.ObjectMapper;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -40,6 +37,8 @@ public class JsonOutputFormat extends OutputFormat<PactNull, PactJsonObject> {
 	private JsonEncoding encoding = JsonEncoding.UTF8;
 
 	private JsonGenerator generator;
+
+	private static final String PARAMETER_ENCODING = "Encoding";
 
 	@Override
 	public void close() throws IOException {
@@ -72,7 +71,5 @@ public class JsonOutputFormat extends OutputFormat<PactNull, PactJsonObject> {
 			IOException {
 		this.generator.writeTree(pair.getValue().getValue());
 	}
-
-	private static final String PARAMETER_ENCODING = "Encoding";
 
 }

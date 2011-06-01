@@ -21,7 +21,7 @@ public class JoinTest extends SopremoTest {
 		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(join);
+		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
@@ -54,7 +54,7 @@ public class JoinTest extends SopremoTest {
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperator(0));
-		sopremoPlan.getOutputOperator(0).setInputOperators(join);
+		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
@@ -89,7 +89,7 @@ public class JoinTest extends SopremoTest {
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperator(1));
-		sopremoPlan.getOutputOperator(0).setInputOperators(join);
+		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
@@ -125,7 +125,7 @@ public class JoinTest extends SopremoTest {
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(join);
+		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
@@ -163,7 +163,7 @@ public class JoinTest extends SopremoTest {
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(join);
+		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
@@ -205,7 +205,7 @@ public class JoinTest extends SopremoTest {
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(join);
+		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
@@ -231,7 +231,7 @@ public class JoinTest extends SopremoTest {
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
 		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(join);
+		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).

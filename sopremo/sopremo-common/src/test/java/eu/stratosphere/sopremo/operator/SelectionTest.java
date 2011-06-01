@@ -21,7 +21,7 @@ public class SelectionTest extends SopremoTest {
 			30000));
 		UnaryExpression mgrFlag = new UnaryExpression(createPath("mgr"));
 		Condition condition = new Condition(Combination.OR, mgrFlag, incomeComparison);
-		sopremoPlan.getOutputOperator(0).setInputOperators(
+		sopremoPlan.getOutputOperator(0).setInputs(
 			new Selection(condition, sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).

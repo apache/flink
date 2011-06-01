@@ -1,4 +1,4 @@
-package eu.stratosphere.dag.converter;
+package eu.stratosphere.util.dag.converter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.dag.Navigator;
-import eu.stratosphere.reflect.BoundTypeUtil;
 import eu.stratosphere.util.OneElementList;
+import eu.stratosphere.util.dag.Navigator;
+import eu.stratosphere.util.reflect.BoundTypeUtil;
 
 /**
  * Converts a directly acyclic graph to another by performing recursive invocation of {@link NodeConverter}s for
@@ -46,6 +46,133 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 		this.conversionListener.add(listener);
 	}
 
+	@SuppressWarnings("unchecked")
+	private List<OutputType> convertChildren(Navigator<InputType> navigator, InputType root,
+			NodeConverterInfo<InputType, OutputType> converterInfo) {
+		List<OutputType> childTypes = new ArrayList<OutputType>();
+
+		if (converterInfo == null || !converterInfo.isStopRecursion())
+			for (InputType child : navigator.getConnectedNodes(root)) {
+				OutputType handledResult = this.convertGraph(child, navigator);
+				if (this.flattenCollection && handledResult instanceof Collection<?>)
+					childTypes.addAll((Collection<? extends OutputType>) handledResult);
+				else if (handledResult != null)
+					childTypes.add(handledResult);
+			}
+		childTypes.addAll(this.lastChildren);
+		return childTypes;
+	}
+
+	/**
+	 * Converts a graph given by the start node and the referenced nodes reachable with the {@link Navigator}.<br>
+	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
+	 * converted.<br>
+	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
+	 * child is returned instead.
+	 * 
+	 * @param startNode
+	 *        the start node
+	 * @param navigator
+	 *        the navigator
+	 * @return the converted start node
+	 */
+	public OutputType convertGraph(InputType startNode, Navigator<InputType> navigator) {
+		return this.convertGraph(navigator, startNode, new IdentityHashMap<InputType, OutputType>());
+	}
+
+	/**
+	 * Converts a graph given by the start nodes and the referenced nodes reachable with the {@link Navigator}.<br>
+	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
+	 * converted.<br>
+	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
+	 * child is returned instead.
+	 * 
+	 * @param startNodes
+	 *        the start nodes
+	 * @param navigator
+	 *        the navigator
+	 * @return the converted start nodes
+	 */
+	public List<OutputType> convertGraph(InputType[] startNodes, Navigator<InputType> navigator) {
+		return this.convertGraph(Arrays.asList(startNodes).iterator(), navigator);
+	}
+
+	/**
+	 * Converts a graph given by the start nodes and the referenced nodes reachable with the {@link Navigator}.<br>
+	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
+	 * converted.<br>
+	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
+	 * child is returned instead.
+	 * 
+	 * @param startNodes
+	 *        the start nodes
+	 * @param navigator
+	 *        the navigator
+	 * @return the converted start nodes
+	 */
+	public List<OutputType> convertGraph(Iterable<InputType> startNodes, Navigator<InputType> navigator) {
+		return this.convertGraph(startNodes.iterator(), navigator);
+	}
+
+	/**
+	 * Converts a graph given by the start nodes and the referenced nodes reachable with the {@link Navigator}.<br>
+	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
+	 * converted.<br>
+	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
+	 * child is returned instead.
+	 * 
+	 * @param startNodes
+	 *        the start nodes
+	 * @param navigator
+	 *        the navigator
+	 * @return the converted start nodes
+	 */
+	public List<OutputType> convertGraph(Iterator<InputType> startNodes, Navigator<InputType> navigator) {
+		List<OutputType> results = new ArrayList<OutputType>();
+		IdentityHashMap<InputType, OutputType> convertedNodes = new IdentityHashMap<InputType, OutputType>();
+		while (startNodes.hasNext())
+			results.add(this.convertGraph(navigator, startNodes.next(), convertedNodes));
+		return results;
+	}
+
+	@SuppressWarnings("unchecked")
+	private OutputType convertGraph(Navigator<InputType> navigator, InputType root,
+			IdentityHashMap<InputType, OutputType> convertedNodes) {
+		if (convertedNodes.containsKey(root))
+			return convertedNodes.get(root);
+
+		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(root.getClass());
+		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+			listener.beforeSubgraphConversion(root);
+		List<OutputType> childTypes = this.convertChildren(navigator, root, converterInfo);
+
+		this.lastChildren = converterInfo != null && converterInfo.shouldAppendChildren() ? childTypes.subList(
+			converterInfo.getAppendIndex(), childTypes.size()) : Collections.EMPTY_LIST;
+		OutputType convertedType = this.convertNode(root, childTypes);
+		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+			listener.afterSubgraphConversion(root, convertedType);
+		if (convertedType == null)
+			return childTypes.isEmpty() ? null : childTypes.get(0);
+		return convertedType;
+	}
+
+	@Override
+	public OutputType convertNode(InputType in, List<OutputType> children) {
+		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(in.getClass());
+		if (converterInfo == null)
+			return null;
+		try {
+			for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+				listener.beforeNodeConversion(in, children);
+			OutputType converted = converterInfo.getConverter().convertNode(in, children);
+			for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+				listener.afterNodeConversion(in, children, converted);
+			return converted;
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
 	/**
 	 * Returns the registered converter for the given node class or base classes.
 	 * 
@@ -68,131 +195,25 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 		return converterInfo;
 	}
 
-	@Override
-	public OutputType convertNode(InputType in, List<OutputType> children) {
-		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(in.getClass());
-		if (converterInfo == null)
-			return null;
-		try {
-			for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
-				listener.beforeNodeConversion(in, children);
-			OutputType converted = converterInfo.getConverter().convertNode(in, children);
-			for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
-				listener.afterNodeConversion(in, children, converted);
-			return converted;
-		} catch (Exception e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
 	/**
-	 * Converts a graph given by the start node and the referenced nodes reachable with the {@link Navigator}.<br>
-	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
-	 * converted.<br>
-	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
-	 * child is returned instead.
+	 * Registers the {@link NodeConverter} for the specified types.
 	 * 
-	 * @param startNode
-	 *        the start node
-	 * @param navigator
-	 *        the navigator
-	 * @return the converted start node
+	 * @param <BaseInputType>
+	 *        the base type for all types
+	 * @param converter
+	 *        the converter to register
+	 * @param types
+	 *        a list of all types for which
+	 * @return this
 	 */
-	public OutputType convertGraph(InputType startNode, Navigator<InputType> navigator) {
-		return convertGraph(navigator, startNode, new IdentityHashMap<InputType, OutputType>());
-	}
-
-	/**
-	 * Converts a graph given by the start nodes and the referenced nodes reachable with the {@link Navigator}.<br>
-	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
-	 * converted.<br>
-	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
-	 * child is returned instead.
-	 * 
-	 * @param startNodes
-	 *        the start nodes
-	 * @param navigator
-	 *        the navigator
-	 * @return the converted start nodes
-	 */
-	public List<OutputType> convertGraph(InputType[] startNodes, Navigator<InputType> navigator) {
-		return convertGraph(Arrays.asList(startNodes).iterator(), navigator);
-	}
-
-	/**
-	 * Converts a graph given by the start nodes and the referenced nodes reachable with the {@link Navigator}.<br>
-	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
-	 * converted.<br>
-	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
-	 * child is returned instead.
-	 * 
-	 * @param startNodes
-	 *        the start nodes
-	 * @param navigator
-	 *        the navigator
-	 * @return the converted start nodes
-	 */
-	public List<OutputType> convertGraph(Iterable<InputType> startNodes, Navigator<InputType> navigator) {
-		return convertGraph(startNodes.iterator(), navigator);
-	}
-
-	/**
-	 * Converts a graph given by the start nodes and the referenced nodes reachable with the {@link Navigator}.<br>
-	 * For each node the registered {@link NodeConverter} is applied recursively until every reachable node has been
-	 * converted.<br>
-	 * If a node without appropriate {@link NodeConverter} appears or the converter return null, the first converted
-	 * child is returned instead.
-	 * 
-	 * @param startNodes
-	 *        the start nodes
-	 * @param navigator
-	 *        the navigator
-	 * @return the converted start nodes
-	 */
-	public List<OutputType> convertGraph(Iterator<InputType> startNodes, Navigator<InputType> navigator) {
-		List<OutputType> results = new ArrayList<OutputType>();
-		IdentityHashMap<InputType, OutputType> convertedNodes = new IdentityHashMap<InputType, OutputType>();
-		while (startNodes.hasNext())
-			results.add(convertGraph(navigator, startNodes.next(), convertedNodes));
-		return results;
-	}
-
-	@SuppressWarnings("unchecked")
-	private OutputType convertGraph(Navigator<InputType> navigator, InputType root,
-			IdentityHashMap<InputType, OutputType> convertedNodes) {
-		if (convertedNodes.containsKey(root))
-			return convertedNodes.get(root);
-
-		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(root.getClass());
-		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
-			listener.beforeSubgraphConversion(root);
-		List<OutputType> childTypes = convertChildren(navigator, root, converterInfo);
-
-		this.lastChildren = converterInfo != null && converterInfo.shouldAppendChildren() ? childTypes.subList(
-			converterInfo.getAppendIndex(), childTypes.size()) : Collections.EMPTY_LIST;
-		OutputType convertedType = this.convertNode(root, childTypes);
-		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
-			listener.afterSubgraphConversion(root, convertedType);
-		if (convertedType == null)
-			return childTypes.isEmpty() ? null : childTypes.get(0);
-		return convertedType;
-	}
-
-	@SuppressWarnings("unchecked")
-	private List<OutputType> convertChildren(Navigator<InputType> navigator, InputType root,
-			NodeConverterInfo<InputType, OutputType> converterInfo) {
-		List<OutputType> childTypes = new ArrayList<OutputType>();
-
-		if (converterInfo == null || !converterInfo.isStopRecursion())
-			for (InputType child : navigator.getConnectedNodes(root)) {
-				OutputType handledResult = this.convertGraph(child, navigator);
-				if (this.flattenCollection && handledResult instanceof Collection<?>)
-					childTypes.addAll((Collection<? extends OutputType>) handledResult);
-				else if (handledResult != null)
-					childTypes.add(handledResult);
-			}
-		childTypes.addAll(this.lastChildren);
-		return childTypes;
+	public <BaseInputType extends InputType> GraphConverter<InputType, OutputType> register(
+			NodeConverter<? extends BaseInputType, ? extends OutputType> converter,
+			List<Class<? extends BaseInputType>> types) {
+		NodeConverterInfo<InputType, OutputType> converterInfo = new NodeConverterInfo<InputType, OutputType>(
+			converter);
+		for (Class<? extends InputType> type : types)
+			this.converterInfos.put(type, converterInfo);
+		return this;
 	}
 
 	/**
@@ -213,27 +234,6 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 						.getBindingOfSuperclass(converter.getClass(),
 							NodeConverter.class).getParameters()[0].getType());
 		this.register(converter, wrapList);
-		return this;
-	}
-
-	/**
-	 * Registers the {@link NodeConverter} for the specified types.
-	 * 
-	 * @param <BaseInputType>
-	 *        the base type for all types
-	 * @param converter
-	 *        the converter to register
-	 * @param types
-	 *        a list of all types for which
-	 * @return this
-	 */
-	public <BaseInputType extends InputType> GraphConverter<InputType, OutputType> register(
-			NodeConverter<? extends BaseInputType, ? extends OutputType> converter,
-			List<Class<? extends BaseInputType>> types) {
-		NodeConverterInfo<InputType, OutputType> converterInfo = new NodeConverterInfo<InputType, OutputType>(
-			converter);
-		for (Class<? extends InputType> type : types)
-			this.converterInfos.put(type, converterInfo);
 		return this;
 	}
 

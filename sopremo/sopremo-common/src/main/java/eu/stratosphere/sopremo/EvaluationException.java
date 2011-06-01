@@ -19,6 +19,16 @@ public class EvaluationException extends RuntimeException {
 	}
 
 	/**
+	 * Initializes EvaluationException with the given detail message and no cause.
+	 * 
+	 * @param message
+	 *        the detail message of this exception
+	 */
+	public EvaluationException(String message) {
+		super(message);
+	}
+
+	/**
 	 * Initializes EvaluationException with the given detail message and cause.
 	 * 
 	 * @param message
@@ -28,16 +38,6 @@ public class EvaluationException extends RuntimeException {
 	 */
 	public EvaluationException(String message, Throwable cause) {
 		super(message, cause);
-	}
-
-	/**
-	 * Initializes EvaluationException with the given detail message and no cause.
-	 * 
-	 * @param message
-	 *        the detail message of this exception
-	 */
-	public EvaluationException(String message) {
-		super(message);
 	}
 
 	/**

@@ -9,14 +9,14 @@ import com.ibm.jaql.lang.expr.core.Expr;
 import com.ibm.jaql.lang.expr.core.OrExpr;
 import com.ibm.jaql.lang.expr.path.PathExpr;
 
-import eu.stratosphere.dag.converter.NodeConverter;
-import eu.stratosphere.dag.converter.GraphConverter;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.Condition.Combination;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.util.dag.converter.GraphConverter;
+import eu.stratosphere.util.dag.converter.NodeConverter;
 
 class ConditionParser implements JaqlToSopremoParser<Condition> {
 

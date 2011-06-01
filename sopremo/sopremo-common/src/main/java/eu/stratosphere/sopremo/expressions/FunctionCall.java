@@ -20,20 +20,11 @@ public class FunctionCall extends ContainerExpression<Evaluable> {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append(this.name);
-		builder.append('(');
-		for (int index = 0; index < this.paramExprs.length; index++) {
-			builder.append(this.paramExprs[index]);
-			if (index < this.paramExprs.length - 1)
-				builder.append(", ");
-		}
-		builder.append(')');
-	}
-
-	@Override
-	public Iterator<Evaluable> iterator() {
-		return Arrays.asList(paramExprs).iterator();
+	public boolean equals(Object obj) {
+		if (obj == null || this.getClass() != obj.getClass())
+			return false;
+		return this.name.equals(((FunctionCall) obj).name)
+			&& Arrays.equals(this.paramExprs, ((FunctionCall) obj).paramExprs);
 	}
 
 	@Override
@@ -52,6 +43,11 @@ public class FunctionCall extends ContainerExpression<Evaluable> {
 		return context.getFunctionRegistry().evaluate(this.name, JsonUtil.asArray(params), context);
 	}
 
+	@Override
+	public int hashCode() {
+		return (53 + this.name.hashCode()) * 53 + Arrays.hashCode(this.paramExprs);
+	}
+
 	//
 	// @Override
 	// protected JsonNode aggregate(Iterator<JsonNode> input) {
@@ -59,16 +55,20 @@ public class FunctionCall extends ContainerExpression<Evaluable> {
 	// }
 
 	@Override
-	public int hashCode() {
-		return (53 + this.name.hashCode()) * 53 + Arrays.hashCode(this.paramExprs);
+	public Iterator<Evaluable> iterator() {
+		return Arrays.asList(this.paramExprs).iterator();
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
-			return false;
-		return this.name.equals(((FunctionCall) obj).name)
-			&& Arrays.equals(this.paramExprs, ((FunctionCall) obj).paramExprs);
+	protected void toString(StringBuilder builder) {
+		builder.append(this.name);
+		builder.append('(');
+		for (int index = 0; index < this.paramExprs.length; index++) {
+			builder.append(this.paramExprs[index]);
+			if (index < this.paramExprs.length - 1)
+				builder.append(", ");
+		}
+		builder.append(')');
 	}
 
 }

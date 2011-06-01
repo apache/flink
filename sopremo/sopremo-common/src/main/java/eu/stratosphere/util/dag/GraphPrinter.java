@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -10,7 +10,7 @@ import java.util.Formatter;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.dag.GraphLevelPartitioner.Level;
+import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
 
 /**
  * Utility class to pretty print arbitrary directed acyclic graphs. It needs a {@link Navigator} to traverse form the
@@ -80,7 +80,8 @@ public class GraphPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(Appendable appendable, Iterable<? extends Node> startNodes, Navigator<Node> navigator) throws IOException {
+	public void print(Appendable appendable, Iterable<? extends Node> startNodes, Navigator<Node> navigator)
+			throws IOException {
 		this.print(appendable, startNodes.iterator(), navigator);
 	}
 
@@ -97,7 +98,8 @@ public class GraphPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(Appendable appendable, Iterator<? extends Node> startNodes, Navigator<Node> navigator) throws IOException {
+	public void print(Appendable appendable, Iterator<? extends Node> startNodes, Navigator<Node> navigator)
+			throws IOException {
 		new PrintState(appendable, GraphLevelPartitioner.getLevels(startNodes, navigator)).printDAG();
 	}
 

@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 /**
  * Navigates through the directed acyclic graph by returning the targets of the directed edges.

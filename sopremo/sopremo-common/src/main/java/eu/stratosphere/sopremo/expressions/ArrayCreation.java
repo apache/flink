@@ -23,8 +23,10 @@ public class ArrayCreation extends ContainerExpression<Evaluable> {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append(Arrays.toString(this.elements));
+	public boolean equals(Object obj) {
+		if (obj == null || this.getClass() != obj.getClass())
+			return false;
+		return Arrays.equals(this.elements, ((ArrayCreation) obj).elements);
 	}
 
 	@Override
@@ -42,13 +44,11 @@ public class ArrayCreation extends ContainerExpression<Evaluable> {
 
 	@Override
 	public Iterator<Evaluable> iterator() {
-		return Arrays.asList(elements).iterator();
+		return Arrays.asList(this.elements).iterator();
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
-			return false;
-		return Arrays.equals(this.elements, ((ArrayCreation) obj).elements);
+	protected void toString(StringBuilder builder) {
+		builder.append(Arrays.toString(this.elements));
 	}
 }

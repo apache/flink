@@ -6,17 +6,16 @@ import java.util.List;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 public class Intersection extends SetOperator {
-	public Intersection(Operator... inputs) {
+	public Intersection(List<Operator> inputs) {
 		super(inputs);
 	}
 
-	public Intersection(List<Operator> inputs) {
+	public Intersection(Operator... inputs) {
 		super(inputs);
 	}
 

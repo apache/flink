@@ -19,7 +19,7 @@ public class DifferenceTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
 		Difference difference = new Difference(sopremoPlan.getInputOperator(0));
-		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
+		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -41,7 +41,7 @@ public class DifferenceTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
 		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 3));
-		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
+		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -66,7 +66,7 @@ public class DifferenceTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
+		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -87,7 +87,7 @@ public class DifferenceTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
+		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonArray(1, 2)).
@@ -111,7 +111,7 @@ public class DifferenceTest extends SopremoTest {
 		difference.setKeyExtractors(createPath("0", "name"),
 			new Path(new FunctionCall("concat", createPath("1", "first name"),
 				new Constant(" "), createPath("1", "last name"))));
-		sopremoPlan.getOutputOperator(0).setInputOperators(difference);
+		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).

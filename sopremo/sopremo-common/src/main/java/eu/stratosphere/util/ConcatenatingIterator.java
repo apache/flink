@@ -20,16 +20,6 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	private final Deque<Iterator<? extends T>> inputs;
 
 	/**
-	 * Initializes a type-safe ConcatenatingIterator with a list of iterators.
-	 * 
-	 * @param iterators
-	 *        the iterators to concatenate
-	 */
-	public ConcatenatingIterator(List<? extends Iterator<? extends T>> iterators) {
-		this.inputs = new LinkedList<Iterator<? extends T>>(iterators);
-	}
-
-	/**
 	 * Initializes a ConcatenatingIterator with an array of iterators. This constructor is not type-safe.
 	 * 
 	 * @param iterators
@@ -38,6 +28,16 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ConcatenatingIterator(Iterator<?>... iterators) {
 		this.inputs = new LinkedList<Iterator<? extends T>>((Collection) Arrays.asList(iterators));
+	}
+
+	/**
+	 * Initializes a type-safe ConcatenatingIterator with a list of iterators.
+	 * 
+	 * @param iterators
+	 *        the iterators to concatenate
+	 */
+	public ConcatenatingIterator(List<? extends Iterator<? extends T>> iterators) {
+		this.inputs = new LinkedList<Iterator<? extends T>>(iterators);
 	}
 
 	@Override

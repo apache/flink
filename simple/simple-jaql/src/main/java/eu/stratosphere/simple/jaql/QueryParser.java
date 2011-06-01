@@ -25,13 +25,14 @@ import com.ibm.jaql.lang.expr.path.PathExpr;
 import com.ibm.jaql.lang.expr.path.PathFieldValue;
 import com.ibm.jaql.lang.expr.path.PathReturn;
 
-import eu.stratosphere.dag.Navigator;
+import eu.stratosphere.simple.common.PlanCreator;
 import eu.stratosphere.simple.jaql.rewrite.RewriteEngine;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.PlanCreator;
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.expressions.Condition;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.util.dag.Navigator;
 
 public class QueryParser extends PlanCreator {
 
@@ -125,7 +126,7 @@ public class QueryParser extends PlanCreator {
 		// }, 30));
 		Operator operator = this.parseOperator(expr);
 
-		return new SopremoPlan(Arrays.asList(operator));
+		return new SopremoPlan(Arrays.asList((Sink) operator));
 	}
 
 	int findInputIndex(Operator input) {

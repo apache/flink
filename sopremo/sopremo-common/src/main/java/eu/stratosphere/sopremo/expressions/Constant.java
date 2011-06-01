@@ -13,27 +13,26 @@ public class Constant extends EvaluableExpression {
 		this.constant = constant;
 	}
 
-	public String asString() {
-		return this.constant.toString();
-	}
-
-	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return JsonUtil.OBJECT_MAPPER.valueToTree(this.constant);
-	}
-
 	public int asInt() {
 		if (this.constant instanceof Number)
 			return ((Number) this.constant).intValue();
 		return Integer.parseInt(this.constant.toString());
 	}
 
+	public String asString() {
+		return this.constant.toString();
+	}
+
 	@Override
-	protected void toString(StringBuilder builder) {
-		if (this.constant instanceof CharSequence)
-			builder.append("\'").append(this.constant).append("\'");
-		else
-			builder.append(this.constant);
+	public boolean equals(Object obj) {
+		if (obj == null || this.getClass() != obj.getClass())
+			return false;
+		return this.constant.equals(((Constant) obj).constant);
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		return JsonUtil.OBJECT_MAPPER.valueToTree(this.constant);
 	}
 
 	@Override
@@ -42,9 +41,10 @@ public class Constant extends EvaluableExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
-			return false;
-		return this.constant.equals(((Constant) obj).constant);
+	protected void toString(StringBuilder builder) {
+		if (this.constant instanceof CharSequence)
+			builder.append("\'").append(this.constant).append("\'");
+		else
+			builder.append(this.constant);
 	}
 }

@@ -16,13 +16,10 @@ package eu.stratosphere.sopremo.pact;
 
 import java.io.IOException;
 
-import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.JsonToken;
-import org.codehaus.jackson.map.ObjectMapper;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -76,7 +73,7 @@ public class JsonInputFormat extends InputFormat<PactNull, PactJsonObject> {
 
 		if (!this.end) {
 			pair.getValue().setValue(this.parser.readValueAsTree());
-			checkEnd();
+			this.checkEnd();
 			return true;
 		}
 
@@ -90,7 +87,7 @@ public class JsonInputFormat extends InputFormat<PactNull, PactJsonObject> {
 		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)
 			this.parser.clearCurrentToken();
-		checkEnd();
+		this.checkEnd();
 	}
 
 	@Override

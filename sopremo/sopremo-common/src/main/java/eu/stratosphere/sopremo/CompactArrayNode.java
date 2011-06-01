@@ -40,17 +40,21 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public JsonNode findValue(String fieldName) {
-		return null;
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		CompactArrayNode other = (CompactArrayNode) obj;
+		if (!Arrays.equals(this.children, other.children))
+			return false;
+		return true;
 	}
 
 	@Override
 	public ObjectNode findParent(String fieldName) {
-		return null;
-	}
-
-	@Override
-	public List<JsonNode> findValues(String fieldName, List<JsonNode> foundSoFar) {
 		return null;
 	}
 
@@ -60,27 +64,18 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public boolean isArray() {
-		return true;
+	public JsonNode findValue(String fieldName) {
+		return null;
 	}
 
-	/**
-	 * Returns the backing array of the children.
-	 * 
-	 * @return the children
-	 */
-	public JsonNode[] getChildren() {
-		return this.children;
+	@Override
+	public List<JsonNode> findValues(String fieldName, List<JsonNode> foundSoFar) {
+		return null;
 	}
 
 	@Override
 	public List<String> findValuesAsText(String fieldName, List<String> foundSoFar) {
 		return null;
-	}
-
-	@Override
-	public int size() {
-		return this.children.length;
 	}
 
 	@Override
@@ -93,9 +88,13 @@ public class CompactArrayNode extends ContainerNode {
 		return null;
 	}
 
-	@Override
-	public ContainerNode removeAll() {
-		return null;
+	/**
+	 * Returns the backing array of the children.
+	 * 
+	 * @return the children
+	 */
+	public JsonNode[] getChildren() {
+		return this.children;
 	}
 
 	@Override
@@ -113,25 +112,6 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public void serialize(JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
-	}
-
-	@Override
-	public JsonNode path(String fieldName) {
-		return null;
-	}
-
-	@Override
-	public JsonNode path(int index) {
-		return this.children[index];
-	}
-
-	@Override
-	public String toString() {
-		return Arrays.toString(this.children);
-	}
-
-	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
@@ -140,17 +120,37 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		CompactArrayNode other = (CompactArrayNode) obj;
-		if (!Arrays.equals(this.children, other.children))
-			return false;
+	public boolean isArray() {
 		return true;
+	}
+
+	@Override
+	public JsonNode path(int index) {
+		return this.children[index];
+	}
+
+	@Override
+	public JsonNode path(String fieldName) {
+		return null;
+	}
+
+	@Override
+	public ContainerNode removeAll() {
+		return null;
+	}
+
+	@Override
+	public void serialize(JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
+	}
+
+	@Override
+	public int size() {
+		return this.children.length;
+	}
+
+	@Override
+	public String toString() {
+		return Arrays.toString(this.children);
 	}
 
 }

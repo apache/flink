@@ -14,28 +14,71 @@ public class Path extends ContainerExpression<EvaluableExpression> {
 
 	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 
-	public Path(List<EvaluableExpression> fragments) {
-		for (EvaluableExpression evaluableExpression : fragments) {
-			if (evaluableExpression instanceof Path)
-				this.fragments.addAll(((Path) evaluableExpression).fragments);
-			else
-				this.fragments.add(evaluableExpression);
-		}
-	}
-
 	public Path(EvaluableExpression... fragments) {
 		this(Arrays.asList(fragments));
 	}
 
-	private Path wrapAsPath(EvaluableExpression expression) {
-		if (expression instanceof Path)
-			return (Path) expression;
-		return new Path(expression);
+	public Path(List<EvaluableExpression> fragments) {
+		for (EvaluableExpression evaluableExpression : fragments)
+			if (evaluableExpression instanceof Path)
+				this.fragments.addAll(((Path) evaluableExpression).fragments);
+			else
+				this.fragments.add(evaluableExpression);
+	}
+
+	public void add(EvaluableExpression fragment) {
+		this.fragments.add(fragment);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		Path other = (Path) obj;
+		return this.fragments.equals(other.fragments);
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		JsonNode fragmentNode = node;
+		for (Evaluable fragment : this.fragments)
+			fragmentNode = fragment.evaluate(fragmentNode, context);
+		return fragmentNode;
+	}
+
+	public int getDepth() {
+		return this.fragments.size();
+	}
+
+	public EvaluableExpression getFragment(int index) {
+		return this.fragments.get(index);
+	}
+
+	public List<EvaluableExpression> getFragments() {
+		return this.fragments;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.fragments.hashCode();
+		return result;
+	}
+
+	public boolean isPrefix(Path prefix) {
+		if (this.fragments.size() < prefix.getDepth())
+			return false;
+		return this.fragments.subList(0, prefix.getDepth()).equals(prefix.fragments);
 	}
 
 	@Override
 	public Iterator<EvaluableExpression> iterator() {
-		return fragments.iterator();
+		return this.fragments.iterator();
 	}
 
 	@Override
@@ -58,59 +101,15 @@ public class Path extends ContainerExpression<EvaluableExpression> {
 		}
 	}
 
-	public boolean isPrefix(Path prefix) {
-		if (this.fragments.size() < prefix.getDepth())
-			return false;
-		return this.fragments.subList(0, prefix.getDepth()).equals(prefix.fragments);
-	}
-
-	public int getDepth() {
-		return this.fragments.size();
-	}
-
-	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		JsonNode fragmentNode = node;
-		for (Evaluable fragment : this.fragments)
-			fragmentNode = fragment.evaluate(fragmentNode, context);
-		return fragmentNode;
-	}
-
-	public EvaluableExpression getFragment(int index) {
-		return this.fragments.get(index);
-	}
-
-	public List<EvaluableExpression> getFragments() {
-		return this.fragments;
-	}
-
-	public void add(EvaluableExpression fragment) {
-		this.fragments.add(fragment);
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + this.fragments.hashCode();
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		Path other = (Path) obj;
-		return this.fragments.equals(other.fragments);
-	}
-
 	@Override
 	protected void toString(StringBuilder builder) {
 		for (EvaluableExpression fragment : this.fragments)
 			fragment.toString(builder);
+	}
+
+	private Path wrapAsPath(EvaluableExpression expression) {
+		if (expression instanceof Path)
+			return (Path) expression;
+		return new Path(expression);
 	}
 }

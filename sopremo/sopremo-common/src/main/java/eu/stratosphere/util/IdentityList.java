@@ -21,38 +21,13 @@ public class IdentityList<E> extends AbstractList<E> {
 	private List<E> backing = new ArrayList<E>();
 
 	@Override
-	public E get(int index) {
-		return this.backing.get(index);
-	}
-
-	@Override
-	public int size() {
-		return this.backing.size();
-	}
-
-	@Override
-	public boolean isEmpty() {
-		return this.backing.isEmpty();
-	}
-
-	@Override
-	public Iterator<E> iterator() {
-		return this.backing.iterator();
-	}
-
-	@Override
-	public Object[] toArray() {
-		return this.backing.toArray();
-	}
-
-	@Override
-	public <T> T[] toArray(T[] a) {
-		return this.backing.toArray(a);
-	}
-
-	@Override
 	public boolean add(E e) {
 		return this.backing.add(e);
+	}
+
+	@Override
+	public void add(int index, E element) {
+		this.backing.add(index, element);
 	}
 
 	@Override
@@ -71,18 +46,21 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public E set(int index, E element) {
-		return this.backing.set(index, element);
+	public boolean contains(Object o) {
+		Iterator<E> e = this.iterator();
+		while (e.hasNext())
+			if (e.next() == o)
+				return true;
+		return false;
 	}
 
 	@Override
-	public void add(int index, E element) {
-		this.backing.add(index, element);
-	}
-
-	@Override
-	public E remove(int index) {
-		return this.backing.remove(index);
+	public boolean containsAll(Collection<?> c) {
+		Iterator<?> e = c.iterator();
+		while (e.hasNext())
+			if (!this.contains(e.next()))
+				return false;
+		return true;
 	}
 
 	@Override
@@ -105,47 +83,8 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public boolean remove(Object o) {
-		ListIterator<E> e = this.listIterator();
-		while (e.hasNext())
-			if (e.next() == o) {
-				e.remove();
-				return true;
-			}
-		return false;
-	}
-
-	@Override
-	public boolean removeAll(Collection<?> c) {
-		boolean modified = false;
-		for (Object object : c)
-			modified |= remove(object);
-		return modified;
-	}
-
-	@Override
-	public boolean containsAll(Collection<?> c) {
-		Iterator<?> e = c.iterator();
-		while (e.hasNext())
-			if (!contains(e.next()))
-				return false;
-		return true;
-	}
-
-	@Override
-	public boolean retainAll(Collection<?> c) {
-		boolean modified = false;
-		Iterator<E> e = iterator();
-		findUnmatchedElement: while (e.hasNext()) {
-			E element = e.next();
-			Iterator<?> otherIterator = c.iterator();
-			while (otherIterator.hasNext())
-				if (element == otherIterator.next())
-					continue findUnmatchedElement;
-			e.remove();
-			modified = true;
-		}
-		return modified;
+	public E get(int index) {
+		return this.backing.get(index);
 	}
 
 	@Override
@@ -155,6 +94,16 @@ public class IdentityList<E> extends AbstractList<E> {
 			if (e.next() == o)
 				return e.previousIndex();
 		return -1;
+	}
+
+	@Override
+	public boolean isEmpty() {
+		return this.backing.isEmpty();
+	}
+
+	@Override
+	public Iterator<E> iterator() {
+		return this.backing.iterator();
 	}
 
 	@Override
@@ -177,17 +126,68 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
+	public E remove(int index) {
+		return this.backing.remove(index);
+	}
+
+	@Override
+	public boolean remove(Object o) {
+		ListIterator<E> e = this.listIterator();
+		while (e.hasNext())
+			if (e.next() == o) {
+				e.remove();
+				return true;
+			}
+		return false;
+	}
+
+	@Override
+	public boolean removeAll(Collection<?> c) {
+		boolean modified = false;
+		for (Object object : c)
+			modified |= this.remove(object);
+		return modified;
+	}
+
+	@Override
+	public boolean retainAll(Collection<?> c) {
+		boolean modified = false;
+		Iterator<E> e = this.iterator();
+		findUnmatchedElement: while (e.hasNext()) {
+			E element = e.next();
+			Iterator<?> otherIterator = c.iterator();
+			while (otherIterator.hasNext())
+				if (element == otherIterator.next())
+					continue findUnmatchedElement;
+			e.remove();
+			modified = true;
+		}
+		return modified;
+	}
+
+	@Override
+	public E set(int index, E element) {
+		return this.backing.set(index, element);
+	}
+
+	@Override
+	public int size() {
+		return this.backing.size();
+	}
+
+	@Override
 	public List<E> subList(int fromIndex, int toIndex) {
 		return this.backing.subList(fromIndex, toIndex);
 	}
 
 	@Override
-	public boolean contains(Object o) {
-		Iterator<E> e = iterator();
-		while (e.hasNext())
-			if (e.next() == o)
-				return true;
-		return false;
+	public Object[] toArray() {
+		return this.backing.toArray();
+	}
+
+	@Override
+	public <T> T[] toArray(T[] a) {
+		return this.backing.toArray(a);
 	}
 
 }

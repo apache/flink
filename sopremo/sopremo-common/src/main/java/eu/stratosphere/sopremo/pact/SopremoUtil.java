@@ -41,11 +41,11 @@ public class SopremoUtil {
 		return extractionMap;
 	}
 
-	public static int getInputIndex(ContainerExpression<?> expr) {
-		Input fragment = expr.find(Input.class);
-		if (fragment == null)
-			return 0;
-		return fragment.getIndex();
+	public static Contract addKeyRemover(Contract input) {
+		MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> removerMap =
+			new MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject>(KeyRemover.class);
+		removerMap.setInput(input);
+		return removerMap;
 	}
 
 	// public static void setEvaluableExpression(Configuration config, String key, Evaluable transformation) {
@@ -59,19 +59,19 @@ public class SopremoUtil {
 	// return (Evaluable) stringToObject(string);
 	// }
 
-	public static Object stringToObject(String string) {
-		Object object = null;
-		try {
-			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(Base64.decodeBase64(string
-				.getBytes())));
-			object = in.readObject();
-			in.close();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
-		return object;
+	public static int getInputIndex(ContainerExpression<?> expr) {
+		Input fragment = expr.find(Input.class);
+		if (fragment == null)
+			return 0;
+		return fragment.getIndex();
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T getObject(Configuration config, String key, Class<T> objectClass) {
+		String string = config.getString(key, null);
+		if (string == null)
+			return null;
+		return (T) stringToObject(string);
 	}
 
 	public static String objectToString(Object transformation) {
@@ -91,24 +91,24 @@ public class SopremoUtil {
 		config.setString(key, objectToString(object));
 	}
 
-	@SuppressWarnings("unchecked")
-	public static <T> T getObject(Configuration config, String key, Class<T> objectClass) {
-		String string = config.getString(key, null);
-		if (string == null)
-			return null;
-		return (T) stringToObject(string);
-	}
-
 	public static void setTransformationAndContext(Configuration config, Evaluable transformation,
 			EvaluationContext context) {
 		setObject(config, "transformation", transformation);
 		setObject(config, "context", context);
 	}
 
-	public static Contract addKeyRemover(Contract input) {
-		MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> removerMap =
-			new MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject>(KeyRemover.class);
-		removerMap.setInput(input);
-		return removerMap;
+	public static Object stringToObject(String string) {
+		Object object = null;
+		try {
+			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(Base64.decodeBase64(string
+				.getBytes())));
+			object = in.readObject();
+			in.close();
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+		return object;
 	}
 }

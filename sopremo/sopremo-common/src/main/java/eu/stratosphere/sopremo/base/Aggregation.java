@@ -13,13 +13,10 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.sopremo.UnwrappingIterator;
 import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.Input;
@@ -28,20 +25,22 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.util.dag.SubGraph;
 
 public class Aggregation extends Operator {
 	public final static List<EvaluableExpression> NO_GROUPING = new ArrayList<EvaluableExpression>();
 
 	private List<? extends EvaluableExpression> groupings;
 
-	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping, JsonStream... inputs) {
+	public Aggregation(EvaluableExpression transformation, List<? extends EvaluableExpression> grouping,
+			JsonStream... inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
 			throw new NullPointerException();
 		this.groupings = grouping;
 	}
 
-	public Aggregation(Evaluable transformation, List<? extends EvaluableExpression> grouping,
+	public Aggregation(EvaluableExpression transformation, List<? extends EvaluableExpression> grouping,
 			List<? extends JsonStream> inputs) {
 		super(transformation, inputs);
 		if (grouping == null)
@@ -49,27 +48,13 @@ public class Aggregation extends Operator {
 		this.groupings = grouping;
 	}
 
-	public static class OneSourceAggregationStub extends
-			SopremoReduce<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> {
-		@Override
-		public void reduce(PactJsonObject.Key key, final Iterator<PactJsonObject> values,
-				Collector<Key, PactJsonObject> out) {
-			JsonNode result = this.getTransformation().evaluate(new StreamArrayNode(new UnwrappingIterator(values)),
-				this.getContext());
-			out.collect(PactNull.getInstance(), new PactJsonObject(result));
-		}
-	}
-
-	public static class TwoSourceAggregationStub extends
-			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
-		@Override
-		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<Key, PactJsonObject> out) {
-			JsonNode result = this.getTransformation().evaluate(JsonUtil.asArray(
-				new StreamArrayNode(new UnwrappingIterator(values1)),
-				new StreamArrayNode(new UnwrappingIterator(values2))), this.getContext());
-			out.collect(PactNull.getInstance(), new PactJsonObject(result));
-		}
+	private void addSingleSourceAggregation(EvaluationContext context, PactModule module, List<Contract> keyExtractors) {
+		ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> aggregationReduce = new ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
+			OneSourceAggregationStub.class);
+		module.getOutput(0).setInput(aggregationReduce);
+		aggregationReduce.setInput(keyExtractors.get(0));
+		SopremoUtil.setTransformationAndContext(aggregationReduce.getStubParameters(), this.getTransformation(),
+			context);
 	}
 
 	@Override
@@ -85,11 +70,11 @@ public class Aggregation extends Operator {
 		switch (this.groupings.size()) {
 		case 0:
 			keyExtractors.add(SopremoUtil.addKeyExtraction(module, new Path(new Input(0), new Constant(1L)), context));
-			addSingleSourceAggregation(context, module, keyExtractors);
+			this.addSingleSourceAggregation(context, module, keyExtractors);
 			break;
 
 		case 1:
-			addSingleSourceAggregation(context, module, keyExtractors);
+			this.addSingleSourceAggregation(context, module, keyExtractors);
 			break;
 
 		default:
@@ -98,39 +83,12 @@ public class Aggregation extends Operator {
 			module.getOutput(0).setInput(aggregationCoGroup);
 			aggregationCoGroup.setFirstInput(keyExtractors.get(0));
 			aggregationCoGroup.setSecondInput(keyExtractors.get(1));
-			SopremoUtil.setTransformationAndContext(aggregationCoGroup.getStubParameters(), this.getEvaluableExpression(),
+			SopremoUtil.setTransformationAndContext(aggregationCoGroup.getStubParameters(), this.getTransformation(),
 				context);
 			break;
 		}
 
 		return module;
-	}
-
-	private void addSingleSourceAggregation(EvaluationContext context, PactModule module, List<Contract> keyExtractors) {
-		ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> aggregationReduce = new ReduceContract<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
-			OneSourceAggregationStub.class);
-		module.getOutput(0).setInput(aggregationReduce);
-		aggregationReduce.setInput(keyExtractors.get(0));
-		SopremoUtil.setTransformationAndContext(aggregationReduce.getStubParameters(), this.getEvaluableExpression(),
-			context);
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder(this.getName());
-		if (this.groupings != null)
-			builder.append(" on ").append(this.groupings);
-		if (this.getEvaluableExpression() != EvaluableExpression.IDENTITY)
-			builder.append(" to ").append(this.getEvaluableExpression());
-		return builder.toString();
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 67;
-		int result = super.hashCode();
-		result = prime * result + this.groupings.hashCode();
-		return result;
 	}
 
 	@Override
@@ -149,6 +107,45 @@ public class Aggregation extends Operator {
 			if (!this.groupings.get(index).equals(other.groupings.get(index)))
 				return false;
 		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 67;
+		int result = super.hashCode();
+		result = prime * result + this.groupings.hashCode();
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(this.getName());
+		if (this.groupings != null)
+			builder.append(" on ").append(this.groupings);
+		if (this.getTransformation() != EvaluableExpression.IDENTITY)
+			builder.append(" to ").append(this.getTransformation());
+		return builder.toString();
+	}
+
+	public static class OneSourceAggregationStub extends
+			SopremoReduce<PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> {
+		@Override
+		public void reduce(PactJsonObject.Key key, final Iterator<PactJsonObject> values,
+				Collector<Key, PactJsonObject> out) {
+			JsonNode result = this.getTransformation().evaluate(JsonUtil.wrapWithNode(values), this.getContext());
+			out.collect(PactNull.getInstance(), new PactJsonObject(result));
+		}
+	}
+
+	public static class TwoSourceAggregationStub extends
+			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+		@Override
+		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
+				Collector<Key, PactJsonObject> out) {
+			JsonNode result = this.getTransformation().evaluate(JsonUtil.wrapWithNode(values1, values2),
+				this.getContext());
+			out.collect(PactNull.getInstance(), new PactJsonObject(result));
+		}
 	}
 
 }

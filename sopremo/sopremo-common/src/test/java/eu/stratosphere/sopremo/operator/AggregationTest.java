@@ -23,7 +23,7 @@ public class AggregationTest extends SopremoTest {
 		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
 		transformation.addMapping("emps", createPath("0", "[*]", "id"));
 		transformation.addMapping("numEmps", new FunctionCall("count", createPath("0", "dept")));
-		sopremoPlan.getOutputOperator(0).setInputOperators(
+		sopremoPlan.getOutputOperator(0).setInputs(
 			new Aggregation(transformation, Arrays.asList(createPath("0", "dept"), createPath("1", "did")), sopremoPlan
 				.getInputOperators(0, 2)));
 
@@ -57,7 +57,7 @@ public class AggregationTest extends SopremoTest {
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("d", createPath("dept", "[0]"));
 		transformation.addMapping("total", new FunctionCall("sum", createPath("[*]", "income")));
-		sopremoPlan.getOutputOperator(0).setInputOperators(
+		sopremoPlan.getOutputOperator(0).setInputs(
 			new Aggregation(transformation, Arrays.asList(createPath("dept")), sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
@@ -80,7 +80,7 @@ public class AggregationTest extends SopremoTest {
 	public void shouldPerformSimpleGroupBy() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		sopremoPlan.getOutputOperator(0).setInputOperators(
+		sopremoPlan.getOutputOperator(0).setInputs(
 			new Aggregation(new FunctionCall("count", EvaluableExpression.IDENTITY), Aggregation.NO_GROUPING,
 				sopremoPlan
 					.getInputOperator(0)));

@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 /**
  * Callback for nodes found with an {@link GraphTraverser}.

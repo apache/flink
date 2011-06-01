@@ -21,9 +21,6 @@ import com.ibm.jaql.lang.expr.io.AbstractHandleFn;
 import com.ibm.jaql.lang.expr.io.ReadFn;
 import com.ibm.jaql.lang.expr.io.WriteFn;
 
-import eu.stratosphere.dag.converter.GraphConversionListener;
-import eu.stratosphere.dag.converter.GraphConverter;
-import eu.stratosphere.dag.converter.NodeConverter;
 import eu.stratosphere.simple.jaql.QueryParser.Binding;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.base.Aggregation;
@@ -43,6 +40,9 @@ import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.Input;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.util.dag.converter.GraphConversionListener;
+import eu.stratosphere.util.dag.converter.GraphConverter;
+import eu.stratosphere.util.dag.converter.NodeConverter;
 
 class OperatorParser implements JaqlToSopremoParser<Operator> {
 	private final class BindingScoper implements GraphConversionListener<Expr, Operator> {
@@ -165,8 +165,8 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 		}
 
 		private Operator withoutNameBinding(Operator operator, int inputIndex) {
-			if (operator instanceof Projection && operator.getEvaluableExpression() instanceof ObjectCreation) {
-				ObjectCreation objectCreation = (ObjectCreation) operator.getEvaluableExpression();
+			if (operator instanceof Projection && operator.getTransformation() instanceof ObjectCreation) {
+				ObjectCreation objectCreation = (ObjectCreation) operator.getTransformation();
 				if (objectCreation.getMappingSize() == 1
 					&& objectCreation.getMapping(0).getExpression() instanceof Input) {
 					Operator coreInput = operator.getInputOperators().get(

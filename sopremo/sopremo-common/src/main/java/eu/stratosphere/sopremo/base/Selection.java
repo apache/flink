@@ -23,6 +23,18 @@ public class Selection extends ConditionalOperator {
 		super(EvaluableExpression.IDENTITY, condition, input);
 	}
 
+	@Override
+	public PactModule asPactModule(EvaluationContext context) {
+		PactModule module = new PactModule(1, 1);
+		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> selectionMap = new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(
+			SelectionStub.class);
+		module.getOutput(0).setInput(selectionMap);
+		selectionMap.setInput(module.getInput(0));
+		SopremoUtil.setObject(selectionMap.getStubParameters(), "condition", this.getCondition());
+		SopremoUtil.setTransformationAndContext(selectionMap.getStubParameters(), null, context);
+		return module;
+	}
+
 	public static class SelectionStub extends SopremoMap<PactNull, PactJsonObject, Key, PactJsonObject> {
 		private Condition condition;
 
@@ -38,17 +50,5 @@ public class Selection extends ConditionalOperator {
 				out.collect(key, value);
 		}
 
-	}
-
-	@Override
-	public PactModule asPactModule(EvaluationContext context) {
-		PactModule module = new PactModule(1, 1);
-		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> selectionMap = new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(
-			SelectionStub.class);
-		module.getOutput(0).setInput(selectionMap);
-		selectionMap.setInput(module.getInput(0));
-		SopremoUtil.setObject(selectionMap.getStubParameters(), "condition", this.getCondition());
-		SopremoUtil.setTransformationAndContext(selectionMap.getStubParameters(), null, context);
-		return module;
 	}
 }

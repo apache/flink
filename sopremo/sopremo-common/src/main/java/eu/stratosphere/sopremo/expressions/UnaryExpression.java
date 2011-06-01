@@ -11,20 +11,25 @@ public class UnaryExpression extends BooleanExpression {
 
 	private boolean negate = false;
 
+	public UnaryExpression(Evaluable booleanExpr) {
+		this(booleanExpr, false);
+	}
+
 	public UnaryExpression(Evaluable expr1, boolean negate) {
 		this.expr1 = expr1;
 		this.negate = negate;
 	}
 
-	public UnaryExpression(Evaluable booleanExpr) {
-		this(booleanExpr, false);
-	}
-
 	@Override
-	protected void toString(StringBuilder builder) {
-		if (this.negate)
-			builder.append("!");
-		builder.append(this.expr1);
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		UnaryExpression other = (UnaryExpression) obj;
+		return this.expr1.equals(other.expr1) && this.negate == other.negate;
 	}
 
 	@Override
@@ -44,15 +49,10 @@ public class UnaryExpression extends BooleanExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		UnaryExpression other = (UnaryExpression) obj;
-		return this.expr1.equals(other.expr1) && this.negate == other.negate;
+	protected void toString(StringBuilder builder) {
+		if (this.negate)
+			builder.append("!");
+		builder.append(this.expr1);
 	}
 
 }

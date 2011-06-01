@@ -10,6 +10,7 @@ import com.ibm.jaql.lang.expr.core.Expr;
 
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
@@ -23,10 +24,10 @@ import eu.stratosphere.sopremo.expressions.Path;
 public class ParserTestCase {
 
 	public static void assertParseResult(Operator expected, String jaqlScript) {
-		assertParseResult(new SopremoPlan(expected), jaqlScript);
+		assertParseResult(SopremoModule.valueOf(expected), jaqlScript);
 	}
 
-	public static void assertParseResult(Evaluable expected, String jaqlScript) {
+	public static void assertParseResult(Path expected, String jaqlScript) {
 		QueryParser jaqlPlanCreator = new QueryParser();
 		Expr parsedScript = jaqlPlanCreator.parseScript(new ByteArrayInputStream(jaqlScript.getBytes()));
 
@@ -34,7 +35,7 @@ public class ParserTestCase {
 		Assert.assertEquals(expected, parsedPath);
 	}
 
-	public static void assertParseResult(SopremoPlan expected, String jaqlScript) {
+	public static void assertParseResult(SopremoModule expected, String jaqlScript) {
 		SopremoPlan parsedPlan;
 		try {
 			parsedPlan = new QueryParser().getPlan(new ByteArrayInputStream(jaqlScript.getBytes()));
@@ -46,21 +47,31 @@ public class ParserTestCase {
 		if (parsedPlan == null && expected != null)
 			Assert.fail("empty plan unexpected");
 
-		List<Operator> expectedNodes = expected.getAllNodes();
-		List<Operator> actualNodes = parsedPlan.getAllNodes();
+		List<Operator> expectedNodes = toList(expected.getReachableNodes());
+		List<Operator> actualNodes = toList(parsedPlan.getReachableNodes());
 		if (expectedNodes.size() != actualNodes.size())
 			Assert.fail(String.format("%d nodes expected instead of %d", expectedNodes.size(), actualNodes.size()));
 
 		for (int index = 0; index < expectedNodes.size(); index++) {
 			if (!expectedNodes.get(index).equals(actualNodes.get(index))) {
-				if (!expectedNodes.get(index).getEvaluableExpression().equals(actualNodes.get(index).getEvaluableExpression()))
+				if (!expectedNodes.get(index).getTransformation().equals(actualNodes.get(index).getTransformation()))
 					Assert.fail(String.format("transformation of %d. node differs: %s expected instead of %s", index,
-						expectedNodes.get(index).getEvaluableExpression(), actualNodes.get(index).getEvaluableExpression()));
+						expectedNodes.get(index).getTransformation(), actualNodes.get(index).getTransformation()));
 				else
 					Assert.fail(String.format("%d. node differs: %s expected instead of %s", index,
 						expectedNodes.get(index), actualNodes.get(index)));
 			}
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<Operator> toList(Iterable<? extends Operator> reachableNodes) {
+		if(reachableNodes instanceof List)
+			return (List<Operator>) reachableNodes;
+		ArrayList<Operator> operatorList = new ArrayList<Operator>();
+		for (Operator operator : reachableNodes) 
+			operatorList.add(operator);
+		return operatorList;
 	}
 
 	// TODO: elimate duplicate doe -> SopremoTest

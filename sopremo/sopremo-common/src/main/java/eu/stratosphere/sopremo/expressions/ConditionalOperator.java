@@ -3,42 +3,21 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.List;
 
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.Operator;
 
 public abstract class ConditionalOperator extends Operator {
 
 	private Condition condition;
 
-	public ConditionalOperator(Evaluable transformation, Condition condition, List<? extends JsonStream> inputs) {
+	public ConditionalOperator(EvaluableExpression transformation, Condition condition, JsonStream... inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
 	}
 
-	public ConditionalOperator(Evaluable transformation, Condition condition, JsonStream... inputs) {
+	public ConditionalOperator(EvaluableExpression transformation, Condition condition,
+			List<? extends JsonStream> inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
-	}
-
-	public Condition getCondition() {
-		return this.condition;
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder(this.getName());
-		builder.append(" on ").append(this.condition);
-		if (this.getEvaluableExpression() != EvaluableExpression.IDENTITY)
-			builder.append(" to ").append(this.getEvaluableExpression());
-		return builder.toString();
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 37;
-		int result = super.hashCode();
-		result = prime * result + this.condition.hashCode();
-		return result;
 	}
 
 	@Override
@@ -50,6 +29,27 @@ public abstract class ConditionalOperator extends Operator {
 		if (this.getClass() != obj.getClass())
 			return false;
 		return super.equals(obj) && this.condition.equals(((ConditionalOperator) obj).condition);
+	}
+
+	public Condition getCondition() {
+		return this.condition;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 37;
+		int result = super.hashCode();
+		result = prime * result + this.condition.hashCode();
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(this.getName());
+		builder.append(" on ").append(this.condition);
+		if (this.getTransformation() != EvaluableExpression.IDENTITY)
+			builder.append(" to ").append(this.getTransformation());
+		return builder.toString();
 	}
 
 }

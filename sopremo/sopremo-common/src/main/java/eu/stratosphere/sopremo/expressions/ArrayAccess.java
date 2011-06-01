@@ -10,25 +10,24 @@ public class ArrayAccess extends EvaluableExpression {
 
 	private int startIndex, endIndex;
 
-	public ArrayAccess(int startIndex, int endIndex) {
-		this.startIndex = startIndex;
-		this.endIndex = endIndex;
+	public ArrayAccess() {
+		this(0, -1);
 	}
 
 	public ArrayAccess(int index) {
 		this(index, index);
 	}
 
-	public ArrayAccess() {
-		this(0, -1);
+	public ArrayAccess(int startIndex, int endIndex) {
+		this.startIndex = startIndex;
+		this.endIndex = endIndex;
 	}
 
-	public boolean isSelectingAll() {
-		return this.startIndex == 0 && this.endIndex == -1;
-	}
-
-	public boolean isSelectingRange() {
-		return this.startIndex != this.endIndex;
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == null || this.getClass() != obj.getClass())
+			return false;
+		return this.startIndex == ((ArrayAccess) obj).startIndex && this.endIndex == ((ArrayAccess) obj).endIndex;
 	}
 
 	@Override
@@ -45,6 +44,19 @@ public class ArrayAccess extends EvaluableExpression {
 	}
 
 	@Override
+	public int hashCode() {
+		return (47 + this.startIndex) * 47 + this.endIndex;
+	}
+
+	public boolean isSelectingAll() {
+		return this.startIndex == 0 && this.endIndex == -1;
+	}
+
+	public boolean isSelectingRange() {
+		return this.startIndex != this.endIndex;
+	}
+
+	@Override
 	protected void toString(StringBuilder builder) {
 		builder.append('[');
 		if (this.isSelectingAll())
@@ -57,17 +69,5 @@ public class ArrayAccess extends EvaluableExpression {
 			}
 		}
 		builder.append(']');
-	}
-
-	@Override
-	public int hashCode() {
-		return (47 + this.startIndex) * 47 + this.endIndex;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
-			return false;
-		return this.startIndex == ((ArrayAccess) obj).startIndex && this.endIndex == ((ArrayAccess) obj).endIndex;
 	}
 }

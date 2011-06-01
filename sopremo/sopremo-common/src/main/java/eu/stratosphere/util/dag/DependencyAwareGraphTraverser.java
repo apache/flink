@@ -1,9 +1,9 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.dag.GraphLevelPartitioner.Level;
+import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
 
 /**
  * Traverses a directed acyclic graph guaranteeing that all nodes with outgoing edges to a nodes are visited before that
@@ -16,9 +16,10 @@ public class DependencyAwareGraphTraverser extends AbstractGraphTraverser implem
 	 * The default instance of the {@link DependencyAwareGraphTraverser}.
 	 */
 	public final static DependencyAwareGraphTraverser INSTANCE = new DependencyAwareGraphTraverser();
-	
+
 	@Override
-	public <Node> void traverse(Iterator<Node> startNodes, Navigator<Node> navigator, GraphTraverseListener<Node> listener) {
+	public <Node> void traverse(Iterator<? extends Node> startNodes, Navigator<Node> navigator,
+			GraphTraverseListener<Node> listener) {
 		List<Level<Node>> levels = GraphLevelPartitioner.getLevels(startNodes, navigator);
 		for (Level<Node> level : levels)
 			for (Node node : level.getLevelNodes())

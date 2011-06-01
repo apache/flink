@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -109,7 +109,7 @@ public class GraphLevelPartitioner {
 	}
 
 	private static <Node> boolean isIndependent(Node node, Collection<Node> usedNodes, Navigator<Node> navigator) {
-		for (Object input : navigator.getConnectedNodes(node)) 
+		for (Object input : navigator.getConnectedNodes(node))
 			if (!usedNodes.contains(input))
 				return false;
 		return true;
@@ -141,6 +141,32 @@ public class GraphLevelPartitioner {
 		}
 
 		/**
+		 * Adds a node to this level at a specific index.
+		 * 
+		 * @param index
+		 *        the index of the node after successful insertion
+		 * @param node
+		 *        the node to add
+		 * @throws IndexOutOfBoundsException
+		 *         if the index is out of bounds
+		 */
+		public void add(int index, Node node) {
+			this.levelNodes.add(index, node);
+			this.outgoings.put(node, new ArrayList<Object>());
+		}
+
+		/**
+		 * Adds a node to this level
+		 * 
+		 * @param node
+		 *        the node to add
+		 */
+		public void add(Node node) {
+			this.levelNodes.add(node);
+			this.outgoings.put(node, new ArrayList<Object>());
+		}
+
+		/**
 		 * Returns all nodes of this level.
 		 * 
 		 * @return all nodes in this level
@@ -163,32 +189,6 @@ public class GraphLevelPartitioner {
 		@Override
 		public String toString() {
 			return this.levelNodes.toString();
-		}
-
-		/**
-		 * Adds a node to this level
-		 * 
-		 * @param node
-		 *        the node to add
-		 */
-		public void add(Node node) {
-			this.levelNodes.add(node);
-			this.outgoings.put(node, new ArrayList<Object>());
-		}
-
-		/**
-		 * Adds a node to this level at a specific index.
-		 * 
-		 * @param index
-		 *        the index of the node after successful insertion
-		 * @param node
-		 *        the node to add
-		 * @throws IndexOutOfBoundsException
-		 *         if the index is out of bounds
-		 */
-		public void add(int index, Node node) {
-			this.levelNodes.add(index, node);
-			this.outgoings.put(node, new ArrayList<Object>());
 		}
 
 		/**

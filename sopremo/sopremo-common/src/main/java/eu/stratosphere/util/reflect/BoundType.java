@@ -1,4 +1,4 @@
-package eu.stratosphere.reflect;
+package eu.stratosphere.util.reflect;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
@@ -10,66 +10,6 @@ import java.util.Arrays;
  * @author Arvid.Heise
  */
 public class BoundType {
-	/**
-	 * Wraps an array of {@link Class} to an array of {@link BoundType}s without parameters.
-	 * 
-	 * @param rawTypes
-	 *        the classes to wrap
-	 * @return an array containing a {@link BoundType} for each raw type
-	 */
-	public static BoundType[] arrayOf(Class<?>... rawTypes) {
-		final BoundType[] types = new BoundType[rawTypes.length];
-		for (int index = 0; index < types.length; index++)
-			types[index] = BoundType.of(rawTypes[index]);
-		return types;
-	}
-
-	/**
-	 * Creates a {@link BoundType} around the given raw type with additional type parameters.
-	 * 
-	 * @param rawType
-	 *        the class to wrap
-	 * @param parameters
-	 *        the type parameters
-	 * @return a {@link BoundType} representing the raw type and its parameters
-	 */
-	public static BoundType of(Class<?> rawType, BoundType... parameters) {
-		final BoundType boundedType = new BoundType(rawType);
-		boundedType.parameters = parameters;
-		return boundedType;
-	}
-
-	/**
-	 * Creates a {@link BoundType} around the given raw type with additional type parameters.
-	 * 
-	 * @param rawType
-	 *        the classes to wrap
-	 * @param subType1
-	 *        the first type parameter
-	 * @param otherTypes
-	 *        additional type parameters
-	 * @return a {@link BoundType} representing the raw type and its parameters
-	 */
-	public static BoundType of(Class<?> rawType, Class<?> subType1, Class<?>... otherTypes) {
-		final BoundType boundedType = new BoundType(rawType);
-		boundedType.parameters = new BoundType[1 + otherTypes.length];
-		boundedType.parameters[0] = BoundType.of(subType1);
-		for (int index = 1; index < boundedType.parameters.length; index++)
-			boundedType.parameters[index] = BoundType.of(otherTypes[index - 1]);
-		return boundedType;
-	}
-
-	/**
-	 * Creates a {@link BoundType} for the given {@link ParameterizedType}.
-	 * 
-	 * @param type
-	 *        the type to wrap
-	 * @return a recursively resolved type
-	 */
-	public static BoundType of(ParameterizedType type) {
-		return new BoundType(type);
-	}
-
 	private BoundType[] parameters;
 
 	private final Class<?> rawType;
@@ -162,6 +102,66 @@ public class BoundType {
 			builder.append(">");
 		}
 		return builder.toString();
+	}
+
+	/**
+	 * Wraps an array of {@link Class} to an array of {@link BoundType}s without parameters.
+	 * 
+	 * @param rawTypes
+	 *        the classes to wrap
+	 * @return an array containing a {@link BoundType} for each raw type
+	 */
+	public static BoundType[] arrayOf(Class<?>... rawTypes) {
+		final BoundType[] types = new BoundType[rawTypes.length];
+		for (int index = 0; index < types.length; index++)
+			types[index] = BoundType.of(rawTypes[index]);
+		return types;
+	}
+
+	/**
+	 * Creates a {@link BoundType} around the given raw type with additional type parameters.
+	 * 
+	 * @param rawType
+	 *        the class to wrap
+	 * @param parameters
+	 *        the type parameters
+	 * @return a {@link BoundType} representing the raw type and its parameters
+	 */
+	public static BoundType of(Class<?> rawType, BoundType... parameters) {
+		final BoundType boundedType = new BoundType(rawType);
+		boundedType.parameters = parameters;
+		return boundedType;
+	}
+
+	/**
+	 * Creates a {@link BoundType} around the given raw type with additional type parameters.
+	 * 
+	 * @param rawType
+	 *        the classes to wrap
+	 * @param subType1
+	 *        the first type parameter
+	 * @param otherTypes
+	 *        additional type parameters
+	 * @return a {@link BoundType} representing the raw type and its parameters
+	 */
+	public static BoundType of(Class<?> rawType, Class<?> subType1, Class<?>... otherTypes) {
+		final BoundType boundedType = new BoundType(rawType);
+		boundedType.parameters = new BoundType[1 + otherTypes.length];
+		boundedType.parameters[0] = BoundType.of(subType1);
+		for (int index = 1; index < boundedType.parameters.length; index++)
+			boundedType.parameters[index] = BoundType.of(otherTypes[index - 1]);
+		return boundedType;
+	}
+
+	/**
+	 * Creates a {@link BoundType} for the given {@link ParameterizedType}.
+	 * 
+	 * @param type
+	 *        the type to wrap
+	 * @return a recursively resolved type
+	 */
+	public static BoundType of(ParameterizedType type) {
+		return new BoundType(type);
 	}
 
 }

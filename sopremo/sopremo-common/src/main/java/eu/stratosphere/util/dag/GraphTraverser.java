@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 import java.util.Iterator;
 
@@ -22,7 +22,7 @@ public interface GraphTraverser {
 	 * @param <Node>
 	 *        the class of the nodes
 	 */
-	public abstract <Node> void traverse(Iterator<Node> startNodes, Navigator<Node> navigator,
+	public abstract <Node> void traverse(Iterator<? extends Node> startNodes, Navigator<Node> navigator,
 			GraphTraverseListener<Node> listener);
 
 }

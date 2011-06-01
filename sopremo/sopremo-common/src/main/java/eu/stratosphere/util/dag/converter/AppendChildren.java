@@ -1,4 +1,4 @@
-package eu.stratosphere.dag.converter;
+package eu.stratosphere.util.dag.converter;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

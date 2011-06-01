@@ -13,13 +13,10 @@ public class IdentifierAccess extends EvaluableExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append(this.identifier);
-	}
-
-	@Override
-	public int hashCode() {
-		return 31 + this.identifier.hashCode();
+	public boolean equals(Object obj) {
+		if (obj == null || this.getClass() != obj.getClass())
+			return false;
+		return this.identifier.equals(((IdentifierAccess) obj).identifier);
 	}
 
 	@Override
@@ -28,10 +25,13 @@ public class IdentifierAccess extends EvaluableExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
-			return false;
-		return this.identifier.equals(((IdentifierAccess) obj).identifier);
+	public int hashCode() {
+		return 31 + this.identifier.hashCode();
+	}
+
+	@Override
+	protected void toString(StringBuilder builder) {
+		builder.append(this.identifier);
 	}
 
 }

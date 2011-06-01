@@ -19,7 +19,7 @@ public class IntersectionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
 		Intersection intersection = new Intersection(sopremoPlan.getInputOperator(0));
-		sopremoPlan.getOutputOperator(0).setInputOperators(intersection);
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -41,7 +41,7 @@ public class IntersectionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
 		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 3));
-		sopremoPlan.getOutputOperator(0).setInputOperators(intersection);
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -66,7 +66,7 @@ public class IntersectionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(intersection);
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -88,7 +88,7 @@ public class IntersectionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(intersection);
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
 			add(createJsonArray(1, 2)).
@@ -113,7 +113,7 @@ public class IntersectionTest extends SopremoTest {
 		intersection.setKeyExtractors(createPath("0", "name"),
 			new Path(new FunctionCall("concat", createPath("1", "first name"),
 				new Constant(" "), createPath("1", "last name"))));
-		sopremoPlan.getOutputOperator(0).setInputOperators(intersection);
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
 			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).

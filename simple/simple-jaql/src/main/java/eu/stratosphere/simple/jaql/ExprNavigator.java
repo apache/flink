@@ -5,7 +5,7 @@ import java.util.List;
 
 import com.ibm.jaql.lang.expr.core.Expr;
 
-import eu.stratosphere.dag.Navigator;
+import eu.stratosphere.util.dag.Navigator;
 
 final class ExprNavigator implements Navigator<Expr> {
 

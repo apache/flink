@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 import java.util.ArrayList;
 import java.util.Arrays;

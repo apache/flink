@@ -13,7 +13,7 @@ public class BagUnionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
 		BagUnion union = new BagUnion(sopremoPlan.getInputOperators(0, 1));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -30,7 +30,7 @@ public class BagUnionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		BagUnion union = new BagUnion(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -54,7 +54,7 @@ public class BagUnionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
 		BagUnion union = new BagUnion(sopremoPlan.getInputOperators(0, 3));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).
@@ -85,7 +85,7 @@ public class BagUnionTest extends SopremoTest {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		BagUnion union = new BagUnion(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputOperators(union);
+		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
 			add(createJsonValue(1)).

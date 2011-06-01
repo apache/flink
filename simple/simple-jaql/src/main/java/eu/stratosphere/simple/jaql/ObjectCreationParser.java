@@ -10,13 +10,13 @@ import com.ibm.jaql.lang.expr.core.NameValueBinding;
 import com.ibm.jaql.lang.expr.core.RecordExpr;
 import com.ibm.jaql.lang.expr.core.TransformExpr;
 
-import eu.stratosphere.dag.converter.NodeConverter;
-import eu.stratosphere.dag.converter.GraphConverter;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
 import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.util.dag.converter.GraphConverter;
+import eu.stratosphere.util.dag.converter.NodeConverter;
 
 class ObjectCreationParser implements JaqlToSopremoParser<EvaluableExpression> {
 

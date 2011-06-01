@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 /**
  * May provide an alternative implementation of the {@link Object#toString()}.

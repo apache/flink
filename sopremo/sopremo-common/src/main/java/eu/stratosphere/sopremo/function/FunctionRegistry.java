@@ -7,7 +7,6 @@ import java.util.Map;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 
@@ -15,10 +14,6 @@ public class FunctionRegistry implements SerializableSopremoType {
 	private Map<String, Function> registeredFunctions = new HashMap<String, Function>();
 
 	public FunctionRegistry() {
-	}
-
-	public void register(Function function) {
-		this.registeredFunctions.put(function.getName(), function);
 	}
 
 	public JsonNode evaluate(String functionName, JsonNode node, EvaluationContext context) {
@@ -31,25 +26,6 @@ public class FunctionRegistry implements SerializableSopremoType {
 
 	Map<String, Function> getRegisteredFunctions() {
 		return this.registeredFunctions;
-	}
-
-	public void register(Class<?> javaFunctions) {
-		for (Method method : javaFunctions.getDeclaredMethods())
-			if ((method.getModifiers() & Modifier.STATIC) != 0
-				&& JsonNode.class.isAssignableFrom(method.getReturnType())) {
-				Class<?>[] parameterTypes = method.getParameterTypes();
-				if(!isCompatibleSignature(method, parameterTypes))
-					continue;
-				Function javaFunction = this.registeredFunctions.get(method.getName());
-				if (javaFunction == null)
-					this.registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
-				else if (!(javaFunction instanceof JavaFunction))
-					throw new IllegalArgumentException(String.format(
-						"a function with the name %s is already registered and not a java function: %s",
-						method.getName(), javaFunction));
-
-				((JavaFunction) javaFunction).addSignature(method);
-			}
 	}
 
 	private boolean isCompatibleSignature(Method method, Class<?>[] parameterTypes) {
@@ -68,5 +44,28 @@ public class FunctionRegistry implements SerializableSopremoType {
 				}
 		}
 		return compatibleSignature;
+	}
+
+	public void register(Class<?> javaFunctions) {
+		for (Method method : javaFunctions.getDeclaredMethods())
+			if ((method.getModifiers() & Modifier.STATIC) != 0
+				&& JsonNode.class.isAssignableFrom(method.getReturnType())) {
+				Class<?>[] parameterTypes = method.getParameterTypes();
+				if (!this.isCompatibleSignature(method, parameterTypes))
+					continue;
+				Function javaFunction = this.registeredFunctions.get(method.getName());
+				if (javaFunction == null)
+					this.registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
+				else if (!(javaFunction instanceof JavaFunction))
+					throw new IllegalArgumentException(String.format(
+						"a function with the name %s is already registered and not a java function: %s",
+						method.getName(), javaFunction));
+
+				((JavaFunction) javaFunction).addSignature(method);
+			}
+	}
+
+	public void register(Function function) {
+		this.registeredFunctions.put(function.getName(), function);
 	}
 }

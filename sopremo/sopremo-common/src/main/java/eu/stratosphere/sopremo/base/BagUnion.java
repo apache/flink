@@ -16,25 +16,12 @@ import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class BagUnion extends Operator {
-	public BagUnion(Operator... inputs) {
-		super(EvaluableExpression.IDENTITY, inputs);
-	}
-
 	public BagUnion(List<Operator> inputs) {
 		super(EvaluableExpression.IDENTITY, inputs);
 	}
 
-	// TODO: replace with efficient union operator
-	public static class TwoInputUnion extends
-			SopremoCoGroup<PactNull, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
-		@Override
-		public void coGroup(PactNull key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<PactNull, PactJsonObject> out) {
-			while (values1.hasNext())
-				out.collect(key, values1.next());
-			while (values2.hasNext())
-				out.collect(key, values2.next());
-		}
+	public BagUnion(Operator... inputs) {
+		super(EvaluableExpression.IDENTITY, inputs);
 	}
 
 	@Override
@@ -58,5 +45,18 @@ public class BagUnion extends Operator {
 		module.getOutput(0).setInput(leftInput);
 
 		return module;
+	}
+
+	// TODO: replace with efficient union operator
+	public static class TwoInputUnion extends
+			SopremoCoGroup<PactNull, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
+		@Override
+		public void coGroup(PactNull key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
+				Collector<PactNull, PactJsonObject> out) {
+			while (values1.hasNext())
+				out.collect(key, values1.next());
+			while (values2.hasNext())
+				out.collect(key, values2.next());
+		}
 	}
 }

@@ -7,7 +7,6 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 
@@ -38,29 +37,8 @@ public class Source extends Operator {
 		DataSourceContract<PactNull, PactJsonObject> contract = new DataSourceContract<PactNull, PactJsonObject>(
 			JsonInputFormat.class, this.inputName);
 		pactModule.getOutput(0).setInput(contract);
-		//pactModule.setInput(0, contract);
+		// pactModule.setInput(0, contract);
 		return pactModule;
-	}
-
-	@Override
-	public String toString() {
-		switch (this.type) {
-		case ADHOC:
-			return "Source [" + this.adhocValue + "]";
-
-		default:
-			return "Source [" + this.inputName + "]";
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + (this.adhocValue == null ? 0 : this.adhocValue.hashCode());
-		result = prime * result + (this.inputName == null ? 0 : this.inputName.hashCode());
-		result = prime * result + this.type.hashCode();
-		return result;
 	}
 
 	@Override
@@ -87,6 +65,10 @@ public class Source extends Operator {
 		return true;
 	}
 
+	public Evaluable getAdhocValue() {
+		return this.adhocValue;
+	}
+
 	public String getInputName() {
 		return this.inputName;
 	}
@@ -95,8 +77,25 @@ public class Source extends Operator {
 		return this.type;
 	}
 
-	public Evaluable getAdhocValue() {
-		return this.adhocValue;
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + (this.adhocValue == null ? 0 : this.adhocValue.hashCode());
+		result = prime * result + (this.inputName == null ? 0 : this.inputName.hashCode());
+		result = prime * result + this.type.hashCode();
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		switch (this.type) {
+		case ADHOC:
+			return "Source [" + this.adhocValue + "]";
+
+		default:
+			return "Source [" + this.inputName + "]";
+		}
 	}
 
 }

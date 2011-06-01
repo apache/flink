@@ -11,20 +11,6 @@ public class Input extends EvaluableExpression {
 		this.index = index;
 	}
 
-	public int getIndex() {
-		return this.index;
-	}
-
-	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append("in").append(this.index);
-	}
-
-	@Override
-	public int hashCode() {
-		return 37 + this.index;
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
@@ -36,6 +22,7 @@ public class Input extends EvaluableExpression {
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		return node.get(this.index);
 	}
+
 	//
 	// @Override
 	// public Iterator<JsonNode> evaluateStreams(Iterator<JsonNode> input) {
@@ -51,4 +38,18 @@ public class Input extends EvaluableExpression {
 	// public JsonNode evaluate(JsonNode... nodes) {
 	// return nodes[index];
 	// }
+
+	public int getIndex() {
+		return this.index;
+	}
+
+	@Override
+	public int hashCode() {
+		return 37 + this.index;
+	}
+
+	@Override
+	protected void toString(StringBuilder builder) {
+		builder.append("in").append(this.index);
+	}
 }

@@ -16,11 +16,23 @@ import org.codehaus.jackson.node.ContainerNode;
 import org.codehaus.jackson.node.MissingNode;
 import org.codehaus.jackson.node.ObjectNode;
 
+/**
+ * Provides a read-only view of an iterator of {@link JsonNode}s as an json array of undefined size.<br>
+ * Due to current limitations in the PACT layer, the elements are cached to allow multiple traversal.
+ * 
+ * @author Arvid Heise
+ */
 public class StreamArrayNode extends ContainerNode {
 	// TODO: fix with Resettable Iterator!
 	// private Iterator<JsonNode> nodes;
 	private List<JsonNode> nodes = new ArrayList<JsonNode>();
 
+	/**
+	 * Initializes StreamArrayNode with the given {@link Iterator} of {@link JsonNode}s.
+	 * 
+	 * @param nodes
+	 *        the nodes to wrap
+	 */
 	public StreamArrayNode(Iterator<JsonNode> nodes) {
 		super(null);
 		// this.nodes = nodes;
@@ -40,62 +52,19 @@ public class StreamArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public boolean isArray() {
-		return true;
+	public boolean equals(Object o) {
+		return o == this;
 	}
 
 	@Override
-	public int size() {
-		return 0;
-	}
-
-	@Override
-	public Iterator<JsonNode> getElements() {
-		return this.nodes.iterator();
-	}
-
-	@Override
-	public JsonNode get(int index) {
-		return this.nodes.get(index);
-	}
-
-	@Override
-	public JsonNode get(String fieldName) {
+	public ObjectNode findParent(String fieldName) {
 		return null;
 	}
 
 	@Override
-	public JsonNode path(String fieldName) {
-		return MissingNode.getInstance();
+	public List<JsonNode> findParents(String fieldName, List<JsonNode> foundSoFar) {
+		return foundSoFar;
 	}
-
-	@Override
-	public JsonNode path(int index) {
-		return null;
-	}
-
-	/*
-	 * /**********************************************************
-	 * /* Public API, serialization
-	 * /**********************************************************
-	 */
-
-	@Override
-	public final void serialize(JsonGenerator jg, SerializerProvider provider)
-			throws IOException, JsonProcessingException {
-		jg.writeStartArray();
-		for (JsonNode node : this.nodes)
-			((BaseJsonNode) node).writeTo(jg);
-		// while (nodes.hasNext())
-		// ((BaseJsonNode) nodes.next()).writeTo(jg);
-		jg.writeEndArray();
-	}
-
-	/*
-	 * /**********************************************************
-	 * /* Public API, finding value nodes
-	 * /**********************************************************
-	 */
 
 	@Override
 	public JsonNode findValue(String fieldName) {
@@ -113,13 +82,50 @@ public class StreamArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public ObjectNode findParent(String fieldName) {
+	public JsonNode get(int index) {
+		return this.nodes.get(index);
+	}
+
+	/*
+	 * /**********************************************************
+	 * /* Public API, serialization
+	 * /**********************************************************
+	 */
+
+	@Override
+	public JsonNode get(String fieldName) {
+		return null;
+	}
+
+	/*
+	 * /**********************************************************
+	 * /* Public API, finding value nodes
+	 * /**********************************************************
+	 */
+
+	@Override
+	public Iterator<JsonNode> getElements() {
+		return this.nodes.iterator();
+	}
+
+	@Override
+	public int hashCode() {
+		return System.identityHashCode(this);
+	}
+
+	@Override
+	public boolean isArray() {
+		return true;
+	}
+
+	@Override
+	public JsonNode path(int index) {
 		return null;
 	}
 
 	@Override
-	public List<JsonNode> findParents(String fieldName, List<JsonNode> foundSoFar) {
-		return foundSoFar;
+	public JsonNode path(String fieldName) {
+		return MissingNode.getInstance();
 	}
 
 	/*
@@ -134,12 +140,23 @@ public class StreamArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public String toString() {
-		return "[?]";
+	public final void serialize(JsonGenerator jg, SerializerProvider provider)
+			throws IOException, JsonProcessingException {
+		jg.writeStartArray();
+		for (JsonNode node : this.nodes)
+			((BaseJsonNode) node).writeTo(jg);
+		// while (nodes.hasNext())
+		// ((BaseJsonNode) nodes.next()).writeTo(jg);
+		jg.writeEndArray();
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return o == this;
+	public int size() {
+		return 0;
+	}
+
+	@Override
+	public String toString() {
+		return "[?]";
 	}
 }

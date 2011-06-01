@@ -7,8 +7,8 @@ import java.util.Map;
  * Visitor adapter that guarantees to visit all {@link Visitable}s only once.
  * 
  * @author Arvid Heise
- * @param <T> 
- *        the type of the Visitable 
+ * @param <T>
+ *        the type of the Visitable
  */
 public class OneTimeVisitor<T extends Visitable<T>> implements Visitor<T> {
 	private final Map<T, Object> visitedNodes = new IdentityHashMap<T, Object>();
@@ -27,19 +27,19 @@ public class OneTimeVisitor<T extends Visitable<T>> implements Visitor<T> {
 	}
 
 	@Override
+	public void postVisit(T visitable) {
+		if (this.visitedNodes.get(visitable) == Boolean.TRUE)
+			return;
+		this.visitedNodes.put(visitable, Boolean.TRUE);
+		this.visitor.postVisit(visitable);
+	}
+
+	@Override
 	public boolean preVisit(T visitable) {
 		if (this.visitedNodes.containsKey(visitable))
 			return false;
 		this.visitedNodes.put(visitable, Boolean.FALSE);
 		this.visitor.preVisit(visitable);
 		return true;
-	}
-
-	@Override
-	public void postVisit(T visitable) {
-		if (this.visitedNodes.get(visitable) == Boolean.TRUE)
-			return;
-		this.visitedNodes.put(visitable, Boolean.TRUE);
-		this.visitor.postVisit(visitable);
 	}
 }

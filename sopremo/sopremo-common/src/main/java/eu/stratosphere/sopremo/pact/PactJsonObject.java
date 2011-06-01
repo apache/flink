@@ -60,22 +60,20 @@ public class PactJsonObject implements Value {
 		this.value = value;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
-		this.serializationString.read(in);
-		JsonParser parser = JsonUtil.FACTORY.createJsonParser(this.serializationString.toString());
-		parser.setCodec(JsonUtil.OBJECT_MAPPER);
-		this.value = parser.readValueAsTree();
-	}
-
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		final StringWriter writer = new StringWriter();
-		JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
-		generator.setCodec(JsonUtil.OBJECT_MAPPER);
-		generator.writeTree(this.value);
-		this.serializationString.setValue(writer.toString());
-		this.serializationString.write(out);
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		final PactJsonObject other = (PactJsonObject) obj;
+		return this.value.equals(other.value);
 	}
 
 	/**
@@ -96,6 +94,26 @@ public class PactJsonObject implements Value {
 		return (ObjectNode) this.value;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		final int prime = 59;
+		int result = 1;
+		result = prime * result + this.value.hashCode();
+		return result;
+	}
+
+	@Override
+	public void read(final DataInput in) throws IOException {
+		this.serializationString.read(in);
+		JsonParser parser = JsonUtil.FACTORY.createJsonParser(this.serializationString.toString());
+		parser.setCodec(JsonUtil.OBJECT_MAPPER);
+		this.value = parser.readValueAsTree();
+	}
+
 	/**
 	 * Sets the value to the specified value.
 	 * 
@@ -109,99 +127,29 @@ public class PactJsonObject implements Value {
 		this.value = value;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
-	@Override
-	public int hashCode() {
-		final int prime = 59;
-		int result = 1;
-		result = prime * result + this.value.hashCode();
-		return result;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
-	@Override
-	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		final PactJsonObject other = (PactJsonObject) obj;
-		return this.value.equals(other.value);
-	}
-
 	@Override
 	public String toString() {
 		return this.value.toString();
 	}
 
-	/**
-	 * A subset of possible {@link PactJsonObject}s that can be used as a PACT key.<br>
-	 * Specifically no complex json object may be used since there is no inherent order defined.<br>
-	 * However, (nested) arrays and simple json values may be used.<br>
-	 * Please not that only keys of the same json type are comparable.
-	 * 
-	 * @author Arvid Heise
-	 */
-	public static class Key extends PactJsonObject implements eu.stratosphere.pact.common.type.Key {
+	@Override
+	public void write(final DataOutput out) throws IOException {
+		final StringWriter writer = new StringWriter();
+		JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
+		generator.setCodec(JsonUtil.OBJECT_MAPPER);
+		generator.writeTree(this.value);
+		this.serializationString.setValue(writer.toString());
+		this.serializationString.write(out);
+	}
 
-		/**
-		 * Serialization construction. Please do not invoke manually.
-		 */
-		public Key() {
-			super();
+	private static boolean isValidArray(JsonNode node) {
+		for (int index = 0, size = node.size(); index < size; index++) {
+			if (node.get(index) instanceof ArrayNode && !isValidArray(node.get(index)))
+				return false;
+			if (node.get(index) instanceof ValueNode)
+				return false;
 		}
-
-		Key(ValueNode value) {
-			super(value);
-		}
-
-		Key(ArrayNode value) {
-			super(value);
-			if (isValidArray(value))
-				throw new IllegalArgumentException("is not a valid array");
-		}
-
-		@Override
-		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
-			JsonNode value1 = getValue(), value2 = ((Key) o).getValue();
-			return compare(value1, value2);
-		}
-
-		private static int compare(JsonNode value1, JsonNode value2) {
-			if (value1.getClass() != value2.getClass())
-				throw new ClassCastException();
-			if (value1 instanceof ArrayNode)
-				return compareArrays(value1, value2);
-			if (value1 instanceof TextNode)
-				return value1.getTextValue().compareTo(value2.getTextValue());
-			if (value1 instanceof BooleanNode)
-				return (value1.getBooleanValue() == value2.getBooleanValue() ? 0 : (value1.getBooleanValue() ? 1 : -1));
-			if (value1 instanceof NumericNode) {
-				// TODO: optimize
-				return value1.getDecimalValue().compareTo(value2.getDecimalValue());
-			}
-
-			return 0;
-		}
-
-		private static int compareArrays(JsonNode value1, JsonNode value2) {
-			if (value1.size() != value2.size())
-				return value1.size() - value2.size();
-			for (int index = 0, size = value1.size(); index < size; index++) {
-				int comparisonResult = compare(value1.get(index), value2.get(index));
-				if (comparisonResult != 0)
-					return comparisonResult;
-			}
-			return 0;
-		}
+		return true;
 	}
 
 	/**
@@ -221,13 +169,64 @@ public class PactJsonObject implements Value {
 		throw new IllegalArgumentException(node.getClass().getSimpleName());
 	}
 
-	private static boolean isValidArray(JsonNode node) {
-		for (int index = 0, size = node.size(); index < size; index++) {
-			if (node.get(index) instanceof ArrayNode && !isValidArray(node.get(index)))
-				return false;
-			if (node.get(index) instanceof ValueNode)
-				return false;
+	/**
+	 * A subset of possible {@link PactJsonObject}s that can be used as a PACT key.<br>
+	 * Specifically no complex json object may be used since there is no inherent order defined.<br>
+	 * However, (nested) arrays and simple json values may be used.<br>
+	 * Please not that only keys of the same json type are comparable.
+	 * 
+	 * @author Arvid Heise
+	 */
+	public static class Key extends PactJsonObject implements eu.stratosphere.pact.common.type.Key {
+
+		/**
+		 * Serialization construction. Please do not invoke manually.
+		 */
+		public Key() {
+			super();
 		}
-		return true;
+
+		Key(ArrayNode value) {
+			super(value);
+			if (isValidArray(value))
+				throw new IllegalArgumentException("is not a valid array");
+		}
+
+		Key(ValueNode value) {
+			super(value);
+		}
+
+		@Override
+		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
+			JsonNode value1 = this.getValue(), value2 = ((Key) o).getValue();
+			return compare(value1, value2);
+		}
+
+		private static int compare(JsonNode value1, JsonNode value2) {
+			if (value1.getClass() != value2.getClass())
+				throw new ClassCastException();
+			if (value1 instanceof ArrayNode)
+				return compareArrays(value1, value2);
+			if (value1 instanceof TextNode)
+				return value1.getTextValue().compareTo(value2.getTextValue());
+			if (value1 instanceof BooleanNode)
+				return value1.getBooleanValue() == value2.getBooleanValue() ? 0 : value1.getBooleanValue() ? 1 : -1;
+			if (value1 instanceof NumericNode)
+				// TODO: optimize
+				return value1.getDecimalValue().compareTo(value2.getDecimalValue());
+
+			return 0;
+		}
+
+		private static int compareArrays(JsonNode value1, JsonNode value2) {
+			if (value1.size() != value2.size())
+				return value1.size() - value2.size();
+			for (int index = 0, size = value1.size(); index < size; index++) {
+				int comparisonResult = compare(value1.get(index), value2.get(index));
+				if (comparisonResult != 0)
+					return comparisonResult;
+			}
+			return 0;
+		}
 	}
 }

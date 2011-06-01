@@ -21,7 +21,12 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 		};
 	};
 
-	protected abstract void toString(StringBuilder builder);
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.Evaluable#evaluate(org.codehaus.jackson.JsonNode)
+	 */
+	@Override
+	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
 
 	@Override
 	public String toString() {
@@ -30,10 +35,5 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 		return builder.toString();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.Evaluable#evaluate(org.codehaus.jackson.JsonNode)
-	 */
-	@Override
-	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
+	protected abstract void toString(StringBuilder builder);
 }

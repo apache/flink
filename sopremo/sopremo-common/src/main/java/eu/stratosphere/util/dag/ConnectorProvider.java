@@ -1,4 +1,4 @@
-package eu.stratosphere.dag;
+package eu.stratosphere.util.dag;
 
 /**
  * Returns printable characters for all different kinds of edge intersections.

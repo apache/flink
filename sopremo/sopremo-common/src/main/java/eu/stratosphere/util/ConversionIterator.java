@@ -24,13 +24,6 @@ public abstract class ConversionIterator<From, To> extends AbstractIterator<To> 
 		this.iterator = iterator;
 	}
 
-	@Override
-	protected To loadNext() {
-		if (!this.iterator.hasNext())
-			return this.noMoreElements();
-		return this.convert(this.iterator.next());
-	}
-
 	/**
 	 * Convert the given object to the desired return type.
 	 * 
@@ -39,4 +32,11 @@ public abstract class ConversionIterator<From, To> extends AbstractIterator<To> 
 	 * @return the result of the conversion of one object
 	 */
 	protected abstract To convert(From inputObject);
+
+	@Override
+	protected To loadNext() {
+		if (!this.iterator.hasNext())
+			return this.noMoreElements();
+		return this.convert(this.iterator.next());
+	}
 }

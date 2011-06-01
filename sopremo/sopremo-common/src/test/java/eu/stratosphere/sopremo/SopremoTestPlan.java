@@ -138,7 +138,7 @@ public class SopremoTestPlan {
 	public static class Output {
 		private int index;
 
-		private Operator operator;
+		private Sink operator;
 
 		private TestPairs<PactNull, PactJsonObject> expected = new TestPairs<PactNull, PactJsonObject>();
 
@@ -151,7 +151,7 @@ public class SopremoTestPlan {
 			return this.index;
 		}
 
-		public Operator getOperator() {
+		public Sink getOperator() {
 			return this.operator;
 		}
 
@@ -165,7 +165,7 @@ public class SopremoTestPlan {
 			return this;
 		}
 
-		public void setOperator(Operator operator) {
+		public void setOperator(Sink operator) {
 			if (operator == null)
 				throw new NullPointerException("operator must not be null");
 
@@ -206,8 +206,8 @@ public class SopremoTestPlan {
 		return operators;
 	}
 
-	public Operator[] getOutputOperators(int from, int to) {
-		Operator[] operators = new Operator[to - from];
+	public Sink[] getOutputOperators(int from, int to) {
+		Sink[] operators = new Sink[to - from];
 		for (int index = 0; index < operators.length; index++)
 			operators[index] = this.getOutputOperator(from + index);
 		return operators;
@@ -217,11 +217,11 @@ public class SopremoTestPlan {
 		return this.outputs[index];
 	}
 
-	public Operator getOutputOperator(int index) {
+	public Sink getOutputOperator(int index) {
 		return this.getExpectedOutput(index).getOperator();
 	}
 
-	public void setOutputOperator(int index, Operator operator) {
+	public void setOutputOperator(int index, Sink operator) {
 		this.outputs[index].setOperator(operator);
 	}
 

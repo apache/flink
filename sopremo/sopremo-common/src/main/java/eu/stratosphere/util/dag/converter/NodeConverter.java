@@ -1,4 +1,4 @@
-package eu.stratosphere.dag.converter;
+package eu.stratosphere.util.dag.converter;
 
 import java.util.List;
 

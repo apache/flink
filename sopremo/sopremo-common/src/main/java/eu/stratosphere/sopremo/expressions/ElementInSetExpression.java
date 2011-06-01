@@ -11,23 +11,7 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class ElementInSetExpression extends BooleanExpression {
-	public static enum Quantor {
-		EXISTS_IN, EXISTS_NOT_IN {
-			@Override
-			protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
-				return super.evaluate(element, set) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
-			}
-		};
-
-		protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
-			while (set.hasNext())
-				if (asIterator(element).equals(set.next()))
-					return BooleanNode.TRUE;
-			return BooleanNode.FALSE;
-		}
-	};
-
-	private Evaluable elementExpr, setExpr;
+	private Evaluable elementExpr, setExpr;;
 
 	private Quantor quantor;
 
@@ -35,6 +19,12 @@ public class ElementInSetExpression extends BooleanExpression {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
+	}
+
+	@Override
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		return this.quantor.evaluate(this.elementExpr.evaluate(node, context),
+			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, context)));
 	}
 
 	// @Override
@@ -59,18 +49,18 @@ public class ElementInSetExpression extends BooleanExpression {
 		return this.elementExpr;
 	}
 
-	public Evaluable getSetExpr() {
-		return this.setExpr;
-	}
-
 	public Quantor getQuantor() {
 		return this.quantor;
 	}
 
+	public Evaluable getSetExpr() {
+		return this.setExpr;
+	}
+
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return this.quantor.evaluate(this.elementExpr.evaluate(node, context),
-			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, context)));
+	protected void toString(StringBuilder builder) {
+		builder.append(this.elementExpr).append(this.quantor == Quantor.EXISTS_NOT_IN ? " \u2209 " : " \u2208 ")
+			.append(this.setExpr);
 	}
 
 	//
@@ -85,9 +75,19 @@ public class ElementInSetExpression extends BooleanExpression {
 		return Arrays.asList(evaluate).iterator();
 	}
 
-	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append(this.elementExpr).append(this.quantor == Quantor.EXISTS_NOT_IN ? " \u2209 " : " \u2208 ")
-			.append(this.setExpr);
+	public static enum Quantor {
+		EXISTS_IN, EXISTS_NOT_IN {
+			@Override
+			protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
+				return super.evaluate(element, set) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
+			}
+		};
+
+		protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
+			while (set.hasNext())
+				if (asIterator(element).equals(set.next()))
+					return BooleanNode.TRUE;
+			return BooleanNode.FALSE;
+		}
 	}
 }

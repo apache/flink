@@ -6,18 +6,23 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.NumericNode;
 
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.Arithmetic;
-import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
 public class BuiltinFunctions {
 	private static final JsonNode ZERO = JsonUtil.OBJECT_MAPPER.valueToTree(0);
 
 	private static final JsonNode EMPTY_STRING = JsonUtil.OBJECT_MAPPER.valueToTree("");
+
+	public static JsonNode concat(JsonNode[] params) {
+		StringBuilder builder = new StringBuilder();
+		for (JsonNode jsonNode : params)
+			builder.append(jsonNode.isTextual() ? jsonNode.getTextValue() : jsonNode);
+		return JsonUtil.OBJECT_MAPPER.valueToTree(builder);
+	}
 
 	public static JsonNode count(JsonNode params) {
 		int count = 0;
@@ -35,13 +40,6 @@ public class BuiltinFunctions {
 		for (; iterator.hasNext();)
 			sum = Arithmetic.ArithmeticOperator.PLUS.evaluate((NumericNode) sum, (NumericNode) iterator.next());
 		return sum;
-	}
-
-	public static JsonNode concat(JsonNode[] params) {
-		StringBuilder builder = new StringBuilder();
-		for (JsonNode jsonNode : params) 
-			builder.append(jsonNode.isTextual() ? jsonNode.getTextValue() : jsonNode);
-		return JsonUtil.OBJECT_MAPPER.valueToTree(builder);
 	}
 
 	public static JsonNode union(JsonNode[] params) {

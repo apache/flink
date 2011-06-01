@@ -5,12 +5,46 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.TextNode;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Comparison extends BooleanExpression {
 	private EvaluableExpression expr1, expr2;
+
+	private BinaryOperator binaryOperator;
+
+	public Comparison(EvaluableExpression expr1, BinaryOperator binaryOperator, EvaluableExpression expr2) {
+		this.expr1 = expr1;
+		this.binaryOperator = binaryOperator;
+		this.expr2 = expr2;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		Comparison other = (Comparison) obj;
+		return this.binaryOperator == other.binaryOperator && this.expr1.equals(other.expr1)
+			&& this.expr2.equals(other.expr2);
+	}
+
+	// @Override
+	// public Iterator<JsonNode> evaluate(Iterator<JsonNode> input) {
+	// return binaryOperator.evaluate(expr1.evaluate(input), expr2.evaluate(input));
+	// }
+	@Override
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, context),
+			this.expr2.evaluate(node, context)));
+	}
+
+	public BinaryOperator getBinaryOperator() {
+		return this.binaryOperator;
+	}
 
 	public EvaluableExpression getExpr1() {
 		return this.expr1;
@@ -20,11 +54,20 @@ public class Comparison extends BooleanExpression {
 		return this.expr2;
 	}
 
-	public BinaryOperator getBinaryOperator() {
-		return this.binaryOperator;
+	@Override
+	public int hashCode() {
+		final int prime = 47;
+		int result = 1;
+		result = prime * result + this.binaryOperator.hashCode();
+		result = prime * result + this.expr1.hashCode();
+		result = prime * result + this.expr2.hashCode();
+		return result;
 	}
 
-	private BinaryOperator binaryOperator;
+	@Override
+	protected void toString(StringBuilder builder) {
+		builder.append(this.expr1).append(this.binaryOperator).append(this.expr2);
+	}
 
 	public static enum BinaryOperator {
 		EQUAL("=") {
@@ -70,11 +113,6 @@ public class Comparison extends BooleanExpression {
 			this.sign = sign;
 		}
 
-		@Override
-		public String toString() {
-			return this.sign;
-		}
-
 		public boolean evaluate(JsonNode e1, JsonNode e2) {
 			if (e1 instanceof NumericNode && e2 instanceof NumericNode)
 				// TODO: improve efficiency
@@ -88,50 +126,11 @@ public class Comparison extends BooleanExpression {
 		public <T extends Comparable<T>> boolean evaluateComparable(T e1, T e2) {
 			return false;
 		}
-	}
 
-	public Comparison(EvaluableExpression expr1, BinaryOperator binaryOperator, EvaluableExpression expr2) {
-		this.expr1 = expr1;
-		this.binaryOperator = binaryOperator;
-		this.expr2 = expr2;
-	}
-
-	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append(this.expr1).append(this.binaryOperator).append(this.expr2);
-	}
-
-	// @Override
-	// public Iterator<JsonNode> evaluate(Iterator<JsonNode> input) {
-	// return binaryOperator.evaluate(expr1.evaluate(input), expr2.evaluate(input));
-	// }
-	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, context),
-			this.expr2.evaluate(node, context)));
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 47;
-		int result = 1;
-		result = prime * result + this.binaryOperator.hashCode();
-		result = prime * result + this.expr1.hashCode();
-		result = prime * result + this.expr2.hashCode();
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		Comparison other = (Comparison) obj;
-		return this.binaryOperator == other.binaryOperator && this.expr1.equals(other.expr1)
-			&& this.expr2.equals(other.expr2);
+		@Override
+		public String toString() {
+			return this.sign;
+		}
 	}
 
 }

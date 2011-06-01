@@ -1,14 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.Iterator;
-
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConversionIterator;
 
 public class FieldAccess extends EvaluableExpression {
@@ -20,13 +17,10 @@ public class FieldAccess extends EvaluableExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append('.').append(this.field);
-	}
-
-	@Override
-	public int hashCode() {
-		return 43 + this.field.hashCode();
+	public boolean equals(Object obj) {
+		if (obj == null || this.getClass() != obj.getClass())
+			return false;
+		return this.field.equals(((FieldAccess) obj).field);
 	}
 
 	@Override
@@ -49,9 +43,12 @@ public class FieldAccess extends EvaluableExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
-			return false;
-		return this.field.equals(((FieldAccess) obj).field);
+	public int hashCode() {
+		return 43 + this.field.hashCode();
+	}
+
+	@Override
+	protected void toString(StringBuilder builder) {
+		builder.append('.').append(this.field);
 	}
 }

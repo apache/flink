@@ -8,6 +8,9 @@ import java.util.LinkedList;
 
 import org.junit.Test;
 
+import eu.stratosphere.util.reflect.BoundType;
+import eu.stratosphere.util.reflect.BoundTypeUtil;
+
 /**
  * Tests the {@link BoundTypeUtil} class, especially {@link BoundTypeUtil#getStaticBoundTypes(Class)}
  * 

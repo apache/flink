@@ -19,15 +19,6 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 
 	private T currentValue;
 
-	/**
-	 * Return true if at least one element has been loaded.
-	 * 
-	 * @return true if at least one element has been loaded
-	 */
-	protected boolean isInitialized() {
-		return this.initialized;
-	}
-
 	@Override
 	public boolean hasNext() {
 		if (!this.initialized) {
@@ -38,14 +29,20 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 	}
 
 	/**
-	 * Signal methods that should be invoked when no more elements are in the iterator.
+	 * Return true if at least one element has been loaded.
 	 * 
-	 * @return a signal that no more elements are in this iterator
+	 * @return true if at least one element has been loaded
 	 */
-	protected T noMoreElements() {
-		this.hasNext = false;
-		return null;
+	protected boolean isInitialized() {
+		return this.initialized;
 	}
+
+	/**
+	 * Returns the next element or the result of {@link #noMoreElements()}.
+	 * 
+	 * @return the next element
+	 */
+	protected abstract T loadNext();
 
 	@Override
 	public T next() {
@@ -62,11 +59,14 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 	}
 
 	/**
-	 * Returns the next element or the result of {@link #noMoreElements()}.
+	 * Signal methods that should be invoked when no more elements are in the iterator.
 	 * 
-	 * @return the next element
+	 * @return a signal that no more elements are in this iterator
 	 */
-	protected abstract T loadNext();
+	protected T noMoreElements() {
+		this.hasNext = false;
+		return null;
+	}
 
 	@Override
 	public void remove() {

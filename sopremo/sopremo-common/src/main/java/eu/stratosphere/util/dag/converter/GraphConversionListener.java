@@ -1,4 +1,4 @@
-package eu.stratosphere.dag.converter;
+package eu.stratosphere.util.dag.converter;
 
 import java.util.List;
 
@@ -24,16 +24,6 @@ import java.util.List;
  */
 public interface GraphConversionListener<InputType, OutputType> {
 	/**
-	 * The callback is invoked after the children have been converted but before the actual node is converted.
-	 * 
-	 * @param in
-	 *        the input node
-	 * @param children
-	 *        the child nodes
-	 */
-	public void beforeNodeConversion(InputType in, List<OutputType> children);
-
-	/**
 	 * This method is called after all nodes and child nodes have been converted.
 	 * 
 	 * @param in
@@ -46,15 +36,6 @@ public interface GraphConversionListener<InputType, OutputType> {
 	public void afterNodeConversion(InputType in, List<OutputType> children, OutputType out);
 
 	/**
-	 * The callback is invoked before any child node or the actual node have been converted.<br>
-	 * This method is not called for {@link GraphConverter#convertNode(Object, List)}.
-	 * 
-	 * @param in
-	 *        the input node
-	 */
-	public void beforeSubgraphConversion(InputType in);
-
-	/**
 	 * This method is called after all nodes and child nodes have been converted. It is called
 	 * {@link #afterNodeConversion(Object, List, Object)} but is not invoked for
 	 * {@link GraphConverter#convertNode(Object, List)}.
@@ -65,4 +46,23 @@ public interface GraphConversionListener<InputType, OutputType> {
 	 *        the converted node
 	 */
 	public void afterSubgraphConversion(InputType in, OutputType out);
+
+	/**
+	 * The callback is invoked after the children have been converted but before the actual node is converted.
+	 * 
+	 * @param in
+	 *        the input node
+	 * @param children
+	 *        the child nodes
+	 */
+	public void beforeNodeConversion(InputType in, List<OutputType> children);
+
+	/**
+	 * The callback is invoked before any child node or the actual node have been converted.<br>
+	 * This method is not called for {@link GraphConverter#convertNode(Object, List)}.
+	 * 
+	 * @param in
+	 *        the input node
+	 */
+	public void beforeSubgraphConversion(InputType in);
 }
