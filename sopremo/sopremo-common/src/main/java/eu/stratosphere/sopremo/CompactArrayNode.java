@@ -10,7 +10,9 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.JsonToken;
 import org.codehaus.jackson.map.SerializerProvider;
+import org.codehaus.jackson.node.BaseJsonNode;
 import org.codehaus.jackson.node.ContainerNode;
+import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.util.AbstractIterator;
@@ -140,7 +142,15 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public void serialize(JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
+	public void serialize(JsonGenerator jg, SerializerProvider provider) throws IOException, JsonProcessingException {
+		jg.writeStartArray();
+		for (JsonNode n : this.children) {
+			if (n == null)
+				NullNode.instance.writeTo(jg);
+			else
+				((BaseJsonNode) n).writeTo(jg);
+		}
+		jg.writeEndArray();
 	}
 
 	@Override

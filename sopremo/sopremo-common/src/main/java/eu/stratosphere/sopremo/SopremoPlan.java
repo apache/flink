@@ -1,27 +1,12 @@
 package eu.stratosphere.sopremo;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.SingleInputContract;
-import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.base.Sink;
-import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.function.BuiltinFunctions;
-import eu.stratosphere.util.dag.DependencyAwareGraphTraverser;
-import eu.stratosphere.util.dag.GraphPrinter;
-import eu.stratosphere.util.dag.GraphTraverseListener;
 
 /**
  * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
@@ -34,32 +19,55 @@ public class SopremoPlan {
 	private EvaluationContext context = new EvaluationContext();
 
 	/**
-	 * Initializes SopremoPlan.
+	 * Initializes SopremoPlan using the given list of {@link Sink}s.
 	 * 
 	 * @param sinks
+	 *        the sinks of the Sopremo plan
 	 */
 	public SopremoPlan(Collection<Sink> sinks) {
 		this.module = new SopremoModule(0, 0);
-		for (Sink sink : sinks) 
+		for (Sink sink : sinks)
 			this.module.addInternalOutput(sink);
 		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
 	}
 
+	/**
+	 * Initializes SopremoPlan using the given list of {@link Sink}s.
+	 * 
+	 * @param sinks
+	 *        the sinks of the Sopremo plan
+	 */
 	public SopremoPlan(Sink... sinks) {
 		this(Arrays.asList(sinks));
 	}
 
+	/**
+	 * Converts the Sopremo module to a Pact {@link Plan}.
+	 * 
+	 * @return the converted Pact plan
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Plan asPactPlan() {
-		return this.module.asPactPlan(context);
+		return new Plan((Collection) this.module.assemblePact(this.context));
 	}
 
+	/**
+	 * Assembles the Pacts of the contained Sopremo operators and returns a list of all Pact sinks. These sinks may
+	 * either be directly a {@link DataSinkContract} or an unconnected {@link Contract}.
+	 * 
+	 * @return a list of Pact sinks
+	 */
 	public Collection<Contract> assemblePact() {
-		return this.module.assemblePact(context);
+		return this.module.assemblePact(this.context);
 	}
 
-	public Iterable<? extends Operator> getReachableNodes() {
-		return module.getReachableNodes();
+	/**
+	 * Returns all operators that are either (internal) {@link Sink}s or included in the reference graph.
+	 * 
+	 * @return all operators in this module
+	 */
+	public Iterable<? extends Operator> getContainedOperators() {
+		return this.module.getReachableNodes();
 	}
 
-	
 }

@@ -66,6 +66,14 @@ public class SopremoUtil {
 		return fragment.getIndex();
 	}
 
+	public static int getInputIndex(EvaluableExpression expr) {
+		if (expr instanceof ContainerExpression<?>)
+			return getInputIndex((ContainerExpression<?>) expr);
+		else if (expr instanceof Input)
+			return ((Input) expr).getIndex();
+		return 0;
+	}
+
 	@SuppressWarnings("unchecked")
 	public static <T> T getObject(Configuration config, String key, Class<T> objectClass) {
 		String string = config.getString(key, null);

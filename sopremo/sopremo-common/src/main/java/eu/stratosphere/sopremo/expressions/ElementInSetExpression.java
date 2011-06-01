@@ -11,11 +11,11 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class ElementInSetExpression extends BooleanExpression {
-	private Evaluable elementExpr, setExpr;;
+	private EvaluableExpression elementExpr, setExpr;;
 
 	private Quantor quantor;
 
-	public ElementInSetExpression(Evaluable elementExpr, Quantor quantor, Evaluable setExpr) {
+	public ElementInSetExpression(EvaluableExpression elementExpr, Quantor quantor, EvaluableExpression setExpr) {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
@@ -45,7 +45,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	// return super.evaluate(input);
 	// }
 
-	public Evaluable getElementExpr() {
+	public EvaluableExpression getElementExpr() {
 		return this.elementExpr;
 	}
 
@@ -53,7 +53,7 @@ public class ElementInSetExpression extends BooleanExpression {
 		return this.quantor;
 	}
 
-	public Evaluable getSetExpr() {
+	public EvaluableExpression getSetExpr() {
 		return this.setExpr;
 	}
 

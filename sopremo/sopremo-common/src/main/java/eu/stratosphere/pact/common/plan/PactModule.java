@@ -15,6 +15,8 @@
 package eu.stratosphere.pact.common.plan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
@@ -115,6 +117,17 @@ public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?,
 	 * @return a PactModule representing the given graph
 	 */
 	public static PactModule valueOf(Contract... sinks) {
+		return valueOf(Arrays.asList(sinks));
+	}
+
+	/**
+	 * Wraps the graph given by the sinks and referenced contracts in a PactModule.
+	 * 
+	 * @param sinks
+	 *        all sinks that span the graph to wrap
+	 * @return a PactModule representing the given graph
+	 */
+	public static PactModule valueOf(Collection<Contract> sinks) {
 		final List<Contract> inputs = new ArrayList<Contract>();
 
 		OneTimeTraverser.INSTANCE.traverse(sinks, ContractNavigator.INSTANCE,
@@ -138,12 +151,15 @@ public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?,
 				};
 			});
 
-		PactModule module = new PactModule(inputs.size(), sinks.length);
-		for (int index = 0; index < sinks.length; index++)
-			if (sinks[index] instanceof DataSinkContract<?, ?>)
-				module.outputNodes[index] = (DataSinkContract<?, ?>) sinks[index];
+		PactModule module = new PactModule(inputs.size(), sinks.size());
+		int sinkIndex = 0;
+		for (Contract sink : sinks) {
+			if (sink instanceof DataSinkContract<?, ?>)
+				module.outputNodes[sinkIndex] = (DataSinkContract<?, ?>) sink;
 			else
-				module.getOutput(index).setInput(sinks[index]);
+				module.getOutput(sinkIndex).setInput(sink);
+			sinkIndex++;
+		}
 
 		for (int index = 0; index < inputs.size(); index++) {
 			Contract node = inputs.get(index);

@@ -5,8 +5,10 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.Join;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.Comparison;
 import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.Condition.Combination;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
@@ -200,7 +202,8 @@ public class JoinTest extends SopremoTest {
 	public void shouldPerformAntiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Condition condition = new Condition(new ElementInSetExpression(createPath("0", "DeptName"), Quantor.EXISTS_NOT_IN,
+		Condition condition = new Condition(new ElementInSetExpression(createPath("0", "DeptName"),
+			Quantor.EXISTS_NOT_IN,
 			createPath("1", "Name")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
@@ -244,6 +247,42 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getExpectedOutput(0).
 			add(createJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
 			add(createJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
+
+		sopremoPlan.run();
+	}
+
+	@Test
+	public void shouldPerformEquiJoinOnThreeInputs() {
+		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
+
+		Condition condition = new Condition(Combination.AND,
+			new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1", "userid")),
+			new Comparison(createPath("1", "url"), BinaryOperator.EQUAL, createPath("2", "page")));
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("name", createPath("0", "name"));
+		transformation.addMapping("url", createPath("1", "url"));
+		transformation.addMapping("company", createPath("2", "company"));
+		Join join = new Join(transformation, condition, sopremoPlan.getInputOperators(0, 3));
+		sopremoPlan.getOutputOperator(0).setInputs(join);
+
+		sopremoPlan.getInput(0).
+			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+		sopremoPlan.getInput(1).
+			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
+			add(createJsonObject("userid", 2, "url", "www.oracle.com")).
+			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/")).
+			add(createJsonObject("userid", 3, "url", "www.oracle.com"));
+		sopremoPlan.getInput(2).
+			add(createJsonObject("page", "code.google.com/p/jaql/", "company", "ibm")).
+			add(createJsonObject("page", "www.oracle.com", "company", "oracle")).
+			add(createJsonObject("page", "java.sun.com/javase/6/docs/api/", "company", "oracle"));
+		sopremoPlan.getExpectedOutput(0).
+			add(createJsonObject("name", "Jon Doe", "url", "code.google.com/p/jaql/", "company", "ibm")).
+			add(createJsonObject("name", "Jon Doe", "url", "java.sun.com/javase/6/docs/api/", "company", "oracle")).
+			add(createJsonObject("name", "Jane Doe", "url", "www.oracle.com", "company", "oracle")).
+			add(createJsonObject("name", "Max Mustermann", "url", "www.oracle.com", "company", "oracle"));
 
 		sopremoPlan.run();
 	}

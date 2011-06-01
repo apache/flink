@@ -1,6 +1,5 @@
 package eu.stratosphere.util.dag;
 
-import java.util.Collection;
 
 /**
  * Base class for all kinds of subgraphs. A subgraph has an arbitrary but well-defined number of inputs and
@@ -28,16 +27,16 @@ public interface SubGraph<Node, InputNode extends Node, OutputNode extends Node>
 	public abstract void addInternalOutput(OutputNode output);
 
 	/**
-	 * Returns all contracts that are either (internal) output contracts or included in the reference graph.
+	 * Returns all nodes that are either (internal) output nodes or included in the reference graph.
 	 * 
-	 * @return all contracts in this module
+	 * @return all nodes in this module
 	 */
 	public abstract Iterable<? extends Node> getReachableNodes();
 
 	/**
-	 * Returns all (external) and internal output contracts.
+	 * Returns all (external) and internal output nodes.
 	 * 
-	 * @return all output contracts
+	 * @return all output nodes
 	 */
 	public abstract OutputNode[] getAllOutputs();
 

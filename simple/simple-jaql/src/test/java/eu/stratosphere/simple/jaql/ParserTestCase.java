@@ -48,7 +48,7 @@ public class ParserTestCase {
 			Assert.fail("empty plan unexpected");
 
 		List<Operator> expectedNodes = toList(expected.getReachableNodes());
-		List<Operator> actualNodes = toList(parsedPlan.getReachableNodes());
+		List<Operator> actualNodes = toList(parsedPlan.getContainedOperators());
 		if (expectedNodes.size() != actualNodes.size())
 			Assert.fail(String.format("%d nodes expected instead of %d", expectedNodes.size(), actualNodes.size()));
 

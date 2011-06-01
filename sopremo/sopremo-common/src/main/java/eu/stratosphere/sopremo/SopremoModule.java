@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -13,7 +14,6 @@ import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.base.DataType;
 import eu.stratosphere.sopremo.base.Sink;
@@ -23,10 +23,9 @@ import eu.stratosphere.util.dag.DependencyAwareGraphTraverser;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
 import eu.stratosphere.util.dag.OneTimeTraverser;
-import eu.stratosphere.util.dag.SubGraph;
 
 /**
- * Encapsulate a partial query in Sopremo and translates it to a Pact {@link Plan}.
+ * Encapsulate a partial query in Sopremo and translates it to a {@link PactModule}.
  * 
  * @author Arvid Heise
  */
@@ -48,13 +47,32 @@ public class SopremoModule extends AbstractSubGraph<Operator, Source, Sink> {
 			this.inputNodes[index] = new Source(DataType.HDFS, String.valueOf(index));
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public Plan asPactPlan(EvaluationContext context) {
-		return new Plan((Collection) this.assemblePact(context));
+	/**
+	 * Converts the Sopremo module to a Pact module.
+	 * 
+	 * @param context
+	 *        the evaluation context of the Pact contracts
+	 * @return the converted Pact module
+	 */
+	public PactModule asPactModule(EvaluationContext context) {
+		return PactModule.valueOf(this.assemblePact(context));
 	}
 
+	/**
+	 * Assembles the Pacts of the contained Sopremo operators and returns a list of all Pact sinks. These sinks may
+	 * either be directly a {@link DataSinkContract} or an unconnected {@link Contract}.
+	 * 
+	 * @param context
+	 *        the evaluation context of the Pact contracts
+	 * @return a list of Pact sinks
+	 */
 	public Collection<Contract> assemblePact(EvaluationContext context) {
 		return new PactAssembler(context).assemble();
+	}
+
+	@Override
+	public String toString() {
+		return new GraphPrinter<Operator>().toString(this.getAllOutputs(), OperatorNavigator.INSTANCE);
 	}
 
 	private static Contract[] getInputs(Contract contract) {
@@ -78,9 +96,59 @@ public class SopremoModule extends AbstractSubGraph<Operator, Source, Sink> {
 			((DataSinkContract<?, ?>) contract).setInput(inputs[0]);
 	}
 
-	@Override
-	public String toString() {
-		return new GraphPrinter<Operator>().toString(this.getAllOutputs(), OperatorNavigator.INSTANCE);
+	/**
+	 * Wraps the graph given by the sinks and referenced contracts in a SopremoModule.
+	 * 
+	 * @param sinks
+	 *        all sinks that span the graph to wrap
+	 * @return a SopremoModule representing the given graph
+	 */
+	public static SopremoModule valueOf(Collection<Operator> sinks) {
+		final List<Operator> inputs = new ArrayList<Operator>();
+
+		OneTimeTraverser.INSTANCE.traverse(sinks, OperatorNavigator.INSTANCE,
+			new GraphTraverseListener<Operator>() {
+				@Override
+				public void nodeTraversed(Operator node) {
+					if (node instanceof Source)
+						inputs.add(node);
+					else
+						for (Operator.Output output : node.getInputs())
+							if (output == null)
+								inputs.add(node);
+				};
+			});
+
+		SopremoModule module = new SopremoModule(inputs.size(), sinks.size());
+		int sinkIndex = 0;
+		for (Operator sink : sinks) {
+			if (sink instanceof Sink)
+				module.outputNodes[sinkIndex] = (Sink) sink;
+			else
+				module.getOutput(sinkIndex).setInput(0, sink);
+			sinkIndex++;
+		}
+
+		for (int operatorIndex = 0, moduleIndex = 0; operatorIndex < inputs.size(); operatorIndex++) {
+			Operator operator = inputs.get(operatorIndex);
+			List<Output> operatorInputs = operator.getInputs();
+			for (int inputIndex = 0; inputIndex < sinks.size(); inputIndex++)
+				if (operatorInputs.get(inputIndex) == null)
+					operatorInputs.set(inputIndex, module.getInput(moduleIndex++).getOutput(0));
+			operator.setInputs(operatorInputs);
+		}
+		return module;
+	}
+
+	/**
+	 * Wraps the graph given by the sinks and referenced contracts in a SopremoModule.
+	 * 
+	 * @param sinks
+	 *        all sinks that span the graph to wrap
+	 * @return a SopremoModule representing the given graph
+	 */
+	public static SopremoModule valueOf(Operator... sinks) {
+		return valueOf(Arrays.asList(sinks));
 	}
 
 	/**
@@ -138,7 +206,7 @@ public class SopremoModule extends AbstractSubGraph<Operator, Source, Sink> {
 					}
 				});
 
-			for (SubGraph module : this.modules.values())
+			for (PactModule module : this.modules.values())
 				module.validate();
 		}
 
@@ -173,41 +241,5 @@ public class SopremoModule extends AbstractSubGraph<Operator, Source, Sink> {
 			}
 			return pactSinks;
 		}
-	}
-
-	public static SopremoModule valueOf(Operator... sinks) {
-
-		final List<Operator> inputs = new ArrayList<Operator>();
-
-		OneTimeTraverser.INSTANCE.traverse(sinks, OperatorNavigator.INSTANCE,
-			new GraphTraverseListener<Operator>() {
-				@Override
-				public void nodeTraversed(Operator node) {
-					if (node instanceof Source)
-						inputs.add(node);
-					else
-						for (Operator.Output output : node.getInputs())
-							if (output == null)
-								inputs.add(node);
-				};
-			});
-
-
-		SopremoModule module = new SopremoModule(inputs.size(), sinks.length);
-		for (int index = 0; index < sinks.length; index++)
-			if (sinks[index] instanceof Sink)
-				module.outputNodes[index] = (Sink) sinks[index];
-			else
-				module.getOutput(index).setInput(0, sinks[index]);
-		
-		for (int operatorIndex = 0, moduleIndex = 0; operatorIndex < inputs.size(); operatorIndex++) {
-			Operator operator = inputs.get(operatorIndex);
-			List<Output> operatorInputs = operator.getInputs();
-			for (int inputIndex = 0; inputIndex < sinks.length; inputIndex++) 
-				if(operatorInputs.get(inputIndex) == null)
-					operatorInputs.set(inputIndex, module.getInput(moduleIndex++).getOutput(0));
-			operator.setInputs(operatorInputs);
-		}
-		return module;
 	}
 }
