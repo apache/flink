@@ -635,6 +635,110 @@ public class HashJoinTest
 			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
 		}
 	}
+	
+	/*
+	 * This test is basically identical to the "testSpillingHashJoinWithMassiveCollisions" test, only that the number
+	 * of repeated values (causing bucket collisions) are large enough to make sure that their target partition no longer
+	 * fits into memory by itself and needs to be repartitioned in the recursion again.
+	 */
+	@Test
+	public void testFailingHashJoinTooManyRecursions() throws IOException
+	{
+		// the following two values are known to have a hash-code collision on the first recursion level.
+		// we use them to make sure one partition grows over-proportionally large
+		final int REPEATED_VALUE_1 = 40559;
+		final int REPEATED_VALUE_2 = 92882;
+		final int REPEATED_VALUE_COUNT = 3000000; 
+		
+		final int NUM_KEYS = 1000000;
+		final int BUILD_VALS_PER_KEY = 3;
+		final int PROBE_VALS_PER_KEY = 10;
+		
+		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
+		Iterator<KeyValuePair<PactInteger, PactInteger>> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> builds = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		builds.add(build1);
+		builds.add(build2);
+		builds.add(build3);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(builds);
+	
+		// create a probe input that gives 10 million pairs with 10 values sharing a key
+		Iterator<KeyValuePair<PactInteger, PactInteger>> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> probes = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		probes.add(probe1);
+		probes.add(probe2);
+		probes.add(probe3);
+		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(probes);
+		
+		final SerializationFactory<PactInteger> keySerialization = new WritableSerializationFactory<PactInteger>(PactInteger.class);
+		final SerializationFactory<PactInteger> valueSerialization = new WritableSerializationFactory<PactInteger>(PactInteger.class);
+		
+		// allocate the memory for the HashTable
+		MemoryManager memMan; 
+		List<MemorySegment> memSegments;
+		
+		try {
+			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
+			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+		
+		// create the I/O access for spilling
+		IOManager ioManager = new IOManager();
+		
+		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
+		
+		// ----------------------------------------------------------------------------------------
+		
+		HashJoin<PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger>(buildInput, probeInput, 
+				keySerialization, valueSerialization, memSegments, ioManager);
+		
+		join.open();
+	
+		try {
+			while (join.nextKey())
+			{
+				Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
+				while (probeIter.hasNext()) {
+					probeIter.next();
+				}
+				
+				HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
+				if (!buildSide.next(pair)) {
+					fail("No build side values found for a probe key.");
+				}
+				while (buildSide.next(pair));;
+			}
+			
+			fail("Hash Join must have failed due to too many recursions.");
+		}
+		catch (Exception ex) {
+			// expected
+		}
+		
+		join.close();
+		
+		
+		// ----------------------------------------------------------------------------------------
+		
+		memMan.release(memSegments);
+		
+		// shut down I/O manager and Memory Manager and verify the correct shutdown
+		ioManager.shutdown();
+		if (!ioManager.isProperlyShutDown()) {
+			fail("I/O manager was not property shut down.");
+		}
+		if (!memMan.verifyEmpty()) {
+			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
+		}
+	}
 
 
 	// ============================================================================================

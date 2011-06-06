@@ -26,7 +26,6 @@ import java.util.Iterator;
  */
 public interface CloseableInputProvider<E> extends Closeable
 {
-	
 	/**
 	 * Gets the iterator over this input.
 	 * 

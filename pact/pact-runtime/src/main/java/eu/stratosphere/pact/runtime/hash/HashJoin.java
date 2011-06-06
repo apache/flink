@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.hash;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -69,6 +68,7 @@ import eu.stratosphere.pact.runtime.hash.HashJoin.Partition.PartitionIterator;
  * |
  * |pointer 1 (8 bytes) | pointer 2 (8 bytes) | pointer 3 (8 bytes) |
  * | ... pointer n-1 (8 bytes) | pointer n (8 bytes)
+ * |
  * +---------------------------- Bucket x + 1--------------------------
  * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
  * | next-bucket-in-chain-pointer (8 bytes) | reserved (4 bytes) |
@@ -89,8 +89,6 @@ public class HashJoin<K extends Key, V extends Value>
 {
 	private static final Log LOG = LogFactory.getLog(HashJoin.class);
 	
-	private static final boolean DEBUG_CHECKS = false;
-	
 	// ------------------------------------------------------------------------
 	//                         Internal Constants
 	// ------------------------------------------------------------------------
@@ -98,7 +96,7 @@ public class HashJoin<K extends Key, V extends Value>
 	/**
 	 * The maximum number of recursive partitionings that the join does before giving up.
 	 */
-	private static final int MAX_RECURSION_DEPTH = 2;
+	private static final int MAX_RECURSION_DEPTH = 3;
 	
 	/**
 	 * The minimum number of memory segments the hash join needs to be supplied with in order to work.
@@ -107,13 +105,15 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	/**
 	 * The maximum number of partitions, which defines the spilling granularity. Each recursion, the
-	 * data is divided maximally into that many partitions, which are processed in one chuck. and the base to the
-	 * logarithm that, when applies to the input size, defines the number of recursions. 
-	 * . Currently set to 127,
-	 * meaning that the hash join st
+	 * data is divided maximally into that many partitions, which are processed in one chuck.
 	 */
 	private static final int MAX_NUM_PARTITIONS = Byte.MAX_VALUE;
 	
+	/**
+	 * The default record width that is used when no width is given. The record width is
+	 * used to determine the ratio of the number of memory segments intended for partition
+	 * buffers and the number of memory segments in the hash-table structure. 
+	 */
 	private static final int DEFAULT_RECORD_LEN = 100;
 	
 	/**
@@ -127,6 +127,11 @@ public class HashJoin<K extends Key, V extends Value>
 	private static final int POINTER_LEN = 8;
 	
 	/**
+	 * The number of bytes for the serialized record length in the partition buffers.
+	 */
+	private static final int SERIALIZED_LENGTH_FIELD_BYTES = 0;
+	
+	/**
 	 * The number of bytes that the entry in the hash structure occupies, in bytes.
 	 * It corresponds to a 4 byte hash value and an 8 byte pointer.
 	 */
@@ -137,7 +142,7 @@ public class HashJoin<K extends Key, V extends Value>
 	 * actual hash table buckets, consisting of a 4 byte hash value and an 8 byte
 	 * pointer, plus the overhead for the stored length field.
 	 */
-	private static final int RECORD_OVERHEAD_BYTES = HASH_CODE_LEN + POINTER_LEN;
+	private static final int RECORD_OVERHEAD_BYTES = RECORD_TABLE_BYTES + SERIALIZED_LENGTH_FIELD_BYTES;
 	
 	// -------------------------- Bucket Size and Structure -------------------------------------
 	
@@ -153,25 +158,50 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	// ------------------------------ Bucket Header Fields ------------------------------
 	
+	/**
+	 * Offset of the field in the bucket header indicating the bucket's partition.
+	 */
 	private static final int HEADER_PARTITION_OFFSET = 0;
 	
+	/**
+	 * Offset of the field in the bucket header indicating the bucket's status (spilled or in-memory).
+	 */
 	private static final int HEADER_STATUS_OFFSET = 1;
 	
+	/**
+	 * Offset of the field in the bucket header indicating the bucket's element count.
+	 */
 	private static final int HEADER_COUNT_OFFSET = 2;
 	
+	/**
+	 * Offset of the field in the bucket header that holds the forward pointer to its
+	 * first overflow bucket.
+	 */
 	private static final int HEADER_FORWARD_OFFSET = 4;	
 	
-	
+	/**
+	 * Constant for the forward pointer, indicating that the pointer is not set. 
+	 */
 	private static final long BUCKET_FORWARD_POINTER_NOT_SET = ~0x0L;
 	
 //	private static final byte BUCKET_STATUS_SPILLED = 1;
 	
+	/**
+	 * Constant for the bucket status, indicating that the bucket is in memory.
+	 */
 	private static final byte BUCKET_STATUS_IN_MEMORY = 0;
 	
 	// ------------------------------ Partition Header Fields ------------------------------
 	
+	/**
+	 * The length of the header in the partition buffer blocks.
+	 */
 	private static final int PARTITION_BLOCK_HEADER_LEN = 8;
 	
+	/**
+	 * The offset of the field where the length (size) of the partition block is stored
+	 * in its header.
+	 */
 	private static final int PARTITION_BLOCK_SIZE_OFFSET = 4;
 	
 	
@@ -271,8 +301,16 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	private Channel.Enumerator currentEnumerator;
 	
+	/**
+	 * The array of memory segments that contain the buckets which form the actual hash-table
+	 * of hash-codes and pointers to the elements.
+	 */
 	private MemorySegment[] buckets;
 	
+	/**
+	 * The number of buckets in the current table. The bucket array is not necessarily fully
+	 * used, when not all buckets that would fit into the last segment are actually used.
+	 */
 	private int numBuckets;
 	
 	/**
@@ -282,10 +320,15 @@ public class HashJoin<K extends Key, V extends Value>
 	 */
 	private int writeBehindBuffersAvailable;
 	
+	/**
+	 * The recursion depth of the partition that is currently processed. The initial table
+	 * has a recursion depth of 0. Partitions spilled from a table that is built for a partition
+	 * with recursion depth <i>n</i> have a recursion depth of <i>n+1</i>. 
+	 */
 	private int currentRecursionDepth;
 	
 	/**
-	 * 
+	 * Flag indicating that the closing logic has been invoked.
 	 */
 	private volatile boolean closed;
 
@@ -359,6 +402,12 @@ public class HashJoin<K extends Key, V extends Value>
 	//                              Life-Cycle
 	// ------------------------------------------------------------------------
 	
+	/**
+	 * Opens the hash join. This method reads the build-side input and constructs the initial
+	 * hash table, gradually spilling partitions that do not fit into memory. 
+	 * 
+	 * @throws IOException Thrown, if an I/O problem occurs while spilling a partition.
+	 */
 	public void open() throws IOException
 	{
 		// open builds the initial table by consuming the build-side input
@@ -372,6 +421,10 @@ public class HashJoin<K extends Key, V extends Value>
 		this.bucketIterator = new HashBucketIterator<K, V>();
 	}
 	
+	/**
+	 * @return
+	 * @throws IOException
+	 */
 	public boolean nextKey() throws IOException
 	{
 		final ProbeSideIterator<K, V> probeIter = this.probeIterator;
@@ -418,35 +471,35 @@ public class HashJoin<K extends Key, V extends Value>
 		// release the table memory
 		releaseTable();
 		
-		// check that the memory segment book-keeping did not go wrong
-		if (DEBUG_CHECKS) {
-			HashSet<MemorySegment> segSet = new HashSet<MemorySegment>();
-			for (int i = 0; i < this.availableMemory.size(); i++) {
-				MemorySegment seg = this.availableMemory.get(i);
-				if (seg == null) {
-					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
-				}
-				if (segSet.contains(seg)) {
-					throw new RuntimeException("Bookkeeping error: Available Memory Segment booked twice.");
-				}
-				segSet.add(seg);
-			}
-			HashSet<MemorySegment> wbSet = new HashSet<MemorySegment>();
-			Iterator<MemorySegment> wbIter = this.writeBehindBuffers.iterator();
-			while (wbIter.hasNext()) {
-				MemorySegment seg = wbIter.next();
-				if (seg == null) {
-					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
-				}
-				if (segSet.contains(seg)) {
-					throw new RuntimeException("Bookkeeping error: Write-behind buffer also occurred as available memory.");
-				}
-				if (wbSet.contains(seg)) {
-					throw new RuntimeException("Bookkeeping error: Write-behind buffer booked twice");
-				}
-				wbSet.add(seg);
-			}			
-		}
+//		// check that the memory segment book-keeping did not go wrong
+//		if (DEBUG_CHECKS) {
+//			HashSet<MemorySegment> segSet = new HashSet<MemorySegment>();
+//			for (int i = 0; i < this.availableMemory.size(); i++) {
+//				MemorySegment seg = this.availableMemory.get(i);
+//				if (seg == null) {
+//					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
+//				}
+//				if (segSet.contains(seg)) {
+//					throw new RuntimeException("Bookkeeping error: Available Memory Segment booked twice.");
+//				}
+//				segSet.add(seg);
+//			}
+//			HashSet<MemorySegment> wbSet = new HashSet<MemorySegment>();
+//			Iterator<MemorySegment> wbIter = this.writeBehindBuffers.iterator();
+//			while (wbIter.hasNext()) {
+//				MemorySegment seg = wbIter.next();
+//				if (seg == null) {
+//					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
+//				}
+//				if (segSet.contains(seg)) {
+//					throw new RuntimeException("Bookkeeping error: Write-behind buffer also occurred as available memory.");
+//				}
+//				if (wbSet.contains(seg)) {
+//					throw new RuntimeException("Bookkeeping error: Write-behind buffer booked twice");
+//				}
+//				wbSet.add(seg);
+//			}			
+//		}
 		
 		// check if there are pending partitions
 		if (!this.partitionsPending.isEmpty())
@@ -498,7 +551,9 @@ public class HashJoin<K extends Key, V extends Value>
 	
 	/**
 	 * Closes the hash table. This effectively releases all internal structures and closes all
-	 * open files and removes them.
+	 * open files and removes them. The call to this method is valid both as a cleanup after the
+	 * complete inputs were properly processed, and as an cancellation call, which cleans up
+	 * all resources that are currently held by the hash join.
 	 */
 	public void close()
 	{
@@ -598,7 +653,8 @@ public class HashJoin<K extends Key, V extends Value>
 	{
 		final int nextRecursionLevel = p.recursionLevel + 1;
 		if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
-			
+			throw new RuntimeException("Hash join exceeded maximum number of recursions, without reducing "
+				+ "partitions enough to be memory resident. Probably cause: Too many duplicate keys.");
 		}
 		
 		// we distinguish two cases here:
@@ -657,11 +713,15 @@ public class HashJoin<K extends Key, V extends Value>
 		}
 		else {
 			// we need to partition and partially spill
+			final int avgRecordLenPartition = (int) (((long) p.buildSideBlockCounter) * 
+					(this.segmentSize - PARTITION_BLOCK_HEADER_LEN) / p.buildSideRecordCounter);
+			
+			final int bucketCount = (int) (((long) totalBuffersAvailable) * RECORD_TABLE_BYTES / 
+					(avgRecordLenPartition + RECORD_OVERHEAD_BYTES));
+			
 			// compute in how many splits, we'd need to partition the result 
 			final int splits = (int) (totalBuffersNeeded / totalBuffersAvailable) + 1;
 			final int partitionFanOut = Math.min(10 * splits /* being conservative */, MAX_NUM_PARTITIONS);
-			
-			final int bucketCount = 432;
 			
 			createPartitions(partitionFanOut, nextRecursionLevel);
 			
@@ -1153,7 +1213,7 @@ public class HashJoin<K extends Key, V extends Value>
 		
 		final long totalSize = ((long) bufferSize) * numBuffers;
 		final long numRecordsStorable = totalSize / (recordLenBytes + RECORD_OVERHEAD_BYTES);
-		final long bucketBytes = numRecordsStorable * RECORD_OVERHEAD_BYTES;
+		final long bucketBytes = numRecordsStorable * RECORD_TABLE_BYTES;
 		final long numBuckets = bucketBytes / (2 * HASH_BUCKET_SIZE) + 1;
 		
 		return numBuckets > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) numBuckets;
@@ -1957,9 +2017,7 @@ public class HashJoin<K extends Key, V extends Value>
 		
 	} // end ProbeSideIterator
 
-	
 	// ======================================================================================================
-	
 	
 	protected static class BlockReaderIterator<K extends Key, V extends Value> implements MutableObjectIterator<KeyValuePair<K, V>>
 	{		
@@ -2168,6 +2226,5 @@ public class HashJoin<K extends Key, V extends Value>
 		{
 			throw new UnsupportedOperationException();	
 		}
-		
 	}
 }

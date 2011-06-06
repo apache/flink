@@ -15,57 +15,52 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
+
 import java.io.IOException;
-import java.util.Iterator;
 
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
-public interface MatchTaskIterator<K extends Key, V1 extends Value, V2 extends Value> {
 
+/**
+ * Interface of an iterator that performs the logic of a match task. The iterator follows the
+ * <i>open/next/close</i> principle. The <i>next</i> logic here calls the match stub with all
+ * value pairs that share the same key.
+ *
+ * @author Erik Nijkamp
+ * @author Stephan Ewen
+ */
+public interface MatchTaskIterator
+{
 	/**
-	 * General-purpose open method.
+	 * General-purpose open method. Initializes the internal strategy (for example triggers the
+	 * sorting of the inputs or starts building hash tables).
 	 * 
-	 * @throws IOException
-	 * @throws MemoryAllocationException
-	 * @throws InterruptedException 
+	 * @throws IOException Thrown, if an I/O error occurred while preparing the data. An example is a failing
+	 *                     external sort.
+	 * @throws MemoryAllocationException Thrown, if the internal strategy could not allocate the memory it needs.
+	 * @throws InterruptedException Thrown, if the thread was interrupted during the initialization process. 
 	 */
 	void open() throws IOException, MemoryAllocationException, InterruptedException;
 
 	/**
-	 * General-purpose close method.
+	 * General-purpose close method. Works after the principle of best effort. The internal structures are
+	 * released, but errors that occur on the way are not reported.
 	 */
 	void close();
 
 	/**
-	 * Moves the internal pointer to the next key that both inputs share (if present).
-	 * Returns true if the operation was successful or false if no more keys are present.
+	 * Moves the internal pointer to the next key that both inputs share. It calls the match stub with the
+	 * cross product of all values that share the same key.
 	 * 
-	 * @return true on success, false if no more keys are present
-	 * @throws IOException
-	 * @throws InterruptedException
+	 * @return True, if a next key exists, false if no more keys exist.
+	 * @throws IOException Thrown, if an I/O error occurs while retrieving the records for the next key.
 	 */
-	boolean next() throws IOException;
-
+	boolean callWithNextKey() throws IOException;
+	
 	/**
-	 * Returns the current key.
-	 * 
-	 * @return Key the current key
+	 * Aborts the matching process. This extra abort method is supplied, because a significant time may pass while
+	 * calling the match stub with the cross product of all values that share the same key. A call to this abort
+	 * method signals an interrupt to that procedure.
 	 */
-	K getKey();
-
-	/**
-	 * Returns an iterator over the first input values for the current key.
-	 * 
-	 * @return an iterator over the first input values for the current key.
-	 */
-	Iterator<V1> getValues1();
-
-	/**
-	 * Returns an iterator over the second input values for the current key.
-	 * 
-	 * @return an iterator over the second input values for the current key.
-	 */
-	Iterator<V2> getValues2();
+	void abort();
 }
