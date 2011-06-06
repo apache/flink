@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -77,7 +77,7 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 
 	private final LocalStrategy localStrategy;
 	
-	private final AbstractTask parentTask;
+	private final AbstractInvokable parentTask;
 
 
 
@@ -85,7 +85,7 @@ public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends 
 			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
 			Class<K> keyClass, Class<V1> valueClass1, Class<V2> valueClass2,
 			long memory, int maxNumFileHandles, float spillingThreshold,
-			LocalStrategy localStrategy, AbstractTask parentTask)
+			LocalStrategy localStrategy, AbstractInvokable parentTask)
 	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;

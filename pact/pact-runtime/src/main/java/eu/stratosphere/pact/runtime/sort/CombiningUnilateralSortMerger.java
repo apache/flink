@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -124,7 +124,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			long totalMemory, int maxNumFileHandles,
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask, float startSpillingFraction, boolean combineLastMerge)
+			AbstractInvokable parentTask, float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		this (combineStub, memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles,
@@ -163,7 +163,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask, float startSpillingFraction, boolean combineLastMerge)
+			AbstractInvokable parentTask, float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, totalMemory, ioMemory, numSortBuffers, maxNumFileHandles,
@@ -189,7 +189,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
 			this.keySerialization, this.valueSerialization,
@@ -269,7 +269,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				MemoryManager memoryManager, IOManager ioManager,
 				SerializationFactory<K> keySerializer, SerializationFactory<V> valSerializer,
 				long writeMemSize, long readMemSize,
-				AbstractTask parentTask)
+				AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 
