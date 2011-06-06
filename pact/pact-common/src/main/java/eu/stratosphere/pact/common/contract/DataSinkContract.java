@@ -105,20 +105,17 @@ public class DataSinkContract<KT extends Key, VT extends Value> extends Contract
 		return globalOrder;
 	}
 
-//	This method is currently not supported, since global sorting is not implemented in the runtime system.
-//	The method will become available once the sorting is implemented.
-//	
-//	/**
-//	 * Sets the order in which the sink must write its data. For any value other then <tt>NONE</tt>,
-//	 * this will cause the system to perform a global sort, or try to reuse an order from a
-//	 * previous operation.
-//	 * 
-//	 * @param globalOrder
-//	 *        The order to write the data in.
-//	 */
-//	public void setGlobalOrder(Order globalOrder) {
-//		this.globalOrder = globalOrder;
-//	}
+	/**
+	 * Sets the order in which the sink must write its data. For any value other then <tt>NONE</tt>,
+	 * this will cause the system to perform a global sort, or try to reuse an order from a
+	 * previous operation.
+	 * 
+	 * @param globalOrder
+	 *        The order to write the data in.
+	 */
+	public void setGlobalOrder(Order globalOrder) {
+		this.globalOrder = globalOrder;
+	}
 
 	/**
 	 * Gets the order, in which the data sink writes its data locally. Local order means that

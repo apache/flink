@@ -48,11 +48,8 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 */
 	@Override
 	public void getRangePartitionCost(PactConnection conn, Costs costs) {
-		// TODO: get a realistic estimate for range partitioning costs.
-		// currently, the sole purpose is to make range partitioning more expensive than hash partitioning
-		// initial mock estimate: we need to ship 1.5 times the data over the network to establish the partitioning.
-		// no disk costs.
-		final long estOutShipSize = conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
+		//Assume sampling of 10% of the data
+		final long estOutShipSize = (long) (conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize() * 1.1);
 		
 		if (estOutShipSize == -1) {
 			costs.setNetworkCost(-1);
@@ -61,7 +58,8 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 			costs.setNetworkCost(cost);
 		}
 
-		costs.setSecondaryStorageCost(0);
+		// we assume a two phase merge sort, so all in all 2 I/O operations per block
+		costs.setSecondaryStorageCost(estOutShipSize == -1 ? -1 : 2 * estOutShipSize);
 	}
 
 	/*

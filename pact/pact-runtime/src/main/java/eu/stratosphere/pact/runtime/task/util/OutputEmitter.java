@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Arrays;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.common.type.Key;
@@ -53,7 +54,9 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	
 	private int[] channels;						// the reused array defining target channels
 	
-	private int nextChannelToSendTo = 0;		// counter to go over channels round robin 
+	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
+	
+	private static Key[] partitionBorders;		//HACK HACK HACK!!!
 
 
 	// ------------------------------------------------------------------------
@@ -106,9 +109,31 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 			return partition(pair, numberOfChannels);
 		case FORWARD:
 			return robin(numberOfChannels);
+		case PARTITION_RANGE:
+			return partition_range(pair, numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
+	}
+
+	private int[] partition_range(KeyValuePair<K, V> pair, int numberOfChannels) {
+		if (this.channels == null || this.channels.length != 1) {
+			this.channels = new int[1];
+		}
+		
+		//TODO: Check partition borders match number of channels
+		
+		int pos = Arrays.binarySearch(partitionBorders, pair.getKey());
+		if(pos < 0) {
+			pos++;
+			pos = -pos;
+		}
+		//if(pos == partitionBorders.length) {
+			//channels[0] = 0;
+		//} else {
+			channels[0] = pos;
+		//}
+		return channels;
 	}
 
 	private final int[] robin(int numberOfChannels) {
@@ -161,6 +186,31 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	@Override
 	public void read(DataInput in) throws IOException {
 		strategy = ShipStrategy.valueOf(in.readUTF());
+		
+		String className = in.readUTF();
+		if(className.equals("null")) {
+			return;
+		}
+		
+		Class<Key> clazz = null;
+		try {
+			clazz = (Class<Key>) OutputEmitter.class.getClassLoader().loadClass(className);
+		} catch (ClassNotFoundException e) {
+			//TODO: Do properly
+			throw new RuntimeException("Worlds end");
+		}
+		int count = in.readInt();
+		partitionBorders = new Key[count];
+		for (int i = 0; i < count; i++) {
+			try {
+				Key k = clazz.newInstance();
+				k.read(in);
+				partitionBorders[i] = k;
+			} catch (Exception e) {
+				//TODO: Do properly
+				throw new RuntimeException("Worlds end");
+			}
+		}
 	}
 
 	/* (non-Javadoc)
@@ -169,6 +219,19 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	@Override
 	public void write(DataOutput out) throws IOException {
 		out.writeUTF(strategy.name());
+		if(partitionBorders != null ) {
+			out.writeUTF(partitionBorders[0].getClass().getName());
+			out.writeInt(partitionBorders.length);
+			for (Key k : partitionBorders) {
+				k.write(out);
+			}
+		} else {
+			out.writeUTF("null");
+		}
+	}
+
+	public void setPartitionBorders(Key[] array) {
+		this.partitionBorders = array;
 	}
 
 }
