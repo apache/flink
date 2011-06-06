@@ -602,9 +602,9 @@ public class MatchTaskTest extends TaskTestBase {
 		public void match(PactInteger key, PactInteger value1, PactInteger value2,
 				Collector<PactInteger, PactInteger> out) {
 			
-			Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value2)));
+			Assert.assertFalse("Key was given multiple times into user code",hashSet.contains(System.identityHashCode(key)));
+			Assert.assertFalse("Value was given multiple times into user code",hashSet.contains(System.identityHashCode(value1)));
+			Assert.assertFalse("Value was given multiple times into user code",hashSet.contains(System.identityHashCode(value2)));
 			
 			hashSet.add(System.identityHashCode(key));
 			hashSet.add(System.identityHashCode(value1));

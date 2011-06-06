@@ -124,6 +124,9 @@ public class MatchTask extends AbstractTask
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
 
+		final MatchStub matchStub = this.matchStub;
+		final OutputCollector collector = this.output;
+		
 		// obtain MatchTaskIterator
 		try {
 			this.matchIterator = getIterator(this.reader1, this.reader2);
@@ -138,7 +141,7 @@ public class MatchTask extends AbstractTask
 			this.matchStub.open();
 			
 			// for each distinct key that is contained in both inputs
-			while (this.taskRunning && matchIterator.callWithNextKey());
+			while (this.taskRunning && matchIterator.callWithNextKey(matchStub, collector));
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
@@ -371,7 +374,6 @@ public class MatchTask extends AbstractTask
 		case MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2,
 				matchStub.getFirstInKeyType(), matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
-				this.matchStub, this.output,
 				this.availableMemory, this.maxFileHandles, this.spillThreshold,
 				config.getLocalStrategy(), this);
 //		case HYBRIDHASH_FIRST:

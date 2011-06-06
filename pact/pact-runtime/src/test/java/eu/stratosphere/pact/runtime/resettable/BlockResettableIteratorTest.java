@@ -17,7 +17,6 @@ package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -31,7 +30,6 @@ import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -52,39 +50,6 @@ public class BlockResettableIteratorTest
 	private RecordDeserializer<PactInteger> deserializer;
 	
 
-	
-	
-	protected class CollectionIterator<T extends Record> implements Iterator<T> {
-		private List<T> objects;
-
-		private int position = 0;
-
-		public CollectionIterator(Collection<T> objects) {
-			this.objects = new ArrayList<T>(objects);
-		}
-
-		@Override
-		public boolean hasNext() {
-			if (position < objects.size())
-				return true;
-			return false;
-		}
-
-		@Override
-		public T next() {
-			if (hasNext()) {
-				T tmp = objects.get(position);
-				position++;
-				return tmp;
-			}
-			return null;
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
-	}
 
 	@Before
 	public void startup() {

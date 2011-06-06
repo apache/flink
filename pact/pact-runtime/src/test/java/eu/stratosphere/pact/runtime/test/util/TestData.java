@@ -82,7 +82,7 @@ public final class TestData {
 
 		@Override
 		public boolean equals(Object obj) {
-			return this.key - ((Key) obj).key == 0;
+			return this.key == ((Key) obj).key;
 		}
 
 		@Override
@@ -92,7 +92,7 @@ public final class TestData {
 
 		@Override
 		public String toString() {
-			return new Integer(key).toString();
+			return String.valueOf(key);
 		}
 	}
 
@@ -126,6 +126,11 @@ public final class TestData {
 		@Override
 		public boolean equals(Object obj) {
 			return this.value.equals(((Value) obj).value);
+		}
+		
+		@Override
+		public int hashCode() {
+			return this.value.hashCode();
 		}
 
 		@Override

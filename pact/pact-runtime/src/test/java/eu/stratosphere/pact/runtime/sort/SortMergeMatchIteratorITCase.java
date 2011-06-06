@@ -18,8 +18,6 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -35,10 +33,13 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
@@ -49,7 +50,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Erik Nijkamp
  */
-public class SortMergeMatchIteratorITCase {
+public class SortMergeMatchIteratorITCase
+{
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 128;
 
@@ -125,9 +127,14 @@ public class SortMergeMatchIteratorITCase {
 			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+				collectData(generator1, INPUT_1_SIZE),
+				collectData(generator2, INPUT_2_SIZE));
+			
+			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
+				new MatchRemovingMatcher(expectedMatchesMap);
+			
+			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
 	
 			// reset the generators
 			generator1.reset();
@@ -141,38 +148,9 @@ public class SortMergeMatchIteratorITCase {
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
-	
-				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
-				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
-				}
-	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
-			}
+			
+			while (iterator.callWithNextKey(matcher, collector));
+			
 			iterator.close();
 	
 			// assert that each expected match was seen
@@ -197,9 +175,14 @@ public class SortMergeMatchIteratorITCase {
 			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
 
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+				collectData(generator1, INPUT_1_SIZE),
+				collectData(generator2, INPUT_2_SIZE));
+			
+			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
+				new MatchRemovingMatcher(expectedMatchesMap);
+			
+			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
 	
 			// reset the generators
 			generator1.reset();
@@ -213,38 +196,9 @@ public class SortMergeMatchIteratorITCase {
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
-	
-				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
-				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
-				}
-	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
-			}
+			
+			while (iterator.callWithNextKey(matcher, collector));
+			
 			iterator.close();
 	
 			// assert that each expected match was seen
@@ -269,9 +223,14 @@ public class SortMergeMatchIteratorITCase {
 			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
 
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+				collectData(generator1, INPUT_1_SIZE),
+				collectData(generator2, INPUT_2_SIZE));
+			
+			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
+				new MatchRemovingMatcher(expectedMatchesMap);
+			
+			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
 	
 			// reset the generators
 			generator1.reset();
@@ -285,38 +244,9 @@ public class SortMergeMatchIteratorITCase {
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
-	
-				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
-				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
-				}
-	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
-			}
+			
+			while (iterator.callWithNextKey(matcher, collector));
+			
 			iterator.close();
 	
 			// assert that each expected match was seen
@@ -341,9 +271,14 @@ public class SortMergeMatchIteratorITCase {
 			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
 
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, Collection<Match>> expectedMatchesMap = matchValues(expectedValuesMap1, expectedValuesMap2);
+			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+				collectData(generator1, INPUT_1_SIZE),
+				collectData(generator2, INPUT_2_SIZE));
+			
+			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
+				new MatchRemovingMatcher(expectedMatchesMap);
+			
+			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
 	
 			// reset the generators
 			generator1.reset();
@@ -357,38 +292,9 @@ public class SortMergeMatchIteratorITCase {
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
-	
-				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedMatchesMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				// clone add memorize
-				List<TestData.Value> values1 = new ArrayList<TestData.Value>();
-				while (iter1.hasNext()) {
-					values1.add(new TestData.Value(iter1.next().getValue()));
-				}
-	
-				List<TestData.Value> values2 = new ArrayList<TestData.Value>();
-				while (iter2.hasNext()) {
-					values2.add(new TestData.Value(iter2.next().getValue()));
-				}
-	
-				// compare
-				for (Value value1 : values1) {
-					for (Value value2 : values2) {
-						Collection<Match> expectedValues = expectedMatchesMap.get(key);
-						Match match = new Match(value1, value2);
-						Assert.assertTrue("Unexpected match " + match + " for key " + key, expectedValues.contains(match));
-						expectedValues.remove(match);
-					}
-				}
-	
-			}
+			
+			while (iterator.callWithNextKey(matcher, collector));
+			
 			iterator.close();
 	
 			// assert that each expected match was seen
@@ -465,10 +371,36 @@ public class SortMergeMatchIteratorITCase {
 			Match o = (Match) obj;
 			return this.left.equals(o.left) && this.right.equals(o.right);
 		}
+		
+		@Override
+		public int hashCode() {
+			return this.left.hashCode() ^ this.right.hashCode();
+		}
 
 		@Override
 		public String toString() {
 			return left + ", " + right;
+		}
+	}
+	
+	private static final class MatchRemovingMatcher extends MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value>
+	{
+		private final Map<Key, Collection<Match>> toRemoveFrom;
+		
+		protected MatchRemovingMatcher(Map<Key, Collection<Match>> map) {
+			this.toRemoveFrom = map;
+		}
+		
+		@Override
+		public void match(TestData.Key key, TestData.Value value1, TestData.Value value2, Collector<TestData.Key, TestData.Value> out)
+		{
+			Collection<Match> matches = this.toRemoveFrom.get(key);
+			if (matches == null) {
+				Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
+			}
+			
+			Assert.assertTrue("Produced match was not contained: " + key + " - " + value1 + ":" + value2,
+				matches.remove(new Match(value1, value2)));
 		}
 	}
 }

@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -36,10 +37,10 @@ import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.ValueDeserializer;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.task.util.IteratorNepheleReader;
+import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
+import eu.stratosphere.pact.runtime.task.util.RepeatableIteratorWrapper;
 import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -52,8 +53,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends Value, OK extends Key, OV extends Value>
-implements MatchTaskIterator
+public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends Value>
+implements MatchTaskIterator<K, V1, V2>
 {
 	/**
 	 * The log used by this iterator to log messages.
@@ -85,10 +86,6 @@ implements MatchTaskIterator
 	private final SerializationFactory<V1> value1Serialization;
 	
 	private final SerializationFactory<V2> value2Serialization;
-	
-	private final MatchStub<K, V1, V2, OK, OV> matchFunction;
-	
-	private final OutputCollector<OK, OV> collector;
 	
 	private final Class<K> keyClass;
 
@@ -123,7 +120,6 @@ implements MatchTaskIterator
 	public SortMergeMatchIterator(MemoryManager memoryManager, IOManager ioManager,
 			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
 			Class<K> keyClass, Class<V1> value1Class, Class<V2> value2Class,
-			MatchStub<K, V1, V2, OK, OV> matchFunction, OutputCollector<OK, OV> collector,
 			long memory, int maxNumFileHandles, float spillingThreshold,
 			LocalStrategy localStrategy, AbstractTask parentTask)
 	{
@@ -136,9 +132,6 @@ implements MatchTaskIterator
 		this.keySerialization = new WritableSerializationFactory<K>(keyClass);
 		this.value1Serialization = new WritableSerializationFactory<V1>(value1Class);
 		this.value2Serialization = new WritableSerializationFactory<V2>(value2Class);
-		
-		this.matchFunction = matchFunction;
-		this.collector = collector;
 		
 		this.keyClass = keyClass;
 		this.value1Class = value1Class;
@@ -265,7 +258,7 @@ implements MatchTaskIterator
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey()
 	 */
 	@Override
-	public boolean callWithNextKey() throws IOException
+	public <OK extends Key, OV extends Value> boolean callWithNextKey(MatchStub<K, V1, V2, OK, OV> matchFunction, Collector<OK, OV> collector) throws IOException
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
 			return false;
@@ -310,21 +303,19 @@ implements MatchTaskIterator
 		// then we can derive the local strategy (with build side).
 		if (!v1HasNext && !v2HasNext) {
 			// both sides contain only one value
-			this.matchFunction.match(key1, firstV1, firstV2, this.collector);
-			return false;
+			matchFunction.match(key1, firstV1, firstV2, collector);
 		}
-		
-		if (!v1HasNext) {
-			crossFirst1withNValues(key2, firstV1, firstV2, values2);
+		else if (!v1HasNext) {
+			crossFirst1withNValues(key2, firstV1, firstV2, values2, matchFunction, collector);
 
 		}
 		else if (!v2HasNext) {
-			crossSecond1withNValues(key1, firstV2, firstV1, values1);
+			crossSecond1withNValues(key1, firstV2, firstV1, values1, matchFunction, collector);
 		}
 		else {
 			// both sides contain more than one value
 			// TODO: Decide which side to spill and which to block!
-			crossMwithNValues(key1, firstV1, values1, firstV2, values2);
+			crossMwithNValues(key1, firstV1, values1, firstV2, values2, matchFunction, collector);
 		}
 		
 		return true;
@@ -352,14 +343,15 @@ implements MatchTaskIterator
 	 *          
 	 * @throws RuntimeException Forwards all exceptions thrown by the stub.
 	 */
-	private void crossFirst1withNValues(K key, V1 val1, V2 firstValN, Iterator<V2> valsN)
-	throws RuntimeException
+	private <OK extends Key, OV extends Value>  void crossFirst1withNValues(
+			K key, V1 val1, V2 firstValN, Iterator<V2> valsN,
+			MatchStub<K, V1, V2, OK, OV> matchFunction, Collector<OK, OV> collector)
 	{
 		// set copies
 		this.keyCopier.setCopy(key);
 		this.valCopier.setCopy(val1);
 		
-		this.matchFunction.match(key, val1, firstValN, this.collector);
+		matchFunction.match(key, val1, firstValN, collector);
 		
 		// for each of N values
 		while (this.running && valsN.hasNext()) {
@@ -374,7 +366,7 @@ implements MatchTaskIterator
 			V2 vN = valsN.next();
 			
 			// match
-			this.matchFunction.match(copiedKey, copiedValue, vN, this.collector);
+			matchFunction.match(copiedKey, copiedValue, vN, collector);
 		}
 	}
 	
@@ -389,14 +381,16 @@ implements MatchTaskIterator
 	 *          
 	 * @throws RuntimeException Forwards all exceptions thrown by the stub.
 	 */
-	private void crossSecond1withNValues(K key, V2 val1, V1 firstValN, Iterator<V1> valsN)
+	private <OK extends Key, OV extends Value> void crossSecond1withNValues(
+			K key, V2 val1, V1 firstValN, Iterator<V1> valsN,
+			MatchStub<K, V1, V2, OK, OV> matchFunction, Collector<OK, OV> collector)
 	throws RuntimeException
 	{
 		// set copies
 		this.keyCopier.setCopy(key);
 		this.valCopier.setCopy(val1);
 		
-		this.matchFunction.match(key, firstValN, val1, this.collector);
+		matchFunction.match(key, firstValN, val1, collector);
 		
 		// for each of N values
 		while (this.running && valsN.hasNext()) {
@@ -411,15 +405,37 @@ implements MatchTaskIterator
 			V1 vN = valsN.next();
 			
 			// match
-			this.matchFunction.match(copiedKey, vN, copiedValue, this.collector);
+			matchFunction.match(copiedKey, vN, copiedValue, collector);
 		}
 	}
 	
-	private void crossMwithNValues(final K key, final V1 firstV1, Iterator<V1> spillVals,
-			                       final V2 firstV2, final Iterator<V2> blockVals)
-	{	
-		final OutputCollector<OK, OV> collector = this.collector;
-		final MatchStub<K, V1, V2, OK, OV> matchFunction = this.matchFunction;
+	/**
+	 * @param key
+	 * @param firstV1
+	 * @param spillVals
+	 * @param firstV2
+	 * @param blockVals
+	 */
+	private <OK extends Key, OV extends Value> void crossMwithNValues(
+			final K key, final V1 firstV1, Iterator<V1> spillVals,
+			final V2 firstV2, final Iterator<V2> blockVals,
+			MatchStub<K, V1, V2, OK, OV> matchFunction, Collector<OK, OV> collector)
+	{
+		// ==================================================
+		// We have one first (head) element from both inputs (firstV1 and firstV2)
+		// We have an iterator for both inputs.
+		// we make the V1 side the spilling side and the V2 side the blocking side.
+		// In order to get the full cross product without unnecessary spilling, we do the
+		// following:
+		// 1) cross the heads
+		// 2) cross the head of the spilling side against the first block of the blocking side
+		// 3) cross the iterator of the spilling side with the head of the block side
+		// 4) cross the iterator of the spilling side with the first block
+		// ---------------------------------------------------
+		// If the blocking side has more than one block, we really need to make the spilling side fully
+		// resettable. For each further block on the block side, we do:
+		// 5) cross the head of the spilling side with the next block
+		// 6) cross the spilling iterator with the next block.
 		
 		// match the first values first
 		this.keyCopier.setCopy(key);
@@ -432,6 +448,7 @@ implements MatchTaskIterator
 		V1 val1Copy = this.value1Serialization.newInstance();
 		this.valCopier.getCopy(val1Copy);
 		
+		// --------------- 1) Cross the heads -------------------
 		matchFunction.match(key, val1Copy, val2Copy, collector);
 		
 		// for the remaining values, we do a block-nested-loops join
@@ -439,19 +456,17 @@ implements MatchTaskIterator
 		BlockResettableIterator<V2> blockIt = null;
 		
 		try {
-			// create block iterator on second input
+			// create block iterator on the second input
 			final ValueDeserializer<V2> v2Deserializer = new ValueDeserializer<V2>(this.value2Class);
 			blockIt = new BlockResettableIterator<V2>(this.memoryManager, blockVals, 
 					this.memoryForBlockNestedLoops - SpillingResettableIterator.MIN_TOTAL_MEMORY, 1, 
 					v2Deserializer, this.parentTask);
 			blockIt.open();
 			
-			// first, cross the first value from v1 against all values from the block-resettable iterator
-			// that way, we also determine, if there would be any further blocks, which tells us if we need
-			// the spilling iterator at all
+			// ------------- 2) cross the head of the spilling side with the first block ------------------
 			// NOTE: Here we still have the first V1 value in the copier!
 			while (blockIt.hasNext()) {
-				K keyCopy = this.keySerialization.newInstance();
+				final K keyCopy = this.keySerialization.newInstance();
 				this.keyCopier.getCopy(keyCopy);
 				
 				val1Copy = this.value1Serialization.newInstance();
@@ -459,11 +474,13 @@ implements MatchTaskIterator
 				
 				V2 val2 = blockIt.next();
 				
-				matchFunction.match(key, val1Copy, val2, collector);
+				matchFunction.match(keyCopy, val1Copy, val2, collector);
 			}
+			blockIt.reset();
 			
 			// spilling is required if the blocked input has data beyond the current block.
 			// in that case, create the spilling iterator
+			final LastRepeatableIterator<V1> repeatableIter;
 			boolean spillingRequired = blockIt.hasFurtherInput();
 			if (spillingRequired)
 			{
@@ -472,71 +489,93 @@ implements MatchTaskIterator
 				final ValueDeserializer<V1> v1Deserializer = new ValueDeserializer<V1>(this.value1Class);
 				spillIt = new SpillingResettableIterator<V1>(this.memoryManager, this.ioManager, spillVals, 
 							SpillingResettableIterator.MIN_TOTAL_MEMORY, v1Deserializer, this.parentTask);
-				spillVals = spillIt;
+				repeatableIter = spillIt;
 				
 				spillIt.open();
 			}
+			else {
+				repeatableIter = new RepeatableIteratorWrapper<V1>(spillVals, this.value1Serialization);
+			}
 			
 			// cross the values in the v1 iterator against the current block
-			while (spillVals.hasNext()) {
+			this.valCopier.setCopy(firstV2);
+			while (repeatableIter.hasNext()) {
 				// get value from the spilling side iterator
-				V1 nextSpillVal = spillIt.next();
+				V1 nextSpillVal = repeatableIter.next();
 				
-				// cross value with block values
+				// -------- 3) cross the iterator of the spilling side with the head of the block side --------
+				K keyCopy = this.keySerialization.newInstance();
+				this.keyCopier.getCopy(keyCopy);
+				val2Copy = this.value2Serialization.newInstance();
+				this.valCopier.getCopy(val2Copy);
+				matchFunction.match(keyCopy, nextSpillVal, val2Copy, collector);
+				
+				// -------- 4) cross the iterator of the spilling side with the first block --------
 				while (this.running && blockIt.hasNext()) {
 					// get instances of key and block value
-					final K keyCopy = this.keySerialization.newInstance();
+					keyCopy = this.keySerialization.newInstance();
 					this.keyCopier.getCopy(keyCopy);
-					
+					nextSpillVal = repeatableIter.repeatLast();
 					final V2 nextBlockVal = blockIt.next();
 
-					matchFunction.match(keyCopy, nextSpillVal, nextBlockVal, collector);
-					
-					// get new instance of resettable value
-					if (blockIt.hasNext())
-						nextSpillVal = spillIt.repeatLast();
+					matchFunction.match(keyCopy, nextSpillVal, nextBlockVal, collector);						
 				}
 				// reset block iterator
 				blockIt.reset();
 			}
 			
+			// if everything from the block-side fit into a single block, we are done.
+			// note that in this special case, we did not create a spilling iterator at all
 			if (!spillingRequired) {
 				return;
 			}
-			else {
-				// as long as there are blocks from the blocked input 
-				do {
-					// cross block values (second input) with resettable values (first input)
-					while (spillIt.hasNext()) {
-						// get value from resettable iterator
-						V1 nextSpillVal = spillIt.next();
-						
-						// cross value with block values
-						while (this.running && blockIt.hasNext()) {
-							// get instances of key and block value
-							final K keyCopy = this.keySerialization.newInstance();
-							this.keyCopier.getCopy(keyCopy);
+			
+			// here we are, because we have more blocks on the block side
+			this.valCopier.setCopy(firstV1);
+			
+			// loop as long as there are blocks from the blocked input
+			while (blockIt.nextBlock())
+			{
+				// rewind the spilling iterator
+				spillIt.reset();
+				
+				// ------------- 5) cross the head of the spilling side with the next block ------------
+				while (this.running && blockIt.hasNext()) {
+					final K keyCopy = this.keySerialization.newInstance();
+					this.keyCopier.getCopy(keyCopy);
+					val1Copy = this.value1Serialization.newInstance();
+					this.valCopier.getCopy(val1Copy);
+					
+					final V2 nextBlockVal = blockIt.next();
+					matchFunction.match(keyCopy, val1Copy, nextBlockVal, collector);
+				}
+				
+				// -------- 6) cross the spilling iterator with the next block. ------------------
+				while (spillIt.hasNext())
+				{
+					// get value from resettable iterator
+					V1 nextSpillVal = spillIt.next();
+					
+					// cross value with block values
+					while (this.running && blockIt.hasNext()) {
+						// get instances of key and block value
+						final K keyCopy = this.keySerialization.newInstance();
+						this.keyCopier.getCopy(keyCopy);
 							
-							final V2 nextBlockVal = blockIt.next();
+						final V2 nextBlockVal = blockIt.next();
 
-							matchFunction.match(keyCopy, nextSpillVal, nextBlockVal, collector);
+						matchFunction.match(keyCopy, nextSpillVal, nextBlockVal, collector);
 							
 							// get new instance of resettable value
-							if (blockIt.hasNext())
-								nextSpillVal = spillIt.repeatLast();
-						}
-						// reset block iterator
-						blockIt.reset();
+						if (blockIt.hasNext())
+							nextSpillVal = spillIt.repeatLast();
 					}
-					// reset v1 iterator
-					spillIt.reset();
 					
-					// move to next block
+					// reset block iterator
+					blockIt.reset();
 				}
-				while (this.running && blockIt.nextBlock());
-			}
-			else {
-				// all input in the block. we don't need to cache the other side
+				// reset v1 iterator
+				spillIt.reset();
 			}
 		}
 		catch (Exception e) {

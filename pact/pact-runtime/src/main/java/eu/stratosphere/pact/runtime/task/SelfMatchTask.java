@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
@@ -48,6 +47,7 @@ import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
@@ -120,10 +120,10 @@ public class SelfMatchTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput() {
-		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void registerInputOutput()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start registering input and output"));
 
 		// Initialize stub implementation
 		initStub();
@@ -134,9 +134,8 @@ public class SelfMatchTask extends AbstractTask {
 		// Initializes output writers and collector
 		initOutputCollector();
 
-		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 	/**
@@ -145,22 +144,19 @@ public class SelfMatchTask extends AbstractTask {
 	@Override
 	public void invoke() throws Exception
 	{
-		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isInfoEnabled())
+			LOG.info(getLogString("Start PACT code"));
 
-		LOG.debug("Start obtaining iterator: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start obtaining iterator"));
 		
 		// obtain grouped iterator
 		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
 		try {
 			sortedInputProvider = obtainInput();
 			
-			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Iterator obtained"));
 	
 			// open stub implementation
 			stub.open();
@@ -171,14 +167,12 @@ public class SelfMatchTask extends AbstractTask {
 				// cross all value of a certain key
 				crossValues(it.getKey(), it.getValues(), output);
 			}
-
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				if (LOG.isErrorEnabled())
+					LOG.error(getLogString("Unexpected ERROR in PACT code"));
 				throw ex;
 			}
 		}
@@ -194,24 +188,20 @@ public class SelfMatchTask extends AbstractTask {
 				stub.close();
 			}
 			catch (Throwable t) {
-				LOG.error("Error while closing the Match user function " 
-					+ this.getEnvironment().getTaskName() + " ("
-					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
+				if (LOG.isErrorEnabled())
+					LOG.error(getLogString("Error while closing the Match user function"), t);
 			}
-			
 			// close output collector
 			output.close();
 		}
 		
 		if (this.taskCanceled) {
-			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		} else {
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isWarnEnabled())
+				LOG.warn(getLogString("PACT code cancelled"));
+		}
+		else {
+			if (LOG.isInfoEnabled())
+				LOG.info(getLogString("Finished PACT code"));
 		}
 	}
 	
@@ -222,9 +212,8 @@ public class SelfMatchTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isWarnEnabled())
+			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 
 	// ------------------------------------------------------------------------
@@ -362,8 +351,8 @@ public class SelfMatchTask extends AbstractTask {
 	 *         Throws RuntimeException if it is not possible to obtain a
 	 *         grouped iterator.
 	 */
-	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
-		
+	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput()
+	{	
 		// obtain the MemoryManager of the TaskManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain the IOManager of the TaskManager
@@ -385,37 +374,15 @@ public class SelfMatchTask extends AbstractTask {
 		// local strategy is NONE
 		// input is already grouped, an iterator that wraps the reader is
 		// created and returned
-		case SELF_NESTEDLOOP: {
+		case SELF_NESTEDLOOP:
 			// iterator wraps input reader
-			Iterator<KeyValuePair<Key, Value>> iter = new Iterator<KeyValuePair<Key, Value>>() {
-
-				@Override
-				public boolean hasNext() {
-					return reader.hasNext();
-				}
-
-				@Override
-				public KeyValuePair<Key, Value> next() {
-					try {
-						return reader.next();
-					} catch (Exception e) {
-						throw new RuntimeException(e);
-					}
-				}
-
-				@Override
-				public void remove() {
-				}
-
-			};
-			
+			Iterator<KeyValuePair<Key, Value>> iter = new NepheleReaderIterator<KeyValuePair<Key,Value>>(this.reader);			
 			return new SimpleCloseableInputProvider<KeyValuePair<Key,Value>>(iter);
-		}
 
 			// local strategy is SORT
 			// The input is grouped using a sort-merge strategy.
 			// An iterator on the sorted pairs is created and returned.
-		case SORT_SELF_NESTEDLOOP: {
+		case SORT_SELF_NESTEDLOOP:
 			// create a key comparator
 			final Comparator<Key> keyComparator = new Comparator<Key>() {
 				@Override
@@ -431,13 +398,15 @@ public class SelfMatchTask extends AbstractTask {
 					valSerialization, keyComparator, reader, this, this.spillThreshold);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
-			} catch (MemoryAllocationException mae) {
+			}
+			catch (MemoryAllocationException mae) {
 				throw new RuntimeException(
 					"MemoryManager is not able to provide the required amount of memory for SelfMatchTask", mae);
-			} catch (IOException ioe) {
+			}
+			catch (IOException ioe) {
 				throw new RuntimeException("IOException caught when obtaining SortMerger for SelfMatchTask", ioe);
 			}
-		}
+			
 		default:
 			throw new RuntimeException("Invalid local strategy provided for SelfMatchTask: " +
 				config.getLocalStrategy());
@@ -457,8 +426,8 @@ public class SelfMatchTask extends AbstractTask {
 	 * @param out
 	 *        The collector to write the results to.
 	 */
-	private final void crossValues(Key key, final Iterator<Value> values, final Collector<Key, Value> out) {
-		
+	private final void crossValues(Key key, final Iterator<Value> values, final Collector<Key, Value> out)
+	{
 		// allocate buffer
 		final SerializationCopier<Value>[] valBuffer = new SerializationCopier[VALUE_BUFFER_SIZE];
 		
@@ -482,13 +451,13 @@ public class SelfMatchTask extends AbstractTask {
 		}
 		
 		// cross values in buffer
-		for(int i=0;i<bufferValCnt;i++) {
+		for (int i = 0;i < bufferValCnt; i++) {
 			// check if task was canceled
-			if(this.taskCanceled) return;
+			if (this.taskCanceled) return;
 			
-			for(int j=0;j<bufferValCnt;j++) {
+			for (int j = 0; j < bufferValCnt; j++) {
 				// check if task was canceled
-				if(this.taskCanceled) return;
+				if (this.taskCanceled) return;
 				
 				// get copies of key and values
 				copyKey = keySerialization.newInstance();
@@ -508,19 +477,19 @@ public class SelfMatchTask extends AbstractTask {
 			// there are still value in the reader
 
 			// wrap value iterator in a reader
-			Reader<Value> valReader = new Reader<Value>() {
+			Iterator<Value> valReader = new Iterator<Value>() {
 
 				@Override
 				public boolean hasNext() {
 					
-					if(taskCanceled) 
+					if (taskCanceled) 
 						return false;
-					
-					return values.hasNext();
+					else
+						return values.hasNext();
 				}
 
 				@Override
-				public Value next() throws IOException, InterruptedException {
+				public Value next() {
 						
 					// get next value
 					Value nextVal = values.next();
@@ -547,6 +516,11 @@ public class SelfMatchTask extends AbstractTask {
 					
 					// return value
 					return nextVal;
+				}
+				
+				@Override
+				public void remove() {
+					throw new UnsupportedOperationException();
 				}
 			};
 			
@@ -664,5 +638,29 @@ public class SelfMatchTask extends AbstractTask {
 		}
 		
 	};
-		
+	
+	// ------------------------------------------------------------------------
+	//                               Utilities
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Utility function that composes a string for logging purposes. The string includes the given message and
+	 * the index of the task in its task group together with the number of tasks in the task group.
+	 *  
+	 * @param message The main message for the log.
+	 * @return The string ready for logging.
+	 */
+	private String getLogString(String message)
+	{
+		StringBuilder bld = new StringBuilder(128);	
+		bld.append(message);
+		bld.append(':').append(' ');
+		bld.append(this.getEnvironment().getTaskName());
+		bld.append(' ').append('"');
+		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		bld.append('/');
+		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
+		bld.append(')');
+		return bld.toString();
+	}
 }
