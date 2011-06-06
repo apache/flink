@@ -16,6 +16,8 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,10 +27,15 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
@@ -36,6 +43,11 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.runtime.sort.SortMerger;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -63,6 +75,15 @@ public class DataSinkTask extends AbstractFileOutputTask {
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
+	
+	// maximum number of file handles
+	private int maxFileHandles;
+	
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
 
 	/**
 	 * {@inheritDoc}
@@ -77,6 +98,11 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		initOutputFormat();
 		// initialize input reader
 		initInputReader();
+		
+		// set up memory and I/O parameters
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
 
 		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
@@ -94,7 +120,6 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		final Path path = getFileOutputPath();
-		final RecordReader<KeyValuePair<Key, Value>> reader = this.reader;
 		final OutputFormat format = this.format;
 
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
@@ -104,7 +129,17 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		
 		FSDataOutputStream fdos = null;
 		
+		// obtain grouped iterator
+		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
+		
 		try {
+			sortedInputProvider = obtainInput();
+			Iterator<KeyValuePair<Key, Value>> iter = sortedInputProvider.getIterator();
+			
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			
 			// get FSDataOutputStream
 			fdos = opot.getFSDataOutputStream();
 
@@ -120,8 +155,8 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			format.setOutput(fdos);
 			format.open();
 
-			while (!this.taskCanceled && reader.hasNext()) {
-				KeyValuePair pair = reader.next();
+			while (!this.taskCanceled && iter.hasNext()) {
+				KeyValuePair pair = iter.next();
 				format.writePair(pair);
 			}
 		}
@@ -136,6 +171,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 				
 		}
 		finally {
+			if (sortedInputProvider != null) {
+				sortedInputProvider.close();
+			}
 			
 			if (this.format != null) {
 				// close format
@@ -233,6 +271,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
 			break;
+		case PARTITION_RANGE:
+			dp = new BipartiteDistributionPattern();
+			break;
 		default:
 			throw new RuntimeException("No valid input ship strategy provided for DataSinkTask.");
 		}
@@ -240,6 +281,99 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		// create reader
 		// map has only one input, so we create one reader (id=0).
 		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+
+	}
+	
+	/**
+	 * Returns an iterator over all k-v pairs of the ReduceTasks input. The
+	 * pairs which are returned by the iterator are grouped by their keys.
+	 * 
+	 * @return A key-grouped iterator over all input key-value pairs.
+	 * @throws RuntimeException
+	 *         Throws RuntimeException if it is not possible to obtain a
+	 *         grouped iterator.
+	 */
+	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
+		
+		// obtain the MemoryManager of the TaskManager
+		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+		// obtain the IOManager of the TaskManager
+		final IOManager ioManager = getEnvironment().getIOManager();
+
+		// obtain input key type
+		final Class<Key> keyClass = format.getOutKeyType();
+		// obtain input value type
+		final Class<Value> valueClass = format.getOutValueType();
+
+		// obtain key serializer
+		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
+		// obtain value serializer
+		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>(valueClass);
+
+		// obtain grouped iterator defined by local strategy
+		switch (config.getLocalStrategy()) {
+
+		// local strategy is NONE
+		// input is already grouped, an iterator that wraps the reader is
+		// created and returned
+		case NONE: {
+			// iterator wraps input reader
+			Iterator<KeyValuePair<Key, Value>> iter = new Iterator<KeyValuePair<Key, Value>>() {
+
+				@Override
+				public boolean hasNext() {
+					return reader.hasNext();
+				}
+
+				@Override
+				public KeyValuePair<Key, Value> next() {
+					try {
+						return reader.next();
+					} catch (Exception e) {
+						throw new RuntimeException(e);
+					}
+				}
+
+				@Override
+				public void remove() {
+				}
+
+			};
+			
+			return new SimpleCloseableInputProvider<KeyValuePair<Key,Value>>(iter);
+		}
+
+			// local strategy is SORT
+			// The input is grouped using a sort-merge strategy.
+			// An iterator on the sorted pairs is created and returned.
+		case SORT: {
+			// create a key comparator
+			final Comparator<Key> keyComparator = new Comparator<Key>() {
+				@Override
+				public int compare(Key k1, Key k2) {
+					return k1.compareTo(k2);
+				}
+			};
+
+			try {
+				// instantiate a sort-merger
+				this.availableMemory = 64*1024*1024;
+				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
+						this.availableMemory, this.maxFileHandles, keySerialization, valSerialization,
+						keyComparator, reader, this, this.spillThreshold);
+				// obtain and return a grouped iterator from the sort-merger
+				return sortMerger;
+			} catch (MemoryAllocationException mae) {
+				throw new RuntimeException(
+					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
+			} catch (IOException ioe) {
+				throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
+			}
+		}
+		
+		default:
+			throw new RuntimeException("Invalid local strategy provided for ReduceTask.");
+		}
 
 	}
 

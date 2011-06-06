@@ -603,11 +603,18 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		case NONE:
 			sinkConfig.setLocalStrategy(LocalStrategy.NONE);
 			break;
+		case SORT:
+			sinkConfig.setLocalStrategy(LocalStrategy.SORT);
+			break;
 		default:
 			throw new CompilerException("Invalid local strategy for 'DataSink' (" + sinkNode.getName() + "): "
 				+ sinkNode.getLocalStrategy());
 		}
 
+		//HACK: Copied from Reduce task, is memory always assigned even if not needed?
+		//		could be same problem in reduce task
+		assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
+		
 		// forward stub parameters to task and data format
 		sinkConfig.setStubParameters(sinkNode.getPactContract().getStubParameters());
 
