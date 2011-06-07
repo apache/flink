@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -56,7 +57,9 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	
 	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
 	
-	private Key[] partitionBorders;		//HACK HACK HACK!!!
+	private Key[] partitionBorders;
+	
+	private Order partitionOrder;
 
 
 	// ------------------------------------------------------------------------
@@ -128,11 +131,13 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 			pos++;
 			pos = -pos;
 		}
-		//if(pos == partitionBorders.length) {
-			//channels[0] = 0;
-		//} else {
+		
+		if(partitionOrder == Order.ASCENDING || partitionOrder == Order.ANY) {
 			channels[0] = pos;
-		//}
+		} else {
+			channels[0] = partitionBorders.length  - pos;
+		}
+		
 		return channels;
 	}
 
@@ -232,6 +237,10 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 
 	public void setPartitionBorders(Key[] array) {
 		this.partitionBorders = array;
+	}
+
+	public void setPartitionOrder(Order order) {
+		this.partitionOrder = order;
 	}
 
 }

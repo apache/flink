@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.Stub;
@@ -59,6 +60,8 @@ public class PartitionTask extends AbstractTask {
 
 	// obtain MapTask logger
 	private static final Log LOG = LogFactory.getLog(PartitionTask.class);
+	
+	public static final String GLOBAL_PARTITIONING_ORDER = "partitioning.order";
 
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> readerPartition;
@@ -125,6 +128,8 @@ public class PartitionTask extends AbstractTask {
 				recWriter.getOutputGate().getChannelSelector();
 			if(selector instanceof OutputEmitter) {
 				((OutputEmitter) selector).setPartitionBorders(borders.toArray(new Key[0]));
+				((OutputEmitter) selector).setPartitionOrder(
+					Order.valueOf(config.getStubParameters().getString(GLOBAL_PARTITIONING_ORDER, "")));
 			}
 		}
 		

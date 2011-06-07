@@ -869,6 +869,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 		TaskConfig partitionConfig = new TaskConfig(partitionVertex.getConfiguration());
 		partitionConfig.setStubClass(sourceStub);
+		Configuration partitionStubConfig = new Configuration();
+		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
+			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+		partitionConfig.setStubParameters(partitionStubConfig);
 		//Connect with input
 		histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST);
