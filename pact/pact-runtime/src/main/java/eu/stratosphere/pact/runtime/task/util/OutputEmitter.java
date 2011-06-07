@@ -56,7 +56,7 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	
 	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
 	
-	private static Key[] partitionBorders;		//HACK HACK HACK!!!
+	private Key[] partitionBorders;		//HACK HACK HACK!!!
 
 
 	// ------------------------------------------------------------------------

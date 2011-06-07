@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
+import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordDeserializer;
@@ -118,7 +119,14 @@ public class PartitionTask extends AbstractTask {
 			borders.add(readerPartition.next().getKey());
 		}
 		
-		oe.setPartitionBorders(borders.toArray(new Key[0]));
+		//Assign partition borders to output emitter
+		for (RecordWriter<KeyValuePair<Key, Value>> recWriter : output.getWriters()) {
+			ChannelSelector<KeyValuePair<Key, Value>> selector = 
+				recWriter.getOutputGate().getChannelSelector();
+			if(selector instanceof OutputEmitter) {
+				((OutputEmitter) selector).setPartitionBorders(borders.toArray(new Key[0]));
+			}
+		}
 		
 		/**
 		 * Iterator over all input key-value pairs. The iterator wraps the input
