@@ -65,6 +65,8 @@ public class HistogramTask extends AbstractTask {
 
 	public static final String NUMBER_OF_BUCKETS = "histogram.buckets.count";
 	
+	public static final String HISTOGRAM_MEMORY = "histogram.memory.amount";
+	
 	// input reader
 	private CountingRecordReader reader;
 	//private RecordReader reader;

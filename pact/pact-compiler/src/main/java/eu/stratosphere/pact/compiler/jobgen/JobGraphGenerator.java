@@ -846,14 +846,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		auxVertices.add(histogramVertex);
 		histogramVertex.setTaskClass(HistogramTask.class);
 		histogramVertex.setNumberOfSubtasks(1);
-		histogramVertex.setNumberOfSubtasksPerInstance(1);
 		TaskConfig histogramConfig = new TaskConfig(histogramVertex.getConfiguration());
 		histogramConfig.setStubClass(sourceStub);
 		histogramConfig.setLocalStrategy(LocalStrategy.SORT);
 		Configuration histogramStubConfig = new Configuration();
 		histogramStubConfig.setInteger(HistogramTask.NUMBER_OF_BUCKETS, targetDOP);
 		histogramConfig.setStubParameters(histogramStubConfig);
-		assignMemory(histogramConfig, 32);
+		assignMemory(histogramConfig, outputConfig.getStubParameters().getInteger(HistogramTask.HISTOGRAM_MEMORY,-1));
 		//Connect with input
 		histogramConfig.addInputShipStrategy(ShipStrategy.FORWARD);
 		sampleConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
