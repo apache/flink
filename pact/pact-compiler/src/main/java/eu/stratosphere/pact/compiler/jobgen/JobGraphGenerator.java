@@ -634,6 +634,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
 		
 		// forward stub parameters to task and data format
+		sinkNode.getPactContract().setStubParameter(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getKeyOrder().name());
 		sinkConfig.setStubParameters(sinkNode.getPactContract().getStubParameters());
 
 		return sinkVertex;

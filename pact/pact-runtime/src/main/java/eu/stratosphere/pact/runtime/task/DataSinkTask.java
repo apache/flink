@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 
+import javax.swing.SortOrder;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -37,6 +39,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
@@ -63,6 +66,8 @@ public class DataSinkTask extends AbstractFileOutputTask {
 
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
+	
+	public static final String SORT_ORDER = "sink.sort.order";
 
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
@@ -309,6 +314,8 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
 		// obtain value serializer
 		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>(valueClass);
+		
+		final Order sortOrder = Order.valueOf(config.getStubParameters().getString(SORT_ORDER, ""));
 
 		// obtain grouped iterator defined by local strategy
 		switch (config.getLocalStrategy()) {
@@ -348,16 +355,26 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			// An iterator on the sorted pairs is created and returned.
 		case SORT: {
 			// create a key comparator
-			final Comparator<Key> keyComparator = new Comparator<Key>() {
-				@Override
-				public int compare(Key k1, Key k2) {
-					return k1.compareTo(k2);
-				}
-			};
+			final Comparator<Key> keyComparator;
+			
+			if(sortOrder == Order.ASCENDING || sortOrder == Order.ANY) {
+				keyComparator = new Comparator<Key>() {
+					@Override
+					public int compare(Key k1, Key k2) {
+						return k1.compareTo(k2);
+					}
+				};
+			} else {
+				keyComparator = new Comparator<Key>() {
+					@Override
+					public int compare(Key k1, Key k2) {
+						return k2.compareTo(k1);
+					}
+				};
+			}
 
 			try {
-				// instantiate a sort-merger
-				this.availableMemory = 64*1024*1024;
+				// instantiate a sort-merge
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
 						this.availableMemory, this.maxFileHandles, keySerialization, valSerialization,
 						keyComparator, reader, this, this.spillThreshold);
