@@ -1,5 +1,7 @@
 package eu.stratosphere.pact.common.util;
 
+import java.io.IOException;
+
 
 /**
  * A simple iterator interface. The key differences to the {@link java.util.Iterator} are that this
@@ -18,6 +20,9 @@ public interface MutableObjectIterator<E>
 	 * 
 	 * @param target The target object into which to place next element. 
 	 * @return True, if the target object was properly filled with its contents, false if the iterator is exhausted.
+	 * 
+	 * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the 
+	 *                     serialization / deserialization logic
 	 */
-	public boolean next(E target);
+	public boolean next(E target) throws IOException;
 }
