@@ -65,7 +65,7 @@ implements MatchTaskIterator<K, V1, V2>
 	 * The fraction of the memory that is dedicated to the spilling resettable iterator, which is used in cases where
 	 * the cross product of values with the same key becomes very large. 
 	 */
-	private static final double MEMORY_SHARE_RATIO = 0.05;
+	private static final float DEFAULT_MEMORY_SHARE_RATIO = 0.05f;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -123,6 +123,16 @@ implements MatchTaskIterator<K, V1, V2>
 			long memory, int maxNumFileHandles, float spillingThreshold,
 			LocalStrategy localStrategy, AbstractTask parentTask)
 	{
+		this(memoryManager, ioManager, reader1, reader2, keyClass, value1Class, value2Class, memory, maxNumFileHandles,
+			spillingThreshold, DEFAULT_MEMORY_SHARE_RATIO, localStrategy, parentTask);
+	}
+	
+	public SortMergeMatchIterator(MemoryManager memoryManager, IOManager ioManager,
+			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
+			Class<K> keyClass, Class<V1> value1Class, Class<V2> value2Class,
+			long memory, int maxNumFileHandles, float spillingThreshold, float memPercentageForBlockNL,
+			LocalStrategy localStrategy, AbstractTask parentTask)
+	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		
@@ -137,7 +147,7 @@ implements MatchTaskIterator<K, V1, V2>
 		this.value1Class = value1Class;
 		this.value2Class = value2Class;
 		
-		this.memoryForBlockNestedLoops = Math.max((long) (memory * MEMORY_SHARE_RATIO),
+		this.memoryForBlockNestedLoops = Math.max((long) (memory * memPercentageForBlockNL),
 			SpillingResettableIterator.MIN_TOTAL_MEMORY + BlockResettableIterator.MIN_BUFFER_SIZE);
 		this.memoryPerChannel = (memory - this.memoryForBlockNestedLoops) / 2;
 		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
@@ -549,6 +559,7 @@ implements MatchTaskIterator<K, V1, V2>
 					final V2 nextBlockVal = blockIt.next();
 					matchFunction.match(keyCopy, val1Copy, nextBlockVal, collector);
 				}
+				blockIt.reset();
 				
 				// -------- 6) cross the spilling iterator with the next block. ------------------
 				while (spillIt.hasNext())

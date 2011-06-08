@@ -105,24 +105,24 @@ public class ProbeSideIteratorTest
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 1, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("A"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("A"), this.psi.nextValue());
 		Assert.assertFalse("ProbeSideIterator must not have another value.", this.psi.hasNext());
 		
 		// Key 2, Value B
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 2, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("B"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("B"), this.psi.nextValue());
 		Assert.assertFalse("ProbeSideIterator must not have another value.", this.psi.hasNext());
 		
 		// Key 3, Values C, D
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 3, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("C"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("C"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 3, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("D"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("D"), this.psi.nextValue());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 3, this.psi.getCurrentKey().getValue());
 		try {
 			this.psi.next();
@@ -141,13 +141,13 @@ public class ProbeSideIteratorTest
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 4, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("E"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("E"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 4, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("F"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("F"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 4, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("G"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("G"), this.psi.nextValue());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 4, this.psi.getCurrentKey().getValue());
 		Assert.assertFalse("ProbeSideIterator must not have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 4, this.psi.getCurrentKey().getValue());
@@ -156,19 +156,19 @@ public class ProbeSideIteratorTest
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 5, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("H"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("H"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 5, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("I"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("I"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 5, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("J"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("J"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 5, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("K"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("K"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 5, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("L"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("L"), this.psi.nextValue());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 5, this.psi.getCurrentKey().getValue());
 		try {
 			this.psi.next();
@@ -215,21 +215,21 @@ public class ProbeSideIteratorTest
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 3, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("C"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("C"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 3, this.psi.getCurrentKey().getValue());
 		
 		// Progression first via next() only, then hasNext() only Key 4, Values E, F, G
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("E"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("E"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		
 		// Key 5, Values H, I, J, K, L
 		Assert.assertTrue("ProbeSideIterator must have another key.", this.psi.nextKey());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("H"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("H"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		Assert.assertEquals("ProbeSideIterator returned a wrong key.", 5, this.psi.getCurrentKey().getValue());
-		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("I"), this.psi.next());
+		Assert.assertEquals("ProbeSideIterator returned a wrong value.", new PactString("I"), this.psi.nextValue());
 		Assert.assertTrue("ProbeSideIterator must have another value.", this.psi.hasNext());
 		
 		// end

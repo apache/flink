@@ -492,107 +492,423 @@ public class MatchTaskTest extends TaskTestBase {
 		
 	}
 	
-//	@Test
-//	public void testHash1MatchTask() {
-//
-//		int keyCnt1 = 20;
-//		int valCnt1 = 20;
-//		
-//		int keyCnt2 = 20;
-//		int valCnt2 = 20;
-//		
-//		super.initEnvironment(1*1024*1024);
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
-//		super.addOutput(outList);
-//		
-//		MatchTask testTask = new MatchTask();
-//		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-//		super.getTaskConfig().setIOBufferSize(1);
-//		
-//		super.registerTask(testTask, MockMatchStub.class);
-//		
-//		try {
-//			testTask.invoke();
-//		} catch (Exception e) {
-//			LOG.debug(e);
-//		}
-//		
-//		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-//		
-//		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
-//		
-//		outList.clear();
-//		
-//	}
 	
-//	@Test
-//	public void testHash2MatchTask() {
-//
-//		int keyCnt1 = 20;
-//		int valCnt1 = 20;
-//		
-//		int keyCnt2 = 20;
-//		int valCnt2 = 20;
-//		
-//		super.initEnvironment(1*1024*1024);
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
-//		super.addOutput(outList);
-//		
-//		MatchTask testTask = new MatchTask();
-//		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-//		super.getTaskConfig().setIOBufferSize(1);
-//		
-//		super.registerTask(testTask, MockMatchStub.class);
-//		
-//		try {
-//			testTask.invoke();
-//		} catch (Exception e) {
-//			LOG.debug(e);
-//		}
-//		
-//		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-//		
-//		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
-//		
-//		outList.clear();
-//		
-//	}
+	@Test
+	public void testHash1MatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 1;
+		
+		int keyCnt2 = 10;
+		int valCnt2 = 2;
+				
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+				
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
 	
-//	@Test
-//	public void testFailingHashMatchTask() {
-//
-//		int keyCnt1 = 20;
-//		int valCnt1 = 20;
-//		
-//		int keyCnt2 = 20;
-//		int valCnt2 = 20;
-//		
-//		super.initEnvironment(1*1024*1024);
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
-//		super.addOutput(outList);
-//		
-//		MatchTask testTask = new MatchTask();
-//		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-//		super.getTaskConfig().setIOBufferSize(1);
-//		
-//		super.registerTask(testTask, MockFailingMatchStub.class);
-//		
-//		boolean stubFailed = false;
-//		
-//		try {
-//			testTask.invoke();
-//		} catch (Exception e) {
-//			stubFailed = true;
-//		}
-//		
-//		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-//		
-//		outList.clear();
-//		
-//	}
+	@Test
+	public void testHash2MatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 1;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 1;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testHash3MatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 1;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testHash4MatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 20;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 1;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testHash5MatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 20;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Test
+	public void testFailingHashFirstMatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 20;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockFailingMatchStub.class);
+		
+		boolean stubFailed = false;
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			stubFailed = true;
+		}
+		
+		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
+		
+		outList.clear();
+	}
+	
+	@Test
+	public void testFailingHashSecondMatchTask() {
+
+		int keyCnt1 = 20;
+		int valCnt1 = 20;
+		
+		int keyCnt2 = 20;
+		int valCnt2 = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockFailingMatchStub.class);
+		
+		boolean stubFailed = false;
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			stubFailed = true;
+		}
+		
+		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
+		
+		outList.clear();
+	}
+	
+	@Test
+	public void testCancelHashMatchTaskWhileBuildFirst() {
+		
+		int keyCnt = 20;
+		int valCnt = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addOutput(new NirvanaOutputList());
+		
+		final MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+	}
+	
+	@Test
+	public void testHashCancelMatchTaskWhileBuildSecond() {
+		
+		int keyCnt = 20;
+		int valCnt = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addOutput(new NirvanaOutputList());
+		
+		final MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+	}
+	
+	@Test
+	public void testHashFirstCancelMatchTaskWhileMatching() {
+		
+		int keyCnt = 20;
+		int valCnt = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addOutput(new NirvanaOutputList());
+		
+		final MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockDelayingMatchStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
+	@Test
+	public void testHashSecondCancelMatchTaskWhileMatching() {
+		
+		int keyCnt = 20;
+		int valCnt = 20;
+		
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addOutput(new NirvanaOutputList());
+		
+		final MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		
+		super.registerTask(testTask, MockDelayingMatchStub.class);
+		
+		Thread taskRunner = new Thread() {
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+		
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+		
+		try {
+			tct.join();
+			taskRunner.join();		
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+		
+	}
+	
+	// =================================================================================================
 	
 	public static class MockMatchStub extends MatchStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
 

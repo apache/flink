@@ -28,15 +28,19 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
+import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -359,7 +363,9 @@ public class MatchTask extends AbstractTask
 	 * @return MatchTaskIterator The iterator implementation for the given local strategy.
 	 * @throws RuntimeException Thrown if the local strategy is not supported.
 	 */
-	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2) {
+	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2)
+	throws MemoryAllocationException
+	{
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain task manager's IO manager
@@ -376,14 +382,18 @@ public class MatchTask extends AbstractTask
 				matchStub.getFirstInKeyType(), matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
 				this.availableMemory, this.maxFileHandles, this.spillThreshold,
 				config.getLocalStrategy(), this);
-//		case HYBRIDHASH_FIRST:
-//			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
-//				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.BUILD_PROBE, 
-//				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
-//		case HYBRIDHASH_SECOND:
-//			return new HybridHashMatchIterator(memoryManager, ioManager, reader1, reader2, matchStub.getFirstInKeyType(),
-//				matchStub.getFirstInValueType(), matchStub.getSecondInValueType(), InputRoles.PROBE_BUILD,
-//				((int)(MEMORY_IO*(1.0-MEMORY_SHARE_RATIO))), this);
+		case HYBRIDHASH_FIRST:
+			return new BuildFirstHashMatchIterator(
+				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader1), 
+				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader2),
+				matchStub.getFirstInKeyType(), matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				memoryManager, ioManager, this, this.availableMemory);
+		case HYBRIDHASH_SECOND:
+			return new BuildSecondHashMatchIterator(
+				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader1), 
+				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader2),
+				matchStub.getFirstInKeyType(), matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				memoryManager, ioManager, this, this.availableMemory);
 		default:
 			throw new RuntimeException("Unsupported local strategy for MatchTask: "+config.getLocalStrategy());
 		}

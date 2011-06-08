@@ -309,4 +309,81 @@ public final class TestData {
 			return iterator.next();
 		}
 	}
+	
+	/**
+	 * Record reader mock.
+	 */
+	public static class GeneratorIterator implements Iterator<KeyValuePair<Key, Value>> {
+		private final Generator generator;
+
+		private final int numberOfRecords;
+
+		private int counter;
+
+		public GeneratorIterator(Generator generator, int numberOfRecords) {
+			this.generator = generator;
+			this.generator.reset();
+			this.numberOfRecords = numberOfRecords;
+			this.counter = 0;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return counter < numberOfRecords;
+		}
+
+		@Override
+		public KeyValuePair<Key, Value> next() {
+			counter++;
+			return generator.next();
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+		
+		public void reset() {
+			this.counter = 0;
+		}
+	}
+	
+	public static class ConstantValueIterator implements Iterator<KeyValuePair<Key, Value>>
+	{
+		private final String valueValue;
+		
+		private final int keyValue;
+		
+		private final int numPairs;
+		
+		private int pos;
+		
+		
+		public ConstantValueIterator(int keyValue, String valueValue, int numPairs) {
+			this.keyValue = keyValue;
+			this.valueValue = valueValue;
+			this.numPairs = numPairs;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return pos < this.numPairs;
+		}
+		
+		@Override
+		public KeyValuePair<Key, Value> next() {
+			KeyValuePair<Key, Value> pair = new KeyValuePair<Key, Value>(new Key(this.keyValue), new Value(this.valueValue + ' ' + pos));
+			pos++;
+			return pair;
+		}
+		
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+		
+		public void reset() {
+			this.pos = 0;
+		}
+	}
 }
