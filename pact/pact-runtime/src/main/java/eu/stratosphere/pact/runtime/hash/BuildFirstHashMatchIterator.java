@@ -255,7 +255,7 @@ public final class BuildFirstHashMatchIterator<K extends Key, V1 extends Value, 
 		// NOTE: This calculation is erroneous if the total memory is above 63 TiBytes. 
 		final int numPages = (int) (totalMemory / HASH_JOIN_PAGE_SIZE);
 		
-		final List<MemorySegment> memorySegments = memManager.allocate(ownerTask, totalMemory, numPages, HASH_JOIN_PAGE_SIZE);
+		final List<MemorySegment> memorySegments = memManager.allocateStrict(ownerTask, numPages, HASH_JOIN_PAGE_SIZE);
 		
 		return new HashJoin<KK, BV, PV>(buildSideInput, probeSideInput, keyClass, buildSideValueClass,
 				probeSideValueClass, memorySegments, ioManager);

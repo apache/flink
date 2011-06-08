@@ -271,7 +271,7 @@ public class DefaultMemoryManager implements MemoryManager
 					"segments of minimal size " + minSegmentSize);
 		}
 		if (LOG.isDebugEnabled() && owner.getEnvironment() != null) {
-			LOG.info("Allocating " + totalMemory + " bytes in at least " + minNumSegments + " buffers for " + 
+			LOG.debug("Allocating " + totalMemory + " bytes in at least " + minNumSegments + " buffers for " + 
 					owner.getEnvironment().getTaskName() + 
 					" (" + (owner.getEnvironment().getIndexInSubtaskGroup() + 1) + "/" +
 					owner.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -282,7 +282,7 @@ public class DefaultMemoryManager implements MemoryManager
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (this.lock)
 		{
-			if (isShutDown) {
+			if (this.isShutDown) {
 				throw new IllegalStateException("Memory Manager has been shut down.");
 			}
 			
@@ -305,6 +305,16 @@ public class DefaultMemoryManager implements MemoryManager
 		return segments;
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocateStrict(eu.stratosphere.nephele.template.AbstractInvokable, int, int)
+	 */
+	@Override
+	public List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
+			throws MemoryAllocationException
+	{
+		return this.allocate(owner, numSegments, segmentSize);
+	}
+
 	/**
 	 * Tries to allocate a memory segment of the specified size.
 	 * 

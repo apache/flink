@@ -51,7 +51,7 @@ import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 public class HashMatchIteratorITCase
 {
 	// total memory
-	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
+	private static final int MEMORY_SIZE = 16000000;
 
 	// the size of the left and right inputs
 	private static final int INPUT_1_SIZE = 20000;

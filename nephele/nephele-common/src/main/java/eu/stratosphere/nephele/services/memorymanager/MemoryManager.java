@@ -52,6 +52,9 @@ public interface MemoryManager {
 	List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
 	throws MemoryAllocationException;
 	
+	List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
+	throws MemoryAllocationException;
+	
 	/**
 	 * Tries to release the memory for the specified segment. If the <code>segment</code> has already been released or
 	 * is <code>null</code>, the request is simply ignored. If the segment is not from the expected
