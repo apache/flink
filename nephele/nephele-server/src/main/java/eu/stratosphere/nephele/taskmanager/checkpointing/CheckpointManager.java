@@ -23,6 +23,9 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
+import eu.stratosphere.nephele.profiling.ProfilingException;
+import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 
 public class CheckpointManager {
@@ -37,11 +40,18 @@ public class CheckpointManager {
 
 	private final String tmpDir;
 
+	private TaskManager taskManager;
+
 	public CheckpointManager(ByteBufferedChannelManager byteBufferedChannelManager, String tmpDir) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.tmpDir = tmpDir;
 	}
-
+	public CheckpointManager(ByteBufferedChannelManager byteBufferedChannelManager, String tmpDir,
+			TaskManager taskManager) {
+		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.tmpDir = tmpDir;
+		this.taskManager = taskManager;
+	}
 	public void registerFinished(EphemeralCheckpoint checkpoint) {
 
 		final ExecutionVertexID vertexID = checkpoint.getExecutionVertexID();
@@ -142,5 +152,21 @@ public class CheckpointManager {
 
 		LOG.info("Recovering checkpoint for channel " + sourceChannelID);
 		checkpoint.recoverIndividualChannel(this.byteBufferedChannelManager, sourceChannelID);
+		
+		
+		
+	}
+	public CheckpointProfilingData getProfilingData() throws ProfilingException{
+		if(this.taskManager != null){
+			return this.taskManager.getCheckpointProfilingData();
+		}
+		return null;
+	}
+	
+	public void registerEphermalCheckpoint(EphemeralCheckpoint checkpoint){
+		this.byteBufferedChannelManager.registerOutOfWriterBuffersListener(checkpoint);
+	}
+	public void unregisterEphermalCheckpoint(EphemeralCheckpoint checkpoint){
+		this.byteBufferedChannelManager.unregisterOutOfWriterBuffersLister(checkpoint);
 	}
 }

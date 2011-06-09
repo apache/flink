@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
 import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
@@ -330,7 +331,23 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		}
 
 	}
-
+	/**
+	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
+	 * @throws ProfilingException
+	 */
+	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException{
+		InternalInstanceProfilingData data = this.instanceProfiler.generateCheckpointProfilingData();
+		int allReadRecords = 0;
+//		for(InputGateListenerImpl inGateListener : this.monitoredInputGates.values()){
+//			allReadRecords += inGateListener.getReadRecords();
+//		}
+		int allWrittenRecords = 0;
+//		for(OutputGateListenerImpl outGateListener : this.monitoredOutputGates.values()){
+//			allWrittenRecords += outGateListener.getWrittenRecords();
+//		}
+		return new CheckpointProfilingData(data.getIOWaitCPU(), data.getIdleCPU(), data.getUserCPU(),
+			data.getSystemCPU(), data.getHardIrqCPU(), data.getSoftIrqCPU(), data.getReceivedBytes(), data.getTransmittedBytes(),allReadRecords,allWrittenRecords);
+	}
 	/*
 	 * public void publishProfilingData(InternalProfilingData profilingData) {
 	 * this.profilingDataContainer.addProfilingData(profilingData);
