@@ -17,11 +17,9 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -31,7 +29,6 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -247,7 +244,7 @@ public class ExecutionGraph implements ExecutionListener {
 		this.jobConfiguration = jobGraph.getJobConfiguration();
 
 		// Initially, create only one execution stage that contains all group vertices
-		final ExecutionStage initialExecutionStage = new ExecutionStage(0);
+		final ExecutionStage initialExecutionStage = new ExecutionStage(this, 0);
 		this.stages.add(initialExecutionStage);
 
 		// Convert job vertices to execution vertices and initialize them
@@ -1014,78 +1011,6 @@ public class ExecutionGraph implements ExecutionListener {
 		return this.stages.get(this.indexToCurrentExecutionStage);
 	}
 
-	/**
-	 * Checks which instance types and how many instances of these types are required to execute the current stage
-	 * of this job graph. The required instance types and the number of instances are collected in the given map. Note
-	 * that this method does not clear the map before collecting the instances.
-	 * 
-	 * @param instanceTypeMap
-	 *        the map containing the instances types and the required number of instances of the respective type
-	 * @param executionState
-	 *        the execution state the considered vertices must be in
-	 */
-	public void collectInstanceTypesRequiredForCurrentStage(final Map<InstanceType, Integer> instanceTypeMap,
-			final ExecutionState executionState) {
-
-		collectInstanceTypesRequiredForStage(this.indexToCurrentExecutionStage, instanceTypeMap, executionState);
-	}
-
-	/**
-	 * Checks which instance types and how many instances of these types are required to execute the given stage
-	 * of this job graph. The required instance types and the number of instances are collected in the given map. Note
-	 * that this method does not clear the map before collecting the instances.
-	 * 
-	 * @param stage
-	 *        the stage in which the required instance types are collected.
-	 * @param instanceTypeMap
-	 *        the map containing the instances types and the required number of instances of the respective type
-	 * @param executionState
-	 *        the execution state the considered vertices must be in
-	 */
-	public void collectInstanceTypesRequiredForStage(final int stage, final Map<InstanceType, Integer> instanceTypeMap,
-			final ExecutionState executionState) {
-
-		if (stage >= this.stages.size()) {
-			LOG.error("Illegal stage  " + stage + " requested");
-			return;
-		}
-
-		final ExecutionStage nextStage = this.stages.get(this.indexToCurrentExecutionStage);
-		if (nextStage == null) {
-			LOG.error("Stage " + stage + " is not a valid execution stage");
-			return;
-		}
-
-		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
-
-		for (int i = 0; i < nextStage.getNumberOfStageMembers(); i++) {
-			final ExecutionGroupVertex groupVertex = nextStage.getStageMember(i);
-
-			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
-				// Get the instance type from the execution vertex if it
-				final ExecutionVertex vertex = groupVertex.getGroupMember(j);
-				if (vertex.getExecutionState() == executionState) {
-					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-					if (collectedInstances.contains(instance)) {
-						continue;
-					} else {
-						collectedInstances.add(instance);
-					}
-
-					if (instance instanceof DummyInstance) {
-						Integer num = instanceTypeMap.get(instance.getType());
-						num = (num == null) ? Integer.valueOf(1) : Integer.valueOf(num.intValue() + 1);
-						instanceTypeMap.put(instance.getType(), num);
-					} else {
-						LOG.debug("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
-							+ ") is already assigned to non-dummy instance, skipping...");
-					}
-				}
-			}
-		}
-	}
-
 	public void repairStages() {
 
 		final Map<ExecutionGroupVertex, Integer> stageNumbers = new HashMap<ExecutionGroupVertex, Integer>();
@@ -1170,7 +1095,7 @@ public class ExecutionGraph implements ExecutionListener {
 			ExecutionStage executionStage = this.stages.get(stageNumber);
 			// If the stage not yet exists,
 			if (executionStage == null) {
-				executionStage = new ExecutionStage(stageNumber);
+				executionStage = new ExecutionStage(this, stageNumber);
 				this.stages.set(stageNumber, executionStage);
 			}
 
