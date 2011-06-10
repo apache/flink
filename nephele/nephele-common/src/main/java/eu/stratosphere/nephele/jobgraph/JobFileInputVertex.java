@@ -43,11 +43,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobFileInputVertex extends JobInputVertex {
-	/**
-	 * The fraction that the last split may be larger than the others.
-	 */
-	private static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
-
+	
 	/**
 	 * Class of input task.
 	 */
@@ -367,37 +363,4 @@ public class JobFileInputVertex extends JobInputVertex {
 
 		return inputSplits.toArray(new InputSplit[inputSplits.size()]);
 	}
-
-	/**
-	 * Retrieves the index of the <tt>BlockLocation</tt> that contains the part of the file described by the given
-	 * offset.
-	 * 
-	 * @param blocks
-	 *        The different blocks of the file. Must be ordered by their offset.
-	 * @param offset
-	 *        The offset of the position in the file.
-	 * @param startIndex
-	 *        The earliest index to look at.
-	 * @return The index of the block containing the given position.
-	 */
-	private final int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex) {
-		// go over all indexes after the startIndex
-		for (int i = startIndex; i < blocks.length; i++) {
-			long blockStart = blocks[i].getOffset();
-			long blockEnd = blockStart + blocks[i].getLength();
-
-			if (offset >= blockStart && offset < blockEnd) {
-				// got the block where the split starts
-				// check if the next block contains more than this one does
-				if (i < blocks.length - 1 && blockEnd - offset < halfSplitSize) {
-					return i + 1;
-				} else {
-					return i;
-				}
-			}
-		}
-
-		throw new IllegalArgumentException("The given offset is not contained in the any block.");
-	}
-
 }

@@ -109,6 +109,19 @@ public class FileInputSplit implements InputSplit {
 	}
 
 	/**
+	 * Gets the names of the hosts that this file split resides on.
+	 * 
+	 * @return The names of the hosts that this file split resides on.
+	 */
+	public String[] getHostNames() {
+		if (this.hosts == null) {
+			return new String[] {};
+		} else {
+			return this.hosts;
+		}
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -139,18 +152,6 @@ public class FileInputSplit implements InputSplit {
 			for (int i = 0; i < this.hosts.length; i++) {
 				StringRecord.writeString(out, this.hosts[i]);
 			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String[] getHostNames() {
-		if (this.hosts == null) {
-			return new String[] {};
-		} else {
-			return this.hosts;
 		}
 	}
 

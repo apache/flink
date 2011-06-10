@@ -20,6 +20,27 @@ package eu.stratosphere.nephele.template;
  * 
  * @author warneke
  */
-public abstract class AbstractInputTask extends AbstractInvokable {
-
+public abstract class AbstractInputTask extends AbstractInvokable
+{
+	/**
+	 * This method computes the different splits of the input that can be processed in parallel. It needs to be implemented by
+	 * classes that 
+	 * <p>
+	 * Note that this method does not return the input splits for the task instance only, but it computes all splits for all parallel
+	 * instances. Those computed splits are then assigned to the individual task instances by the Job Manager. To obtain the input splits  
+	 * for the current task instance, use the {@link #getTaskInputSplits()} method. 
+	 * 
+	 * @return The input splits for the input to be processed by all instances of this input task. 
+	 */
+	public abstract InputSplit[] computeInputSplits();
+	
+	
+	/**
+	 * Gets the input splits that are to be worked on by this specific instance of the input task.
+	 * @return
+	 */
+	public InputSplit[] getTaskInputSplits()
+	{
+		return getEnvironment().getInputSplits();
+	}
 }

@@ -24,8 +24,18 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  */
 public interface InputSplit extends IOReadableWritable {
 
-	public String[] getHostNames();
+//	/**
+//	 * Gets the (logical) number of this input split.
+//	 *   
+//	 * @return The number of this input split.
+//	 */
+//	public int getNumber();
 
+	/**
+	 * Gets the length of the input split.
+	 * 
+	 * @return The length of the input split.
+	 */
 	public long getLength();
 
 }
