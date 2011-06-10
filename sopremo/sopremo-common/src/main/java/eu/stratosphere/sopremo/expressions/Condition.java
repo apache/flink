@@ -9,6 +9,11 @@ import org.codehaus.jackson.node.BooleanNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Condition extends BooleanExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1988076954287158279L;
+
 	private BooleanExpression[] expressions;
 
 	private Combination combination;

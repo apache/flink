@@ -2,6 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
+import java.util.EnumMap;
+import java.util.Map;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser.NumberType;
@@ -12,15 +15,35 @@ import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.LongNode;
 import org.codehaus.jackson.node.NumericNode;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
+/**
+ * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for
+ * various types of numbers.
+ * 
+ * @author Arvid Heise
+ */
 public class Arithmetic extends EvaluableExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -9103414139002479181L;
+
 	private Arithmetic.ArithmeticOperator operator;
 
-	private Evaluable op1, op2;
+	private EvaluableExpression op1, op2;
 
-	public Arithmetic(Evaluable op1, Arithmetic.ArithmeticOperator operator, Evaluable op2) {
+	/**
+	 * Initializes Arithmetic with two {@link EvaluableExpression}s and an {@link ArithmeticOperator} in infix notation.
+	 * 
+	 * @param op1
+	 *        the first operand
+	 * @param operator
+	 *        the operator
+	 * @param op2
+	 *        the second operand
+	 */
+	public Arithmetic(EvaluableExpression op1, ArithmeticOperator operator, EvaluableExpression op2) {
 		this.operator = operator;
 		this.op1 = op1;
 		this.op2 = op2;
@@ -54,157 +77,228 @@ public class Arithmetic extends EvaluableExpression {
 		builder.append(this.op2);
 	}
 
+	/**
+	 * Closed set of basic arithmetic operators.
+	 * 
+	 * @author Arvid Heise
+	 */
 	public static enum ArithmeticOperator {
-		PLUS("+") {
-
+		/**
+		 * Addition
+		 */
+		ADDITION("+", new IntegerEvaluator() {
 			@Override
-			BigDecimal evaluateBigDecimal(BigDecimal value1, BigDecimal value2) {
-				return value1.add(value2);
+			protected int evaluate(int left, int right) {
+				return left + right;
 			}
-
+		}, new LongEvaluator() {
 			@Override
-			BigInteger evaluateBigInteger(BigInteger value1, BigInteger value2) {
-				return value1.add(value2);
+			protected long evaluate(long left, long right) {
+				return left + right;
 			}
-
+		}, new DoubleEvaluator() {
 			@Override
-			double evaluateDouble(double value1, double value2) {
-				return value1 + value2;
+			protected double evaluate(double left, double right) {
+				return left + right;
 			}
-
+		}, new BigIntegerEvaluator() {
 			@Override
-			int evaluateInt(int value1, int value2) {
-				return value1 + value2;
+			protected BigInteger evaluate(BigInteger left, BigInteger right) {
+				return left.add(right);
 			}
-
+		}, new BigDecimalEvaluator() {
 			@Override
-			long evaluateLong(long value1, long value2) {
-				return value1 + value2;
+			protected BigDecimal evaluate(BigDecimal left, BigDecimal right) {
+				return left.add(right);
 			}
-
-		},
-		MINUS("-") {
+		}),
+		/**
+		 * Subtraction
+		 */
+		SUBTRACTION("-", new IntegerEvaluator() {
 			@Override
-			BigDecimal evaluateBigDecimal(BigDecimal value1, BigDecimal value2) {
-				return value1.subtract(value2);
+			protected int evaluate(int left, int right) {
+				return left - right;
 			}
-
+		}, new LongEvaluator() {
 			@Override
-			BigInteger evaluateBigInteger(BigInteger value1, BigInteger value2) {
-				return value1.subtract(value2);
+			protected long evaluate(long left, long right) {
+				return left - right;
 			}
-
+		}, new DoubleEvaluator() {
 			@Override
-			double evaluateDouble(double value1, double value2) {
-				return value1 - value2;
+			protected double evaluate(double left, double right) {
+				return left - right;
 			}
-
+		}, new BigIntegerEvaluator() {
 			@Override
-			int evaluateInt(int value1, int value2) {
-				return value1 - value2;
+			protected BigInteger evaluate(BigInteger left, BigInteger right) {
+				return left.subtract(right);
 			}
-
+		}, new BigDecimalEvaluator() {
 			@Override
-			long evaluateLong(long value1, long value2) {
-				return value1 - value2;
+			protected BigDecimal evaluate(BigDecimal left, BigDecimal right) {
+				return left.subtract(right);
 			}
-
-		},
-		MULTIPLY("*") {
+		}),
+		/**
+		 * Multiplication
+		 */
+		MULTIPLICATION("*", new IntegerEvaluator() {
 			@Override
-			BigDecimal evaluateBigDecimal(BigDecimal value1, BigDecimal value2) {
-				return value1.multiply(value2);
+			protected int evaluate(int left, int right) {
+				return left * right;
 			}
-
+		}, new LongEvaluator() {
 			@Override
-			BigInteger evaluateBigInteger(BigInteger value1, BigInteger value2) {
-				return value1.multiply(value2);
+			protected long evaluate(long left, long right) {
+				return left * right;
 			}
-
+		}, new DoubleEvaluator() {
 			@Override
-			double evaluateDouble(double value1, double value2) {
-				return value1 * value2;
+			protected double evaluate(double left, double right) {
+				return left * right;
 			}
-
+		}, new BigIntegerEvaluator() {
 			@Override
-			int evaluateInt(int value1, int value2) {
-				return value1 * value2;
+			protected BigInteger evaluate(BigInteger left, BigInteger right) {
+				return left.multiply(right);
 			}
-
+		}, new BigDecimalEvaluator() {
 			@Override
-			long evaluateLong(long value1, long value2) {
-				return value1 * value2;
+			protected BigDecimal evaluate(BigDecimal left, BigDecimal right) {
+				return left.multiply(right);
 			}
-
-		},
-		DIVIDE("/") {
+		}),
+		/**
+		 * Division
+		 */
+		DIVISION("/", DivisionEvaluator.INSTANCE, DivisionEvaluator.INSTANCE, new DoubleEvaluator() {
 			@Override
-			BigDecimal evaluateBigDecimal(BigDecimal value1, BigDecimal value2) {
-				return value1.divide(value2);
+			protected double evaluate(double left, double right) {
+				return left / right;
 			}
-
-			@Override
-			BigInteger evaluateBigInteger(BigInteger value1, BigInteger value2) {
-				return value1.divide(value2);
-			}
-
-			@Override
-			double evaluateDouble(double value1, double value2) {
-				return value1 / value2;
-			}
-
-			@Override
-			int evaluateInt(int value1, int value2) {
-				return value1 / value2;
-			}
-
-			@Override
-			long evaluateLong(long value1, long value2) {
-				return value1 / value2;
-			}
-
-		};
+		}, DivisionEvaluator.INSTANCE, DivisionEvaluator.INSTANCE);
 
 		private final String sign;
 
-		ArithmeticOperator(String sign) {
+		private Map<NumberType, NumberEvaluator> typeEvaluators = new EnumMap<NumberType, NumberEvaluator>(
+			NumberType.class);
+
+		private ArithmeticOperator(String sign, NumberEvaluator integerEvaluator, NumberEvaluator longEvaluator,
+				NumberEvaluator doubleEvaluator, NumberEvaluator bigIntegerEvaluator,
+				NumberEvaluator bigDecimalEvaluator) {
 			this.sign = sign;
+			this.typeEvaluators.put(NumberType.INT, integerEvaluator);
+			this.typeEvaluators.put(NumberType.LONG, longEvaluator);
+			this.typeEvaluators.put(NumberType.FLOAT, doubleEvaluator);
+			this.typeEvaluators.put(NumberType.DOUBLE, doubleEvaluator);
+			this.typeEvaluators.put(NumberType.BIG_INTEGER, bigIntegerEvaluator);
+			this.typeEvaluators.put(NumberType.BIG_DECIMAL, bigDecimalEvaluator);
 		}
 
-		public NumericNode evaluate(NumericNode a, NumericNode b) {
-			switch (this.getWiderType(a.getNumberType(), b.getNumberType())) {
-			case BIG_DECIMAL:
-				return DecimalNode.valueOf(this.evaluateBigDecimal(a.getDecimalValue(), b.getDecimalValue()));
-			case DOUBLE:
-			case FLOAT:
-				return DoubleNode.valueOf(this.evaluateDouble(a.getDoubleValue(), b.getDoubleValue()));
-			case BIG_INTEGER:
-				return BigIntegerNode.valueOf(this.evaluateBigInteger(a.getBigIntegerValue(), b.getBigIntegerValue()));
-			case LONG:
-				return LongNode.valueOf(this.evaluateLong(a.getLongValue(), b.getLongValue()));
-			default:
-				return IntNode.valueOf(this.evaluateInt(a.getIntValue(), b.getIntValue()));
-			}
-		}
-
-		abstract BigDecimal evaluateBigDecimal(BigDecimal value1, BigDecimal value2);
-
-		abstract BigInteger evaluateBigInteger(BigInteger value1, BigInteger value2);
-
-		abstract double evaluateDouble(double value1, double value2);
-
-		abstract int evaluateInt(int value1, int value2);
-
-		abstract long evaluateLong(long value1, long value2);
-
-		private NumberType getWiderType(NumberType numberType, NumberType numberType2) {
-			// TODO:
-			return NumberType.values()[Math.max(numberType.ordinal(), numberType2.ordinal())];
+		/**
+		 * Performs the binary operation on the two operands after coercing both values to a common number type.
+		 * 
+		 * @param left
+		 *        the left operand
+		 * @param right
+		 *        the right operand
+		 * @return the result of the operation
+		 */
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			NumberType widerType = NumberCoercer.INSTANCE.getWiderType(left.getNumberType(), right.getNumberType());
+			return this.typeEvaluators.get(widerType).evaluate(left, right);
 		}
 
 		@Override
 		public String toString() {
 			return this.sign;
+		}
+	}
+
+	private static interface NumberEvaluator {
+		public NumericNode evaluate(NumericNode left, NumericNode right);
+	}
+
+	private abstract static class BigDecimalEvaluator implements NumberEvaluator {
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return DecimalNode.valueOf(this.evaluate(left.getDecimalValue(), right.getDecimalValue()));
+		}
+
+		protected abstract BigDecimal evaluate(BigDecimal left, BigDecimal right);
+	}
+
+	private abstract static class BigIntegerEvaluator implements NumberEvaluator {
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(), right.getBigIntegerValue()));
+		}
+
+		protected abstract BigInteger evaluate(BigInteger left, BigInteger right);
+	}
+
+	private abstract static class IntegerEvaluator implements NumberEvaluator {
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return IntNode.valueOf(this.evaluate(left.getIntValue(), right.getIntValue()));
+		}
+
+		protected abstract int evaluate(int left, int right);
+	}
+
+	private abstract static class LongEvaluator implements NumberEvaluator {
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return LongNode.valueOf(this.evaluate(left.getLongValue(), right.getLongValue()));
+		}
+
+		protected abstract long evaluate(long left, long right);
+	}
+
+	private abstract static class DoubleEvaluator implements NumberEvaluator {
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(), right.getDoubleValue()));
+		}
+
+		protected abstract double evaluate(double left, double right);
+	}
+
+	/**
+	 * Taken from Groovy's org.codehaus.groovy.runtime.typehandling.BigDecimalMath
+	 * 
+	 * @author Arvid Heise
+	 */
+	static class DivisionEvaluator implements NumberEvaluator {
+		private static final DivisionEvaluator INSTANCE = new DivisionEvaluator();
+
+		// This is an arbitrary value, picked as a reasonable choice for a precision
+		// for typical user math when a non-terminating result would otherwise occur.
+		public static final int DIVISION_EXTRA_PRECISION = 10;
+
+		// This is an arbitrary value, picked as a reasonable choice for a rounding point
+		// for typical user math.
+		public static final int DIVISION_MIN_SCALE = 10;
+
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return DecimalNode.valueOf(divideImpl(left.getDecimalValue(), right.getDecimalValue()));
+		}
+
+		public static BigDecimal divideImpl(BigDecimal bigLeft, BigDecimal bigRight) {
+			try {
+				return bigLeft.divide(bigRight);
+			} catch (ArithmeticException e) {
+				// set a DEFAULT precision if otherwise non-terminating
+				int precision = Math.max(bigLeft.precision(), bigRight.precision()) + DIVISION_EXTRA_PRECISION;
+				BigDecimal result = bigLeft.divide(bigRight, new MathContext(precision));
+				int scale = Math.max(Math.max(bigLeft.scale(), bigRight.scale()), DIVISION_MIN_SCALE);
+				if (result.scale() > scale)
+					result = result.setScale(scale, BigDecimal.ROUND_HALF_UP);
+				return result;
+			}
 		}
 	}
 }

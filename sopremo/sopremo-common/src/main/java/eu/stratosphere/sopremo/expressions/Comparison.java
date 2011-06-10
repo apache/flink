@@ -9,6 +9,11 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Comparison extends BooleanExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 4684417232092074534L;
+
 	private EvaluableExpression expr1, expr2;
 
 	private BinaryOperator binaryOperator;

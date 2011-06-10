@@ -30,7 +30,7 @@ import eu.stratosphere.util.dag.SubGraph;
 public class Aggregation extends Operator {
 	public final static List<EvaluableExpression> NO_GROUPING = new ArrayList<EvaluableExpression>();
 
-	private List<? extends EvaluableExpression> groupings;
+	private final List<? extends EvaluableExpression> groupings;
 
 	public Aggregation(EvaluableExpression transformation, List<? extends EvaluableExpression> grouping,
 			JsonStream... inputs) {
@@ -102,10 +102,6 @@ public class Aggregation extends Operator {
 		Aggregation other = (Aggregation) obj;
 		if (!this.groupings.equals(other.groupings))
 			return false;
-
-		for (int index = 0; index < this.groupings.size(); index++)
-			if (!this.groupings.get(index).equals(other.groupings.get(index)))
-				return false;
 		return true;
 	}
 

@@ -6,6 +6,10 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class IdentifierAccess extends EvaluableExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 4981486971746131857L;
 	private String identifier;
 
 	public IdentifierAccess(String identifier) {
@@ -21,7 +25,7 @@ public class IdentifierAccess extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		throw new EvaluationException();
+		throw new EvaluationException(String.format("identifier %s cannot be resolved", this.identifier));
 	}
 
 	@Override

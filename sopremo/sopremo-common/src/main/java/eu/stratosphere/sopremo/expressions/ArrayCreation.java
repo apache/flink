@@ -12,6 +12,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
 public class ArrayCreation extends ContainerExpression<Evaluable> {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1681947333740209285L;
 	private Evaluable[] elements;
 
 	public ArrayCreation(Evaluable... elements) {

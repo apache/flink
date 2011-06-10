@@ -7,6 +7,11 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class UnaryExpression extends BooleanExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4256326224698296602L;
+
 	private Evaluable expr1;
 
 	private boolean negate = false;

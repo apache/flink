@@ -7,6 +7,10 @@ import eu.stratosphere.sopremo.Operator;
 
 public abstract class ConditionalOperator extends Operator {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5527661578575402968L;
 	private Condition condition;
 
 	public ConditionalOperator(EvaluableExpression transformation, Condition condition, JsonStream... inputs) {

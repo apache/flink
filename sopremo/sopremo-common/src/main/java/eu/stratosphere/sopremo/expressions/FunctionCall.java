@@ -10,6 +10,11 @@ import eu.stratosphere.sopremo.JsonUtil;
 
 public class FunctionCall extends ContainerExpression<Evaluable> {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 90022725022477041L;
+
 	private String name;
 
 	private Evaluable[] paramExprs;

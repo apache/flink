@@ -123,8 +123,8 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	private final class MathExprConverter implements ExpressionConverter<MathExpr> {
 		private Field OpField;
 
-		private ArithmeticOperator[] OperatorMapping = { ArithmeticOperator.PLUS, ArithmeticOperator.MINUS,
-			ArithmeticOperator.MULTIPLY, ArithmeticOperator.DIVIDE };
+		private ArithmeticOperator[] OperatorMapping = { ArithmeticOperator.ADDITION, ArithmeticOperator.SUBTRACTION,
+			ArithmeticOperator.MULTIPLICATION, ArithmeticOperator.DIVISION };
 
 		MathExprConverter() {
 			try {

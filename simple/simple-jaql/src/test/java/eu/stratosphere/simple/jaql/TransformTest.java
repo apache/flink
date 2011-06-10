@@ -29,7 +29,7 @@ public class TransformTest extends ParserTestCase {
 		Source source = new Source(createJsonArray(createObject("a", 1L, "b", 2L), createObject("a", 3L, "b", 4L)));
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("c", new Arithmetic(createPath("$", "a"),
-			ArithmeticOperator.MULTIPLY, createPath("$", "b")));
+			ArithmeticOperator.MULTIPLICATION, createPath("$", "b")));
 		assertParseResult(new Projection(transformation, source),
 			"[{a: 1, b: 2}, {a: 3, b: 4}] -> transform { c: $.a * $.b }");
 	}
@@ -50,7 +50,7 @@ public class TransformTest extends ParserTestCase {
 	public void shouldParseExampleTransform() {
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("sum", new Arithmetic(createPath("$", "a"),
-			ArithmeticOperator.PLUS, createPath("$", "b")));
+			ArithmeticOperator.ADDITION, createPath("$", "b")));
 		assertParseResult(new Projection(transformation, recordsSource()), recordsJaql()
 			+ "recs -> transform {sum: $.a + $.b}");
 	}
@@ -59,7 +59,7 @@ public class TransformTest extends ParserTestCase {
 	public void shouldParseExampleTransformWithIterationVariable() {
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("sum", new Arithmetic(createPath("$", "a"),
-			ArithmeticOperator.PLUS, createPath("$", "b")));
+			ArithmeticOperator.ADDITION, createPath("$", "b")));
 		assertParseResult(new Projection(transformation, recordsSource()), recordsJaql()
 			+ "recs -> transform each r {sum: r.a + r.b}");
 	}

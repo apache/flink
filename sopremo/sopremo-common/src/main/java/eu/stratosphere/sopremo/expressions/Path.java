@@ -12,6 +12,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Path extends ContainerExpression<EvaluableExpression> {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4663949354781572815L;
 	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 
 	public Path(EvaluableExpression... fragments) {

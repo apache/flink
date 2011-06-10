@@ -6,6 +6,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
 public class Constant extends EvaluableExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4270374147359826240L;
 	// TODO: adjust to json model
 	private Object constant;
 

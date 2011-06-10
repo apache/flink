@@ -5,6 +5,10 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class Input extends EvaluableExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3767687525625180324L;
 	private int index;
 
 	public Input(int index) {

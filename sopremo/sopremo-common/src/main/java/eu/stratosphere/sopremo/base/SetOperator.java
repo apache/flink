@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.base;
 
+import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
@@ -80,4 +81,26 @@ public abstract class SetOperator extends Operator {
 			this.setKeyExtractors[inputIndex] = keyExtractor;
 		}
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + Arrays.hashCode(setKeyExtractors);
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		SetOperator other = (SetOperator) obj;
+		return Arrays.equals(setKeyExtractors, other.setKeyExtractors);
+	}
+	
+	
 }

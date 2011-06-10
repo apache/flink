@@ -14,7 +14,15 @@ import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 
-public class JoinTest extends SopremoTest {
+public class JoinTest extends SopremoTest<Join> {
+	@Override
+	protected Join createDefaultInstance(int index) {
+		ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("field", createPath("0", "[" + index + "]"));
+		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
+			"userid")));
+		return new Join(transformation, condition, null, null);
+	}
 
 	@Test
 	public void shouldPerformEquiJoin() {
@@ -26,22 +34,22 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
-			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
-			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
+			add(createPactJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
+			add(createPactJsonObject("userid", 2, "url", "www.cnn.com")).
+			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
 		sopremoPlan.getExpectedOutput(0).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
 			add(
-				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
+				createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com"));
 
 		sopremoPlan.run();
@@ -59,25 +67,25 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
-			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
-			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
+			add(createPactJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
+			add(createPactJsonObject("userid", 2, "url", "www.cnn.com")).
+			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
 		sopremoPlan.getExpectedOutput(0).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
 			add(
-				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
+				createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com")).
 			add(
-				createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+				createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 
 		sopremoPlan.run();
 	}
@@ -94,26 +102,26 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
-			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
-			add(createJsonObject("userid", 4, "url", "www.nbc.com")).
-			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
+			add(createPactJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
+			add(createPactJsonObject("userid", 2, "url", "www.cnn.com")).
+			add(createPactJsonObject("userid", 4, "url", "www.nbc.com")).
+			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
 		sopremoPlan.getExpectedOutput(0).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
 			add(
-				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
+				createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com")).
 			add(
-				createJsonObject("userid", 4, "url", "www.nbc.com"));
+				createPactJsonObject("userid", 4, "url", "www.nbc.com"));
 
 		sopremoPlan.run();
 	}
@@ -130,28 +138,28 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
-			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
-			add(createJsonObject("userid", 4, "url", "www.nbc.com")).
-			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
+			add(createPactJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
+			add(createPactJsonObject("userid", 2, "url", "www.cnn.com")).
+			add(createPactJsonObject("userid", 4, "url", "www.nbc.com")).
+			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
 		sopremoPlan.getExpectedOutput(0).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
 			add(
-				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
+				createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com")).
 			add(
-				createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3)).
+				createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3)).
 			add(
-				createJsonObject("userid", 4, "url", "www.nbc.com"));
+				createPactJsonObject("userid", 4, "url", "www.nbc.com"));
 
 		sopremoPlan.run();
 	}
@@ -168,31 +176,31 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
-			add(createJsonObject("userid", 2, "url", "www.cnn.com")).
-			add(createJsonObject("userid", 4, "url", "www.nbc.com")).
-			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
+			add(createPactJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
+			add(createPactJsonObject("userid", 2, "url", "www.cnn.com")).
+			add(createPactJsonObject("userid", 4, "url", "www.nbc.com")).
+			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
 		sopremoPlan
 			.getExpectedOutput(0)
 			.
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 2, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 2, "url",
 					"www.cnn.com"))
 			.
 			add(
-				createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 4, "url",
+				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 4, "url",
 					"www.nbc.com"))
 			.
 			add(
-				createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 4, "url",
+				createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 4, "url",
 					"www.nbc.com"))
 			.
 			add(
-				createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3, "userid", 4, "url",
+				createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3, "userid", 4, "url",
 					"www.nbc.com"));
 
 		sopremoPlan.run();
@@ -211,16 +219,16 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
-			add(createJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
-			add(createJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance")).
-			add(createJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
+			add(createPactJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
+			add(createPactJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
+			add(createPactJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance")).
+			add(createPactJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("Name", "Sales", "Manager", "Harriet")).
-			add(createJsonObject("Name", "Production", "Manager", "Charles"));
+			add(createPactJsonObject("Name", "Sales", "Manager", "Harriet")).
+			add(createPactJsonObject("Name", "Production", "Manager", "Charles"));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
-			add(createJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance"));
+			add(createPactJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
+			add(createPactJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance"));
 
 		sopremoPlan.run();
 	}
@@ -237,16 +245,16 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
-			add(createJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
-			add(createJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance")).
-			add(createJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
+			add(createPactJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
+			add(createPactJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
+			add(createPactJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance")).
+			add(createPactJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("Name", "Sales", "Manager", "Harriet")).
-			add(createJsonObject("Name", "Production", "Manager", "Charles"));
+			add(createPactJsonObject("Name", "Sales", "Manager", "Harriet")).
+			add(createPactJsonObject("Name", "Production", "Manager", "Charles"));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
-			add(createJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
+			add(createPactJsonObject("Name", "Sally", "EmpId", 2241, "DeptName", "Sales")).
+			add(createPactJsonObject("Name", "Harriet", "EmpId", 2202, "DeptName", "Production"));
 
 		sopremoPlan.run();
 	}
@@ -266,23 +274,24 @@ public class JoinTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
-			add(createJsonObject("userid", 2, "url", "www.oracle.com")).
-			add(createJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/")).
-			add(createJsonObject("userid", 3, "url", "www.oracle.com"));
+			add(createPactJsonObject("userid", 1, "url", "code.google.com/p/jaql/")).
+			add(createPactJsonObject("userid", 2, "url", "www.oracle.com")).
+			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/")).
+			add(createPactJsonObject("userid", 3, "url", "www.oracle.com"));
 		sopremoPlan.getInput(2).
-			add(createJsonObject("page", "code.google.com/p/jaql/", "company", "ibm")).
-			add(createJsonObject("page", "www.oracle.com", "company", "oracle")).
-			add(createJsonObject("page", "java.sun.com/javase/6/docs/api/", "company", "oracle"));
+			add(createPactJsonObject("page", "code.google.com/p/jaql/", "company", "ibm")).
+			add(createPactJsonObject("page", "www.oracle.com", "company", "oracle")).
+			add(createPactJsonObject("page", "java.sun.com/javase/6/docs/api/", "company", "oracle"));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonObject("name", "Jon Doe", "url", "code.google.com/p/jaql/", "company", "ibm")).
-			add(createJsonObject("name", "Jon Doe", "url", "java.sun.com/javase/6/docs/api/", "company", "oracle")).
-			add(createJsonObject("name", "Jane Doe", "url", "www.oracle.com", "company", "oracle")).
-			add(createJsonObject("name", "Max Mustermann", "url", "www.oracle.com", "company", "oracle"));
+			add(createPactJsonObject("name", "Jon Doe", "url", "code.google.com/p/jaql/", "company", "ibm")).
+			add(createPactJsonObject("name", "Jon Doe", "url", "java.sun.com/javase/6/docs/api/", "company", "oracle"))
+			.
+			add(createPactJsonObject("name", "Jane Doe", "url", "www.oracle.com", "company", "oracle")).
+			add(createPactJsonObject("name", "Max Mustermann", "url", "www.oracle.com", "company", "oracle"));
 
 		sopremoPlan.run();
 	}

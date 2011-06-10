@@ -52,11 +52,6 @@ public class StreamArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return o == this;
-	}
-
-	@Override
 	public ObjectNode findParent(String fieldName) {
 		return null;
 	}
@@ -104,13 +99,28 @@ public class StreamArrayNode extends ContainerNode {
 	 */
 
 	@Override
-	public Iterator<JsonNode> getElements() {
-		return this.nodes.iterator();
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.nodes.hashCode();
+		return result;
 	}
 
 	@Override
-	public int hashCode() {
-		return System.identityHashCode(this);
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		StreamArrayNode other = (StreamArrayNode) obj;
+		return this.nodes.equals(other.nodes);
+	}
+
+	@Override
+	public Iterator<JsonNode> getElements() {
+		return this.nodes.iterator();
 	}
 
 	@Override

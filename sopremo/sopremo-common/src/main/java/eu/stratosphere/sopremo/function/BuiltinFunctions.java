@@ -38,7 +38,7 @@ public class BuiltinFunctions {
 			return ZERO;
 		JsonNode sum = iterator.next();
 		for (; iterator.hasNext();)
-			sum = Arithmetic.ArithmeticOperator.PLUS.evaluate((NumericNode) sum, (NumericNode) iterator.next());
+			sum = Arithmetic.ArithmeticOperator.ADDITION.evaluate((NumericNode) sum, (NumericNode) iterator.next());
 		return sum;
 	}
 

@@ -15,7 +15,17 @@ import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.ConversionIterator;
 
 public class ObjectCreation extends ContainerExpression<Evaluable> {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5688226000742970692L;
+
 	public static final ObjectCreation CONCATENATION = new ObjectCreation() {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 5274811723343043990L;
+
 		@Override
 		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 			ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
@@ -123,6 +133,11 @@ public class ObjectCreation extends ContainerExpression<Evaluable> {
 	}
 
 	public static class CopyFields extends Mapping {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -8809405108852546800L;
+
 		public CopyFields(EvaluableExpression expression) {
 			super("*", expression);
 		}
@@ -141,6 +156,11 @@ public class ObjectCreation extends ContainerExpression<Evaluable> {
 	}
 
 	public static class Mapping implements SerializableSopremoType {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6372376844557378592L;
+
 		private final String target;
 
 		private final EvaluableExpression expression;

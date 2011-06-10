@@ -7,10 +7,14 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.BooleanNode;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public class ElementInSetExpression extends BooleanExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2695263646399347776L;
+
 	private EvaluableExpression elementExpr, setExpr;;
 
 	private Quantor quantor;

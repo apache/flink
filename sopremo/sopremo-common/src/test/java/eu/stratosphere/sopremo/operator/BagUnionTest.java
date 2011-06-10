@@ -6,7 +6,10 @@ import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.BagUnion;
 
-public class BagUnionTest extends SopremoTest {
+public class BagUnionTest extends SopremoTest<BagUnion> {
+	@Override
+	public void shouldComplyEqualsContract() {
+	}
 
 	@Test
 	public void shouldPerformTrivialBagUnion() {
@@ -16,11 +19,11 @@ public class BagUnionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
 
 		sopremoPlan.run();
 	}
@@ -33,18 +36,18 @@ public class BagUnionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
 		sopremoPlan.getInput(1).
-			add(createJsonValue(3)).
-			add(createJsonValue(4)).
-			add(createJsonValue(5));
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(4)).
+			add(createPactJsonValue(5));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3)).
-			add(createJsonValue(4)).
-			add(createJsonValue(5));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(4)).
+			add(createPactJsonValue(5));
 
 		sopremoPlan.run();
 	}
@@ -57,25 +60,25 @@ public class BagUnionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
 		sopremoPlan.getInput(1).
-			add(createJsonValue(3)).
-			add(createJsonValue(4)).
-			add(createJsonValue(5));
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(4)).
+			add(createPactJsonValue(5));
 		sopremoPlan.getInput(2).
-			add(createJsonValue(6)).
-			add(createJsonValue(7)).
-			add(createJsonValue(8));
+			add(createPactJsonValue(6)).
+			add(createPactJsonValue(7)).
+			add(createPactJsonValue(8));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3)).
-			add(createJsonValue(4)).
-			add(createJsonValue(5)).
-			add(createJsonValue(6)).
-			add(createJsonValue(7)).
-			add(createJsonValue(8));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(4)).
+			add(createPactJsonValue(5)).
+			add(createPactJsonValue(6)).
+			add(createPactJsonValue(7)).
+			add(createPactJsonValue(8));
 
 		sopremoPlan.run();
 	}
@@ -88,18 +91,18 @@ public class BagUnionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
 		sopremoPlan.getInput(1).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3)).
-			add(createJsonValue(1)).
-			add(createJsonValue(2));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
 
 		sopremoPlan.run();
 	}

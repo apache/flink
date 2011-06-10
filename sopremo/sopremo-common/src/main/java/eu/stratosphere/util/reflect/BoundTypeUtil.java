@@ -128,11 +128,12 @@ public class BoundTypeUtil {
 		}
 
 		Type clazz = subclass;
+		Class<?> rawType = subclass;
 		do {
 			hierarchy.add(clazz);
-			Class<?> type = (Class<?>) (clazz instanceof Class ? clazz : ((ParameterizedType) clazz).getRawType());
-			clazz = type.getGenericSuperclass();
-		} while (superClass != clazz);
+			rawType = (Class<?>) (clazz instanceof Class ? clazz : ((ParameterizedType) clazz).getRawType());
+			clazz = rawType.getGenericSuperclass();
+		} while (superClass != rawType);
 		return hierarchy;
 	}
 

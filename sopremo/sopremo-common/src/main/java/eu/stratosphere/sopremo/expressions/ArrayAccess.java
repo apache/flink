@@ -8,6 +8,10 @@ import eu.stratosphere.sopremo.JsonUtil;
 
 public class ArrayAccess extends EvaluableExpression {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2326222517008315722L;
 	private int startIndex, endIndex;
 
 	public ArrayAccess() {

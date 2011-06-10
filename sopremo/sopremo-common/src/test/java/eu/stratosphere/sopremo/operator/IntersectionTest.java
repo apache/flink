@@ -6,11 +6,19 @@ import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.Intersection;
 import eu.stratosphere.sopremo.base.Intersection;
+import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.Constant;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.Path;
 
-public class IntersectionTest extends SopremoTest {
+public class IntersectionTest extends SopremoTest<Intersection> {
+	@Override
+	protected Intersection createDefaultInstance(int index) {
+		Intersection intersection = new Intersection(null, null, null);
+		intersection.setKeyExtractors(createPath(String.valueOf(index)));
+		return intersection;
+	}
+
 	/**
 	 * Checks whether intersection of one source produces the source again.
 	 */
@@ -22,13 +30,13 @@ public class IntersectionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
 
 		sopremoPlan.run();
 	}
@@ -44,19 +52,19 @@ public class IntersectionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
 		sopremoPlan.getInput(1).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(4));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(4));
 		sopremoPlan.getInput(2).
-			add(createJsonValue(2)).
-			add(createJsonValue(3)).
-			add(createJsonValue(5));
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(5));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(2));
+			add(createPactJsonValue(2));
 
 		sopremoPlan.run();
 	}
@@ -69,16 +77,16 @@ public class IntersectionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(3));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
 		sopremoPlan.getInput(1).
-			add(createJsonValue(1)).
-			add(createJsonValue(2)).
-			add(createJsonValue(4));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(4));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonValue(1)).
-			add(createJsonValue(2));
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
 
 		sopremoPlan.run();
 	}
@@ -91,16 +99,16 @@ public class IntersectionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createJsonArray(1, 2)).
-			add(createJsonArray(3, 4)).
-			add(createJsonArray(5, 6));
+			add(createPactJsonArray(1, 2)).
+			add(createPactJsonArray(3, 4)).
+			add(createPactJsonArray(5, 6));
 		sopremoPlan.getInput(1).
-			add(createJsonArray(1, 2)).
-			add(createJsonArray(3, 4)).
-			add(createJsonArray(7, 8));
+			add(createPactJsonArray(1, 2)).
+			add(createPactJsonArray(3, 4)).
+			add(createPactJsonArray(7, 8));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonArray(1, 2)).
-			add(createJsonArray(3, 4));
+			add(createPactJsonArray(1, 2)).
+			add(createPactJsonArray(3, 4));
 
 		sopremoPlan.run();
 	}
@@ -116,16 +124,16 @@ public class IntersectionTest extends SopremoTest {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
 		sopremoPlan.getInput(1).
-			add(createJsonObject("first name", "Jon", "last name", "Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("first name", "Jane", "last name", "Doe", "password", "qwertyui", "id", 2)).
-			add(createJsonObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4));
+			add(createPactJsonObject("first name", "Jon", "last name", "Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("first name", "Jane", "last name", "Doe", "password", "qwertyui", "id", 2)).
+			add(createPactJsonObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4));
 		sopremoPlan.getExpectedOutput(0).
-			add(createJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2));
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2));
 
 		sopremoPlan.run();
 	}
