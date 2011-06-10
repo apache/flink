@@ -239,7 +239,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 			throws ExecutionFailureException {
 		while (!eg.isExecutionFinished()
 				&& eg.getJobStatus() != InternalJobStatus.FAILED) {
-			
+
 			try {
 				Thread.sleep(10);
 			} catch (final InterruptedException e) {
@@ -831,24 +831,24 @@ public class TestPlan implements Closeable, DeploymentManager {
 			final List<ExecutionVertex> verticesToBeDeployed) {
 
 		final Iterator<ExecutionVertex> it = verticesToBeDeployed.iterator();
-		while(it.hasNext()) {
-			
+		while (it.hasNext()) {
+
 			final ExecutionVertex executionVertex = it.next();
-			
+
 			if (executionVertex.isInputVertex()) {
 				try {
 					InputSplitAssigner.assignInputSplits(executionVertex);
-				} catch(ExecutionFailureException e) {
+				} catch (ExecutionFailureException e) {
 					fail(e);
 				}
 			}
-			
+
 			executionVertex.getEnvironment().registerExecutionListener(
 				new ExecutionExceptionHandler(executionVertex));
-			
+
 			final TaskSubmissionResult submissionResult = executionVertex
 				.startTask();
-			
+
 			if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
 				fail(submissionResult.getDescription());
 		}

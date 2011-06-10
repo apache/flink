@@ -370,7 +370,7 @@ public class Environment implements Runnable, IOReadableWritable {
 
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
-			
+
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {

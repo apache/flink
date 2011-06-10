@@ -204,7 +204,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			vertex.getEnvironment().registerExecutionListener(new QueueExecutionListener(this, vertex));
 			vertex.setExecutionState(ExecutionState.SCHEDULED);
 		}
-		
+
 		// Register the scheduler as an execution stage listener
 		executionGraph.registerExecutionStageListener(this);
 

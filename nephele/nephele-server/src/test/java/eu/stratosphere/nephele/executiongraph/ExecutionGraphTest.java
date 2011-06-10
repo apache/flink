@@ -1044,8 +1044,7 @@ public class ExecutionGraphTest {
 				.equals(inputGroupVertex.getGroupMember(2).getAllocatedResource()));
 			assertFalse(inputGroupVertex.getGroupMember(2).getAllocatedResource()
 				.equals(inputGroupVertex.getGroupMember(3).getAllocatedResource()));
-			
-			
+
 		} catch (GraphConversionException e) {
 			fail(e.getMessage());
 		} catch (JobGraphDefinitionException e) {

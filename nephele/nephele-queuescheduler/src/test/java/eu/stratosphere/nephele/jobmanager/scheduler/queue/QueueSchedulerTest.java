@@ -167,7 +167,7 @@ public class QueueSchedulerTest {
 	public void testResourceAllocated() throws Exception {
 
 		final DeploymentManager deploymentManager = new TestDeploymentManager();
-		
+
 		final QueueScheduler toTest = spy(new QueueScheduler(deploymentManager, this.instanceManager));
 		final JobID jobid = mock(JobID.class);
 		final AllocatedResource resource = mock(AllocatedResource.class);

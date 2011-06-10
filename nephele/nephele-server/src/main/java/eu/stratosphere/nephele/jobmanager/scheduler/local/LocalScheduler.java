@@ -181,7 +181,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 
 		// Subscribe to job status notifications
 		executionGraph.registerJobStatusListener(this);
-		
+
 		// Set state of each vertex for scheduled
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
 		while (it2.hasNext()) {
@@ -350,7 +350,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 			removeJobFromSchedule(executionGraph);
 		}
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
