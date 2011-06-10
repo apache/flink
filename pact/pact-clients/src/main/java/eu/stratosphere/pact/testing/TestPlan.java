@@ -35,7 +35,6 @@ import org.junit.internal.ArrayComparisonFailure;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -47,7 +46,7 @@ import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobmanager.InputSplitAssigner;
+import eu.stratosphere.nephele.jobmanager.FileInputSplitAssigner;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -120,7 +119,6 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * 
  * @author Arvid Heise
  */
-@SuppressWarnings("deprecation")
 public class TestPlan implements Closeable {
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
@@ -234,7 +232,8 @@ public class TestPlan implements Closeable {
 	 */
 	private void execute(final ExecutionGraph eg,
 			final LocalScheduler localScheduler)
-			throws ExecutionFailureException {
+	throws Exception
+	{
 		while (!eg.isExecutionFinished()
 				&& eg.getJobStatus() != InternalJobStatus.FAILED) {
 			// get the next executable vertices
@@ -242,7 +241,7 @@ public class TestPlan implements Closeable {
 					.getVerticesReadyToBeExecuted();
 			for (final ExecutionVertex executionVertex : verticesReadyToBeExecuted) {
 				if (executionVertex.isInputVertex())
-					InputSplitAssigner.assignInputSplits(executionVertex);
+					new FileInputSplitAssigner().assignInputSplits(executionVertex.getGroupVertex());
 
 				executionVertex.getEnvironment().registerExecutionListener(
 						new ExecutionExceptionHandler(executionVertex));

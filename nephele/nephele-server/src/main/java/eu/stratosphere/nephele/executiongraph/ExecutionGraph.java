@@ -51,8 +51,10 @@ import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
+import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
+import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -587,13 +589,26 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Register input and output vertices separately
 		if (jobVertex instanceof JobInputVertex) {
-			// Assign input splits
-			try {
-				groupVertex.setInputSplits(((JobInputVertex) jobVertex).getInputSplits());
-			} catch (IllegalConfigurationException e) {
-				throw new GraphConversionException("Cannot assign input splits to " + groupVertex.getName() + ": "
-					+ StringUtils.stringifyException(e));
+			final InputSplit[] inputSplits;
+			
+			// let the task code compute the input splits
+			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
+				try {
+					inputSplits = ((AbstractInputTask) ev.getEnvironment().getInvokable()).
+							computeInputSplits(jobVertex.getNumberOfSubtasks());
+				}
+				catch (Exception e) {
+					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName() + ": "
+							+ StringUtils.stringifyException(e));
+				}
 			}
+			else {
+				throw new GraphConversionException(
+					"BUG: JobInputVertex contained a task class which was not an input task.");
+			}
+			
+			// assign input splits
+			groupVertex.setInputSplits(inputSplits);
 		}
 		// TODO: This is a quick workaround, problem can be solved in a more generic way
 		if (jobVertex instanceof JobFileOutputVertex) {

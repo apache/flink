@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.fs.BlockLocation;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.nephele.fs.Path;
 
 /**
  * Specialized subtype of {@link AbstractInputTask} for tasks which are supposed to generate input from
@@ -36,6 +36,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public abstract class AbstractFileInputTask extends AbstractInputTask
 {
+	public static final String INPUT_PATH_CONFIG_KEY = "input.path";
+	
 	/**
 	 * The fraction that the last split may be larger than the others.
 	 */
@@ -61,103 +63,108 @@ public abstract class AbstractFileInputTask extends AbstractInputTask
 		return fileInputSplits.iterator();
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.AbstractInputTask#computeInputSplits()
+	 */
 	@Override
-	public FileInputSplit[] computeInputSplits()
+	public FileInputSplit[] computeInputSplits(int minNumSplits) throws IOException
 	{
-		if (this.path == null) {
-			throw new IllegalConfigurationException("Cannot generate input splits, path is not set");
+		final String pathURI = getRuntimeConfiguration().getString(INPUT_PATH_CONFIG_KEY, null);
+		if (pathURI == null) {
+			throw new IOException("The path to the file was not found in the runtime configuration.");
+		}
+		
+		final Path path;
+		try {
+			path = new Path(pathURI);
+		}
+		catch (Exception iaex) {
+			throw new IOException("Invalid file path specifier: ", iaex);
 		}
 
-		final int numSubtasks = getNumberOfSubtasks();
 		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>();
 
 		// get all the files that are involved in the splits
 		List<FileStatus> files = new ArrayList<FileStatus>();
 		long totalLength = 0;
 
-		try {
-			final FileSystem fs = this.path.getFileSystem();
-			final FileStatus pathFile = fs.getFileStatus(this.path);
+		final FileSystem fs = path.getFileSystem();
+		final FileStatus pathFile = fs.getFileStatus(path);
 
-			if (pathFile.isDir()) {
-				// input is directory. list all contained files
-				final FileStatus[] dir = fs.listStatus(this.path);
-				for (int i = 0; i < dir.length; i++) {
-					if (!dir[i].isDir()) {
-						files.add(dir[i]);
-						totalLength += dir[i].getLen();
-					}
+		if (pathFile.isDir()) {
+			// input is directory. list all contained files
+			final FileStatus[] dir = fs.listStatus(path);
+			for (int i = 0; i < dir.length; i++) {
+				if (!dir[i].isDir()) {
+					files.add(dir[i]);
+					totalLength += dir[i].getLen();
 				}
-
-			} else {
-				files.add(pathFile);
-				totalLength += pathFile.getLen();
 			}
 
-			final long minSplitSize = 1;
-			final long maxSplitSize = (numSubtasks < 1) ? Long.MAX_VALUE : (totalLength / numSubtasks + 
-						(totalLength % numSubtasks == 0 ? 0 : 1));
+		} else {
+			files.add(pathFile);
+			totalLength += pathFile.getLen();
+		}
 
-			// now that we have the files, generate the splits
-			for (final FileStatus file : files) {
+		final long minSplitSize = 1;
+		final long maxSplitSize = (minNumSplits < 1) ? Long.MAX_VALUE : (totalLength / minNumSplits + 
+					(totalLength % minNumSplits == 0 ? 0 : 1));
 
-				final long len = file.getLen();
-				final long blockSize = file.getBlockSize();
+		// now that we have the files, generate the splits
+		int splitNum = 0;
+		for (final FileStatus file : files) {
 
-				final long splitSize = Math.max(minSplitSize, Math.min(maxSplitSize, blockSize));
-				final long halfSplit = splitSize >>> 1;
+			final long len = file.getLen();
+			final long blockSize = file.getBlockSize();
 
-				final long maxBytesForLastSplit = (long) (splitSize * MAX_SPLIT_SIZE_DISCREPANCY);
+			final long splitSize = Math.max(minSplitSize, Math.min(maxSplitSize, blockSize));
+			final long halfSplit = splitSize >>> 1;
 
-				if (len > 0) {
+			final long maxBytesForLastSplit = (long) (splitSize * MAX_SPLIT_SIZE_DISCREPANCY);
 
-					// get the block locations and make sure they are in order with respect to their offset
-					final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, len);
-					Arrays.sort(blocks);
+			if (len > 0) {
 
-					long bytesUnassigned = len;
-					long position = 0;
+				// get the block locations and make sure they are in order with respect to their offset
+				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, len);
+				Arrays.sort(blocks);
 
-					int blockIndex = 0;
+				long bytesUnassigned = len;
+				long position = 0;
 
-					while (bytesUnassigned > maxBytesForLastSplit) {
-						// get the block containing the majority of the data
-						blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
-						// create a new split
-						FileInputSplit fis = new FileInputSplit(file.getPath(), position, splitSize, blocks[blockIndex]
-							.getHosts());
-						inputSplits.add(fis);
+				int blockIndex = 0;
 
-						// adjust the positions
-						position += splitSize;
-						bytesUnassigned -= splitSize;
-					}
+				while (bytesUnassigned > maxBytesForLastSplit) {
+					// get the block containing the majority of the data
+					blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
+					// create a new split
+					FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), position, splitSize, blocks[blockIndex]
+						.getHosts());
+					inputSplits.add(fis);
 
-					// assign the last split
-					if (bytesUnassigned > 0) {
-						blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
-						final FileInputSplit fis = new FileInputSplit(file.getPath(), position, bytesUnassigned,
-							blocks[blockIndex].getHosts());
-						inputSplits.add(fis);
-					}
-				} else {
-					// special case with a file of zero bytes size
-					final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, 0);
-					String[] hosts;
-					if (blocks.length > 0) {
-						hosts = blocks[0].getHosts();
-					} else {
-						hosts = new String[0];
-					}
-					final FileInputSplit fis = new FileInputSplit(file.getPath(), 0, 0, hosts);
+					// adjust the positions
+					position += splitSize;
+					bytesUnassigned -= splitSize;
+				}
+
+				// assign the last split
+				if (bytesUnassigned > 0) {
+					blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
+					final FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), position, bytesUnassigned,
+						blocks[blockIndex].getHosts());
 					inputSplits.add(fis);
 				}
+			} else {
+				// special case with a file of zero bytes size
+				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, 0);
+				String[] hosts;
+				if (blocks.length > 0) {
+					hosts = blocks[0].getHosts();
+				} else {
+					hosts = new String[0];
+				}
+				final FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), 0, 0, hosts);
+				inputSplits.add(fis);
 			}
-
-		}
-		catch (IOException ioe) {
-			throw new IllegalConfigurationException("Cannot generate input splits from path '" + this.path.toString()
-				+ "': " + StringUtils.stringifyException(ioe));
 		}
 
 		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);

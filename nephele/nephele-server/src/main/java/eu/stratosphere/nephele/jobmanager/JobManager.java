@@ -67,7 +67,6 @@ import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -593,12 +592,16 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				 * START modification FH
 				 */
 				if (vertex.isInputVertex() && vertex.getEnvironment().getInputSplits().length == 0
-					&& vertex.getGroupVertex().getStageNumber() == 0) {
+					&& vertex.getGroupVertex().getStageNumber() == 0)
+				{
 					try {
-						if (!InputSplitAssigner.assignInputSplits(vertex)) {
+						FileInputSplitAssigner assigner = new FileInputSplitAssigner();
+						
+						if (!assigner.assignInputSplits(vertex.getGroupVertex())) {
 							continue;
 						}
-					} catch (ExecutionFailureException e) {
+					}
+					catch (Exception e) {
 						LOG.error(e);
 					}
 				}
@@ -606,7 +609,9 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 				 * END modification FH
 				 */
 
-				LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
+				if (LOG.isInfoEnabled())
+					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
+					
 				final TaskSubmissionResult submissionResult = vertex.startTask();
 				it.remove(); // Remove task from ready set
 				if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {

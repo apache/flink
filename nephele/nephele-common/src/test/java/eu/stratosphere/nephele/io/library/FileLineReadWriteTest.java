@@ -105,7 +105,7 @@ public class FileLineReadWriteTest {
 		}
 		writer.invoke();
 		
-		FileInputSplit split = new FileInputSplit(new Path(this.file.toURI().toString()), 0, this.file.length(), null);
+		FileInputSplit split = new FileInputSplit(0, new Path(this.file.toURI().toString()), 0, this.file.length(), null);
 		FileInputSplit[] splits = {split};
 		FileLineReader reader = new FileLineReader();
 		Whitebox.setInternalState(reader, "environment", this.environment);

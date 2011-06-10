@@ -424,8 +424,8 @@ public class EnvironmentTest {
 		env.setCurrentNumberOfSubtasks(2);
 		env.setIndexInSubtaskGroup(0);
 
-		final FileInputSplit split1 = new FileInputSplit(FILE_PATH, 0, 100, null);
-		final FileInputSplit split2 = new FileInputSplit(FILE_PATH, 100, 200, null);
+		final FileInputSplit split1 = new FileInputSplit(0, FILE_PATH, 0, 100, null);
+		final FileInputSplit split2 = new FileInputSplit(1, FILE_PATH, 100, 200, null);
 
 		env.addInputSplit(split1);
 		env.addInputSplit(split2);

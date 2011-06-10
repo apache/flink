@@ -22,20 +22,12 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable {
-
-//	/**
-//	 * Gets the (logical) number of this input split.
-//	 *   
-//	 * @return The number of this input split.
-//	 */
-//	public int getNumber();
-
+public interface InputSplit extends IOReadableWritable
+{
 	/**
-	 * Gets the length of the input split.
-	 * 
-	 * @return The length of the input split.
+	 * Gets the partition number of this input split.
+	 *   
+	 * @return The number of this input split.
 	 */
-	public long getLength();
-
+	public int getPartitionNumber();
 }
