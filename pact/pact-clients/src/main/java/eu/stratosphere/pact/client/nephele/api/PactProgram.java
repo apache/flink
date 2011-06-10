@@ -257,7 +257,10 @@ public class PactProgram {
 			this.extractedTempLibraries = new File[containedJarFileEntries.size()];
 			for (int i = 0; i < this.extractedTempLibraries.length; i++)
 			{
-				JarEntry entry = containedJarFileEntries.get(i);
+				final JarEntry entry = containedJarFileEntries.get(i);
+				String name = entry.getName();
+				name = name.replace(File.separatorChar, '_');
+				
 				File tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"),
 					entry.getName());
 				this.extractedTempLibraries[i] = tempFile;
