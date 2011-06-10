@@ -44,6 +44,7 @@ public abstract class FileSystem {
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.file.LocalFileSystem";
 	
+	private static final String S3_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.s3.S3FileSystem";
 	
 	/**
 	 * Object used to synchronized calls to specific methods.
@@ -146,6 +147,7 @@ public abstract class FileSystem {
 		// TODO: Use configuration to retrieve this mapping
 		FSDIRECTORY.put("hdfs", DISTRIBUTED_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LOCAL_FILESYSTEM_CLASS);
+		FSDIRECTORY.put("s3", S3_FILESYSTEM_CLASS);
 	}
 
 	/**
