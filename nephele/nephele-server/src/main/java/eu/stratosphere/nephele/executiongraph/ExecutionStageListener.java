@@ -13,25 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager;
+package eu.stratosphere.nephele.executiongraph;
 
-import java.util.List;
-
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
-public interface DeploymentManager {
+/**
+ * This interface must be implemented in order to receive a notification whenever the job has entered a new execution
+ * stage.
+ * 
+ * @author warneke
+ */
+public interface ExecutionStageListener {
 
 	/**
-	 * Deploys the list of vertices on the given {@link AbstractInstance}.
+	 * This method is called to indicate that the job with the given {@link JobID} has finished its previous
+	 * {@link ExecutionStage} and has entered the next {@link ExecutionStage}. Note that a notification is not sent when
+	 * the job has entered its initial execution stage.
 	 * 
 	 * @param jobID
-	 *        the ID of the job the vertices to be deployed belong to
-	 * @param instance
-	 *        the instance on which the vertices shall be deployed
-	 * @param verticesToBeDeployed
-	 *        the list of vertices to be deployed
+	 *        the ID of the job the notification belongs to
+	 * @param executionStage
+	 *        the next execution stage that has just been entered
 	 */
-	void deploy(JobID jobID, AbstractInstance instance, List<ExecutionVertex> verticesToBeDeployed);
+	void nextExecutionStageEntered(JobID jobID, ExecutionStage executionStage);
+
 }

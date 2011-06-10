@@ -985,7 +985,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void deploy(final JobID jobID, final AllocatedResource allocatedResource,
+	public void deploy(final JobID jobID, final AbstractInstance instance,
 			final List<ExecutionVertex> verticesToBeDeployed) {
 
 		// Create a new runnable and pass it the executor service
@@ -999,7 +999,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 				// Check if all required libraries are available on the instance
 				try {
-					allocatedResource.getInstance().checkLibraryAvailability(jobID);
+					instance.checkLibraryAvailability(jobID);
 				} catch (IOException ioe) {
 					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
 				}

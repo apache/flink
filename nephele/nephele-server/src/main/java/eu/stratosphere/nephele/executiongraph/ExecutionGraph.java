@@ -124,6 +124,11 @@ public class ExecutionGraph implements ExecutionListener {
 	private List<JobStatusListener> jobStatusListeners = new ArrayList<JobStatusListener>();
 
 	/**
+	 * List of listeners which are notified in case the execution stage of a job has changed.
+	 */
+	private List<ExecutionStageListener> executionStageListeners = new ArrayList<ExecutionStageListener>();
+
+	/**
 	 * Private constructor used for duplicating execution vertices.
 	 * 
 	 * @param jobID
@@ -1345,6 +1350,14 @@ public class ExecutionGraph implements ExecutionListener {
 			if (this.isCurrentStageCompleted()) {
 				// Increase current execution stage
 				++this.indexToCurrentExecutionStage;
+
+				if (this.indexToCurrentExecutionStage < this.stages.size()) {
+					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
+					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
+					while (it.hasNext()) {
+						it.next().nextExecutionStageEntered(ee.getJobID(), nextExecutionStage);
+					}
+				}
 			}
 		}
 
@@ -1376,7 +1389,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @param jobStatusListener
 	 *        the listener object to register
 	 */
-	public synchronized void registerJobStatusListener(JobStatusListener jobStatusListener) {
+	public synchronized void registerJobStatusListener(final JobStatusListener jobStatusListener) {
 
 		if (jobStatusListener == null) {
 			return;
@@ -1395,13 +1408,48 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @param jobStatusListener
 	 *        the listener object to unregister
 	 */
-	public synchronized void unregisterJobStatusListener(JobStatusListener jobStatusListener) {
+	public synchronized void unregisterJobStatusListener(final JobStatusListener jobStatusListener) {
 
 		if (jobStatusListener == null) {
 			return;
 		}
 
 		this.jobStatusListeners.remove(jobStatusListener);
+	}
+
+	/**
+	 * Registers a new {@link ExecutionStageListener} object with this execution graph. After being registered the
+	 * object will receive a notification whenever the job has entered its next execution stage. Note that a
+	 * notification is not sent when the job has entered its initial execution stage.
+	 * 
+	 * @param executionStageListener
+	 *        the listener object to register
+	 */
+	public synchronized void registerExecutionStageListener(final ExecutionStageListener executionStageListener) {
+
+		if (executionStageListener == null) {
+			return;
+		}
+
+		if (!this.executionStageListeners.contains(executionStageListener)) {
+			this.executionStageListeners.add(executionStageListener);
+		}
+	}
+
+	/**
+	 * Unregisters the given {@link ExecutionStageListener} object. After having called this method, the object will no
+	 * longer receiver notifications about the execution stage progress.
+	 * 
+	 * @param executionStageListener
+	 *        the listener object to unregister
+	 */
+	public synchronized void unregisterExecutionStageListener(final ExecutionStageListener executionStageListener) {
+
+		if (executionStageListener == null) {
+			return;
+		}
+
+		this.executionStageListeners.remove(executionStageListener);
 	}
 
 	/**

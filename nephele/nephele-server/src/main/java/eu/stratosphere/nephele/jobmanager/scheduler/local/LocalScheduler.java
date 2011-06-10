@@ -23,14 +23,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionStage;
+import eu.stratosphere.nephele.executiongraph.ExecutionStageListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
+import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
@@ -42,13 +44,11 @@ import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 
-public class LocalScheduler extends AbstractScheduler {
+public class LocalScheduler extends AbstractScheduler implements JobStatusListener, ExecutionStageListener {
 
 	/**
-	 * The LOG object to report events within the scheduler.
+	 * The job queue of the scheduler
 	 */
-	private static final Log LOG = LogFactory.getLog(LocalScheduler.class);
-
 	private Deque<ExecutionGraph> jobQueue = new ArrayDeque<ExecutionGraph>();
 
 	/**
@@ -157,7 +157,8 @@ public class LocalScheduler extends AbstractScheduler {
 		for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
 
 			final Map<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
-			executionGraph.collectInstanceTypesRequiredForStage(i, requiredInstanceTypes, ExecutionState.CREATED);
+			final ExecutionStage stage = executionGraph.getStage(i);
+			stage.collectRequiredInstanceTypes(requiredInstanceTypes, ExecutionState.CREATED);
 
 			final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstanceTypes.entrySet().iterator();
 			while (it.hasNext()) {
@@ -178,6 +179,9 @@ public class LocalScheduler extends AbstractScheduler {
 			}
 		}
 
+		// Subscribe to job status notifications
+		executionGraph.registerJobStatusListener(this);
+		
 		// Set state of each vertex for scheduled
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
 		while (it2.hasNext()) {
@@ -191,6 +195,17 @@ public class LocalScheduler extends AbstractScheduler {
 			vertex.getEnvironment().registerExecutionListener(new LocalExecutionListener(this, vertex));
 			vertex.setExecutionState(ExecutionState.SCHEDULED);
 
+		}
+
+		// Register the scheduler as an execution stage listener
+		executionGraph.registerExecutionStageListener(this);
+
+		// Request resources for the first stage of the job
+		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
+		try {
+			requestInstances(executionStage);
+		} catch (InstanceException e) {
+			throw new SchedulingException(StringUtils.stringifyException(e));
 		}
 
 		synchronized (this.jobQueue) {
@@ -258,9 +273,11 @@ public class LocalScheduler extends AbstractScheduler {
 				return;
 			}
 
+			final int indexOfCurrentStage = eg.getIndexOfCurrentExecutionStage();
+
 			AllocatedResource resourceToBeReplaced = null;
 			// Important: only look for instances to be replaced in the current stage
-			ExecutionGraphIterator it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(), true, true);
+			ExecutionGraphIterator it = new ExecutionGraphIterator(eg, indexOfCurrentStage, true, true);
 			while (it.hasNext()) {
 
 				final ExecutionVertex vertex = it.next();
@@ -294,15 +311,17 @@ public class LocalScheduler extends AbstractScheduler {
 					vertex.setExecutionState(ExecutionState.ASSIGNED);
 				}
 			}
-		}
 
+			// Deploy the assigned vertices
+			deployAssignedVertices(eg);
+		}
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
+	public void allocatedResourceDied(final JobID jobID, final AllocatedResource allocatedResource) {
 		// TODO Auto-generated method stub
 
 	}
@@ -317,5 +336,38 @@ public class LocalScheduler extends AbstractScheduler {
 			this.jobQueue.clear();
 		}
 
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
+			final String optionalMessage) {
+
+		if (newJobStatus == InternalJobStatus.FAILED || newJobStatus == InternalJobStatus.FINISHED
+			|| newJobStatus == InternalJobStatus.CANCELED) {
+			removeJobFromSchedule(executionGraph);
+		}
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
+
+		synchronized (this.jobQueue) {
+
+			// Request new instances if necessary
+			try {
+				requestInstances(executionStage);
+			} catch (InstanceException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+
+			// Deploy the assigned vertices
+			deployAssignedVertices(executionStage.getExecutionGraph());
+		}
 	}
 }

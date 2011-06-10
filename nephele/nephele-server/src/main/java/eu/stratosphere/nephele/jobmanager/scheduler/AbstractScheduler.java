@@ -15,8 +15,10 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -27,6 +29,9 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -48,7 +53,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 	/**
 	 * The LOG object to report events within the scheduler.
 	 */
-	private static final Log LOG = LogFactory.getLog(AbstractScheduler.class);
+	protected static final Log LOG = LogFactory.getLog(AbstractScheduler.class);
 
 	/**
 	 * The instance manager assigned to this scheduler.
@@ -157,12 +162,53 @@ public abstract class AbstractScheduler implements InstanceListener {
 	}
 
 	/**
-	 * Returns the deployment manager that is assigned to this scheduler.
+	 * Collects all execution vertices with the state ASSIGNED from the current execution stage and deploys them on the
+	 * assigned {@link AllocatedResource} objects.
 	 * 
-	 * @return the deployment manager that is assigned to this scheduler
+	 * @param executionGraph
+	 *        the execution graph to collect the vertices from
 	 */
-	protected DeploymentManager getDeploymentManager() {
+	protected void deployAssignedVertices(final ExecutionGraph executionGraph) {
 
-		return this.deploymentManager;
+		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
+		final int indexOfCurrentExecutionStage = executionGraph.getIndexOfCurrentExecutionStage();
+
+		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, indexOfCurrentExecutionStage,
+			true, true);
+
+		while (it.hasNext()) {
+			final ExecutionVertex vertex = it.next();
+			if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
+				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+				if (instance instanceof DummyInstance) {
+					LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
+						+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
+						+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
+						+ ") is about to be deployed on a DummyInstance");
+				}
+
+				List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
+				if (verticesForInstance == null) {
+					verticesForInstance = new ArrayList<ExecutionVertex>();
+					verticesToBeDeployed.put(instance, verticesForInstance);
+				}
+
+				verticesForInstance.add(vertex);
+				vertex.setExecutionState(ExecutionState.READY);
+			}
+		}
+
+		if (!verticesToBeDeployed.isEmpty()) {
+
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed.entrySet()
+				.iterator();
+
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(executionGraph.getJobID(), entry.getKey(), entry.getValue());
+			}
+		}
 	}
 }

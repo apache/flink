@@ -16,21 +16,19 @@
 package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
+import eu.stratosphere.nephele.executiongraph.ExecutionStageListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
@@ -50,12 +48,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
  * 
  * @author warneke
  */
-public class QueueScheduler extends AbstractScheduler implements JobStatusListener {
-
-	/**
-	 * The LOG object to report events within the scheduler.
-	 */
-	private static final Log LOG = LogFactory.getLog(QueueScheduler.class);
+public class QueueScheduler extends AbstractScheduler implements JobStatusListener, ExecutionStageListener {
 
 	/**
 	 * The job queue where all submitted jobs go to.
@@ -211,6 +204,17 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			vertex.getEnvironment().registerExecutionListener(new QueueExecutionListener(this, vertex));
 			vertex.setExecutionState(ExecutionState.SCHEDULED);
 		}
+		
+		// Register the scheduler as an execution stage listener
+		executionGraph.registerExecutionStageListener(this);
+
+		// Request resources for the first stage of the job
+		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
+		try {
+			requestInstances(executionStage);
+		} catch (InstanceException e) {
+			throw new SchedulingException(StringUtils.stringifyException(e));
+		}
 
 		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
@@ -299,8 +303,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 				return;
 			}
 
-			final List<ExecutionVertex> verticesToBeDeployed = new ArrayList<ExecutionVertex>();
-
 			// Replace the selected instance in the entire graph with the new instance
 			it = new ExecutionGraphIterator(eg, true);
 			while (it.hasNext()) {
@@ -308,18 +310,11 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 				if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
 					vertex.setAllocatedResource(allocatedResource);
 					vertex.setExecutionState(ExecutionState.ASSIGNED);
-
-					// If the vertex belongs to the current stage, deploy it
-					if (vertex.getGroupVertex().getExecutionStage().getStageNumber() == indexOfCurrentStage) {
-						verticesToBeDeployed.add(vertex);
-						vertex.setExecutionState(ExecutionState.READY);
-					}
 				}
 			}
 
-			if (!verticesToBeDeployed.isEmpty()) {
-				getDeploymentManager().deploy(eg.getJobID(), allocatedResource, verticesToBeDeployed);
-			}
+			// Deploy the assigned vertices
+			deployAssignedVertices(eg);
 		}
 
 	}
@@ -355,6 +350,26 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		if (newJobStatus == InternalJobStatus.FAILED || newJobStatus == InternalJobStatus.FINISHED
 			|| newJobStatus == InternalJobStatus.CANCELED) {
 			removeJobFromSchedule(executionGraph);
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
+
+		synchronized (this.jobQueue) {
+
+			// Request new instances if necessary
+			try {
+				requestInstances(executionStage);
+			} catch (InstanceException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+
+			// Deploy the assigned vertices
+			deployAssignedVertices(executionStage.getExecutionGraph());
 		}
 	}
 }
