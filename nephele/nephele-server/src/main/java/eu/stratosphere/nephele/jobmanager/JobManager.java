@@ -71,6 +71,7 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
@@ -101,12 +102,14 @@ import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -122,8 +125,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class JobManager implements DeploymentManager, ExtendedManagementProtocol, JobManagerProtocol,
-		ChannelLookupProtocol, JobStatusListener {
+public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -1031,5 +1034,39 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		};
 
 		this.executorService.execute(deploymentRunnable);
+	}
+
+	//TODO: This is dummy code and must be removed
+	private final Map<ExecutionGroupVertex, Integer> tmpMap = new HashMap<ExecutionGroupVertex, Integer>();
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public InputSplit requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID) throws IOException {
+
+		//TODO: This is dummy code and must be replaced
+		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
+		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
+		final ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
+		final InputSplit [] inputSplits = groupVertex.getInputSplits();
+		
+		synchronized(this.tmpMap) {
+			
+			Integer i = this.tmpMap.get(groupVertex);
+			if(i == null) {
+				i = Integer.valueOf(0);
+			}
+		
+			if(i.intValue() >= inputSplits.length) {
+				return null;
+			}
+			
+			final InputSplit split = inputSplits[i.intValue()];
+			this.tmpMap.put(groupVertex, Integer.valueOf(i.intValue() + 1));
+			
+			return split;
+		}
+		
 	}
 }
