@@ -34,7 +34,6 @@ import org.junit.internal.ArrayComparisonFailure;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -49,7 +48,6 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
-import eu.stratosphere.nephele.jobmanager.InputSplitAssigner;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -122,7 +120,6 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * 
  * @author Arvid Heise
  */
-@SuppressWarnings("deprecation")
 public class TestPlan implements Closeable, DeploymentManager {
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
@@ -235,8 +232,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	/**
 	 * Locally executes the {@link ExecutionGraph}.
 	 */
-	private void execute(final ExecutionGraph eg)
-			throws ExecutionFailureException {
+	private void execute(final ExecutionGraph eg) {
 		while (!eg.isExecutionFinished()
 				&& eg.getJobStatus() != InternalJobStatus.FAILED) {
 
@@ -834,14 +830,6 @@ public class TestPlan implements Closeable, DeploymentManager {
 		while (it.hasNext()) {
 
 			final ExecutionVertex executionVertex = it.next();
-
-			if (executionVertex.isInputVertex()) {
-				try {
-					InputSplitAssigner.assignInputSplits(executionVertex);
-				} catch (ExecutionFailureException e) {
-					fail(e);
-				}
-			}
 
 			executionVertex.getEnvironment().registerExecutionListener(
 				new ExecutionExceptionHandler(executionVertex));

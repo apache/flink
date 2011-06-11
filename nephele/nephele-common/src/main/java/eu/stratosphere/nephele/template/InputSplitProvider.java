@@ -15,27 +15,19 @@
 
 package eu.stratosphere.nephele.template;
 
-import java.util.Iterator;
-
-import eu.stratosphere.nephele.fs.FileInputSplit;
-
 /**
- * Specialized subtype of {@link AbstractInputTask} for tasks which are supposed to generate input from
- * a file. In addition to {@link AbstractInputTask} this class includes a method to query file splits
- * which should be read during the task's execution.
+ * An input split provider can be successively queried to provide a series of {@link InputSplit} objects an
+ * {@link AbstractInputTask} is supposed to consume in the course of its execution.
  * 
  * @author warneke
  */
-public abstract class AbstractFileInputTask extends AbstractInputTask {
+public interface InputSplitProvider {
 
 	/**
-	 * Returns an iterator to a (possible empty) list of file input splits which is expected to be consumed by this
-	 * instance of the {@link AbstractFileInputTask}.
+	 * Requests the next input split to be consumed by the calling {@link AbstractInputTask}.
 	 * 
-	 * @return an iterator to a (possible empty) list of file input splits.
+	 * @return the next input split to be consumed by the calling {@link AbstractInputTask} or <code>null</code> if the
+	 *         {@link AbstractInputTask} shall not consume any further input splits.
 	 */
-	public Iterator<FileInputSplit> getFileInputSplits() {
-
-		return new InputSplitIterator<FileInputSplit>(getEnvironment().getInputSplitProvider());
-	}
+	InputSplit getNextInputSplit();
 }

@@ -127,11 +127,6 @@ public class MockEnvironment extends Environment {
 			new FileInputSplit(new Path(path), pos, inFile.length()-pos, hosts);
 	
 	}
-	
-	@Override
-	public InputSplit[] getInputSplits() {
-		return this.inputSplits;
-	}
 
 	private static class MockInputGate<T extends Record> extends InputGate<T> {
 

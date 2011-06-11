@@ -67,7 +67,6 @@ import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -1015,23 +1014,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 						LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
 							+ vertex.getExecutionState());
 					}
-
-					/*
-					 * START modification FH
-					 */
-					if (vertex.isInputVertex() && vertex.getEnvironment().getInputSplits().length == 0
-						&& vertex.getGroupVertex().getStageNumber() == 0) {
-						try {
-							if (!InputSplitAssigner.assignInputSplits(vertex)) {
-								continue;
-							}
-						} catch (ExecutionFailureException e) {
-							LOG.error(e);
-						}
-					}
-					/*
-					 * END modification FH
-					 */
 
 					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
 					final TaskSubmissionResult submissionResult = vertex.startTask();
