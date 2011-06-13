@@ -43,9 +43,9 @@ public abstract class FileSystem {
 	private static final String DISTRIBUTED_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.hdfs.DistributedFileSystem";
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.file.LocalFileSystem";
-	
+
 	private static final String S3_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.s3.S3FileSystem";
-	
+
 	/**
 	 * Object used to synchronized calls to specific methods.
 	 */
@@ -114,21 +114,21 @@ public abstract class FileSystem {
 
 			return false;
 		}
-		
+
 		/**
 		 * {@inheritDoc}
 		 */
 		@Override
 		public int hashCode() {
-			
-			if(this.scheme != null) {
+
+			if (this.scheme != null) {
 				return this.scheme.hashCode();
 			}
-			
-			if(this.authority != null) {
+
+			if (this.authority != null) {
 				return this.authority.hashCode();
 			}
-			
+
 			return super.hashCode();
 		}
 	}
@@ -337,9 +337,14 @@ public abstract class FileSystem {
 	public abstract boolean delete(Path f, boolean recursive) throws IOException;
 
 	/**
-	 * Make the given file and all non-existent parents into
-	 * directories. Has the semantics of Unix 'mkdir -p'.
+	 * Make the given file and all non-existent parents into directories. Has the semantics of Unix 'mkdir -p'.
 	 * Existence of the directory hierarchy is not an error.
+	 * 
+	 * @param f
+	 *        the directory/directories to be created
+	 * @return <code>true</code> if at least one new directory has been created, <code>false</code> otherwise
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while creating the directory
 	 */
 	public abstract boolean mkdirs(Path f) throws IOException;
 
@@ -409,10 +414,10 @@ public abstract class FileSystem {
 
 	private int getNumberOfBlocks(long length, long blocksize) {
 
-		if(blocksize != 0) {
+		if (blocksize != 0) {
 			int numberOfBlocks;
 			numberOfBlocks = (int) (length / blocksize);
-	
+
 			if ((length % blocksize) != 0) {
 				numberOfBlocks++;
 			}
