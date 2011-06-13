@@ -23,6 +23,11 @@
     		<artifactId>nephele-common</artifactId>
     		<version>${version}</version>
     	</dependency>
+        <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk</artifactId>
+                <version>1.2.1</version>
+        </dependency>
     	
     </dependencies>
     

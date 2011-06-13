@@ -17,15 +17,21 @@ package eu.stratosphere.nephele.fs.s3;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -35,6 +41,18 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.rds.model.Endpoint;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.Bucket;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.Owner;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
+
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.BlockLocation;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
@@ -42,6 +60,7 @@ import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class provides a {@link FileSystem} implementation which is backed by Amazon's Simple Storage Service (S3). The
@@ -59,22 +78,22 @@ public final class S3FileSystem extends FileSystem {
 	/**
 	 * The configuration key to access the S3 host.
 	 */
-	private static final String S3_HOST_KEY = "fs.s3.host";
+	public static final String S3_HOST_KEY = "fs.s3.host";
 
 	/**
 	 * The configuration key to access the S3 port.
 	 */
-	private static final String S3_PORT_KEY = "fs.s3.port";
+	public static final String S3_PORT_KEY = "fs.s3.port";
 
 	/**
 	 * The configuration key to access the S3 access key.
 	 */
-	private static final String S3_ACCESS_KEY_KEY = "fs.s3.accessKey";
+	public static final String S3_ACCESS_KEY_KEY = "fs.s3.accessKey";
 
 	/**
 	 * The configuration key to access the S3 secret key.
 	 */
-	private static final String S3_SECRET_KEY_KEY = "fs.s3.secretKey";
+	public static final String S3_SECRET_KEY_KEY = "fs.s3.secretKey";
 
 	/**
 	 * The default host to connect to.
@@ -87,40 +106,19 @@ public final class S3FileSystem extends FileSystem {
 	private static final int DEFAULT_S3_PORT = 80;
 
 	/**
-	 * The date format string that shall be used to format the date inside of HTTP requests.
+	 * The prefix of the HTTP protocol.
 	 */
-	private final static String DATE_FORMAT_STRING = "EEE, dd MMM yyyy HH:mm:ss ";
+	private static final String HTTP_PREFIX = "http";
 
 	/**
-	 * The message authentication code to be used to sign HTTP requests.
+	 * The error code for "resource not found" according to the HTTP protocol.
 	 */
-	private final static String MESSAGE_AUTHENTICATION_CODE = "HmacSHA1";
+	private static final int HTTP_RESOURCE_NOT_FOUND_CODE = 404;
 
 	/**
-	 * The HTTP return code for a successful operation.
+	 * The character which S3 uses internally to indicate an object represents a directory.
 	 */
-	private final static int HTTP_SUCCESS_CODE = 200;
-
-	/**
-	 * The HTTP return code for non-existing resources.
-	 */
-	private final static int HTTP_NOT_FOUND_CODE = 404;
-
-	/**
-	 * The HTTP return code for a bad request.
-	 */
-	private final static int HTTP_BAD_REQUEST = 400;
-
-	/**
-	 * The date format object to format the current date.
-	 */
-	private final SimpleDateFormat dateFormat;
-
-	/**
-	 * The encoder object used to convert the authorization signature into base64 format.
-	 */
-	@SuppressWarnings("restriction")
-	private final sun.misc.BASE64Encoder base64Encoder;
+	private static final char S3_DIRECTORY_SEPARATOR = '/';
 
 	/**
 	 * The host to address the REST requsts to.
@@ -129,22 +127,9 @@ public final class S3FileSystem extends FileSystem {
 
 	private int port = -1;
 
-	private Mac mac;
+	private AmazonS3Client s3Client = null;
 
-	private String authorizationPrefix = "AWS WKy3rMzOWPouVOxK1p3Ar1C2uRBwa2FBXnCw:";
-
-	private SecretKeySpec signingKey;
-
-	@SuppressWarnings("restriction")
-	public S3FileSystem() {
-
-		// Initialize base64 encoder required to sign requests
-		this.base64Encoder = new sun.misc.BASE64Encoder();
-
-		// Initialize the date format object which is required to request HTTP requests
-		this.dateFormat = new SimpleDateFormat(DATE_FORMAT_STRING, Locale.US);
-		this.dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-	}
+	private S3DirectoryStructure directoryStructure = null;
 
 	@Override
 	public Path getWorkingDirectory() {
@@ -178,8 +163,6 @@ public final class S3FileSystem extends FileSystem {
 			this.port = GlobalConfiguration.getInteger(S3_PORT_KEY, DEFAULT_S3_PORT);
 		}
 
-		LOG.debug("Amazon S3 REST requsts will be sent to host " + this.host + ", port " + this.port);
-
 		final String userInfo = name.getUserInfo();
 
 		String awsAccessKey = null;
@@ -210,72 +193,61 @@ public final class S3FileSystem extends FileSystem {
 			}
 		}
 
-		// Set the authorization prefix
-		this.authorizationPrefix = "AWS " + awsAccessKey + ":";
+		final AWSCredentials credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
+		this.s3Client = new AmazonS3Client(credentials);
 
-		try {
-			this.mac = Mac.getInstance(MESSAGE_AUTHENTICATION_CODE);
-			final byte[] keyBytes = awsSecretKey.getBytes("UTF8");
-			this.signingKey = new SecretKeySpec(keyBytes, MESSAGE_AUTHENTICATION_CODE);
-			this.mac.init(this.signingKey);
-		} catch (NoSuchAlgorithmException nsae) {
-			throw new IOException(nsae.getMessage());
-		} catch (InvalidKeyException ike) {
-			throw new IOException(ike.getMessage());
+		initializeDirectoryStructure(name);
+	}
+
+	private void initializeDirectoryStructure(final URI name) throws IOException {
+
+		String basePath = name.getPath();
+		while (true) {
+
+			try {
+				final String endpoint = new URL(HTTP_PREFIX, this.host, this.port, basePath).toString();
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Trying S3 endpoint " + endpoint);
+				}
+
+				this.s3Client.setEndpoint(endpoint);
+				final Owner owner = this.s3Client.getS3AccountOwner();
+				LOG.info("Successfully established connection to Amazon S3 using the endpoint " + endpoint);
+				LOG.info("Amazon S3 user is " + owner.getDisplayName());
+
+				break;
+			} catch (MalformedURLException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (AmazonClientException e) {
+
+				// Truncate path
+				if (basePath.isEmpty()) {
+					throw new IOException("Cannot establish connection to Amazon S3: "
+						+ StringUtils.stringifyException(e));
+				} else {
+					final int pos = basePath.lastIndexOf(Path.SEPARATOR);
+					if (pos < 0) {
+						basePath = "";
+					} else {
+						basePath = basePath.substring(0, pos);
+					}
+				}
+			}
 		}
+
+		// Finally, create directory structure object
+		this.directoryStructure = new S3DirectoryStructure(basePath);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileStatus getFileStatus(Path f) throws IOException {
+	public FileStatus getFileStatus(final Path f) throws IOException {
 
-		final URI uri = f.toUri();
-		HttpURLConnection conn = null;
-		try {
-
-			conn = openHttpURLConnection("HEAD", uri.getPath());
-			final int responseCode = conn.getResponseCode();
-			if(responseCode == HTTP_SUCCESS_CODE) {
-				// This is an object and we can now retrieve its properties
-			} else if(responseCode == HTTP_NOT_FOUND_CODE) {
-				throw new FileNotFoundException();
-			} else if(responseCode == HTTP_BAD_REQUEST) {
-				// Path points to a bucket
-				return new S3FileStatus(f, 0, true);
-			} else {
-				throw new IOException(conn.getResponseMessage());
-			}
-			
-			System.out.println("Response code: " + conn.getResponseCode());
-
-		} finally {
-			if (conn != null) {
-				conn.disconnect();
-			}
-		}
-		
-		
+		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
 
 		return null;
-	}
-
-	private String sign(String data) throws UnsupportedEncodingException {
-
-		final byte[] signBytes = this.mac.doFinal(data.getBytes("UTF8"));
-		return encodeBase64(signBytes);
-	}
-
-	private String encodeBase64(final byte[] data) {
-
-		@SuppressWarnings("restriction")
-		String base64 = this.base64Encoder.encode(data);
-		if (base64.endsWith("\r\n")) {
-			base64 = base64.substring(0, base64.length() - 2);
-		}
-
-		return base64;
 	}
 
 	@Override
@@ -296,39 +268,73 @@ public final class S3FileSystem extends FileSystem {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public FileStatus[] listStatus(Path f) throws IOException {
-		
-		System.out.println("Got here");
-		
-		final URI uri = f.toUri();
-		HttpURLConnection conn = null;
-		
+
+		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
+
 		try {
-			
-			conn = openHttpURLConnection("HEAD", uri.getPath());
-			int responseCode = conn.getResponseCode();
-			
-			if(responseCode == HTTP_BAD_REQUEST) {
-				
-				//The path points to a bucket
-				modifyHttpURLConnection(conn, "GET");
-				responseCode = conn.getReadTimeout();
-				
-				
+
+			if (!bop.hasBucket()) {
+
+				final List<Bucket> list = this.s3Client.listBuckets();
+				final S3FileStatus[] array = new S3FileStatus[list.size()];
+				final Iterator<Bucket> it = list.iterator();
+				int i = 0;
+				while (it.hasNext()) {
+					final Bucket bucket = it.next();
+					final S3FileStatus status = new S3FileStatus(extendPath(f, bucket.getName()), 0, true);
+					array[i++] = status;
+				}
+
+				return array;
+			}
+
+			if (bop.hasBucket() && !bop.hasObject()) {
+
+				ObjectListing listing = null;
+				final List<S3FileStatus> resultList = new ArrayList<S3FileStatus>();
+
+				while (true) {
+
+					if (listing == null) {
+						listing = this.s3Client.listObjects(bop.getBucket());
+					} else {
+						listing = this.s3Client.listNextBatchOfObjects(listing);
+					}
+
+					final List<S3ObjectSummary> list = listing.getObjectSummaries();
+					final Iterator<S3ObjectSummary> it = list.iterator();
+					while (it.hasNext()) {
+
+						final S3ObjectSummary os = it.next();
+						if (objectRepresentsDirectory(os)) {
+							resultList.add(new S3FileStatus(extendPath(f, os.getKey()), 0, true));
+						} else {
+							resultList.add(new S3FileStatus(extendPath(f, os.getKey()), os.getSize(), false));
+						}
+					}
+
+					if (!listing.isTruncated()) {
+						break;
+					}
+				}
+
+				return resultList.toArray(new FileStatus[0]);
+
 			} else {
-				
-				//The path points
+
+				final ObjectMetadata omd = this.s3Client.getObjectMetadata(bop.getBucket(), bop.getObject());
+
 			}
-			
-			System.out.println("Response code: " + responseCode);
-			
-		} finally {
-			if(conn != null) {
-				conn.disconnect();
-			}
+
+		} catch (AmazonClientException e) {
+			throw new IOException(StringUtils.stringifyException(e));
 		}
-		
+
 		return null;
 	}
 
@@ -342,25 +348,71 @@ public final class S3FileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean mkdirs(Path f) throws IOException {
+	public boolean mkdirs(final Path f) throws IOException {
 
-		final URI uri = f.toUri();
-
-		HttpURLConnection conn = null;
-		try {
-			conn = openHttpURLConnection("PUT", uri.getPath());
-
-			if (conn.getResponseCode() != HTTP_SUCCESS_CODE) {
-				throw new IOException(conn.getResponseMessage());
-			}
-
-		} finally {
-			if (conn != null) {
-				conn.disconnect();
-			}
+		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
+		if (!bop.hasBucket() && !bop.hasObject()) {
+			// Ignore this call
+			return false;
 		}
 
-		return true;
+		boolean retCode = false;
+
+		try {
+
+			// Make sure the bucket exists
+			if (bop.hasBucket()) {
+				if (this.s3Client.doesBucketExist(bop.getBucket())) {
+				} else {
+					this.s3Client.createBucket(bop.getBucket());
+					retCode = true;
+				}
+			}
+
+			if (bop.hasObject()) {
+
+				// Make sure object name ends with a directory separator character
+				String object = bop.getObject();
+				if (!object.isEmpty()) {
+					if (object.charAt(object.length() - 1) != S3_DIRECTORY_SEPARATOR) {
+						object = object.concat(Character.toString(S3_DIRECTORY_SEPARATOR));
+					}
+				}
+
+				try {
+					this.s3Client.getObjectMetadata(bop.getBucket(), object);
+				} catch (AmazonServiceException e) {
+					if (e.getStatusCode() == HTTP_RESOURCE_NOT_FOUND_CODE) {
+						createEmptyObject(bop.getBucket(), object);
+					} else {
+						// Rethrow the exception
+						throw e;
+					}
+				}
+			}
+		} catch (AmazonClientException e) {
+			throw new IOException(StringUtils.stringifyException(e));
+		}
+
+		return retCode;
+	}
+
+	private void createEmptyObject(final String bucketName, final String objectName) {
+
+		final InputStream im = new InputStream() {
+
+			@Override
+			public int read() throws IOException {
+
+				return -1;
+			}
+
+		};
+
+		final ObjectMetadata om = new ObjectMetadata();
+		om.setContentLength(0L);
+
+		this.s3Client.putObject(bucketName, objectName, im, om);
 	}
 
 	/**
@@ -369,29 +421,7 @@ public final class S3FileSystem extends FileSystem {
 	@Override
 	public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize)
 			throws IOException {
-		
-		HttpURLConnection conn = null;
-		try {
-			conn = openHttpURLConnection("PUT", "/services/Walrus/daniel/test.txt");
-			
-			
-		} finally {
-			
-			final OutputStream output = conn.getOutputStream();
-			for(int i = 0; i < 1024*1024; i++) {
-				output.write(0);
-			}
-			
-			output.close();
-			
-			int responseCode = conn.getResponseCode();
-			System.out.println(responseCode + ": " + conn.getResponseMessage());
-			
-			if(conn != null) {
-				conn.disconnect();
-			}
-		}
-		
+
 		return null;
 	}
 
@@ -400,53 +430,98 @@ public final class S3FileSystem extends FileSystem {
 	 */
 	@Override
 	public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
-		
+
 		return create(f, overwrite, 1024, (short) 1, 1024L);
 	}
 
-	private String createSignature(final String method, final String contentMD5, final String contentType,
-			final String date, final String file) throws UnsupportedEncodingException {
+	static String getElementFromPath(final Path path, final int pos) {
 
-		final StringBuffer buf = new StringBuffer();
-		buf.append(method).append("\n");
-		buf.append(contentMD5).append("\n");
-		buf.append(contentType).append("\n");
-		buf.append(date).append("\n");
-		buf.append(file);
+		if (pos >= path.depth() || pos < 0) {
+			return null;
+		}
 
-		return sign(buf.toString());
+		final String p = path.toUri().getPath();
+		int count = 0;
+		int startPos = 1;
+		int endPos = -1;
+		while (count <= pos) {
+
+			if (endPos > 0) {
+				startPos = endPos + 1;
+			}
+
+			endPos = p.indexOf(Path.SEPARATOR, startPos);
+			if (endPos < 0) {
+				break;
+			}
+
+			++count;
+		}
+
+		if (endPos < 0) {
+			endPos = p.length();
+		}
+
+		return p.substring(startPos, endPos);
 	}
 
-	private HttpURLConnection openHttpURLConnection(final String method, final String file) throws IOException {
+	private boolean objectRepresentsDirectory(final S3ObjectSummary os) {
 
-		System.out.println("Host " + this.host + ", port " + this.port);
-		final URL url = new URL("http", this.host, this.port, file);
-		final HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-		final String date = this.dateFormat.format(new Date()) + "GMT";
+		final String key = os.getKey();
+		if (key.isEmpty()) {
+			return false;
+		}
 
-		final String signature = createSignature(method, "", "", date, file);
+		if (key.charAt(key.length() - 1) == S3_DIRECTORY_SEPARATOR && os.getSize() == 0L) {
+			return true;
+		}
 
-		conn.setDoInput(true);
-		conn.setDoOutput(true);
-		conn.setUseCaches(false);
-		conn.setDefaultUseCaches(false);
-		conn.setAllowUserInteraction(true);
-		conn.setRequestMethod(method);
-		conn.setRequestProperty("Date", date);
-		conn.setRequestProperty("Content-Length", "100");
-		conn.setRequestProperty("Authorization", this.authorizationPrefix + signature);
-
-		return conn;
+		return false;
 	}
-	
-	private void modifyHttpURLConnection(final HttpURLConnection connection, final String method) throws IOException {
-		
-		
-		final String date = this.dateFormat.format(new Date()) + "GMT";
-		final String signature = createSignature(method, "", "", date, connection.getURL().getPath());
 
-		connection.setRequestMethod(method);
-		connection.setRequestProperty("Date", date);
-		connection.setRequestProperty("Authorization", this.authorizationPrefix + signature);
+	static Path extendPath(final Path parent, final String extension) throws IOException {
+
+		final URI parentUri = parent.toUri();
+
+		if (extension.isEmpty()) {
+			return parent;
+		}
+
+		final String path = parentUri.getPath();
+		String extendedPath;
+		if (path.isEmpty()) {
+			if (extension.charAt(0) == Path.SEPARATOR_CHAR) {
+				extendedPath = extension;
+			} else {
+				extendedPath = Path.SEPARATOR + extension;
+			}
+		} else {
+			if (path.charAt(path.length() - 1) == Path.SEPARATOR_CHAR) {
+				if (extension.charAt(0) == Path.SEPARATOR_CHAR) {
+					if (extension.length() > 1) {
+						extendedPath = path + extension.substring(1);
+					} else {
+						extendedPath = path;
+					}
+				} else {
+					extendedPath = path + extension;
+				}
+			} else {
+				if (extension.charAt(0) == Path.SEPARATOR_CHAR) {
+					extendedPath = path + extension;
+				} else {
+					extendedPath = path + Path.SEPARATOR + extension;
+				}
+			}
+		}
+
+		try {
+			final URI extendedUri = new URI(parentUri.getScheme(),
+				((parentUri.getAuthority() != null) ? parentUri.getAuthority() : ""), extendedPath,
+				parentUri.getQuery(), parentUri.getFragment());
+			return new Path(extendedUri);
+		} catch (URISyntaxException e) {
+			throw new IOException(StringUtils.stringifyException(e));
+		}
 	}
 }
