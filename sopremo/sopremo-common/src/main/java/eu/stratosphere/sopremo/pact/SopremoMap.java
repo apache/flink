@@ -15,8 +15,8 @@ public abstract class SopremoMap<IK extends Key, IV extends PactJsonObject, OK e
 
 	@Override
 	public void configure(Configuration parameters) {
-		this.transformation = SopremoUtil.getObject(parameters, "transformation", Evaluable.class);
-		this.context = SopremoUtil.getObject(parameters, "context", EvaluationContext.class);
+		this.transformation = SopremoUtil.deserialize(parameters, "transformation", Evaluable.class);
+		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
 	}
 
 	protected EvaluationContext getContext() {

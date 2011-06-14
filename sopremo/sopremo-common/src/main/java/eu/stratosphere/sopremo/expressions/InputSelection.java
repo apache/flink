@@ -4,14 +4,14 @@ import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class Input extends EvaluableExpression {
+public class InputSelection extends EvaluableExpression {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -3767687525625180324L;
 	private int index;
 
-	public Input(int index) {
+	public InputSelection(int index) {
 		this.index = index;
 	}
 
@@ -19,7 +19,7 @@ public class Input extends EvaluableExpression {
 	public boolean equals(Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.index == ((Input) obj).index;
+		return this.index == ((InputSelection) obj).index;
 	}
 
 	@Override

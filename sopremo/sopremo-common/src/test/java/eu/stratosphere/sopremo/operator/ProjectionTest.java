@@ -5,8 +5,8 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.expressions.Arithmetic;
-import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 public class ProjectionTest extends SopremoTest<Projection> {
@@ -22,7 +22,7 @@ public class ProjectionTest extends SopremoTest<Projection> {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
 		ObjectCreation transformation = new ObjectCreation();
-		transformation.addMapping("sum", new Arithmetic(createPath("a"),
+		transformation.addMapping("sum", new ArithmeticExpression(createPath("a"),
 			ArithmeticOperator.ADDITION, createPath("b")));
 		sopremoPlan.getOutputOperator(0).setInputs(
 			new Projection(transformation, sopremoPlan.getInputOperator(0)));

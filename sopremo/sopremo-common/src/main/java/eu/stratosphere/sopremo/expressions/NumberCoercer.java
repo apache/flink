@@ -23,10 +23,6 @@ public final class NumberCoercer {
 
 	private NumberType[][] typeCoerceMatrix = new NumberType[NUMBER_TYPES_COUNT][NUMBER_TYPES_COUNT];
 
-	private static interface Coercer {
-		public NumericNode coerce(NumericNode node);
-	}
-
 	private Map<NumberType, Coercer> coercers = new EnumMap<NumberType, Coercer>(NumberType.class);
 
 	public NumberCoercer() {
@@ -79,11 +75,15 @@ public final class NumberCoercer {
 		});
 	}
 
+	public NumericNode coerce(NumericNode node, NumberType targetType) {
+		return coercers.get(targetType).coerce(node);
+	}
+
 	public NumberType getWiderType(NumberType leftType, NumberType rightType) {
 		return typeCoerceMatrix[leftType.ordinal()][rightType.ordinal()];
 	}
 
-	public NumericNode coerce(NumericNode node, NumberType targetType) {
-		return coercers.get(targetType).coerce(node);
+	private static interface Coercer {
+		public NumericNode coerce(NumericNode node);
 	}
 }

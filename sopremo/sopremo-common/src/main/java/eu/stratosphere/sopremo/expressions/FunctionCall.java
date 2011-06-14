@@ -8,7 +8,7 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
-public class FunctionCall extends ContainerExpression<Evaluable> {
+public class FunctionCall extends ContainerExpression {
 
 	/**
 	 * 
@@ -17,9 +17,9 @@ public class FunctionCall extends ContainerExpression<Evaluable> {
 
 	private String name;
 
-	private Evaluable[] paramExprs;
+	private EvaluableExpression[] paramExprs;
 
-	public FunctionCall(String name, Evaluable... params) {
+	public FunctionCall(String name, EvaluableExpression... params) {
 		this.name = name;
 		this.paramExprs = params;
 	}
@@ -60,7 +60,7 @@ public class FunctionCall extends ContainerExpression<Evaluable> {
 	// }
 
 	@Override
-	public Iterator<Evaluable> iterator() {
+	public Iterator<EvaluableExpression> iterator() {
 		return Arrays.asList(this.paramExprs).iterator();
 	}
 

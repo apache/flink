@@ -17,8 +17,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
-import eu.stratosphere.sopremo.expressions.Arithmetic.DivisionEvaluator;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression.DivisionEvaluator;
 
 @RunWith(Parameterized.class)
 public class ArithmeticCrossTest {
@@ -266,9 +266,9 @@ public class ArithmeticCrossTest {
 
 	private Number left, right, expected;
 
-	private Arithmetic.ArithmeticOperator operator;
+	private ArithmeticExpression.ArithmeticOperator operator;
 
-	public ArithmeticCrossTest(Number left, Arithmetic.ArithmeticOperator operator, Number right, Number expected) {
+	public ArithmeticCrossTest(Number left, ArithmeticExpression.ArithmeticOperator operator, Number right, Number expected) {
 		this.left = left;
 		this.right = right;
 		this.operator = operator;
@@ -277,7 +277,7 @@ public class ArithmeticCrossTest {
 
 	@Test
 	public void shouldPerformTheOperationAndCoercionAsExpected() {
-		Arithmetic arithmetic = new Arithmetic(new Input(0), this.operator, new Input(1));
+		ArithmeticExpression arithmetic = new ArithmeticExpression(new InputSelection(0), this.operator, new InputSelection(1));
 		JsonNode result = arithmetic.evaluate(
 			JsonUtil.asArray(JsonUtil.OBJECT_MAPPER.valueToTree(this.left),
 				JsonUtil.OBJECT_MAPPER.valueToTree(this.right)),

@@ -6,12 +6,12 @@ import eu.stratosphere.sopremo.base.DataType;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.base.Source;
-import eu.stratosphere.sopremo.expressions.Comparison;
-import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.Condition.Combination;
-import eu.stratosphere.sopremo.expressions.Constant;
-import eu.stratosphere.sopremo.expressions.Input;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 
 public class FilterTest extends ParserTestCase {
@@ -29,43 +29,43 @@ public class FilterTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseAdhocInputFilter() {
-		Condition selectionCondition = new Condition(new Comparison(new Input(0), BinaryOperator.EQUAL,
-			new Constant(2L)));
+		ConditionalExpression selectionCondition = new ConditionalExpression(new ComparativeExpression(new InputSelection(0), BinaryOperator.EQUAL,
+			new ConstantExpression(2L)));
 		assertParseResult(new Selection(selectionCondition, new Source(createJsonArray(1L, 2L, 3L))),
 			"[1, 2, 3] -> filter $ == 2");
 	}
 
 	@Test
 	public void shouldParseCombinedFilter() {
-		Condition selectionCondition = new Condition(Combination.OR,
+		ConditionalExpression selectionCondition = new ConditionalExpression(Combination.OR,
 			new UnaryExpression(createPath("$", "mgr")),
-			new Comparison(createPath("$", "income"), BinaryOperator.GREATER, new Constant(30000L)));
+			new ComparativeExpression(createPath("$", "income"), BinaryOperator.GREATER, new ConstantExpression(30000L)));
 		assertParseResult(new Selection(selectionCondition, employeeSource()),
 			employeeJaql() + "employees -> filter $.mgr or $.income > 30000;");
 	}
 
 	@Test
 	public void shouldParseCombinedFilterWithIterationVariable() {
-		Condition selectionCondition = new Condition(Combination.OR,
+		ConditionalExpression selectionCondition = new ConditionalExpression(Combination.OR,
 			new UnaryExpression(createPath("$", "mgr")),
-			new Comparison(createPath("$", "income"), BinaryOperator.GREATER, new Constant(30000L)));
+			new ComparativeExpression(createPath("$", "income"), BinaryOperator.GREATER, new ConstantExpression(30000L)));
 		assertParseResult(new Selection(selectionCondition, employeeSource()),
 			employeeJaql() + "employees -> filter each emp emp.mgr or emp.income > 30000;");
 	}
 
 	@Test
 	public void shouldParseCombinedFilterWithIterationVariableAndParens() {
-		Condition selectionCondition = new Condition(Combination.OR,
+		ConditionalExpression selectionCondition = new ConditionalExpression(Combination.OR,
 			new UnaryExpression(createPath("$", "mgr")),
-			new Comparison(createPath("$", "income"), BinaryOperator.GREATER, new Constant(30000L)));
+			new ComparativeExpression(createPath("$", "income"), BinaryOperator.GREATER, new ConstantExpression(30000L)));
 		assertParseResult(new Selection(selectionCondition, employeeSource()),
 			employeeJaql() + "employees -> filter each emp (emp.mgr or emp.income > 30000);");
 	}
 
 	@Test
 	public void shouldParseFilterPipeline() {
-		Condition selectionCondition = new Condition(new Comparison(createPath("$", "name"),
-			BinaryOperator.NOT_EQUAL, new Constant("")));
+		ConditionalExpression selectionCondition = new ConditionalExpression(new ComparativeExpression(createPath("$", "name"),
+			BinaryOperator.NOT_EQUAL, new ConstantExpression("")));
 		Selection selection = new Selection(selectionCondition, new Source(DataType.HDFS, "in.json"));
 		assertParseResult(new Sink(DataType.HDFS, "out.json", selection),
 			"read(hdfs(\"in.json\")) -> filter $.name != \"\" -> write(hdfs(\"out.json\"))");

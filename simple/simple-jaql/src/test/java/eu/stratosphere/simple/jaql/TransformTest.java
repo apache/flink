@@ -4,8 +4,8 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.Source;
-import eu.stratosphere.sopremo.expressions.Arithmetic;
-import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 public class TransformTest extends ParserTestCase {
@@ -28,7 +28,7 @@ public class TransformTest extends ParserTestCase {
 	public void shouldParseSimpleTransform() {
 		Source source = new Source(createJsonArray(createObject("a", 1L, "b", 2L), createObject("a", 3L, "b", 4L)));
 		ObjectCreation transformation = new ObjectCreation();
-		transformation.addMapping("c", new Arithmetic(createPath("$", "a"),
+		transformation.addMapping("c", new ArithmeticExpression(createPath("$", "a"),
 			ArithmeticOperator.MULTIPLICATION, createPath("$", "b")));
 		assertParseResult(new Projection(transformation, source),
 			"[{a: 1, b: 2}, {a: 3, b: 4}] -> transform { c: $.a * $.b }");
@@ -49,7 +49,7 @@ public class TransformTest extends ParserTestCase {
 	@Test
 	public void shouldParseExampleTransform() {
 		ObjectCreation transformation = new ObjectCreation();
-		transformation.addMapping("sum", new Arithmetic(createPath("$", "a"),
+		transformation.addMapping("sum", new ArithmeticExpression(createPath("$", "a"),
 			ArithmeticOperator.ADDITION, createPath("$", "b")));
 		assertParseResult(new Projection(transformation, recordsSource()), recordsJaql()
 			+ "recs -> transform {sum: $.a + $.b}");
@@ -58,7 +58,7 @@ public class TransformTest extends ParserTestCase {
 	@Test
 	public void shouldParseExampleTransformWithIterationVariable() {
 		ObjectCreation transformation = new ObjectCreation();
-		transformation.addMapping("sum", new Arithmetic(createPath("$", "a"),
+		transformation.addMapping("sum", new ArithmeticExpression(createPath("$", "a"),
 			ArithmeticOperator.ADDITION, createPath("$", "b")));
 		assertParseResult(new Projection(transformation, recordsSource()), recordsJaql()
 			+ "recs -> transform each r {sum: r.a + r.b}");

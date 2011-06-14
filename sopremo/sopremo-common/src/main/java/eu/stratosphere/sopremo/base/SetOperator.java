@@ -9,8 +9,8 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public abstract class SetOperator extends Operator {
@@ -21,14 +21,14 @@ public abstract class SetOperator extends Operator {
 		super(EvaluableExpression.IDENTITY, inputs);
 		this.setKeyExtractors = new EvaluableExpression[inputs.size()];
 		for (int index = 0; index < this.setKeyExtractors.length; index++)
-			this.setKeyExtractors[index] = new Input(index);
+			this.setKeyExtractors[index] = new InputSelection(index);
 	}
 
 	public SetOperator(Operator... inputs) {
 		super(EvaluableExpression.IDENTITY, inputs);
 		this.setKeyExtractors = new EvaluableExpression[inputs.length];
 		for (int index = 0; index < this.setKeyExtractors.length; index++)
-			this.setKeyExtractors[index] = new Input(index);
+			this.setKeyExtractors[index] = new InputSelection(index);
 	}
 
 	@Override
@@ -36,7 +36,7 @@ public abstract class SetOperator extends Operator {
 		int numInputs = this.getInputOperators().size();
 		PactModule module = new PactModule(numInputs, 1);
 
-		if (numInputs == 1) {
+		if (numInputs <= 1) {
 			module.getOutput(0).setInput(module.getInput(0));
 			return module;
 		}
@@ -69,12 +69,12 @@ public abstract class SetOperator extends Operator {
 		return this.setKeyExtractors[index];
 	}
 
-	public void setKeyExtractors(Path... keyExtractors) {
+	public void setKeyExtractors(PathExpression... keyExtractors) {
 		if (this.setKeyExtractors == null)
 			throw new NullPointerException("setKeyExtractors must not be null");
 
 		// ensures size
-		for (Path keyExtractor : keyExtractors) {
+		for (PathExpression keyExtractor : keyExtractors) {
 			int inputIndex = SopremoUtil.getInputIndex(keyExtractor);
 			if (inputIndex == -1)
 				throw new IllegalArgumentException("extractor does not contain input selector: " + keyExtractor);

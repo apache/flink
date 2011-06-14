@@ -27,14 +27,13 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayMerger;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
-import eu.stratosphere.sopremo.expressions.Comparison;
-import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.Condition.Combination;
-import eu.stratosphere.sopremo.expressions.ConditionalOperator;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.KeyExtractionStub;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
@@ -46,11 +45,11 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 public class Join extends ConditionalOperator {
 	private BitSet outerJoinFlag = new BitSet();
 
-	public Join(EvaluableExpression transformation, Condition condition, JsonStream... inputs) {
+	public Join(EvaluableExpression transformation, ConditionalExpression condition, JsonStream... inputs) {
 		super(transformation, condition, inputs);
 	}
 
-	public Join(EvaluableExpression transformation, Condition condition, List<? extends JsonStream> inputs) {
+	public Join(EvaluableExpression transformation, ConditionalExpression condition, List<? extends JsonStream> inputs) {
 		super(transformation, condition, inputs);
 	}
 
@@ -68,9 +67,9 @@ public class Join extends ConditionalOperator {
 	}
 
 	class ComparisonJoin extends TwoSourceJoin {
-		Comparison comparison;
+		ComparativeExpression comparison;
 
-		public ComparisonJoin(Comparison comparison) {
+		public ComparisonJoin(ComparativeExpression comparison) {
 			super(comparison.getExpr1(), comparison.getExpr2());
 			this.comparison = comparison;
 		}
@@ -92,10 +91,10 @@ public class Join extends ConditionalOperator {
 			switch (this.comparison.getBinaryOperator()) {
 			case EQUAL:
 				if (!Join.this.outerJoinFlag.isEmpty()) {
-					boolean leftOuter = Join.this.outerJoinFlag.get(SopremoUtil.getInputIndex((Path) this.comparison
+					boolean leftOuter = Join.this.outerJoinFlag.get(SopremoUtil.getInputIndex((PathExpression) this.comparison
 						.getExpr1()));
 					boolean rightOuter = Join.this.outerJoinFlag
-						.get(SopremoUtil.getInputIndex((Path) this.comparison.getExpr2()));
+						.get(SopremoUtil.getInputIndex((PathExpression) this.comparison.getExpr2()));
 					join = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject>(
 							OuterJoinStub.class);
 					join.getStubParameters().setBoolean("leftOuter", leftOuter);
@@ -109,7 +108,7 @@ public class Join extends ConditionalOperator {
 			default:
 				join = new CrossContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
 						ThetaJoinStub.class);
-				SopremoUtil.setObject(join.getStubParameters(), "comparison", this.comparison);
+				SopremoUtil.serialize(join.getStubParameters(), "comparison", this.comparison);
 				break;
 
 			}
@@ -181,7 +180,7 @@ public class Join extends ConditionalOperator {
 	public PactModule asPactModule(EvaluationContext context) {
 		PactModule module = new PactModule(this.getInputOperators().size(), 1);
 
-		Condition condition = this.getCondition();
+		ConditionalExpression condition = this.getCondition();
 		if (condition.getCombination() != Combination.AND)
 			throw new UnsupportedOperationException();
 
@@ -223,11 +222,11 @@ public class Join extends ConditionalOperator {
 		return inputs;
 	}
 
-	private List<TwoSourceJoin> getInitialJoinOrder(Condition condition) {
+	private List<TwoSourceJoin> getInitialJoinOrder(ConditionalExpression condition) {
 		List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
 		for (BooleanExpression expression : condition.getExpressions())
-			if (expression instanceof Comparison)
-				joins.add(new ComparisonJoin((Comparison) expression));
+			if (expression instanceof ComparativeExpression)
+				joins.add(new ComparisonJoin((ComparativeExpression) expression));
 			else if (expression instanceof ElementInSetExpression)
 				joins.add(new ElementInSetJoin((ElementInSetExpression) expression));
 			else
@@ -378,12 +377,12 @@ public class Join extends ConditionalOperator {
 
 	public static class ThetaJoinStub extends
 			SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> {
-		private Comparison comparison;
+		private ComparativeExpression comparison;
 
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
-			this.comparison = SopremoUtil.getObject(parameters, "comparison", Comparison.class);
+			this.comparison = SopremoUtil.deserialize(parameters, "comparison", ComparativeExpression.class);
 		}
 
 		@Override

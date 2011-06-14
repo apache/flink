@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.util.dag.converter.GraphConverter;
 import eu.stratosphere.util.dag.converter.NodeConverter;
 
@@ -32,7 +32,7 @@ class ObjectCreationParser implements JaqlToSopremoParser<EvaluableExpression> {
 		// input2.*
 		@Override
 		public ObjectCreation.Mapping convertNode(CopyRecord expr, List<Object> childEvaluableExpressions) {
-			Path path = (Path) ObjectCreationParser.this.queryParser.parsePath(expr.recExpr());
+			PathExpression path = (PathExpression) ObjectCreationParser.this.queryParser.parsePath(expr.recExpr());
 			return new ObjectCreation.CopyFields(path);
 		}
 	}
@@ -42,7 +42,7 @@ class ObjectCreationParser implements JaqlToSopremoParser<EvaluableExpression> {
 		@Override
 		public ObjectCreation.Mapping convertNode(CopyField expr, List<Object> childEvaluableExpressions) {
 			String fieldName = ((ConstExpr) expr.nameExpr()).value.toString();
-			Path path = (Path) ObjectCreationParser.this.queryParser.parsePath(expr.recExpr());
+			PathExpression path = (PathExpression) ObjectCreationParser.this.queryParser.parsePath(expr.recExpr());
 			path.add(new FieldAccess(fieldName));
 			return new ObjectCreation.Mapping(fieldName, path);
 		}

@@ -14,12 +14,12 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
-import eu.stratosphere.sopremo.expressions.Constant;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
-import eu.stratosphere.sopremo.expressions.Input;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class ParserTestCase {
 
@@ -27,7 +27,7 @@ public class ParserTestCase {
 		assertParseResult(SopremoModule.valueOf(expected), jaqlScript);
 	}
 
-	public static void assertParseResult(Path expected, String jaqlScript) {
+	public static void assertParseResult(PathExpression expected, String jaqlScript) {
 		QueryParser jaqlPlanCreator = new QueryParser();
 		Expr parsedScript = jaqlPlanCreator.parseScript(new ByteArrayInputStream(jaqlScript.getBytes()));
 
@@ -74,14 +74,14 @@ public class ParserTestCase {
 		return operatorList;
 	}
 
-	// TODO: elimate duplicate doe -> SopremoTest
-	public static Evaluable createJsonArray(Object... constants) {
-		Evaluable[] elements = new Evaluable[constants.length];
+	// TODO: elimate duplicate code -> SopremoTest
+	public static EvaluableExpression createJsonArray(Object... constants) {
+		EvaluableExpression[] elements = new EvaluableExpression[constants.length];
 		for (int index = 0; index < elements.length; index++)
 			if (constants[index] instanceof EvaluableExpression)
-				elements[index] = (Evaluable) constants[index];
+				elements[index] = (EvaluableExpression) constants[index];
 			else
-				elements[index] = new Constant(constants[index]);
+				elements[index] = new ConstantExpression(constants[index]);
 		return new ArrayCreation(elements);
 	}
 
@@ -90,19 +90,19 @@ public class ParserTestCase {
 			throw new IllegalArgumentException();
 		ObjectCreation.Mapping[] assignments = new ObjectCreation.Mapping[fields.length / 2];
 		for (int index = 0; index < assignments.length; index++) {
-			assignments[index] = new ObjectCreation.Mapping(fields[2 * index].toString(), new Constant(fields[2 * index + 1]));
+			assignments[index] = new ObjectCreation.Mapping(fields[2 * index].toString(), new ConstantExpression(fields[2 * index + 1]));
 		}
 		return new ObjectCreation(assignments);
 	}
 
-	public static Path createPath(String... parts) {
+	public static PathExpression createPath(String... parts) {
 		List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 		for (int index = 0; index < parts.length; index++) {
 			EvaluableExpression segment;
 			if (parts[index].equals("$"))
-				segment = new Input(0);
+				segment = new InputSelection(0);
 			else if (parts[index].matches("[0-9]+"))
-				segment = new Input(Integer.parseInt(parts[index]));
+				segment = new InputSelection(Integer.parseInt(parts[index]));
 			else if (parts[index].matches("\\[.*\\]")) {
 				if (parts[index].charAt(1) == '*')
 					segment = new ArrayAccess();
@@ -116,6 +116,6 @@ public class ParserTestCase {
 				segment = new FieldAccess(parts[index]);
 			fragments.add(segment);
 		}
-		return new Path(fragments);
+		return new PathExpression(fragments);
 	}
 }

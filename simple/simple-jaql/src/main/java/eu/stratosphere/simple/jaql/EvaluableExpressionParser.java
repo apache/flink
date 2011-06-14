@@ -25,17 +25,17 @@ import com.ibm.jaql.lang.expr.path.PathIndex;
 import eu.stratosphere.simple.jaql.QueryParser.Binding;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.base.Aggregation;
-import eu.stratosphere.sopremo.expressions.Arithmetic;
-import eu.stratosphere.sopremo.expressions.Arithmetic.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
-import eu.stratosphere.sopremo.expressions.Constant;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.IdentifierAccess;
-import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.util.dag.converter.AppendChildren;
 import eu.stratosphere.util.dag.converter.GraphConverter;
 import eu.stratosphere.util.dag.converter.NodeConverter;
@@ -54,7 +54,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	private final class ArrayAccessConverter implements ExpressionConverter<PathIndex> {
 		@Override
 		public EvaluableExpression convertNode(PathIndex expr, List<EvaluableExpression> childPaths) {
-			return new ArrayAccess(((Constant) childPaths.get(0)).asInt());
+			return new ArrayAccess(((ConstantExpression) childPaths.get(0)).asInt());
 		}
 	}
 
@@ -71,7 +71,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 			if (expr.value == null)
 				return null;
 			// TODO: adjust to json model
-			return new Constant(this.toJavaValue(expr.value));
+			return new ConstantExpression(this.toJavaValue(expr.value));
 		}
 
 		private Object toJavaValue(JsonValue value) {
@@ -110,7 +110,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 				return new FunctionCall(d.getName(), childPaths.toArray(new EvaluableExpression[childPaths.size()]));
 			}
 			Operator operator = EvaluableExpressionParser.this.queryParser.parseOperator(expr);
-			if (operator instanceof Aggregation && operator.getTransformation() instanceof Path)
+			if (operator instanceof Aggregation && operator.getTransformation() instanceof PathExpression)
 				return new FunctionCall("distinct", operator.getTransformation());
 			// if (queryParser.bindings.get("$").getTransformed().equals(new Fragment.Input(0))
 			// && queryParser.parsePath(expr.collectExpr()).equals(
@@ -139,7 +139,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 		public EvaluableExpression convertNode(MathExpr expr, List<EvaluableExpression> childPaths) {
 			try {
 				int op = (Integer) this.OpField.get(expr);
-				return new Arithmetic(childPaths.get(0), this.OperatorMapping[op], childPaths.get(1));
+				return new ArithmeticExpression(childPaths.get(0), this.OperatorMapping[op], childPaths.get(1));
 			} catch (Exception e) {
 				throw new IllegalArgumentException("Cannot parse " + expr, e);
 			}
@@ -157,14 +157,14 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 		@Override
 		public EvaluableExpression convertNode(PathExpr expr, List<EvaluableExpression> childPaths) {
 			for (int index = 0; index < childPaths.size(); index++) {
-				if (childPaths.get(index) instanceof Path) {
-					Path path = (Path) childPaths.get(index);
+				if (childPaths.get(index) instanceof PathExpression) {
+					PathExpression path = (PathExpression) childPaths.get(index);
 					childPaths.set(index, path.getFragment(0));
 					childPaths.addAll(index + 1, path.getFragments().subList(1, path.getFragments().size()));
 					index += path.getFragments().size() - 1;
 				}
 			}
-			return new Path(childPaths);
+			return new PathExpression(childPaths);
 		}
 	}
 
@@ -189,7 +189,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 			if (var instanceof Operator) {
 				int index = EvaluableExpressionParser.this.queryParser.findInputIndex((Operator) var);
 				if (index != -1)
-					return new Input(index);
+					return new InputSelection(index);
 			}
 
 			if (var instanceof EvaluableExpression)

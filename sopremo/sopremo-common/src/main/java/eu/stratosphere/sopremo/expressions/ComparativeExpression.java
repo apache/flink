@@ -8,7 +8,7 @@ import org.codehaus.jackson.node.TextNode;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class Comparison extends BooleanExpression {
+public class ComparativeExpression extends BooleanExpression {
 	/**
 	 * 
 	 */
@@ -18,7 +18,7 @@ public class Comparison extends BooleanExpression {
 
 	private BinaryOperator binaryOperator;
 
-	public Comparison(EvaluableExpression expr1, BinaryOperator binaryOperator, EvaluableExpression expr2) {
+	public ComparativeExpression(EvaluableExpression expr1, BinaryOperator binaryOperator, EvaluableExpression expr2) {
 		this.expr1 = expr1;
 		this.binaryOperator = binaryOperator;
 		this.expr2 = expr2;
@@ -32,7 +32,7 @@ public class Comparison extends BooleanExpression {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Comparison other = (Comparison) obj;
+		ComparativeExpression other = (ComparativeExpression) obj;
 		return this.binaryOperator == other.binaryOperator && this.expr1.equals(other.expr1)
 			&& this.expr2.equals(other.expr2);
 	}

@@ -19,8 +19,8 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
-import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
@@ -112,14 +112,14 @@ public abstract class SopremoTest<T> {
 			.usingGetClass().verify();
 	}
 
-	public static Path createPath(String... parts) {
+	public static PathExpression createPath(String... parts) {
 		List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 		for (int index = 0; index < parts.length; index++) {
 			EvaluableExpression segment;
 			if (parts[index].equals("$"))
-				segment = new Input(0);
+				segment = new InputSelection(0);
 			else if (parts[index].matches("[0-9]+"))
-				segment = new Input(Integer.parseInt(parts[index]));
+				segment = new InputSelection(Integer.parseInt(parts[index]));
 			else if (parts[index].matches("\\[.*\\]")) {
 				if (parts[index].charAt(1) == '*')
 					segment = new ArrayAccess();
@@ -133,7 +133,7 @@ public abstract class SopremoTest<T> {
 				segment = new FieldAccess(parts[index]);
 			fragments.add(segment);
 		}
-		return new Path(fragments);
+		return new PathExpression(fragments);
 	}
 
 	public static PactJsonObject createPactJsonObject(Object... fields) {

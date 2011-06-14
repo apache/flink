@@ -8,8 +8,13 @@ import org.codehaus.jackson.node.ArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
+/**
+ * Merges several arrays by taking the first non-null value for each respective array.
+ * 
+ * @author Arvid Heise
+ *
+ */
 public class ArrayMerger extends EvaluableExpression {
-
 	/**
 	 * 
 	 */

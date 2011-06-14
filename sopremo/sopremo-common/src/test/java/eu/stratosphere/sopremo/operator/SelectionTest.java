@@ -5,17 +5,19 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.Selection;
-import eu.stratosphere.sopremo.expressions.Comparison;
-import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.FieldAccess;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
-import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.Condition.Combination;
-import eu.stratosphere.sopremo.expressions.Constant;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 
 public class SelectionTest extends SopremoTest<Selection> {
 	@Override
 	protected Selection createDefaultInstance(int index) {
-		Condition condition = new Condition(new UnaryExpression(createPath(String.valueOf(index))));
+		ConditionalExpression condition = new ConditionalExpression(new UnaryExpression(
+			createPath(String.valueOf(index))));
 		return new Selection(condition, null);
 	}
 
@@ -23,10 +25,10 @@ public class SelectionTest extends SopremoTest<Selection> {
 	public void shouldSelectSomeEntries() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		Comparison incomeComparison = new Comparison(createPath("income"), BinaryOperator.GREATER, new Constant(
-			30000));
-		UnaryExpression mgrFlag = new UnaryExpression(createPath("mgr"));
-		Condition condition = new Condition(Combination.OR, mgrFlag, incomeComparison);
+		ComparativeExpression incomeComparison = new ComparativeExpression(new FieldAccess("income"),
+			BinaryOperator.GREATER, new ConstantExpression(30000));
+		UnaryExpression mgrFlag = new UnaryExpression(new FieldAccess("mgr"));
+		ConditionalExpression condition = new ConditionalExpression(Combination.OR, mgrFlag, incomeComparison);
 		sopremoPlan.getOutputOperator(0).setInputs(
 			new Selection(condition, sopremoPlan.getInputOperator(0)));
 

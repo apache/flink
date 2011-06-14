@@ -4,9 +4,9 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.base.Join;
 import eu.stratosphere.sopremo.base.Source;
-import eu.stratosphere.sopremo.expressions.Comparison;
-import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.Condition;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 public class JoinTest extends ParserTestCase {
@@ -29,7 +29,7 @@ public class JoinTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseEquiJoin() {
-		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
 
 		ObjectCreation transformation = new ObjectCreation();
@@ -42,7 +42,7 @@ public class JoinTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseEquiJoinWithIterationVariables() {
-		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
 
 		ObjectCreation transformation = new ObjectCreation();
@@ -55,7 +55,7 @@ public class JoinTest extends ParserTestCase {
 
 	@Test
 	public void shouldParseLeftOuterEquiJoinWithIterationVariables() {
-		Condition condition = new Condition(new Comparison(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
 			"userid")));
 
 		ObjectCreation transformation = new ObjectCreation();

@@ -8,7 +8,7 @@ import org.codehaus.jackson.node.BooleanNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class Condition extends BooleanExpression {
+public class ConditionalExpression extends BooleanExpression {
 	/**
 	 * 
 	 */
@@ -18,11 +18,11 @@ public class Condition extends BooleanExpression {
 
 	private Combination combination;
 
-	public Condition(BooleanExpression expression) {
+	public ConditionalExpression(BooleanExpression expression) {
 		this(null, expression);
 	}
 
-	public Condition(Combination combination, BooleanExpression... expressions) {
+	public ConditionalExpression(Combination combination, BooleanExpression... expressions) {
 		this.expressions = expressions;
 		this.combination = expressions.length > 1 ? combination : Combination.AND;
 	}
@@ -35,7 +35,7 @@ public class Condition extends BooleanExpression {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Condition other = (Condition) obj;
+		ConditionalExpression other = (ConditionalExpression) obj;
 		return this.combination == other.combination && Arrays.equals(this.expressions, other.expressions);
 	}
 
@@ -77,16 +77,16 @@ public class Condition extends BooleanExpression {
 			builder.append(' ').append(this.combination).append(' ').append(this.expressions[index]);
 	}
 
-	public static Condition valueOf(BooleanExpression expression) {
-		if (expression instanceof Condition)
-			return (Condition) expression;
-		return new Condition(expression);
+	public static ConditionalExpression valueOf(BooleanExpression expression) {
+		if (expression instanceof ConditionalExpression)
+			return (ConditionalExpression) expression;
+		return new ConditionalExpression(expression);
 	}
 
-	public static Condition valueOf(List<BooleanExpression> childConditions, Combination combination) {
+	public static ConditionalExpression valueOf(List<BooleanExpression> childConditions, Combination combination) {
 		if (childConditions.size() == 1)
 			return valueOf(childConditions.get(0));
-		return new Condition(combination, childConditions.toArray(new BooleanExpression[childConditions.size()]));
+		return new ConditionalExpression(combination, childConditions.toArray(new BooleanExpression[childConditions.size()]));
 	}
 
 	public static enum Combination {

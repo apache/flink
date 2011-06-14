@@ -10,8 +10,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.ConditionalOperator;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -19,7 +18,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Selection extends ConditionalOperator {
 
-	public Selection(Condition condition, JsonStream input) {
+	public Selection(ConditionalExpression condition, JsonStream input) {
 		super(EvaluableExpression.IDENTITY, condition, input);
 	}
 
@@ -30,18 +29,18 @@ public class Selection extends ConditionalOperator {
 			SelectionStub.class);
 		module.getOutput(0).setInput(selectionMap);
 		selectionMap.setInput(module.getInput(0));
-		SopremoUtil.setObject(selectionMap.getStubParameters(), "condition", this.getCondition());
+		SopremoUtil.serialize(selectionMap.getStubParameters(), "condition", this.getCondition());
 		SopremoUtil.setTransformationAndContext(selectionMap.getStubParameters(), null, context);
 		return module;
 	}
 
 	public static class SelectionStub extends SopremoMap<PactNull, PactJsonObject, Key, PactJsonObject> {
-		private Condition condition;
+		private ConditionalExpression condition;
 
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
-			this.condition = SopremoUtil.getObject(parameters, "condition", Condition.class);
+			this.condition = SopremoUtil.deserialize(parameters, "condition", ConditionalExpression.class);
 		}
 
 		@Override

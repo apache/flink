@@ -15,12 +15,12 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class BagUnion extends Operator {
-	public BagUnion(List<Operator> inputs) {
+public class UnionAll extends Operator {
+	public UnionAll(List<Operator> inputs) {
 		super(EvaluableExpression.IDENTITY, inputs);
 	}
 
-	public BagUnion(Operator... inputs) {
+	public UnionAll(Operator... inputs) {
 		super(EvaluableExpression.IDENTITY, inputs);
 	}
 

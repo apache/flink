@@ -5,9 +5,9 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.Union;
-import eu.stratosphere.sopremo.expressions.Constant;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class UnionTest extends SopremoTest<Union> {
 	@Override
@@ -125,8 +125,8 @@ public class UnionTest extends SopremoTest<Union> {
 
 		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
 		union.setKeyExtractors(createPath("0", "name"),
-			new Path(new FunctionCall("concat", createPath("1", "first name"),
-				new Constant(" "), createPath("1", "last name"))));
+			new PathExpression(new FunctionCall("concat", createPath("1", "first name"),
+				new ConstantExpression(" "), createPath("1", "last name"))));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).

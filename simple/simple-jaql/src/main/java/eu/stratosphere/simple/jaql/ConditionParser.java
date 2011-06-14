@@ -10,20 +10,20 @@ import com.ibm.jaql.lang.expr.core.OrExpr;
 import com.ibm.jaql.lang.expr.path.PathExpr;
 
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
-import eu.stratosphere.sopremo.expressions.Comparison;
-import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.Condition.Combination;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.util.dag.converter.GraphConverter;
 import eu.stratosphere.util.dag.converter.NodeConverter;
 
-class ConditionParser implements JaqlToSopremoParser<Condition> {
+class ConditionParser implements JaqlToSopremoParser<ConditionalExpression> {
 
 	private static final class AndConverter implements CondConverter<AndExpr> {
 		@Override
 		public BooleanExpression convertNode(AndExpr expr, List<BooleanExpression> childConditions) {
-			return Condition.valueOf(childConditions, Combination.AND);
+			return ConditionalExpression.valueOf(childConditions, Combination.AND);
 		}
 	}
 
@@ -45,7 +45,7 @@ class ConditionParser implements JaqlToSopremoParser<Condition> {
 		public BooleanExpression convertNode(CompareExpr expr, List<BooleanExpression> childConditions) {
 			try {
 				int op = (Integer) this.OpField.get(expr);
-				return new Comparison(ConditionParser.this.queryParser.parsePath(expr.child(0)),
+				return new ComparativeExpression(ConditionParser.this.queryParser.parsePath(expr.child(0)),
 					this.OperatorMapping[op], ConditionParser.this.queryParser.parsePath(expr.child(1)));
 			} catch (Exception e) {
 				throw new IllegalArgumentException("Cannot parse " + expr, e);
@@ -59,7 +59,7 @@ class ConditionParser implements JaqlToSopremoParser<Condition> {
 	private static final class OrConverter implements CondConverter<OrExpr> {
 		@Override
 		public BooleanExpression convertNode(OrExpr expr, List<BooleanExpression> childConditions) {
-			return Condition.valueOf(childConditions, Combination.OR);
+			return ConditionalExpression.valueOf(childConditions, Combination.OR);
 		}
 	}
 
@@ -82,7 +82,7 @@ class ConditionParser implements JaqlToSopremoParser<Condition> {
 	}
 
 	@Override
-	public Condition parse(Expr expr) {
-		return Condition.valueOf(this.condConverter.convertGraph(expr, ExprNavigator.INSTANCE));
+	public ConditionalExpression parse(Expr expr) {
+		return ConditionalExpression.valueOf(this.condConverter.convertGraph(expr, ExprNavigator.INSTANCE));
 	}
 }

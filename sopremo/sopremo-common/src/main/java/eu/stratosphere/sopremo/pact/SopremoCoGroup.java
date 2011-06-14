@@ -14,8 +14,8 @@ public abstract class SopremoCoGroup<IK extends Key, IV1 extends PactJsonObject,
 
 	@Override
 	public void configure(Configuration parameters) {
-		this.transformation = SopremoUtil.getObject(parameters, "transformation", Evaluable.class);
-		this.context = SopremoUtil.getObject(parameters, "context", EvaluationContext.class);
+		this.transformation = SopremoUtil.deserialize(parameters, "transformation", Evaluable.class);
+		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
 	}
 
 	protected EvaluationContext getContext() {

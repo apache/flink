@@ -18,8 +18,8 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class SopremoUtil {
 
@@ -27,12 +27,12 @@ public class SopremoUtil {
 		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> extractionMap =
 			new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
 		int inputIndex = 0;
-		if (expr instanceof Path) {
-			inputIndex = getInputIndex((Path) expr);
-			expr = new Path(expr);
-			((Path) expr).replace(new Path(new Input(inputIndex)), new Path());
-		} else if (expr instanceof Input) {
-			inputIndex = ((Input) expr).getIndex();
+		if (expr instanceof PathExpression) {
+			inputIndex = getInputIndex((PathExpression) expr);
+			expr = new PathExpression(expr);
+			((PathExpression) expr).replace(new PathExpression(new InputSelection(inputIndex)), new PathExpression());
+		} else if (expr instanceof InputSelection) {
+			inputIndex = ((InputSelection) expr).getIndex();
 			expr = EvaluableExpression.IDENTITY;
 		}
 		extractionMap.setInput(module.getInput(inputIndex));
@@ -59,23 +59,23 @@ public class SopremoUtil {
 	// return (Evaluable) stringToObject(string);
 	// }
 
-	public static int getInputIndex(ContainerExpression<?> expr) {
-		Input fragment = expr.find(Input.class);
+	public static int getInputIndex(ContainerExpression expr) {
+		InputSelection fragment = expr.find(InputSelection.class);
 		if (fragment == null)
 			return 0;
 		return fragment.getIndex();
 	}
 
 	public static int getInputIndex(EvaluableExpression expr) {
-		if (expr instanceof ContainerExpression<?>)
-			return getInputIndex((ContainerExpression<?>) expr);
-		else if (expr instanceof Input)
-			return ((Input) expr).getIndex();
+		if (expr instanceof ContainerExpression)
+			return getInputIndex((ContainerExpression) expr);
+		else if (expr instanceof InputSelection)
+			return ((InputSelection) expr).getIndex();
 		return 0;
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T getObject(Configuration config, String key, Class<T> objectClass) {
+	public static <T> T deserialize(Configuration config, String key, Class<T> objectClass) {
 		String string = config.getString(key, null);
 		if (string == null)
 			return null;
@@ -95,14 +95,14 @@ public class SopremoUtil {
 		return string;
 	}
 
-	public static void setObject(Configuration config, String key, Object object) {
+	public static void serialize(Configuration config, String key, Object object) {
 		config.setString(key, objectToString(object));
 	}
 
 	public static void setTransformationAndContext(Configuration config, Evaluable transformation,
 			EvaluationContext context) {
-		setObject(config, "transformation", transformation);
-		setObject(config, "context", context);
+		serialize(config, "transformation", transformation);
+		serialize(config, "context", context);
 	}
 
 	public static Object stringToObject(String string) {

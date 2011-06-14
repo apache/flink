@@ -1,9 +1,11 @@
-package eu.stratosphere.sopremo.expressions;
+package eu.stratosphere.sopremo.base;
 
 import java.util.List;
 
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public abstract class ConditionalOperator extends Operator {
 
@@ -11,14 +13,14 @@ public abstract class ConditionalOperator extends Operator {
 	 * 
 	 */
 	private static final long serialVersionUID = 5527661578575402968L;
-	private Condition condition;
+	private ConditionalExpression condition;
 
-	public ConditionalOperator(EvaluableExpression transformation, Condition condition, JsonStream... inputs) {
+	public ConditionalOperator(EvaluableExpression transformation, ConditionalExpression condition, JsonStream... inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
 	}
 
-	public ConditionalOperator(EvaluableExpression transformation, Condition condition,
+	public ConditionalOperator(EvaluableExpression transformation, ConditionalExpression condition,
 			List<? extends JsonStream> inputs) {
 		super(transformation, inputs);
 		this.condition = condition;
@@ -35,7 +37,7 @@ public abstract class ConditionalOperator extends Operator {
 		return super.equals(obj) && this.condition.equals(((ConditionalOperator) obj).condition);
 	}
 
-	public Condition getCondition() {
+	public ConditionalExpression getCondition() {
 		return this.condition;
 	}
 

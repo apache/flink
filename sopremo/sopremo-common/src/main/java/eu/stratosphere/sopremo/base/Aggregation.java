@@ -17,10 +17,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.Constant;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.Input;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
@@ -69,7 +69,7 @@ public class Aggregation extends Operator {
 
 		switch (this.groupings.size()) {
 		case 0:
-			keyExtractors.add(SopremoUtil.addKeyExtraction(module, new Path(new Input(0), new Constant(1L)), context));
+			keyExtractors.add(SopremoUtil.addKeyExtraction(module, new PathExpression(new InputSelection(0), new ConstantExpression(1L)), context));
 			this.addSingleSourceAggregation(context, module, keyExtractors);
 			break;
 

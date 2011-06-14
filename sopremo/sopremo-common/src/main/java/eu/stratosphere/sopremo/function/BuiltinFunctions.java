@@ -9,7 +9,7 @@ import org.codehaus.jackson.node.NumericNode;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.sopremo.expressions.Arithmetic;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.util.ConcatenatingIterator;
 
 public class BuiltinFunctions {
@@ -38,7 +38,7 @@ public class BuiltinFunctions {
 			return ZERO;
 		JsonNode sum = iterator.next();
 		for (; iterator.hasNext();)
-			sum = Arithmetic.ArithmeticOperator.ADDITION.evaluate((NumericNode) sum, (NumericNode) iterator.next());
+			sum = ArithmeticExpression.ArithmeticOperator.ADDITION.evaluate((NumericNode) sum, (NumericNode) iterator.next());
 		return sum;
 	}
 

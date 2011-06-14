@@ -5,7 +5,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
-public class Constant extends EvaluableExpression {
+public class ConstantExpression extends EvaluableExpression {
 	/**
 	 * 
 	 */
@@ -13,7 +13,7 @@ public class Constant extends EvaluableExpression {
 	// TODO: adjust to json model
 	private Object constant;
 
-	public Constant(Object constant) {
+	public ConstantExpression(Object constant) {
 		this.constant = constant;
 	}
 
@@ -31,7 +31,7 @@ public class Constant extends EvaluableExpression {
 	public boolean equals(Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.constant.equals(((Constant) obj).constant);
+		return this.constant.equals(((ConstantExpression) obj).constant);
 	}
 
 	@Override

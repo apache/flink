@@ -10,7 +10,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
-public class Path extends ContainerExpression<EvaluableExpression> {
+public class PathExpression extends ContainerExpression {
 
 	/**
 	 * 
@@ -18,14 +18,14 @@ public class Path extends ContainerExpression<EvaluableExpression> {
 	private static final long serialVersionUID = -4663949354781572815L;
 	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 
-	public Path(EvaluableExpression... fragments) {
+	public PathExpression(EvaluableExpression... fragments) {
 		this(Arrays.asList(fragments));
 	}
 
-	public Path(List<EvaluableExpression> fragments) {
+	public PathExpression(List<EvaluableExpression> fragments) {
 		for (EvaluableExpression evaluableExpression : fragments)
-			if (evaluableExpression instanceof Path)
-				this.fragments.addAll(((Path) evaluableExpression).fragments);
+			if (evaluableExpression instanceof PathExpression)
+				this.fragments.addAll(((PathExpression) evaluableExpression).fragments);
 			else
 				this.fragments.add(evaluableExpression);
 	}
@@ -42,7 +42,7 @@ public class Path extends ContainerExpression<EvaluableExpression> {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Path other = (Path) obj;
+		PathExpression other = (PathExpression) obj;
 		return this.fragments.equals(other.fragments);
 	}
 
@@ -74,7 +74,7 @@ public class Path extends ContainerExpression<EvaluableExpression> {
 		return result;
 	}
 
-	public boolean isPrefix(Path prefix) {
+	public boolean isPrefix(PathExpression prefix) {
 		if (this.fragments.size() < prefix.getDepth())
 			return false;
 		return this.fragments.subList(0, prefix.getDepth()).equals(prefix.fragments);
@@ -89,8 +89,8 @@ public class Path extends ContainerExpression<EvaluableExpression> {
 	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
 		super.replace(toReplace, replaceFragment);
 
-		Path pathToFind = this.wrapAsPath(toReplace);
-		Path replacePath = this.wrapAsPath(replaceFragment);
+		PathExpression pathToFind = this.wrapAsPath(toReplace);
+		PathExpression replacePath = this.wrapAsPath(replaceFragment);
 		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
 		final int findSize = pathToFind.fragments.size();
 		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
@@ -111,9 +111,9 @@ public class Path extends ContainerExpression<EvaluableExpression> {
 			fragment.toString(builder);
 	}
 
-	private Path wrapAsPath(EvaluableExpression expression) {
-		if (expression instanceof Path)
-			return (Path) expression;
-		return new Path(expression);
+	private PathExpression wrapAsPath(EvaluableExpression expression) {
+		if (expression instanceof PathExpression)
+			return (PathExpression) expression;
+		return new PathExpression(expression);
 	}
 }

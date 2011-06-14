@@ -23,13 +23,13 @@ import eu.stratosphere.sopremo.EvaluationContext;
  * 
  * @author Arvid Heise
  */
-public class Arithmetic extends EvaluableExpression {
+public class ArithmeticExpression extends EvaluableExpression {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -9103414139002479181L;
 
-	private Arithmetic.ArithmeticOperator operator;
+	private ArithmeticExpression.ArithmeticOperator operator;
 
 	private EvaluableExpression op1, op2;
 
@@ -43,7 +43,7 @@ public class Arithmetic extends EvaluableExpression {
 	 * @param op2
 	 *        the second operand
 	 */
-	public Arithmetic(EvaluableExpression op1, ArithmeticOperator operator, EvaluableExpression op2) {
+	public ArithmeticExpression(EvaluableExpression op1, ArithmeticOperator operator, EvaluableExpression op2) {
 		this.operator = operator;
 		this.op1 = op1;
 		this.op2 = op2;
@@ -53,8 +53,8 @@ public class Arithmetic extends EvaluableExpression {
 	public boolean equals(Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.op1.equals(((Arithmetic) obj).op1) && this.operator.equals(((Arithmetic) obj).operator)
-			&& this.op2.equals(((Arithmetic) obj).op2);
+		return this.op1.equals(((ArithmeticExpression) obj).op1) && this.operator.equals(((ArithmeticExpression) obj).operator)
+			&& this.op2.equals(((ArithmeticExpression) obj).op2);
 	}
 
 	@Override
@@ -217,53 +217,22 @@ public class Arithmetic extends EvaluableExpression {
 		}
 	}
 
-	private static interface NumberEvaluator {
-		public NumericNode evaluate(NumericNode left, NumericNode right);
-	}
-
 	private abstract static class BigDecimalEvaluator implements NumberEvaluator {
+		protected abstract BigDecimal evaluate(BigDecimal left, BigDecimal right);
+
 		@Override
 		public NumericNode evaluate(NumericNode left, NumericNode right) {
 			return DecimalNode.valueOf(this.evaluate(left.getDecimalValue(), right.getDecimalValue()));
 		}
-
-		protected abstract BigDecimal evaluate(BigDecimal left, BigDecimal right);
 	}
 
 	private abstract static class BigIntegerEvaluator implements NumberEvaluator {
+		protected abstract BigInteger evaluate(BigInteger left, BigInteger right);
+
 		@Override
 		public NumericNode evaluate(NumericNode left, NumericNode right) {
 			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(), right.getBigIntegerValue()));
 		}
-
-		protected abstract BigInteger evaluate(BigInteger left, BigInteger right);
-	}
-
-	private abstract static class IntegerEvaluator implements NumberEvaluator {
-		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
-			return IntNode.valueOf(this.evaluate(left.getIntValue(), right.getIntValue()));
-		}
-
-		protected abstract int evaluate(int left, int right);
-	}
-
-	private abstract static class LongEvaluator implements NumberEvaluator {
-		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
-			return LongNode.valueOf(this.evaluate(left.getLongValue(), right.getLongValue()));
-		}
-
-		protected abstract long evaluate(long left, long right);
-	}
-
-	private abstract static class DoubleEvaluator implements NumberEvaluator {
-		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
-			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(), right.getDoubleValue()));
-		}
-
-		protected abstract double evaluate(double left, double right);
 	}
 
 	/**
@@ -300,5 +269,36 @@ public class Arithmetic extends EvaluableExpression {
 				return result;
 			}
 		}
+	}
+
+	private abstract static class DoubleEvaluator implements NumberEvaluator {
+		protected abstract double evaluate(double left, double right);
+
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(), right.getDoubleValue()));
+		}
+	}
+
+	private abstract static class IntegerEvaluator implements NumberEvaluator {
+		protected abstract int evaluate(int left, int right);
+
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return IntNode.valueOf(this.evaluate(left.getIntValue(), right.getIntValue()));
+		}
+	}
+
+	private abstract static class LongEvaluator implements NumberEvaluator {
+		protected abstract long evaluate(long left, long right);
+
+		@Override
+		public NumericNode evaluate(NumericNode left, NumericNode right) {
+			return LongNode.valueOf(this.evaluate(left.getLongValue(), right.getLongValue()));
+		}
+	}
+
+	private static interface NumberEvaluator {
+		public NumericNode evaluate(NumericNode left, NumericNode right);
 	}
 }

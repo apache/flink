@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.ConversionIterator;
 
-public class ObjectCreation extends ContainerExpression<Evaluable> {
+public class ObjectCreation extends ContainerExpression {
 	/**
 	 * 
 	 */
@@ -103,10 +103,10 @@ public class ObjectCreation extends ContainerExpression<Evaluable> {
 	}
 
 	@Override
-	public Iterator<Evaluable> iterator() {
-		return new ConversionIterator<Mapping, Evaluable>(this.mappings.iterator()) {
+	public Iterator<EvaluableExpression> iterator() {
+		return new ConversionIterator<Mapping, EvaluableExpression>(this.mappings.iterator()) {
 			@Override
-			protected Evaluable convert(Mapping inputObject) {
+			protected EvaluableExpression convert(Mapping inputObject) {
 				return inputObject.getExpression();
 			}
 		};

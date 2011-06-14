@@ -7,7 +7,7 @@ import org.codehaus.jackson.node.NumericNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 
-public class Cast extends EvaluableExpression {
+public class CastingExpression extends EvaluableExpression {
 	/**
 	 * 
 	 */
@@ -15,7 +15,7 @@ public class Cast extends EvaluableExpression {
 
 	private final NumberType targetType;
 
-	public Cast(NumberType targetType) {
+	public CastingExpression(NumberType targetType) {
 		this.targetType = targetType;
 	}
 

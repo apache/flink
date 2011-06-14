@@ -31,15 +31,15 @@ import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
-import eu.stratosphere.sopremo.expressions.Comparison;
-import eu.stratosphere.sopremo.expressions.Comparison.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.Condition;
-import eu.stratosphere.sopremo.expressions.Condition.Combination;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FieldAccess;
-import eu.stratosphere.sopremo.expressions.Input;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
-import eu.stratosphere.sopremo.expressions.Path;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.util.dag.converter.GraphConversionListener;
 import eu.stratosphere.util.dag.converter.GraphConverter;
 import eu.stratosphere.util.dag.converter.NodeConverter;
@@ -92,12 +92,12 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 			int n = expr.numInputs();
 			List<EvaluableExpression> groupStatements = new ArrayList<EvaluableExpression>();
 			for (int index = 0; index < n; index++) {
-				OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new Input(index)));
+				OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new InputSelection(index)));
 				EvaluableExpression groupStatement = OperatorParser.this.queryParser.parsePath(expr.byBinding().child(
 					index));
 				if (groupStatement != null) {
 					OperatorParser.this.queryParser.bindings.set(expr.getAsVar(index).taggedName(), new Binding(null,
-						new Input(index)));
+						new InputSelection(index)));
 					groupStatements.add(groupStatement);
 				}
 				if (index > 0)
@@ -115,7 +115,7 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 
 		@Override
 		public Operator convertNode(JoinExpr expr, List<Operator> childOperators) {
-			Condition condition = this.parseCondition(expr);
+			ConditionalExpression condition = this.parseCondition(expr);
 
 			if (this.inputAliases.size() < childOperators.size())
 				this.inputAliases.addAll(Arrays.asList(new String[childOperators.size() - this.inputAliases.size()]));
@@ -129,18 +129,18 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 			return join;
 		}
 
-		private Condition parseCondition(JoinExpr expr) {
-			List<List<Path>> onPaths = new ArrayList<List<Path>>();
+		private ConditionalExpression parseCondition(JoinExpr expr) {
+			List<List<PathExpression>> onPaths = new ArrayList<List<PathExpression>>();
 			for (int index = 0; index < expr.numBindings(); index++) {
 				Expr onExpr = expr.onExpr(index);
-				ArrayList<Path> onPath = new ArrayList<Path>();
+				ArrayList<PathExpression> onPath = new ArrayList<PathExpression>();
 				if (onExpr instanceof ArrayExpr)
 					for (int i = 0; i < onExpr.numChildren(); i++)
-						onPath.add((Path) OperatorParser.this.queryParser.parsePath(onExpr.child(i)));
+						onPath.add((PathExpression) OperatorParser.this.queryParser.parsePath(onExpr.child(i)));
 				else
-					onPath.add((Path) OperatorParser.this.queryParser.parsePath(onExpr));
+					onPath.add((PathExpression) OperatorParser.this.queryParser.parsePath(onExpr));
 
-				for (Path path : onPath)
+				for (PathExpression path : onPath)
 					// leave out intermediate variable
 					path.getFragments().remove(1);
 				onPaths.add(onPath);
@@ -148,18 +148,18 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 
 			List<BooleanExpression> expressions = new ArrayList<BooleanExpression>();
 			for (int index = 0; index < onPaths.get(0).size(); index++)
-				expressions.add(new Comparison(onPaths.get(0).get(index), BinaryOperator.EQUAL, onPaths.get(1).get(
+				expressions.add(new ComparativeExpression(onPaths.get(0).get(index), BinaryOperator.EQUAL, onPaths.get(1).get(
 					index)));
-			return Condition.valueOf(expressions, Combination.AND);
+			return ConditionalExpression.valueOf(expressions, Combination.AND);
 		}
 
 		private ObjectCreation parseTransformation(JoinExpr expr, int numInputs) {
-			OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new Input(0)));
+			OperatorParser.this.queryParser.bindings.set("$", new Binding(null, new InputSelection(0)));
 			ObjectCreation transformation = (ObjectCreation) OperatorParser.this.queryParser
 				.parseObjectCreation(((ForExpr) expr.parent().parent()).collectExpr());
 			for (int inputIndex = 0; inputIndex < numInputs; inputIndex++) {
-				Path alias = new Path(new Input(0), new FieldAccess(this.inputAliases.get(inputIndex)));
-				transformation.replace(alias, new Path(new Input(inputIndex)));
+				PathExpression alias = new PathExpression(new InputSelection(0), new FieldAccess(this.inputAliases.get(inputIndex)));
+				transformation.replace(alias, new PathExpression(new InputSelection(inputIndex)));
 			}
 			return transformation;
 		}
@@ -168,9 +168,9 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 			if (operator instanceof Projection && operator.getTransformation() instanceof ObjectCreation) {
 				ObjectCreation objectCreation = (ObjectCreation) operator.getTransformation();
 				if (objectCreation.getMappingSize() == 1
-					&& objectCreation.getMapping(0).getExpression() instanceof Input) {
+					&& objectCreation.getMapping(0).getExpression() instanceof InputSelection) {
 					Operator coreInput = operator.getInputOperators().get(
-						((Input) objectCreation.getMapping(0).getExpression()).getIndex());
+						((InputSelection) objectCreation.getMapping(0).getExpression()).getIndex());
 					Iterator<Entry<String, Binding>> iterator = OperatorParser.this.queryParser.bindings.getAll()
 						.entrySet().iterator();
 

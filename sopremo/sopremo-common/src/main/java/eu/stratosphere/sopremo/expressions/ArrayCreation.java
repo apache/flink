@@ -11,17 +11,35 @@ import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
-public class ArrayCreation extends ContainerExpression<Evaluable> {
+/**
+ * Creates an array of the given expressions.
+ * 
+ * @author Arvid Heise
+ */
+public class ArrayCreation extends ContainerExpression {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
-	private Evaluable[] elements;
 
-	public ArrayCreation(Evaluable... elements) {
+	private EvaluableExpression[] elements;
+
+	/**
+	 * Initializes ArrayCreation to create an array of the given expressions.
+	 * 
+	 * @param elements
+	 *        the expressions that evaluate to the elements in the array
+	 */
+	public ArrayCreation(EvaluableExpression... elements) {
 		this.elements = elements;
 	}
 
+	/**
+	 * Initializes ArrayCreation to create an array of the given expressions.
+	 * 
+	 * @param elements
+	 *        the expressions that evaluate to the elements in the array
+	 */
 	public ArrayCreation(List<EvaluableExpression> elements) {
 		this.elements = elements.toArray(new EvaluableExpression[elements.size()]);
 	}
@@ -47,7 +65,7 @@ public class ArrayCreation extends ContainerExpression<Evaluable> {
 	}
 
 	@Override
-	public Iterator<Evaluable> iterator() {
+	public Iterator<EvaluableExpression> iterator() {
 		return Arrays.asList(this.elements).iterator();
 	}
 
