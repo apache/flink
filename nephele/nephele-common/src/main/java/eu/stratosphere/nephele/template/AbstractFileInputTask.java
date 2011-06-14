@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.fs.Path;
  * 
  * @author warneke
  */
-public abstract class AbstractFileInputTask extends AbstractInputTask {
+public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputSplit> {
 	public static final String INPUT_PATH_CONFIG_KEY = "input.path";
 
 	/**
@@ -192,5 +192,14 @@ public abstract class AbstractFileInputTask extends AbstractInputTask {
 			}
 		}
 		throw new IllegalArgumentException("The given offset is not contained in the any block.");
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Class<FileInputSplit> getInputSplitType() {
+		
+		return FileInputSplit.class;
 	}
 }

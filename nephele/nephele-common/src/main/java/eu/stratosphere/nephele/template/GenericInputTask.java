@@ -18,8 +18,8 @@ package eu.stratosphere.nephele.template;
 /**
  * An input task that processes generic input splits (partitions).
  */
-public abstract class GenericInputTask extends AbstractInputTask {
-	
+public abstract class GenericInputTask extends AbstractInputTask<GenericInputSplit> {
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -30,5 +30,14 @@ public abstract class GenericInputTask extends AbstractInputTask {
 			splits[i] = new GenericInputSplit(i);
 		}
 		return splits;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Class<GenericInputSplit> getInputSplitType() {
+
+		return GenericInputSplit.class;
 	}
 }
