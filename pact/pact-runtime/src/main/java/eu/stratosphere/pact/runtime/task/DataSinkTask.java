@@ -314,8 +314,6 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
 		// obtain value serializer
 		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>(valueClass);
-		
-		final Order sortOrder = Order.valueOf(config.getStubParameters().getString(SORT_ORDER, ""));
 
 		// obtain grouped iterator defined by local strategy
 		switch (config.getLocalStrategy()) {
@@ -354,6 +352,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 			// The input is grouped using a sort-merge strategy.
 			// An iterator on the sorted pairs is created and returned.
 		case SORT: {
+			final Order sortOrder = Order.valueOf(config.getStubParameters().getString(SORT_ORDER, ""));
 			// create a key comparator
 			final Comparator<Key> keyComparator;
 			
