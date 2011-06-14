@@ -18,25 +18,13 @@ package eu.stratosphere.nephele.fs.s3;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
-import java.util.TimeZone;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,7 +33,6 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.rds.model.Endpoint;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -149,8 +136,6 @@ public final class S3FileSystem extends FileSystem {
 	@Override
 	public void initialize(URI name) throws IOException {
 
-		System.out.println("Initialization URI: " + name);
-
 		this.host = name.getHost();
 		if (this.host == null) {
 			LOG.debug("Provided URI does not provide a host to connect to, using configuration...");
@@ -247,7 +232,41 @@ public final class S3FileSystem extends FileSystem {
 
 		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
 
-		return null;
+		// This is the S3:/// base directory
+		if (!bop.hasBucket() && !bop.hasObject()) {
+
+			return new S3FileStatus(f, 0L, true);
+		}
+
+		try {
+			if (bop.hasBucket() && !bop.hasObject()) {
+
+				// Check if the bucket really exists
+				if (!this.s3Client.doesBucketExist(bop.getBucket())) {
+					throw new FileNotFoundException("Cannot find " + f.toUri());
+				}
+
+				return new S3FileStatus(f, 0L, true);
+			}
+
+			try {
+				final ObjectMetadata om = this.s3Client.getObjectMetadata(bop.getBucket(), bop.getObject());
+				if (objectRepresentsDirectory(bop.getObject(), om.getContentLength())) {
+					return new S3FileStatus(f, 0L, true);
+				} else {
+					return new S3FileStatus(f, om.getContentLength(), false);
+				}
+
+			} catch (AmazonServiceException e) {
+				if (e.getStatusCode() == HTTP_RESOURCE_NOT_FOUND_CODE) {
+					throw new FileNotFoundException("Cannot find " + f.toUri());
+				} else {
+					throw e;
+				}
+			}
+		} catch (AmazonClientException e) {
+			throw new IOException(StringUtils.stringifyException(e));
+		}
 	}
 
 	@Override
@@ -298,6 +317,11 @@ public final class S3FileSystem extends FileSystem {
 				ObjectListing listing = null;
 				final List<S3FileStatus> resultList = new ArrayList<S3FileStatus>();
 
+				// Check if the bucket really exists
+				if (!this.s3Client.doesBucketExist(bop.getBucket())) {
+					throw new FileNotFoundException("Cannot find " + f.toUri());
+				}
+
 				while (true) {
 
 					if (listing == null) {
@@ -340,6 +364,27 @@ public final class S3FileSystem extends FileSystem {
 
 	@Override
 	public boolean delete(Path f, boolean recursive) throws IOException {
+
+		final FileStatus fileStatus = getFileStatus(f); // Will throw a FileNotFoundException if f is invalid
+		if(fileStatus.isDir()) {
+			
+			final FileStatus[] dirContent = listStatus(f);
+			if(dirContent.length > 0) {
+				//Directory is not empty
+				if(!recursive) {
+					throw new IOException("Found non-empty directory " + f + " while performing non-recursive delete");
+				}
+				
+				//TODO: Implement me
+				
+			} else {
+				
+			}
+			//TODO: Implement me
+		} else {
+			//TODO: Implement me
+		}
+
 		// TODO Auto-generated method stub
 		return false;
 	}
@@ -467,12 +512,16 @@ public final class S3FileSystem extends FileSystem {
 
 	private boolean objectRepresentsDirectory(final S3ObjectSummary os) {
 
-		final String key = os.getKey();
-		if (key.isEmpty()) {
+		return objectRepresentsDirectory(os.getKey(), os.getSize());
+	}
+
+	private boolean objectRepresentsDirectory(final String name, final long size) {
+
+		if (name.isEmpty()) {
 			return false;
 		}
 
-		if (key.charAt(key.length() - 1) == S3_DIRECTORY_SEPARATOR && os.getSize() == 0L) {
+		if (name.charAt(name.length() - 1) == S3_DIRECTORY_SEPARATOR && size == 0L) {
 			return true;
 		}
 
