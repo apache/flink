@@ -95,15 +95,7 @@ public class FileInputSplitAssigner
 	}
 	
 	
-	/**
-	 * Initializes the PriorityQueue of ExecutionVertices of a ExecutionGroupVertex
-	 * 
-	 * @param graph
-	 *        ExecutionGraph of the GroupVertex
-	 * @param groupVertex
-	 *        ExecutionGroupVertex who's ExecutionVertices are put into the PriorityQueue
-	 * @throws ExecutionFailureException
-	 */
+
 	private void initializePriorityQueue(ExecutionGroupVertex groupVertex, FileInputSplit[] inputSplits)
 	throws Exception
 	{
