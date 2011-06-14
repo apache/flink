@@ -119,12 +119,12 @@ public class MockEnvironment extends Environment {
 		
 		for(int i=0;i<noSplits-1;i++) {
 			this.inputSplits[i] =
-				new FileInputSplit(new Path(path), pos, splitLength, hosts);
+				new FileInputSplit(i, new Path(path), pos, splitLength, hosts);
 			pos += splitLength;
 		}
 		
 		this.inputSplits[noSplits-1] =
-			new FileInputSplit(new Path(path), pos, inFile.length()-pos, hosts);
+			new FileInputSplit(noSplits-1, new Path(path), pos, inFile.length()-pos, hosts);
 	
 	}
 

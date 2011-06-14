@@ -31,6 +31,11 @@ public interface IndexedSortable {
 	 */
 	void swap(int i, int j);
 
+	/**
+	 * Gets the number of elements in the sortable.
+	 * 
+	 * @return The number of elements.
+	 */
 	int size();
 
 }

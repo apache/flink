@@ -69,10 +69,6 @@ public class TaskConfig {
 		NONE
 	}
 
-	public enum PostprocessingStrategy {
-
-	}
-
 	private static final String STUB_CLASS = "pact.stub.class";
 
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
@@ -82,8 +78,6 @@ public class TaskConfig {
 	private static final String OUTPUT_SHIP_STRATEGY = "pact.output.ship.strategy.";
 
 	private static final String LOCAL_STRATEGY = "pact.local.strategy";
-
-	private static final String POSTPROCESSING_STRATEGY = "pact.postprocessing.strategy";
 
 	private static final String NUM_INPUTS = "pact.inputs.number";
 
@@ -164,14 +158,6 @@ public class TaskConfig {
 
 	public LocalStrategy getLocalStrategy() {
 		return LocalStrategy.valueOf(config.getString(LOCAL_STRATEGY, ""));
-	}
-
-	public void setPostprocessingStrategy(PostprocessingStrategy strategy) {
-		config.setString(POSTPROCESSING_STRATEGY, strategy.name());
-	}
-
-	public PostprocessingStrategy getPostprocessingStrategy() {
-		return PostprocessingStrategy.valueOf(config.getString(POSTPROCESSING_STRATEGY, ""));
 	}
 
 	public int getNumOutputs() {

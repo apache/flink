@@ -120,7 +120,9 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * 
  * @author Arvid Heise
  */
+
 public class TestPlan implements Closeable, DeploymentManager {
+
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
 		private CostEstimator() {
