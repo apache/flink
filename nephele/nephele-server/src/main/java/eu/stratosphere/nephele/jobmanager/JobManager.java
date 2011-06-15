@@ -71,7 +71,6 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
-import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
@@ -95,6 +94,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
+import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.optimizer.Optimizer;
@@ -137,6 +137,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final Optimizer optimizer;
 
 	private final EventCollector eventCollector;
+
+	private final InputSplitManager inputSplitManager;
 
 	private final AbstractScheduler scheduler;
 
@@ -187,6 +189,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Read the suggested client polling interval
 		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger("jobclient.polling.internval", 5);
+
+		// Load the job progress collector
+		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
+
+		// Load the input split manager
+		this.inputSplitManager = new InputSplitManager();
 
 		// Determine own RPC address
 		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
@@ -270,9 +278,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.optimizer = null;
 			LOG.debug("Optimizer disabled");
 		}
-
-		// Load the job progress collector
-		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new JobManagerCleanUp(this));
@@ -500,6 +505,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
+		// Register job with the dynamic input split assigner
+		this.inputSplitManager.registerJob(eg);
+		
 		// Perform graph optimizations
 		if (this.optimizer != null) {
 			this.optimizer.optimize(eg);
@@ -530,7 +538,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * @param executionGraph
 	 *        the execution graph to remove from the job manager
 	 */
-	private void unregisterJob(ExecutionGraph executionGraph) {
+	private void unregisterJob(final ExecutionGraph executionGraph) {
 
 		// Remove job from profiler (if activated)
 		if (this.profiler != null
@@ -540,6 +548,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			if (this.eventCollector != null) {
 				this.profiler.unregisterFromProfilingData(executionGraph.getJobID(), this.eventCollector);
 			}
+		}
+
+		// Remove job from input split manager
+		if (this.inputSplitManager != null) {
+			this.inputSplitManager.unregisterJob(executionGraph);
 		}
 	}
 
@@ -925,7 +938,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		if (newJobStatus == InternalJobStatus.CANCELED || newJobStatus == InternalJobStatus.FAILED
 			|| newJobStatus == InternalJobStatus.FINISHED) {
-			// Unregister job for Nephele's monitoring and optimization components
+			// Unregister job for Nephele's monitoring, optimization components, and dynamic input split assignment
 			unregisterJob(executionGraph);
 		}
 	}
@@ -1036,37 +1049,24 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.executorService.execute(deploymentRunnable);
 	}
 
-	//TODO: This is dummy code and must be removed
-	private final Map<ExecutionGroupVertex, Integer> tmpMap = new HashMap<ExecutionGroupVertex, Integer>();
-	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public InputSplit requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID) throws IOException {
 
-		//TODO: This is dummy code and must be replaced
 		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
-		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
-		final ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
-		final InputSplit [] inputSplits = groupVertex.getInputSplits();
-		
-		synchronized(this.tmpMap) {
-			
-			Integer i = this.tmpMap.get(groupVertex);
-			if(i == null) {
-				i = Integer.valueOf(0);
-			}
-		
-			if(i.intValue() >= inputSplits.length) {
-				return null;
-			}
-			
-			final InputSplit split = inputSplits[i.intValue()];
-			this.tmpMap.put(groupVertex, Integer.valueOf(i.intValue() + 1));
-			
-			return split;
+		if (graph == null) {
+			LOG.error("Cannot find execution graph to job ID " + jobID);
+			return null;
 		}
-		
+
+		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
+		if (vertex == null) {
+			LOG.error("Cannot find execution vertex for vertex ID " + vertexID);
+			return null;
+		}
+
+		return this.inputSplitManager.getNextInputSplit(vertex);
 	}
 }
