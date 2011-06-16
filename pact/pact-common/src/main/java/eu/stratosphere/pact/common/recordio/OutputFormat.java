@@ -17,40 +17,24 @@ package eu.stratosphere.pact.common.recordio;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
-import eu.stratosphere.pact.common.stub.Stub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.type.PactRecord;
+
 
 /**
- * Describes the base interface that is used for writing to a output.
- * By overriding the createPair() and writePair() the values can be written
- * using a custom format.
- * 
- * @author Moritz Kaufmann
- * @param <K>
- * @param <V>
+ * The interface describing output formats, that serialize Pact records into a data store.
  */
-public abstract class OutputFormat<K extends Key, V extends Value> extends Stub<K, V> {
-	protected FSDataOutputStream stream;
+public interface OutputFormat
+{
 
-	/**
-	 * Writes the pair to the underlying output stream.
-	 * 
-	 * @param pair
-	 * @throws IOException
-	 *         if an I/O error occurred
-	 */
-	public abstract void writePair(KeyValuePair<K, V> pair) throws IOException;
+	void configure(Configuration parameters);
+	
 
-	/**
-	 * Sets the output stream to which the data should be written.
-	 * 
-	 * @param fdos
-	 */
-	public void setOutput(FSDataOutputStream fdos) {
-		this.stream = fdos;
-	}
-
+	void open() throws IOException;
+	
+	
+	void writeRecord(PactRecord record) throws IOException;
+	
+	
+	void close() throws IOException;
 }

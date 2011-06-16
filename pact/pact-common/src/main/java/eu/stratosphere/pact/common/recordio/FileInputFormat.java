@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.template.InputSplit;
 
 
 /**
@@ -39,7 +38,7 @@ import eu.stratosphere.nephele.template.InputSplit;
  * @author Moritz Kaufmann
  * @author Stephan Ewen
  */
-public abstract class FileInputFormat implements InputFormat
+public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 {
 	/**
 	 * The LOG for logging messages in this class.
@@ -78,7 +77,7 @@ public abstract class FileInputFormat implements InputFormat
 	{}
 	
 	@Override
-	public void open(InputSplit split) throws IOException
+	public void open(FileInputSplit split) throws IOException
 	{
 		if (!(split instanceof FileInputSplit)) {
 			throw new IllegalArgumentException("File Input Formats can only be used with FileInputSplits.");
@@ -148,7 +147,11 @@ public abstract class FileInputFormat implements InputFormat
 		}
 	}
 	
-	
+	@Override
+	public FileInputSplit[] createInputSplits()
+	{
+		return null;
+	}
 	
 	// ============================================================================================
 	
@@ -177,7 +180,6 @@ public abstract class FileInputFormat implements InputFormat
 			try {
 				FileSystem fs = FileSystem.get(split.getPath().toUri());
 				fdis = fs.open(split.getPath());
-				
 			}
 			catch (Exception t) {
 				this.success = false;

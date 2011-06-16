@@ -18,42 +18,59 @@ package eu.stratosphere.pact.common.recordstubs;
 import eu.stratosphere.nephele.configuration.Configuration;
 
 /**
- * Abstract stub class for all PACT stubs. PACT stubs must be overwritten to
- * provide user implementations for PACT programs.
- * 
- * @author Fabian Hueske
+ * Abstract stub class for all PACT stubs. PACT stubs must be overwritten to provide user implementations
+ * for PACT programs.
  */
 public abstract class Stub
 {
 	/**
-	 * Initializes the key and value types of the stubs input and output.
-	 */
-	protected abstract void initTypes();
-
-	/**
-	 * Configures the stub. This method is called before the run() method is
-	 * invoked. The method receives a Configuration object which holds
-	 * parameters that were passed to the stub during plan construction. This
-	 * method should be used to evaluate these parameters and configure the user
-	 * stub implementation.
+	 * Initialization method for the stub. It is called before the actual working methods 
+	 * (like <i>map</i> or <i>match</i>). This method should be used for configuration and 
+	 * initialization of the stub implementation.
+	 * <p>
+	 * This method receives the parameters attached to the contract. Consider the following pseudo code example,
+	 * which realizes a parameterizable filter:
+	 * <code>
+	 * public Plan getPlan(String... args)
+	 * {
+	 *     MapContract mc = new MapContract(MyMapper.class, "My Mapper");
+	 *     mc.setDegreeOfParallelism(48);
+	 *     mc.getStubParameters().setString("foo", "bar");
+	 *     
+	 *      ...
+	 *      
+	 *      Plan plan = new Plan(...);
+	 *      return plan;
+	 * }
 	 * 
-	 * @see eu.stratosphere.nephele.configuration.Configuration
-	 * @param parameters
-	 */
-	public abstract void configure(Configuration parameters);
-
-	/**
-	 * Initialization method for the stub. It is called after configure() and before the actual
-	 * working methods (like <i>map</i> or <i>match</i>).
-	 * This method should be used for initial setup of the stub implementation.
+	 * public class MyMapper extends MapStub {
+	 * 
+	 *     private String searchString;
+	 *     
+	 *     public void open(Configuration parameters) {
+	 *         this.searchString = parameters.getString("foo", null);
+	 *         // searchString will be "bar" when job is started
+	 *     }
+	 *     
+	 *     public void map(PactRecord record, Collector collector) {
+	 *         if ( record.getValue(0, PactString.class).equals(this.searchString) ) {
+	 *             collector.emit(record);
+	 *         }
+	 *     }
+	 * }
+	 * </code>
 	 * <p>
 	 * By default, this method does nothing.
+	 * 
+	 * @param parameters The configuration containing the parameters attached to the contract. 
 	 * 
 	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
+	 * 
+	 * @see eu.stratosphere.nephele.configuration.Configuration
 	 */
-	public void open() throws Exception
+	public void open(Configuration parameters) throws Exception
 	{}
 
 	/**
@@ -69,4 +86,11 @@ public abstract class Stub
 	 */
 	public void close() throws Exception
 	{}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Initializes the classes as inferred from generic arguments.
+	 */
+	protected abstract void initTypes();
 }

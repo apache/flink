@@ -73,6 +73,13 @@ public class PactString implements Key {
 		this.value = value;
 	}
 	
+	public void setValue(byte[] bytes) {
+		if (bytes == null)
+			throw new NullPointerException("Bytes must not be null");
+		
+		this.value = new String(bytes);
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)

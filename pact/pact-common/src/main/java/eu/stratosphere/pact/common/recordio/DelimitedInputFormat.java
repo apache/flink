@@ -18,7 +18,7 @@ package eu.stratosphere.pact.common.recordio;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -29,7 +29,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @author Moritz Kaufmann
  * @author Stephan Ewen
  */
-public abstract class TextInputFormat extends FileInputFormat
+public abstract class DelimitedInputFormat extends FileInputFormat
 {	
 	public static final String FORMAT_PAIR_DELIMITER = "delimiter";
 
@@ -47,7 +47,13 @@ public abstract class TextInputFormat extends FileInputFormat
 
 	private boolean end;
 
+	
+	
 	// --------------------------------------------------------------------------------------------
+	
+	public byte[] getDelimiter() {
+		return delimiter;
+	}
 
 	/**
 	 * This function parses the given byte array which represents a serialized key/value
@@ -58,7 +64,7 @@ public abstract class TextInputFormat extends FileInputFormat
 	 * @param line The serialized binary data.
 	 * @return returns True, if the record was successfully deserialized, false otherwise.
 	 */
-	public abstract boolean readLine(PactRecord record, byte[] line);
+	public abstract boolean readRecord(PactRecord record, byte[] line);
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -74,7 +80,7 @@ public abstract class TextInputFormat extends FileInputFormat
 			return false;
 		}
 		else {
-			return readLine(record, line);
+			return readRecord(record, line);
 		}
 	}
 
@@ -98,7 +104,7 @@ public abstract class TextInputFormat extends FileInputFormat
 	 * @throws IOException
 	 */
 	@Override
-	public void open(InputSplit split) throws IOException
+	public void open(FileInputSplit split) throws IOException
 	{
 		super.open(split);
 		
@@ -137,12 +143,6 @@ public abstract class TextInputFormat extends FileInputFormat
 		this.readBuffer = null;
 	}
 	
-	public byte[] getDelimiter() {
-		return delimiter;
-	}
-	
-	
-
 	private byte[] readLine() throws IOException {
 		if (this.stream == null || this.overLimit) {
 			return null;
@@ -217,7 +217,8 @@ public abstract class TextInputFormat extends FileInputFormat
 		}
 	}
 
-	private final boolean fillBuffer() throws IOException {
+	private final boolean fillBuffer() throws IOException
+	{
 		int toRead = this.length > this.readBuffer.length ? this.readBuffer.length : (int) this.length;
 		if (this.length <= 0) {
 			toRead = this.readBuffer.length;

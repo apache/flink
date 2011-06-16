@@ -13,28 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.recordstubs;
+package eu.stratosphere.pact.common.recordcontract;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import java.lang.annotation.Annotation;
 
 /**
- * Collects the output of PACT first-order user function implemented as {@link Stub}.
- * The collected data is forwards to the next contract.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske
+ * Interface defining that an output contract can be attached to an object.
  */
-public interface Collector
-{	
+public interface OutputContractConfigurable
+{
 	/**
-	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
+	 * Adds an output contract.
 	 * 
-	 * @param record The record to collect.
+	 * @param clazz The class of the OutputContract to attach.
 	 */
-	void collect(PactRecord record);
+	public void addOutputContract(Class<? extends Annotation> clazz);
 
 	/**
-	 * Closes the collector.
+	 * Returns the output contracts that were attached to the object.
+	 * 
+	 * @return An array containing the classes of the attached output contracts.
 	 */
-	void close();
+	public Class<? extends Annotation>[] getOutputContracts();
 }

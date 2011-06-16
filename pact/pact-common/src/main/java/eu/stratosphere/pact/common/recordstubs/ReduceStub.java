@@ -70,7 +70,7 @@ public abstract class ReduceStub<K extends Key> extends SingleInputKeyStub<K>
 	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
 	 *                   decide whether to retry the combiner execution.
 	 */
-	public void combine(K key, Iterator<PactRecord> records, Collector out)
+	public void combine(K key, Iterator<PactRecord> records, Collector out) throws Exception
 	{
 		// to be implemented, if the reducer should use a combiner. Note that the combining method
 		// is only used, if the stub class is further annotated with the annotation

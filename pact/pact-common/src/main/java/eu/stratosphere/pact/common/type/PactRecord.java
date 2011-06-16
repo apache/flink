@@ -23,11 +23,16 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 
 
 /**
+ * The Pact Record is the basic data record that flows between functions in a Pact program. The record is a tuple of
+ * arbitrary values.
+ * 
+ * <p>
+ * The Pact Record implements a sparse tuple model, meaning that the record can contain many fields which are actually
+ * null and not represented in the record. It has internally a bitmap marking which fields are set and which are not. 
  *
- *
- * @author Stephan Ewen
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class PactRecord implements IOReadableWritable
+public final class PactRecord implements IOReadableWritable
 {
 	private byte[] binaryData;
 	
@@ -41,13 +46,69 @@ public class PactRecord implements IOReadableWritable
 	
 	private long sparsityMask;
 	
-	private Class<? extends Value>[] fieldTypes;
-	
 	
 	/**
 	 * Required nullary constructor for instantiation by serialization logic.
 	 */
-	public PactRecord() {
+	public PactRecord()
+	{}
+	
+	/**
+	 * Creates a new record containing only a single field, which is the given value.
+	 * 
+	 * @param value The value for the single field of the record.
+	 */
+	public PactRecord(Value value)
+	{
+		
+	}
+	
+	/**
+	 * Creates a new record containing exactly to fields, which are the given values.
+	 * 
+	 * @param val1 The value for the first field.
+	 * @param val2 The value for the second field.
+	 */
+	public PactRecord(Value val1, Value val2)
+	{
+		
+	}
+	
+	/**
+	 * Creates a new pact record, containing the given number of fields. The fields are initially all nulls.
+	 *  
+	 * @param numFields The number of fields for the record.
+	 */
+	public PactRecord(int numFields)
+	{
+		
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//                             Basic Accessors
+	// --------------------------------------------------------------------------------------------
+	
+	public int getNumFields()
+	{
+		return this.numFields;
+	}
+	
+	public <T extends Value> T getField(int fieldNum, Class<T> type)
+	{
+		return null;
+	}
+	
+	public void getField(int fieldNum, Value target)
+	{
+	}
+	
+	public void setField(int fieldNum, Value value)
+	{
+	}
+	
+	public void clear()
+	{
+		
 	}
 	
 	// --------------------------------------------------------------------------------------------

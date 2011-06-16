@@ -29,10 +29,28 @@ import eu.stratosphere.pact.common.type.PactRecord;
  *   <li>Different parallel instances read records out of their assigned split.</li>
  * </ul>
  * 
+ * @param <T> The type of input split.
+ * 
  * @author Stephan Ewen
  */
-public interface InputFormat
+public interface InputFormat<T extends InputSplit>
 {
+	public void configure(Configuration parameters);
+	
+	public T[] createInputSplits();
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public void open(T split) throws IOException;
+	
+	/**
+	 * Method used to check if the end of the input is reached.
+	 * 
+	 * @return True if the end is reached, otherwise false.
+	 * @throws IOException Thrown, if an I/O error occurred.
+	 */
+	public abstract boolean reachedEnd() throws IOException;
+	
 	/**
 	 * Tries to read the next pair from the input. By using the return value invalid records in the
 	 * input can be skipped.
@@ -46,21 +64,6 @@ public interface InputFormat
 	 */
 	public boolean nextRecord(PactRecord record) throws IOException;
 	
-	/**
-	 * Method used to check if the end of the input is reached.
-	 * 
-	 * @return True if the end is reached, otherwise false.
-	 * @throws IOException Thrown, if an I/O error occurred.
-	 */
-	public abstract boolean reachedEnd() throws IOException;
-	
-	
-	public void configure(Configuration parameters);
-	
-	public void open(InputSplit split) throws IOException;
 	
 	public void close() throws IOException;
-	
-	
-	public InputSplit[] createInputSplits();
 }

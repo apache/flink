@@ -13,28 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.recordstubs;
-
-import eu.stratosphere.pact.common.type.PactRecord;
+package eu.stratosphere.pact.common.recordplan;
 
 /**
- * Collects the output of PACT first-order user function implemented as {@link Stub}.
- * The collected data is forwards to the next contract.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske
+ * Interface that shows that the class contains the method to generate the plan for a Pact Program.
  */
-public interface Collector
-{	
+public interface PlanAssembler
+{
 	/**
-	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
+	 * The method which is invoked by the Pact compiler to get the program's plan, that is then compiled into an
+	 * executable schedule.
 	 * 
-	 * @param record The record to collect.
+	 * @param args The array of input parameters. Those are taken from the command line or from teh parameter line in the
+	 *             web frontend.
+	 *              
+	 * @return The plan to be compiled and executed.
 	 */
-	void collect(PactRecord record);
-
-	/**
-	 * Closes the collector.
-	 */
-	void close();
+	Plan getPlan(String... args);
 }

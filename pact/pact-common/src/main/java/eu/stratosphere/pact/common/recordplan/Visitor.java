@@ -13,28 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.recordstubs;
-
-import eu.stratosphere.pact.common.type.PactRecord;
+package eu.stratosphere.pact.common.recordplan;
 
 /**
- * Collects the output of PACT first-order user function implemented as {@link Stub}.
- * The collected data is forwards to the next contract.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske
+ * A visitor encapsulates functionality that is applied to each node in the process of a traversal of a tree or DAD. 
  */
-public interface Collector
-{	
+public interface Visitor<T extends Visitable<T>>
+{
 	/**
-	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
 	 * 
-	 * @param record The record to collect.
+	 * @param visitable
+	 * 
+	 * @return True, if the traversal should continue, false otherwise.
 	 */
-	void collect(PactRecord record);
+	boolean preVisit(T visitable);
 
 	/**
-	 * Closes the collector.
+	 * @param visitable
 	 */
-	void close();
+	void postVisit(T visitable);
 }

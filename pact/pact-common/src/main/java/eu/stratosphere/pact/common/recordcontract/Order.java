@@ -13,28 +13,44 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.recordstubs;
-
-import eu.stratosphere.pact.common.type.PactRecord;
+package eu.stratosphere.pact.common.recordcontract;
 
 /**
- * Collects the output of PACT first-order user function implemented as {@link Stub}.
- * The collected data is forwards to the next contract.
+ * Enumeration representing order. May represent no order, an ascending order or a descending order.
  * 
- * @author Erik Nijkamp
- * @author Fabian Hueske
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface Collector
-{	
+public enum Order {
 	/**
-	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
-	 * 
-	 * @param record The record to collect.
+	 * Indicates no order.
 	 */
-	void collect(PactRecord record);
+	NONE,
 
 	/**
-	 * Closes the collector.
+	 * Indicates an ascending order.
 	 */
-	void close();
+	ASCENDING,
+
+	/**
+	 * Indicates a descending order.
+	 */
+	DESCENDING,
+
+	/**
+	 * Indicates an order without a direction. This constant is not used to indicate
+	 * any existing order, but for example to indicate that an order of any direction
+	 * is desirable.
+	 */
+	ANY;
+
+	/**
+	 * Checks, if this enum constant represents in fact an order. That is,
+	 * whether this property is not equal to <tt>Order.NONE</tt>.
+	 * 
+	 * @return True, if this enum constant is unequal to <tt>Order.NONE</tt>,
+	 *         false otherwise.
+	 */
+	public boolean isOrdered() {
+		return this != Order.NONE;
+	}
 }
