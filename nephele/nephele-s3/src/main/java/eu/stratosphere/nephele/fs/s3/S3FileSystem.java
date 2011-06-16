@@ -101,14 +101,14 @@ public final class S3FileSystem extends FileSystem {
 	 * The error code for "resource not found" according to the HTTP protocol.
 	 */
 	private static final int HTTP_RESOURCE_NOT_FOUND_CODE = 404;
-
+	
 	/**
 	 * The character which S3 uses internally to indicate an object represents a directory.
 	 */
 	private static final char S3_DIRECTORY_SEPARATOR = '/';
 
 	/**
-	 * The host to address the REST requsts to.
+	 * The host to address the REST requests to.
 	 */
 	private String host = null;
 
@@ -362,31 +362,58 @@ public final class S3FileSystem extends FileSystem {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean delete(Path f, boolean recursive) throws IOException {
 
-		final FileStatus fileStatus = getFileStatus(f); // Will throw a FileNotFoundException if f is invalid
-		if(fileStatus.isDir()) {
-			
-			final FileStatus[] dirContent = listStatus(f);
-			if(dirContent.length > 0) {
-				//Directory is not empty
-				if(!recursive) {
-					throw new IOException("Found non-empty directory " + f + " while performing non-recursive delete");
+		try {
+			final FileStatus fileStatus = getFileStatus(f); // Will throw a FileNotFoundException if f is invalid
+			final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
+
+			if (fileStatus.isDir()) {
+
+				boolean retVal = false;
+				final FileStatus[] dirContent = listStatus(f);
+				if (dirContent.length > 0) {
+					// Directory is not empty
+					if (!recursive) {
+						throw new IOException("Found non-empty directory " + f
+							+ " while performing non-recursive delete");
+					}
+
+					for (FileStatus entry : dirContent) {
+
+						if (delete(entry.getPath(), true)) {
+							retVal = true;
+						}
+					}
 				}
-				
-				//TODO: Implement me
-				
+
+				// Now the directory is empty
+
+				if (!bop.hasBucket()) {
+					// This is the root directory, do not delete this
+					return retVal;
+				}
+
+				if (!bop.hasObject()) {
+					// This is a real bucket
+					this.s3Client.deleteBucket(bop.getBucket());
+				} else {
+					// This directory is actually represented by an object in S3
+					this.s3Client.deleteObject(bop.getBucket(), bop.getObject());
+				}
 			} else {
-				
+				// This is a file
+				this.s3Client.deleteObject(bop.getBucket(), bop.getObject());
 			}
-			//TODO: Implement me
-		} else {
-			//TODO: Implement me
+		} catch (AmazonClientException e) {
+			throw new IOException(StringUtils.stringifyException(e));
 		}
 
-		// TODO Auto-generated method stub
-		return false;
+		return true;
 	}
 
 	/**
@@ -451,7 +478,6 @@ public final class S3FileSystem extends FileSystem {
 
 				return -1;
 			}
-
 		};
 
 		final ObjectMetadata om = new ObjectMetadata();
@@ -464,22 +490,37 @@ public final class S3FileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize)
+	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize, final short replication, final long blockSize)
 			throws IOException {
 
-		return null;
+		if (!overwrite && exists(f)) {
+			throw new IOException(f.toUri() + " already exists");
+		}
+
+		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
+		if(!bop.hasBucket() || !bop.hasObject()) {
+			throw new IOException(f.toUri() + " is not a valid path to create a new file");
+		}
+		
+		if(bufferSize < S3DataOutputStream.MINIMUM_MULTIPART_SIZE) {
+			throw new IOException("Provided buffer must be at least " + S3DataOutputStream.MINIMUM_MULTIPART_SIZE + " bytes");
+		}
+		
+		final byte[] buf = new byte[bufferSize]; //TODO: Use memory manager to allocate larger pages
+		
+		return new S3DataOutputStream(this.s3Client, bop.getBucket(), bop.getObject(), buf);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
+	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
 
-		return create(f, overwrite, 1024, (short) 1, 1024L);
+		return create(f, overwrite, S3DataOutputStream.MINIMUM_MULTIPART_SIZE, (short) 1, 1024L);
 	}
 
-	static String getElementFromPath(final Path path, final int pos) {
+	/*static String getElementFromPath(final Path path, final int pos) {
 
 		if (pos >= path.depth() || pos < 0) {
 			return null;
@@ -508,7 +549,7 @@ public final class S3FileSystem extends FileSystem {
 		}
 
 		return p.substring(startPos, endPos);
-	}
+	}*/
 
 	private boolean objectRepresentsDirectory(final S3ObjectSummary os) {
 

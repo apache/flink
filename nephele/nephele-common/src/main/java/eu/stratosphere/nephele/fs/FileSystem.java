@@ -47,7 +47,7 @@ public abstract class FileSystem {
 	private static final String S3_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.s3.S3FileSystem";
 
 	/**
-	 * Object used to synchronized calls to specific methods.
+	 * Object used to protect calls to specific methods.
 	 */
 	private static final Object synchronizationObject = new Object();
 
@@ -183,7 +183,7 @@ public abstract class FileSystem {
 	 * @throws IOException
 	 *         thrown if a reference to the file system instance could not be obtained
 	 */
-	public static FileSystem get(URI uri) throws IOException {
+	public static FileSystem get(final URI uri) throws IOException {
 
 		FileSystem fs = null;
 
@@ -326,12 +326,11 @@ public abstract class FileSystem {
 	 * Delete a file.
 	 * 
 	 * @param f
-	 *        the path to delete.
+	 *        the path to delete
 	 * @param recursive
-	 *        if path is a directory and set to
-	 *        true, the directory is deleted else throws an exception. In
-	 *        case of a file the recursive can be set to either true or false.
-	 * @return true if delete is successful else false.
+	 *        if path is a directory and set to <code>true</code>, the directory is deleted else throws an exception. In
+	 *        case of a file the recursive can be set to either <code>true</code> or <code>false</code>
+	 * @return <code>true</code> if delete is successful, <code>false</code> otherwise
 	 * @throws IOException
 	 */
 	public abstract boolean delete(Path f, boolean recursive) throws IOException;
