@@ -101,7 +101,7 @@ public final class S3FileSystem extends FileSystem {
 	 * The error code for "resource not found" according to the HTTP protocol.
 	 */
 	private static final int HTTP_RESOURCE_NOT_FOUND_CODE = 404;
-	
+
 	/**
 	 * The character which S3 uses internally to indicate an object represents a directory.
 	 */
@@ -275,23 +275,41 @@ public final class S3FileSystem extends FileSystem {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FSDataInputStream open(Path f, int bufferSize) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
-	}
+	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 
-	@Override
-	public FSDataInputStream open(Path f) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+		return open(f); // Ignore bufferSize
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileStatus[] listStatus(Path f) throws IOException {
+	public FSDataInputStream open(final Path f) throws IOException {
+
+		final FileStatus fileStatus = getFileStatus(f); // Will throw FileNotFoundException if f does not exist
+
+		// Make sure f is not a directory
+		if (fileStatus.isDir()) {
+			throw new IOException("Cannot open " + f.toUri() + " because it is a directory");
+		}
+
+		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
+		if (!bop.hasBucket() || !bop.hasObject()) {
+			throw new IOException(f.toUri() + " cannot be opened");
+		}
+
+		return new S3DataInputStream(this.s3Client, bop.getBucket(), bop.getObject());
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public FileStatus[] listStatus(final Path f) throws IOException {
 
 		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
 
@@ -490,7 +508,8 @@ public final class S3FileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize, final short replication, final long blockSize)
+	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
+			final short replication, final long blockSize)
 			throws IOException {
 
 		if (!overwrite && exists(f)) {
@@ -498,16 +517,17 @@ public final class S3FileSystem extends FileSystem {
 		}
 
 		final S3BucketObjectPair bop = this.directoryStructure.toBucketObjectPair(f);
-		if(!bop.hasBucket() || !bop.hasObject()) {
+		if (!bop.hasBucket() || !bop.hasObject()) {
 			throw new IOException(f.toUri() + " is not a valid path to create a new file");
 		}
-		
-		if(bufferSize < S3DataOutputStream.MINIMUM_MULTIPART_SIZE) {
-			throw new IOException("Provided buffer must be at least " + S3DataOutputStream.MINIMUM_MULTIPART_SIZE + " bytes");
+
+		if (bufferSize < S3DataOutputStream.MINIMUM_MULTIPART_SIZE) {
+			throw new IOException("Provided buffer must be at least " + S3DataOutputStream.MINIMUM_MULTIPART_SIZE
+				+ " bytes");
 		}
-		
-		final byte[] buf = new byte[bufferSize]; //TODO: Use memory manager to allocate larger pages
-		
+
+		final byte[] buf = new byte[bufferSize]; // TODO: Use memory manager to allocate larger pages
+
 		return new S3DataOutputStream(this.s3Client, bop.getBucket(), bop.getObject(), buf);
 	}
 
@@ -520,36 +540,31 @@ public final class S3FileSystem extends FileSystem {
 		return create(f, overwrite, S3DataOutputStream.MINIMUM_MULTIPART_SIZE, (short) 1, 1024L);
 	}
 
-	/*static String getElementFromPath(final Path path, final int pos) {
-
-		if (pos >= path.depth() || pos < 0) {
-			return null;
-		}
-
-		final String p = path.toUri().getPath();
-		int count = 0;
-		int startPos = 1;
-		int endPos = -1;
-		while (count <= pos) {
-
-			if (endPos > 0) {
-				startPos = endPos + 1;
-			}
-
-			endPos = p.indexOf(Path.SEPARATOR, startPos);
-			if (endPos < 0) {
-				break;
-			}
-
-			++count;
-		}
-
-		if (endPos < 0) {
-			endPos = p.length();
-		}
-
-		return p.substring(startPos, endPos);
-	}*/
+	/*
+	 * static String getElementFromPath(final Path path, final int pos) {
+	 * if (pos >= path.depth() || pos < 0) {
+	 * return null;
+	 * }
+	 * final String p = path.toUri().getPath();
+	 * int count = 0;
+	 * int startPos = 1;
+	 * int endPos = -1;
+	 * while (count <= pos) {
+	 * if (endPos > 0) {
+	 * startPos = endPos + 1;
+	 * }
+	 * endPos = p.indexOf(Path.SEPARATOR, startPos);
+	 * if (endPos < 0) {
+	 * break;
+	 * }
+	 * ++count;
+	 * }
+	 * if (endPos < 0) {
+	 * endPos = p.length();
+	 * }
+	 * return p.substring(startPos, endPos);
+	 * }
+	 */
 
 	private boolean objectRepresentsDirectory(final S3ObjectSummary os) {
 

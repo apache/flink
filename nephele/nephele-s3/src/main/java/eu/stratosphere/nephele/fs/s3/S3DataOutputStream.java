@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.fs.s3;
 
 import java.io.IOException;
@@ -35,8 +50,14 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 
 	private final List<PartETag> partETags = new ArrayList<PartETag>();
 
+	/**
+	 * The ID of a multipart upload in case multipart upload is used, otherwise <code>null</code>.
+	 */
 	private String uploadId = null;
 
+	/**
+	 * The next part number to be used during a multipart upload.
+	 */
 	private int partNumber = 1; // First valid upload part number is 1.
 
 	private int bytesWritten = 0;
@@ -135,7 +156,7 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		if (this.bytesWritten == this.buf.length) {
 			uploadPartAndFlushBuffer();
 		}
-		
+
 		this.buf[this.bytesWritten++] = (byte) b;
 	}
 
@@ -153,7 +174,7 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			if (this.bytesWritten == this.buf.length) {
 				uploadPartAndFlushBuffer();
 			}
-			
+
 			final int bytesToCopy = Math.min(this.buf.length - this.bytesWritten, len - nextPos);
 			System.arraycopy(b, nextPos, this.buf, this.bytesWritten, bytesToCopy);
 			this.bytesWritten += bytesToCopy;
@@ -177,36 +198,37 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 	public void close() throws IOException {
 
 		System.out.println("Finishing upload " + this.bytesWritten);
-		
-		if(this.uploadId == null) {
+
+		if (this.uploadId == null) {
 			// This is not a multipart upload
-			
+
 			// No data has been written
-			if(this.bytesWritten == 0) {
+			if (this.bytesWritten == 0) {
 				return;
 			}
-		
+
 			final InputStream is = new InternalUploadInputStream(this.buf, this.bytesWritten);
 			final ObjectMetadata om = new ObjectMetadata();
 			om.setContentLength(this.bytesWritten);
-			
+
 			try {
-				this.s3Client.putObject(this.bucket, this.object, is, om); 
-			} catch(AmazonServiceException e) {
+				this.s3Client.putObject(this.bucket, this.object, is, om);
+			} catch (AmazonServiceException e) {
 				throw new IOException(StringUtils.stringifyException(e));
 			}
-			
+
 			this.bytesWritten = 0;
-			
+
 		} else {
-			
-			if(this.bytesWritten > 0) {
+
+			if (this.bytesWritten > 0) {
 				uploadPartAndFlushBuffer();
 			}
-			
+
 			boolean operationSuccessful = false;
 			try {
-				final CompleteMultipartUploadRequest request = new CompleteMultipartUploadRequest(this.bucket, this.object,
+				final CompleteMultipartUploadRequest request = new CompleteMultipartUploadRequest(this.bucket,
+					this.object,
 					this.uploadId, this.partETags);
 				this.s3Client.completeMultipartUpload(request);
 

@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.fs.s3;
 
 import java.net.URI;
@@ -12,7 +27,7 @@ public final class S3DirectoryStructure {
 
 	private final Map<Path, S3BucketObjectPair> cache = new HashMap<Path, S3BucketObjectPair>();
 
-	S3DirectoryStructure(final String basePath) {		
+	S3DirectoryStructure(final String basePath) {
 		this.basePath = basePath;
 	}
 
@@ -36,12 +51,12 @@ public final class S3DirectoryStructure {
 		}
 
 		// Remove leading SEPARATOR
-		if(!p.isEmpty()) {
+		if (!p.isEmpty()) {
 			if (p.charAt(0) == Path.SEPARATOR_CHAR) {
 				p = p.substring(1);
 			}
 		}
-		
+
 		if (p.isEmpty()) {
 			bop = new S3BucketObjectPair(null, null);
 			this.cache.put(path, bop);
