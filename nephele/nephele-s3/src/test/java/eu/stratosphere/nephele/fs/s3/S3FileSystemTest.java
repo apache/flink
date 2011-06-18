@@ -192,6 +192,10 @@ public class S3FileSystemTest {
 	@Test
 	public void multiLevelDirectoryTest() {
 
+		if (!testActivated()) {
+			return;
+		}
+
 		final String dirName = getRandomName();
 		final String subdirName = getRandomName();
 		final String subsubdirName = getRandomName();
@@ -257,6 +261,10 @@ public class S3FileSystemTest {
 	 */
 	@Test
 	public void blockLocationTest() {
+
+		if (!testActivated()) {
+			return;
+		}
 
 		final String dirName = getRandomName();
 		final String fileName = getRandomName();
