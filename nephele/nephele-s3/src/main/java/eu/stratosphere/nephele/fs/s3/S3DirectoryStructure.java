@@ -69,7 +69,11 @@ public final class S3DirectoryStructure {
 		} else {
 			final String bucket = p.substring(0, objectPos);
 			final String object = p.substring(objectPos + 1);
-			bop = new S3BucketObjectPair(bucket, object);
+			if (object.isEmpty()) {
+				bop = new S3BucketObjectPair(bucket, null);
+			} else {
+				bop = new S3BucketObjectPair(bucket, object);
+			}
 		}
 
 		this.cache.put(path, bop);

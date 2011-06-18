@@ -197,8 +197,6 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 	@Override
 	public void close() throws IOException {
 
-		System.out.println("Finishing upload " + this.bytesWritten);
-
 		if (this.uploadId == null) {
 			// This is not a multipart upload
 
@@ -266,8 +264,6 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			if (this.partNumber >= MAX_PART_NUMBER) {
 				throw new IOException("Cannot upload any more data: maximum part number reached");
 			}
-
-			System.out.println("Uploading part " + this.partNumber + " with " + this.bytesWritten + " bytes");
 
 			final InputStream inputStream = new InternalUploadInputStream(this.buf, this.bytesWritten);
 			final UploadPartRequest request = new UploadPartRequest();

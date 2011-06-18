@@ -21,23 +21,30 @@ import eu.stratosphere.nephele.fs.Path;
 public final class S3FileStatus implements FileStatus {
 
 	private final Path path;
-	
+
 	private final long length;
+
+	private final boolean isDir;
+
+	private final long modificationTime;
 	
-	private final boolean isBucket;
+	private final long accessTime;
 	
-	S3FileStatus(final Path path, final long length, final boolean isBucket) {
+	S3FileStatus(final Path path, final long length, final boolean isDir, final long modificationTime,
+			final long accessTime) {
 		this.path = path;
 		this.length = length;
-		this.isBucket = isBucket;
+		this.isDir = isDir;
+		this.modificationTime = modificationTime;
+		this.accessTime = accessTime;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public long getLen() {
-		
+
 		return this.length;
 	}
 
@@ -46,7 +53,7 @@ public final class S3FileStatus implements FileStatus {
 	 */
 	@Override
 	public long getBlockSize() {
-		
+
 		return this.length;
 	}
 
@@ -55,7 +62,7 @@ public final class S3FileStatus implements FileStatus {
 	 */
 	@Override
 	public short getReplication() {
-		
+
 		return 1;
 	}
 
@@ -64,8 +71,8 @@ public final class S3FileStatus implements FileStatus {
 	 */
 	@Override
 	public long getModificationTime() {
-		// TODO Auto-generated method stub
-		return 0;
+		
+		return this.modificationTime;
 	}
 
 	/**
@@ -73,8 +80,8 @@ public final class S3FileStatus implements FileStatus {
 	 */
 	@Override
 	public long getAccessTime() {
-		// TODO Auto-generated method stub
-		return 0;
+		
+		return this.accessTime;
 	}
 
 	/**
@@ -83,7 +90,7 @@ public final class S3FileStatus implements FileStatus {
 	@Override
 	public boolean isDir() {
 
-		return this.isBucket;
+		return this.isDir;
 	}
 
 	/**
@@ -91,7 +98,7 @@ public final class S3FileStatus implements FileStatus {
 	 */
 	@Override
 	public Path getPath() {
-		
+
 		return this.path;
 	}
 

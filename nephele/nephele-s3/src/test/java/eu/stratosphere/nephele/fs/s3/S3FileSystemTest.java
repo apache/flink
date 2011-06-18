@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.fs.s3;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -22,12 +25,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.fs.BlockLocation;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
@@ -102,7 +107,7 @@ public class S3FileSystemTest {
 		}
 
 		final String bucketName = getRandomName();
-		final Path bucketPath = new Path(S3_BASE_URI + bucketName);
+		final Path bucketPath = new Path(S3_BASE_URI + bucketName + Path.SEPARATOR);
 
 		try {
 
@@ -129,6 +134,8 @@ public class S3FileSystemTest {
 			try {
 				final FileStatus directoryFileStatus = fs.getFileStatus(bucketPath);
 				assertTrue(directoryFileStatus.isDir());
+				assertEquals(0L, directoryFileStatus.getAccessTime());
+				assertTrue(directoryFileStatus.getModificationTime() > 0L);
 
 			} catch (FileNotFoundException e) {
 				fail(e.getMessage());
@@ -179,6 +186,119 @@ public class S3FileSystemTest {
 	}
 
 	/**
+	 * The tests checks the mapping of the file system directory structure to the underlying bucket/object model of
+	 * Amazon S3.
+	 */
+	@Test
+	public void multiLevelDirectoryTest() {
+
+		final String dirName = getRandomName();
+		final String subdirName = getRandomName();
+		final String subsubdirName = getRandomName();
+		final String fileName = getRandomName();
+		final Path dir = new Path(S3_BASE_URI + dirName + Path.SEPARATOR);
+		final Path subdir = new Path(S3_BASE_URI + dirName + Path.SEPARATOR + subdirName + Path.SEPARATOR);
+		final Path subsubdir = new Path(S3_BASE_URI + dirName + Path.SEPARATOR + subdirName + Path.SEPARATOR
+			+ subsubdirName + Path.SEPARATOR);
+		final Path file = new Path(S3_BASE_URI + dirName + Path.SEPARATOR + subdirName + Path.SEPARATOR + fileName);
+
+		try {
+
+			final FileSystem fs = dir.getFileSystem();
+
+			fs.mkdirs(subsubdir);
+
+			final OutputStream os = fs.create(file, true);
+			generateTestData(os, SMALL_FILE_SIZE);
+			os.close();
+
+			// On this directory levels there should only be one subdirectory
+			FileStatus[] list = fs.listStatus(dir);
+			int numberOfDirs = 0;
+			int numberOfFiles = 0;
+			for (final FileStatus entry : list) {
+
+				if (entry.isDir()) {
+					++numberOfDirs;
+					assertEquals(subdir, entry.getPath());
+				} else {
+					fail(entry.getPath() + " is a file which must not appear on this directory level");
+				}
+			}
+
+			assertEquals(1, numberOfDirs);
+			assertEquals(0, numberOfFiles);
+
+			list = fs.listStatus(subdir);
+			numberOfDirs = 0;
+
+			for (final FileStatus entry : list) {
+				if (entry.isDir()) {
+					assertEquals(subsubdir, entry.getPath());
+					++numberOfDirs;
+				} else {
+					assertEquals(file, entry.getPath());
+					++numberOfFiles;
+				}
+			}
+
+			assertEquals(1, numberOfDirs);
+			assertEquals(1, numberOfFiles);
+
+			fs.delete(dir, true);
+
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		}
+	}
+
+	/**
+	 * This test checks the S3 implementation of the file system method to retrieve the block locations of a file.
+	 */
+	@Test
+	public void blockLocationTest() {
+
+		final String dirName = getRandomName();
+		final String fileName = getRandomName();
+		final Path dir = new Path(S3_BASE_URI + dirName + Path.SEPARATOR);
+		final Path file = new Path(S3_BASE_URI + dirName + Path.SEPARATOR + fileName);
+
+		try {
+
+			final FileSystem fs = dir.getFileSystem();
+
+			fs.mkdirs(dir);
+
+			final OutputStream os = fs.create(file, true);
+			generateTestData(os, SMALL_FILE_SIZE);
+			os.close();
+
+			final FileStatus fileStatus = fs.getFileStatus(file);
+			assertNotNull(fileStatus);
+
+			BlockLocation[] blockLocations = fs.getFileBlockLocations(fileStatus, 0, SMALL_FILE_SIZE + 1);
+			assertNull(blockLocations);
+
+			blockLocations = fs.getFileBlockLocations(fileStatus, 0, SMALL_FILE_SIZE);
+			assertEquals(1, blockLocations.length);
+
+			final BlockLocation bl = blockLocations[0];
+			assertNotNull(bl.getHosts());
+			assertEquals(1, bl.getHosts().length);
+			assertEquals(SMALL_FILE_SIZE, bl.getLength());
+			assertEquals(0, bl.getOffset());
+			final URI s3Uri = fs.getUri();
+			assertNotNull(s3Uri);
+			assertEquals(s3Uri.getHost(), bl.getHosts()[0]);
+
+			fs.delete(dir, true);
+
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		}
+	}
+
+	/**
 	 * Creates and reads a file with the given size in S3. The test file is generated according to a specific pattern.
 	 * During the read phase the incoming data stream is also checked against this pattern.
 	 * 
@@ -195,7 +315,7 @@ public class S3FileSystemTest {
 
 		final String bucketName = getRandomName();
 		final String objectName = getRandomName();
-		final Path bucketPath = new Path(S3_BASE_URI + bucketName);
+		final Path bucketPath = new Path(S3_BASE_URI + bucketName + Path.SEPARATOR);
 		final Path objectPath = new Path(S3_BASE_URI + bucketName + Path.SEPARATOR + objectName);
 
 		FileSystem fs = bucketPath.getFileSystem();

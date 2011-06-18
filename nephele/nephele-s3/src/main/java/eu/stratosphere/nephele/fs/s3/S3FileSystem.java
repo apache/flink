@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -108,26 +109,39 @@ public final class S3FileSystem extends FileSystem {
 	private static final char S3_DIRECTORY_SEPARATOR = '/';
 
 	/**
+	 * The scheme which is used by this file system.
+	 */
+	public static final String S3_SCHEME = "s3";
+
+	/**
 	 * The host to address the REST requests to.
 	 */
 	private String host = null;
 
 	private int port = -1;
 
+	private URI s3Uri = null;
+
 	private AmazonS3Client s3Client = null;
 
 	private S3DirectoryStructure directoryStructure = null;
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Path getWorkingDirectory() {
-		// TODO Auto-generated method stub
-		return null;
+
+		return new Path(this.s3Uri);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public URI getUri() {
-		// TODO Auto-generated method stub
-		return null;
+
+		return this.s3Uri;
 	}
 
 	/**
@@ -220,6 +234,13 @@ public final class S3FileSystem extends FileSystem {
 			}
 		}
 
+		// Set the S3 URI
+		try {
+			this.s3Uri = new URI(S3_SCHEME, (String) null, this.host, this.port, basePath, null, null);
+		} catch (URISyntaxException e) {
+			throw new IOException(StringUtils.stringifyException(e));
+		}
+
 		// Finally, create directory structure object
 		this.directoryStructure = new S3DirectoryStructure(basePath);
 	}
@@ -234,27 +255,38 @@ public final class S3FileSystem extends FileSystem {
 
 		// This is the S3:/// base directory
 		if (!bop.hasBucket() && !bop.hasObject()) {
-
-			return new S3FileStatus(f, 0L, true);
+			return new S3FileStatus(f, 0L, true, 0L, 0L);
 		}
 
 		try {
 			if (bop.hasBucket() && !bop.hasObject()) {
 
-				// Check if the bucket really exists
-				if (!this.s3Client.doesBucketExist(bop.getBucket())) {
-					throw new FileNotFoundException("Cannot find " + f.toUri());
+				final List<Bucket> buckets = this.s3Client.listBuckets();
+				final Iterator<Bucket> it = buckets.iterator();
+
+				// Iterator throw list of buckets to find out creation date
+				while (it.hasNext()) {
+
+					final Bucket bucket = it.next();
+					if (bop.getBucket().equals(bucket.getName())) {
+
+						final long creationDate = dateToLong(bucket.getCreationDate());
+						// S3 does not track access times, so this implementation always sets it to 0
+						return new S3FileStatus(f, 0L, true, creationDate, 0L);
+					}
 				}
 
-				return new S3FileStatus(f, 0L, true);
+				throw new FileNotFoundException("Cannot find " + f.toUri());
 			}
 
 			try {
 				final ObjectMetadata om = this.s3Client.getObjectMetadata(bop.getBucket(), bop.getObject());
+				final long modificationDate = dateToLong(om.getLastModified());
+				// S3 does not track access times, so this implementation always sets it to 0
 				if (objectRepresentsDirectory(bop.getObject(), om.getContentLength())) {
-					return new S3FileStatus(f, 0L, true);
+					return new S3FileStatus(f, 0L, true, modificationDate, 0L);
 				} else {
-					return new S3FileStatus(f, om.getContentLength(), false);
+					return new S3FileStatus(f, om.getContentLength(), false, modificationDate, 0L);
 				}
 
 			} catch (AmazonServiceException e) {
@@ -269,10 +301,29 @@ public final class S3FileSystem extends FileSystem {
 		}
 	}
 
+	private static long dateToLong(final Date date) {
+
+		if (date == null) {
+			return 0L;
+		}
+
+		return date.getTime();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+	public BlockLocation[] getFileBlockLocations(final FileStatus file, final long start, final long len)
+			throws IOException {
+
+		if ((start + len) > file.getLen()) {
+			return null;
+		}
+
+		final S3BlockLocation bl = new S3BlockLocation(this.host, file.getLen());
+
+		return new BlockLocation[] { bl };
 	}
 
 	/**
@@ -323,7 +374,10 @@ public final class S3FileSystem extends FileSystem {
 				int i = 0;
 				while (it.hasNext()) {
 					final Bucket bucket = it.next();
-					final S3FileStatus status = new S3FileStatus(extendPath(f, bucket.getName()), 0, true);
+					final long creationDate = dateToLong(bucket.getCreationDate());
+					// S3 does not track access times, so this implementation always sets it to 0
+					final S3FileStatus status = new S3FileStatus(extendPath(f, bucket.getName()
+						+ S3_DIRECTORY_SEPARATOR), 0, true, creationDate, 0L);
 					array[i++] = status;
 				}
 
@@ -332,52 +386,132 @@ public final class S3FileSystem extends FileSystem {
 
 			if (bop.hasBucket() && !bop.hasObject()) {
 
-				ObjectListing listing = null;
-				final List<S3FileStatus> resultList = new ArrayList<S3FileStatus>();
-
 				// Check if the bucket really exists
 				if (!this.s3Client.doesBucketExist(bop.getBucket())) {
 					throw new FileNotFoundException("Cannot find " + f.toUri());
 				}
 
-				while (true) {
-
-					if (listing == null) {
-						listing = this.s3Client.listObjects(bop.getBucket());
-					} else {
-						listing = this.s3Client.listNextBatchOfObjects(listing);
-					}
-
-					final List<S3ObjectSummary> list = listing.getObjectSummaries();
-					final Iterator<S3ObjectSummary> it = list.iterator();
-					while (it.hasNext()) {
-
-						final S3ObjectSummary os = it.next();
-						if (objectRepresentsDirectory(os)) {
-							resultList.add(new S3FileStatus(extendPath(f, os.getKey()), 0, true));
-						} else {
-							resultList.add(new S3FileStatus(extendPath(f, os.getKey()), os.getSize(), false));
-						}
-					}
-
-					if (!listing.isTruncated()) {
-						break;
-					}
-				}
-
-				return resultList.toArray(new FileStatus[0]);
+				return listBucketContent(f, bop);
 
 			} else {
 
 				final ObjectMetadata omd = this.s3Client.getObjectMetadata(bop.getBucket(), bop.getObject());
+				if (objectRepresentsDirectory(bop.getObject(), omd.getContentLength())) {
+
+					return listBucketContent(f, bop);
+
+				} else {
+					final S3FileStatus fileStatus = new S3FileStatus(f, omd.getContentLength(), false,
+						dateToLong(omd.getLastModified()), 0L);
+
+					return new FileStatus[] { fileStatus };
+				}
 
 			}
 
 		} catch (AmazonClientException e) {
 			throw new IOException(StringUtils.stringifyException(e));
 		}
+	}
 
-		return null;
+	private S3FileStatus[] listBucketContent(final Path f, final S3BucketObjectPair bop) throws IOException {
+
+		ObjectListing listing = null;
+		final List<S3FileStatus> resultList = new ArrayList<S3FileStatus>();
+
+		final int depth = (bop.hasObject() ? getDepth(bop.getObject()) + 1 : 0);
+
+		while (true) {
+
+			if (listing == null) {
+				if (bop.hasObject()) {
+					listing = this.s3Client.listObjects(bop.getBucket(), bop.getObject());
+				} else {
+					listing = this.s3Client.listObjects(bop.getBucket());
+				}
+			} else {
+				listing = this.s3Client.listNextBatchOfObjects(listing);
+			}
+
+			final List<S3ObjectSummary> list = listing.getObjectSummaries();
+			final Iterator<S3ObjectSummary> it = list.iterator();
+			while (it.hasNext()) {
+
+				final S3ObjectSummary os = it.next();
+				String key = os.getKey();
+
+				final int childDepth = getDepth(os.getKey());
+
+				if (childDepth != depth) {
+					continue;
+				}
+
+				// Remove the prefix
+				if (bop.hasObject()) {
+					if (key.startsWith(bop.getObject())) {
+						key = key.substring(bop.getObject().length());
+					}
+
+					// This has been the prefix itself
+					if (key.isEmpty()) {
+						continue;
+					}
+				}
+
+				final long modificationDate = dateToLong(os.getLastModified());
+
+				S3FileStatus fileStatus;
+				if (objectRepresentsDirectory(os)) {
+					fileStatus = new S3FileStatus(extendPath(f, key), 0, true, modificationDate, 0L);
+				} else {
+					fileStatus = new S3FileStatus(extendPath(f, key), os.getSize(), false, modificationDate, 0L);
+				}
+
+				resultList.add(fileStatus);
+			}
+
+			if (!listing.isTruncated()) {
+				break;
+			}
+		}
+
+		/*
+		 * System.out.println("---- RETURN CONTENT ----");
+		 * for (final FileStatus entry : resultList) {
+		 * System.out.println(entry.getPath());
+		 * }
+		 * System.out.println("------------------------");
+		 */
+
+		return resultList.toArray(new S3FileStatus[0]);
+
+	}
+
+	private static int getDepth(final String key) {
+
+		int depth = 0;
+		int nextStartPos = 0;
+
+		final int length = key.length();
+
+		while (nextStartPos < length) {
+
+			final int sepPos = key.indexOf(S3_DIRECTORY_SEPARATOR, nextStartPos);
+			if (sepPos < 0) {
+				break;
+			} else {
+				++depth;
+				nextStartPos = sepPos + 1;
+			}
+		}
+
+		if (length > 0) {
+			if (key.charAt(length - 1) == S3_DIRECTORY_SEPARATOR) {
+				--depth;
+			}
+		}
+
+		return depth;
 	}
 
 	/**
@@ -401,7 +535,7 @@ public final class S3FileSystem extends FileSystem {
 							+ " while performing non-recursive delete");
 					}
 
-					for (FileStatus entry : dirContent) {
+					for (final FileStatus entry : dirContent) {
 
 						if (delete(entry.getPath(), true)) {
 							retVal = true;
@@ -469,15 +603,30 @@ public final class S3FileSystem extends FileSystem {
 					}
 				}
 
-				try {
-					this.s3Client.getObjectMetadata(bop.getBucket(), object);
-				} catch (AmazonServiceException e) {
-					if (e.getStatusCode() == HTTP_RESOURCE_NOT_FOUND_CODE) {
-						createEmptyObject(bop.getBucket(), object);
-					} else {
-						// Rethrow the exception
-						throw e;
+				while (true) {
+
+					try {
+						this.s3Client.getObjectMetadata(bop.getBucket(), object);
+					} catch (AmazonServiceException e) {
+						if (e.getStatusCode() == HTTP_RESOURCE_NOT_FOUND_CODE) {
+							createEmptyObject(bop.getBucket(), object);
+
+							if (object.length() > 1) {
+								final int nextPos = object.lastIndexOf(S3_DIRECTORY_SEPARATOR, object.length() - 2);
+								if (nextPos >= 0) {
+									object = object.substring(0, nextPos + 1);
+									continue;
+								}
+							}
+
+						} else {
+							// Rethrow the exception
+							throw e;
+						}
 					}
+
+					// Object already exists, exit
+					break;
 				}
 			}
 		} catch (AmazonClientException e) {
@@ -539,32 +688,6 @@ public final class S3FileSystem extends FileSystem {
 
 		return create(f, overwrite, S3DataOutputStream.MINIMUM_MULTIPART_SIZE, (short) 1, 1024L);
 	}
-
-	/*
-	 * static String getElementFromPath(final Path path, final int pos) {
-	 * if (pos >= path.depth() || pos < 0) {
-	 * return null;
-	 * }
-	 * final String p = path.toUri().getPath();
-	 * int count = 0;
-	 * int startPos = 1;
-	 * int endPos = -1;
-	 * while (count <= pos) {
-	 * if (endPos > 0) {
-	 * startPos = endPos + 1;
-	 * }
-	 * endPos = p.indexOf(Path.SEPARATOR, startPos);
-	 * if (endPos < 0) {
-	 * break;
-	 * }
-	 * ++count;
-	 * }
-	 * if (endPos < 0) {
-	 * endPos = p.length();
-	 * }
-	 * return p.substring(startPos, endPos);
-	 * }
-	 */
 
 	private boolean objectRepresentsDirectory(final S3ObjectSummary os) {
 
