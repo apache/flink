@@ -28,8 +28,10 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
+import eu.stratosphere.nephele.jobmanager.splitassigner.file.FileInputSplitAssigner;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplit;
@@ -215,9 +217,9 @@ public final class InputSplitManager {
 		String assignerClassName = GlobalConfiguration.getString(assignerKey, null);
 
 		// Provide hard-wired default configuration for FileInputSplit objects to make configuration more robust
-		/*if (assignerClassName == null && FileInputSplit.class.getSimpleName().equals(typeClassName)) {
+		if (assignerClassName == null && FileInputSplit.class.getSimpleName().equals(typeClassName)) {
 			assignerClassName = FileInputSplitAssigner.class.getName();
-		}*/
+		}
 
 		try {
 
