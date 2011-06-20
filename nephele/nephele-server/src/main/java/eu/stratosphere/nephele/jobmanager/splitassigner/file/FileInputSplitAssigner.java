@@ -15,10 +15,20 @@
 
 package eu.stratosphere.nephele.jobmanager.splitassigner.file;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitAssigner;
+import eu.stratosphere.nephele.template.AbstractFileInputTask;
+import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplit;
 
 /**
@@ -31,13 +41,75 @@ import eu.stratosphere.nephele.template.InputSplit;
  * 
  * @author warneke
  */
-public class FileInputSplitAssigner implements InputSplitAssigner {
+public final class FileInputSplitAssigner implements InputSplitAssigner {
+
+	/**
+	 * The logging object which is used to report information and errors.
+	 */
+	private static final Log LOG = LogFactory.getLog(FileInputSplitAssigner.class);
+
+	private final ConcurrentMap<ExecutionGroupVertex, FileInputSplitList> vertexMap = new ConcurrentHashMap<ExecutionGroupVertex, FileInputSplitList>();
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerGroupVertex(ExecutionGroupVertex groupVertex) {
+	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
+
+		// Do some sanity checks first
+		final ExecutionVertex vertex = groupVertex.getGroupMember(0);
+		final AbstractInvokable invokable = vertex.getEnvironment().getInvokable();
+
+		if (!(invokable instanceof AbstractFileInputTask)) {
+			LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
+			return;
+		}
+
+		@SuppressWarnings("unchecked")
+		final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
+		if (!FileInputSplit.class.equals(inputTask.getInputSplitType())) {
+			LOG.error(groupVertex.getName() + " produces input splits of type " + inputTask.getInputSplitType()
+				+ " and cannot be handled by this split assigner");
+			return;
+		}
+
+		// Ignore vertices that do not produce splits
+		final InputSplit[] inputSplits = groupVertex.getInputSplits();
+		if (inputSplits == null) {
+			return;
+		}
+
+		if (inputSplits.length == 0) {
+			return;
+		}
+
+		final FileInputSplitList splitStore = new FileInputSplitList();
+		if (this.vertexMap.putIfAbsent(groupVertex, splitStore) != null) {
+			LOG.error(groupVertex.getName()
+				+ " appears to be already registered with the file input split assigner, ignoring vertex...");
+			return;
+		}
+
+		synchronized (splitStore) {
+
+			for (int i = 0; i < inputSplits.length; ++i) {
+				// TODO: Improve this
+				final InputSplit inputSplit = inputSplits[i];
+				if (inputSplit instanceof FileInputSplit) {
+					LOG.error("Input split " + i + " of vertex " + groupVertex.getName() + " is of type "
+						+ inputSplit.getClass() + ", ignoring split...");
+				}
+				splitStore.addSplit((FileInputSplit) inputSplit);
+			}
+
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
 		// TODO Auto-generated method stub
 
 	}
@@ -46,18 +118,22 @@ public class FileInputSplitAssigner implements InputSplitAssigner {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void unregisterGroupVertex(ExecutionGroupVertex groupVertex) {
-		// TODO Auto-generated method stub
+	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
 
-	}
+		final ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
+		final FileInputSplitList splitStore = this.vertexMap.get(groupVertex);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public InputSplit getNextInputSplit(ExecutionVertex vertex) {
-		// TODO Auto-generated method stub
-		return null;
+		if (splitStore == null) {
+			return null;
+		}
+
+		final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+		if (instance == null) {
+			LOG.error("Instance is null, returning random split");
+			return null;
+		}
+
+		return splitStore.getNextInputSplit(instance);
 	}
 
 }
