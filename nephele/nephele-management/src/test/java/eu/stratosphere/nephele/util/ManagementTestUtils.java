@@ -21,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
@@ -31,6 +32,16 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * @author warneke
  */
 public final class ManagementTestUtils {
+
+	/**
+	 * The system property key to retrieve the user directory.
+	 */
+	private static final String USER_DIR_KEY = "user.dir";
+
+	/**
+	 * The directory the configuration directory is expected in when test are executed using Eclipse.
+	 */
+	private static final String ECLIPSE_PATH_EXTENSION = "/src/test/resources";
 
 	/**
 	 * Private constructor, so class cannot be instantiated.
@@ -98,5 +109,29 @@ public final class ManagementTestUtils {
 		}
 
 		return copy;
+	}
+
+	/**
+	 * Locates a file-based resource that is used during testing. The method makes sure that the resource is always
+	 * located correctly, no matter if the test is executed in maven or Eclipse.
+	 * 
+	 * @param resourceName
+	 *        the name of the resource to be located
+	 * @return a file object pointing to the resource or <code>null</code> if the resource could not be located
+	 */
+	public static File locateResource(final String resourceName) {
+
+		// This is the correct path for Maven-based tests
+		File file = new File(System.getProperty(USER_DIR_KEY) + File.separator + resourceName);
+		if (file.exists()) {
+			return file;
+		}
+
+		file = new File(System.getProperty(USER_DIR_KEY) + ECLIPSE_PATH_EXTENSION + File.separator + resourceName);
+		if (file.exists()) {
+			return file;
+		}
+
+		return null;
 	}
 }
