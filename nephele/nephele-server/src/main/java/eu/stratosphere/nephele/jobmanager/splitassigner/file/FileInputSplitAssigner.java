@@ -95,9 +95,10 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 			for (int i = 0; i < inputSplits.length; ++i) {
 				// TODO: Improve this
 				final InputSplit inputSplit = inputSplits[i];
-				if (inputSplit instanceof FileInputSplit) {
+				if (!(inputSplit instanceof FileInputSplit)) {
 					LOG.error("Input split " + i + " of vertex " + groupVertex.getName() + " is of type "
 						+ inputSplit.getClass() + ", ignoring split...");
+					continue;
 				}
 				splitStore.addSplit((FileInputSplit) inputSplit);
 			}
