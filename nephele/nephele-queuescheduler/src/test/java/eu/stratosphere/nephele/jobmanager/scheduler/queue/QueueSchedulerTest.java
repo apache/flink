@@ -46,6 +46,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -72,6 +73,9 @@ public class QueueSchedulerTest {
 	@Mock
 	private ExecutionGraph executionGraph;
 
+	@Mock
+	private ExecutionStage stage1;
+	
 	@Mock
 	private ExecutionVertex vertex1;
 
@@ -118,7 +122,10 @@ public class QueueSchedulerTest {
 		}
 
 		when(this.executionGraph.getNumberOfStages()).thenReturn(1);
+		when(this.executionGraph.getStage(0)).thenReturn(this.stage1);
+		when(this.executionGraph.getCurrentExecutionStage()).thenReturn(this.stage1);
 		when(this.instanceManager.getMapOfAvailableInstanceTypes()).thenReturn(availableInstances);
+		when(this.stage1.getExecutionGraph()).thenReturn(this.executionGraph);
 
 		// correct walk through method
 		final QueueScheduler toTest = new QueueScheduler(deploymentManager, this.instanceManager);
