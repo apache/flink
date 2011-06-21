@@ -8,10 +8,18 @@ public class TeraInputFormat extends TextInputFormat<TeraKey, TeraValue> {
 	@Override
 	public boolean readLine(KeyValuePair<TeraKey, TeraValue> pair, byte[] record) {
 		
-		System.out.println("Record length: " + record.length);
+		if(record.length != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
+			return false;
+		}
 		
-		// TODO Auto-generated method stub
-		return false;
+		final TeraKey key = new TeraKey(record);
+		final TeraValue value = new TeraValue(record);
+		pair.setKey(key);
+		pair.setValue(value);
+		
+		System.out.println("VALUE: " + value);
+		
+		return true;
 	}
 
 	

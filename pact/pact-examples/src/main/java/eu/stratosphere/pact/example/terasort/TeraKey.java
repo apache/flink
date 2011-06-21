@@ -12,6 +12,14 @@ public class TeraKey implements Key {
 
 	private final byte[] key = new byte[KEY_SIZE];
 
+	public TeraKey(final byte[] srcBuf) {
+		System.arraycopy(srcBuf, 0, this.key, 0, KEY_SIZE);
+	}
+
+	public TeraKey() {
+
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -55,7 +63,7 @@ public class TeraKey implements Key {
 	}
 
 	public void copyToBuffer(final byte[] buf) {
-		
+
 		System.arraycopy(this.key, 0, buf, 0, KEY_SIZE);
 	}
 }

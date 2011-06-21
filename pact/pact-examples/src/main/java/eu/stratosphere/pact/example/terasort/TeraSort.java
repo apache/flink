@@ -27,6 +27,10 @@ public class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 		final int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String input = (args.length > 1 ? args[1] : "");
 		final String output = (args.length > 2 ? args[2] : "");
+		
+		System.out.println("Number of subtasks: " + noSubTasks);
+		System.out.println("Input path: " + input);
+		System.out.println("Output path: " + output);
 
 		final DataSourceContract<TeraKey, TeraValue> source = new DataSourceContract<TeraKey, TeraValue>(
 				TeraInputFormat.class, input, "Data Source");

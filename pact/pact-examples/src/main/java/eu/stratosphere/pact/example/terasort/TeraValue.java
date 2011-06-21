@@ -6,11 +6,18 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Value;
 
-public class TeraValue implements Value {
+public final class TeraValue implements Value {
 
-	public static final int VALUE_SIZE = 90;
+	public static final int VALUE_SIZE = 89;
 
 	private final byte[] value = new byte[VALUE_SIZE];
+
+	public TeraValue(final byte[] srcBuf) {
+		System.arraycopy(srcBuf, TeraKey.KEY_SIZE, this.value, 0, VALUE_SIZE);
+	}
+
+	public TeraValue() {
+	}
 
 	/**
 	 * {@inheritDoc}
@@ -33,5 +40,11 @@ public class TeraValue implements Value {
 	public void copyToBuffer(final byte[] buf) {
 
 		System.arraycopy(this.value, 0, buf, TeraKey.KEY_SIZE, VALUE_SIZE);
+	}
+
+	@Override
+	public String toString() {
+
+		return new String(this.value);
 	}
 }
