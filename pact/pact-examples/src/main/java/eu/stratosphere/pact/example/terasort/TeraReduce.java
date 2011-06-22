@@ -15,34 +15,28 @@
 
 package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import java.util.Iterator;
+
+import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.pact.common.stub.ReduceStub;
 
 /**
- * The class is responsible for converting a key-value pair back into a line which is afterward written back to disk.
- * Each line ends with a newline character.
+ * This is a stub class implementing a PACT Reduce contract. Its only purpose is to forward the sorted key-value pairs.
  * 
  * @author warneke
  */
-public final class TeraOutputFormat extends TextOutputFormat<TeraKey, TeraValue> {
-
-	/**
-	 * A buffer to store the line which is about to be written back to disk.
-	 */
-	private final byte[] buffer = new byte[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE + 1];
+public final class TeraReduce extends ReduceStub<TeraKey, TeraValue, TeraKey, TeraValue> {
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public byte[] writeLine(KeyValuePair<TeraKey, TeraValue> pair) {
+	public void reduce(TeraKey key, Iterator<TeraValue> values, Collector<TeraKey, TeraValue> out) {
 
-		pair.getKey().copyToBuffer(this.buffer);
-		pair.getValue().copyToBuffer(this.buffer);
+		while (values.hasNext()) {
+			out.collect(key, values.next());
+		}
 
-		this.buffer[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE] = '\n';
-
-		return this.buffer;
 	}
 
 }
