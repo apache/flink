@@ -208,16 +208,18 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		// Register the scheduler as an execution stage listener
 		executionGraph.registerExecutionStageListener(this);
 
+		// Add job to the job queue (important to add job to queue before requesting instances)
+		synchronized (this.jobQueue) {
+			this.jobQueue.add(executionGraph);
+		}
+
 		// Request resources for the first stage of the job
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 		try {
 			requestInstances(executionStage);
 		} catch (InstanceException e) {
-			throw new SchedulingException(StringUtils.stringifyException(e));
-		}
-
-		synchronized (this.jobQueue) {
-			this.jobQueue.add(executionGraph);
+			// TODO: Handle this error correctly
+			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
 
@@ -365,6 +367,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			try {
 				requestInstances(executionStage);
 			} catch (InstanceException e) {
+				// TODO: Handle error correctly
 				LOG.error(StringUtils.stringifyException(e));
 			}
 
