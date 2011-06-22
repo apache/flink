@@ -201,8 +201,7 @@ public class MatchNode extends TwoInputNode {
 			if (this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
 				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
 			} else {
-				// multiply the selectivity (if any, otherwise 1) to the input size
-				// the input size is depending on the keys/value of the inputs.
+				// estimate values per key for each input
 				float vpk1 = -1.0f, vpk2 = -1.0f;
 				if (pred1.estimatedNumRecords != -1 && pred1.estimatedKeyCardinality != -1) {
 					vpk1 = pred1.estimatedNumRecords / ((float) pred1.estimatedKeyCardinality);
@@ -211,18 +210,20 @@ public class MatchNode extends TwoInputNode {
 					vpk2 = pred2.estimatedNumRecords / ((float) pred2.estimatedKeyCardinality);
 				}
 				if (vpk1 >= 1.0f && vpk2 >= 1.0f) {
-					// new values per key is the product of the values per key
-					long numInKeys = Math.max(pred1.estimatedKeyCardinality, pred2.estimatedKeyCardinality);
-					this.estimatedNumRecords = (long) (numInKeys * vpk1 * vpk2) + 1;
-					if (hints.getSelectivity() >= 0.0f) {
-						this.estimatedNumRecords = (long) (this.estimatedNumRecords * hints.getSelectivity()) + 1;
-					}
+					// estimate the number of stub calls
+					long numInKeys = Math.min(pred1.estimatedKeyCardinality, pred2.estimatedKeyCardinality);
+					long estNumStubCalls = (long) (numInKeys * vpk1 * vpk2) + 1;
+					
+					// estimate number of records
+					this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
 
 					// if we have the records and a values/key hints, use that to reversely estimate the number of keys
 					if (this.estimatedKeyCardinality == -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
 						this.estimatedKeyCardinality = (long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) + 1;
 					}
+					
 				}
+
 			}
 
 			// try to estimate the data volume
@@ -311,16 +312,16 @@ public class MatchNode extends TwoInputNode {
 		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
 		p.getLocalProperties().setKeyOrder(Order.ANY);
 
-		estimator.getHashPartitioningCost(this, input.getSourcePact(), p.getMaximalCosts());
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		Costs c = new Costs();
-		estimator.getLocalSortCost(this, input.getSourcePact(), c);
+		estimator.getLocalSortCost(this, input, c);
 		p.getMaximalCosts().addCosts(c);
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 
 		// partition only
 		p = new InterestingProperties();
 		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-		estimator.getHashPartitioningCost(this, input.getSourcePact(), p.getMaximalCosts());
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 	}
 

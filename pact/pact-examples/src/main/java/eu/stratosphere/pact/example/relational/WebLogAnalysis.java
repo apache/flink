@@ -271,34 +271,34 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		MapContract<PactString, Tuple, PactString, PactNull> filterDocs = new MapContract<PactString, Tuple, PactString, PactNull>(
 				FilterDocs.class, "Filter Docs");
 		filterDocs.setDegreeOfParallelism(noSubTasks);
-		filterDocs.getCompilerHints().setSelectivity(0.15f);
+		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 
 		// Create MapContract for filtering the entries from the ranks relation
 		MapContract<PactString, Tuple, PactString, Tuple> filterRanks = new MapContract<PactString, Tuple, PactString, Tuple>(
 				FilterRanks.class, "Filter Ranks");
 		filterRanks.setDegreeOfParallelism(noSubTasks);
-		filterRanks.getCompilerHints().setSelectivity(0.25f);
+		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
 
 		// Create MapContract for filtering the entries from the visits relation
 		MapContract<PactString, Tuple, PactString, PactNull> filterVisits = new MapContract<PactString, Tuple, PactString, PactNull>(
 				FilterVisits.class, "Filter Visits");
 		filterVisits.setDegreeOfParallelism(noSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
-		filterVisits.getCompilerHints().setSelectivity(0.2f);
+		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
 		// Create MatchContract to join the filtered documents and ranks
 		// relation
 		MatchContract<PactString, Tuple, PactNull, PactString, Tuple> joinDocsRanks = new MatchContract<PactString, Tuple, PactNull, PactString, Tuple>(
 				JoinDocRanks.class, "Join DocRanks");
 		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
-		joinDocsRanks.getCompilerHints().setSelectivity(0.15f);
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
 		CoGroupContract<PactString, PactNull, Tuple, PactString, Tuple> antiJoinVisits = new CoGroupContract<PactString, PactNull, Tuple, PactString, Tuple>(
 				AntiJoinVisits.class, "Antijoin DocsVisits");
 		antiJoinVisits.setDegreeOfParallelism(noSubTasks);
+		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
 		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(

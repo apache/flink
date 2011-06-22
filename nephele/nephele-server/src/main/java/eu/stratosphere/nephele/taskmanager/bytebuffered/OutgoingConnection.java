@@ -21,15 +21,12 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 
 /**
@@ -462,42 +459,6 @@ public class OutgoingConnection {
 			}
 
 			return number;
-		}
-	}
-
-	/**
-	 * Removes all queued {@link TransferEnvelope} objects from the transmission which match the given channel ID. The
-	 * flag <code>source</code> states whether the given channel ID refers to the source or the destination channel ID.
-	 * <p>
-	 * This method should only be called by the byte buffered channel manager.
-	 * 
-	 * @param channelID
-	 *        the channel ID to count the queued envelopes for
-	 * @param source
-	 *        <code>true</code> to indicate the given channel ID refers to the source, <code>false</code> otherwise
-	 */
-	public void dropAllQueuedEnvelopesForChannel(ChannelID channelID, boolean source) {
-
-		List<Buffer> buffersToRecycle = new ArrayList<Buffer>();
-
-		synchronized (this.queuedEnvelopes) {
-
-			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
-			while (it.hasNext()) {
-				final TransferEnvelope te = it.next();
-				if ((source && channelID.equals(te.getSource())) || (!source && channelID.equals(te.getTarget()))) {
-					it.remove();
-					if (te.getBuffer() != null) {
-						buffersToRecycle.add(te.getBuffer());
-					}
-				}
-			}
-		}
-
-		// Recycle buffer outside of queuedEnvelopes monitor, otherwise dead locks might occur
-		final Iterator<Buffer> it = buffersToRecycle.iterator();
-		while (it.hasNext()) {
-			it.next().recycleBuffer();
 		}
 	}
 

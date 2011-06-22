@@ -16,7 +16,18 @@
 package eu.stratosphere.nephele.executiongraph;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.DummyInstance;
+import eu.stratosphere.nephele.instance.InstanceType;
 
 /**
  * An execution stage contains all execution group vertices (and as a result all execution vertices) which
@@ -27,6 +38,16 @@ import java.util.Iterator;
  * @author warneke
  */
 public class ExecutionStage {
+
+	/**
+	 * The log object used for debugging.
+	 */
+	private static final Log LOG = LogFactory.getLog(ExecutionStage.class);
+
+	/**
+	 * The execution graph that this stage belongs to.
+	 */
+	private final ExecutionGraph executionGraph;
 
 	/**
 	 * List of group vertices which are assigned to this stage.
@@ -41,10 +62,13 @@ public class ExecutionStage {
 	/**
 	 * Constructs a new execution stage and assigns the given stage number to it.
 	 * 
+	 * @param executionGraph
+	 *        the executionGraph that this stage belongs to
 	 * @param stageNum
 	 *        the number of this execution stage
 	 */
-	public ExecutionStage(int stageNum) {
+	public ExecutionStage(ExecutionGraph executionGraph, int stageNum) {
+		this.executionGraph = executionGraph;
 		this.stageNum = stageNum;
 	}
 
@@ -239,6 +263,58 @@ public class ExecutionStage {
 		}
 
 		return null;
+	}
 
+	/**
+	 * Checks which instance types and how many instances of these types are required to execute this stage
+	 * of the job graph. The required instance types and the number of instances are collected in the given map. Note
+	 * that this method does not clear the map before collecting the instances.
+	 * 
+	 * @param instanceTypeMap
+	 *        the map containing the instances types and the required number of instances of the respective type
+	 * @param executionState
+	 *        the execution state the considered vertices must be in
+	 */
+	public void collectRequiredInstanceTypes(final Map<InstanceType, Integer> instanceTypeMap,
+			final ExecutionState executionState) {
+
+		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
+
+		for (int i = 0; i < getNumberOfStageMembers(); i++) {
+			final ExecutionGroupVertex groupVertex = getStageMember(i);
+
+			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
+				// Get the instance type from the execution vertex if it
+				final ExecutionVertex vertex = groupVertex.getGroupMember(j);
+				if (vertex.getExecutionState() == executionState) {
+					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+					if (collectedInstances.contains(instance)) {
+						continue;
+					} else {
+						collectedInstances.add(instance);
+					}
+
+					if (instance instanceof DummyInstance) {
+						Integer num = instanceTypeMap.get(instance.getType());
+						num = (num == null) ? Integer.valueOf(1) : Integer.valueOf(num.intValue() + 1);
+						instanceTypeMap.put(instance.getType(), num);
+					} else {
+						LOG.debug("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
+							+ ") is already assigned to non-dummy instance, skipping...");
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Returns the execution graph that this stage belongs to.
+	 * 
+	 * @return the execution graph that this stage belongs to
+	 */
+	public ExecutionGraph getExecutionGraph() {
+
+		return this.executionGraph;
 	}
 }

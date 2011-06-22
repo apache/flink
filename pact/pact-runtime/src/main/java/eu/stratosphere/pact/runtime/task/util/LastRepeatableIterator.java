@@ -21,8 +21,7 @@ import java.util.Iterator;
  * A LastRepeatableIterator allows to repeat the last emitted object again. 
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
- * @param <E>
+ * @param <E> The type of element that the iterator iterates over.
  */
 public interface LastRepeatableIterator<E> extends Iterator<E> {
 
@@ -32,5 +31,4 @@ public interface LastRepeatableIterator<E> extends Iterator<E> {
 	 * @return The last returned element.
 	 */
 	public E repeatLast();
-	
 }

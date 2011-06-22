@@ -140,7 +140,7 @@ public class SortMergeCoGroupIteratorITCase {
 				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
-						MEMORY_SIZE, 64, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
 			iterator.open();
 			while (iterator.next()) {
@@ -203,7 +203,7 @@ public class SortMergeCoGroupIteratorITCase {
 				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
-						MEMORY_SIZE, 64, LocalStrategy.SORT_FIRST_MERGE, parentTask);
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
 	
 			iterator.open();
 			while (iterator.next()) {
@@ -265,7 +265,7 @@ public class SortMergeCoGroupIteratorITCase {
 				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
-						MEMORY_SIZE, 64, LocalStrategy.SORT_SECOND_MERGE, parentTask);
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
 	
 			iterator.open();
 			while (iterator.next()) {
@@ -327,7 +327,7 @@ public class SortMergeCoGroupIteratorITCase {
 				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
 						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
 						TestData.Value.class, TestData.Value.class,
-						MEMORY_SIZE, 64, LocalStrategy.MERGE, parentTask);
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.MERGE, parentTask);
 	
 			iterator.open();
 			while (iterator.next()) {

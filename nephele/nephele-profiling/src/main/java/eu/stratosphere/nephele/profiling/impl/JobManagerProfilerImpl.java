@@ -122,8 +122,8 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	private void dispatchThreadData(long timestamp, InternalExecutionVertexThreadProfilingData profilingData) {
 
 		final long profilingStart = getProfilingStart(profilingData.getJobID());
-		if (profilingStart < 0) {
-			LOG.error("Received profiling data for unregistered job " + profilingData.getJobID());
+		if (profilingStart < 0 && LOG.isDebugEnabled()) {
+			LOG.debug("Received profiling data for unregistered job " + profilingData.getJobID());
 			return;
 		}
 

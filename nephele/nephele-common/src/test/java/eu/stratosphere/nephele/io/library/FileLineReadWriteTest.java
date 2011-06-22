@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.io.library;
 
-
-
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -43,25 +41,35 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.StringRecord;
 
 /**
- * This class checks the functionality of the {@link FileLineReader} and the {@link FileLineWriter} class. 
+ * This class checks the functionality of the {@link FileLineReader} and the {@link FileLineWriter} class.
+ * 
  * @author marrus
- *
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(FileLineReader.class)
 public class FileLineReadWriteTest {
+
 	@Mock
-	Environment environment; 
+	private Environment environment;
+
 	@Mock
-	Configuration conf;
+	private Configuration conf;
+
 	@Mock
-	RecordReader<StringRecord> recordReader;
+	private RecordReader<StringRecord> recordReader;
+
 	@Mock
-	RecordWriter<StringRecord> recordWriter;
-	File file = new File("./tmp");
+	private RecordWriter<StringRecord> recordWriter;
+
+	@Mock
+	private InputSplitProvider inputSplitProvider;
+
+	private File file = new File("./tmp");
+
 	/**
 	 * Set up mocks
 	 * 
@@ -69,30 +77,34 @@ public class FileLineReadWriteTest {
 	 */
 	@Before
 	public void before() throws Exception {
-		
+
 		MockitoAnnotations.initMocks(this);
 	}
+
 	/**
 	 * remove the temporary file
 	 */
 	@After
-	public void after(){
+	public void after() {
 		this.file.delete();
 	}
-	
+
 	/**
-	 * Tests the read and write methods 
+	 * Tests the read and write methods
+	 * 
 	 * @throws Exception
 	 */
 	@Test
-	public void testReadWrite() throws Exception{
+	public void testReadWrite() throws Exception {
+
 		this.file.createNewFile();
 		FileLineWriter writer = new FileLineWriter();
 		Whitebox.setInternalState(writer, "environment", this.environment);
 		Whitebox.setInternalState(writer, "input", this.recordReader);
 		when(this.environment.getRuntimeConfiguration()).thenReturn(this.conf);
+
 		when(this.conf.getString("outputPath", null)).thenReturn(this.file.toURI().toString());
-		when(this.recordReader.hasNext()).thenReturn(true,true,true,false);
+		when(this.recordReader.hasNext()).thenReturn(true, true, true, false);
 		StringRecord in = new StringRecord("abc");
 		try {
 			when(this.recordReader.next()).thenReturn(in);
@@ -104,20 +116,22 @@ public class FileLineReadWriteTest {
 			e.printStackTrace();
 		}
 		writer.invoke();
-		
-		FileInputSplit split = new FileInputSplit(new Path(this.file.toURI().toString()), 0, this.file.length(), null);
-		FileInputSplit[] splits = {split};
+
+		final FileInputSplit split = new FileInputSplit(0, new Path(this.file.toURI().toString()), 0,
+			this.file.length(), null);
+		when(this.environment.getInputSplitProvider()).thenReturn(this.inputSplitProvider);
+		when(this.inputSplitProvider.getNextInputSplit()).thenReturn(split, (FileInputSplit) null);
+
 		FileLineReader reader = new FileLineReader();
 		Whitebox.setInternalState(reader, "environment", this.environment);
 		Whitebox.setInternalState(reader, "output", this.recordWriter);
 		StringRecord record = mock(StringRecord.class);
-		
+
 		whenNew(StringRecord.class).withNoArguments().thenReturn(record);
-		
-		when(this.environment.getInputSplits()).thenReturn(splits);
+
 		reader.invoke();
-		
-		//verify the correct bytes have been written and read
+
+		// verify the correct bytes have been written and read
 		verify(record, times(3)).set(in.getBytes());
 	}
 }

@@ -26,10 +26,7 @@ import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Serializer;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactString;
+
 
 /**
  * Serialization factory for {@link IOReadableWritable}s.
@@ -38,6 +35,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * @author Stephan Ewen
  * @param <T>
  */
+@SuppressWarnings("unused")
 public class WritableSerializationFactory<T extends IOReadableWritable> implements SerializationFactory<T> {
 	private final Class<T> clazz;
 
@@ -117,12 +115,12 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 	private static final Map<Class<? extends IOReadableWritable>, RawComparator> rawComparators = 
 		new HashMap<Class<? extends IOReadableWritable>, RawComparator>(10);
 
-	static {
-		rawComparators.put(PactInteger.class, new PactIntergerBigEndianComparator());
-		rawComparators.put(PactLong.class, new PactLongBigEndianComparator());
-		rawComparators.put(PactDouble.class, new PactDoubleBigEndianComparator());
-		rawComparators.put(PactString.class, new PactStringComparator());
-	}
+//	static {
+//		rawComparators.put(PactInteger.class, new PactIntergerBigEndianComparator());
+//		rawComparators.put(PactLong.class, new PactLongBigEndianComparator());
+//		rawComparators.put(PactDouble.class, new PactDoubleBigEndianComparator());
+//		rawComparators.put(PactString.class, new PactStringComparator());
+//	}
 
 	private static final class PactIntergerBigEndianComparator implements RawComparator {
 		/*
@@ -130,7 +128,7 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)
 		 */
 		@Override
-		public int compare(byte[] key1, byte[] key2, int start1, int start2, int len1, int len2) {
+		public int compare(byte[] key1, byte[] key2, int start1, int start2) {
 			for (int i = 0; i < 4; i++) {
 				byte b1 = key1[start1 + i];
 				byte b2 = key2[start2 + i];
@@ -152,7 +150,7 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)
 		 */
 		@Override
-		public int compare(byte[] key1, byte[] key2, int start1, int start2, int len1, int len2) {
+		public int compare(byte[] key1, byte[] key2, int start1, int start2) {
 			for (int i = 0; i < 8; i++) {
 				byte b1 = key1[start1 + i];
 				byte b2 = key2[start2 + i];
@@ -174,7 +172,7 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)
 		 */
 		@Override
-		public int compare(byte[] key1, byte[] key2, int start1, int start2, int len1, int len2) {
+		public int compare(byte[] key1, byte[] key2, int start1, int start2) {
 			long bits1 = (((long) key1[start1] & 0xff) << 56) | (((long) key1[start1 + 1] & 0xff) << 48)
 				| (((long) key1[start1 + 2] & 0xff) << 40) | (((long) key1[start1 + 3] & 0xff) << 32)
 				| (((long) key1[start1 + 4] & 0xff) << 24) | (((long) key1[start1 + 5] & 0xff) << 16)
@@ -198,7 +196,7 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 		 * @see eu.stratosphere.nephele.services.iomanager.RawComparator#compare(byte[], byte[], int, int, int, int)
 		 */
 		@Override
-		public int compare(byte[] key1, byte[] key2, int start1, int start2, int len1, int len2) {
+		public int compare(byte[] key1, byte[] key2, int start1, int start2) {
 			final int maxBit = 0x1 << 7;
 
 			int l1 = key1[start1++];

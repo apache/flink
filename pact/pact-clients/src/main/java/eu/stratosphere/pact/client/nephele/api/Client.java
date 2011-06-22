@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.client.nephele.api;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -31,6 +32,7 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 
@@ -107,6 +109,20 @@ public class Client {
 	}
 	
 	/**
+	 * Optimizes a given PACT program and returns the optimized plan as JSON string.
+	 * 
+	 * @param prog The PACT program to be compiled to JSON.
+	 * @return A JSON string representation of the optimized input plan.
+	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
+	 * @throws ProgramInvocationException Thrown, if the pact program could not be instantiated from its jar file.
+	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
+	 */
+	public String getJSONPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		JSONGenerator jsonGen = new JSONGenerator();
+		return jsonGen.compilePlanToJSON(this.getOptimizedPlan(prog));
+	}
+	
+	/**
 	 * Creates the job-graph, which is ready for submission, from a compiled and optimized pact program.
 	 * The original pact-program is required to access the original jar file.
 	 * 
@@ -114,10 +130,23 @@ public class Client {
 	 * @param optPlan The optimized plan.
 	 * @return The nephele job graph, generated from the optimized plan.
 	 */
-	public JobGraph getJobGraph(PactProgram prog, OptimizedPlan optPlan) {
+	public JobGraph getJobGraph(PactProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
 		JobGraphGenerator gen = new JobGraphGenerator();
 		JobGraph job = gen.compileJobGraph(optPlan);
 		job.addJar(new Path(prog.getJarFile().getAbsolutePath()));
+		
+		try {
+			File[] containedJars = prog.extractContainedLibaries();
+			if (containedJars != null) {
+				for (int i = 0; i < containedJars.length; i++) {
+					job.addJar(new Path(containedJars[i].getAbsolutePath()));
+				}
+			}
+		}
+		catch (IOException ioex) {
+			throw new ProgramInvocationException("Could not extract the nested libraries: " + ioex.getMessage(), ioex);
+		}
+		
 		return job;
 	}
 	
@@ -171,7 +200,7 @@ public class Client {
 	}
 	
 	/**
-	 * Submits the given program to the nephele job-manager for execution. The first step of teh compilation process is skipped and
+	 * Submits the given program to the nephele job-manager for execution. The first step of the compilation process is skipped and
 	 * the given compiled plan is taken.
 	 * 
 	 * @param prog The original pact program.
@@ -184,7 +213,7 @@ public class Client {
 	 */
 	public void run(PactProgram prog, OptimizedPlan compiledPlan, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(prog, compiledPlan);
-		run(job, wait);
+		run(prog, job, wait);
 	}
 
 	/**
@@ -195,25 +224,26 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(JobGraph jobGraph) throws ProgramInvocationException {
-		run (jobGraph, false);
+	public void run(PactProgram program, JobGraph jobGraph) throws ProgramInvocationException {
+		run(program, jobGraph, false);
 	}
 	/**
 	 * Submits the job-graph to the nephele job-manager for execution.
 	 * 
 	 * @param prog The program to be submitted.
+	 * @param wait Method will block until the job execution is finished if set to true. 
+	 *               If set to false, the method will directly return after the job is submitted. 
 	 * @throws ProgramInvocationException Thrown, if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
 	 */
-	public void run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
-		// submit job to nephele
-		nepheleConfig.setBoolean("jobclient.shutdown.terminatejob", false); // TODO: terminate job logic is broken
-
+	public void run(PactProgram program, JobGraph jobGraph, boolean wait) throws ProgramInvocationException
+	{
 		JobClient client;
 		try {
 			client = new JobClient(jobGraph, nepheleConfig);
-		} catch (IOException e) {
+		}
+		catch (IOException e) {
 			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage());
 		}
 
@@ -234,7 +264,14 @@ public class Client {
 			throw new ProgramInvocationException("Could not submit job to job manager: " + e.getMessage());
 		}
 		catch (JobExecutionException jex) {
-			throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
+			if(jex.isJobCanceledByUser()) {
+				throw new ProgramInvocationException("The program has been canceled");
+			} else {
+				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
+			}
+		}
+		finally {
+			program.deleteExtractedLibraries();
 		}
 	}
 }

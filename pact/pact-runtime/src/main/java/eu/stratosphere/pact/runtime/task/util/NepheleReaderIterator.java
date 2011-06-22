@@ -28,21 +28,26 @@ import eu.stratosphere.nephele.types.Record;
  * @see Iterator
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
  */
 public class NepheleReaderIterator<T extends Record> implements Iterator<T> {
 
-	private Reader<T> reader;
+	private final Reader<T> reader;		// the reader who's input is encapsulated in the iterator
 	
 	public NepheleReaderIterator(Reader<T> reader) {
 		this.reader = reader;
 	}
 	
+	/* (non-Javadoc)
+	 * @see java.util.Iterator#hasNext()
+	 */
 	@Override
 	public boolean hasNext() {
 		return reader.hasNext();
 	}
 
+	/* (non-Javadoc)
+	 * @see java.util.Iterator#next()
+	 */
 	@Override
 	public T next() {
 		try {
@@ -54,6 +59,9 @@ public class NepheleReaderIterator<T extends Record> implements Iterator<T> {
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see java.util.Iterator#remove()
+	 */
 	@Override
 	public void remove() {
 		throw new UnsupportedOperationException();

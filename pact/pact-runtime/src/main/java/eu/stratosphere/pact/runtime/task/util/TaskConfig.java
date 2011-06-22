@@ -69,10 +69,6 @@ public class TaskConfig {
 		NONE
 	}
 
-	public enum PostprocessingStrategy {
-
-	}
-
 	private static final String STUB_CLASS = "pact.stub.class";
 
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
@@ -83,8 +79,6 @@ public class TaskConfig {
 
 	private static final String LOCAL_STRATEGY = "pact.local.strategy";
 
-	private static final String POSTPROCESSING_STRATEGY = "pact.postprocessing.strategy";
-
 	private static final String NUM_INPUTS = "pact.inputs.number";
 
 	private static final String NUM_OUTPUTS = "pact.outputs.number";
@@ -92,6 +86,8 @@ public class TaskConfig {
 	private static final String SIZE_MEMORY = "pact.memory.size";
 
 	private static final String NUM_FILEHANDLES = "pact.filehandles.num";
+	
+	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
 
 	protected final Configuration config;
 
@@ -164,14 +160,6 @@ public class TaskConfig {
 		return LocalStrategy.valueOf(config.getString(LOCAL_STRATEGY, ""));
 	}
 
-	public void setPostprocessingStrategy(PostprocessingStrategy strategy) {
-		config.setString(POSTPROCESSING_STRATEGY, strategy.name());
-	}
-
-	public PostprocessingStrategy getPostprocessingStrategy() {
-		return PostprocessingStrategy.valueOf(config.getString(POSTPROCESSING_STRATEGY, ""));
-	}
-
 	public int getNumOutputs() {
 		return config.getInteger(NUM_OUTPUTS, -1);
 	}
@@ -195,8 +183,28 @@ public class TaskConfig {
 	 * @param numFileHandles Maximum number of open files.
 	 */
 	public void setNumFilehandles(int numFileHandles) {
+		if (numFileHandles < 2) {
+			throw new IllegalArgumentException();
+		}
+		
 		config.setInteger(NUM_FILEHANDLES, numFileHandles);
 	}
+	
+	/**
+	 * Sets the threshold that triggers spilling to disk of intermediate sorted results. This value defines the
+	 * fraction of the buffers that must be full before the spilling is triggered.
+	 * 
+	 * @param threshold The value for the threshold.
+	 */
+	public void setSortSpillingTreshold(float threshold) {
+		if (threshold < 0.0f || threshold > 1.0f) {
+			throw new IllegalArgumentException();
+		}
+		
+		config.setFloat(SORT_SPILLING_THRESHOLD, threshold);
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Gets the amount of memory dedicated to the task's input preparation (sorting / hashing).
@@ -215,5 +223,17 @@ public class TaskConfig {
 	 */
 	public int getNumFilehandles() {
 		return config.getInteger(NUM_FILEHANDLES, -1);
+	}
+	
+	/**
+	 * Gets the threshold that triggers spilling to disk of intermediate sorted results. This value defines the
+	 * fraction of the buffers that must be full before the spilling is triggered.
+	 * <p>
+	 * If the value is not set, this method returns a default value if <code>0.7f</code>.
+	 * 
+	 * @return The threshold that triggers spilling to disk of sorted intermediate results.
+	 */
+	public float getSortSpillingTreshold() {
+		return config.getFloat(SORT_SPILLING_THRESHOLD, 0.7f);
 	}
 }

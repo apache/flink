@@ -24,26 +24,24 @@ public class WebLogGenerator {
 
 	public static void main(String[] args) {
 
-		if (args.length != 6) {
+		if (args.length != 4) {
 			if (args.length == 0 || args[0].equals("-h")
 					|| args[0].equals("--help")) {
 				// Show help
 				System.out.println("Usage:");
 				System.out.println("1:\tWith parameters");
-				System.out.println("\t<Generator> [rankFilter] [yearFilter] "
+				System.out.println("\t<Generator> "
 						+ "[noDocuments] [noVisits] [outPath] [noFiles]");
 				System.out.println("2:\tDefault parameters");
 				System.out.println("\t<Generator> -d");
 				return;
 			} else if (args[0].equals("-d")) {
 				// Default values
-				args = new String[6];
-				args[0] = "50"; // rank filter
-				args[1] = "2010"; // year filter
-				args[2] = "1000"; // number of documents
-				args[3] = "10000"; // number of visits
-				args[4] = "/tmp/stratosphere/"; // path
-				args[5] = "1"; // number of files
+				args = new String[4];
+				args[0] = "1000"; // number of documents
+				args[1] = "10000"; // number of visits
+				args[2] = "/tmp/stratosphere/"; // path
+				args[3] = "1"; // number of files
 			}
 		}
 
@@ -57,21 +55,18 @@ public class WebLogGenerator {
 				"ullamcorper", "suscipit", "lobortis", "nisl", "ut", "aliquip",
 				"ex", "ea", "commodo" };
 
-		int rankFilter = Integer.parseInt(args[0]);
-		int yearFilter = Integer.parseInt(args[1]);
+		int noDocs = Integer.parseInt(args[0]);
+		int noVisits = Integer.parseInt(args[1]);
 
-		int noDocs = Integer.parseInt(args[2]);
-		int noVisits = Integer.parseInt(args[3]);
-
-		String path = args[4];
-		int noFiles = Integer.parseInt(args[5]);
+		String path = args[2];
+		int noFiles = Integer.parseInt(args[3]);
 
 		System.out.println("Generating documents files...");
 		genDocs(noDocs, noFiles, filterKWs, words, path + "docs_");
 		System.out.println("Generating ranks files...");
-		genRanks(noDocs, noFiles, rankFilter, path + "ranks_");
+		genRanks(noDocs, noFiles, path + "ranks_");
 		System.out.println("Generating visits files...");
-		genVisits(noVisits, noDocs, noFiles, yearFilter, path + "visits_");
+		genVisits(noVisits, noDocs, noFiles, path + "visits_");
 
 		System.out.println("Done!");
 	}
@@ -145,13 +140,10 @@ public class WebLogGenerator {
 	 *            Number of entries in the documents relation
 	 * @param noFiles
 	 *            Number of files for the ranks relation
-	 * @param rankFilter
-	 *            The filter Value for the ranks relation
 	 * @param path
 	 *            Output path for the ranks relation
 	 */
-	public static void genRanks(int noDocs, int noFiles, int rankFilter,
-			String path) {
+	public static void genRanks(int noDocs, int noFiles, String path) {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
 		int fileId = 0;
@@ -200,8 +192,7 @@ public class WebLogGenerator {
 	 * @param path
 	 *            Output path for the visits relation
 	 */
-	public static void genVisits(int noVisits, int noDocs, int noFiles,
-			int yearFilter, String path) {
+	public static void genVisits(int noVisits, int noDocs, int noFiles, String path) {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
 		int fileId = 0;
@@ -213,7 +204,7 @@ public class WebLogGenerator {
 
 			for (int i = 0; i < noVisits; i++) {
 
-				int year = yearFilter - 3 + rand.nextInt(6); // yearFilter 3
+				int year = 2000 + rand.nextInt(10); // yearFilter 3
 				int month = rand.nextInt(12) + 1; // month between 1 and 12
 				int day = rand.nextInt(27) + 1; // day between 1 and 28
 

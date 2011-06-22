@@ -71,14 +71,14 @@ public class DefaultRandomAccessSegmentTest {
 			byte[] bytes = new byte[SEGMENT_SIZE / 4];
 
 			try {
-				segment.randomAccessView.put(3 * (SEGMENT_SIZE / 4) + 1, bytes);
+				segment.put(3 * (SEGMENT_SIZE / 4) + 1, bytes);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.put(7 * (SEGMENT_SIZE / 8) + 1, bytes, 0, bytes.length / 2);
+				segment.put(7 * (SEGMENT_SIZE / 8) + 1, bytes, 0, bytes.length / 2);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -93,7 +93,7 @@ public class DefaultRandomAccessSegmentTest {
 			byte[] src = new byte[SEGMENT_SIZE / 8];
 			for (int i = 0; i < 8; i++) {
 				random.nextBytes(src);
-				segment.randomAccessView.put(i * (SEGMENT_SIZE / 8), src);
+				segment.put(i * (SEGMENT_SIZE / 8), src);
 			}
 
 			random.setSeed(seed);
@@ -101,7 +101,7 @@ public class DefaultRandomAccessSegmentTest {
 			byte[] actual = new byte[SEGMENT_SIZE / 8];
 			for (int i = 0; i < 8; i++) {
 				random.nextBytes(expected);
-				segment.randomAccessView.get(i * (SEGMENT_SIZE / 8), actual);
+				segment.get(i * (SEGMENT_SIZE / 8), actual);
 
 				assertArrayEquals(expected, actual);
 			}
@@ -113,13 +113,13 @@ public class DefaultRandomAccessSegmentTest {
 			random.nextBytes(expected);
 
 			for (int i = 0; i < 16; i++) {
-				segment.randomAccessView.put(i * (SEGMENT_SIZE / 16), expected, i * (SEGMENT_SIZE / 16),
+				segment.put(i * (SEGMENT_SIZE / 16), expected, i * (SEGMENT_SIZE / 16),
 					SEGMENT_SIZE / 16);
 			}
 
 			byte[] actual = new byte[SEGMENT_SIZE];
 			for (int i = 0; i < 16; i++) {
-				segment.randomAccessView.get(i * (SEGMENT_SIZE / 16), actual, i * (SEGMENT_SIZE / 16),
+				segment.get(i * (SEGMENT_SIZE / 16), actual, i * (SEGMENT_SIZE / 16),
 					SEGMENT_SIZE / 16);
 			}
 
@@ -132,28 +132,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.put(-1, (byte) 0);
+				segment.put(-1, (byte) 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.put(SEGMENT_SIZE, (byte) 0);
+				segment.put(SEGMENT_SIZE, (byte) 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.get(-1);
+				segment.get(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.get(SEGMENT_SIZE);
+				segment.get(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -166,12 +166,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE; i++) {
-				segment.randomAccessView.put(i, (byte) random.nextInt());
+				segment.put(i, (byte) random.nextInt());
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE; i++) {
-				assertEquals((byte) random.nextInt(), segment.randomAccessView.get(i));
+				assertEquals((byte) random.nextInt(), segment.get(i));
 			}
 		}
 	}
@@ -181,28 +181,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.putBoolean(-1, false);
+				segment.putBoolean(-1, false);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.putBoolean(SEGMENT_SIZE, false);
+				segment.putBoolean(SEGMENT_SIZE, false);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getBoolean(-1);
+				segment.getBoolean(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getBoolean(SEGMENT_SIZE);
+				segment.getBoolean(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -215,12 +215,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE; i++) {
-				segment.randomAccessView.putBoolean(i, random.nextBoolean());
+				segment.putBoolean(i, random.nextBoolean());
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE; i++) {
-				assertEquals(random.nextBoolean(), segment.randomAccessView.getBoolean(i));
+				assertEquals(random.nextBoolean(), segment.getBoolean(i));
 			}
 		}
 	}
@@ -230,28 +230,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.putChar(-1, 'a');
+				segment.putChar(-1, 'a');
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.putChar(SEGMENT_SIZE, 'a');
+				segment.putChar(SEGMENT_SIZE, 'a');
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getChar(-1);
+				segment.getChar(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getChar(SEGMENT_SIZE);
+				segment.getChar(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -264,12 +264,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 2; i += 2) {
-				segment.randomAccessView.putChar(i, (char) ('a' + random.nextInt(26)));
+				segment.putChar(i, (char) ('a' + random.nextInt(26)));
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 2; i += 2) {
-				assertEquals((char) ('a' + random.nextInt(26)), segment.randomAccessView.getChar(i));
+				assertEquals((char) ('a' + random.nextInt(26)), segment.getChar(i));
 			}
 		}
 	}
@@ -279,28 +279,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.putDouble(-1, 0.0);
+				segment.putDouble(-1, 0.0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.putDouble(SEGMENT_SIZE, 0.0);
+				segment.putDouble(SEGMENT_SIZE, 0.0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getDouble(-1);
+				segment.getDouble(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getDouble(SEGMENT_SIZE);
+				segment.getDouble(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -313,12 +313,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
-				segment.randomAccessView.putDouble(i, random.nextDouble());
+				segment.putDouble(i, random.nextDouble());
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
-				assertEquals(random.nextDouble(), segment.randomAccessView.getDouble(i), 0.0);
+				assertEquals(random.nextDouble(), segment.getDouble(i), 0.0);
 			}
 		}
 	}
@@ -328,28 +328,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.putFloat(-1, 0.0f);
+				segment.putFloat(-1, 0.0f);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.putFloat(SEGMENT_SIZE, 0.0f);
+				segment.putFloat(SEGMENT_SIZE, 0.0f);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getFloat(-1);
+				segment.getFloat(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getFloat(SEGMENT_SIZE);
+				segment.getFloat(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -362,12 +362,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
-				segment.randomAccessView.putFloat(i, random.nextFloat());
+				segment.putFloat(i, random.nextFloat());
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
-				assertEquals(random.nextFloat(), segment.randomAccessView.getFloat(i), 0.0);
+				assertEquals(random.nextFloat(), segment.getFloat(i), 0.0);
 			}
 		}
 	}
@@ -377,28 +377,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.putLong(-1, 0L);
+				segment.putLong(-1, 0L);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.putLong(SEGMENT_SIZE, 0L);
+				segment.putLong(SEGMENT_SIZE, 0L);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getLong(-1);
+				segment.getLong(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getLong(SEGMENT_SIZE);
+				segment.getLong(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -411,12 +411,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
-				segment.randomAccessView.putLong(i, random.nextLong());
+				segment.putLong(i, random.nextLong());
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
-				assertEquals(random.nextLong(), segment.randomAccessView.getLong(i));
+				assertEquals(random.nextLong(), segment.getLong(i));
 			}
 		}
 	}
@@ -426,28 +426,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.putInt(-1, 0);
+				segment.putInt(-1, 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.putInt(SEGMENT_SIZE, 0);
+				segment.putInt(SEGMENT_SIZE, 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getInt(-1);
+				segment.getInt(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getInt(SEGMENT_SIZE);
+				segment.getInt(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -460,12 +460,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
-				segment.randomAccessView.putInt(i, random.nextInt());
+				segment.putInt(i, random.nextInt());
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
-				assertEquals(random.nextInt(), segment.randomAccessView.getInt(i));
+				assertEquals(random.nextInt(), segment.getInt(i));
 			}
 		}
 	}
@@ -475,28 +475,28 @@ public class DefaultRandomAccessSegmentTest {
 		// test exceptions
 		{
 			try {
-				segment.randomAccessView.putShort(-1, (short) 0);
+				segment.putShort(-1, (short) 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.putShort(SEGMENT_SIZE, (short) 0);
+				segment.putShort(SEGMENT_SIZE, (short) 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getShort(-1);
+				segment.getShort(-1);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.randomAccessView.getShort(SEGMENT_SIZE);
+				segment.getShort(SEGMENT_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -509,12 +509,12 @@ public class DefaultRandomAccessSegmentTest {
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
-				segment.randomAccessView.putShort(i, (short) random.nextInt());
+				segment.putShort(i, (short) random.nextInt());
 			}
 
 			random.setSeed(seed);
 			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
-				assertEquals((short) random.nextInt(), segment.randomAccessView.getShort(i));
+				assertEquals((short) random.nextInt(), segment.getShort(i));
 			}
 		}
 	}

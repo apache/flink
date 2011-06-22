@@ -65,6 +65,8 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	private final long memoryPerChannel;
 
 	private final int fileHandlesPerChannel;
+	
+	private final float spillingThreshold;
 
 	private KeyGroupedIterator<K, V1> iterator1;
 
@@ -97,7 +99,8 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 	public SortMergeCoGroupIterator(MemoryManager memoryManager, IOManager ioManager,
 			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
 			Class<K> keyClass, Class<V1> valueClass1, Class<V2> valueClass2,
-			long memory, int maxNumFileHandles, LocalStrategy localStrategy, AbstractTask parentTask)
+			long memory, int maxNumFileHandles, float spillingThreshold,
+			LocalStrategy localStrategy, AbstractTask parentTask)
 	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
@@ -110,6 +113,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
 		this.localStrategy = localStrategy;
 		this.parentTask = parentTask;
+		this.spillingThreshold = spillingThreshold;
 	}
 
 	@Override
@@ -145,7 +149,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 			// merger
 			this.sortMerger1 = new UnilateralSortMerger<K, V1>(this.memoryManager, this.ioManager,
 					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
-					valSerialization, keyComparator, this.reader1, this.parentTask);
+					valSerialization, keyComparator, this.reader1, this.parentTask, this.spillingThreshold);
 		}
 
 		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
@@ -157,7 +161,7 @@ public class SortMergeCoGroupIterator<K extends Key, V1 extends Value, V2 extend
 			// merger
 			this.sortMerger2 = new UnilateralSortMerger<K, V2>(this.memoryManager, this.ioManager, 
 					this.memoryPerChannel, this.fileHandlesPerChannel, keySerialization,
-					valSerialization, keyComparator, reader2, parentTask);
+					valSerialization, keyComparator, reader2, parentTask, this.spillingThreshold);
 		}
 		
 		// =============== These calls freeze until the data is actually available ============

@@ -30,17 +30,12 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> implements Writer
+public final class ChannelWriter extends StreamChannelAccess<Buffer.Output, WriteRequest> implements Writer
 {
 	/**
 	 * The current buffer that write requests go to.
 	 */
 	private Buffer.Output currentBuffer;
-	
-	/**
-	 * Flag marking this channel as closed;
-	 */
-	private volatile boolean closed;
 
 	
 	// -------------------------------------------------------------------------
@@ -55,7 +50,7 @@ public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> impl
 	 * @param filledBuffers
 	 * @throws IOException
 	 */
-	protected ChannelWriter(Channel.ID channelID, RequestQueue<IORequest<Buffer.Output>> requestQueue,
+	protected ChannelWriter(Channel.ID channelID, RequestQueue<WriteRequest> requestQueue,
 			Collection<Buffer.Output> buffers, boolean filledBuffers)
 	throws IOException
 	{
@@ -70,7 +65,7 @@ public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> impl
 
 		if (filledBuffers) {
 			for (Buffer.Output buffer : buffers) {
-				this.requestQueue.add(new IORequest<Buffer.Output>(this, buffer));
+				this.requestQueue.add(new BufferWriteRequest(this, buffer));
 			}
 		}
 		else {
@@ -86,14 +81,6 @@ public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> impl
 		catch (InterruptedException iex) {
 			throw new IOException("");
 		}
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
-	 */
-	@Override
-	public boolean isClosed() {
-		return this.closed;
 	}
 	
 	/**
@@ -116,7 +103,7 @@ public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> impl
 		
 		// create a new write request for the current buffer
 		if (this.currentBuffer != null) {
-			this.requestQueue.add(new IORequest<Buffer.Output>(this, this.currentBuffer));
+			this.requestQueue.add(new BufferWriteRequest(this, this.currentBuffer));
 			this.currentBuffer = null;
 		}
 
@@ -157,7 +144,7 @@ public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> impl
 			}
 			
 			// write the current buffer and get the next one
-			this.requestQueue.add(new IORequest<Buffer.Output>(this, currentBuffer));
+			this.requestQueue.add(new BufferWriteRequest(this, currentBuffer));
 			
 			try {
 				this.currentBuffer = nextBuffer();
@@ -176,5 +163,40 @@ public final class ChannelWriter extends StreamChannelAccess<Buffer.Output> impl
 				throw new IOException("Object to be written is too large for IO-buffer.");
 			}
 		}
+	}
+}
+
+//--------------------------------------------------------------------------------------------
+
+final class BufferWriteRequest implements WriteRequest
+{
+	private final ChannelWriter channel;
+	
+	private final Buffer.Output buffer;
+	
+	protected BufferWriteRequest(ChannelWriter targetChannel, Buffer.Output buffer)
+	{
+		this.channel = targetChannel;
+		this.buffer = buffer;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
+	 */
+	@Override
+	public void write() throws IOException
+	{
+		if (!this.buffer.memory.isFree()) {
+			this.buffer.writeToChannel(this.channel.fileChannel);
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
+	 */
+	@Override
+	public void requestDone(IOException ioex)
+	{
+		this.channel.handleProcessedBuffer(this.buffer, ioex);
 	}
 }

@@ -152,6 +152,12 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	public void computeOutputEstimates(DataStatistics statistics) {
 		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		// for unique keys, we can have only one value per key
+		OutputContract oc = getOutputContract();
+		if (oc == OutputContract.UniqueKey) {
+			hints.setAvgNumValuesPerKey(1.0f);
+		}
 
 		// see, if we have a statistics object that can tell us a bit about the file
 		if (statistics != null) {

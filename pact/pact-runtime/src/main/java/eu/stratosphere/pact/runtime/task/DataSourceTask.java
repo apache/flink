@@ -20,14 +20,12 @@ import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.nephele.fs.hdfs.DistributedDataInputStream;
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
 import eu.stratosphere.pact.common.io.InputFormat;
@@ -41,9 +39,10 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 /**
  * DataSourceTask which is executed by a Nephele task manager.
  * The task reads data and uses an InputFormat to create KeyValuePairs from the read data.
- * Currently, the distributed Hadoop Filesystem (HDFS) is the only supported data storage.
+ * Currently, filesystems are the only supported data source.
  * 
  * @see eu.stratosphere.pact.common.io.InputFormat
+ * 
  * @author Moritz Kaufmann
  * @author Fabian Hueske
  */
@@ -70,10 +69,10 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput() {
-		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void registerInputOutput()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start registering input and output"));
 
 		// Initialize InputFormat
 		initInputFormat();
@@ -81,22 +80,20 @@ public class DataSourceTask extends AbstractFileInputTask {
 		// Initialize OutputCollector
 		initOutputCollector();
 
-		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception {
-		
+	public void invoke() throws Exception
+	{	
 		KeyValuePair<Key, Value> pair = null;
 
-		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isInfoEnabled())
+			LOG.info(getLogString("Start PACT code"));
 
 		// get file splits to read
 		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
@@ -112,9 +109,8 @@ public class DataSourceTask extends AbstractFileInputTask {
 			final long start = split.getStart();
 			final long length = split.getLength();
 
-			LOG.debug("Opening input split " + split.getPath() + " : " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Opening input split " + split.getPath()));
 
 			FSDataInputStream fdis = null;
 			
@@ -131,9 +127,7 @@ public class DataSourceTask extends AbstractFileInputTask {
 			}
 
 			if (!this.taskCanceled) {
-
 				try {
-
 					// check if FSDataInputStream was obtained
 					if (!isot.fsDataInputStreamSuccessfullyObtained()) {
 						// forward exception
@@ -144,15 +138,13 @@ public class DataSourceTask extends AbstractFileInputTask {
 					fdis = isot.getFSDataInputStream();
 
 					// set input stream of input format
-					format.setInput(new DistributedDataInputStream(fdis), start, length, (1024 * 1024));
-
+					format.setInput(fdis, start, length, (1024 * 1024));
+					
 					// open input format
 					format.open();
 
-					LOG.debug("Starting reader on file " + split.getPath() + " : "
-						+ this.getEnvironment().getTaskName() + " ("
-						+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+					if (LOG.isDebugEnabled())
+						LOG.debug(getLogString("Starting reader on file " + split.getPath()));
 
 					// create mutable pair once
 					if (!immutable) {
@@ -176,22 +168,19 @@ public class DataSourceTask extends AbstractFileInputTask {
 						}
 					}
 
-					LOG.debug("Closing input split " + split.getPath() + " : " + this.getEnvironment().getTaskName()
-						+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-				} catch (Exception ex) {
+					if (LOG.isDebugEnabled())
+						LOG.debug(getLogString("Closing input split " + split.getPath()));
+				}
+				catch (Exception ex) {
 					// drop, if the task was canceled
 					if (!this.taskCanceled) {
-						LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-							+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-							+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+						if (LOG.isErrorEnabled())
+							LOG.error(getLogString("Unexpected ERROR in PACT code"));
 						throw ex;
-					}
-					
-				} finally {
-					
-					if(format != null) {
+					}	
+				}
+				finally {	
+					if (format != null) {
 						try {
 							// close the input
 							format.closeInput();
@@ -213,15 +202,13 @@ public class DataSourceTask extends AbstractFileInputTask {
 		}
 
 		if (!this.taskCanceled) {
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		} else {
-			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isInfoEnabled())
+				LOG.info(getLogString("Finished PACT code"));
 		}
-
+		else {
+			if (LOG.isWarnEnabled())
+				LOG.warn(getLogString("PACT code cancelled"));
+		}
 	}
 
 	/*
@@ -229,11 +216,11 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception {
+	public void cancel() throws Exception
+	{
 		this.taskCanceled = true;
-		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isWarnEnabled())
+			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 
 	/**
@@ -243,8 +230,8 @@ public class DataSourceTask extends AbstractFileInputTask {
 	 *         Throws if instance of InputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initInputFormat() {
-
+	private void initInputFormat()
+	{
 		// obtain task configuration (including stub parameters)
 		config = new DataSourceConfig(getRuntimeConfiguration());
 
@@ -256,14 +243,17 @@ public class DataSourceTask extends AbstractFileInputTask {
 			format = formatClass.newInstance();
 			// configure stub implementation
 			format.configure(config.getStubParameters());
-
-		} catch (IOException ioe) {
+		}
+		catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		} catch (ClassNotFoundException cnfe) {
+		}
+		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("InputFormat implementation class was not found.", cnfe);
-		} catch (InstantiationException ie) {
+		}
+		catch (InstantiationException ie) {
 			throw new RuntimeException("InputFormat implementation could not be instanciated.", ie);
-		} catch (IllegalAccessException iae) {
+		}
+		catch (IllegalAccessException iae) {
 			throw new RuntimeException("InputFormat implementations nullary constructor is not accessible.", iae);
 		}
 	}
@@ -382,11 +372,9 @@ public class DataSourceTask extends AbstractFileInputTask {
 		@Override
 		public void run() {
 			try {
-
-				FileSystem fs = FileSystem.get(split.getPath().toUri(), new org.apache.hadoop.conf.Configuration());
-
-				this.fdis = fs.open(new Path(split.getPath().toUri().toString()));
-
+				FileSystem fs = FileSystem.get(split.getPath().toUri());
+				fdis = fs.open(split.getPath());
+				
 			} catch (Exception t) {
 				this.success = false;
 				this.exception = t;
@@ -404,5 +392,30 @@ public class DataSourceTask extends AbstractFileInputTask {
 		public Exception getException() {
 			return this.exception;
 		}
+	}
+	
+	// ------------------------------------------------------------------------
+	//                               Utilities
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Utility function that composes a string for logging purposes. The string includes the given message and
+	 * the index of the task in its task group together with the number of tasks in the task group.
+	 *  
+	 * @param message The main message for the log.
+	 * @return The string ready for logging.
+	 */
+	private String getLogString(String message)
+	{
+		StringBuilder bld = new StringBuilder(128);	
+		bld.append(message);
+		bld.append(':').append(' ');
+		bld.append(this.getEnvironment().getTaskName());
+		bld.append(' ').append('"');
+		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		bld.append('/');
+		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
+		bld.append(')');
+		return bld.toString();
 	}
 }

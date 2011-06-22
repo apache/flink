@@ -12,6 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+
 package eu.stratosphere.pact.testing;
 
 import java.io.Closeable;
@@ -29,15 +30,15 @@ import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.FormatUtil;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.testing.ioformats.FormatUtil;
+import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Represents the input or output values of a {@link TestPlan}. The class is
@@ -220,7 +221,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 					MockTaskManager.INSTANCE.getIoManager(), totalMemory, numFileHandles,
 					keySerialization, valSerialization, keyComparator,
 					new TestPairsReader(inputFileIterator, actualPair),
-					new ReduceTask());
+					new ReduceTask(), 0.7f);
 
 			this.closableManager.add(sortMerger);
 

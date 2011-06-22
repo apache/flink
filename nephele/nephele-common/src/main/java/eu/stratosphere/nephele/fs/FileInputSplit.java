@@ -13,6 +13,12 @@
  *
  **********************************************************************************************************************/
 
+/**
+ * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. 
+ */
+
 package eu.stratosphere.nephele.fs;
 
 import java.io.DataInput;
@@ -49,6 +55,11 @@ public class FileInputSplit implements InputSplit {
 	 * List of hosts (hostnames) containing the block, possibly <code>null</code>.
 	 */
 	private String[] hosts;
+	
+	/**
+	 * The logical number of the split.
+	 */
+	private int partitionNumber;
 
 	/**
 	 * Constructs a split with host information.
@@ -62,7 +73,8 @@ public class FileInputSplit implements InputSplit {
 	 * @param hosts
 	 *        the list of hosts containing the block, possibly <code>null</code>
 	 */
-	public FileInputSplit(Path file, long start, long length, String[] hosts) {
+	public FileInputSplit(int num, Path file, long start, long length, String[] hosts) {
+		this.partitionNumber = num;
 		this.file = file;
 		this.start = start;
 		this.length = length;
@@ -103,43 +115,10 @@ public class FileInputSplit implements InputSplit {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Gets the names of the hosts that this file split resides on.
+	 * 
+	 * @return The names of the hosts that this file split resides on.
 	 */
-	@Override
-	public String toString() {
-		return file + ":" + start + "+" + length;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		if (file != null) {
-			out.writeBoolean(true);
-			file.write(out);
-		} else {
-			out.writeBoolean(false);
-		}
-
-		out.writeLong(start);
-		out.writeLong(length);
-		if (hosts == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			out.writeInt(this.hosts.length);
-			for (int i = 0; i < hosts.length; i++) {
-				StringRecord.writeString(out, hosts[i]);
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public String[] getHostNames() {
 		if (this.hosts == null) {
 			return new String[] {};
@@ -148,16 +127,69 @@ public class FileInputSplit implements InputSplit {
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.InputSplit#getPartitionNumber()
+	 */
+	@Override
+	public int getPartitionNumber() {
+		return this.partitionNumber;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public String toString() {
+		return "[" + this.partitionNumber + "] " + file + ":" + start + "+" + length;
+	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(final DataOutput out) throws IOException
+	{
+		// write partition number
+		out.writeInt(this.partitionNumber);
+		
+		// write file
+		if (this.file != null) {
+			out.writeBoolean(true);
+			this.file.write(out);
+		} else {
+			out.writeBoolean(false);
+		}
+
+		// write start and length
+		out.writeLong(this.start);
+		out.writeLong(this.length);
+		
+		// write hosts
+		if (this.hosts == null) {
+			out.writeBoolean(false);
+		} else {
+			out.writeBoolean(true);
+			out.writeInt(this.hosts.length);
+			for (int i = 0; i < this.hosts.length; i++) {
+				StringRecord.writeString(out, this.hosts[i]);
+			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void read(final DataInput in) throws IOException
+	{
+		// read partition number
+		this.partitionNumber = in.readInt();
+		
+		// read file path
 		boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.file = new Path();
-			file.read(in);
+			this.file.read(in);
 		}
 
 		this.start = in.readLong();
@@ -171,7 +203,7 @@ public class FileInputSplit implements InputSplit {
 				this.hosts[i] = StringRecord.readString(in);
 			}
 		} else {
-			hosts = null;
+			this.hosts = null;
 		}
 	}
 }

@@ -81,7 +81,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private final File planDumpDirectory;				// the directory to dump the optimizer plans to
 
-	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
+	private final Map<Long, ProgramJobGraphPair> submittedJobs;	// map from UIDs to the running jobs
 
 	private final Random rand;							// random number generator for UIDs
 
@@ -93,7 +93,7 @@ public class JobSubmissionServlet extends HttpServlet {
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
-		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, JobGraph>());
+		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, ProgramJobGraphPair>());
 
 		this.rand = new Random(System.currentTimeMillis());
 	}
@@ -175,20 +175,23 @@ public class JobSubmissionServlet extends HttpServlet {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				eipe.getCause().printStackTrace(w);
+				eipe.printStackTrace(w);
 
 				showErrorPage(resp, "An error occurred in the pact assembler class:<br/><br/>"
-					+ eipe.getCause().getMessage() + "<br/><br/><pre>" + sw.toString() + "</pre>");
+					+ eipe.getMessage() + "<br/>"
+					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
 				return;
 			}
 			catch (CompilerException cex) {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				cex.getCause().printStackTrace(w);
+				cex.printStackTrace(w);
 
 				showErrorPage(resp, "An error occurred in the compiler:<br/><br/>"
-					+ cex.getCause().getMessage() + "<br/><br/><pre>" + sw.toString() + "</pre>");
+					+ cex.getMessage() + "<br/>"
+					+ (cex.getCause()!= null?"Caused by: " + cex.getCause().getMessage():"")
+					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
 				return;
 			}
 			catch (Throwable t) {
@@ -227,7 +230,20 @@ public class JobSubmissionServlet extends HttpServlet {
 						return;
 					}
 				} else {
-					submittedJobs.put(uid, client.getJobGraph(pactProgram, optPlan));
+					try {
+						submittedJobs.put(uid, 
+							new ProgramJobGraphPair(pactProgram, client.getJobGraph(pactProgram, optPlan)));
+					}
+					catch (ProgramInvocationException piex) {
+						LOG.error("Error creating JobGraph from optimized plan.", piex);
+						showErrorPage(resp, piex.getMessage());
+						return;
+					}
+					catch (Throwable t) {
+						LOG.error("Error creating JobGraph from optimized plan.", t);
+						showErrorPage(resp, t.getMessage());
+						return;
+					}
 				}
 
 				// redirect to the plan display page
@@ -264,7 +280,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			// get the retained job
-			JobGraph job = submittedJobs.remove(uid);
+			ProgramJobGraphPair job = submittedJobs.remove(uid);
 			if (job == null) {
 				resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
 					"No job with the given uid was retained for later submission.");
@@ -273,7 +289,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				client.run(job);
+				client.run(job.getProgram(), job.getJobGraph());
 			} catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
 				resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -419,5 +435,29 @@ public class JobSubmissionServlet extends HttpServlet {
 		}
 
 		return list;
+	}
+	
+	// ============================================================================================
+	
+	private static final class ProgramJobGraphPair
+	{
+		private final PactProgram program;
+		
+		private final JobGraph jobGraph;
+
+		
+		public ProgramJobGraphPair(PactProgram program, JobGraph jobGraph) {
+			this.program = program;
+			this.jobGraph = jobGraph;
+		}
+
+		
+		public PactProgram getProgram() {
+			return program;
+		}
+
+		public JobGraph getJobGraph() {
+			return jobGraph;
+		}
 	}
 }

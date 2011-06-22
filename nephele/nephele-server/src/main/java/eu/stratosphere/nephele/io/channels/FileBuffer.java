@@ -183,7 +183,7 @@ public class FileBuffer implements InternalBuffer {
 			}
 
 			bytesWritten += b;
-			this.totalBytesWritten += bytesWritten;
+			this.totalBytesWritten += b;
 			diff = this.bufferSize - this.totalBytesWritten;
 		}
 

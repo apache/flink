@@ -41,7 +41,7 @@ fi
 # Nephele JobManager
 constructJobManagerClassPath() {
 
-	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
+	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
 
 		add=0
 

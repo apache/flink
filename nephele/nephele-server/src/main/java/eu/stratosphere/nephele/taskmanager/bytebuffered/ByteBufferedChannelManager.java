@@ -45,17 +45,16 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
 
 public class ByteBufferedChannelManager {
 
 	private static final Log LOG = LogFactory.getLog(ByteBufferedChannelManager.class);
 
-	private static final int DEFAULT_NUMBER_OF_READ_BUFFERS = 128;
+	private static final int DEFAULT_NUMBER_OF_READ_BUFFERS = 256;
 
-	private static final int DEFAULT_NUMBER_OF_WRITE_BUFFERS = 128;
+	private static final int DEFAULT_NUMBER_OF_WRITE_BUFFERS = 256;
 
-	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 128 * 1024; // 128k
+	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 64 * 1024; // 64k
 
 	private static final boolean DEFAULT_ALLOW_SPILLING = true;
 
@@ -624,37 +623,6 @@ public class ByteBufferedChannelManager {
 						+ numberOfQueuedEnvelopes + ")");
 				}
 			}
-		}
-	}
-
-	/**
-	 * Releases all resources which can been attached to the output channel with the given ID. The method should only be
-	 * called after the channel's associated task has stopped running.
-	 * 
-	 * @param sourceChannelID
-	 *        the ID of the channel whose resources shall be released
-	 */
-	void releaseOutputChannelResources(final ChannelID sourceChannelID) {
-
-		// Get the connection address for the source channel ID
-		try {
-			final InetSocketAddress connectionAddress = getPeerConnectionAddress(sourceChannelID);
-			if (connectionAddress == null) {
-				LOG.fatal("Cannot resolve channel ID " + sourceChannelID + " to a connection address");
-				return;
-			}
-
-			// Check if there is already an existing connection to that address
-			OutgoingConnection outgoingConnection = null;
-			synchronized (this.outgoingConnections) {
-				outgoingConnection = this.outgoingConnections.get(connectionAddress);
-			}
-
-			if (outgoingConnection != null) {
-				outgoingConnection.dropAllQueuedEnvelopesForChannel(sourceChannelID, true);
-			}
-		} catch (Exception e) {
-			LOG.fatal("Cannot release resources: " + StringUtils.stringifyException(e));
 		}
 	}
 

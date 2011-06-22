@@ -47,6 +47,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
+import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.profiling.ProfilingListener;
 import eu.stratosphere.nephele.profiling.types.ProfilingEvent;
@@ -121,6 +122,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			final ExecutionStateChangeEvent executionStateChangeEvent = new ExecutionStateChangeEvent(timestamp,
 				this.managementVertexID, newExecutionState);
 
+			this.eventCollector.updateManagementGraph(ee.getJobID(), executionStateChangeEvent);
 			this.eventCollector.addEvent(ee.getJobID(), executionStateChangeEvent);
 		}
 
@@ -259,6 +261,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 					.getIdentifier());
 			}
 
+			this.eventCollector.updateManagementGraph(jobID, event);
 			this.eventCollector.addEvent(this.jobID, event);
 		}
 	}
@@ -504,9 +507,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 						this.recentNetworkTopologies.remove(entry.getValue());
 					}
 				}
-
 			}
-
 		}
 	}
 
@@ -547,6 +548,57 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 		synchronized (this.recentManagementGraphs) {
 			return this.recentManagementGraphs.get(jobID);
+		}
+	}
+
+	/**
+	 * Applies changes in the vertex assignment to the stored management graph.
+	 * 
+	 * @param jobID
+	 *        the ID of the job whose management graph shall be updated
+	 * @param vertexAssignmentEvent
+	 *        the event describing the changes in the vertex assignment
+	 */
+	private void updateManagementGraph(final JobID jobID, final VertexAssignmentEvent vertexAssignmentEvent) {
+
+		synchronized (this.recentManagementGraphs) {
+
+			final ManagementGraph managementGraph = this.recentManagementGraphs.get(jobID);
+			if (managementGraph == null) {
+				return;
+			}
+			final ManagementVertex vertex = managementGraph.getVertexByID(vertexAssignmentEvent.getVertexID());
+			if (vertex == null) {
+				return;
+			}
+
+			vertex.setInstanceName(vertexAssignmentEvent.getInstanceName());
+			vertex.setInstanceType(vertexAssignmentEvent.getInstanceType());
+		}
+	}
+
+	/**
+	 * Applies changes in the state of an execution vertex to the stored management graph.
+	 * 
+	 * @param jobID
+	 *        the ID of the job whose management graph shall be updated
+	 * @param executionStateChangeEvent
+	 *        the event describing the changes in the execution state of the vertex
+	 */
+	private void updateManagementGraph(final JobID jobID, final ExecutionStateChangeEvent executionStateChangeEvent) {
+
+		synchronized (this.recentManagementGraphs) {
+
+			final ManagementGraph managementGraph = this.recentManagementGraphs.get(jobID);
+			if (managementGraph == null) {
+				return;
+			}
+			final ManagementVertex vertex = managementGraph.getVertexByID(executionStateChangeEvent.getVertexID());
+			if (vertex == null) {
+				return;
+			}
+
+			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
 		}
 	}
 }

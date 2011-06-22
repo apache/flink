@@ -263,12 +263,15 @@ public class DefaultMemoryManager implements MemoryManager
 	public List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
 	throws MemoryAllocationException
 	{
+		if (owner == null) {
+			throw new IllegalArgumentException("The owner of a memory segment must not be null.");
+		}
 		if (minSegmentSize > this.chunkSize) {
 			throw new MemoryAllocationException("The memory chunks of this MemoryManager are too small to serve " +
 					"segments of minimal size " + minSegmentSize);
 		}
 		if (LOG.isDebugEnabled() && owner.getEnvironment() != null) {
-			LOG.info("Allocating " + totalMemory + " bytes in at least " + minNumSegments + " buffers for " + 
+			LOG.debug("Allocating " + totalMemory + " bytes in at least " + minNumSegments + " buffers for " + 
 					owner.getEnvironment().getTaskName() + 
 					" (" + (owner.getEnvironment().getIndexInSubtaskGroup() + 1) + "/" +
 					owner.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -279,7 +282,7 @@ public class DefaultMemoryManager implements MemoryManager
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (this.lock)
 		{
-			if (isShutDown) {
+			if (this.isShutDown) {
 				throw new IllegalStateException("Memory Manager has been shut down.");
 			}
 			
@@ -302,6 +305,16 @@ public class DefaultMemoryManager implements MemoryManager
 		return segments;
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocateStrict(eu.stratosphere.nephele.template.AbstractInvokable, int, int)
+	 */
+	@Override
+	public List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
+			throws MemoryAllocationException
+	{
+		return this.allocate(owner, numSegments, segmentSize);
+	}
+
 	/**
 	 * Tries to allocate a memory segment of the specified size.
 	 * 
@@ -918,11 +931,10 @@ public class DefaultMemoryManager implements MemoryManager
 	 * @return A <tt>DefaultMemorySegment</tt> representation of the given memory segment.
 	 */
 	private static final DefaultMemorySegment factory(MemorySegmentDescriptor descriptor) {
-		DefaultRandomAccessView randomAccessView = new DefaultRandomAccessView(descriptor);
 		DefaultDataInputView inputView = new DefaultDataInputView(descriptor);
 		DefaultDataOutputView outputView = new DefaultDataOutputView(descriptor);
 
-		return new DefaultMemorySegment(descriptor, randomAccessView, inputView, outputView);
+		return new DefaultMemorySegment(descriptor, inputView, outputView);
 	}
 	
 	/**

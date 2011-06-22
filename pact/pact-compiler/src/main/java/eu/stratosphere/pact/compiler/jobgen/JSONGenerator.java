@@ -378,11 +378,10 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			addProperty(jsonString, "Key-Cardinality",
 				hints.getKeyCardinality() == defaults.getKeyCardinality() ? "(none)" : formatNumber(hints
 					.getKeyCardinality()), true);
-			addProperty(jsonString, "Selectivity", hints.getSelectivity() == defaults.getSelectivity() ? "(none)"
-				: String.valueOf(hints.getSelectivity()), false);
+			addProperty(jsonString, "Avg. Records/StubCall", String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
 			addProperty(jsonString, "Avg. Values/Key", hints.getAvgNumValuesPerKey() == defaults
 				.getAvgNumValuesPerKey() ? "(none)" : String.valueOf(hints.getAvgNumValuesPerKey()), false);
-			addProperty(jsonString, "Avg. width (bytes)", hints.getAvgBytesPerRecord() == defaults
+			addProperty(jsonString, "Avg. Width (bytes)", hints.getAvgBytesPerRecord() == defaults
 				.getAvgBytesPerRecord() ? "(none)" : String.valueOf(hints.getAvgBytesPerRecord()), false);
 
 			jsonString.append("\t\t]");

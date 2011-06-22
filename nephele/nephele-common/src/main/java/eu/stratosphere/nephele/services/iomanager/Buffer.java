@@ -213,7 +213,7 @@ public abstract class Buffer {
 		 * @throws IOException Thrown, if the input buffer is already exhausted.
 		 * @throws ArrayIndexOutOfBoundsException Thrown, if the target array is too small for the remaining bytes.
 		 */
-		public void copyRemainingBytes(byte[] target) throws IOException {
+		void copyRemainingBytes(byte[] target) throws IOException {
 			this.inView.readFully(target, 0, getRemainingBytes());
 			this.position = this.inView.getPosition();
 		}
@@ -224,7 +224,7 @@ public abstract class Buffer {
 		 * @throws IOException Thrown, if the input buffer is exhausted.
 		 * @throws ArrayIndexOutOfBoundsException Thrown, if the target array is too small for the remaining bytes.
 		 */
-		public int getNextByte() throws IOException {
+		int getNextByte() throws IOException {
 			if (this.position >= this.limit) {
 				throw new EOFException();
 			}
@@ -241,7 +241,7 @@ public abstract class Buffer {
 		 * @param channel The NIO file channel to read from
 		 * @throws IOException Thrown by the {@link FileChannel#read(java.nio.ByteBuffer)} method.
 		 */
-		public void readFromChannel(FileChannel channel) throws IOException
+		void readFromChannel(FileChannel channel) throws IOException
 		{
 			final long bytesRemaining = channel.size() - channel.position();
 			
@@ -254,7 +254,7 @@ public abstract class Buffer {
 			
 			final int toRead = (int) Math.min(this.memory.size(), bytesRemaining);
 			
-			int bytesRead = channel.read(memory.wrap(0, toRead));
+			int bytesRead = channel.read(this.memory.wrap(0, toRead));
 			
 			this.position = 0;
 			this.limit = bytesRead;
@@ -303,7 +303,7 @@ public abstract class Buffer {
 		 * @param channel
 		 * @throws IOException
 		 */
-		public void writeToChannel(FileChannel channel) throws IOException
+		void writeToChannel(FileChannel channel) throws IOException
 		{
 			channel.write(this.memory.wrap(0, this.outView.getPosition()));
 		}
@@ -323,6 +323,15 @@ public abstract class Buffer {
 		public int getPosition()
 		{
 			return this.outView.getPosition();
+		}
+		
+		/**
+		 * Marks the buffer as completely full. This method sets the current size to
+		 * the value of the capacity of the underlying memory segment. 
+		 */
+		void markEndAsPosition()
+		{
+			this.outView.setPosition(this.memory.size());
 		}
 	}
 
