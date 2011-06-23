@@ -23,5 +23,4 @@ public interface MemoryBlockIterator<E> extends ResettableIterator<E> {
 	 * @return true if a new memory block was loaded, false if there were no further records
 	 */
 	public boolean nextBlock();
-
 }

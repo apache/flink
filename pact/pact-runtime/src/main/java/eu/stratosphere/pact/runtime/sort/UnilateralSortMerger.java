@@ -114,7 +114,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * A list of lists containing channel readers and writers that will be closed at shutdown.
 	 */
-	private final List<List<StreamChannelAccess<?>>> channelsToDeleteAtShutdown;
+	private final List<List<StreamChannelAccess<?, ?>>> channelsToDeleteAtShutdown;
 	
 	/**
 	 * The segments for the sort buffers.
@@ -293,7 +293,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		this.parent = parentTask;
 		
 		this.memoryToReleaseAtShutdown = new ArrayList<List<MemorySegment>>();
-		this.channelsToDeleteAtShutdown = new ArrayList<List<StreamChannelAccess<?>>>();
+		this.channelsToDeleteAtShutdown = new ArrayList<List<StreamChannelAccess<?, ?>>>();
 		
 		// circular queues pass buffers between the threads
 		final CircularQueues circularQueues = new CircularQueues();
@@ -473,9 +473,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			}
 		} finally {
 			// close all channel accesses
-			for (List<StreamChannelAccess<?>> channels : this.channelsToDeleteAtShutdown)
+			for (List<StreamChannelAccess<?, ?>> channels : this.channelsToDeleteAtShutdown)
 			{
-				for (StreamChannelAccess<?> channel : channels) {
+				for (StreamChannelAccess<?, ?> channel : channels) {
 					try {
 						if (!channel.isClosed()) {
 							channel.close();
@@ -519,7 +519,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * 
 	 * @param s The collection of readers/writers.
 	 */
-	public void registerChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?>> channels) {
+	public void registerChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?, ?>> channels) {
 		this.channelsToDeleteAtShutdown.add(channels);
 	}
 
@@ -528,7 +528,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * 
 	 * @param s The collection of readers/writers.
 	 */
-	public void unregisterChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?>> channels) {
+	public void unregisterChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?, ?>> channels) {
 		this.channelsToDeleteAtShutdown.remove(channels);
 	}
 
@@ -674,7 +674,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @throws IOException Thrown, if the readers encounter an I/O problem.
 	 */
 	protected final Iterator<KeyValuePair<K, V>> getMergingIterator(final List<Channel.ID> channelIDs,
-		final List<List<MemorySegment>> inputSegments, List<StreamChannelAccess<?>> readerList)
+		final List<List<MemorySegment>> inputSegments, List<StreamChannelAccess<?, ?>> readerList)
 	throws IOException
 	{
 		// create one iterator per channel id
@@ -767,7 +767,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	throws IOException
 	{
 		// the list with the readers, to be closed at shutdown
-		List<StreamChannelAccess<?>> channelAccesses = new ArrayList<StreamChannelAccess<?>>(channelIDs.size());
+		List<StreamChannelAccess<?, ?>> channelAccesses = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
 		registerChannelsToBeRemovedAtShudown(channelAccesses);
 
 		// the list with the target iterators
@@ -1502,7 +1502,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 					registerSegmentsToBeFreedAtShutdown(allBuffers);
 					
 					// get the readers and register them to be released
-					List<StreamChannelAccess<?>> readers = new ArrayList<StreamChannelAccess<?>>(channelIDs.size());
+					List<StreamChannelAccess<?, ?>> readers = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
 					registerChannelsToBeRemovedAtShudown(readers);
 					setResultIterator(getMergingIterator(channelIDs, readBuffers, readers));
 				}

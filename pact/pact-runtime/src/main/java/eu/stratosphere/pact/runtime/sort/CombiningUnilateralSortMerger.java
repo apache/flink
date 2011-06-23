@@ -217,7 +217,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	throws IOException
 	{
 		// the list with the readers, to be closed at shutdown
-		final List<StreamChannelAccess<?>> channelAccesses = new ArrayList<StreamChannelAccess<?>>(channelIDs.size());
+		final List<StreamChannelAccess<?, ?>> channelAccesses = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
 		registerChannelsToBeRemovedAtShudown(channelAccesses);
 
 		// the list with the target iterators
@@ -491,7 +491,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 					registerSegmentsToBeFreedAtShutdown(allBuffers);
 					
 					// get the readers and register them to be released
-					final List<StreamChannelAccess<?>> readers = new ArrayList<StreamChannelAccess<?>>(channelIDs.size());
+					final List<StreamChannelAccess<?, ?>> readers = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
 					registerChannelsToBeRemovedAtShudown(readers);
 					
 					final Iterator<KeyValuePair<K, V>> mergeIterator = getMergingIterator(channelIDs, readBuffers, readers);

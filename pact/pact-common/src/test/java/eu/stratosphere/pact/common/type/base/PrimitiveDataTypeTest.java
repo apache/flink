@@ -127,6 +127,7 @@ public class PrimitiveDataTypeTest {
 		PactString string1 = new PactString("This is a test");
 		PactString string2 = new PactString("This is a tesa");
 		PactString string3 = new PactString("This is a tesz");
+		PactString string4 = new PactString("Ünlaut ßtring µ avec é y ¢");
 		Assert.assertTrue(string0.compareTo(string0) == 0);
 		Assert.assertTrue(string0.compareTo(string1) == 0);
 		Assert.assertTrue(string0.compareTo(string2) > 0);
@@ -135,16 +136,21 @@ public class PrimitiveDataTypeTest {
 		// test stream out/input
 		try {
 			string0.write(mOut);
+			string4.write(mOut);
 			string2.write(mOut);
 			string3.write(mOut);
 			PactString string1n = new PactString();
 			PactString string2n = new PactString();
 			PactString string3n = new PactString();
+			PactString string4n = new PactString();
 			string1n.read(mIn);
+			string4n.read(mIn);
 			string2n.read(mIn);
 			string3n.read(mIn);
 			Assert.assertEquals(string0.compareTo(string1n), 0);
 			Assert.assertEquals(string0.toString(), string1n.toString());
+			Assert.assertEquals(string4.compareTo(string4n), 0);
+			Assert.assertEquals(string4.toString(), string4n.toString());
 			Assert.assertEquals(string2.compareTo(string2n), 0);
 			Assert.assertEquals(string2.toString(), string2n.toString());
 			Assert.assertEquals(string3.compareTo(string3n), 0);

@@ -94,10 +94,10 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput() {
-		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void registerInputOutput()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start registering input and output"));
 
 		// initialize OutputFormat
 		initOutputFormat();
@@ -109,20 +109,18 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		this.maxFileHandles = config.getNumFilehandles();
 		this.spillThreshold = config.getSortSpillingTreshold();
 
-		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception {
-		
-		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void invoke() throws Exception
+	{
+		if (LOG.isInfoEnabled())
+			LOG.info(getLogString("Start PACT code"));
 
 		final Path path = getFileOutputPath();
 		final OutputFormat format = this.format;
@@ -153,9 +151,8 @@ public class DataSinkTask extends AbstractFileOutputTask {
 				return;
 			}
 
-			LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
-				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Start writing output to " + path.toString()));
 
 			format.setOutput(fdos);
 			format.open();
@@ -168,9 +165,8 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				if (LOG.isErrorEnabled())
+					LOG.error(getLogString("Unexpected ERROR in PACT code"));
 				throw ex;
 			}
 				
@@ -198,17 +194,15 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		}
 
 		if (!this.taskCanceled) {
-			LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
-				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Finished writing output to " + path.toString()));
 
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		} else {
-			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isInfoEnabled())
+				LOG.info(getLogString("Finished PACT code"));
+		}
+		else {
+			if (LOG.isWarnEnabled())
+				LOG.warn(getLogString("PACT code cancelled"));
 		}
 	}
 
@@ -217,11 +211,11 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception {
+	public void cancel() throws Exception
+	{
 		this.taskCanceled = true;
-		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isWarnEnabled())
+			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 
 	/**
@@ -231,8 +225,8 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 *         Throws if instance of OutputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initOutputFormat() throws RuntimeException {
-
+	private void initOutputFormat()
+	{
 		// obtain task configuration (including stub parameters)
 		config = new DataSinkConfig(getRuntimeConfiguration());
 
@@ -263,8 +257,8 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 * @throws RuntimeException
 	 *         Thrown if no input ship strategy was provided.
 	 */
-	private void initInputReader() throws RuntimeException {
-
+	private void initInputReader()
+	{
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(
 			format.getOutKeyType(), format.getOutValueType());
@@ -542,4 +536,28 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//                               Utilities
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Utility function that composes a string for logging purposes. The string includes the given message and
+	 * the index of the task in its task group together with the number of tasks in the task group.
+	 *  
+	 * @param message The main message for the log.
+	 * @return The string ready for logging.
+	 */
+	private String getLogString(String message)
+	{
+		StringBuilder bld = new StringBuilder(128);	
+		bld.append(message);
+		bld.append(':').append(' ');
+		bld.append(this.getEnvironment().getTaskName());
+		bld.append(' ').append('"');
+		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		bld.append('/');
+		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
+		bld.append(')');
+		return bld.toString();
+	}
 }

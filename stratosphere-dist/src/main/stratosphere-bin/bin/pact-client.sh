@@ -32,7 +32,7 @@ JVM_ARGS="$JVM_ARGS -Xmx512m"
 # PACT CLI client
 constructPactCLIClientClassPath() {
 
-	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
+	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
 
 		add=0
 
