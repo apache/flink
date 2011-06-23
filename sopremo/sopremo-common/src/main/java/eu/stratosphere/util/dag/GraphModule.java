@@ -30,7 +30,7 @@ import java.util.List;
  * @param <OutputNode>
  *        the type of all output nodes
  */
-public abstract class AbstractSubGraph<Node, InputNode extends Node, OutputNode extends Node> implements
+public abstract class GraphModule<Node, InputNode extends Node, OutputNode extends Node> implements
 		SubGraph<Node, InputNode, OutputNode> {
 	/**
 	 * The outputs of the module.
@@ -49,6 +49,8 @@ public abstract class AbstractSubGraph<Node, InputNode extends Node, OutputNode 
 
 	private Navigator<Node> navigator;
 
+	private String name;
+
 	/**
 	 * Initializes a PactModule having the given inputs, outputs, and {@link Navigator}.
 	 * 
@@ -59,10 +61,15 @@ public abstract class AbstractSubGraph<Node, InputNode extends Node, OutputNode 
 	 * @param navigator
 	 *        the navigator used to traverse the graph of nodes
 	 */
-	protected AbstractSubGraph(InputNode[] inputNodes, OutputNode[] outputNodes, Navigator<Node> navigator) {
+	protected GraphModule(String name, InputNode[] inputNodes, OutputNode[] outputNodes, Navigator<Node> navigator) {
+		this.name = name;
 		this.inputNodes = inputNodes;
 		this.outputNodes = outputNodes;
 		this.navigator = navigator;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	@Override
@@ -120,7 +127,8 @@ public abstract class AbstractSubGraph<Node, InputNode extends Node, OutputNode 
 		for (OutputNode output : this.getAllOutputs())
 			for (Node node : this.navigator.getConnectedNodes(output))
 				if (node == null)
-					throw new IllegalStateException(String.format("Output %s is not fully connected", output));
+					throw new IllegalStateException(String.format("%s: output %s is not fully connected", getName(),
+						output));
 
 		final Iterable<? extends Node> reachableNodes = this.getReachableNodes();
 		List<InputNode> inputList = new LinkedList<InputNode>(Arrays.asList(this.inputNodes));
@@ -128,7 +136,8 @@ public abstract class AbstractSubGraph<Node, InputNode extends Node, OutputNode 
 			inputList.remove(node);
 
 		if (!inputList.isEmpty())
-			throw new IllegalStateException(String.format("Inputs %s are not fully connected", inputList));
+			throw new IllegalStateException(
+				String.format("%s: inputs %s are not fully connected", getName(), inputList));
 
 	}
 

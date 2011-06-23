@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.base;
 
 import java.util.ArrayList;
-import java.util.BitSet;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -10,391 +10,441 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.CompactArrayNode;
-import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ArrayMerger;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.ContainerExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.pact.KeyExtractionStub;
+import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoCross;
-import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class Join extends ConditionalOperator {
-	private BitSet outerJoinFlag = new BitSet();
+public class Join extends CompositeOperator {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6428723643579047169L;
 
-	public Join(EvaluableExpression transformation, ConditionalExpression condition, JsonStream... inputs) {
-		super(transformation, condition, inputs);
+	private ConditionalExpression condition;
+
+	private EvaluableExpression expression;
+
+	public Join(EvaluableExpression expression, ConditionalExpression condition, JsonStream... inputs) {
+		super(inputs);
+		this.condition = condition;
+		this.expression = expression;
 	}
 
-	public Join(EvaluableExpression transformation, ConditionalExpression condition, List<? extends JsonStream> inputs) {
-		super(transformation, condition, inputs);
-	}
-
-	abstract class TwoSourceJoin {
-		int leftIndex, rightIndex;
-
-		public TwoSourceJoin(EvaluableExpression expr1, EvaluableExpression expr2) {
-			this.leftIndex = SopremoUtil.getInputIndex(expr1);
-			this.rightIndex = SopremoUtil.getInputIndex(expr2);
-		}
-
-		public abstract DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> createJoinContract(
-				PactModule module, EvaluationContext context, Contract left, Contract right);
-
-	}
-
-	class ComparisonJoin extends TwoSourceJoin {
-		ComparativeExpression comparison;
-
-		public ComparisonJoin(ComparativeExpression comparison) {
-			super(comparison.getExpr1(), comparison.getExpr2());
-			this.comparison = comparison;
-		}
-
-		@Override
-		public DualInputContract<eu.stratosphere.sopremo.pact.PactJsonObject.Key, PactJsonObject, eu.stratosphere.sopremo.pact.PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> createJoinContract(
-				PactModule module, EvaluationContext context, Contract left, Contract right) {
-			MapContract<PactNull, PactJsonObject, Key, PactJsonObject> in1 =
-				new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
-			SopremoUtil.setTransformationAndContext(in1.getStubParameters(), this.comparison.getExpr1(), context);
-			in1.setInput(left);
-			MapContract<PactNull, PactJsonObject, Key, PactJsonObject> in2 =
-				new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
-			SopremoUtil.setTransformationAndContext(in2.getStubParameters(), this.comparison.getExpr2(), context);
-			in2.setInput(right);
-
-			// select strategy
-			DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> join = null;
-			switch (this.comparison.getBinaryOperator()) {
-			case EQUAL:
-				if (!Join.this.outerJoinFlag.isEmpty()) {
-					boolean leftOuter = Join.this.outerJoinFlag.get(SopremoUtil.getInputIndex((PathExpression) this.comparison
-						.getExpr1()));
-					boolean rightOuter = Join.this.outerJoinFlag
-						.get(SopremoUtil.getInputIndex((PathExpression) this.comparison.getExpr2()));
-					join = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject>(
-							OuterJoinStub.class);
-					join.getStubParameters().setBoolean("leftOuter", leftOuter);
-					join.getStubParameters().setBoolean("rightOuter", rightOuter);
-					break;
-				}
-
-				join = new MatchContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject>(
-						InnerJoinStub.class);
-				break;
-			default:
-				join = new CrossContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject>(
-						ThetaJoinStub.class);
-				SopremoUtil.serialize(join.getStubParameters(), "comparison", this.comparison);
-				break;
-
-			}
-
-			module.getOutput(0).setInput(join);
-			join.setFirstInput(in1);
-			join.setSecondInput(in2);
-			return join;
-		}
-	}
-
-	class ElementInSetJoin extends TwoSourceJoin {
-		ElementInSetExpression elementInSetExpression;
-
-		public ElementInSetJoin(ElementInSetExpression elementInSetExpression) {
-			super(elementInSetExpression.getElementExpr(), elementInSetExpression.getSetExpr());
-			this.elementInSetExpression = elementInSetExpression;
-		}
-
-		@Override
-		public DualInputContract<eu.stratosphere.sopremo.pact.PactJsonObject.Key, PactJsonObject, eu.stratosphere.sopremo.pact.PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> createJoinContract(
-				PactModule module, EvaluationContext context, Contract left, Contract right) {
-			MapContract<PactNull, PactJsonObject, Key, PactJsonObject> in1 =
-				new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
-			SopremoUtil.setTransformationAndContext(in1.getStubParameters(),
-				this.elementInSetExpression.getElementExpr(), context);
-			in1.setInput(left);
-			MapContract<PactNull, PactJsonObject, Key, PactJsonObject> in2 =
-				new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
-			SopremoUtil.setTransformationAndContext(in2.getStubParameters(), this.elementInSetExpression.getSetExpr(),
-				context);
-			in2.setInput(right);
-
-			// select strategy
-			DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> join = null;
-			if (this.elementInSetExpression.getQuantor() == Quantor.EXISTS_NOT_IN)
-				join = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject>(
-					AntiJoinStub.class);
-			else
-				join = new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject>(
-						SemiJoinStub.class);
-
-			module.getOutput(0).setInput(join);
-			join.setFirstInput(in1);
-			join.setSecondInput(in2);
-			return join;
-		}
-	}
-
-	public static class ArrayWrapper extends SopremoMap<PactNull, PactJsonObject, PactNull, PactJsonObject> {
-		private int arraySize, arrayIndex;
-
-		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
-			this.arraySize = parameters.getInteger("arraySize", 0);
-			this.arrayIndex = parameters.getInteger("arrayIndex", 0);
-		}
-
-		@Override
-		public void map(PactNull key, PactJsonObject value, Collector<PactNull, PactJsonObject> out) {
-			JsonNode[] array = new JsonNode[this.arraySize];
-			array[this.arrayIndex] = value.getValue();
-			out.collect(key, new PactJsonObject(new CompactArrayNode(array)));
-		}
-	}
-
-	@Override
-	public PactModule asPactModule(EvaluationContext context) {
-		PactModule module = new PactModule(this.getInputOperators().size(), 1);
-
-		ConditionalExpression condition = this.getCondition();
-		if (condition.getCombination() != Combination.AND)
-			throw new UnsupportedOperationException();
-
-		List<TwoSourceJoin> joinOrder = this.getInitialJoinOrder(condition);
-		ArrayList<Contract> inputs = this.wrapInputsWithArray(context, module);
-
-		DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> join = null;
-		for (TwoSourceJoin twoSourceJoin : joinOrder) {
-			join = twoSourceJoin.createJoinContract(module, context, inputs.get(twoSourceJoin.leftIndex),
-				inputs.get(twoSourceJoin.rightIndex));
-			inputs.set(twoSourceJoin.leftIndex, join);
-			inputs.set(twoSourceJoin.rightIndex, join);
-
-			SopremoUtil.setTransformationAndContext(join.getStubParameters(), new ArrayMerger(), context);
-		}
-
-		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> projectionMap = new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(
-				Projection.ProjectionStub.class);
-		module.getOutput(0).setInput(projectionMap);
-		projectionMap.setInput(join);
-		SopremoUtil.setTransformationAndContext(projectionMap.getStubParameters(), this.getTransformation(), context);
-
-		return module;
-	}
-
-	private ArrayList<Contract> wrapInputsWithArray(EvaluationContext context, PactModule module) {
-		ArrayList<Contract> inputs = new ArrayList<Contract>();
-		List<Output> rawInputs = this.getInputs();
-		for (int index = 0; index < rawInputs.size(); index++) {
-			MapContract<PactNull, PactJsonObject, PactNull, PactJsonObject> arrayWrapMap = new MapContract<PactNull, PactJsonObject, PactNull, PactJsonObject>(
-				ArrayWrapper.class);
-			inputs.add(arrayWrapMap);
-			arrayWrapMap.setInput(module.getInput(index));
-			SopremoUtil
-				.setTransformationAndContext(arrayWrapMap.getStubParameters(), this.getTransformation(), context);
-			arrayWrapMap.getStubParameters().setInteger("arraySize", rawInputs.size());
-			arrayWrapMap.getStubParameters().setInteger("arrayIndex", index);
-		}
-		return inputs;
-	}
-
-	private List<TwoSourceJoin> getInitialJoinOrder(ConditionalExpression condition) {
-		List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
-		for (BooleanExpression expression : condition.getExpressions())
-			if (expression instanceof ComparativeExpression)
-				joins.add(new ComparisonJoin((ComparativeExpression) expression));
-			else if (expression instanceof ElementInSetExpression)
-				joins.add(new ElementInSetJoin((ElementInSetExpression) expression));
-			else
-				throw new UnsupportedOperationException();
-
-		// TODO: add some kind of optimizations
-		return joins;
+	public Join(EvaluableExpression expression, ConditionalExpression condition, List<? extends JsonStream> inputs) {
+		super(inputs);
+		this.condition = condition;
+		this.expression = expression;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
-		if (!super.equals(obj))
+		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Join other = (Join) obj;
-		return this.outerJoinFlag.equals(other.outerJoinFlag);
+		return super.equals(obj) && this.condition.equals(((Join) obj).condition)
+			&& this.expression.equals(((Join) obj).expression);
+	}
+
+	public ConditionalExpression getCondition() {
+		return this.condition;
+	}
+
+	private List<TwoSourceJoin> getInitialJoinOrder(ConditionalExpression condition) {
+		List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
+		for (BooleanExpression expression : condition.getExpressions())
+			if (expression instanceof ComparativeExpression)
+				joins.add(new ComparisonJoin(
+					this.getInputForExpression(((ComparativeExpression) expression).getExpr1()),
+					this.getInputForExpression(((ComparativeExpression) expression).getExpr2()),
+					(ComparativeExpression) expression));
+			else if (expression instanceof ElementInSetExpression)
+				joins.add(new ElementInSetJoin(this.getInputForExpression(((ElementInSetExpression) expression)
+					.getElementExpr()), this.getInputForExpression(((ElementInSetExpression) expression).getSetExpr()),
+					(ElementInSetExpression) expression));
+			else
+				throw new UnsupportedOperationException();
+
+		// TODO: add some kind of optimization
+		return joins;
+	}
+
+	protected Operator getInputForExpression(EvaluableExpression expr1) {
+		return this.getInput(((ContainerExpression) expr1).find(InputSelection.class).getIndex()).getOperator();
 	}
 
 	@Override
+	public SopremoModule asElementaryOperators() {
+		if (this.condition.getCombination() != Combination.AND)
+			throw new UnsupportedOperationException();
+
+		int numInputs = this.getInputs().size();
+		SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
+
+		List<Operator> inputs = new ArrayList<Operator>();
+		for (int index = 0; index < numInputs; index++) {
+			EvaluableExpression[] elements = new EvaluableExpression[this.getInputs().size()];
+			Arrays.fill(elements, EvaluableExpression.NULL);
+			elements[index] = EvaluableExpression.SAME_VALUE;
+			inputs.add(new Projection(new ArrayCreation(elements), module.getInput(index)));
+		}
+
+		List<TwoSourceJoin> joins = this.getInitialJoinOrder(this.condition);
+
+		for (TwoSourceJoin twoSourceJoin : joins) {
+			List<Output> operatorInputs = twoSourceJoin.getInputs();
+			Output[] actualInputs = new Output[2];
+			for (int index = 0; index < operatorInputs.size(); index++) {
+				int inputIndex = this.getInputs().indexOf(operatorInputs.get(index));
+				actualInputs[index] = inputs.get(inputIndex).getSource();
+			}
+			for (int index = 0; index < operatorInputs.size(); index++) {
+				int inputIndex = this.getInputs().indexOf(operatorInputs.get(index));
+				inputs.set(inputIndex, twoSourceJoin);
+			}
+			twoSourceJoin.setInputs(actualInputs);
+		}
+
+		module.getOutput(0).setInput(0,
+			new Projection(EvaluableExpression.NULL, this.expression, joins.get(joins.size() - 1)));
+		return module;
+	}
+
+	// @Override
+	// public PactModule asPactModule(EvaluationContext context) {
+	// PactModule module = new PactModule(this.getInputOperators().size(), 1);
+	//
+	// ConditionalExpression condition = this.getCondition();
+	// if (condition.getCombination() != Combination.AND)
+	// throw new UnsupportedOperationException();
+	//
+	// List<TwoSourceJoin> joinOrder = this.getInitialJoinOrder(condition);
+	// List<Contract> inputs = SopremoUtil.wrapInputsWithArray(module, context);
+	//
+	// DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key,
+	// PactJsonObject> join = null;
+	// for (TwoSourceJoin twoSourceJoin : joinOrder) {
+	// join = twoSourceJoin.createJoinContract(module, context, inputs.get(twoSourceJoin.leftIndex),
+	// inputs.get(twoSourceJoin.rightIndex));
+	// inputs.set(twoSourceJoin.leftIndex, join);
+	// inputs.set(twoSourceJoin.rightIndex, join);
+	//
+	// SopremoUtil.setTransformationAndContext(join.getStubParameters(), new ArrayMerger(), context);
+	// }
+	//
+	// MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject> projectionMap = new
+	// MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+	// Projection.ProjectionStub.class);
+	// module.getOutput(0).setInput(projectionMap);
+	// projectionMap.setInput(join);
+	// SopremoUtil.setTransformationAndContext(projectionMap.getStubParameters(), this.getKeyTransformation(), context);
+	//
+	// return module;
+	// }
+
+	@Override
 	public int hashCode() {
-		final int prime = 31;
+		final int prime = 37;
 		int result = super.hashCode();
-		result = prime * result + this.outerJoinFlag.hashCode();
+		result = prime * result + this.condition.hashCode();
+		result = prime * result + this.expression.hashCode();
 		return result;
 	}
 
-	public boolean isOuterJoin(JsonStream input) {
-		int index = this.getInputs().indexOf(input.getSource());
-		if (index == -1)
-			throw new IllegalArgumentException();
-		return this.outerJoinFlag.get(index);
-	}
+	public static class AntiJoinStub extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2672827253341673832L;
 
-	public void setOuterJoin(JsonStream... inputs) {
-		for (JsonStream input : inputs) {
-			int index = this.getInputs().indexOf(input.getSource());
-			if (index == -1)
-				throw new IllegalArgumentException();
-			this.outerJoinFlag.set(index);
+		public AntiJoinStub(JsonStream left, JsonStream right) {
+			super(left, right);
 		}
-	}
 
-	public Join withOuterJoin(JsonStream... inputs) {
-		this.setOuterJoin(inputs);
-		return this;
-	}
-
-	public static class AntiJoinStub extends
-			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
-		@Override
-		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<Key, PactJsonObject> out) {
-			if (!values2.hasNext())
-				while (values1.hasNext()) {
-					JsonNode result = this.getTransformation().evaluate(JsonUtil.asArray(values1.next().getValue()),
-						this.getContext());
-					out.collect(PactNull.getInstance(), new PactJsonObject(result));
-				}
-		}
-	}
-
-	public static class InnerJoinStub extends
-			SopremoMatch<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
-		@Override
-		public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
-				Collector<Key, PactJsonObject> out) {
-			JsonNode result = this.getTransformation()
-				.evaluate(JsonUtil.asArray(value1.getValue(), value2.getValue()), this.getContext());
-			out.collect(PactNull.getInstance(), new PactJsonObject(result));
-		}
-	}
-
-	public static class OuterJoinStub extends
-			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
-		private boolean leftOuter, rightOuter;
-
-		@Override
-		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<Key, PactJsonObject> out) {
-
-			if (!values1.hasNext()) {
-				// special case: no items from first source
-				// emit all values of the second source
-				if (this.rightOuter)
-					while (values2.hasNext())
-						out.collect(
-							PactNull.getInstance(),
-							new PactJsonObject(this.getTransformation()
-								.evaluate(
-									JsonUtil.asArray(NullNode.getInstance(), values2.next().getValue()),
-									this.getContext())));
-				return;
-			}
-
-			if (!values2.hasNext()) {
-				// special case: no items from second source
-				// emit all values of the first source
-				if (this.leftOuter)
+		public static class Implementation extends
+				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
+					Iterator<PactJsonObject> values2,
+					Collector<PactJsonObject.Key, PactJsonObject> out) {
+				if (!values2.hasNext())
 					while (values1.hasNext())
-						out.collect(
-							PactNull.getInstance(),
-							new PactJsonObject(this.getTransformation()
-								.evaluate(
-									JsonUtil.asArray(values1.next().getValue(), NullNode.getInstance()),
-									this.getContext())));
-				return;
+						out.collect(key,
+							new PactJsonObject(JsonUtil.asArray(values1.next().getValue())));
 			}
-
-			// TODO: use resettable iterator to avoid OOM
-			ArrayList<JsonNode> firstSourceNodes = new ArrayList<JsonNode>();
-			while (values1.hasNext())
-				firstSourceNodes.add(values1.next().getValue());
-
-			while (values2.hasNext()) {
-				JsonNode secondSourceNode = values2.next().getValue();
-				for (JsonNode firstSourceNode : firstSourceNodes)
-					out.collect(
-						PactNull.getInstance(),
-						new PactJsonObject(this.getTransformation().evaluate(JsonUtil.asArray(firstSourceNode,
-							secondSourceNode), this.getContext())));
-			}
-		}
-
-		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
-			this.leftOuter = parameters.getBoolean("leftOuter", false);
-			this.rightOuter = parameters.getBoolean("rightOuter", false);
 		}
 	}
 
-	public static class SemiJoinStub extends
-			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
-		@Override
-		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<Key, PactJsonObject> out) {
-			if (values2.hasNext())
-				while (values1.hasNext()) {
-					JsonNode result = this.getTransformation().evaluate(JsonUtil.asArray(values1.next().getValue()),
-						this.getContext());
-					out.collect(PactNull.getInstance(), new PactJsonObject(result));
-				}
-		}
-	}
+	static class ComparisonJoin extends TwoSourceJoin {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3045868252288937108L;
 
-	public static class ThetaJoinStub extends
-			SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, Key, PactJsonObject> {
 		private ComparativeExpression comparison;
 
-		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
-			this.comparison = SopremoUtil.deserialize(parameters, "comparison", ComparativeExpression.class);
+		public ComparisonJoin(JsonStream left, JsonStream right, ComparativeExpression comparison) {
+			super(left, right, comparison.getExpr1(), comparison.getExpr2());
+			this.comparison = comparison;
 		}
 
 		@Override
-		public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2,
-				PactJsonObject value2,
-				Collector<Key, PactJsonObject> out) {
-			if (this.comparison.evaluate(JsonUtil.asArray(value1.getValue().get(0), value2.getValue().get(1)),
-				this.getContext()) == BooleanNode.TRUE)
-				out.collect(PactNull.getInstance(),
-					new PactJsonObject(this.getTransformation().evaluate(
-						JsonUtil.asArray(value1.getValue(), value2.getValue()), this.getContext())));
+		public Operator createJoinContract(Operator left, Operator right) {
+			switch (this.comparison.getBinaryOperator()) {
+			case EQUAL:
+				boolean leftOuter = this.getLeftJoinKey().removeTag(ExpressionTag.PRESERVE);
+				boolean rightOuter = this.getRightJoinKey().removeTag(ExpressionTag.PRESERVE);
+				if (leftOuter || rightOuter)
+					return new OuterJoinStub(left, leftOuter, right, rightOuter);
+
+				return new InnerJoinStub(left, right);
+			default:
+				return new ThetaJoinStub(left, this.comparison, right);
+			}
 		}
+	}
+
+	static class ElementInSetJoin extends TwoSourceJoin {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1650057142925592093L;
+
+		private ElementInSetExpression elementInSetExpression;
+
+		public ElementInSetJoin(JsonStream left, JsonStream right, ElementInSetExpression elementInSetExpression) {
+			super(left, right, elementInSetExpression.getElementExpr(), elementInSetExpression.getSetExpr());
+			this.elementInSetExpression = elementInSetExpression;
+		}
+
+		@Override
+		public Operator createJoinContract(Operator left, Operator right) {
+			if (this.elementInSetExpression.getQuantor() == Quantor.EXISTS_NOT_IN)
+				return new AntiJoinStub(left, right);
+			return new SemiJoinStub(left, right);
+		}
+	}
+
+	public static class InnerJoinStub extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 7145499293300473008L;
+
+		public InnerJoinStub(JsonStream left, JsonStream right) {
+			super(left, right);
+		}
+
+		public static class Implementation extends
+				SopremoMatch<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
+					Collector<PactJsonObject.Key, PactJsonObject> out) {
+				JsonNode result = JsonUtil.asArray(value1.getValue(), value2.getValue());
+				out.collect(key, new PactJsonObject(result));
+			}
+		}
+	}
+
+	public static class OuterJoinStub extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 317168181417121979L;
+
+		private boolean leftOuter, rightOuter;
+
+		public OuterJoinStub(JsonStream left, boolean leftOuter, JsonStream right, boolean rightOuter) {
+			super(left, right);
+			this.leftOuter = leftOuter;
+			this.rightOuter = rightOuter;
+		}
+
+		@Override
+		protected void configureContract(Configuration configuration, EvaluationContext context) {
+			super.configureContract(configuration, context);
+			configuration.setBoolean("leftOuter", this.leftOuter);
+			configuration.setBoolean("rightOuter", this.rightOuter);
+		}
+
+		public static class Implementation extends
+				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			private boolean leftOuter, rightOuter;
+
+			@Override
+			public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
+					Iterator<PactJsonObject> values2,
+					Collector<PactJsonObject.Key, PactJsonObject> out) {
+
+				if (!values1.hasNext()) {
+					// special case: no items from first source
+					// emit all values of the second source
+					if (this.rightOuter)
+						while (values2.hasNext())
+							out.collect(key,
+								new PactJsonObject(JsonUtil.asArray(NullNode.getInstance(), values2.next().getValue())));
+					return;
+				}
+
+				if (!values2.hasNext()) {
+					// special case: no items from second source
+					// emit all values of the first source
+					if (this.leftOuter)
+						while (values1.hasNext())
+							out.collect(key,
+								new PactJsonObject(JsonUtil.asArray(values1.next().getValue(), NullNode.getInstance())));
+					return;
+				}
+
+				// TODO: use resettable iterator to avoid OOM
+				ArrayList<JsonNode> firstSourceNodes = new ArrayList<JsonNode>();
+				while (values1.hasNext())
+					firstSourceNodes.add(values1.next().getValue());
+
+				while (values2.hasNext()) {
+					JsonNode secondSourceNode = values2.next().getValue();
+					for (JsonNode firstSourceNode : firstSourceNodes)
+						out.collect(key,
+							new PactJsonObject(JsonUtil.asArray(firstSourceNode, secondSourceNode)));
+				}
+			}
+
+			@Override
+			public void configure(Configuration parameters) {
+				super.configure(parameters);
+				this.leftOuter = parameters.getBoolean("leftOuter", false);
+				this.rightOuter = parameters.getBoolean("rightOuter", false);
+			}
+		}
+	}
+
+	public static class SemiJoinStub extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7624313431291367616L;
+
+		public SemiJoinStub(JsonStream left, JsonStream right) {
+			super(left, right);
+		}
+
+		public static class Implementation extends
+				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
+					Iterator<PactJsonObject> values2,
+					Collector<PactJsonObject.Key, PactJsonObject> out) {
+				if (values2.hasNext())
+					while (values1.hasNext())
+						out.collect(key,
+							new PactJsonObject(JsonUtil.asArray(values1.next().getValue())));
+			}
+		}
+	}
+
+	public static class ThetaJoinStub extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -952011340895859983L;
+
+		private ComparativeExpression comparison;
+
+		public ThetaJoinStub(JsonStream left, ComparativeExpression comparison, JsonStream right) {
+			super(left, right);
+			this.comparison = comparison;
+		}
+
+		@Override
+		protected void configureContract(Configuration configuration, EvaluationContext context) {
+			super.configureContract(configuration, context);
+			SopremoUtil.serialize(configuration, "comparison", this.comparison);
+		}
+
+		public static class Implementation
+				extends
+				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			private ComparativeExpression comparison;
+
+			@Override
+			public void configure(Configuration parameters) {
+				super.configure(parameters);
+				this.comparison = SopremoUtil.deserialize(parameters, "comparison", ComparativeExpression.class);
+			}
+
+			@Override
+			public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2,
+					PactJsonObject value2, Collector<PactJsonObject.Key, PactJsonObject> out) {
+				if (this.comparison.evaluate(JsonUtil.asArray(value1.getValue().get(0), value2.getValue().get(1)),
+					this.getContext()) == BooleanNode.TRUE)
+					out.collect(PactJsonObject.keyOf(JsonUtil.asArray(key1.getValue(), key2.getValue())),
+						new PactJsonObject(JsonUtil.asArray(value1.getValue(), value2.getValue())));
+			}
+		}
+	}
+
+	static abstract class TwoSourceJoin extends CompositeOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4192583790586928743L;
+
+		private EvaluableExpression leftJoinKey, rightJoinKey;
+
+		public TwoSourceJoin(JsonStream left, JsonStream right, EvaluableExpression leftJoinKey,
+				EvaluableExpression rightJoinKey) {
+			super(left, right);
+			this.leftJoinKey = leftJoinKey;
+			this.rightJoinKey = rightJoinKey;
+		}
+
+		@Override
+		public SopremoModule asElementaryOperators() {
+			SopremoModule sopremoModule = new SopremoModule(this.toString(), 2, 1);
+
+			Projection leftProjection = new Projection(this.leftJoinKey, EvaluableExpression.SAME_VALUE,
+				sopremoModule.getInput(0));
+			Projection rightProjection = new Projection(this.rightJoinKey, EvaluableExpression.SAME_VALUE,
+				sopremoModule.getInput(1));
+			Operator joinAlgorithm = this.createJoinContract(leftProjection, rightProjection);
+			sopremoModule.getOutput(0).setInputs(new Projection(new ArrayMerger(), joinAlgorithm));
+			return sopremoModule;
+		}
+
+		public EvaluableExpression getLeftJoinKey() {
+			return this.leftJoinKey;
+		}
+
+		public EvaluableExpression getRightJoinKey() {
+			return this.rightJoinKey;
+		}
+
+		public abstract Operator createJoinContract(Operator left, Operator right);
+
 	}
 
 }

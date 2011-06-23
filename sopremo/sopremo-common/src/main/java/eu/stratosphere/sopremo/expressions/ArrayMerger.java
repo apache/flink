@@ -12,8 +12,8 @@ import eu.stratosphere.sopremo.JsonUtil;
  * Merges several arrays by taking the first non-null value for each respective array.
  * 
  * @author Arvid Heise
- *
  */
+@OptimizerHints(scope = Scope.ARRAY, transitive = true, minNodes = 1, maxNodes = OptimizerHints.UNBOUND, iterating = true)
 public class ArrayMerger extends EvaluableExpression {
 	/**
 	 * 
@@ -22,7 +22,7 @@ public class ArrayMerger extends EvaluableExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		Iterator<JsonNode> arrays = node.getElements();
+		Iterator<JsonNode> arrays = node.iterator();
 		ArrayNode mergedArray = JsonUtil.NODE_FACTORY.arrayNode();
 		while (arrays.hasNext()) {
 			JsonNode array = arrays.next();

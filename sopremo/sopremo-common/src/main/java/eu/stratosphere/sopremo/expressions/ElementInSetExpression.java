@@ -9,6 +9,7 @@ import org.codehaus.jackson.node.BooleanNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 
+@OptimizerHints(scope = Scope.ANY, iterating = true)
 public class ElementInSetExpression extends BooleanExpression {
 	/**
 	 * 

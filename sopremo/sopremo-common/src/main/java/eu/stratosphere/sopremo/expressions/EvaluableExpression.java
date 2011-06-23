@@ -1,11 +1,16 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.Set;
+
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.util.IdentitySet;
 
 /**
  * Base class for all first-order expressions in the Sopremo language, such as arithmetic expressions, functions, and
@@ -14,6 +19,28 @@ import eu.stratosphere.sopremo.SerializableSopremoType;
  * @author Arvid Heise
  */
 public abstract class EvaluableExpression implements SerializableSopremoType, Evaluable {
+	/**
+	 * Used for secondary information during plan creation only.
+	 */
+	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
+
+	public void addTag(ExpressionTag tag) {
+		tags.add(tag);
+	}
+
+	public EvaluableExpression withTag(ExpressionTag tag) {
+		this.addTag(tag);
+		return this;
+	}
+
+	public boolean hasTag(ExpressionTag tag) {
+		return tags.contains(tag);
+	}
+
+	public boolean removeTag(ExpressionTag preserve) {
+		return tags.remove(preserve);
+	}
+
 	/**
 	 * 
 	 */
@@ -25,11 +52,31 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 	 */
 	public static final EvaluableExpression UNKNOWN = new IdentifierAccess("?");
 
+	public final static EvaluableExpression SAME_KEY = new EvaluableExpression() {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 9192628786637605317L;
+
+		@Override
+		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+			throw new EvaluationException();
+		}
+
+		private Object readResolve() {
+			return EvaluableExpression.SAME_KEY;
+		}
+
+		protected void toString(StringBuilder builder) {
+			builder.append("<key>");
+		};
+	};
+
 	/**
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
 	 * {@link Operator}s that do not perform any transformation to the input, such as a filter operator.
 	 */
-	public static final EvaluableExpression IDENTITY = new EvaluableExpression() {
+	public static final EvaluableExpression SAME_VALUE = new EvaluableExpression() {
 
 		/**
 		 * 
@@ -44,9 +91,26 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 			return node;
 		};
 
+		private Object readResolve() {
+			return EvaluableExpression.SAME_VALUE;
+		}
+
 		@Override
 		protected void toString(StringBuilder builder) {
+			builder.append("<value>");
 		};
+	};
+
+	public static final EvaluableExpression NULL = new ConstantExpression(NullNode.getInstance()) {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2375203649638430872L;
+
+		private Object readResolve() {
+			return EvaluableExpression.NULL;
+		}
 	};
 
 	@Override
@@ -65,4 +129,5 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 	 */
 	protected void toString(StringBuilder builder) {
 	}
+
 }

@@ -4,16 +4,18 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.base.Intersection;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class UnionTest extends SopremoTest<Union> {
 	@Override
 	protected Union createDefaultInstance(int index) {
-		Union union = new Union(null, null, null);
-		union.setKeyExtractors(createPath(String.valueOf(index)));
+		Union union = new Union(new Source(EvaluableExpression.NULL), null, null);
+		union.setKeyProjection(0, createPath(String.valueOf(index)));
 		return union;
 	}
 
@@ -124,9 +126,9 @@ public class UnionTest extends SopremoTest<Union> {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
-		union.setKeyExtractors(createPath("0", "name"),
-			new PathExpression(new FunctionCall("concat", createPath("1", "first name"),
-				new ConstantExpression(" "), createPath("1", "last name"))));
+		union.setKeyProjection(0, createPath("name"));
+		union.setKeyProjection(1, new FunctionCall("concat", createPath("first name"), new ConstantExpression(" "),
+			createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).

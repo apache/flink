@@ -31,7 +31,7 @@ import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.FieldAccess;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.IdentifierAccess;
 import eu.stratosphere.sopremo.expressions.InputSelection;
@@ -94,7 +94,7 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 	private final class FieldAccessConverter implements ExpressionConverter<PathFieldValue> {
 		@Override
 		public EvaluableExpression convertNode(PathFieldValue expr, List<EvaluableExpression> childPaths) {
-			FieldAccess fieldAccess = new FieldAccess(((ConstExpr) expr.nameExpr()).value.toString());
+			ObjectAccess fieldAccess = new ObjectAccess(((ConstExpr) expr.nameExpr()).value.toString());
 			// if (childPaths.size() > 1)
 			// spreadFields.put(fieldAccess, childPaths.subList(1, childPaths.size()));
 			return fieldAccess;
@@ -110,8 +110,8 @@ class EvaluableExpressionParser implements JaqlToSopremoParser<EvaluableExpressi
 				return new FunctionCall(d.getName(), childPaths.toArray(new EvaluableExpression[childPaths.size()]));
 			}
 			Operator operator = EvaluableExpressionParser.this.queryParser.parseOperator(expr);
-			if (operator instanceof Aggregation && operator.getTransformation() instanceof PathExpression)
-				return new FunctionCall("distinct", operator.getTransformation());
+			if (operator instanceof Aggregation && operator.getKeyTransformation() instanceof PathExpression)
+				return new FunctionCall("distinct", operator.getKeyTransformation());
 			// if (queryParser.bindings.get("$").getTransformed().equals(new Fragment.Input(0))
 			// && queryParser.parsePath(expr.collectExpr()).equals(
 			// new Fragment.ArrayCreation(new Fragment.Input(0))))

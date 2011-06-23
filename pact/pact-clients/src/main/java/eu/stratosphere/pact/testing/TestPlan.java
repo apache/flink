@@ -488,31 +488,6 @@ public class TestPlan implements Closeable {
 	}
 
 	/**
-	 * Creates a data sink which replicates the data to both given output sinks.
-	 */
-	/*
-	 * @SuppressWarnings({ "unchecked", "rawtypes" })
-	 * private DataSinkContract<Key, Value> createSplittingSink(
-	 * final DataSinkContract<?, ?> dataSinkContract,
-	 * final DataSinkContract<Key, Value> safeSink) {
-	 * final DataSinkContract<Key, Value> wrappedSink = new DataSinkContract<Key, Value>(
-	 * SplittingOutputFormat.class, dataSinkContract.getFilePath());
-	 * SplittingOutputFormat
-	 * .addOutputFormat(wrappedSink.getFormatParameters(),
-	 * (Class<? extends OutputFormat>) dataSinkContract
-	 * .getStubClass(),
-	 * dataSinkContract.getFilePath(), dataSinkContract
-	 * .getStubParameters());
-	 * SplittingOutputFormat.addOutputFormat(
-	 * wrappedSink.getFormatParameters(),
-	 * (Class<? extends OutputFormat>) safeSink.getStubClass(),
-	 * safeSink.getFilePath(), safeSink.getStubParameters());
-	 * wrappedSink.setInput(dataSinkContract.getInput());
-	 * return wrappedSink;
-	 * }
-	 */
-
-	/**
 	 * Sets the degree of parallelism for every node in the plan.
 	 */
 	private void syncDegreeOfParallelism(final Plan plan) {

@@ -5,17 +5,16 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.Difference;
-import eu.stratosphere.sopremo.base.Difference;
-import eu.stratosphere.sopremo.base.Intersection;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class DifferenceTest extends SopremoTest<Difference> {
 	@Override
 	protected Difference createDefaultInstance(int index) {
-		Difference difference = new Difference(null, null, null);
-		difference.setKeyExtractors(createPath(String.valueOf(index)));
+		Difference difference = new Difference(new Source(EvaluableExpression.NULL), null, null);
+		difference.setKeyProjection(0, createPath(String.valueOf(index)));
 		return difference;
 	}
 
@@ -116,9 +115,10 @@ public class DifferenceTest extends SopremoTest<Difference> {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
-		difference.setKeyExtractors(createPath("0", "name"),
-			new PathExpression(new FunctionCall("concat", createPath("1", "first name"),
-				new ConstantExpression(" "), createPath("1", "last name"))));
+		difference.setKeyProjection(0, createPath("name"));
+		difference.setKeyProjection(1, new FunctionCall("concat", createPath("first name"),
+			new ConstantExpression(" "),
+			createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).

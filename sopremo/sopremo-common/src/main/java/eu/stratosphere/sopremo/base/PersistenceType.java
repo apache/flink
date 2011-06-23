@@ -1,5 +1,5 @@
 package eu.stratosphere.sopremo.base;
 
-public enum DataType {
+public enum PersistenceType {
 	HDFS, ADHOC
 }

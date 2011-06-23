@@ -25,11 +25,10 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.util.dag.AbstractSubGraph;
+import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
 import eu.stratosphere.util.dag.NodePrinter;
@@ -41,7 +40,7 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
  * PactPrograms. While the interface of the module are the number of inputs and outputs, the actual implementation
  * consists of several interconnected {@link Contract}s that are connected to the inputs and outputs of the PactModule.
  */
-public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?, ?>, DataSinkContract<?, ?>> implements
+public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, DataSinkContract<?, ?>> implements
 		Visitable<Contract> {
 	/**
 	 * Initializes a PactModule having the given number of inputs and outputs.
@@ -51,14 +50,15 @@ public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?,
 	 * @param numberOfOutputs
 	 *        the number of outputs.
 	 */
-	public PactModule(int numberOfInputs, int numberOfOutputs) {
-		super(new DataSourceContract[numberOfInputs], new DataSinkContract[numberOfOutputs], ContractNavigator.INSTANCE);
+	public PactModule(String name, int numberOfInputs, int numberOfOutputs) {
+		super(name, new DataSourceContract[numberOfInputs], new DataSinkContract[numberOfOutputs],
+			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new DataSourceContract<PactNull, PactJsonObject>(JsonInputFormat.class,
-				String.valueOf(index));
+			this.inputNodes[index] = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(JsonInputFormat.class,
+				String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new DataSinkContract<PactNull, PactJsonObject>(JsonOutputFormat.class,
-				String.valueOf(index));
+			this.outputNodes[index] = new DataSinkContract<PactJsonObject.Key, PactJsonObject>(JsonOutputFormat.class,
+					String.format("%s %d", name, index));
 	}
 
 	/**
@@ -79,10 +79,16 @@ public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?,
 		dagPrinter.setNodePrinter(new NodePrinter<Contract>() {
 			@Override
 			public String toString(Contract node) {
+				int inputIndex = Arrays.asList(inputNodes).indexOf(node);
+				if (inputIndex != -1)
+					return String.format("Input %d", inputIndex);
+				int outputIndex = Arrays.asList(outputNodes).indexOf(node);
+				if (outputIndex != -1)
+					return String.format("Output %d", outputIndex);
 				return String.format("%s [%s]", node.getClass().getSimpleName(), node.getName());
 			}
 		});
-		dagPrinter.setWidth(80);
+		dagPrinter.setWidth(40);
 		return dagPrinter.toString(this.getAllOutputs(), ContractNavigator.INSTANCE);
 	}
 
@@ -116,8 +122,8 @@ public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?,
 	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
-	public static PactModule valueOf(Contract... sinks) {
-		return valueOf(Arrays.asList(sinks));
+	public static PactModule valueOf(String name, Contract... sinks) {
+		return valueOf(name, Arrays.asList(sinks));
 	}
 
 	/**
@@ -127,31 +133,24 @@ public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?,
 	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
-	public static PactModule valueOf(Collection<Contract> sinks) {
+	public static PactModule valueOf(String name, Collection<Contract> sinks) {
 		final List<Contract> inputs = new ArrayList<Contract>();
 
 		OneTimeTraverser.INSTANCE.traverse(sinks, ContractNavigator.INSTANCE,
 			new GraphTraverseListener<Contract>() {
 				@Override
 				public void nodeTraversed(Contract node) {
-					if (node instanceof DataSourceContract<?, ?>)
+					Contract[] contractInputs = ContractUtil.getInputs(node);
+					if (contractInputs.length == 0)
 						inputs.add(node);
-					else if (node instanceof DataSinkContract<?, ?>
-						&& ((DataSinkContract<?, ?>) node).getInput() == null)
-						inputs.add(node);
-					else if (node instanceof SingleInputContract<?, ?, ?, ?>
-						&& ((SingleInputContract<?, ?, ?, ?>) node).getInput() == null)
-						inputs.add(node);
-					else if (node instanceof DualInputContract<?, ?, ?, ?, ?, ?>) {
-						if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getFirstInput() == null)
-							inputs.add(node);
-						if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getSecondInput() == null)
-							inputs.add(node);
-					}
+					else
+						for (Contract input : contractInputs)
+							if (input == null)
+								inputs.add(node);
 				};
 			});
 
-		PactModule module = new PactModule(inputs.size(), sinks.size());
+		PactModule module = new PactModule(name, inputs.size(), sinks.size());
 		int sinkIndex = 0;
 		for (Contract sink : sinks) {
 			if (sink instanceof DataSinkContract<?, ?>)
@@ -161,20 +160,15 @@ public class PactModule extends AbstractSubGraph<Contract, DataSourceContract<?,
 			sinkIndex++;
 		}
 
-		for (int index = 0; index < inputs.size(); index++) {
+		for (int index = 0; index < inputs.size();) {
 			Contract node = inputs.get(index);
-			if (node instanceof DataSourceContract<?, ?>)
-				module.inputNodes[index] = (DataSourceContract<?, ?>) node;
-			else if (node instanceof DataSinkContract<?, ?>)
-				((DataSinkContract<?, ?>) node).setInput(module.getInput(index));
-			else if (node instanceof SingleInputContract<?, ?, ?, ?>)
-				((SingleInputContract<?, ?, ?, ?>) node).setInput(module.getInput(index));
-			else if (node instanceof DualInputContract<?, ?, ?, ?, ?, ?>) {
-				if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getFirstInput() != null)
-					((DualInputContract<?, ?, ?, ?, ?, ?>) node).setFirstInput(module.getInput(index));
-				if (((DualInputContract<?, ?, ?, ?, ?, ?>) node).getSecondInput() != null)
-					((DualInputContract<?, ?, ?, ?, ?, ?>) node).setSecondInput(module.getInput(index));
-			}
+			Contract[] contractInputs = ContractUtil.getInputs(node);
+			if (contractInputs.length == 0)
+				module.inputNodes[index++] = (DataSourceContract<?, ?>) node;
+			else
+				for (Contract input : contractInputs)
+					if (input == null)
+						inputs.add(module.getInput(index++));
 		}
 		return module;
 	}

@@ -19,7 +19,6 @@ import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.FormatUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
@@ -43,7 +42,7 @@ public class JsonInputFormatTest {
 
 		JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		KeyValuePair<PactNull, PactJsonObject> pair = inputFormat.createPair();
+		KeyValuePair<PactJsonObject.Key, PactJsonObject> pair = inputFormat.createPair();
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
 			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextPair(pair));
@@ -70,7 +69,7 @@ public class JsonInputFormatTest {
 
 		JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		KeyValuePair<PactNull, PactJsonObject> pair = inputFormat.createPair();
+		KeyValuePair<PactJsonObject.Key, PactJsonObject> pair = inputFormat.createPair();
 
 		if (!inputFormat.reachedEnd()) {
 			if (!inputFormat.nextPair(pair))
@@ -97,7 +96,7 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPasses() throws IOException {
-		final DataSourceContract<PactNull, PactJsonObject> read = new DataSourceContract<PactNull, PactJsonObject>(
+		final DataSourceContract<PactJsonObject.Key, PactJsonObject> read = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			JsonInputFormat.class, getResource("TestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map =
@@ -142,14 +141,14 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
-		final DataSourceContract<PactNull, PactJsonObject> read = new DataSourceContract<PactNull, PactJsonObject>(
+		final DataSourceContract<PactJsonObject.Key, PactJsonObject> read = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			JsonInputFormat.class, getResource("TestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
-		DataSinkContract<PactNull, PactJsonObject> output = createOutput(map, JsonOutputFormat.class);
+		DataSinkContract<PactJsonObject.Key, PactJsonObject> output = createOutput(map, JsonOutputFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class, getResource("TestPlan/test.json"));

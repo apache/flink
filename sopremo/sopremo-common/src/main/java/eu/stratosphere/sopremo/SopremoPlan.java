@@ -2,11 +2,12 @@ package eu.stratosphere.sopremo;
 
 import java.util.Arrays;
 import java.util.Collection;
+
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Sink;
-import eu.stratosphere.sopremo.function.BuiltinFunctions;
 
 /**
  * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
@@ -25,7 +26,7 @@ public class SopremoPlan {
 	 *        the sinks of the Sopremo plan
 	 */
 	public SopremoPlan(Collection<Sink> sinks) {
-		this.module = new SopremoModule(0, 0);
+		this.module = new SopremoModule("plan", 0, 0);
 		for (Sink sink : sinks)
 			this.module.addInternalOutput(sink);
 		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
@@ -70,4 +71,8 @@ public class SopremoPlan {
 		return this.module.getReachableNodes();
 	}
 
+	@Override
+	public String toString() {
+		return this.module.toString();
+	}
 }

@@ -13,17 +13,20 @@ import nl.jqno.equalsverifier.Warning;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.FieldAccess;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.expressions.ArrayMap;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
+@Ignore
 public abstract class SopremoTest<T> {
 	protected T first, second;
 
@@ -113,24 +116,30 @@ public abstract class SopremoTest<T> {
 	}
 
 	public static PathExpression createPath(String... parts) {
+		return createPath(Arrays.asList(parts));
+	}
+
+	public static PathExpression createPath(List<String> parts) {
 		List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
-		for (int index = 0; index < parts.length; index++) {
+		for (int index = 0; index < parts.size(); index++) {
 			EvaluableExpression segment;
-			if (parts[index].equals("$"))
+			String part = parts.get(index);
+			if (part.equals("$"))
 				segment = new InputSelection(0);
-			else if (parts[index].matches("[0-9]+"))
-				segment = new InputSelection(Integer.parseInt(parts[index]));
-			else if (parts[index].matches("\\[.*\\]")) {
-				if (parts[index].charAt(1) == '*')
-					segment = new ArrayAccess();
-				else if (parts[index].contains(":")) {
-					int delim = parts[index].indexOf(":");
-					segment = new ArrayAccess(Integer.parseInt(parts[index].substring(1, delim)),
-						Integer.parseInt(parts[index].substring(delim + 1, parts[index].length() - 1)));
+			else if (part.matches("[0-9]+"))
+				segment = new InputSelection(Integer.parseInt(part));
+			else if (part.matches("\\[.*\\]")) {
+				if (part.charAt(1) == '*') {
+					segment = new ArrayMap(createPath(parts.subList(index + 1, parts.size())));
+					index = parts.size();
+				} else if (part.contains(":")) {
+					int delim = part.indexOf(":");
+					segment = new ArrayAccess(Integer.parseInt(part.substring(1, delim)),
+						Integer.parseInt(part.substring(delim + 1, part.length() - 1)));
 				} else
-					segment = new ArrayAccess(Integer.parseInt(parts[index].substring(1, parts[index].length() - 1)));
+					segment = new ArrayAccess(Integer.parseInt(part.substring(1, part.length() - 1)));
 			} else
-				segment = new FieldAccess(parts[index]);
+				segment = new ObjectAccess(part);
 			fragments.add(segment);
 		}
 		return new PathExpression(fragments);
@@ -150,7 +159,7 @@ public abstract class SopremoTest<T> {
 	}
 
 	public static JsonNode createStreamArray(Object... constants) {
-		return new StreamArrayNode(createArrayNode(constants).getElements());
+		return StreamArrayNode.valueOf(createArrayNode(constants).getElements(), true);
 	}
 
 	public static PactJsonObject createPactJsonArray(Object... constants) {

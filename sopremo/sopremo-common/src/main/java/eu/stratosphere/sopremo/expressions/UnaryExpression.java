@@ -6,6 +6,7 @@ import org.codehaus.jackson.node.BooleanNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
+@OptimizerHints(scope = Scope.ANY)
 public class UnaryExpression extends BooleanExpression {
 	/**
 	 * 

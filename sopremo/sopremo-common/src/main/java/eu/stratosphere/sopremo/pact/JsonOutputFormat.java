@@ -20,10 +20,10 @@ import java.io.IOException;
 import org.codehaus.jackson.JsonEncoding;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonProcessingException;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.JsonUtil;
 
 /**
@@ -32,7 +32,7 @@ import eu.stratosphere.sopremo.JsonUtil;
  * 
  * @author Arvid Heise
  */
-public class JsonOutputFormat extends OutputFormat<PactNull, PactJsonObject> {
+public class JsonOutputFormat extends OutputFormat<PactJsonObject.Key, PactJsonObject> {
 
 	private JsonEncoding encoding = JsonEncoding.UTF8;
 
@@ -55,7 +55,7 @@ public class JsonOutputFormat extends OutputFormat<PactNull, PactJsonObject> {
 
 	@Override
 	protected void initTypes() {
-		this.ok = PactNull.class;
+		this.ok = PactJsonObject.Key.class;
 		this.ov = PactJsonObject.class;
 	}
 
@@ -67,7 +67,7 @@ public class JsonOutputFormat extends OutputFormat<PactNull, PactJsonObject> {
 	}
 
 	@Override
-	public void writePair(final KeyValuePair<PactNull, PactJsonObject> pair) throws JsonProcessingException,
+	public void writePair(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws JsonProcessingException,
 			IOException {
 		this.generator.writeTree(pair.getValue().getValue());
 	}

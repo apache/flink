@@ -11,7 +11,7 @@ import com.ibm.jaql.lang.expr.core.RecordExpr;
 import com.ibm.jaql.lang.expr.core.TransformExpr;
 
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.FieldAccess;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -43,7 +43,7 @@ class ObjectCreationParser implements JaqlToSopremoParser<EvaluableExpression> {
 		public ObjectCreation.Mapping convertNode(CopyField expr, List<Object> childEvaluableExpressions) {
 			String fieldName = ((ConstExpr) expr.nameExpr()).value.toString();
 			PathExpression path = (PathExpression) ObjectCreationParser.this.queryParser.parsePath(expr.recExpr());
-			path.add(new FieldAccess(fieldName));
+			path.add(new ObjectAccess(fieldName));
 			return new ObjectCreation.Mapping(fieldName, path);
 		}
 	}

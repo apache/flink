@@ -7,6 +7,7 @@ import org.codehaus.jackson.node.NumericNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 
+@OptimizerHints(scope = Scope.NUMBER)
 public class CastingExpression extends EvaluableExpression {
 	/**
 	 * 

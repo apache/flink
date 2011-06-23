@@ -8,12 +8,12 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ObjectNode;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.ConversionIterator;
 
+@OptimizerHints(scope = Scope.ANY)
 public class ObjectCreation extends ContainerExpression {
 	/**
 	 * 

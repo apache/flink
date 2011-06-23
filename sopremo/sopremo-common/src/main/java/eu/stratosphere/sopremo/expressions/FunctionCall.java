@@ -4,10 +4,11 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
-import eu.stratosphere.sopremo.Evaluable;
+
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
+@OptimizerHints(scope = Scope.ANY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND)
 public class FunctionCall extends ContainerExpression {
 
 	/**

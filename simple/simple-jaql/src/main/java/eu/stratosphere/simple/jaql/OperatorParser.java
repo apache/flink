@@ -36,7 +36,7 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.FieldAccess;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -158,15 +158,15 @@ class OperatorParser implements JaqlToSopremoParser<Operator> {
 			ObjectCreation transformation = (ObjectCreation) OperatorParser.this.queryParser
 				.parseObjectCreation(((ForExpr) expr.parent().parent()).collectExpr());
 			for (int inputIndex = 0; inputIndex < numInputs; inputIndex++) {
-				PathExpression alias = new PathExpression(new InputSelection(0), new FieldAccess(this.inputAliases.get(inputIndex)));
+				PathExpression alias = new PathExpression(new InputSelection(0), new ObjectAccess(this.inputAliases.get(inputIndex)));
 				transformation.replace(alias, new PathExpression(new InputSelection(inputIndex)));
 			}
 			return transformation;
 		}
 
 		private Operator withoutNameBinding(Operator operator, int inputIndex) {
-			if (operator instanceof Projection && operator.getTransformation() instanceof ObjectCreation) {
-				ObjectCreation objectCreation = (ObjectCreation) operator.getTransformation();
+			if (operator instanceof Projection && operator.getKeyTransformation() instanceof ObjectCreation) {
+				ObjectCreation objectCreation = (ObjectCreation) operator.getKeyTransformation();
 				if (objectCreation.getMappingSize() == 1
 					&& objectCreation.getMapping(0).getExpression() instanceof InputSelection) {
 					Operator coreInput = operator.getInputOperators().get(

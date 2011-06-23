@@ -7,38 +7,37 @@ import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class UnionAll extends Operator {
 	public UnionAll(List<Operator> inputs) {
-		super(EvaluableExpression.IDENTITY, inputs);
+		super(inputs);
 	}
 
 	public UnionAll(Operator... inputs) {
-		super(EvaluableExpression.IDENTITY, inputs);
+		super(inputs);
 	}
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
 		int numInputs = this.getInputOperators().size();
-		PactModule module = new PactModule(numInputs, 1);
+		PactModule module = new PactModule(toString(), numInputs, 1);
 
 		Contract leftInput = module.getInput(0);
 		for (int index = 1; index < numInputs; index++) {
 
 			Contract rightInput = module.getInput(index);
-			CoGroupContract<PactNull, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> union = new CoGroupContract<PactNull, PactJsonObject, PactJsonObject, PactNull, PactJsonObject>(
+			CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> union =
+				new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
 					TwoInputUnion.class);
 			union.setFirstInput(leftInput);
 			union.setSecondInput(rightInput);
 
-			SopremoUtil.setTransformationAndContext(union.getStubParameters(), null, context);
+			SopremoUtil.setContext(union.getStubParameters(), context);
 			leftInput = union;
 		}
 
@@ -49,10 +48,10 @@ public class UnionAll extends Operator {
 
 	// TODO: replace with efficient union operator
 	public static class TwoInputUnion extends
-			SopremoCoGroup<PactNull, PactJsonObject, PactJsonObject, PactNull, PactJsonObject> {
+			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 		@Override
-		public void coGroup(PactNull key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<PactNull, PactJsonObject> out) {
+		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
+				Collector<PactJsonObject.Key, PactJsonObject> out) {
 			while (values1.hasNext())
 				out.collect(key, values1.next());
 			while (values2.hasNext())

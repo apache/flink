@@ -2,40 +2,39 @@ package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 
-public class Source extends Operator {
+public class Source extends ElementaryOperator {
 	private String inputName;
 
-	private DataType type;
+	private PersistenceType type;
 
 	private Evaluable adhocValue;
 
-	public Source(DataType type, String inputName) {
-		super(EvaluableExpression.IDENTITY);
+	public Source(PersistenceType type, String inputName) {
+		super();
 		this.inputName = inputName;
 		this.type = type;
 	}
 
 	public Source(Evaluable adhocValue) {
-		super(EvaluableExpression.IDENTITY);
+		super();
 		this.adhocValue = adhocValue;
-		this.type = DataType.ADHOC;
+		this.type = PersistenceType.ADHOC;
 	}
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		if (this.type == DataType.ADHOC)
+		if (this.type == PersistenceType.ADHOC)
 			throw new UnsupportedOperationException();
-		PactModule pactModule = new PactModule(0, 1);
-		DataSourceContract<PactNull, PactJsonObject> contract = new DataSourceContract<PactNull, PactJsonObject>(
-			JsonInputFormat.class, this.inputName);
+		PactModule pactModule = new PactModule(toString(), 0, 1);
+		DataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
+			JsonInputFormat.class, this.inputName, this.inputName);
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
 		return pactModule;
@@ -73,7 +72,7 @@ public class Source extends Operator {
 		return this.inputName;
 	}
 
-	public DataType getType() {
+	public PersistenceType getType() {
 		return this.type;
 	}
 

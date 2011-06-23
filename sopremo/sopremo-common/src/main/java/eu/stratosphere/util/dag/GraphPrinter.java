@@ -352,7 +352,7 @@ public class GraphPrinter<Node> {
 					for (int index = sourceIndex + 1; index < targetIndex; index++)
 						this.append(index, null, ConnectorProvider.Route.LEFT_RIGHT);
 				} else if (sourceIndex == targetIndex)
-					this.append(startIndex, null, null);
+					this.append(startIndex, ConnectorProvider.Route.TOP_DOWN, null);
 				else {
 					this.append(startIndex, ConnectorProvider.Route.RIGHT_DOWN,
 						ConnectorProvider.Route.RIGHT_LEFT);
@@ -379,18 +379,12 @@ public class GraphPrinter<Node> {
 					Object node = level.getLevelNodes().get(sourceIndex);
 
 					List<Object> inputs = level.getLinks(node);
-
-					for (int index = inputs.size() - 1; index >= 0; index--) {
+					this.increaseDownline(sourceIndex, -1);
+					for (int index = 0; index < inputs.size(); index++) {
 						int targetIndex = this.levels.get(levelIndex - 1).getLevelNodes().indexOf(inputs.get(index));
-
-						if (sourceIndex == targetIndex)
-							continue;
-
 						this.printConnection(sourceIndex, targetIndex);
-						printedConnection = true;
-
-						this.increaseDownline(sourceIndex, -1);
 						this.increaseDownline(targetIndex, 1);
+						printedConnection = true;
 					}
 				}
 				if (!printedConnection)
@@ -403,7 +397,8 @@ public class GraphPrinter<Node> {
 				Level<Object> level = this.levels.get(levelIndex);
 				for (int sourceIndex = 0; sourceIndex < level.getLevelNodes().size(); sourceIndex++) {
 					Object node = level.getLevelNodes().get(sourceIndex);
-					this.increaseDownline(sourceIndex, level.getLinks(node).size());
+					if (levelIndex == this.levels.size() - 1)
+						this.increaseDownline(sourceIndex, level.getLinks(node).size());
 					this.printNode(node);
 				}
 				this.appender.append('\n');

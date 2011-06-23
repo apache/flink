@@ -10,17 +10,21 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class JoinTest extends SopremoTest<Join> {
 	@Override
 	protected Join createDefaultInstance(int index) {
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("field", createPath("0", "[" + index + "]"));
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
-			"userid")));
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+			BinaryOperator.EQUAL, createPath("1",
+				"userid")));
 		return new Join(transformation, condition, null, null);
 	}
 
@@ -28,8 +32,8 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformEquiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
-			"userid")));
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+			BinaryOperator.EQUAL, createPath("1", "userid")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
@@ -59,11 +63,11 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformLeftOuterJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
-			"userid")));
-		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
-		join.setOuterJoin(sopremoPlan.getInputOperator(0));
+		EvaluableExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.PRESERVE);
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(leftJoinKey,
+			BinaryOperator.EQUAL, createPath("1", "userid")));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
@@ -94,11 +98,11 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformRightOuterJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
-			"userid")));
-		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
-		join.setOuterJoin(sopremoPlan.getInputOperator(1));
+		EvaluableExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.PRESERVE);
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+			BinaryOperator.EQUAL, rightJoinKey));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
@@ -130,11 +134,12 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformFullOuterJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1",
-			"userid")));
-		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		// here we set outer join flag
-		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
+		EvaluableExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.PRESERVE);
+		EvaluableExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.PRESERVE);
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(leftJoinKey,
+			BinaryOperator.EQUAL, rightJoinKey));
+		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
@@ -147,19 +152,14 @@ public class JoinTest extends SopremoTest<Join> {
 			add(createPactJsonObject("userid", 4, "url", "www.nbc.com")).
 			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
 		sopremoPlan.getExpectedOutput(0).
-			add(
-				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"code.google.com/p/jaql/")).
-			add(
-				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 1, "url",
 					"java.sun.com/javase/6/docs/api/")).
-			add(
-				createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url",
 					"www.cnn.com")).
-			add(
-				createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3)).
-			add(
-				createPactJsonObject("userid", 4, "url", "www.nbc.com"));
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3)).
+			add(createPactJsonObject("userid", 4, "url", "www.nbc.com"));
 
 		sopremoPlan.run();
 	}
@@ -168,11 +168,10 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformThetaJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"), BinaryOperator.LESS, createPath("1",
-			"userid")));
+		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+			BinaryOperator.LESS, createPath("1",
+				"userid")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
-		// here we set outer join flag
-		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
@@ -210,12 +209,9 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformAntiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ElementInSetExpression(createPath("0", "DeptName"),
-			Quantor.EXISTS_NOT_IN,
-			createPath("1", "Name")));
+		ConditionalExpression condition = new ConditionalExpression(new ElementInSetExpression(
+			createPath("0", "DeptName"), Quantor.EXISTS_NOT_IN, createPath("1", "Name")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
-		// here we set outer join flag
-		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).
@@ -237,11 +233,10 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformSemiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ElementInSetExpression(createPath("0", "DeptName"), Quantor.EXISTS_IN,
+		ConditionalExpression condition = new ConditionalExpression(new ElementInSetExpression(createPath("0",
+			"DeptName"), Quantor.EXISTS_IN,
 			createPath("1", "Name")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
-		// here we set outer join flag
-		join.setOuterJoin(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 
 		sopremoPlan.getInput(0).

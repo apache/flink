@@ -9,44 +9,53 @@ import java.io.ObjectOutputStream;
 import org.apache.commons.codec.binary.Base64;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class SopremoUtil {
-
-	public static Contract addKeyExtraction(PactModule module, EvaluableExpression expr, EvaluationContext context) {
-		MapContract<PactNull, PactJsonObject, Key, PactJsonObject> extractionMap =
-			new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
-		int inputIndex = 0;
-		if (expr instanceof PathExpression) {
-			inputIndex = getInputIndex((PathExpression) expr);
-			expr = new PathExpression(expr);
-			((PathExpression) expr).replace(new PathExpression(new InputSelection(inputIndex)), new PathExpression());
-		} else if (expr instanceof InputSelection) {
-			inputIndex = ((InputSelection) expr).getIndex();
-			expr = EvaluableExpression.IDENTITY;
-		}
-		extractionMap.setInput(module.getInput(inputIndex));
-		SopremoUtil.setTransformationAndContext(extractionMap.getStubParameters(), expr, context);
-
-		return extractionMap;
-	}
-
-	public static Contract addKeyRemover(Contract input) {
-		MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> removerMap =
-			new MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject>(KeyRemover.class);
-		removerMap.setInput(input);
-		return removerMap;
-	}
+	//
+	// public static Contract addKeyExtraction(PactModule module, EvaluableExpression expr, EvaluationContext context) {
+	// MapContract<PactNull, PactJsonObject, Key, PactJsonObject> extractionMap =
+	// new MapContract<PactNull, PactJsonObject, Key, PactJsonObject>(KeyExtractionStub.class);
+	// int inputIndex = 0;
+	// if (expr instanceof PathExpression) {
+	// inputIndex = getInputIndex((PathExpression) expr);
+	// expr = new PathExpression(expr);
+	// ((PathExpression) expr).replace(new PathExpression(new InputSelection(inputIndex)), new PathExpression());
+	// } else if (expr instanceof InputSelection) {
+	// inputIndex = ((InputSelection) expr).getIndex();
+	// expr = EvaluableExpression.IDENTITY;
+	// }
+	// extractionMap.setInput(module.getInput(inputIndex));
+	// SopremoUtil.setTransformationAndContext(extractionMap.getStubParameters(), expr, context);
+	//
+	// return extractionMap;
+	// }
+	//
+	// public static Contract addKeyRemover(Contract input) {
+	// MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject> removerMap =
+	// new MapContract<PactJsonObject.Key, PactJsonObject, PactNull, PactJsonObject>(KeyRemover.class);
+	// removerMap.setInput(input);
+	// return removerMap;
+	// }
+	//
+	// public static List<Contract> wrapInputsWithArray(PactModule module, EvaluationContext context) {
+	// List<Contract> inputs = new ArrayList<Contract>();
+	// int inputCount = module.getInputs().length;
+	// for (int index = 0; index < inputCount; index++) {
+	// MapContract<PactNull, PactJsonObject, PactNull, PactJsonObject> arrayWrapMap = new MapContract<PactNull,
+	// PactJsonObject, PactNull, PactJsonObject>(
+	// ArrayWrapper.class);
+	// inputs.add(arrayWrapMap);
+	// arrayWrapMap.setInput(module.getInput(index));
+	// SopremoUtil.setContext(arrayWrapMap.getStubParameters(), context);
+	// arrayWrapMap.getStubParameters().setInteger("arraySize", inputCount);
+	// arrayWrapMap.getStubParameters().setInteger("arrayIndex", index);
+	// }
+	// return inputs;
+	// }
 
 	// public static void setEvaluableExpression(Configuration config, String key, Evaluable transformation) {
 	// config.setString(key, objectToString(transformation));
@@ -99,9 +108,7 @@ public class SopremoUtil {
 		config.setString(key, objectToString(object));
 	}
 
-	public static void setTransformationAndContext(Configuration config, Evaluable transformation,
-			EvaluationContext context) {
-		serialize(config, "transformation", transformation);
+	public static void setContext(Configuration config, EvaluationContext context) {
 		serialize(config, "context", context);
 	}
 

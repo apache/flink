@@ -177,6 +177,26 @@ public class ReflectUtil {
 	}
 
 	/**
+	 * Dynamically retrieves the static value of the specified field of a type.
+	 * 
+	 * @param type
+	 *        the type to invoke on
+	 * @param fieldName
+	 *        the name of the field
+	 * @return the value of the field
+	 */
+	public static Object getStaticValue(Class<?> type, String fieldName) {
+		try {
+			Field field = type.getDeclaredField(fieldName);
+			field.setAccessible(true);
+			return field.get(null);
+		} catch (Exception e) {
+			throw new IllegalArgumentException(String.format("Could not get field value %s for type %s", fieldName,
+				type), e);
+		}
+	}
+
+	/**
 	 * Checks dynamically whether the object has the specified function, which takes the given parameters.
 	 * 
 	 * @param object

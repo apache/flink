@@ -4,18 +4,21 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.base.Intersection;
 import eu.stratosphere.sopremo.base.Intersection;
+import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class IntersectionTest extends SopremoTest<Intersection> {
 	@Override
 	protected Intersection createDefaultInstance(int index) {
-		Intersection intersection = new Intersection(null, null, null);
-		intersection.setKeyExtractors(createPath(String.valueOf(index)));
+		Intersection intersection = new Intersection(new Source(EvaluableExpression.NULL), null, null);
+		intersection.setKeyProjection(0, createPath(String.valueOf(index)));
 		return intersection;
 	}
 
@@ -118,9 +121,9 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
-		intersection.setKeyExtractors(createPath("0", "name"),
-			new PathExpression(new FunctionCall("concat", createPath("1", "first name"),
-				new ConstantExpression(" "), createPath("1", "last name"))));
+		intersection.setKeyProjection(0, createPath("name"));
+		intersection.setKeyProjection(1, new FunctionCall("concat", createPath("first name"),
+			new ConstantExpression(" "), createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).

@@ -7,7 +7,7 @@ import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression;
-import eu.stratosphere.sopremo.expressions.FieldAccess;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
@@ -25,9 +25,9 @@ public class SelectionTest extends SopremoTest<Selection> {
 	public void shouldSelectSomeEntries() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		ComparativeExpression incomeComparison = new ComparativeExpression(new FieldAccess("income"),
+		ComparativeExpression incomeComparison = new ComparativeExpression(new ObjectAccess("income"),
 			BinaryOperator.GREATER, new ConstantExpression(30000));
-		UnaryExpression mgrFlag = new UnaryExpression(new FieldAccess("mgr"));
+		UnaryExpression mgrFlag = new UnaryExpression(new ObjectAccess("mgr"));
 		ConditionalExpression condition = new ConditionalExpression(Combination.OR, mgrFlag, incomeComparison);
 		sopremoPlan.getOutputOperator(0).setInputs(
 			new Selection(condition, sopremoPlan.getInputOperator(0)));

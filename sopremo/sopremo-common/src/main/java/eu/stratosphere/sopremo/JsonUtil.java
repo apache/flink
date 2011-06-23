@@ -46,43 +46,56 @@ public class JsonUtil {
 	}
 
 	/**
-	 * Wraps streams of objects in a {@link JsonNode}. This is the unsafe equivalent of {@link #wrapWithNode(List)}.
+	 * Wraps streams of objects in a {@link JsonNode}. This is the unsafe equivalent of
+	 * {@link #wrapWithNode(List, boolean)}. The node may be either fully
+	 * consumed after the first use or may be resettable and thus can be used to iterate several times over the
+	 * elements. The first option yields less overhead and is recommended.
 	 * 
 	 * @param objectIterators
 	 *        the streams of objects to wrap
+	 * @param resettable
+	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the streams
-	 * @see #wrapWithNode(List)
+	 * @see #wrapWithNode(List, boolean)
 	 */
 	@SuppressWarnings("unchecked")
-	public static JsonNode wrapWithNode(Iterator<?>... objectIterators) {
+	public static JsonNode wrapWithNode(boolean resettable, Iterator<?>... objectIterators) {
 		JsonNode[] streamNodes = new JsonNode[objectIterators.length];
 		for (int index = 0; index < streamNodes.length; index++)
-			streamNodes[index] = wrapWithNode((Iterator<PactJsonObject>) objectIterators[index]);
+			streamNodes[index] = wrapWithNode(resettable, (Iterator<PactJsonObject>) objectIterators[index]);
 		return new CompactArrayNode(streamNodes);
 	}
 
 	/**
-	 * Wraps a stream of objects in a {@link JsonNode}.
+	 * Wraps a stream of objects in a {@link JsonNode}. The node may be either fully
+	 * consumed after the first use or may be resettable and thus can be used to iterate several times over the
+	 * elements. The first option yields less overhead and is recommended.
 	 * 
 	 * @param objectIterator
 	 *        the stream of objects to wrap
+	 * @param resettable
+	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the stream
 	 */
-	public static JsonNode wrapWithNode(Iterator<PactJsonObject> objectIterator) {
-		return new StreamArrayNode(new UnwrappingIterator(objectIterator));
+	public static JsonNode wrapWithNode(boolean resettable, Iterator<PactJsonObject> objectIterator) {
+		return StreamArrayNode.valueOf(new UnwrappingIterator(objectIterator), resettable);
 	}
 
 	/**
-	 * Wraps streams of objects in a {@link JsonNode}.
+	 * Wraps streams of objects in a {@link JsonNode}. The node may be either fully
+	 * consumed after the first use or may be resettable and thus can be used to iterate several times over the
+	 * elements. The first option yields less overhead and is recommended.
 	 * 
 	 * @param objectIterators
 	 *        the streams of objects to wrap
+	 * @param resettable
+	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the streams
 	 */
-	public static JsonNode wrapWithNode(List<? extends Iterator<PactJsonObject>> objectIterators) {
+	public static JsonNode wrapWithNode(boolean resettable, List<? extends Iterator<PactJsonObject>> objectIterators) {
 		JsonNode[] streamNodes = new JsonNode[objectIterators.size()];
 		for (int index = 0; index < streamNodes.length; index++)
-			streamNodes[index] = wrapWithNode(objectIterators.get(index));
+			streamNodes[index] = wrapWithNode(resettable, objectIterators.get(index));
 		return new CompactArrayNode(streamNodes);
 	}
 }

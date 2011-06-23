@@ -10,12 +10,14 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
+@OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
 public class PathExpression extends ContainerExpression {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
+
 	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
 
 	public PathExpression(EvaluableExpression... fragments) {

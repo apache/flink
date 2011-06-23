@@ -4,11 +4,10 @@ import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.base.DataType;
+import eu.stratosphere.sopremo.base.PersistenceType;
 import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -19,13 +18,13 @@ public class SopremoTestPlan {
 		private int index;
 
 		public MockupSource(int index) {
-			super(DataType.HDFS, "mockup-input" + index);
+			super(PersistenceType.HDFS, "mockup-input" + index);
 			this.index = index;
 		}
 
 		@Override
 		public PactModule asPactModule(EvaluationContext context) {
-			PactModule pactModule = new PactModule(0, 1);
+			PactModule pactModule = new PactModule(toString(), 0, 1);
 			DataSourceContract contract = TestPlan.createDefaultSource(this.getInputName());
 			pactModule.getOutput(0).setInput(contract);
 			// pactModule.setInput(0, contract);
@@ -52,19 +51,23 @@ public class SopremoTestPlan {
 			return this.index == other.index;
 		}
 
+		@Override
+		public String toString() {
+			return String.format("MockupSource [%s]", index);
+		}
 	}
 
 	public static class MockupSink extends Sink {
 		private int index;
 
 		public MockupSink(int index) {
-			super(DataType.ADHOC, "mockup-output" + index, null);
+			super(PersistenceType.ADHOC, "mockup-output" + index, null);
 			this.index = index;
 		}
 
 		@Override
 		public PactModule asPactModule(EvaluationContext context) {
-			PactModule pactModule = new PactModule(1, 0);
+			PactModule pactModule = new PactModule(toString(), 1, 0);
 			DataSinkContract contract = TestPlan.createDefaultSink(this.getOutputName());
 			contract.setInput(pactModule.getInput(0));
 			pactModule.addInternalOutput(contract);
@@ -90,6 +93,11 @@ public class SopremoTestPlan {
 			MockupSink other = (MockupSink) obj;
 			return this.index == other.index;
 		}
+
+		@Override
+		public String toString() {
+			return String.format("MockupSink [%s]", index);
+		}
 	}
 
 	public static class Input {
@@ -97,7 +105,7 @@ public class SopremoTestPlan {
 
 		private Operator operator;
 
-		private TestPairs<PactNull, PactJsonObject> input = new TestPairs<PactNull, PactJsonObject>();
+		private TestPairs<PactJsonObject.Key, PactJsonObject> input = new TestPairs<PactJsonObject.Key, PactJsonObject>();
 
 		public Input(int index) {
 			this.index = index;
@@ -113,7 +121,7 @@ public class SopremoTestPlan {
 		}
 
 		public Input add(PactJsonObject object) {
-			this.input.add(new KeyValuePair<PactNull, PactJsonObject>(PactNull.getInstance(), object));
+			this.input.add(new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL, object));
 			return this;
 		}
 
@@ -140,7 +148,7 @@ public class SopremoTestPlan {
 
 		private Sink operator;
 
-		private TestPairs<PactNull, PactJsonObject> expected = new TestPairs<PactNull, PactJsonObject>();
+		private TestPairs<PactJsonObject.Key, PactJsonObject> expected = new TestPairs<PactJsonObject.Key, PactJsonObject>();
 
 		public Output(int index) {
 			this.index = index;
@@ -156,7 +164,7 @@ public class SopremoTestPlan {
 		}
 
 		public Output add(PactJsonObject object) {
-			this.expected.add(new KeyValuePair<PactNull, PactJsonObject>(PactNull.getInstance(), object));
+			this.expected.add(new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL, object));
 			return this;
 		}
 
@@ -174,7 +182,8 @@ public class SopremoTestPlan {
 
 		public void prepare(TestPlan testPlan) {
 			if (this.operator instanceof MockupSink)
-				testPlan.getExpectedOutput(this.index).add((TestPairs<PactNull, PactJsonObject>) this.expected);
+				testPlan.getExpectedOutput(this.index).add(
+					(TestPairs<PactJsonObject.Key, PactJsonObject>) this.expected);
 		}
 	}
 

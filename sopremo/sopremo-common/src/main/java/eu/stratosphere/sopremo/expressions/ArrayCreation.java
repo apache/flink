@@ -16,6 +16,7 @@ import eu.stratosphere.sopremo.JsonUtil;
  * 
  * @author Arvid Heise
  */
+@OptimizerHints(scope = Scope.ANY)
 public class ArrayCreation extends ContainerExpression {
 	/**
 	 * 

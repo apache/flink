@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 /**
@@ -18,15 +19,13 @@ import eu.stratosphere.sopremo.expressions.EvaluableExpression;
  * 
  * @author Arvid Heise
  */
-public abstract class Operator implements SerializableSopremoType, JsonStream {
+public abstract class Operator implements SerializableSopremoType, JsonStream, Cloneable {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
 	private List<Operator.Output> inputs = new ArrayList<Operator.Output>();
-
-	private EvaluableExpression transformation;
 
 	private String name;
 
@@ -37,15 +36,15 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 	 * {@link JsonStream}. A JsonStream is either the output of another operator or the operator itself.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#IDENTITY}
+	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
 	 *        if no transformation is desired
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(EvaluableExpression transformation, int numberOfOutputs, JsonStream... inputs) {
-		this(transformation, 1, Arrays.asList(inputs));
+	protected Operator(int numberOfOutputs, JsonStream... inputs) {
+		this(1, Arrays.asList(inputs));
 	}
 
 	/**
@@ -53,15 +52,15 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 	 * {@link JsonStream}. A JsonStream is either the output of another operator or the operator itself.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#IDENTITY}
+	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
 	 *        if no transformation is desired
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(EvaluableExpression transformation, int numberOfOutputs, List<? extends JsonStream> inputs) {
-		if (transformation == null || inputs == null)
+	protected Operator(int numberOfOutputs, List<? extends JsonStream> inputs) {
+		if (inputs == null)
 			throw new NullPointerException();
 		if (numberOfOutputs < 0)
 			throw new IllegalArgumentException("numberOfOutputs < 0");
@@ -69,7 +68,6 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 		for (JsonStream input : inputs)
 			this.inputs.add(input == null ? null : input.getSource());
 		this.name = this.getClass().getSimpleName();
-		this.transformation = transformation;
 		this.outputs = new Output[numberOfOutputs];
 		for (int index = 0; index < numberOfOutputs; index++)
 			this.outputs[index] = new Output(index);
@@ -80,13 +78,13 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#IDENTITY}
+	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
 	 *        if no transformation is desired
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(EvaluableExpression transformation, JsonStream... inputs) {
-		this(transformation, 1, inputs);
+	protected Operator(JsonStream... inputs) {
+		this(1, inputs);
 	}
 
 	/**
@@ -94,13 +92,13 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#IDENTITY}
+	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
 	 *        if no transformation is desired
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(EvaluableExpression transformation, List<? extends JsonStream> inputs) {
-		this(transformation, 1, inputs);
+	protected Operator(List<? extends JsonStream> inputs) {
+		this(1, inputs);
 	}
 
 	/**
@@ -112,6 +110,55 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 	 */
 	public abstract PactModule asPactModule(EvaluationContext context);
 
+	//
+	// public SopremoModule asElementaryOperators() {
+	// SopremoModule module = new SopremoModule(getName(), inputs.size(), outputs.length);
+	// Operator clone = this.clone();
+	// clone.setInputs(module.getInputs());
+	// Sink[] outputs = module.getOutputs();
+	// for (int index = 0; index < outputs.length; index++)
+	// outputs[index].setInput(index, clone.getOutput(index));
+	// return module;
+	// }
+
+	// protected static class PactImplementation extends Operator {
+	// /**
+	// *
+	// */
+	// private static final long serialVersionUID = 6207171377820045505L;
+	//
+	// private PactModule implementation;
+	//
+	// public PactImplementation(String name, PactModule implementation, JsonStream... inputs) {
+	// super(implementation.getOutputs().length, inputs);
+	// setName(name);
+	// this.implementation = implementation;
+	// }
+	//
+	// public PactImplementation(String name, PactModule implementation,
+	// List<? extends JsonStream> inputs) {
+	// super(implementation.getOutputs().length, inputs);
+	// setName(name);
+	// this.implementation = implementation;
+	// }
+	//
+	// @Override
+	// public PactModule asPactModule(EvaluationContext context) {
+	// return implementation;
+	// }
+	//
+	// }
+
+	@Override
+	public Operator clone() {
+		try {
+			return (Operator) super.clone();
+		} catch (CloneNotSupportedException e) {
+			// cannot happen
+			return null;
+		}
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj)
@@ -121,7 +168,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 		if (this.getClass() != obj.getClass())
 			return false;
 		Operator other = (Operator) obj;
-		return this.name.equals(other.name) && this.transformation.equals(other.transformation);
+		return this.name.equals(other.name);
 	}
 
 	/**
@@ -156,12 +203,25 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 
 	/**
 	 * Returns a list of outputs of operators producing the {@link JsonStream}s that are the inputs to this operator.<br>
-	 * If an output is used multiple times as inputs for this operator, the output appears several times.
+	 * If an output is used multiple times as inputs for this operator, the output appears several times (for example in
+	 * a self-join).
 	 * 
 	 * @return a list of outputs that produce the input of this operator
 	 */
 	public List<Operator.Output> getInputs() {
 		return this.inputs;
+	}
+
+	/**
+	 * Returns the output of an operator producing the {@link JsonStream} that is the input to this operator at the
+	 * given position.
+	 * 
+	 * @param index
+	 *        the index of the output
+	 * @return the output that produces the input of this operator at the given position
+	 */
+	public Operator.Output getInput(int index) {
+		return this.inputs.get(index);
 	}
 
 	/**
@@ -193,22 +253,11 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 		return this.getOutput(0);
 	}
 
-	/**
-	 * Returns the transformation of this operation that is applied to partitioned input tuples to generate the output
-	 * tuples.
-	 * 
-	 * @return the transformation of this operation
-	 */
-	public EvaluableExpression getTransformation() {
-		return this.transformation;
-	}
-
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + this.name.hashCode();
-		result = prime * result + this.transformation.hashCode();
 		return result;
 	}
 
@@ -270,26 +319,9 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 		this.name = name;
 	}
 
-	/**
-	 * Sets the transformation of this operation that is applied to partitioned input tuples to generate the output
-	 * tuples.
-	 * 
-	 * @param transformation
-	 *        the new transformation of this operation
-	 */
-	public void setTransformation(EvaluableExpression transformation) {
-		if (transformation == null)
-			throw new NullPointerException("transformation must not be null");
-
-		this.transformation = transformation;
-	}
-
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder(this.getName());
-		if (this.getTransformation() != EvaluableExpression.IDENTITY)
-			builder.append(" to ").append(this.getTransformation());
-		return builder.toString();
+		return this.getName();
 	}
 
 	/**
@@ -351,7 +383,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream {
 
 		@Override
 		public String toString() {
-			return String.format("%s@%d", this.getOperator(), this.index + 1);
+			return String.format("%s@%d", this.getOperator(), this.index);
 		}
 	}
 

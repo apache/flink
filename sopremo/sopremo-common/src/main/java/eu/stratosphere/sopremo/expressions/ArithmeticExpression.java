@@ -23,6 +23,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
  * 
  * @author Arvid Heise
  */
+@OptimizerHints(scope = Scope.NUMBER, minNodes = 2, maxNodes = 2, transitive = true)
 public class ArithmeticExpression extends EvaluableExpression {
 	/**
 	 * 
@@ -53,7 +54,8 @@ public class ArithmeticExpression extends EvaluableExpression {
 	public boolean equals(Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.op1.equals(((ArithmeticExpression) obj).op1) && this.operator.equals(((ArithmeticExpression) obj).operator)
+		return this.op1.equals(((ArithmeticExpression) obj).op1)
+			&& this.operator.equals(((ArithmeticExpression) obj).operator)
 			&& this.op2.equals(((ArithmeticExpression) obj).op2);
 	}
 

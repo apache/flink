@@ -20,11 +20,12 @@ import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.JsonToken;
+import org.codehaus.jackson.node.NullNode;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.JsonUtil;
 
 /**
@@ -33,7 +34,7 @@ import eu.stratosphere.sopremo.JsonUtil;
  * 
  * @author Arvid Heise
  */
-public class JsonInputFormat extends InputFormat<PactNull, PactJsonObject> {
+public class JsonInputFormat extends InputFormat<PactJsonObject.Key, PactJsonObject> {
 
 	private boolean array;
 
@@ -57,18 +58,20 @@ public class JsonInputFormat extends InputFormat<PactNull, PactJsonObject> {
 	}
 
 	@Override
-	public KeyValuePair<PactNull, PactJsonObject> createPair() {
-		return new KeyValuePair<PactNull, PactJsonObject>(PactNull.getInstance(), new PactJsonObject());
+	public KeyValuePair<PactJsonObject.Key, PactJsonObject> createPair() {
+		return new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL,
+			new PactJsonObject());
 	}
 
 	@Override
 	protected void initTypes() {
-		this.ok = PactNull.class;
+		this.ok = PactJsonObject.Key.class;
 		this.ov = PactJsonObject.class;
 	}
 
 	@Override
-	public boolean nextPair(final KeyValuePair<PactNull, PactJsonObject> pair) throws JsonProcessingException,
+	public boolean nextPair(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair)
+			throws JsonProcessingException,
 			IOException {
 
 		if (!this.end) {

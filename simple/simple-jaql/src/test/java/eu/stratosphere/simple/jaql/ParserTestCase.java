@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.FieldAccess;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -24,7 +24,7 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
 public class ParserTestCase {
 
 	public static void assertParseResult(Operator expected, String jaqlScript) {
-		assertParseResult(SopremoModule.valueOf(expected), jaqlScript);
+		assertParseResult(SopremoModule.valueOf("test module", expected), jaqlScript);
 	}
 
 	public static void assertParseResult(PathExpression expected, String jaqlScript) {
@@ -54,9 +54,9 @@ public class ParserTestCase {
 
 		for (int index = 0; index < expectedNodes.size(); index++) {
 			if (!expectedNodes.get(index).equals(actualNodes.get(index))) {
-				if (!expectedNodes.get(index).getTransformation().equals(actualNodes.get(index).getTransformation()))
+				if (!expectedNodes.get(index).getKeyTransformation().equals(actualNodes.get(index).getKeyTransformation()))
 					Assert.fail(String.format("transformation of %d. node differs: %s expected instead of %s", index,
-						expectedNodes.get(index).getTransformation(), actualNodes.get(index).getTransformation()));
+						expectedNodes.get(index).getKeyTransformation(), actualNodes.get(index).getKeyTransformation()));
 				else
 					Assert.fail(String.format("%d. node differs: %s expected instead of %s", index,
 						expectedNodes.get(index), actualNodes.get(index)));
@@ -113,7 +113,7 @@ public class ParserTestCase {
 				} else
 					segment = new ArrayAccess(Integer.parseInt(parts[index].substring(1, parts[index].length() - 1)));
 			} else
-				segment = new FieldAccess(parts[index]);
+				segment = new ObjectAccess(parts[index]);
 			fragments.add(segment);
 		}
 		return new PathExpression(fragments);

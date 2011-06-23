@@ -2,14 +2,16 @@ package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 
+@OptimizerHints(scope = Scope.ANY)
 public class IdentifierAccess extends EvaluableExpression {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 4981486971746131857L;
+
 	private String identifier;
 
 	public IdentifierAccess(String identifier) {

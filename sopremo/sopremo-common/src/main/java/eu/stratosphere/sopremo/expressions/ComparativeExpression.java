@@ -5,9 +5,10 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.TextNode;
 
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 
+@OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
 public class ComparativeExpression extends BooleanExpression {
 	/**
 	 * 
