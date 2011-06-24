@@ -108,7 +108,7 @@ public class FileInputChannelTest {
 		}
 		fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1, new DefaultRecordDeserializer<StringRecord>(),
 			null, CompressionLevel.NO_COMPRESSION);
-		CompressionLoader.init();
+		CompressionLoader.init(CompressionLevel.NO_COMPRESSION);
 		Decompressor decompressor = CompressionLoader
 			.getDecompressorByCompressionLevel(CompressionLevel.LIGHT_COMPRESSION);
 
