@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.io.compression.library.dynamic;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLibrary;
@@ -116,10 +117,10 @@ public class DynamicCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
+	public void shutdown(final ChannelID channelID) {
 
 		for (int i = 0; i < this.compressors.length; i++) {
-			this.compressors[i].shutdown();
+			this.compressors[i].shutdown(channelID);
 		}
 	}
 }

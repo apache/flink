@@ -18,16 +18,26 @@ package eu.stratosphere.nephele.io.compression;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 
 public abstract class AbstractCompressionLibrary implements CompressionLibrary {
 
+	private static final Log LOG = LogFactory.getLog(AbstractCompressionLibrary.class);
+
 	private final Map<OutputGate<?>, CompressorCacheEntry> compressorCache = new HashMap<OutputGate<?>, CompressorCacheEntry>();
 
+	private final Map<Compressor, OutputGate<?>> compressorMap = new HashMap<Compressor, OutputGate<?>>();
+
 	private final Map<InputGate<?>, DecompressorCacheEntry> decompressorCache = new HashMap<InputGate<?>, DecompressorCacheEntry>();
+
+	private final Map<Decompressor, InputGate<?>> decompressorMap = new HashMap<Decompressor, InputGate<?>>();
 
 	@Override
 	public final synchronized Compressor getCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel)
@@ -40,6 +50,7 @@ public abstract class AbstractCompressionLibrary implements CompressionLibrary {
 			Compressor compressor = initNewCompressor(outputChannel);
 			cacheEntry = new CompressorCacheEntry(compressor, outputGate);
 			this.compressorCache.put(outputGate, cacheEntry);
+			this.compressorMap.put(compressor, outputGate);
 		}
 
 		return cacheEntry.getCompressor();
@@ -56,6 +67,7 @@ public abstract class AbstractCompressionLibrary implements CompressionLibrary {
 			Decompressor decompressor = initNewDecompressor(inputChannel);
 			cacheEntry = new DecompressorCacheEntry(decompressor, inputGate);
 			this.decompressorCache.put(inputGate, cacheEntry);
+			this.decompressorMap.put(decompressor, inputGate);
 		}
 
 		return cacheEntry.getDecompressor();
@@ -67,17 +79,53 @@ public abstract class AbstractCompressionLibrary implements CompressionLibrary {
 	protected abstract Decompressor initNewDecompressor(AbstractByteBufferedInputChannel<?> inputChannel)
 			throws CompressionException;
 
-	synchronized boolean canBeShutDown(final Compressor compressor) {
+	synchronized boolean canBeShutDown(final Compressor compressor, final ChannelID channelID) {
 
-		System.out.println("can be shut down called (compressor)");
-		
+		final OutputGate<?> outputGate = this.compressorMap.get(compressor);
+		if (outputGate == null) {
+			LOG.error("Cannot find output gate to compressor " + compressor);
+			return false;
+		}
+
+		final CompressorCacheEntry cacheEntry = this.compressorCache.get(outputGate);
+		if (cacheEntry == null) {
+			LOG.error("Cannot find compressor cache entry to output gate " + outputGate);
+		}
+
+		cacheEntry.removeAssignedChannel(channelID);
+
+		if (!cacheEntry.hasAssignedChannels()) {
+			// Clean up
+			this.compressorCache.remove(outputGate);
+			this.compressorMap.remove(compressor);
+			return true;
+		}
+
 		return false;
 	}
 
-	synchronized boolean canBeShutDown(final Decompressor decompressor) {
+	synchronized boolean canBeShutDown(final Decompressor decompressor, final ChannelID channelID) {
 
-		System.out.println("can be shut down called (compressor)");
-		
+		final InputGate<?> inputGate = this.decompressorMap.get(decompressor);
+		if (inputGate == null) {
+			LOG.error("Cannot find input gate to decompressor " + decompressor);
+			return false;
+		}
+
+		final DecompressorCacheEntry cacheEntry = this.decompressorCache.get(inputGate);
+		if (cacheEntry == null) {
+			LOG.error("Cannot find decompressor cache entry to input gate " + inputGate);
+		}
+
+		cacheEntry.removeAssignedChannel(channelID);
+
+		if (!cacheEntry.hasAssignedChannels()) {
+			// Clean up
+			this.decompressorCache.remove(inputGate);
+			this.decompressorMap.remove(decompressor);
+			return true;
+		}
+
 		return false;
 	}
 }

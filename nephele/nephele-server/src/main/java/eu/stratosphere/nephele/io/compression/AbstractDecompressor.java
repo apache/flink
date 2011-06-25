@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.io.compression.Decompressor;
@@ -44,7 +45,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 	public AbstractDecompressor(final AbstractCompressionLibrary compressionLibrary) {
 		this.compressionLibrary = compressionLibrary;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -163,18 +164,18 @@ public abstract class AbstractDecompressor implements Decompressor {
 		throw new IllegalStateException(
 			"setCurrentInternalDecompressionLibraryIndex called with wrong compression level activated");
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void shutdown() {
-		
-		if(this.compressionLibrary.canBeShutDown(this)) {
+	public final void shutdown(final ChannelID channelID) {
+
+		if (this.compressionLibrary.canBeShutDown(this, channelID)) {
 			freeInternalResources();
 		}
-		
+
 	}
-	
+
 	protected abstract void freeInternalResources();
 }

@@ -397,7 +397,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		}
 		
 		if(this.compressor != null) {
-			this.compressor.shutdown();
+			this.compressor.shutdown(getID());
 		}
 	}
 }

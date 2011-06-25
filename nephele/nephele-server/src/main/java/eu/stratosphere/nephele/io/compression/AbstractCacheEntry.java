@@ -16,7 +16,9 @@ abstract class AbstractCacheEntry {
 
 	public void removeAssignedChannel(final ChannelID channelID) {
 
-		this.assignedChannels.remove(channelID);
+		if (!this.assignedChannels.remove(channelID)) {
+			throw new IllegalStateException(channelID + " has not been in the set of assigned channels");
+		}
 	}
 
 	public boolean hasAssignedChannels() {

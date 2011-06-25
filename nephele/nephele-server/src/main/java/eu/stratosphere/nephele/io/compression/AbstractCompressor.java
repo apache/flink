@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 
@@ -147,9 +148,9 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void shutdown() {
+	public final void shutdown(final ChannelID channelID) {
 
-		if (this.compressionLibrary.canBeShutDown(this)) {
+		if (this.compressionLibrary.canBeShutDown(this, channelID)) {
 			freeInternalResources();
 		}
 
