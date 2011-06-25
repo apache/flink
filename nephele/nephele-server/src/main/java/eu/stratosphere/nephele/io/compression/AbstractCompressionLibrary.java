@@ -48,10 +48,12 @@ public abstract class AbstractCompressionLibrary implements CompressionLibrary {
 		CompressorCacheEntry cacheEntry = this.compressorCache.get(outputGate);
 		if (cacheEntry == null) {
 			Compressor compressor = initNewCompressor(outputChannel);
-			cacheEntry = new CompressorCacheEntry(compressor, outputGate);
+			cacheEntry = new CompressorCacheEntry(compressor);
 			this.compressorCache.put(outputGate, cacheEntry);
 			this.compressorMap.put(compressor, outputGate);
 		}
+
+		cacheEntry.addAssignedChannel(outputChannel.getID());
 
 		return cacheEntry.getCompressor();
 	}
@@ -65,10 +67,12 @@ public abstract class AbstractCompressionLibrary implements CompressionLibrary {
 		DecompressorCacheEntry cacheEntry = this.decompressorCache.get(inputGate);
 		if (cacheEntry == null) {
 			Decompressor decompressor = initNewDecompressor(inputChannel);
-			cacheEntry = new DecompressorCacheEntry(decompressor, inputGate);
+			cacheEntry = new DecompressorCacheEntry(decompressor);
 			this.decompressorCache.put(inputGate, cacheEntry);
 			this.decompressorMap.put(decompressor, inputGate);
 		}
+
+		cacheEntry.addAssignedChannel(inputChannel.getID());
 
 		return cacheEntry.getDecompressor();
 	}
