@@ -92,7 +92,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		super(inputGate, channelIndex, channelID, compressionLevel);
 		this.deserializationBuffer = new DeserializationBuffer<T>(deserializer, false);
 
-		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel);
+		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel, this);
 	}
 
 	/**

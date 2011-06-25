@@ -39,6 +39,12 @@ public abstract class AbstractDecompressor implements Decompressor {
 
 	protected final static int SIZE_LENGTH = 8;
 
+	private final AbstractCompressionLibrary compressionLibrary;
+
+	public AbstractDecompressor(final AbstractCompressionLibrary compressionLibrary) {
+		this.compressionLibrary = compressionLibrary;
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -162,7 +168,13 @@ public abstract class AbstractDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
-		// The default implementation of this method does nothing
+	public final void shutdown() {
+		
+		if(this.compressionLibrary.canBeShutDown(this)) {
+			freeInternalResources();
+		}
+		
 	}
+	
+	protected abstract void freeInternalResources();
 }

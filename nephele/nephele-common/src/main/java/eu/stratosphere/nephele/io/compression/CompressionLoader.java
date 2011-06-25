@@ -27,13 +27,15 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class CompressionLoader {
 
 	private static final Log LOG = LogFactory.getLog(CompressionLoader.class);
 
-	private static final Map<CompressionLevel, CompressionLibrary> compressionLibraries = new HashMap<CompressionLevel, CompressionLibrary>();
+	private static final Map<CompressionLevel, AbstractCompressionLibrary> compressionLibraries = new HashMap<CompressionLevel, AbstractCompressionLibrary>();
 
 	private static final String NATIVELIBRARYCACHENAME = "nativeLibraryCache";
 
@@ -74,7 +76,7 @@ public class CompressionLoader {
 			LOG.debug("Trying to load compression library " + libraryClass);
 		}
 
-		final CompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
+		final AbstractCompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
 		if (compressionLibrary == null) {
 			throw new RuntimeException("Cannot load " + libraryClass);
 		}
@@ -148,11 +150,11 @@ public class CompressionLoader {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static CompressionLibrary initCompressionLibrary(String libraryClass) {
+	private static AbstractCompressionLibrary initCompressionLibrary(String libraryClass) {
 
-		Class<? extends CompressionLibrary> compressionLibraryClass;
+		Class<? extends AbstractCompressionLibrary> compressionLibraryClass;
 		try {
-			compressionLibraryClass = (Class<? extends CompressionLibrary>) Class.forName(libraryClass);
+			compressionLibraryClass = (Class<? extends AbstractCompressionLibrary>) Class.forName(libraryClass);
 		} catch (ClassNotFoundException e1) {
 			LOG.error(e1);
 			return null;
@@ -163,7 +165,7 @@ public class CompressionLoader {
 			return null;
 		}
 
-		Constructor<? extends CompressionLibrary> constructor;
+		Constructor<? extends AbstractCompressionLibrary> constructor;
 		try {
 			constructor = compressionLibraryClass.getConstructor(String.class);
 		} catch (SecurityException e) {
@@ -178,7 +180,7 @@ public class CompressionLoader {
 			return null;
 		}
 
-		CompressionLibrary compressionLibrary;
+		AbstractCompressionLibrary compressionLibrary;
 
 		try {
 			compressionLibrary = constructor.newInstance(getNativeLibraryPath(libraryClass));
@@ -199,7 +201,7 @@ public class CompressionLoader {
 		return compressionLibrary;
 	}
 
-	public static synchronized CompressionLibrary getCompressionLibraryByCompressionLevel(CompressionLevel level) {
+	public static synchronized AbstractCompressionLibrary getCompressionLibraryByCompressionLevel(CompressionLevel level) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
@@ -207,7 +209,7 @@ public class CompressionLoader {
 
 		init(level);
 
-		final CompressionLibrary cl = compressionLibraries.get(level);
+		final AbstractCompressionLibrary cl = compressionLibraries.get(level);
 		if (cl == null) {
 			LOG.error("Cannot find compression library for compression level " + level);
 			return null;
@@ -216,7 +218,8 @@ public class CompressionLoader {
 		return cl;
 	}
 
-	public static synchronized Compressor getCompressorByCompressionLevel(CompressionLevel level) {
+	public static synchronized Compressor getCompressorByCompressionLevel(final CompressionLevel level,
+			final AbstractByteBufferedOutputChannel<?> outputChannel) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
@@ -226,13 +229,13 @@ public class CompressionLoader {
 
 		try {
 
-			final CompressionLibrary cl = compressionLibraries.get(level);
+			final AbstractCompressionLibrary cl = compressionLibraries.get(level);
 			if (cl == null) {
 				LOG.error("Cannot find compression library for compression level " + level);
 				return null;
 			}
 
-			return cl.getCompressor();
+			return cl.getCompressor(outputChannel);
 
 		} catch (CompressionException e) {
 			LOG.error("Cannot load native compressor: " + StringUtils.stringifyException(e));
@@ -240,7 +243,8 @@ public class CompressionLoader {
 		}
 	}
 
-	public static synchronized Decompressor getDecompressorByCompressionLevel(CompressionLevel level) {
+	public static synchronized Decompressor getDecompressorByCompressionLevel(final CompressionLevel level,
+			final AbstractByteBufferedInputChannel<?> inputChannel) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
@@ -250,13 +254,13 @@ public class CompressionLoader {
 
 		try {
 
-			final CompressionLibrary cl = compressionLibraries.get(level);
+			final AbstractCompressionLibrary cl = compressionLibraries.get(level);
 			if (cl == null) {
 				LOG.error("Cannot find compression library for compression level " + level);
 				return null;
 			}
 
-			return cl.getDecompressor();
+			return cl.getDecompressor(inputChannel);
 
 		} catch (CompressionException e) {
 			LOG.error("Cannot load native decompressor: " + StringUtils.stringifyException(e));
@@ -266,7 +270,7 @@ public class CompressionLoader {
 
 	public static synchronized int getUncompressedBufferSize(int compressedBufferSize, CompressionLevel cl) {
 
-		final CompressionLibrary c = compressionLibraries.get(cl);
+		final AbstractCompressionLibrary c = compressionLibraries.get(cl);
 		if (c == null) {
 			LOG.error("Cannot find compression library for compression level " + cl);
 			return compressedBufferSize;

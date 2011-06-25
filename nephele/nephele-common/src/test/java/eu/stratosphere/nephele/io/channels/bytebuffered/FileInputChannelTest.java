@@ -110,7 +110,7 @@ public class FileInputChannelTest {
 			null, CompressionLevel.NO_COMPRESSION);
 		CompressionLoader.init(CompressionLevel.NO_COMPRESSION);
 		Decompressor decompressor = CompressionLoader
-			.getDecompressorByCompressionLevel(CompressionLevel.LIGHT_COMPRESSION);
+			.getDecompressorByCompressionLevel(CompressionLevel.LIGHT_COMPRESSION, fileInputChannel);
 
 		PowerMockito.mockStatic(GlobalConfiguration.class);
 		if (decompressor != null) {
@@ -156,7 +156,9 @@ public class FileInputChannelTest {
 		// this.uncompressedDataBuffer, null);
 
 		PowerMockito.mockStatic(CompressionLoader.class);
-		when(CompressionLoader.getDecompressorByCompressionLevel(Matchers.any(CompressionLevel.class))).thenReturn(
+		when(
+			CompressionLoader.getDecompressorByCompressionLevel(Matchers.any(CompressionLevel.class),
+				Matchers.any(FileInputChannel.class))).thenReturn(
 			decompressorMock);
 
 		@SuppressWarnings("unchecked")

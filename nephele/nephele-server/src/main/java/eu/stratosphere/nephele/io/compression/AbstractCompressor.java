@@ -21,7 +21,6 @@ import java.nio.ByteBuffer;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
-import eu.stratosphere.nephele.io.compression.Compressor;
 
 public abstract class AbstractCompressor implements Compressor {
 
@@ -38,6 +37,12 @@ public abstract class AbstractCompressor implements Compressor {
 	protected int compressedDataBufferLength;
 
 	private final static int SIZE_LENGTH = 8;
+
+	private final AbstractCompressionLibrary compressionLibrary;
+
+	public AbstractCompressor(final AbstractCompressionLibrary compressionLibrary) {
+		this.compressionLibrary = compressionLibrary;
+	}
 
 	/**
 	 * {@inheritDoc}
@@ -137,13 +142,18 @@ public abstract class AbstractCompressor implements Compressor {
 
 		return 0;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
-	
-		// The default implementation of this method does nothing
+	public final void shutdown() {
+
+		if (this.compressionLibrary.canBeShutDown(this)) {
+			freeInternalResources();
+		}
+
 	}
+
+	protected abstract void freeInternalResources();
 }

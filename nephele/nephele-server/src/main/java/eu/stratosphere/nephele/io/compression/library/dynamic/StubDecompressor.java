@@ -15,9 +15,14 @@
 
 package eu.stratosphere.nephele.io.compression.library.dynamic;
 
+import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
 
 public class StubDecompressor extends AbstractDecompressor {
+
+	StubDecompressor(AbstractCompressionLibrary compressionLibrary) {
+		super(compressionLibrary);
+	}
 
 	@Override
 	protected int decompressBytesDirect(int offset) {
@@ -33,6 +38,12 @@ public class StubDecompressor extends AbstractDecompressor {
 		// System.out.println("Uncompressed buffer position: " + this.uncompressedDataBuffer.position());
 
 		return this.uncompressedDataBuffer.position() - SIZE_LENGTH; // TODO: Improve code style here
+	}
+
+	@Override
+	protected void freeInternalResources() {
+		// TODO Auto-generated method stub
+		
 	}
 
 }
