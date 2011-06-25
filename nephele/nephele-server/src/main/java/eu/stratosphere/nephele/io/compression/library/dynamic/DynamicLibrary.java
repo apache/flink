@@ -20,6 +20,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutp
 import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
@@ -28,7 +29,7 @@ public class DynamicLibrary extends AbstractCompressionLibrary {
 
 	private static final int NUMBER_OF_COMPRESSION_LEVELS = 4;
 
-	private final AbstractCompressionLibrary[] libraries;
+	private final CompressionLibrary[] libraries;
 
 	private int lastCompressedBufferSize = -1;
 
@@ -37,7 +38,7 @@ public class DynamicLibrary extends AbstractCompressionLibrary {
 	public DynamicLibrary(String nativeLibraryDir)
 													throws CompressionException {
 
-		libraries = new AbstractCompressionLibrary[NUMBER_OF_COMPRESSION_LEVELS];
+		libraries = new CompressionLibrary[NUMBER_OF_COMPRESSION_LEVELS];
 		libraries[0] = new StubCompressionLibrary();
 		libraries[1] = CompressionLoader.getCompressionLibraryByCompressionLevel(CompressionLevel.LIGHT_COMPRESSION);
 		libraries[2] = CompressionLoader.getCompressionLibraryByCompressionLevel(CompressionLevel.MEDIUM_COMPRESSION);

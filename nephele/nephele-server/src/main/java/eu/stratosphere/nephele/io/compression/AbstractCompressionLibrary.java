@@ -23,12 +23,13 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 
-public abstract class AbstractCompressionLibrary {
+public abstract class AbstractCompressionLibrary implements CompressionLibrary {
 
 	private final Map<OutputGate<?>, CompressorCacheEntry> compressorCache = new HashMap<OutputGate<?>, CompressorCacheEntry>();
 
 	private final Map<InputGate<?>, DecompressorCacheEntry> decompressorCache = new HashMap<InputGate<?>, DecompressorCacheEntry>();
 
+	@Override
 	public final synchronized Compressor getCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel)
 			throws CompressionException {
 
@@ -44,6 +45,7 @@ public abstract class AbstractCompressionLibrary {
 		return cacheEntry.getCompressor();
 	}
 
+	@Override
 	public final synchronized Decompressor getDecompressor(
 			final AbstractByteBufferedInputChannel<?> inputChannel) throws CompressionException {
 
@@ -59,10 +61,6 @@ public abstract class AbstractCompressionLibrary {
 		return cacheEntry.getDecompressor();
 	}
 
-	public abstract int getUncompressedBufferSize(int compressedBufferSize);
-
-	public abstract String getLibraryName();
-
 	protected abstract Compressor initNewCompressor(AbstractByteBufferedOutputChannel<?> outputChannel)
 			throws CompressionException;
 
@@ -71,11 +69,15 @@ public abstract class AbstractCompressionLibrary {
 
 	synchronized boolean canBeShutDown(final Compressor compressor) {
 
+		System.out.println("can be shut down called (compressor)");
+		
 		return false;
 	}
 
 	synchronized boolean canBeShutDown(final Decompressor decompressor) {
 
+		System.out.println("can be shut down called (compressor)");
+		
 		return false;
 	}
 }

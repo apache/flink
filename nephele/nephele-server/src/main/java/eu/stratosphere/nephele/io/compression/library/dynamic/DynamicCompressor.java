@@ -19,8 +19,8 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 
 public class DynamicCompressor implements Compressor {
@@ -35,7 +35,7 @@ public class DynamicCompressor implements Compressor {
 
 	private final DecisionModel decisionModel;
 
-	public DynamicCompressor(final AbstractCompressionLibrary[] compressionLibraries,
+	public DynamicCompressor(final CompressionLibrary[] compressionLibraries,
 			final AbstractByteBufferedOutputChannel<?> outputChannel) throws CompressionException {
 
 		// Initialize the different compressors

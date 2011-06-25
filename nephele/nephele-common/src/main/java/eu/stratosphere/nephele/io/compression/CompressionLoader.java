@@ -35,7 +35,7 @@ public class CompressionLoader {
 
 	private static final Log LOG = LogFactory.getLog(CompressionLoader.class);
 
-	private static final Map<CompressionLevel, AbstractCompressionLibrary> compressionLibraries = new HashMap<CompressionLevel, AbstractCompressionLibrary>();
+	private static final Map<CompressionLevel, CompressionLibrary> compressionLibraries = new HashMap<CompressionLevel, CompressionLibrary>();
 
 	private static final String NATIVELIBRARYCACHENAME = "nativeLibraryCache";
 
@@ -76,7 +76,7 @@ public class CompressionLoader {
 			LOG.debug("Trying to load compression library " + libraryClass);
 		}
 
-		final AbstractCompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
+		final CompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
 		if (compressionLibrary == null) {
 			throw new RuntimeException("Cannot load " + libraryClass);
 		}
@@ -150,11 +150,11 @@ public class CompressionLoader {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static AbstractCompressionLibrary initCompressionLibrary(String libraryClass) {
+	private static CompressionLibrary initCompressionLibrary(String libraryClass) {
 
-		Class<? extends AbstractCompressionLibrary> compressionLibraryClass;
+		Class<? extends CompressionLibrary> compressionLibraryClass;
 		try {
-			compressionLibraryClass = (Class<? extends AbstractCompressionLibrary>) Class.forName(libraryClass);
+			compressionLibraryClass = (Class<? extends CompressionLibrary>) Class.forName(libraryClass);
 		} catch (ClassNotFoundException e1) {
 			LOG.error(e1);
 			return null;
@@ -165,7 +165,7 @@ public class CompressionLoader {
 			return null;
 		}
 
-		Constructor<? extends AbstractCompressionLibrary> constructor;
+		Constructor<? extends CompressionLibrary> constructor;
 		try {
 			constructor = compressionLibraryClass.getConstructor(String.class);
 		} catch (SecurityException e) {
@@ -180,7 +180,7 @@ public class CompressionLoader {
 			return null;
 		}
 
-		AbstractCompressionLibrary compressionLibrary;
+		CompressionLibrary compressionLibrary;
 
 		try {
 			compressionLibrary = constructor.newInstance(getNativeLibraryPath(libraryClass));
@@ -201,7 +201,7 @@ public class CompressionLoader {
 		return compressionLibrary;
 	}
 
-	public static synchronized AbstractCompressionLibrary getCompressionLibraryByCompressionLevel(CompressionLevel level) {
+	public static synchronized CompressionLibrary getCompressionLibraryByCompressionLevel(CompressionLevel level) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
@@ -209,7 +209,7 @@ public class CompressionLoader {
 
 		init(level);
 
-		final AbstractCompressionLibrary cl = compressionLibraries.get(level);
+		final CompressionLibrary cl = compressionLibraries.get(level);
 		if (cl == null) {
 			LOG.error("Cannot find compression library for compression level " + level);
 			return null;
@@ -229,7 +229,7 @@ public class CompressionLoader {
 
 		try {
 
-			final AbstractCompressionLibrary cl = compressionLibraries.get(level);
+			final CompressionLibrary cl = compressionLibraries.get(level);
 			if (cl == null) {
 				LOG.error("Cannot find compression library for compression level " + level);
 				return null;
@@ -254,7 +254,7 @@ public class CompressionLoader {
 
 		try {
 
-			final AbstractCompressionLibrary cl = compressionLibraries.get(level);
+			final CompressionLibrary cl = compressionLibraries.get(level);
 			if (cl == null) {
 				LOG.error("Cannot find compression library for compression level " + level);
 				return null;
@@ -270,7 +270,7 @@ public class CompressionLoader {
 
 	public static synchronized int getUncompressedBufferSize(int compressedBufferSize, CompressionLevel cl) {
 
-		final AbstractCompressionLibrary c = compressionLibraries.get(cl);
+		final CompressionLibrary c = compressionLibraries.get(cl);
 		if (c == null) {
 			LOG.error("Cannot find compression library for compression level " + cl);
 			return compressedBufferSize;

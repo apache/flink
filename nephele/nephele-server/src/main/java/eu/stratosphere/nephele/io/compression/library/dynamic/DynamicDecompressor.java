@@ -19,8 +19,8 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 
 public class DynamicDecompressor implements Decompressor {
@@ -29,7 +29,7 @@ public class DynamicDecompressor implements Decompressor {
 
 	private int selectedDecompressor = 0;
 
-	public DynamicDecompressor(final AbstractCompressionLibrary[] compressionLibraries,
+	public DynamicDecompressor(final CompressionLibrary[] compressionLibraries,
 			final AbstractByteBufferedInputChannel<?> inputChannel) throws CompressionException {
 
 		// Initialize the different compressors
