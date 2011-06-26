@@ -4,16 +4,16 @@ TARGET_DIR      := ../../../target
 JAVA_BUILD_DIR 	= $(TARGET_DIR)/classes
 TARGET          = $(JAVA_BUILD_DIR)/META-INF/lib
 
-.PHONY: zlib dir clean
+.PHONY: snappy dir clean
 
-all: dir zlib clean
+all: dir snappy clean
 
 dir:
 	mkdir -p $(TARGET)
 
 zlib:
-	make -C zlib
-	cp zlib/*.so* $(TARGET)
+	make -C snappy
+	cp snappy/*.so* $(TARGET)
 
 clean:
-	make -C zlib clean
+	make -C snappy clean
