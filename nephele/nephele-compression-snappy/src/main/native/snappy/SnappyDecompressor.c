@@ -51,7 +51,7 @@ JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
 
 JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_snappy_SnappyDecompressor_decompressBytesDirect (JNIEnv *env, jobject this, jint offset){
                                                                                                                     
-        // Get members of ZlibDecompressor  
+        // Get members of SnappyDecompressor  
         jobject uncompressed_buf = (*env)->GetObjectField(env, this, SnappyDecompressor_uncompressedDataBuffer);
         jobject compressed_buf = (*env)->GetObjectField(env, this, SnappyDecompressor_compressedDataBuffer);
         
