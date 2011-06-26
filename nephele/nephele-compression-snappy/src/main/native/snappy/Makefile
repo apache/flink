@@ -20,27 +20,14 @@ JAVAINCLUDES = $(JAVA_HOME)/include
 all: snappy
 	$(CC) -Wall -fPIC -g -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -c SnappyCompressor.c
 	$(CC) -Wall -fPIC -g -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -c SnappyDecompressor.c
-	$(LD) -shared -soname libzlibcompression.so.1 -o libzlibcompression.so.1.0 SnappyCompressor.o SnappyDecompressor.o adler32.o compress.o crc32.o deflate.o gzclose.o gzlib.o gzread.o gzwrite.o infback.o inffast.o inflate.o inftrees.o trees.o uncompr.o zutil.o
+	$(LD) -shared -soname libsnappycompression.so.1 -o libsnappycompression.so.1.0 SnappyCompressor.o SnappyDecompressor.o snappy/.libs/snappy-c.o snappy/.libs/snappy.o
 
-zlib:
-	$(CC) -O2 -Wall -fPIC -g -c zlib/adler32.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/compress.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/crc32.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/deflate.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/gzclose.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/gzlib.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/gzread.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/gzwrite.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/uncompr.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/trees.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/zutil.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/inflate.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/infback.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/inftrees.c
-	$(CC) -O2 -Wall -fPIC -g -c zlib/inffast.c
-
+snappy:
+	#./build-snappy.sh
+	(cd snappy && ./configure && make && cd ..)
 
 clean:
+	(cd snappy && make clean && cd ..)
 	rm -rf *.so
 	rm -rf *.o
 	rm -rf *.so.*

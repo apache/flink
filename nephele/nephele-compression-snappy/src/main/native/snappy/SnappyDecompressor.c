@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 
 #include "SnappyDecompressor.h"
-//#include "zlib/zlib.h"
+#include "snappy/snappy-c.h"
 #include <stdlib.h>
 
 
@@ -55,20 +55,20 @@ JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
         jobject uncompressed_buf = (*env)->GetObjectField(env, this, SnappyDecompressor_uncompressedDataBuffer);
         jobject compressed_buf = (*env)->GetObjectField(env, this, SnappyDecompressor_compressedDataBuffer);
         
-	unsigned char *src = (*env)->GetDirectBufferAddress(env, compressed_buf);
-        unsigned char *dest = (*env)->GetDirectBufferAddress(env, uncompressed_buf);
+	char *src = (*env)->GetDirectBufferAddress(env, compressed_buf);
+        char *dest = (*env)->GetDirectBufferAddress(env, uncompressed_buf);
 	
 	jint compressed_buf_len = (*env)->GetIntField(env, this, SnappyDecompressor_compressedDataBufferLength);
 	jint uncompressed_buf_len = (*env)->GetIntField(env, this, SnappyDecompressor_uncompressedDataBufferLength);
 
-	uLongf number_of_uncompressed_bytes = uncompressed_buf_len;
+	size_t number_of_uncompressed_bytes = uncompressed_buf_len;
 
-	int result = uncompress(dest, &number_of_uncompressed_bytes, src+offset, (uLong) compressed_buf_len-offset);
+	snappy_status status = snappy_uncompress(src+offset, (size_t) compressed_buf_len-offset, dest, &number_of_uncompressed_bytes);
 	
-	if(result != Z_OK) {
+	if(status != SNAPPY_OK) {
 		const int msg_len = 64;
 		char exception_msg[msg_len];
-		snprintf(exception_msg, msg_len, "Snappy-Decompressor returned error: %d", result);
+		snprintf(exception_msg, msg_len, "Snappy-Decompressor returned error: %d", status);
 		THROW(env, "java/lang/InternalError", exception_msg);
      	}
      	

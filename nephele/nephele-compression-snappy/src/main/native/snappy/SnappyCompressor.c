@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 #include "SnappyCompressor.h"
-//#include "zlib/zlib.h"
+#include "snappy/snappy-c.h"
 #include <stdlib.h>
 
 
@@ -50,43 +50,36 @@ JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
         jint uncompressed_buf_len = (*env)->GetIntField(env, this, SnappyCompressor_uncompressedDataBufferLength);
 
         jobject compressed_buf = (*env)->GetObjectField(env, this, SnappyCompressor_compressedDataBuffer);
-	      jint compressed_buf_len = (*env)->GetIntField(env, this, SnappyCompressor_compressedDataBufferLength);
+	jint compressed_buf_len = (*env)->GetIntField(env, this, SnappyCompressor_compressedDataBufferLength);
 	      
-	      // Get access to the uncompressed buffer object
-	      const unsigned char *src = (*env)->GetDirectBufferAddress(env, uncompressed_buf);
+	// Get access to the uncompressed buffer object
+	const char *src = (*env)->GetDirectBufferAddress(env, uncompressed_buf);
 
-	      if (src == 0){
-          const int msg_len = 64;
-		      char exception_msg[msg_len];
-		      snprintf(exception_msg, msg_len, "Snappy-Compressor - No access to uncompressed-buffer");
-		      THROW(env, "java/lang/InternalError", exception_msg);
-		      return (jint)0;
+	if (src == 0){
+        	const int msg_len = 64;
+		char exception_msg[msg_len];
+		snprintf(exception_msg, msg_len, "Snappy-Compressor - No access to uncompressed-buffer");
+		THROW(env, "java/lang/InternalError", exception_msg);
+		return (jint)0;
         }
-		    //  return (jint)0;
 
-	      // Get access to the compressed buffer object
-        unsigned char *dest = (*env)->GetDirectBufferAddress(env, compressed_buf);
+	// Get access to the compressed buffer object
+        char *dest = (*env)->GetDirectBufferAddress(env, compressed_buf);
 
       	if (dest == 0){
-		      const int msg_len = 64;
-		      char exception_msg[msg_len];
-		      snprintf(exception_msg, msg_len, "Snappy-Compressor - no access to compressed-buffer");
-		      THROW(env, "java/lang/InternalError", exception_msg);
-		      return (jint)0;
-		      
+		const int msg_len = 64;
+		char exception_msg[msg_len];
+		snprintf(exception_msg, msg_len, "Snappy-Compressor - no access to compressed-buffer");
+		THROW(env, "java/lang/InternalError", exception_msg);
+		return (jint)0;      
         }
-              	//return (jint)0;
-              	
+
         dest += offset;
               	
         unsigned long no_compressed_bytes = compressed_buf_len;
         unsigned long no_uncompressed_bytes = uncompressed_buf_len;
         
-        int result = compress(dest + SIZE_LENGTH, 
-                              &no_compressed_bytes,
-                              src, 
-                              no_uncompressed_bytes
-                              );
+        snappy_status status = snappy_compress(src, no_compressed_bytes, dest + SIZE_LENGTH, &no_uncompressed_bytes);
                               
         //write length of compressed size to compressed buffer
         *(dest) = (unsigned char) ((no_compressed_bytes >> 24) & 0xff);
@@ -100,13 +93,13 @@ JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
 	      *(dest + 6) = (unsigned char) ((no_uncompressed_bytes >> 8) & 0xff);
 	      *(dest + 7) = (unsigned char) ((no_uncompressed_bytes >> 0) & 0xff);
                                             
-        if (result == Z_OK) {
-		      // Zlib compresses all input data
+        if (status == SNAPPY_OK) {
+		      // Snappy compresses all input data
 		      (*env)->SetIntField(env, this, SnappyCompressor_uncompressedDataBufferLength, 0);
 	     } else {
 		      const int msg_len = 32;
 		      char exception_msg[msg_len];
-		      snprintf(exception_msg, msg_len, "Snappy-Compressor returned: %d", result);
+		      snprintf(exception_msg, msg_len, "Snappy-Compressor returned: %d", status);
 		      THROW(env, "java/lang/InternalError", exception_msg);
      	}
      	
