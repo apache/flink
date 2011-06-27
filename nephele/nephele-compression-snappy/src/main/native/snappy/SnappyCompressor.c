@@ -34,7 +34,7 @@ static jfieldID SnappyCompressor_uncompressedDataBufferLength;
 static jfieldID SnappyCompressor_compressedDataBuffer;
 static jfieldID SnappyCompressor_compressedDataBufferLength;
 
-JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_snappy_SnappyCompressor_initIDs (JNIEnv *env, jclass class){
+JNIEXPORT void JNICALL Java_eu_stratosphere_nephele_io_compression_library_snappy_SnappyCompressor_initIDs (JNIEnv *env, jclass class){
 
 	SnappyCompressor_uncompressedDataBuffer = (*env)->GetFieldID(env, class, "uncompressedDataBuffer", "Ljava/nio/ByteBuffer;");
 	SnappyCompressor_uncompressedDataBufferLength = (*env)->GetFieldID(env, class, "uncompressedDataBufferLength", "I");
@@ -43,7 +43,7 @@ JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
 	
 }
 
-JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_snappy_SnappyCompressor_compressBytesDirect (JNIEnv *env, jobject this, jint offset){
+JNIEXPORT jint JNICALL Java_eu_stratosphere_nephele_io_compression_library_snappy_SnappyCompressor_compressBytesDirect (JNIEnv *env, jobject this, jint offset){
                      
         // Get members of LzoCompressor
         jobject uncompressed_buf = (*env)->GetObjectField(env, this, SnappyCompressor_uncompressedDataBuffer);
@@ -51,7 +51,7 @@ JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
 
         jobject compressed_buf = (*env)->GetObjectField(env, this, SnappyCompressor_compressedDataBuffer);
 	jint compressed_buf_len = (*env)->GetIntField(env, this, SnappyCompressor_compressedDataBufferLength);
-	      
+	
 	// Get access to the uncompressed buffer object
 	const char *src = (*env)->GetDirectBufferAddress(env, uncompressed_buf);
 
@@ -76,10 +76,10 @@ JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
 
         dest += offset;
               	
-        unsigned long no_compressed_bytes = compressed_buf_len;
-        unsigned long no_uncompressed_bytes = uncompressed_buf_len;
+        size_t no_compressed_bytes = compressed_buf_len - SIZE_LENGTH;
+        size_t no_uncompressed_bytes = uncompressed_buf_len;
         
-        snappy_status status = snappy_compress(src, no_compressed_bytes, dest + SIZE_LENGTH, &no_uncompressed_bytes);
+        snappy_status status = snappy_compress(src, no_uncompressed_bytes, dest + SIZE_LENGTH, &no_compressed_bytes);
                               
         //write length of compressed size to compressed buffer
         *(dest) = (unsigned char) ((no_compressed_bytes >> 24) & 0xff);

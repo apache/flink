@@ -11,7 +11,7 @@ all: dir snappy clean
 dir:
 	mkdir -p $(TARGET)
 
-zlib:
+snappy:
 	make -C snappy
 	cp snappy/*.so* $(TARGET)
 

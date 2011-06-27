@@ -40,7 +40,7 @@ static jfieldID SnappyDecompressor_uncompressedDataBufferLength;
 static jfieldID SnappyDecompressor_compressedDataBuffer;
 static jfieldID SnappyDecompressor_compressedDataBufferLength;
 
-JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_snappy_SnappyDecompressor_initIDs (JNIEnv *env, jclass class){
+JNIEXPORT void JNICALL Java_eu_stratosphere_nephele_io_compression_library_snappy_SnappyDecompressor_initIDs (JNIEnv *env, jclass class){
 
 	SnappyDecompressor_uncompressedDataBuffer = (*env)->GetFieldID(env, class, "uncompressedDataBuffer", "Ljava/nio/ByteBuffer;");
 	SnappyDecompressor_uncompressedDataBufferLength = (*env)->GetFieldID(env, class, "uncompressedDataBufferLength", "I");
@@ -49,7 +49,7 @@ JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_sna
 	
 }
 
-JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_snappy_SnappyDecompressor_decompressBytesDirect (JNIEnv *env, jobject this, jint offset){
+JNIEXPORT jint JNICALL Java_eu_stratosphere_nephele_io_compression_library_snappy_SnappyDecompressor_decompressBytesDirect (JNIEnv *env, jobject this, jint offset){
                                                                                                                     
         // Get members of SnappyDecompressor  
         jobject uncompressed_buf = (*env)->GetObjectField(env, this, SnappyDecompressor_uncompressedDataBuffer);

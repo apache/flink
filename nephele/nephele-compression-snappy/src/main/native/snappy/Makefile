@@ -14,17 +14,21 @@
 #######################################################################################################################
 
 JAVAINCLUDES = $(JAVA_HOME)/include
+GPP = /usr/bin/g++
 
 .PHONY: clean snappy
 
 all: snappy
-	$(CC) -Wall -fPIC -g -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -c SnappyCompressor.c
-	$(CC) -Wall -fPIC -g -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -c SnappyDecompressor.c
-	$(LD) -shared -soname libsnappycompression.so.1 -o libsnappycompression.so.1.0 SnappyCompressor.o SnappyDecompressor.o snappy/.libs/snappy-c.o snappy/.libs/snappy.o
+	$(CC) -Wall -fPIC -g -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -L snappy/.libs/ -c SnappyCompressor.c
+	$(CC) -Wall -fPIC -g -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -L snappy/.libs/ -c SnappyDecompressor.c
+	$(GPP) -Wall -fPIC -g -shared -static-libgcc -static-libstdc++ -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux snappy.o snappy-c.o snappy-sinksource.o snappy-stubs-internal.o SnappyCompressor.o SnappyDecompressor.o -o libsnappycompression.so.1.0
 
 snappy:
-	#./build-snappy.sh
-	(cd snappy && ./configure && make && cd ..)
+	$(GPP) -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -O2 -fPIC -fvisibility=hidden -m64 -c snappy/snappy-sinksource.cc -o snappy-sinksource.o
+	$(GPP) -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -O2 -fPIC -fvisibility=hidden -m64 -c snappy/snappy.cc -o snappy.o
+	$(GPP) -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -O2 -fPIC -fvisibility=hidden -m64 -c snappy/snappy-c.cc -o snappy-c.o
+	$(GPP) -I $(JAVAINCLUDES) -I $(JAVAINCLUDES)/linux -O2 -fPIC -fvisibility=hidden -m64 -c snappy/snappy-stubs-internal.cc -o snappy-stubs-internal.o
+
 
 clean:
 	(cd snappy && make clean && cd ..)
