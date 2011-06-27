@@ -45,7 +45,7 @@ public class ObjectAccess extends EvaluableExpression {
 	 */
 	@Override
 	public JsonNode evaluate(final JsonNode node, EvaluationContext context) {
-		if(!node.isObject())
+		if (!node.isObject())
 			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
 		return node.get(this.field);
 	}

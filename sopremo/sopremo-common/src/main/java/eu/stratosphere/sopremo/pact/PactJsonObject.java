@@ -22,12 +22,8 @@ import java.io.StringWriter;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NullNode;
-import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.ObjectNode;
-import org.codehaus.jackson.node.TextNode;
 import org.codehaus.jackson.node.ValueNode;
 
 import eu.stratosphere.pact.common.type.Value;
@@ -198,7 +194,7 @@ public class PactJsonObject implements Value {
 
 		@Override
 		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
-			return JsonNodeComparator.INSTANCE.compare(getValue(), ((Key) o).getValue());
+			return JsonNodeComparator.INSTANCE.compare(this.getValue(), ((Key) o).getValue());
 		}
 
 		// @Override

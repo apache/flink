@@ -15,7 +15,6 @@ import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.LongNode;
 import org.codehaus.jackson.node.MissingNode;
 import org.codehaus.jackson.node.NullNode;
-import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.ObjectNode;
 import org.codehaus.jackson.node.POJONode;
 import org.codehaus.jackson.node.TextNode;
@@ -34,7 +33,8 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 
 	public JsonNodeComparator() {
 		for (Class<?> subComparator : this.getClass().getDeclaredClasses())
-			this.nodeComparators.put(BoundTypeUtil.getBindingOfSuperclass(subComparator, Comparator.class).getParameters()[0].getType(),
+			this.nodeComparators.put(BoundTypeUtil.getBindingOfSuperclass(subComparator, Comparator.class)
+				.getParameters()[0].getType(),
 				(Comparator<?>) ReflectUtil.getStaticValue(subComparator, "INSTANCE"));
 
 		this.nodeComparators.put(ArrayNode.class, ArrayNodeComparator.INSTANCE);
@@ -56,7 +56,7 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public int compare(JsonNode value1, JsonNode value2) {
-		return nodeComparators.get(value1.getClass()).compare(value1, value2);
+		return this.nodeComparators.get(value1.getClass()).compare(value1, value2);
 	}
 
 	public final static class BigIntegerNodeComparator implements Comparator<BigIntegerNode> {

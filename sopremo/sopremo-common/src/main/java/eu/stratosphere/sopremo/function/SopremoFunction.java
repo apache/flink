@@ -6,6 +6,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 public class SopremoFunction extends Function {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -804125165962550321L;
 	private EvaluableExpression definition;
 
 	public SopremoFunction(String name, EvaluableExpression definition) {

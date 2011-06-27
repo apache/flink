@@ -3,9 +3,6 @@ package eu.stratosphere.pact.common.plan;
 import java.util.Arrays;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.util.dag.Navigator;
 
 /**

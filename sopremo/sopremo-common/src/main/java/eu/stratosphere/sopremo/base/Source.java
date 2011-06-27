@@ -5,11 +5,15 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 public class Source extends ElementaryOperator {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 4321371118396025441L;
+
 	private String inputName;
 
 	private PersistenceType type;
@@ -32,7 +36,7 @@ public class Source extends ElementaryOperator {
 	public PactModule asPactModule(EvaluationContext context) {
 		if (this.type == PersistenceType.ADHOC)
 			throw new UnsupportedOperationException();
-		PactModule pactModule = new PactModule(toString(), 0, 1);
+		PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		DataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			JsonInputFormat.class, this.inputName, this.inputName);
 		pactModule.getOutput(0).setInput(contract);
@@ -49,19 +53,9 @@ public class Source extends ElementaryOperator {
 		if (this.getClass() != obj.getClass())
 			return false;
 		Source other = (Source) obj;
-		if (this.type != other.type)
-			return false;
-		if (this.inputName == null) {
-			if (other.inputName != null)
-				return false;
-		} else if (!this.inputName.equals(other.inputName))
-			return false;
-		if (this.adhocValue == null) {
-			if (other.adhocValue != null)
-				return false;
-		} else if (!this.adhocValue.equals(other.adhocValue))
-			return false;
-		return true;
+		return this.type == other.type
+			&& (this.inputName == other.inputName || this.inputName.equals(other.inputName))
+			&& (this.adhocValue == other.adhocValue || this.adhocValue.equals(other.adhocValue));
 	}
 
 	public Evaluable getAdhocValue() {

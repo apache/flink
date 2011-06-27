@@ -79,8 +79,8 @@ public class ArrayAccess extends EvaluableExpression {
 		final int size = node.size();
 		if (this.isSelectingRange()) {
 			ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
-			int index = resolveIndex(this.startIndex, size);
-			final int endIndex = resolveIndex(this.endIndex, size);
+			int index = this.resolveIndex(this.startIndex, size);
+			final int endIndex = this.resolveIndex(this.endIndex, size);
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment) {
@@ -89,7 +89,7 @@ public class ArrayAccess extends EvaluableExpression {
 			}
 			return arrayNode;
 		}
-		return node.get(resolveIndex(this.startIndex, size));
+		return node.get(this.resolveIndex(this.startIndex, size));
 	}
 
 	private int resolveIndex(int index, int size) {

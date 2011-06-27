@@ -12,15 +12,15 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 
-public class SpreadTest extends EvaluableExpressionTest<ArrayMap> {
+public class SpreadTest extends EvaluableExpressionTest<ArrayProjection> {
 	@Override
-	protected ArrayMap createDefaultInstance(int index) {
-		return new ArrayMap(new ObjectAccess(String.valueOf(index)));
+	protected ArrayProjection createDefaultInstance(int index) {
+		return new ArrayProjection(new ObjectAccess(String.valueOf(index)));
 	}
 
 	@Test
 	public void shouldAccessFieldOfArray() {
-		JsonNode result = new ArrayMap(new ObjectAccess("fieldName")).evaluate(
+		JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			context);
@@ -29,7 +29,7 @@ public class SpreadTest extends EvaluableExpressionTest<ArrayMap> {
 
 	@Test
 	public void shouldAccessFieldOfStreamArray() {
-		JsonNode result = new ArrayMap(new ObjectAccess("fieldName")).evaluate(
+		JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createStreamArray(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			context);

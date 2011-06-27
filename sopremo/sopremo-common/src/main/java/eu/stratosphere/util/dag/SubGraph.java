@@ -1,6 +1,5 @@
 package eu.stratosphere.util.dag;
 
-
 /**
  * Base class for all kinds of subgraphs. A subgraph has an arbitrary but well-defined number of inputs and
  * outputs. It is designed to facilitate modularization and thus to increase the maintainability of large

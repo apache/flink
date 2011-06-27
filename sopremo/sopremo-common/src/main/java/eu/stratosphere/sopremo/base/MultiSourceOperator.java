@@ -44,7 +44,7 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 			inputs.add(new Projection(this.getKeyProjection(index), this.getValueProjection(index), module
 				.getInput(index)));
 
-		Operator lastOperator = createElementaryOperations(inputs);
+		Operator lastOperator = this.createElementaryOperations(inputs);
 
 		module.getOutput(0).setInput(0,
 			new Projection(EvaluableExpression.NULL, EvaluableExpression.SAME_VALUE, lastOperator));
@@ -137,14 +137,14 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 		return this.keyProjections.equals(other.keyProjections) && this.valueProjections.equals(other.valueProjections);
 	}
 
-//	@Override
-//	public String toString() {
-//		StringBuilder builder = new StringBuilder(this.getName()).append(" on ");
-//		List<Output> inputs = this.getInputs();
-//		builder.append(this.getKeyProjection(0)).append("/").append(this.getValueProjection(0));
-//		for (int index = 1; index < inputs.size(); index++)
-//			builder.append(", ").append(this.getKeyProjection(index)).append("/")
-//				.append(this.getValueProjection(index));
-//		return builder.toString();
-//	}
+	// @Override
+	// public String toString() {
+	// StringBuilder builder = new StringBuilder(this.getName()).append(" on ");
+	// List<Output> inputs = this.getInputs();
+	// builder.append(this.getKeyProjection(0)).append("/").append(this.getValueProjection(0));
+	// for (int index = 1; index < inputs.size(); index++)
+	// builder.append(", ").append(this.getKeyProjection(index)).append("/")
+	// .append(this.getValueProjection(index));
+	// return builder.toString();
+	// }
 }

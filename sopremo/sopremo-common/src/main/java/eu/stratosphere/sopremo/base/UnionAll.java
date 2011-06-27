@@ -7,13 +7,19 @@ import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class UnionAll extends Operator {
+public class UnionAll extends ElementaryOperator {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8160253166221264064L;
+
 	public UnionAll(List<Operator> inputs) {
 		super(inputs);
 	}
@@ -25,7 +31,7 @@ public class UnionAll extends Operator {
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
 		int numInputs = this.getInputOperators().size();
-		PactModule module = new PactModule(toString(), numInputs, 1);
+		PactModule module = new PactModule(this.toString(), numInputs, 1);
 
 		Contract leftInput = module.getInput(0);
 		for (int index = 1; index < numInputs; index++) {

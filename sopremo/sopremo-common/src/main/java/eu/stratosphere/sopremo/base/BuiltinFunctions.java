@@ -53,11 +53,11 @@ public class BuiltinFunctions {
 	public static JsonNode count(JsonNode node) {
 		return new IntNode(node.size());
 	}
-	
-	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode sort(ArrayNode node) {
+
+	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
+	public static JsonNode sort(JsonNode node) {
 		List<JsonNode> nodes = new ArrayList<JsonNode>();
-		for (JsonNode jsonNode : node) 
+		for (JsonNode jsonNode : node)
 			nodes.add(jsonNode);
 		Collections.sort(nodes, JsonNodeComparator.INSTANCE);
 		ArrayNode arrayNode = new ArrayNode(null);
@@ -77,7 +77,7 @@ public class BuiltinFunctions {
 		Iterator<JsonNode> iterator = node.iterator();
 		if (!iterator.hasNext())
 			return ZERO;
-		JsonNode sum = iterator.next();
+		NumericNode sum = (NumericNode) iterator.next();
 		for (; iterator.hasNext();)
 			sum = ArithmeticExpression.ArithmeticOperator.ADDITION.evaluate((NumericNode) sum,
 				(NumericNode) iterator.next());
@@ -92,7 +92,7 @@ public class BuiltinFunctions {
 	 * @return the concatenated array
 	 */
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode unionAll(JsonNode[] arrays) {
+	public static JsonNode unionAll(JsonNode... arrays) {
 		boolean hasStream = false, resettable = false;
 		for (JsonNode param : arrays) {
 			boolean stream = param instanceof StreamArrayNode;
@@ -112,7 +112,8 @@ public class BuiltinFunctions {
 
 		ArrayNode union = JsonUtil.NODE_FACTORY.arrayNode();
 		for (JsonNode param : arrays)
-			union.addAll((ArrayNode) param);
+			for (JsonNode child : param)
+				union.add(child);
 		return union;
 	}
 }

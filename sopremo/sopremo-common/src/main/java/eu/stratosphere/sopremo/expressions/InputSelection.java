@@ -10,6 +10,7 @@ public class InputSelection extends EvaluableExpression {
 	 * 
 	 */
 	private static final long serialVersionUID = -3767687525625180324L;
+
 	private int index;
 
 	public InputSelection(int index) {

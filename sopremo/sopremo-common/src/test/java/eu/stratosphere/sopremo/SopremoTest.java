@@ -11,6 +11,7 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -22,7 +23,7 @@ import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.expressions.ArrayMap;
+import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
@@ -130,7 +131,7 @@ public abstract class SopremoTest<T> {
 				segment = new InputSelection(Integer.parseInt(part));
 			else if (part.matches("\\[.*\\]")) {
 				if (part.charAt(1) == '*') {
-					segment = new ArrayMap(createPath(parts.subList(index + 1, parts.size())));
+					segment = new ArrayProjection(createPath(parts.subList(index + 1, parts.size())));
 					index = parts.size();
 				} else if (part.contains(":")) {
 					int delim = part.indexOf(":");
@@ -166,7 +167,7 @@ public abstract class SopremoTest<T> {
 		return new PactJsonObject(createArrayNode(constants));
 	}
 
-	public static JsonNode createArrayNode(Object... constants) {
+	public static ArrayNode createArrayNode(Object... constants) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
 	}
 
@@ -176,5 +177,12 @@ public abstract class SopremoTest<T> {
 
 	public static JsonNode createValueNode(Object value) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
+	}
+
+	public static JsonNode createCompactArray(Object... constants) {
+		JsonNode[] nodes = new JsonNode[constants.length];
+		for (int index = 0; index < nodes.length; index++)
+			nodes[index] = createValueNode(constants[index]);
+		return JsonUtil.asArray(nodes);
 	}
 }

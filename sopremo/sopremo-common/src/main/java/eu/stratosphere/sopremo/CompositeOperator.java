@@ -6,6 +6,11 @@ import eu.stratosphere.pact.common.plan.PactModule;
 
 public abstract class CompositeOperator extends Operator {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -9172753270465124102L;
+
 	public CompositeOperator(int numberOfOutputs, JsonStream... inputs) {
 		super(numberOfOutputs, inputs);
 	}
@@ -23,13 +28,13 @@ public abstract class CompositeOperator extends Operator {
 	}
 
 	public abstract SopremoModule asElementaryOperators();
-	
+
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
 		System.out.println("-------");
 		System.out.println(this);
 		System.out.println("->");
-		SopremoModule elementaryPlan = asElementaryOperators();
+		SopremoModule elementaryPlan = this.asElementaryOperators();
 		System.out.println(elementaryPlan);
 		System.out.println("-------");
 		return elementaryPlan.asPactModule(context);

@@ -29,45 +29,44 @@ public final class NumberCoercer {
 		List<NumberType> widestTypes = Arrays.asList(NumberType.DOUBLE, NumberType.FLOAT, NumberType.BIG_DECIMAL,
 			NumberType.BIG_INTEGER, NumberType.LONG, NumberType.INT);
 
-		for (int leftIndex = 0; leftIndex < NUMBER_TYPES_COUNT; leftIndex++) {
+		for (int leftIndex = 0; leftIndex < NUMBER_TYPES_COUNT; leftIndex++)
 			for (int rightIndex = 0; rightIndex < NUMBER_TYPES_COUNT; rightIndex++) {
 				int coerceIndex = Math.min(widestTypes.indexOf(NumberType.values()[leftIndex]),
 					widestTypes.indexOf(NumberType.values()[rightIndex]));
-				typeCoerceMatrix[leftIndex][rightIndex] = widestTypes.get(coerceIndex);
+				this.typeCoerceMatrix[leftIndex][rightIndex] = widestTypes.get(coerceIndex);
 			}
-		}
 
-		coercers.put(NumberType.INT, new Coercer() {
+		this.coercers.put(NumberType.INT, new Coercer() {
 			@Override
 			public NumericNode coerce(NumericNode node) {
 				return IntNode.valueOf(node.getIntValue());
 			}
 		});
-		coercers.put(NumberType.LONG, new Coercer() {
+		this.coercers.put(NumberType.LONG, new Coercer() {
 			@Override
 			public NumericNode coerce(NumericNode node) {
 				return LongNode.valueOf(node.getLongValue());
 			}
 		});
-		coercers.put(NumberType.DOUBLE, new Coercer() {
+		this.coercers.put(NumberType.DOUBLE, new Coercer() {
 			@Override
 			public NumericNode coerce(NumericNode node) {
 				return DoubleNode.valueOf(node.getDoubleValue());
 			}
 		});
-		coercers.put(NumberType.FLOAT, new Coercer() {
+		this.coercers.put(NumberType.FLOAT, new Coercer() {
 			@Override
 			public NumericNode coerce(NumericNode node) {
 				return DoubleNode.valueOf(node.getDoubleValue());
 			}
 		});
-		coercers.put(NumberType.BIG_INTEGER, new Coercer() {
+		this.coercers.put(NumberType.BIG_INTEGER, new Coercer() {
 			@Override
 			public NumericNode coerce(NumericNode node) {
 				return BigIntegerNode.valueOf(node.getBigIntegerValue());
 			}
 		});
-		coercers.put(NumberType.BIG_DECIMAL, new Coercer() {
+		this.coercers.put(NumberType.BIG_DECIMAL, new Coercer() {
 			@Override
 			public NumericNode coerce(NumericNode node) {
 				return DecimalNode.valueOf(node.getDecimalValue());
@@ -76,11 +75,11 @@ public final class NumberCoercer {
 	}
 
 	public NumericNode coerce(NumericNode node, NumberType targetType) {
-		return coercers.get(targetType).coerce(node);
+		return this.coercers.get(targetType).coerce(node);
 	}
 
 	public NumberType getWiderType(NumberType leftType, NumberType rightType) {
-		return typeCoerceMatrix[leftType.ordinal()][rightType.ordinal()];
+		return this.typeCoerceMatrix[leftType.ordinal()][rightType.ordinal()];
 	}
 
 	private static interface Coercer {

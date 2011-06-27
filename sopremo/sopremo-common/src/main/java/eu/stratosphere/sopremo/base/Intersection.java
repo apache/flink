@@ -7,24 +7,29 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.base.Difference.TwoInputDifference;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 public class Intersection extends MultiSourceOperator {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2204883087931986053L;
+
 	public Intersection(List<? extends JsonStream> inputs) {
 		super(inputs);
 
-		setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
 	}
 
 	public Intersection(JsonStream... inputs) {
 		super(inputs);
 
-		setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
 	}
 
+	@Override
 	protected Operator createElementaryOperations(List<Operator> inputs) {
 		if (inputs.size() <= 1)
 			return inputs.get(0);
@@ -37,6 +42,11 @@ public class Intersection extends MultiSourceOperator {
 	}
 
 	public static class TwoInputIntersection extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7207641826328647442L;
+
 		public TwoInputIntersection(JsonStream input1, JsonStream input2) {
 			super(input1, input2);
 		}

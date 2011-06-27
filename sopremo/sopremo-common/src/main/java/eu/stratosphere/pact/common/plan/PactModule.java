@@ -23,8 +23,6 @@ import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -79,10 +77,10 @@ public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, 
 		dagPrinter.setNodePrinter(new NodePrinter<Contract>() {
 			@Override
 			public String toString(Contract node) {
-				int inputIndex = Arrays.asList(inputNodes).indexOf(node);
+				int inputIndex = Arrays.asList(PactModule.this.inputNodes).indexOf(node);
 				if (inputIndex != -1)
 					return String.format("Input %d", inputIndex);
-				int outputIndex = Arrays.asList(outputNodes).indexOf(node);
+				int outputIndex = Arrays.asList(PactModule.this.outputNodes).indexOf(node);
 				if (outputIndex != -1)
 					return String.format("Output %d", outputIndex);
 				return String.format("%s [%s]", node.getClass().getSimpleName(), node.getName());

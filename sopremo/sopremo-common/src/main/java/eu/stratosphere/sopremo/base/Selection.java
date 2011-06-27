@@ -15,6 +15,10 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Selection extends ElementaryOperator {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7687925343684319311L;
 	private final ConditionalExpression condition;
 
 	public Selection(ConditionalExpression condition, JsonStream input) {
@@ -47,7 +51,7 @@ public class Selection extends ElementaryOperator {
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		PactModule module = new PactModule(toString(), 1, 1);
+		PactModule module = new PactModule(this.toString(), 1, 1);
 		MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> selectionMap =
 			new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
 				SelectionStub.class);

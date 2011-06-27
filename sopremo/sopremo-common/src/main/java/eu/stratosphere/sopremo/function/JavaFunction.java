@@ -22,6 +22,11 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 
 public class JavaFunction extends Function {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -789826280721581321L;
+
 	public static final Log LOG = LogFactory.getLog(JavaFunction.class);
 
 	private transient Map<MethodSignature, Method> cachedSignatures = new HashMap<MethodSignature, Method>();

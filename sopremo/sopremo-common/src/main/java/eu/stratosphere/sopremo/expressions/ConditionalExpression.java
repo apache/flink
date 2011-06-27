@@ -87,7 +87,8 @@ public class ConditionalExpression extends BooleanExpression {
 	public static ConditionalExpression valueOf(List<BooleanExpression> childConditions, Combination combination) {
 		if (childConditions.size() == 1)
 			return valueOf(childConditions.get(0));
-		return new ConditionalExpression(combination, childConditions.toArray(new BooleanExpression[childConditions.size()]));
+		return new ConditionalExpression(combination, childConditions.toArray(new BooleanExpression[childConditions
+			.size()]));
 	}
 
 	public static enum Combination {

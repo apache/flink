@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.base.Sink;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 /**
@@ -36,8 +35,8 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * {@link JsonStream}. A JsonStream is either the output of another operator or the operator itself.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
-	 *        if no transformation is desired
+	 *        the transformation that is applied to a partition of input tuples or
+	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 * @param inputs
@@ -52,8 +51,8 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * {@link JsonStream}. A JsonStream is either the output of another operator or the operator itself.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
-	 *        if no transformation is desired
+	 *        the transformation that is applied to a partition of input tuples or
+	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 * @param inputs
@@ -78,8 +77,8 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
-	 *        if no transformation is desired
+	 *        the transformation that is applied to a partition of input tuples or
+	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
@@ -92,8 +91,8 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
 	 * 
 	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or {@link EvaluableExpression#SAME_VALUE}
-	 *        if no transformation is desired
+	 *        the transformation that is applied to a partition of input tuples or
+	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */

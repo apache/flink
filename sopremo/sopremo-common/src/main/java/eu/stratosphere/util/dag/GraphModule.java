@@ -69,7 +69,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	}
 
 	public String getName() {
-		return name;
+		return this.name;
 	}
 
 	@Override
@@ -127,7 +127,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 		for (OutputNode output : this.getAllOutputs())
 			for (Node node : this.navigator.getConnectedNodes(output))
 				if (node == null)
-					throw new IllegalStateException(String.format("%s: output %s is not fully connected", getName(),
+					throw new IllegalStateException(String.format("%s: output %s is not fully connected", this.getName(),
 						output));
 
 		final Iterable<? extends Node> reachableNodes = this.getReachableNodes();
@@ -137,7 +137,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 
 		if (!inputList.isEmpty())
 			throw new IllegalStateException(
-				String.format("%s: inputs %s are not fully connected", getName(), inputList));
+				String.format("%s: inputs %s are not fully connected", this.getName(), inputList));
 
 	}
 

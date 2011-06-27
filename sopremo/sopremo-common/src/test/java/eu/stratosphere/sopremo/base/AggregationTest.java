@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.operator;
+package eu.stratosphere.sopremo.base;
 
 import java.util.Arrays;
 import java.util.List;
@@ -19,7 +19,7 @@ import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.expressions.ArrayMap;
+import eu.stratosphere.sopremo.expressions.ArrayProjection;
 
 public class AggregationTest extends SopremoTest<Aggregation> {
 	@Override
@@ -79,7 +79,7 @@ public class AggregationTest extends SopremoTest<Aggregation> {
 		transformation.addMapping("emps", new FunctionCall("sort", createPath("0", "[*]", "id")));
 		transformation.addMapping("numEmps", new FunctionCall("count", createPath("0")));
 		transformation.addMapping("expenses",
-			new FunctionCall("sum", new PathExpression(new InputSelection(2), new ArrayMap(
+			new FunctionCall("sum", new PathExpression(new InputSelection(2), new ArrayProjection(
 				new ArithmeticExpression(new ObjectAccess("costPerItem"), ArithmeticOperator.MULTIPLICATION,
 					new ObjectAccess("count"))))));
 

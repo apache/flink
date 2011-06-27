@@ -144,12 +144,11 @@ public class CompactArrayNode extends ContainerNode {
 	@Override
 	public void serialize(JsonGenerator jg, SerializerProvider provider) throws IOException, JsonProcessingException {
 		jg.writeStartArray();
-		for (JsonNode n : this.children) {
+		for (JsonNode n : this.children)
 			if (n == null)
 				NullNode.instance.writeTo(jg);
 			else
 				((BaseJsonNode) n).writeTo(jg);
-		}
 		jg.writeEndArray();
 	}
 

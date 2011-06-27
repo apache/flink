@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Target({ ElementType.TYPE, ElementType.METHOD })
 public @interface OptimizerHints {
 	public static final int UNBOUND = Integer.MAX_VALUE;
-	
+
 	boolean iterating() default false;
 
 	boolean transitive() default false;
@@ -17,6 +17,6 @@ public @interface OptimizerHints {
 	Scope[] scope() default { Scope.ANY };
 
 	int minNodes() default 1;
-	
+
 	int maxNodes() default UNBOUND;
 }

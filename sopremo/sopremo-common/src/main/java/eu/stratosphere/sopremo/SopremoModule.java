@@ -54,7 +54,7 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 	 * @return the converted Pact module
 	 */
 	public PactModule asPactModule(EvaluationContext context) {
-		return PactModule.valueOf(getName(), this.assemblePact(context));
+		return PactModule.valueOf(this.getName(), this.assemblePact(context));
 	}
 
 	/**
@@ -70,7 +70,7 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 	}
 
 	public Operator asOperator() {
-		return new ModuleOperator(getOutputs().length, getInputs());
+		return new ModuleOperator(this.getOutputs().length, this.getInputs());
 	}
 
 	@Override

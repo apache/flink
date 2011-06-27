@@ -25,7 +25,7 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
 
 	public void addTag(ExpressionTag tag) {
-		tags.add(tag);
+		this.tags.add(tag);
 	}
 
 	public EvaluableExpression withTag(ExpressionTag tag) {
@@ -34,11 +34,11 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 	}
 
 	public boolean hasTag(ExpressionTag tag) {
-		return tags.contains(tag);
+		return this.tags.contains(tag);
 	}
 
 	public boolean removeTag(ExpressionTag preserve) {
-		return tags.remove(preserve);
+		return this.tags.remove(preserve);
 	}
 
 	/**
@@ -67,6 +67,7 @@ public abstract class EvaluableExpression implements SerializableSopremoType, Ev
 			return EvaluableExpression.SAME_KEY;
 		}
 
+		@Override
 		protected void toString(StringBuilder builder) {
 			builder.append("<key>");
 		};

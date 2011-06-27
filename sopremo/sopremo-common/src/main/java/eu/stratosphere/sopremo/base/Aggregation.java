@@ -45,32 +45,22 @@ public class Aggregation extends MultiSourceOperator {
 		this.setDefaultKeyProjection(NO_GROUPING);
 	}
 
-	// @Override
-	// protected EvaluableExpression getDefaultValueProjection(Output source) {
-	// if (getInputs().size() == 1)
-	// return EvaluableExpression.IDENTITY;
-	// EvaluableExpression[] elements = new EvaluableExpression[getInputs().size()];
-	// for (int index = 0; index < elements.length; index++)
-	// elements[index] = EvaluableExpression.NULL;
-	// elements[getInputs().indexOf(source)] = EvaluableExpression.IDENTITY;
-	// return new ArrayCreation(elements);
-	// }
+	@Override
+	protected EvaluableExpression getDefaultValueProjection(Output source) {
+		if (getInputs().size() <= 1)
+			return EvaluableExpression.SAME_VALUE;
+		EvaluableExpression[] elements = new EvaluableExpression[this.getInputs().size()];
+		Arrays.fill(elements, EvaluableExpression.NULL);
+		elements[getInputs().indexOf(source)] = EvaluableExpression.SAME_VALUE;
+		return new ArrayCreation(elements);
+	}
 
 	@Override
 	protected Operator createElementaryOperations(List<Operator> inputs) {
 		if (inputs.size() <= 1)
 			return new Projection(this.expression, new OneSourceAggregation(inputs.get(0)));
 
-		List<Operator> aggreations = new ArrayList<Operator>();
-
-		for (int index = 0; index < inputs.size(); index++) {
-			EvaluableExpression[] elements = new EvaluableExpression[this.getInputs().size()];
-			Arrays.fill(elements, EvaluableExpression.NULL);
-			elements[index] = EvaluableExpression.SAME_VALUE;
-			aggreations.add(new Projection(new ArrayCreation(elements), inputs.get(index)));
-		}
-
-		UnionAll union = new UnionAll(aggreations);
+		UnionAll union = new UnionAll(inputs);
 		return new Projection(this.expression, new Projection(new ArrayUnion(), new OneSourceAggregation(union)));
 	}
 
@@ -141,19 +131,4 @@ public class Aggregation extends MultiSourceOperator {
 	public String toString() {
 		return String.format("%s to %s", super.toString(), this.expression);
 	}
-
-	// public static class TwoSourceAggregation extends ElementaryOperator {
-	// public TwoSourceAggregation(JsonStream input1, JsonStream input2) {
-	// super(input1, input2);
-	// }
-	//
-	// public static class Implementation extends
-	// SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-	// @Override
-	// public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
-	// Iterator<PactJsonObject> values2, Collector<PactJsonObject.Key, PactJsonObject> out) {
-	// out.collect(key, new PactJsonObject(JsonUtil.wrapWithNode(true, values1, values2)));
-	// }
-	// }
-	// }
 }

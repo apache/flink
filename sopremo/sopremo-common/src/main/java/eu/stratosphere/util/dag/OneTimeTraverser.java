@@ -20,7 +20,7 @@ public class OneTimeTraverser extends AbstractGraphTraverser {
 			GraphTraverseListener<Node> listener) {
 		final Map<Node, Object> visitedNodes = new IdentityHashMap<Node, Object>();
 
-		visitNodes(startNodes, navigator, listener, visitedNodes);
+		this.visitNodes(startNodes, navigator, listener, visitedNodes);
 	}
 
 	private <Node> void visitNodes(Iterator<? extends Node> startNodes, Navigator<Node> navigator,
@@ -30,7 +30,7 @@ public class OneTimeTraverser extends AbstractGraphTraverser {
 			if (!visitedNodes.containsKey(node)) {
 				visitedNodes.put(node, null);
 				listener.nodeTraversed(node);
-				visitNodes(navigator.getConnectedNodes(node).iterator(), navigator, listener, visitedNodes);
+				this.visitNodes(navigator.getConnectedNodes(node).iterator(), navigator, listener, visitedNodes);
 			}
 		}
 	}
@@ -39,7 +39,7 @@ public class OneTimeTraverser extends AbstractGraphTraverser {
 	public <Node> Iterable<Node> getReachableNodes(Iterator<? extends Node> startNodes, Navigator<Node> navigator) {
 		final Map<Node, Object> visitedNodes = new IdentityHashMap<Node, Object>();
 
-		visitNodes(startNodes, navigator, new GraphTraverseListener<Node>() {
+		this.visitNodes(startNodes, navigator, new GraphTraverseListener<Node>() {
 			@Override
 			public void nodeTraversed(Node node) {
 			}

@@ -62,7 +62,7 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	public <Node> Iterable<Node> getReachableNodes(Iterator<? extends Node> startNodes, Navigator<Node> navigator) {
 		final Map<Node, Object> visitedNodes = new IdentityHashMap<Node, Object>();
 
-		traverse(startNodes, navigator, new GraphTraverseListener<Node>() {
+		this.traverse(startNodes, navigator, new GraphTraverseListener<Node>() {
 			@Override
 			public void nodeTraversed(Node node) {
 				visitedNodes.put(node, null);
@@ -84,7 +84,7 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 * @return all reachable nodes
 	 */
 	public <Node> Iterable<Node> getReachableNodes(Iterable<? extends Node> startNodes, Navigator<Node> navigator) {
-		return getReachableNodes(startNodes.iterator(), navigator);
+		return this.getReachableNodes(startNodes.iterator(), navigator);
 	}
 
 	/**
@@ -99,6 +99,6 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 * @return all reachable nodes
 	 */
 	public <Node> Iterable<Node> getReachableNodes(Node[] startNodes, Navigator<Node> navigator) {
-		return getReachableNodes(Arrays.asList(startNodes).iterator(), navigator);
+		return this.getReachableNodes(Arrays.asList(startNodes).iterator(), navigator);
 	}
 }

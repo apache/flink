@@ -1,18 +1,13 @@
 package eu.stratosphere.sopremo.base;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.IdentifierAccess;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -23,7 +18,7 @@ public class Projection extends ElementaryOperator {
 	 */
 	private static final long serialVersionUID = 2170992457478875950L;
 
-	private EvaluableExpression keyTransformation, valueTransformation;
+	private final EvaluableExpression keyTransformation, valueTransformation;
 
 	public Projection(EvaluableExpression keyTransformation, EvaluableExpression valueTransformation, JsonStream input) {
 		super(input);
@@ -71,32 +66,6 @@ public class Projection extends ElementaryOperator {
 		Projection other = (Projection) obj;
 		return this.keyTransformation.equals(other.keyTransformation)
 			&& this.valueTransformation.equals(other.valueTransformation);
-	}
-
-	/**
-	 * Sets the transformation of this operation that is applied to an input tuple to generate the output value.
-	 * 
-	 * @param valueTransformation
-	 *        the new transformation of this operation
-	 */
-	public void setValueTransformation(EvaluableExpression valueTransformation) {
-		if (valueTransformation == null)
-			throw new NullPointerException("valueTransformation must not be null");
-
-		this.valueTransformation = valueTransformation;
-	}
-
-	/**
-	 * Sets the transformation of this operation that is applied to an input tuple to generate the output key.
-	 * 
-	 * @param keyTransformation
-	 *        the new transformation of this operation
-	 */
-	public void setKeyTransformation(EvaluableExpression keyTransformation) {
-		if (keyTransformation == null)
-			throw new NullPointerException("keyTransformation must not be null");
-
-		this.keyTransformation = keyTransformation;
 	}
 
 	@Override

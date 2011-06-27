@@ -9,7 +9,7 @@ import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.util.ConversionIterator;
 
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
-public class ArrayMap extends EvaluableExpression {
+public class ArrayProjection extends EvaluableExpression {
 	/**
 	 * 
 	 */
@@ -17,7 +17,7 @@ public class ArrayMap extends EvaluableExpression {
 
 	private final EvaluableExpression expression;
 
-	public ArrayMap(EvaluableExpression expression) {
+	public ArrayProjection(EvaluableExpression expression) {
 		this.expression = expression;
 	}
 
@@ -28,7 +28,7 @@ public class ArrayMap extends EvaluableExpression {
 			return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
 				@Override
 				protected JsonNode convert(JsonNode element) {
-					return ArrayMap.this.expression.evaluate(element, context);
+					return ArrayProjection.this.expression.evaluate(element, context);
 				}
 			}, ((StreamArrayNode) node).isResettable());
 		// spread
@@ -54,7 +54,7 @@ public class ArrayMap extends EvaluableExpression {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		ArrayMap other = (ArrayMap) obj;
+		ArrayProjection other = (ArrayProjection) obj;
 		return this.expression.equals(other.expression);
 	}
 

@@ -8,5 +8,4 @@ public abstract class BooleanExpression extends EvaluableExpression implements S
 	 * 
 	 */
 	private static final long serialVersionUID = 9132030265765689872L;
-	// public abstract boolean evaluate(JsonNode node);
 }
