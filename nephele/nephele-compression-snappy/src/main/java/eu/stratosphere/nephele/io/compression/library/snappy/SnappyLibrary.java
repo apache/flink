@@ -46,9 +46,11 @@ public class SnappyLibrary extends AbstractCompressionLibrary {
 	}
 
 	@Override
-	public int getUncompressedBufferSize(int compressedBufferSize) {
-
-		return ((compressedBufferSize - 6) / 2501) * 2500;
+	public int getUncompressedBufferSize(final int compressedBufferSize) {
+		
+		int result = compressedBufferSize - SnappyCompressor.SIZE_LENGTH;
+				
+		return (6*(result-32))/7;
 	}
 
 	native static void initIDs();
