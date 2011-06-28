@@ -41,7 +41,7 @@ public class JsonUtil {
 	 *        the nodes to wrap
 	 * @return an efficient wrapper
 	 */
-	public static JsonNode asArray(JsonNode... nodes) {
+	public static CompactArrayNode asArray(JsonNode... nodes) {
 		return new CompactArrayNode(nodes);
 	}
 

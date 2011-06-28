@@ -244,6 +244,10 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 		return this.outputs[index];
 	}
 
+	public List<Output> getOutputs() {
+		return Arrays.asList(this.outputs);
+	}
+	
 	/**
 	 * Returns the first output of this operator.
 	 */

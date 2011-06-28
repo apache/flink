@@ -115,8 +115,8 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 
 		for (int operatorIndex = 0, moduleIndex = 0; operatorIndex < inputs.size(); operatorIndex++) {
 			Operator operator = inputs.get(operatorIndex);
-			List<Output> operatorInputs = operator.getInputs();
-			for (int inputIndex = 0; inputIndex < sinks.size(); inputIndex++)
+			List<Output> operatorInputs = new ArrayList<Operator.Output>(operator.getInputs());
+			for (int inputIndex = 0; inputIndex < operatorInputs.size(); inputIndex++)
 				if (operatorInputs.get(inputIndex) == null)
 					operatorInputs.set(inputIndex, module.getInput(moduleIndex++).getOutput(0));
 			operator.setInputs(operatorInputs);

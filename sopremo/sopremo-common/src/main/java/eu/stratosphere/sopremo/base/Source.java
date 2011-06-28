@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo.base;
 
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.NullNode;
+
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
@@ -91,4 +94,9 @@ public class Source extends ElementaryOperator {
 		}
 	}
 
+	public JsonNode getAdhocValues() {
+		if (this.type != PersistenceType.ADHOC)
+			throw new IllegalStateException();
+		return getAdhocValue().evaluate(NullNode.getInstance(), new EvaluationContext());
+	}
 }

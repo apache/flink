@@ -27,7 +27,7 @@ public class OneTimeTraverser extends AbstractGraphTraverser {
 			GraphTraverseListener<Node> listener, final Map<Node, Object> visitedNodes) {
 		while (startNodes.hasNext()) {
 			Node node = startNodes.next();
-			if (!visitedNodes.containsKey(node)) {
+			if (node != null && !visitedNodes.containsKey(node)) {
 				visitedNodes.put(node, null);
 				listener.nodeTraversed(node);
 				this.visitNodes(navigator.getConnectedNodes(node).iterator(), navigator, listener, visitedNodes);

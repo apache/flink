@@ -5,8 +5,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 
-import junit.framework.Assert;
-import junit.framework.TestCase;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
@@ -17,13 +15,17 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
-import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.ArrayProjection;
+import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
@@ -108,12 +110,17 @@ public abstract class SopremoTest<T> {
 	public void shouldComplyEqualsContract(T first, T second, T... more) {
 		BitSet blackBitSet = new BitSet();
 		blackBitSet.set(1);
-		EqualsVerifier
+		EqualsVerifier<T> equalVerifier = EqualsVerifier
 			.forExamples(first, second, more)
 			.suppress(Warning.NULL_FIELDS)
 			.suppress(Warning.NONFINAL_FIELDS)
-			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
-			.usingGetClass().verify();
+			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet);
+			
+		initVerifier(equalVerifier);
+			equalVerifier.usingGetClass().verify();
+	}
+
+	protected void initVerifier(EqualsVerifier<T> equalVerifier) {
 	}
 
 	public static PathExpression createPath(String... parts) {
@@ -159,7 +166,7 @@ public abstract class SopremoTest<T> {
 		return objectNode;
 	}
 
-	public static JsonNode createStreamArray(Object... constants) {
+	public static StreamArrayNode createStreamArray(Object... constants) {
 		return StreamArrayNode.valueOf(createArrayNode(constants).getElements(), true);
 	}
 
@@ -179,7 +186,7 @@ public abstract class SopremoTest<T> {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
 	}
 
-	public static JsonNode createCompactArray(Object... constants) {
+	public static CompactArrayNode createCompactArray(Object... constants) {
 		JsonNode[] nodes = new JsonNode[constants.length];
 		for (int index = 0; index < nodes.length; index++)
 			nodes[index] = createValueNode(constants[index]);

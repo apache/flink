@@ -18,6 +18,7 @@ package eu.stratosphere.pact.testing;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -145,9 +146,10 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 *        the pairs to add
 	 * @return this
 	 */
-	public TestPairs<K, V> add(final Iterable<KeyValuePair<K, V>> pairs) {
-		for (final KeyValuePair<K, V> pair : pairs)
-			this.pairs.add(pair);
+	@SuppressWarnings("unchecked")
+	public TestPairs<K, V> add(final Iterable<? extends KeyValuePair<? extends K, ? extends V>> pairs) {
+		for (final KeyValuePair<? extends K, ? extends V> pair : pairs)
+			this.pairs.add((KeyValuePair<K, V>) pair);
 		setEmpty(false);
 		return this;
 	}
@@ -402,7 +404,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 
 		try {
 			assertEquals(other);
-		} catch (AssertionFailedError e) {
+		} catch (AssertionError e) {
 			return false;
 		}
 		return true;

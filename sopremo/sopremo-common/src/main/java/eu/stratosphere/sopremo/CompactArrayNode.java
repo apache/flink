@@ -50,9 +50,7 @@ public class CompactArrayNode extends ContainerNode {
 		if (this.getClass() != obj.getClass())
 			return false;
 		CompactArrayNode other = (CompactArrayNode) obj;
-		if (!Arrays.equals(this.children, other.children))
-			return false;
-		return true;
+		return Arrays.equals(this.children, other.children);
 	}
 
 	@Override

@@ -136,6 +136,8 @@ public class TestPlan implements Closeable {
 	private final class ExecutionExceptionHandler implements ExecutionListener {
 		private final ExecutionVertex executionVertex;
 
+		private String executionError;
+
 		private ExecutionExceptionHandler(final ExecutionVertex executionVertex) {
 			this.executionVertex = executionVertex;
 		}
@@ -145,8 +147,7 @@ public class TestPlan implements Closeable {
 				final ExecutionState newExecutionState,
 				final String optionalMessage) {
 			if (newExecutionState == ExecutionState.FAILED) {
-				TestPlan.this.erroneousVertex = this.executionVertex;
-				TestPlan.this.executionError = optionalMessage;
+				executionError = optionalMessage == null ? "FAILED" : optionalMessage;
 				ee.cancelExecution();
 			}
 		}
@@ -173,15 +174,9 @@ public class TestPlan implements Closeable {
 
 	private int degreeOfParallelism = 1;
 
-	private volatile ExecutionVertex erroneousVertex = null;
-
-	private volatile String executionError = null;
-
 	private final Map<DataSinkContract<?, ?>, TestPairs<?, ?>> expectedOutputs = new IdentityHashMap<DataSinkContract<?, ?>, TestPairs<?, ?>>();
 
 	private final Map<DataSourceContract<?, ?>, TestPairs<?, ?>> inputs = new IdentityHashMap<DataSourceContract<?, ?>, TestPairs<?, ?>>();
-
-	private final MockInstanceManager instanceManager = new MockInstanceManager();
 
 	private final List<DataSinkContract<?, ?>> sinks = new ArrayList<DataSinkContract<?, ?>>();
 
@@ -392,6 +387,8 @@ public class TestPlan implements Closeable {
 	private void execute(final ExecutionGraph eg,
 			final LocalScheduler localScheduler)
 			throws ExecutionFailureException {
+		List<ExecutionExceptionHandler> errorHandlers = new ArrayList<TestPlan.ExecutionExceptionHandler>();
+
 		while (!eg.isExecutionFinished()
 				&& eg.getJobStatus() != InternalJobStatus.FAILED) {
 			// get the next executable vertices
@@ -401,11 +398,12 @@ public class TestPlan implements Closeable {
 				if (executionVertex.isInputVertex())
 					InputSplitAssigner.assignInputSplits(executionVertex);
 
-				executionVertex.getEnvironment().registerExecutionListener(
-						new ExecutionExceptionHandler(executionVertex));
+				ExecutionExceptionHandler executionListener = new ExecutionExceptionHandler(executionVertex);
+				executionVertex.getEnvironment().registerExecutionListener(executionListener);
+				errorHandlers.add(executionListener);
+
 				final TaskSubmissionResult submissionResult = executionVertex
 						.startTask();
-
 				if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
 					Assert.fail(submissionResult.getDescription());
 			}
@@ -416,9 +414,11 @@ public class TestPlan implements Closeable {
 			}
 		}
 
-		// these fields are set by the ExecutionExceptionHandler in case of error
-		if (this.executionError != null)
-			Assert.fail(String.format("Error @ %s: %s", this.erroneousVertex.getName(), this.executionError));
+		for (ExecutionExceptionHandler errorHandler : errorHandlers)
+			// these fields are set by the ExecutionExceptionHandler in case of error
+			if (errorHandler.executionError != null)
+				Assert.fail(String.format("Error @ %s: %s", errorHandler.executionVertex.getName(),
+					errorHandler.executionError));
 	}
 
 	/**
@@ -612,7 +612,7 @@ public class TestPlan implements Closeable {
 		// final ExecutionGraph eg = new ExecutionGraph(jobGraph,
 		// this.instanceManager);
 		final ExecutionGraph eg = new ExecutionGraph(jobGraph,
-				this.instanceManager);
+				MockInstanceManager.getInstance());
 		return eg;
 	}
 
@@ -806,7 +806,7 @@ public class TestPlan implements Closeable {
 	public void run() {
 		try {
 			final ExecutionGraph eg = this.getExecutionGraph();
-			final LocalScheduler localScheduler = new LocalScheduler(this.instanceManager);
+			final LocalScheduler localScheduler = new LocalScheduler(MockInstanceManager.getInstance());
 			localScheduler.schedulJob(eg);
 			this.execute(eg, localScheduler);
 		} catch (final Exception e) {
