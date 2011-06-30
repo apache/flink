@@ -15,11 +15,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
@@ -39,12 +34,12 @@ public abstract class SopremoTest<T> {
 
 	@Before
 	public void initInstances() {
-		type = (Class<T>) BoundTypeUtil.getBindingOfSuperclass(getClass(), SopremoTest.class).getType();
-		createInstances();
+		this.type = (Class<T>) BoundTypeUtil.getBindingOfSuperclass(this.getClass(), SopremoTest.class).getType();
+		this.createInstances();
 	}
 
 	protected void createInstances() {
-		initInstances(createDefaultInstance(0), createDefaultInstance(1), createDefaultInstance(2));
+		this.initInstances(this.createDefaultInstance(0), this.createDefaultInstance(1), this.createDefaultInstance(2));
 	}
 
 	protected void initInstances(T first, T second, T... more) {
@@ -55,7 +50,7 @@ public abstract class SopremoTest<T> {
 
 	protected T createDefaultInstance(int index) {
 		try {
-			return type.newInstance();
+			return this.type.newInstance();
 		} catch (Exception e) {
 			return null;
 		}
@@ -79,7 +74,7 @@ public abstract class SopremoTest<T> {
 	 */
 	@Test
 	public void shouldComplyEqualsContract() {
-		shouldComplyEqualsContract(first, second, more);
+		this.shouldComplyEqualsContract(this.first, this.second, this.more);
 	}
 
 	/**
@@ -115,9 +110,9 @@ public abstract class SopremoTest<T> {
 			.suppress(Warning.NULL_FIELDS)
 			.suppress(Warning.NONFINAL_FIELDS)
 			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet);
-			
-		initVerifier(equalVerifier);
-			equalVerifier.usingGetClass().verify();
+
+		this.initVerifier(equalVerifier);
+		equalVerifier.usingGetClass().verify();
 	}
 
 	protected void initVerifier(EqualsVerifier<T> equalVerifier) {

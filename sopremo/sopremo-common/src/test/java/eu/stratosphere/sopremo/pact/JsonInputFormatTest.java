@@ -97,7 +97,7 @@ public class JsonInputFormatTest {
 	@Test
 	public void completeTestPasses() throws IOException {
 		final DataSourceContract<PactJsonObject.Key, PactJsonObject> read = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			JsonInputFormat.class, getResource("TestPlan/test.json"), "Input");
+			JsonInputFormat.class, getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
@@ -142,7 +142,7 @@ public class JsonInputFormatTest {
 	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
 		final DataSourceContract<PactJsonObject.Key, PactJsonObject> read = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			JsonInputFormat.class, getResource("TestPlan/test.json"), "Input");
+			JsonInputFormat.class, getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
@@ -151,7 +151,7 @@ public class JsonInputFormatTest {
 		DataSinkContract<PactJsonObject.Key, PactJsonObject> output = createOutput(map, JsonOutputFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
-		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class, getResource("TestPlan/test.json"));
+		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class, getResource("SopremoTestPlan/test.json"));
 		testPlan.run();
 	}
 

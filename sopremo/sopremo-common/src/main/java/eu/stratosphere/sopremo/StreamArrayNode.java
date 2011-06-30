@@ -104,6 +104,17 @@ public abstract class StreamArrayNode extends ContainerNode {
 		return "[?]";
 	}
 
+	// equals and hashCode are added to avoid an EqualsVerifier bug
+	@Override
+	public boolean equals(Object obj) {
+		return obj == this;
+	}
+
+	@Override
+	public int hashCode() {
+		return 0;
+	}
+
 	/**
 	 * Creates a StreamArrayNode with the given {@link Iterator} of {@link JsonNode}s. The node may be either fully
 	 * consumed after the first use or may be resettable and thus can be used to iterate several times over the

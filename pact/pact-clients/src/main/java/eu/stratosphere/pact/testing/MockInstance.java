@@ -74,7 +74,7 @@ class MockInstance extends AbstractInstance {
 	// return name;
 	// }
 
-	private static MockTaskManager mockTaskManager = MockTaskManager.INSTANCE;
+	private MockTaskManager mockTaskManager = new MockTaskManager();
 
 	private static InstanceConnectionInfo createConnectionInfo() {
 		try {
