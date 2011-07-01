@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 import org.junit.After;
@@ -25,13 +25,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -45,41 +43,13 @@ public class BlockResettableIteratorTest
 	
 	private MemoryManager memman;
 
-	private Reader<PactInteger> reader;
+	private Iterator<PactInteger> reader;
 
 	private List<PactInteger> objects;
 
 	private RecordDeserializer<PactInteger> deserializer;
 	
 
-	
-	
-	protected class CollectionReader<T extends Record> implements Reader<T> {
-		private List<T> objects;
-
-		private int position = 0;
-
-		public CollectionReader(Collection<T> objects) {
-			this.objects = new ArrayList<T>(objects);
-		}
-
-		@Override
-		public boolean hasNext() {
-			if (position < objects.size())
-				return true;
-			return false;
-		}
-
-		@Override
-		public T next() throws IOException, InterruptedException {
-			if (hasNext()) {
-				T tmp = objects.get(position);
-				position++;
-				return tmp;
-			}
-			return null;
-		}
-	}
 
 	@Before
 	public void startup() {
@@ -115,7 +85,7 @@ public class BlockResettableIteratorTest
 		final AbstractInvokable memOwner = new DummyInvokable();
 		
 		// create the reader
-		reader = new CollectionReader<PactInteger>(objects);
+		reader = new CollectionIterator<PactInteger>(objects);
 		// create the resettable Iterator
 		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader,
 				BlockResettableIterator.MIN_BUFFER_SIZE, 1, deserializer, memOwner);
@@ -150,7 +120,7 @@ public class BlockResettableIteratorTest
 		final AbstractInvokable memOwner = new DummyInvokable();
 		
 		// create the reader
-		reader = new CollectionReader<PactInteger>(objects);
+		reader = new CollectionIterator<PactInteger>(objects);
 		// create the resettable Iterator
 		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader,
 				2 * BlockResettableIterator.MIN_BUFFER_SIZE, 2,
@@ -185,7 +155,7 @@ public class BlockResettableIteratorTest
 		final AbstractInvokable memOwner = new DummyInvokable();
 		
 		// create the reader
-		reader = new CollectionReader<PactInteger>(objects);
+		reader = new CollectionIterator<PactInteger>(objects);
 		// create the resettable Iterator
 		BlockResettableIterator<PactInteger> iterator = new BlockResettableIterator<PactInteger>(memman, reader, 
 				3 * BlockResettableIterator.MIN_BUFFER_SIZE, 3, deserializer, memOwner);

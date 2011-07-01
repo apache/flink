@@ -15,15 +15,14 @@
 
 package eu.stratosphere.pact.runtime.resettable;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
@@ -42,15 +41,15 @@ import eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator;
  * 
  * @param <T> The type of the records that are iterated over.
  */
-public class BlockResettableIterator<T extends Record> implements MemoryBlockIterator<T> {
-	
+public class BlockResettableIterator<T extends Record> implements MemoryBlockIterator<T>
+{
 	public static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
 	
 	public static final int MIN_BUFFER_SIZE = 8 * 1024;
 	
 	// ------------------------------------------------------------------------
 	
-	protected final Reader<T> reader;
+	protected final Iterator<T> input;
 	
 	protected final MemoryManager memoryManager;
 	
@@ -76,7 +75,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 	
 	// ------------------------------------------------------------------------
 	
-	public BlockResettableIterator(MemoryManager memoryManager, Reader<T> reader,
+	public BlockResettableIterator(MemoryManager memoryManager, Iterator<T> input,
 			long availableMemory, int nrOfBuffers,
 			RecordDeserializer<T> deserializer, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
@@ -88,7 +87,7 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 			throw new IllegalArgumentException("Block Resettable iterator requires at leat " + MIN_BUFFER_SIZE + " bytes of memory.");
 		}
 		
-		this.reader = reader;
+		this.input = input;
 		this.memoryManager = memoryManager;
 		this.deserializer = deserializer;
 		
@@ -97,7 +96,8 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 		this.fullBuffers = new ArrayList<Buffer.Input>();
 		this.consumedBuffers = new ArrayList<Buffer.Input>();
 		
-		LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
+		if (LOG.isDebugEnabled())
+			LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
 	}
 
 	/* (non-Javadoc)
@@ -144,59 +144,44 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 			}
 			else if (this.bufferCurrentlyFilled != null) {
 				// we are reading from the input reader and filling the block along
-				if (this.reader.hasNext()) {
-					try {
-						T next = this.reader.next();
+				if (this.input.hasNext()) {
+					T next = this.input.next();
 
-						if (this.bufferCurrentlyFilled.write(next)) {
-							// object fit into current buffer
-							this.nextElement = next;
-							return true;
+					if (this.bufferCurrentlyFilled.write(next)) {
+						// object fit into current buffer
+						this.nextElement = next;
+						return true;
+					}
+					else {
+						// object did not fit into current buffer
+						// add the current buffer to the full buffers
+						final int fillPosition = this.bufferCurrentlyFilled.getPosition();
+						final MemorySegment seg = this.bufferCurrentlyFilled.dispose();
+						this.bufferCurrentlyFilled = null;
+						
+						final Buffer.Input in = new Buffer.Input(seg);
+						in.reset(fillPosition);
+						this.consumedBuffers.add(in);
+						
+						// get the next buffer
+						if (this.emptySegments.isEmpty()) {
+							// no more empty segments. the current element is left over
+							this.leftOverElement = next;
+							return false;
 						}
 						else {
-							// object did not fit into current buffer
-							// add the current buffer to the full buffers
-							final int fillPosition = this.bufferCurrentlyFilled.getPosition();
-							final MemorySegment seg = this.bufferCurrentlyFilled.dispose();
-							this.bufferCurrentlyFilled = null;
-							
-							final Buffer.Input in = new Buffer.Input(seg);
-							in.reset(fillPosition);
-							this.consumedBuffers.add(in);
-							
-							// get the next buffer
-							if (this.emptySegments.isEmpty()) {
-								// no more empty segments. the current element is left over
-								this.leftOverElement = next;
-								return false;
+							// next segment available, use it.
+							this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
+							if (this.bufferCurrentlyFilled.write(next)) {
+								// object fit into next buffer
+								this.nextElement = next;
+								return true;
 							}
 							else {
-								// next segment available, use it.
-								this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
-								if (this.bufferCurrentlyFilled.write(next)) {
-									// object fit into next buffer
-									this.nextElement = next;
-									return true;
-								}
-								else {
-									throw new RuntimeException("BlockResettableIterator: " +
-										"Could not serialize element into fresh block buffer - element is too large.");
-								}
+								throw new RuntimeException("BlockResettableIterator: " +
+									"Could not serialize element into fresh block buffer - element is too large.");
 							}
 						}
-					}
-					catch (InterruptedException iex) {
-						if (!closed) {
-							throw new RuntimeException("Block-Resettable-Iterator was interrupted while reading input.");
-						}
-						return false;
-					}
-					catch (IOException ioex) {
-						if (!closed) {
-							throw new RuntimeException("Block-Resettable-Iterator: IO error while reading the input - "
-								+ ioex.getMessage());
-						}
-						return false;
 					}
 				}
 				else {
@@ -328,11 +313,25 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 	}
 	
 	/**
+	 * Checks, whether the input that is blocked by this iterator, has further elements
+	 * available. This method may be used to forecast (for example at the point where a
+	 * block is full) whether there will be more data (possibly in another block).
+	 * 
+	 * @return True, if there will be more data, false otherwise.
+	 */
+	public boolean hasFurtherInput()
+	{
+		return this.leftOverElement != null || this.input.hasNext(); 
+	}
+	
+	/**
 	 * Opens the block resettable iterator. This method will cause the iterator to start asynchronously 
 	 * reading the input and prepare the first block.
 	 */
-	public void open() {
-		LOG.debug("Iterator opened.");
+	public void open()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug("Iterator opened.");
 		
 		// move the first = next block
 		nextBlock();
@@ -343,7 +342,8 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 	 * shutdown and as a canceling method. The method may be called multiple times and will not produce
 	 * an error.
 	 */
-	public void close() {
+	public void close()
+	{
 		synchronized (this) {
 			if (this.closed) {
 				return;
@@ -365,7 +365,8 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 		// release the memory segment
 		this.memoryManager.release(toReturn);
 		
-		LOG.debug("Iterator closed.");
+		if (LOG.isDebugEnabled())
+			LOG.debug("Iterator closed.");
 	}
 	
 	

@@ -15,12 +15,21 @@
 
 package eu.stratosphere.pact.client.nephele.api;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Random;
 import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
@@ -30,7 +39,6 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.contextcheck.ContextChecker;
 
@@ -42,16 +50,21 @@ import eu.stratosphere.pact.contextcheck.ContextChecker;
  * @author Moritz Kaufmann
  */
 public class PactProgram {
+
 	/**
 	 * Property name of the pact assembler definition in the JAR manifest file.
 	 */
 	public static final String MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS = "Pact-Assembler-Class";
+
+	// --------------------------------------------------------------------------------------------
 
 	private final Class<? extends PlanAssembler> assemblerClass;
 
 	private final File jarFile;
 
 	private final String[] args;
+	
+	private File[] extractedTempLibraries;
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -64,11 +77,11 @@ public class PactProgram {
 	 *        Optional. The arguments used to create the pact plan, depend on
 	 *        implementation of the pact plan. See getDescription().
 	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
+	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PactProgram(File jarFile, String... args)
-													throws ProgramInvocationException {
+		throws ProgramInvocationException {
 		this.jarFile = jarFile;
 		this.args = args;
 		this.assemblerClass = getPactAssemblerFromJar(jarFile);
@@ -88,11 +101,11 @@ public class PactProgram {
 	 *        Optional. The arguments used to create the pact plan, depend on
 	 *        implementation of the pact plan. See getDescription().
 	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
+	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PactProgram(File jarFile, String className, String... args)
-																		throws ProgramInvocationException {
+		throws ProgramInvocationException {
 		this.assemblerClass = getPactAssemblerFromJar(jarFile, className);
 		this.jarFile = jarFile;
 		this.args = args;
@@ -100,14 +113,15 @@ public class PactProgram {
 
 	/**
 	 * Returns the plan as generated from the Pact Assembler.
+	 * 
 	 * @return
-	 * 			the generated plan
+	 *         the generated plan
 	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
+	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
 	 * @throws ErrorInPlanAssemblerException
-	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *          missing parameters for generation.
+	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
+	 *         missing parameters for generation.
 	 */
 	public Plan getPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		return createPlanFromJar(assemblerClass, args);
@@ -117,11 +131,11 @@ public class PactProgram {
 	 * Semantic check of generated plan
 	 * 
 	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
+	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
 	 * @throws ErrorInPlanAssemblerException
-	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *          missing parameters for generation.
+	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
+	 *         missing parameters for generation.
 	 */
 	public void checkPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		// semantic context check of the generated plan
@@ -132,24 +146,24 @@ public class PactProgram {
 	/**
 	 * Returns the analyzed plan without any optimizations.
 	 * 
-	 * @return 
-	 * 			the analyzed plan without any optimizations.
+	 * @return
+	 *         the analyzed plan without any optimizations.
 	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
+	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
 	 * @throws ErrorInPlanAssemblerException
-	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *          missing parameters for generation.
+	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
+	 *         missing parameters for generation.
 	 */
 	public OptimizedPlan getPreviewPlan() throws ProgramInvocationException, ErrorInPlanAssemblerException {
 		Plan plan = getPlan();
-		if(plan != null) {
+		if (plan != null) {
 			return PactCompiler.createPreOptimizedPlan(plan);
 		} else {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Returns the File object of the jar file that is used as base for the
 	 * pact program.
@@ -166,11 +180,11 @@ public class PactProgram {
 	 * 
 	 * @return The description of the PactProgram's input parameters.
 	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
+	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
 	 * @throws ErrorInPlanAssemblerException
-	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *          missing parameters for generation.
+	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
+	 *         missing parameters for generation.
 	 */
 	public String getDescription() throws ProgramInvocationException {
 		PlanAssembler assembler = createAssemblerFromJar(assemblerClass);
@@ -188,11 +202,11 @@ public class PactProgram {
 	 * 
 	 * @return The description of the PactProgram's input parameters without HTML mark-up.
 	 * @throws ProgramInvocationException
-	 * 			This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
-	 * 			may be a missing / wrong class or manifest files.
+	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
 	 * @throws ErrorInPlanAssemblerException
-	 *          Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *          missing parameters for generation.
+	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
+	 *         missing parameters for generation.
 	 */
 	public String getTextDescription() throws ProgramInvocationException {
 		String descr = getDescription();
@@ -206,6 +220,91 @@ public class PactProgram {
 			m = REMOVE_TAGS.matcher(descr);
 			// TODO: Properly convert &amp; etc
 			return m.replaceAll("");
+		}
+	}
+
+	/**
+	 * Takes all JAR files that are contained in this program's JAR file and extracts them
+	 * to the system's temp directory.
+	 * 
+	 * @return The file names of the extracted temporary files.
+	 * @throws IOException Thrown, if the extraction process failed.
+	 */
+	public File[] extractContainedLibaries()
+	throws IOException
+	{
+		Random rnd = new Random();
+		
+		try {
+			final JarFile jar = new JarFile(jarFile);
+			final List<JarEntry> containedJarFileEntries = new ArrayList<JarEntry>();
+			
+			Enumeration<JarEntry> entries = jar.entries();
+			while (entries.hasMoreElements()) {
+				JarEntry entry = entries.nextElement();
+				String name = entry.getName();
+				
+				if (name.length() > 4 && ".jar".equalsIgnoreCase(name.substring(name.length() - 4))) {
+					containedJarFileEntries.add(entry);
+				}
+			}
+			
+			if (containedJarFileEntries.isEmpty()) {
+				return null;
+			}
+			
+			// go over all contained jar files
+			this.extractedTempLibraries = new File[containedJarFileEntries.size()];
+			for (int i = 0; i < this.extractedTempLibraries.length; i++)
+			{
+				JarEntry entry = containedJarFileEntries.get(i);
+				File tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"),
+					entry.getName());
+				this.extractedTempLibraries[i] = tempFile;
+			
+				// copy the temp file contents to a temporary File
+				OutputStream out = null;
+				InputStream in = null; 
+				try {
+					out = new FileOutputStream(tempFile);
+					in = new BufferedInputStream(jar.getInputStream(entry));
+					byte[] buffer = new byte[1024];
+					int numRead = 0;
+					while ((numRead = in.read(buffer)) != -1) {
+						out.write(buffer, 0, numRead);
+					}
+				}
+				finally {
+					if (out != null) {
+						out.close();
+					}
+					if (in != null) {
+						in.close();
+					}
+				}
+			}
+			
+			return this.extractedTempLibraries;
+		}
+		catch (IOException ioex) {
+			throw ioex;
+		}
+		catch (Throwable t) {
+			throw new IOException("Unknown I/O error while extracting contained jar files.", t);
+		}
+	}
+	
+	/**
+	 * Deletes all temporary files created for contained packaged libraries.
+	 */
+	public void deleteExtractedLibraries()
+	{
+		if (this.extractedTempLibraries != null) {
+			for (int i = 0; i < this.extractedTempLibraries.length; i++) {
+				this.extractedTempLibraries[i].delete();
+				this.extractedTempLibraries[i] = null;
+			}
+			this.extractedTempLibraries = null;
 		}
 	}
 
@@ -243,11 +342,11 @@ public class PactProgram {
 	 * Instantiates the given plan assembler class
 	 * 
 	 * @param clazz
-	 * 		class that should be instantiated.
+	 *        class that should be instantiated.
 	 * @return
-	 * 		instance of the class
+	 *         instance of the class
 	 * @throws ProgramInvocationException
-	 * 		is thrown if class can't be found or instantiated
+	 *         is thrown if class can't be found or instantiated
 	 */
 	protected PlanAssembler createAssemblerFromJar(Class<? extends PlanAssembler> clazz)
 			throws ProgramInvocationException {
@@ -271,8 +370,8 @@ public class PactProgram {
 		return assembler;
 	}
 
-
-	private Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile) throws ProgramInvocationException {
+	private Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile)
+			throws ProgramInvocationException {
 		JarFile jar = null;
 		Manifest manifest = null;
 		String className = null;

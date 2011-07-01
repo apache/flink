@@ -238,7 +238,7 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 		long bs = buildSideInput.getSourcePact().getEstimatedOutputSize() * buildSideInput.getReplicationFactor();
 		long ps = probeSideInput.getSourcePact().getEstimatedOutputSize() * probeSideInput.getReplicationFactor();
 
-		costs.setSecondaryStorageCost(bs == -1 || ps == -1 ? -1 : 4 * bs + 2 * ps);
+		costs.setSecondaryStorageCost(bs == -1 || ps == -1 ? -1 : 2 * bs + ps);
 	}
 
 	/*

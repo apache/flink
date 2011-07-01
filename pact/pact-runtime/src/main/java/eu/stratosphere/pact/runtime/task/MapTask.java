@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -75,10 +76,10 @@ public class MapTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput() {
-		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void registerInputOutput()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start registering input and output"));
 
 		// Initialize stub implementation
 		initStub();
@@ -89,59 +90,36 @@ public class MapTask extends AbstractTask {
 		// Initializes output writers and collector
 		initOutputCollector();
 
-		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception {
+	public void invoke() throws Exception
+	{
+		if (LOG.isInfoEnabled())
+			LOG.info(getLogString("Start PACT code"));
 
-		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
-		/**
+		/*
 		 * Iterator over all input key-value pairs. The iterator wraps the input
 		 * reader of the Nepehele task.
 		 */
-		Iterator<KeyValuePair<Key, Value>> input = new Iterator<KeyValuePair<Key, Value>>() {
-
-			public boolean hasNext() {
-				return reader.hasNext();
-			}
-
-			@Override
-			public KeyValuePair<Key, Value> next() {
-				try {
-					return reader.next();
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-			}
-
-			@Override
-			public void remove() {
-
-			}
-		};
+		final Iterator<KeyValuePair<Key, Value>> input = new NepheleReaderIterator<KeyValuePair<Key,Value>>(this.reader);
 
 		// open stub implementation
 		stub.open();
 		try {
 			// run stub implementation
 			callStub(input, output);
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				if (LOG.isErrorEnabled())
+					LOG.error(getLogString("Unexpected ERROR in PACT code"));
 				throw ex;
 			}
 		}
@@ -151,13 +129,12 @@ public class MapTask extends AbstractTask {
 		stub.close();
 
 		if(!this.taskCanceled) {
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		} else {
-			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isInfoEnabled())
+				LOG.info(getLogString("Finished PACT code"));
+		}
+		else {
+			if (LOG.isWarnEnabled())
+				LOG.warn(getLogString("PACT code cancelled"));
 		}
 	}
 
@@ -165,11 +142,11 @@ public class MapTask extends AbstractTask {
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception {
+	public void cancel() throws Exception
+	{
 		this.taskCanceled = true;
-		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isWarnEnabled())
+			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 	
 	/**
@@ -281,5 +258,30 @@ public class MapTask extends AbstractTask {
 			KeyValuePair<Key, Value> pair = in.next();
 			this.stub.map(pair.getKey(), pair.getValue(), out);
 		}
+	}
+	
+	// ------------------------------------------------------------------------
+	//                               Utilities
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Utility function that composes a string for logging purposes. The string includes the given message and
+	 * the index of the task in its task group together with the number of tasks in the task group.
+	 *  
+	 * @param message The main message for the log.
+	 * @return The string ready for logging.
+	 */
+	private String getLogString(String message)
+	{
+		StringBuilder bld = new StringBuilder(128);	
+		bld.append(message);
+		bld.append(':').append(' ');
+		bld.append(this.getEnvironment().getTaskName());
+		bld.append(' ').append('"');
+		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		bld.append('/');
+		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
+		bld.append(')');
+		return bld.toString();
 	}
 }
