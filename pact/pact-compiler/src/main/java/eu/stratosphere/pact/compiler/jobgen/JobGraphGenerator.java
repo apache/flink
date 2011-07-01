@@ -243,6 +243,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				case FORWARD:
 					connectWithForwardStrategy(connection, outputVertex, inputVertex);
 					break;
+				case PARTITION_LOCAL_HASH:
 				case PARTITION_HASH:
 					connectWithPartitionStrategy(connection, outputVertex, inputVertex);
 					break;
