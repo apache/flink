@@ -59,6 +59,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 
 	@Override
 	protected void initVerifier(EqualsVerifier<SopremoTestPlan> equalVerifier) {
+		super.initVerifier(equalVerifier);
 		equalVerifier
 			.withPrefabValues(TestPairs.class,
 				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("red")),

@@ -54,11 +54,11 @@ class MockInstanceManager implements InstanceManager {
 	private static final NetworkTopology NETWORK_TOPOLOGY = NetworkTopology
 			.createEmptyTopology();
 
-	private static MockInstanceManager INSTANCE = new MockInstanceManager();
-
-	public static MockInstanceManager getInstance() {
-		return INSTANCE;
-	}
+//	private static MockInstanceManager INSTANCE = new MockInstanceManager();
+//
+//	public static MockInstanceManager getInstance() {
+//		return INSTANCE;
+//	}
 
 	private final AllocatedResource allocatedResource = new AllocatedResource(
 			new MockInstance(DEFAULT_INSTANCE_TYPE, NETWORK_TOPOLOGY), DEFAULT_INSTANCE_TYPE, new AllocationID());

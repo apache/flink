@@ -38,13 +38,12 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 class MockInstance extends AbstractInstance {
 	public final static HardwareDescription DESCRIPTION = HardwareDescriptionFactory
-			.construct(1, 256 << 20, 128 << 20);
+			.construct(1, 128 << 20, 64 << 20);
 
 	// private final Map<ChannelID, String> fileNames = new HashMap<ChannelID,
 	// String>();
 
-	MockInstance(final InstanceType instanceType,
-			final NetworkTopology networkTopology) {
+	MockInstance(final InstanceType instanceType, final NetworkTopology networkTopology) {
 		super(instanceType, createConnectionInfo(), networkTopology
 				.getRootNode(), networkTopology, DESCRIPTION);
 	}
@@ -57,7 +56,7 @@ class MockInstance extends AbstractInstance {
 
 	@Override
 	protected TaskOperationProtocol getTaskManager() throws IOException {
-		return mockTaskManager;
+		return this.mockTaskManager;
 	}
 
 	//
@@ -74,7 +73,7 @@ class MockInstance extends AbstractInstance {
 	// return name;
 	// }
 
-	private MockTaskManager mockTaskManager = new MockTaskManager();
+	private MockTaskManager mockTaskManager = MockTaskManager.INSTANCE;
 
 	private static InstanceConnectionInfo createConnectionInfo() {
 		try {

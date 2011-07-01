@@ -57,6 +57,10 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author Arvid Heise
  */
 class MockTaskManager implements TaskOperationProtocol {
+	private static final int MEMORY_SIZE = 16 << 20;
+
+	public static final MockTaskManager INSTANCE = new MockTaskManager();
+
 	/**
 	 * The instance of the {@link DirectChannelManager} which is responsible for
 	 * setting up and cleaning up the direct channels of the tasks.
@@ -65,11 +69,12 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private final IOManager ioManager;
 
-	private final MemoryManager memoryManager;
+	private MemoryManager memoryManager;
 
-	MockTaskManager() {
+	private MockTaskManager() {
 		// 256 mb
-		this.memoryManager = new DefaultMemoryManager(256 << 20);
+//		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_SIZE);
+		this.memoryManager = new MockMemoryManager();
 		// Initialize the io manager
 		final String tmpDirPath = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
@@ -204,14 +209,18 @@ class MockTaskManager implements TaskOperationProtocol {
 	public void updateLibraryCache(final LibraryCacheUpdate update) throws IOException {
 	}
 
-	static final MockTaskManager INSTANCE = new MockTaskManager();
-
 	@Override
 	public void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 	}
 
 	@Override
 	public void logBufferUtilization() throws IOException {
+	}
+
+	public void prepare() {
+//		thi
+//		this.memoryManager.shutdown();
+//		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_SIZE);
 	}
 
 }

@@ -147,7 +147,7 @@ public class TestPlan implements Closeable {
 				final ExecutionState newExecutionState,
 				final String optionalMessage) {
 			if (newExecutionState == ExecutionState.FAILED) {
-				executionError = optionalMessage == null ? "FAILED" : optionalMessage;
+				this.executionError = optionalMessage == null ? "FAILED" : optionalMessage;
 				ee.cancelExecution();
 			}
 		}
@@ -186,6 +186,8 @@ public class TestPlan implements Closeable {
 
 	private final Map<DataSinkContract<?, ?>, FuzzyTestValueMatcher<?>> fuzzyMatchers = new HashMap<DataSinkContract<?, ?>, FuzzyTestValueMatcher<?>>();
 
+	private MockInstanceManager instanceManager = new MockInstanceManager();
+	
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
 	 * {@link DataSinkContract}s. However, it
@@ -609,10 +611,7 @@ public class TestPlan implements Closeable {
 		final JobGraph jobGraph = new JobGraphGenerator()
 				.compileJobGraph(optimizedPlan);
 		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
-		// final ExecutionGraph eg = new ExecutionGraph(jobGraph,
-		// this.instanceManager);
-		final ExecutionGraph eg = new ExecutionGraph(jobGraph,
-				MockInstanceManager.getInstance());
+		final ExecutionGraph eg = new ExecutionGraph(jobGraph, this.instanceManager);
 		return eg;
 	}
 
@@ -804,9 +803,10 @@ public class TestPlan implements Closeable {
 	 * compared to the expected values.
 	 */
 	public void run() {
+		MockTaskManager.INSTANCE.prepare();
 		try {
 			final ExecutionGraph eg = this.getExecutionGraph();
-			final LocalScheduler localScheduler = new LocalScheduler(MockInstanceManager.getInstance());
+			final LocalScheduler localScheduler = new LocalScheduler(this.instanceManager);
 			localScheduler.schedulJob(eg);
 			this.execute(eg, localScheduler);
 		} catch (final Exception e) {

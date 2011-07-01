@@ -13,6 +13,7 @@ public class StreamArrayNodeTest extends SopremoTest<StreamArrayNode> {
 
 	@Override
 	protected void initVerifier(EqualsVerifier<StreamArrayNode> equalVerifier) {
+		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(List.class, Arrays.asList(createPactJsonValue("red")),
 			Arrays.asList(createPactJsonValue("black")));
 		equalVerifier.withPrefabValues(StreamArrayNode.class, createStreamArray("red"), createStreamArray("black"));
