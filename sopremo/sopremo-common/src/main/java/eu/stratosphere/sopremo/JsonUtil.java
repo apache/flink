@@ -47,7 +47,7 @@ public class JsonUtil {
 
 	/**
 	 * Wraps streams of objects in a {@link JsonNode}. This is the unsafe equivalent of
-	 * {@link #wrapWithNode(List, boolean)}. The node may be either fully
+	 * {@link #wrapWithNode(boolean, List)}. The node may be either fully
 	 * consumed after the first use or may be resettable and thus can be used to iterate several times over the
 	 * elements. The first option yields less overhead and is recommended.
 	 * 
@@ -56,7 +56,7 @@ public class JsonUtil {
 	 * @param resettable
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the streams
-	 * @see #wrapWithNode(List, boolean)
+	 * @see #wrapWithNode(boolean, List)
 	 */
 	@SuppressWarnings("unchecked")
 	public static JsonNode wrapWithNode(boolean resettable, Iterator<?>... objectIterators) {

@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -22,8 +21,6 @@ import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.ConversionIterator;
-import eu.stratosphere.util.dag.GraphTraverseListener;
-import eu.stratosphere.util.dag.GraphTraverser;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
 public class SopremoTestPlan {

@@ -7,14 +7,14 @@ import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 
 /**
  * Base class for all Sopremo operators. Every operator consumes and produces a specific number of {@link JsonStream}s.
  * The operator groups input json objects accordingly to its semantics and transforms the partitioned objects to one or
- * more outputs with an {@link Evaluable} transformation.<br>
+ * more outputs.<br>
  * Each Sopremo operator may be converted to a {@link PactModule} with the {@link #asPactModule(EvaluationContext)}
- * method.
+ * method.<br>
+ * Implementations of an operator should either extend {@link ElementaryOperator} or {@link CompositeOperator}.
  * 
  * @author Arvid Heise
  */
@@ -31,34 +31,28 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	private Output[] outputs;
 
 	/**
-	 * Initializes the Operator with the given transformation, the number of outputs, and the given input
-	 * {@link JsonStream}. A JsonStream is either the output of another operator or the operator itself.
+	 * Initializes the Operator with the given number of outputs and the given input {@link JsonStream}s. A JsonStream
+	 * is either the output of another operator or the operator itself.
 	 * 
-	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or
-	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(int numberOfOutputs, JsonStream... inputs) {
+	Operator(int numberOfOutputs, JsonStream... inputs) {
 		this(1, Arrays.asList(inputs));
 	}
 
 	/**
-	 * Initializes the Operator with the given transformation, the number of outputs, and the given input
-	 * {@link JsonStream}. A JsonStream is either the output of another operator or the operator itself.
+	 * Initializes the Operator with the given number of outputs, and the given input {@link JsonStream}s. A JsonStream
+	 * is either the output of another operator or the operator itself.
 	 * 
-	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or
-	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(int numberOfOutputs, List<? extends JsonStream> inputs) {
+	Operator(int numberOfOutputs, List<? extends JsonStream> inputs) {
 		if (inputs == null)
 			throw new NullPointerException();
 		if (numberOfOutputs < 0)
@@ -73,30 +67,24 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	}
 
 	/**
-	 * Initializes the Operator with the given transformation, and the given input {@link JsonStream}. A JsonStream is
+	 * Initializes the Operator with the given input {@link JsonStream}s. A JsonStream is
 	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
 	 * 
-	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or
-	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(JsonStream... inputs) {
+	Operator(JsonStream... inputs) {
 		this(1, inputs);
 	}
 
 	/**
-	 * Initializes the Operator with the given transformation, and the given input {@link JsonStream}. A JsonStream is
+	 * Initializes the Operator with the given input {@link JsonStream}s. A JsonStream is
 	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
 	 * 
-	 * @param transformation
-	 *        the transformation that is applied to a partition of input tuples or
-	 *        {@link EvaluableExpression#SAME_VALUE} if no transformation is desired
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	protected Operator(List<? extends JsonStream> inputs) {
+	Operator(List<? extends JsonStream> inputs) {
 		this(1, inputs);
 	}
 
@@ -108,45 +96,6 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @return the {@link PactModule} representing this operator
 	 */
 	public abstract PactModule asPactModule(EvaluationContext context);
-
-	//
-	// public SopremoModule asElementaryOperators() {
-	// SopremoModule module = new SopremoModule(getName(), inputs.size(), outputs.length);
-	// Operator clone = this.clone();
-	// clone.setInputs(module.getInputs());
-	// Sink[] outputs = module.getOutputs();
-	// for (int index = 0; index < outputs.length; index++)
-	// outputs[index].setInput(index, clone.getOutput(index));
-	// return module;
-	// }
-
-	// protected static class PactImplementation extends Operator {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 6207171377820045505L;
-	//
-	// private PactModule implementation;
-	//
-	// public PactImplementation(String name, PactModule implementation, JsonStream... inputs) {
-	// super(implementation.getOutputs().length, inputs);
-	// setName(name);
-	// this.implementation = implementation;
-	// }
-	//
-	// public PactImplementation(String name, PactModule implementation,
-	// List<? extends JsonStream> inputs) {
-	// super(implementation.getOutputs().length, inputs);
-	// setName(name);
-	// this.implementation = implementation;
-	// }
-	//
-	// @Override
-	// public PactModule asPactModule(EvaluationContext context) {
-	// return implementation;
-	// }
-	//
-	// }
 
 	@Override
 	public Operator clone() {
@@ -244,10 +193,15 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 		return this.outputs[index];
 	}
 
+	/**
+	 * Returns all outputs of this operator.
+	 * 
+	 * @return all outputs of this operator
+	 */
 	public List<Output> getOutputs() {
 		return Arrays.asList(this.outputs);
 	}
-	
+
 	/**
 	 * Returns the first output of this operator.
 	 */

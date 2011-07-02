@@ -1,54 +1,80 @@
 package eu.stratosphere.sopremo;
 
 import java.lang.reflect.Modifier;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.stub.CoGroupStub;
-import eu.stratosphere.pact.common.stub.CrossStub;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.stub.Stub;
+import eu.stratosphere.pact.common.util.ReflectionUtil;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
+/**
+ * An ElementaryOperator is an {@link Operator} that directly translates to a PACT. Such an operator has at most one
+ * output.<br>
+ * By convention, the first inner class of implementing operators that inherits from {@link Stub} is assumed to be
+ * the implementation of this operator. The following example demonstrates a minimalistic operator implementation.
+ * 
+ * <pre>
+ * public static class TwoInputIntersection extends ElementaryOperator {
+ * 	public TwoInputIntersection(JsonStream input1, JsonStream input2) {
+ * 		super(input1, input2);
+ * 	}
+ * 
+ * 	public static class Implementation extends
+ * 			SopremoCoGroup&lt;PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject&gt; {
+ * 		&#064;Override
+ * 		public void coGroup(PactJsonObject.Key key, Iterator&lt;PactJsonObject&gt; values1,
+ * 					Iterator&lt;PactJsonObject&gt; values2,
+ * 					Collector&lt;PactJsonObject.Key, PactJsonObject&gt; out) {
+ * 			if (values1.hasNext() &amp;&amp; values2.hasNext())
+ * 				out.collect(key, values1.next());
+ * 		}
+ * 	}
+ * }
+ * </pre>
+ * 
+ * To exert more control, several hooks are available that are called in fixed order.
+ * <ul>
+ * <li>{@link #getStubClass()} allows to choose a different Stub than the first inner class inheriting from {@link Stub}.
+ * <li>{@link #getContract()} instantiates a contract matching the stub class resulting from the previous callback. This
+ * callback is especially useful if a PACT stub is chosen that is not supported in Sopremo yet.
+ * <li>{@link #configureContract(Configuration, EvaluationContext)} is a callback used to set parameters of the
+ * {@link Configuration} of the stub.
+ * <li>{@link #asPactModule(EvaluationContext)} gives complete control over the creation of the {@link PactModule}.
+ * </ul>
+ * 
+ * @author Arvid Heise
+ */
 public class ElementaryOperator extends Operator {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 4504792171699882490L;
-	private final static Map<Class<?>, Class<?>> STUB_CONTRACTS = new HashMap<Class<?>, Class<?>>();
 
+	/**
+	 * Initializes the ElementaryOperator with the given input {@link JsonStream}s. A JsonStream is
+	 * either the output of another operator or the operator itself.
+	 * 
+	 * @param inputs
+	 *        the input JsonStreams produces by other operators
+	 */
 	public ElementaryOperator(JsonStream... inputs) {
 		super(inputs);
 	}
 
+	/**
+	 * Initializes the ElementaryOperator with the given input {@link JsonStream}s. A JsonStream is
+	 * either the output of another operator or the operator itself.
+	 * 
+	 * @param inputs
+	 *        the input JsonStreams produces by other operators
+	 */
 	public ElementaryOperator(List<? extends JsonStream> inputs) {
 		super(inputs);
-	}
-
-	static {
-		STUB_CONTRACTS.put(MapStub.class, MapContract.class);
-		STUB_CONTRACTS.put(ReduceStub.class, ReduceContract.class);
-		STUB_CONTRACTS.put(CoGroupStub.class, CoGroupContract.class);
-		STUB_CONTRACTS.put(CrossStub.class, CrossContract.class);
-		STUB_CONTRACTS.put(MatchStub.class, MatchContract.class);
-		STUB_CONTRACTS.put(InputFormat.class, DataSourceContract.class);
-		STUB_CONTRACTS.put(OutputFormat.class, DataSinkContract.class);
 	}
 
 	@Override
@@ -62,32 +88,45 @@ public class ElementaryOperator extends Operator {
 		return module;
 	}
 
-	protected void configureContract(Configuration configuration, EvaluationContext context) {
-		SopremoUtil.setContext(configuration, context);
+	/**
+	 * Callback to add parameters to the stub configuration.<br>
+	 * The default implementation adds the context only.
+	 * 
+	 * @param stubConfiguration
+	 *        the configuration of the stub
+	 * @param context
+	 *        the context in which the {@link PactModule} is created and evaluated
+	 */
+	protected void configureContract(Configuration stubConfiguration, EvaluationContext context) {
+		SopremoUtil.setContext(stubConfiguration, context);
 	}
 
+	/**
+	 * Creates the {@link Contract} that represents this operator.
+	 * 
+	 * @return the contract representing this operator
+	 */
 	protected Contract getContract() {
 		Class<? extends Stub<?, ?>> stubClass = this.getStubClass();
 		if (stubClass == null)
 			throw new IllegalStateException("no implementing stub found");
-		Class<?> contractClass = this.getContractClass(stubClass);
+		Class<? extends Contract> contractClass = ContractUtil.getContractClass(stubClass);
 		if (contractClass == null)
 			throw new IllegalStateException("no associated contract found");
 		try {
-			return (Contract) contractClass.getDeclaredConstructor(Class.class, String.class)
-				.newInstance(stubClass, this.toString());
+			return ReflectUtil.newInstance(contractClass, stubClass, this.toString());
 		} catch (Exception e) {
 			throw new IllegalStateException("Cannot create contract from stub " + stubClass, e);
 		}
 	}
 
-	protected Class<?> getContractClass(Class<?> stubClass) {
-		Class<?> contract = STUB_CONTRACTS.get(stubClass);
-		if (contract == null && stubClass.getSuperclass() != null)
-			return this.getContractClass(stubClass.getSuperclass());
-		return contract;
-	}
-
+	/**
+	 * Returns the stub class that represents the functionality of this operator.<br>
+	 * This method returns the first static inner class found with {@link Class#getDeclaredClasses()} that is
+	 * extended from {@link Stub} by default.
+	 * 
+	 * @return the stub class
+	 */
 	@SuppressWarnings("unchecked")
 	protected Class<? extends Stub<?, ?>> getStubClass() {
 		for (Class<?> contractClass : this.getClass().getDeclaredClasses())

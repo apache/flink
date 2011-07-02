@@ -41,8 +41,10 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
 public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, DataSinkContract<?, ?>> implements
 		Visitable<Contract> {
 	/**
-	 * Initializes a PactModule having the given number of inputs and outputs.
+	 * Initializes a PactModule having the given name, number of inputs, and number of outputs.
 	 * 
+	 * @param name
+	 *        the name of the PactModule
 	 * @param numberOfInputs
 	 *        the number of inputs
 	 * @param numberOfOutputs
@@ -90,32 +92,11 @@ public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, 
 		return dagPrinter.toString(this.getAllOutputs(), ContractNavigator.INSTANCE);
 	}
 
-	//
-	// /*
-	// * (non-Javadoc)
-	// * @see eu.stratosphere.pact.common.plan.Module#validate()
-	// */
-	// @Override
-	// public void validate() {
-	// for (int index = 0; index < this.outputContracts.length; index++)
-	// if (this.outputContracts[index].getInput() == null)
-	// throw new IllegalStateException(String.format("%d. output is not connected", index));
-	//
-	// for (int index = this.outputContracts.length; index < this.allOutputContracts.size(); index++)
-	// if (this.allOutputContracts.get(index).getInput() == null)
-	// throw new IllegalStateException(String.format("%d. internal output is not connected", index
-	// - this.outputContracts.length));
-	//
-	// final Collection<Contract> visitedContracts = this.getAllContracts();
-	//
-	// for (int index = 0; index < this.inputContracts.length; index++)
-	// if (!visitedContracts.contains(this.inputContracts[index]))
-	// throw new IllegalStateException(String.format("%d. input is not connected", index));
-	// }
-
 	/**
 	 * Wraps the graph given by the sinks and referenced contracts in a PactModule.
 	 * 
+	 * @param name
+	 *        the name of the PactModule
 	 * @param sinks
 	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
@@ -127,6 +108,8 @@ public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, 
 	/**
 	 * Wraps the graph given by the sinks and referenced contracts in a PactModule.
 	 * 
+	 * @param name
+	 *        the name of the PactModule
 	 * @param sinks
 	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph

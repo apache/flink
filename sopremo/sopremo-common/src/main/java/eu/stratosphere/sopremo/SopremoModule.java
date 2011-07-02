@@ -31,8 +31,10 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
 public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 
 	/**
-	 * Initializes a SopremoModule having the given number of inputs and outputs.
+	 * Initializes a SopremoModule having the given name, number of inputs, and number of outputs.
 	 * 
+	 * @param name
+	 *        the name of the SopremoModule
 	 * @param numberOfInputs
 	 *        the number of inputs
 	 * @param numberOfOutputs
@@ -69,6 +71,11 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 		return new PactAssembler(context).assemble();
 	}
 
+	/**
+	 * Allows to embed this module in a graph of Sopremo operators.
+	 * 
+	 * @return an operator view of this SopremoModule
+	 */
 	public Operator asOperator() {
 		return new ModuleOperator(this.getOutputs().length, this.getInputs());
 	}
@@ -83,6 +90,8 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 	/**
 	 * Wraps the graph given by the sinks and referenced contracts in a SopremoModule.
 	 * 
+	 * @param name
+	 *        the name of the SopremoModule
 	 * @param sinks
 	 *        all sinks that span the graph to wrap
 	 * @return a SopremoModule representing the given graph
@@ -127,6 +136,8 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 	/**
 	 * Wraps the graph given by the sinks and referenced contracts in a SopremoModule.
 	 * 
+	 * @param name
+	 *        the name of the SopremoModule
 	 * @param sinks
 	 *        all sinks that span the graph to wrap
 	 * @return a SopremoModule representing the given graph
