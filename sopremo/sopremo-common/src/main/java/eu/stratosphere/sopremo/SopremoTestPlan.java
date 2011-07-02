@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -246,8 +247,10 @@ public class SopremoTestPlan {
 
 		public void load(TestPlan testPlan) {
 			setEmpty();
-			for (KeyValuePair<Key, Value> keyValuePair : testPlan.getActualOutput(getIndex()))
+			TestPairs<Key, Value> actualOutput = testPlan.getActualOutput(getIndex());
+			for (KeyValuePair<Key, Value> keyValuePair : actualOutput)
 				add((PactJsonObject) keyValuePair.getValue());
+			actualOutput.close();
 		}
 	}
 
@@ -293,8 +296,8 @@ public class SopremoTestPlan {
 			this.inputs[index] = new Input(index);
 			Operator unconnectedNode = unconnectedInputs.get(index);
 			if (unconnectedNode instanceof Source)
-				setInputOperator(index,(Source) unconnectedNode);
-//				this.inputs[index].setOperator((Source) unconnectedNode);
+				setInputOperator(index, (Source) unconnectedNode);
+			// this.inputs[index].setOperator((Source) unconnectedNode);
 			else {
 				List<Operator.Output> missingInputs = new ArrayList<Operator.Output>(unconnectedNode.getInputs());
 				for (int missingIndex = 0; missingIndex < sinks.length; missingIndex++)
@@ -307,10 +310,10 @@ public class SopremoTestPlan {
 		this.expectedOutputs = new ExpectedOutput[unconnectedOutputs.size()];
 		for (int index = 0; index < this.actualOutputs.length; index++) {
 			this.actualOutputs[index] = new ActualOutput(index);
-			if(unconnectedOutputs.get(index).getOperator() instanceof Sink)
+			if (unconnectedOutputs.get(index).getOperator() instanceof Sink)
 				this.actualOutputs[index].setOperator((Sink) unconnectedOutputs.get(index).getOperator());
 			else
-			this.actualOutputs[index].getOperator().setInput(0, unconnectedOutputs.get(index));
+				this.actualOutputs[index].getOperator().setInput(0, unconnectedOutputs.get(index));
 			this.expectedOutputs[index] = new ExpectedOutput(index);
 		}
 	}
@@ -356,6 +359,7 @@ public class SopremoTestPlan {
 		testPairs.fromFile(JsonInputFormat.class, operator.getOutputName());
 		for (KeyValuePair<PactJsonObject.Key, PactJsonObject> kvPair : testPairs)
 			this.inputs[index].add(kvPair.getValue());
+		testPairs.close();
 	}
 
 	public void setInputOperator(int index, Source operator) {
@@ -368,6 +372,7 @@ public class SopremoTestPlan {
 			testPairs.fromFile(JsonInputFormat.class, operator.getInputName());
 			for (KeyValuePair<PactJsonObject.Key, PactJsonObject> kvPair : testPairs)
 				this.inputs[index].add(kvPair.getValue());
+			testPairs.close();
 		}
 	}
 

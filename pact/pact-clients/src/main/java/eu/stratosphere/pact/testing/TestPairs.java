@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.Key;
@@ -72,8 +73,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * @param <V>
  *        the type of the values
  */
-public class TestPairs<K extends Key, V extends Value> implements
-		Iterable<KeyValuePair<K, V>>, Closeable {
+public class TestPairs<K extends Key, V extends Value> implements Closeable, Iterable<KeyValuePair<K, V>> {
 	private static final class TestPairsReader<K extends Key, V extends Value>
 			implements Reader<KeyValuePair<K, V>> {
 		KeyValuePair<K, V> currentPair;
@@ -168,6 +168,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 			for (final KeyValuePair<? extends K, ? extends V> pair : pairs)
 				this.pairs.add((KeyValuePair<K, V>) pair);
 			setEmpty(false);
+			pairs.close();
 		}
 		return this;
 	}
@@ -252,14 +253,26 @@ public class TestPairs<K extends Key, V extends Value> implements
 			final SerializationFactory<V> valSerialization = new WritableSerializationFactory<V>(
 					(Class<V>) actualPair.getValue().getClass());
 
+			final StringBuilder testName = new StringBuilder();
+			StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+			for (int index = stackTrace.length - 1; index > 0; index--) {
+				if(stackTrace[index].getClassName().contains("Test"))
+					testName.append(stackTrace[index].toString());
+			}
 			// instantiate a sort-merger
+			AbstractTask parentTask = new ReduceTask() {
+				@Override
+				public String toString() {
+					return "TestPair Sorter " + testName;
+				}
+			};
 			@SuppressWarnings("rawtypes")
 			final UnilateralSortMerger<K, V> sortMerger = new UnilateralSortMerger<K, V>(
 					MockTaskManager.INSTANCE.getMemoryManager(),
 					MockTaskManager.INSTANCE.getIoManager(), totalMemory, numFileHandles,
 					keySerialization, valSerialization, keyComparator,
 					new TestPairsReader(inputFileIterator, actualPair),
-					new ReduceTask(), 0.7f);
+					parentTask, 0.7f);
 
 			this.closableManager.add(sortMerger);
 
@@ -281,8 +294,11 @@ public class TestPairs<K extends Key, V extends Value> implements
 	}
 
 	@Override
-	public void close() throws IOException {
-		this.closableManager.close();
+	public void close() {
+		try {
+			this.closableManager.close();
+		} catch (IOException e) {
+		}
 	}
 
 	/**
@@ -341,6 +357,9 @@ public class TestPairs<K extends Key, V extends Value> implements
 			Assert.fail("More elements expected: " + expectedValuesWithCurrentKey + toString(expectedIterator));
 		if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
 			Assert.fail("Less elements expected: " + actualValuesWithCurrentKey + toString(actualIterator));
+		
+		close();
+		expectedValues.close();
 	}
 
 	private static <K extends Key, V extends Value> void matchValues(final Iterator<KeyValuePair<K, V>> actualIterator,
@@ -386,10 +405,8 @@ public class TestPairs<K extends Key, V extends Value> implements
 		return builder.toString();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
+	/* (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object) */
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean equals(final Object obj) {
@@ -448,10 +465,8 @@ public class TestPairs<K extends Key, V extends Value> implements
 		return this;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
+	/* (non-Javadoc)
+	 * @see java.lang.Object#hashCode() */
 	@Override
 	public int hashCode() {
 		final int prime = 31;

@@ -54,7 +54,7 @@ class MockInstanceManager implements InstanceManager {
 	private static final NetworkTopology NETWORK_TOPOLOGY = NetworkTopology
 			.createEmptyTopology();
 
-//	private static MockInstanceManager INSTANCE = new MockInstanceManager();
+	public final static MockInstanceManager INSTANCE = new MockInstanceManager();
 //
 //	public static MockInstanceManager getInstance() {
 //		return INSTANCE;
