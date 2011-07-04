@@ -13,21 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.template;
+package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import java.util.Iterator;
+
+import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.pact.common.stub.ReduceStub;
 
 /**
- * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
+ * This is a stub class implementing a PACT Reduce contract. Its only purpose is to forward the sorted key-value pairs.
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable
-{
+public final class TeraReduce extends ReduceStub<TeraKey, TeraValue, TeraKey, TeraValue> {
+
 	/**
-	 * Gets the partition number of this input split.
-	 *   
-	 * @return The number of this input split.
+	 * {@inheritDoc}
 	 */
-	public int getPartitionNumber();
+	@Override
+	public void reduce(TeraKey key, Iterator<TeraValue> values, Collector<TeraKey, TeraValue> out) {
+
+		while (values.hasNext()) {
+			out.collect(key, values.next());
+		}
+
+	}
+
 }

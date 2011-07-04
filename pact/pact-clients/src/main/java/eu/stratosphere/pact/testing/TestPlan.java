@@ -25,7 +25,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import junit.framework.Assert;
 import junit.framework.AssertionFailedError;
@@ -35,7 +34,6 @@ import org.junit.internal.ArrayComparisonFailure;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -46,8 +44,10 @@ import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobmanager.InputSplitAssigner;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -120,8 +120,9 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * 
  * @author Arvid Heise
  */
-@SuppressWarnings("deprecation")
-public class TestPlan implements Closeable {
+
+public class TestPlan implements Closeable, DeploymentManager {
+
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
 		private CostEstimator() {
@@ -168,7 +169,7 @@ public class TestPlan implements Closeable {
 	private final Contract[] contracts;
 
 	private int degreeOfParallelism = 1;
-	
+
 	private double doubleDelta = 0;
 
 	private volatile ExecutionVertex erroneousVertex = null;
@@ -214,12 +215,13 @@ public class TestPlan implements Closeable {
 	 * Set the allowed delta for PactDouble values. This is important because of inaccuracies
 	 * related to floating point calculation.
 	 * 
-	 * @param delta the delta that the actual value is allowed to differ from the expected value.
+	 * @param delta
+	 *        the delta that the actual value is allowed to differ from the expected value.
 	 */
 	public void setAllowedPactDoubleDelta(double delta) {
 		doubleDelta = delta;
 	}
-	
+
 	/**
 	 * Allowed delta for PactDouble values, default value is 0;
 	 * 
@@ -228,30 +230,13 @@ public class TestPlan implements Closeable {
 	public double getAllowedPactDoubleDelta() {
 		return doubleDelta;
 	}
-	
+
 	/**
 	 * Locally executes the {@link ExecutionGraph}.
 	 */
-	private void execute(final ExecutionGraph eg,
-			final LocalScheduler localScheduler)
-			throws ExecutionFailureException {
+	private void execute(final ExecutionGraph eg) {
 		while (!eg.isExecutionFinished()
 				&& eg.getJobStatus() != InternalJobStatus.FAILED) {
-			// get the next executable vertices
-			final Set<ExecutionVertex> verticesReadyToBeExecuted = localScheduler
-					.getVerticesReadyToBeExecuted();
-			for (final ExecutionVertex executionVertex : verticesReadyToBeExecuted) {
-				if (executionVertex.isInputVertex())
-					InputSplitAssigner.assignInputSplits(executionVertex);
-
-				executionVertex.getEnvironment().registerExecutionListener(
-						new ExecutionExceptionHandler(executionVertex));
-				final TaskSubmissionResult submissionResult = executionVertex
-						.startTask();
-
-				if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
-					fail(submissionResult.getDescription());
-			}
 
 			try {
 				Thread.sleep(10);
@@ -311,17 +296,17 @@ public class TestPlan implements Closeable {
 		for (final DataSinkContract<?, ?> dataSinkContract : existingSinks)
 			// need a format which is deserializable without configuration
 			if (dataSinkContract.getStubClass() != SequentialOutputFormat.class) {
-				
+
 				final DataSinkContract<Key, Value> safeSink = createDefaultSink(dataSinkContract.getName());
 				safeSink.setInput(dataSinkContract.getInput());
-				
+
 				wrappedSinks.add(dataSinkContract);
 				wrappedSinks.add(safeSink);
-				
-				this.expectedOutputs.put(safeSink,this.getExpectedOutput(dataSinkContract));
-				this.actualOutputs.put(safeSink,this.getActualOutput(dataSinkContract));
+
+				this.expectedOutputs.put(safeSink, this.getExpectedOutput(dataSinkContract));
+				this.actualOutputs.put(safeSink, this.getActualOutput(dataSinkContract));
 				this.getActualOutput(dataSinkContract).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
-				
+
 			} else {
 				wrappedSinks.add(dataSinkContract);
 				this.getActualOutput(dataSinkContract).fromFile(
@@ -336,26 +321,26 @@ public class TestPlan implements Closeable {
 	 * Creates a data sink which replicates the data to both given output sinks.
 	 */
 	/*
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private DataSinkContract<Key, Value> createSplittingSink(
-			final DataSinkContract<?, ?> dataSinkContract,
-			final DataSinkContract<Key, Value> safeSink) {
-		final DataSinkContract<Key, Value> wrappedSink = new DataSinkContract<Key, Value>(
-				SplittingOutputFormat.class, dataSinkContract.getFilePath());
-		SplittingOutputFormat
-				.addOutputFormat(wrappedSink.getFormatParameters(),
-						(Class<? extends OutputFormat>) dataSinkContract
-								.getStubClass(),
-						dataSinkContract.getFilePath(), dataSinkContract
-								.getStubParameters());
-		SplittingOutputFormat.addOutputFormat(
-				wrappedSink.getFormatParameters(),
-				(Class<? extends OutputFormat>) safeSink.getStubClass(),
-				safeSink.getFilePath(), safeSink.getStubParameters());
-		wrappedSink.setInput(dataSinkContract.getInput());
-		return wrappedSink;
-	}
-	*/
+	 * @SuppressWarnings({ "unchecked", "rawtypes" })
+	 * private DataSinkContract<Key, Value> createSplittingSink(
+	 * final DataSinkContract<?, ?> dataSinkContract,
+	 * final DataSinkContract<Key, Value> safeSink) {
+	 * final DataSinkContract<Key, Value> wrappedSink = new DataSinkContract<Key, Value>(
+	 * SplittingOutputFormat.class, dataSinkContract.getFilePath());
+	 * SplittingOutputFormat
+	 * .addOutputFormat(wrappedSink.getFormatParameters(),
+	 * (Class<? extends OutputFormat>) dataSinkContract
+	 * .getStubClass(),
+	 * dataSinkContract.getFilePath(), dataSinkContract
+	 * .getStubParameters());
+	 * SplittingOutputFormat.addOutputFormat(
+	 * wrappedSink.getFormatParameters(),
+	 * (Class<? extends OutputFormat>) safeSink.getStubClass(),
+	 * safeSink.getFilePath(), safeSink.getStubParameters());
+	 * wrappedSink.setInput(dataSinkContract.getInput());
+	 * return wrappedSink;
+	 * }
+	 */
 
 	/**
 	 * Sets the degree of parallelism for every node in the plan.
@@ -395,8 +380,8 @@ public class TestPlan implements Closeable {
 			}
 		});
 	}
-	
-	//public void setDoubleT
+
+	// public void setDoubleT
 
 	/**
 	 * Returns the first output {@link TestPairs} of the TestPlan. If multiple
@@ -677,9 +662,9 @@ public class TestPlan implements Closeable {
 	public void run() {
 		try {
 			final ExecutionGraph eg = this.getExecutionGraph();
-			final LocalScheduler localScheduler = new LocalScheduler(this.instanceManager);
+			final LocalScheduler localScheduler = new LocalScheduler(this, this.instanceManager);
 			localScheduler.schedulJob(eg);
-			this.execute(eg, localScheduler);
+			this.execute(eg);
 		} catch (final Exception e) {
 			fail(e, "plan scheduling");
 		}
@@ -716,29 +701,29 @@ public class TestPlan implements Closeable {
 						.iterator();
 				final int index = 0;
 				while (actualIterator.hasNext() && expectedIterator.hasNext()) {
-					final KeyValuePair<Key, Value> expected = expectedIterator.next(); 
+					final KeyValuePair<Key, Value> expected = expectedIterator.next();
 					final KeyValuePair<Key, Value> actual = actualIterator.next();
 					try {
 						Key actualKey = actual.getKey();
 						Value actualValue = actual.getValue();
 						Key expectedKey = expected.getKey();
 						Value expectedValue = expected.getValue();
-						
-						//Compare keys
-						if(actualKey instanceof PactDouble && expectedKey instanceof PactDouble) {
+
+						// Compare keys
+						if (actualKey instanceof PactDouble && expectedKey instanceof PactDouble) {
 							PactDouble actualDouble = (PactDouble) actualKey;
 							PactDouble expectedDouble = (PactDouble) expectedKey;
-							Assert.assertEquals(expectedDouble.getValue(), 
+							Assert.assertEquals(expectedDouble.getValue(),
 									actualDouble.getValue(), doubleDelta);
 						} else {
 							Assert.assertEquals(expectedKey, actualKey);
 						}
-						
-						//Compare values
-						if(actualValue instanceof PactDouble && expectedValue instanceof PactDouble) {
+
+						// Compare values
+						if (actualValue instanceof PactDouble && expectedValue instanceof PactDouble) {
 							PactDouble actualDouble = (PactDouble) actualValue;
 							PactDouble expectedDouble = (PactDouble) expectedValue;
-							Assert.assertEquals(expectedDouble.getValue(), 
+							Assert.assertEquals(expectedDouble.getValue(),
 									actualDouble.getValue(), doubleDelta);
 						} else {
 							Assert.assertEquals(expectedValue, actualValue);
@@ -834,6 +819,29 @@ public class TestPlan implements Closeable {
 			closableManager.add(pairs);
 
 		closableManager.close();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void deploy(final JobID jobID, final AbstractInstance instance,
+			final List<ExecutionVertex> verticesToBeDeployed) {
+
+		final Iterator<ExecutionVertex> it = verticesToBeDeployed.iterator();
+		while (it.hasNext()) {
+
+			final ExecutionVertex executionVertex = it.next();
+
+			executionVertex.getEnvironment().registerExecutionListener(
+				new ExecutionExceptionHandler(executionVertex));
+
+			final TaskSubmissionResult submissionResult = executionVertex
+				.startTask();
+
+			if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
+				fail(submissionResult.getDescription());
+		}
 	}
 
 }

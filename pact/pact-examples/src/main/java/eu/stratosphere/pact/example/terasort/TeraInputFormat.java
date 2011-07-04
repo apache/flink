@@ -13,21 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.template;
+package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 
 /**
- * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
+ * This class is responsible for converting a line from the input file to a key-value pair. Lines which do not match the
+ * expected length of a key-value pair are skipped.
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable
-{
+public final class TeraInputFormat extends TextInputFormat<TeraKey, TeraValue> {
+
 	/**
-	 * Gets the partition number of this input split.
-	 *   
-	 * @return The number of this input split.
+	 * {@inheritDoc}
 	 */
-	public int getPartitionNumber();
+	@Override
+	public boolean readLine(KeyValuePair<TeraKey, TeraValue> pair, byte[] record) {
+
+		if (record.length != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
+			return false;
+		}
+
+		final TeraKey key = new TeraKey(record);
+		final TeraValue value = new TeraValue(record);
+		pair.setKey(key);
+		pair.setValue(value);
+
+		return true;
+	}
+
 }

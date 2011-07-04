@@ -39,9 +39,10 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 /**
  * DataSourceTask which is executed by a Nephele task manager.
  * The task reads data and uses an InputFormat to create KeyValuePairs from the read data.
- * Currently, the distributed Hadoop Filesystem (HDFS) is the only supported data storage.
+ * Currently, filesystems are the only supported data source.
  * 
  * @see eu.stratosphere.pact.common.io.InputFormat
+ * 
  * @author Moritz Kaufmann
  * @author Fabian Hueske
  */

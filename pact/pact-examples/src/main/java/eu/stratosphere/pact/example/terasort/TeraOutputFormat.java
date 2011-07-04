@@ -13,21 +13,36 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.template;
+package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 
 /**
- * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
+ * The class is responsible for converting a key-value pair back into a line which is afterward written back to disk.
+ * Each line ends with a newline character.
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable
-{
+public final class TeraOutputFormat extends TextOutputFormat<TeraKey, TeraValue> {
+
 	/**
-	 * Gets the partition number of this input split.
-	 *   
-	 * @return The number of this input split.
+	 * A buffer to store the line which is about to be written back to disk.
 	 */
-	public int getPartitionNumber();
+	private final byte[] buffer = new byte[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE + 1];
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public byte[] writeLine(KeyValuePair<TeraKey, TeraValue> pair) {
+
+		pair.getKey().copyToBuffer(this.buffer);
+		pair.getValue().copyToBuffer(this.buffer);
+
+		this.buffer[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE] = '\n';
+
+		return this.buffer;
+	}
+
 }

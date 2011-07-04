@@ -15,19 +15,29 @@
 
 package eu.stratosphere.nephele.template;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-
 /**
- * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
- * 
- * @author warneke
+ * An input task that processes generic input splits (partitions).
  */
-public interface InputSplit extends IOReadableWritable
-{
+public abstract class GenericInputTask extends AbstractInputTask<GenericInputSplit> {
+
 	/**
-	 * Gets the partition number of this input split.
-	 *   
-	 * @return The number of this input split.
+	 * {@inheritDoc}
 	 */
-	public int getPartitionNumber();
+	@Override
+	public GenericInputSplit[] computeInputSplits(final int requestedMinNumber) throws Exception {
+		GenericInputSplit[] splits = new GenericInputSplit[requestedMinNumber];
+		for (int i = 0; i < requestedMinNumber; i++) {
+			splits[i] = new GenericInputSplit(i);
+		}
+		return splits;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Class<GenericInputSplit> getInputSplitType() {
+
+		return GenericInputSplit.class;
+	}
 }

@@ -15,19 +15,19 @@
 
 package eu.stratosphere.nephele.template;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-
 /**
- * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
+ * An input split provider can be successively queried to provide a series of {@link InputSplit} objects an
+ * {@link AbstractInputTask} is supposed to consume in the course of its execution.
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable
-{
+public interface InputSplitProvider {
+
 	/**
-	 * Gets the partition number of this input split.
-	 *   
-	 * @return The number of this input split.
+	 * Requests the next input split to be consumed by the calling {@link AbstractInputTask}.
+	 * 
+	 * @return the next input split to be consumed by the calling {@link AbstractInputTask} or <code>null</code> if the
+	 *         {@link AbstractInputTask} shall not consume any further input splits.
 	 */
-	public int getPartitionNumber();
+	InputSplit getNextInputSplit();
 }

@@ -13,21 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.template;
+package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
- * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
+ * This interface must be implemented in order to receive a notification whenever the job has entered a new execution
+ * stage.
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable
-{
+public interface ExecutionStageListener {
+
 	/**
-	 * Gets the partition number of this input split.
-	 *   
-	 * @return The number of this input split.
+	 * This method is called to indicate that the job with the given {@link JobID} has finished its previous
+	 * {@link ExecutionStage} and has entered the next {@link ExecutionStage}. Note that a notification is not sent when
+	 * the job has entered its initial execution stage.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the notification belongs to
+	 * @param executionStage
+	 *        the next execution stage that has just been entered
 	 */
-	public int getPartitionNumber();
+	void nextExecutionStageEntered(JobID jobID, ExecutionStage executionStage);
+
 }

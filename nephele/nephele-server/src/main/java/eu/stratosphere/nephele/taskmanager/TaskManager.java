@@ -74,6 +74,7 @@ import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
+import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -99,6 +100,8 @@ public class TaskManager implements TaskOperationProtocol {
 	private static final Log LOG = LogFactory.getLog(TaskManager.class);
 
 	private final JobManagerProtocol jobManager;
+
+	private final InputSplitProviderProtocol globalInputSplitProvider;
 
 	private final ChannelLookupProtocol lookupService;
 
@@ -218,9 +221,20 @@ public class TaskManager implements TaskOperationProtocol {
 				.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
-			throw new Exception("Failed to initialize connection to JobManager. " + e.getMessage(), e);
+			throw new Exception("Failed to initialize connection to JobManager: " + e.getMessage(), e);
 		}
 		this.jobManager = jobManager;
+
+		// Try to create local stub of the global input split provider
+		InputSplitProviderProtocol globalInputSplitProvider = null;
+		try {
+			globalInputSplitProvider = (InputSplitProviderProtocol) RPC.getProxy(InputSplitProviderProtocol.class,
+				jobManagerAddress, NetUtils.getSocketFactory());
+		} catch (IOException e) {
+			LOG.error(StringUtils.stringifyException(e));
+			throw new Exception("Failed to initialize connection to global input split provider: " + e.getMessage(), e);
+		}
+		this.globalInputSplitProvider = globalInputSplitProvider;
 
 		// Try to create local stub for the lookup service
 		ChannelLookupProtocol lookupService = null;
@@ -442,11 +456,11 @@ public class TaskManager implements TaskOperationProtocol {
 
 			if (eic instanceof NetworkInputChannel<?>) {
 				this.byteBufferedChannelManager
-				.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());				
+					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
 			} else if (eic instanceof FileInputChannel<?>) {
 				this.byteBufferedChannelManager
-				.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
+					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
 				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
 			} else if (eic instanceof InMemoryInputChannel<?>) {
 				this.directChannelManager
@@ -578,13 +592,20 @@ public class TaskManager implements TaskOperationProtocol {
 		return new TaskCancelResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee)
+	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final Environment ee)
 			throws IOException {
 
 		// Register task manager components in environment
-		ee.setMemoryManager(memoryManager);
-		ee.setIOManager(ioManager);
+		ee.setMemoryManager(this.memoryManager);
+		ee.setIOManager(this.ioManager);
+
+		// Register a new task input split provider
+		ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
 
 		// Register the task
 		TaskSubmissionResult result = registerTask(id, jobConfiguration, ee);
@@ -807,7 +828,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// Nothing to to here
 	}
 
-	public void executionStateChanged(JobID jobID, ExecutionVertexID id, Environment environment,
+	void executionStateChanged(JobID jobID, ExecutionVertexID id, Environment environment,
 			ExecutionState newExecutionState, String optionalDescription) {
 
 		if (newExecutionState == ExecutionState.RUNNING) {

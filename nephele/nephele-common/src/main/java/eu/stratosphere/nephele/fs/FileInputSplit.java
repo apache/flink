@@ -55,6 +55,11 @@ public class FileInputSplit implements InputSplit {
 	 * List of hosts (hostnames) containing the block, possibly <code>null</code>.
 	 */
 	private String[] hosts;
+	
+	/**
+	 * The logical number of the split.
+	 */
+	private int partitionNumber;
 
 	/**
 	 * Constructs a split with host information.
@@ -68,7 +73,8 @@ public class FileInputSplit implements InputSplit {
 	 * @param hosts
 	 *        the list of hosts containing the block, possibly <code>null</code>
 	 */
-	public FileInputSplit(Path file, long start, long length, String[] hosts) {
+	public FileInputSplit(int num, Path file, long start, long length, String[] hosts) {
+		this.partitionNumber = num;
 		this.file = file;
 		this.start = start;
 		this.length = length;
@@ -109,19 +115,44 @@ public class FileInputSplit implements InputSplit {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Gets the names of the hosts that this file split resides on.
+	 * 
+	 * @return The names of the hosts that this file split resides on.
+	 */
+	public String[] getHostNames() {
+		if (this.hosts == null) {
+			return new String[] {};
+		} else {
+			return this.hosts;
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.template.InputSplit#getPartitionNumber()
 	 */
 	@Override
-	public String toString() {
-		return file + ":" + start + "+" + length;
+	public int getPartitionNumber() {
+		return this.partitionNumber;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public String toString() {
+		return "[" + this.partitionNumber + "] " + file + ":" + start + "+" + length;
+	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(final DataOutput out) throws IOException
+	{
+		// write partition number
+		out.writeInt(this.partitionNumber);
+		
+		// write file
 		if (this.file != null) {
 			out.writeBoolean(true);
 			this.file.write(out);
@@ -129,8 +160,11 @@ public class FileInputSplit implements InputSplit {
 			out.writeBoolean(false);
 		}
 
+		// write start and length
 		out.writeLong(this.start);
 		out.writeLong(this.length);
+		
+		// write hosts
 		if (this.hosts == null) {
 			out.writeBoolean(false);
 		} else {
@@ -146,20 +180,12 @@ public class FileInputSplit implements InputSplit {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String[] getHostNames() {
-		if (this.hosts == null) {
-			return new String[] {};
-		} else {
-			return this.hosts;
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
+	public void read(final DataInput in) throws IOException
+	{
+		// read partition number
+		this.partitionNumber = in.readInt();
+		
+		// read file path
 		boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.file = new Path();
