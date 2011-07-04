@@ -17,7 +17,7 @@ package eu.stratosphere.pact.example.terasort;
 
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -58,17 +58,13 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 				TeraInputFormat.class, input, "Data Source");
 		source.setDegreeOfParallelism(noSubTasks);
 
-		// This stub task will do the actual sorting
-		final ReduceContract<TeraKey, TeraValue, TeraKey, TeraValue> reduce = new ReduceContract<TeraKey, TeraValue, TeraKey, TeraValue>(
-			TeraReduce.class);
-
 		// This task writes the sorted data back to disk
 		final DataSinkContract<TeraKey, TeraValue> sink = new DataSinkContract<TeraKey, TeraValue>(
 			TeraOutputFormat.class, output, "Data Sink");
 		sink.setDegreeOfParallelism(noSubTasks);
+		sink.setGlobalOrder(Order.ASCENDING);
 
-		reduce.setInput(source);
-		sink.setInput(reduce);
+		sink.setInput(source);
 
 		return new Plan(sink, "TeraSort");
 	}
