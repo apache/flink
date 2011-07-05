@@ -135,7 +135,7 @@ public class Client {
 		JobGraph job = gen.compileJobGraph(optPlan);
 		job.addJar(new Path(prog.getJarFile().getAbsolutePath()));
 		
-		try {
+		/*try {
 			File[] containedJars = prog.extractContainedLibaries();
 			if (containedJars != null) {
 				for (int i = 0; i < containedJars.length; i++) {
@@ -145,7 +145,7 @@ public class Client {
 		}
 		catch (IOException ioex) {
 			throw new ProgramInvocationException("Could not extract the nested libraries: " + ioex.getMessage(), ioex);
-		}
+		}*/
 		
 		return job;
 	}
