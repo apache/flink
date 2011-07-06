@@ -15,12 +15,8 @@
 
 package eu.stratosphere.pact.common.io;
 
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType1;
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;
-
 import java.io.IOException;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -30,65 +26,34 @@ import eu.stratosphere.pact.common.type.Value;
  * formats by implementing the writeLine() method.
  * 
  * @author Moritz Kaufmann
- * @param <K>
- * @param <V>
+ * @param <K> The type of the key.
+ * @param <V> The type of the value.
  */
-public abstract class TextOutputFormat<K extends Key, V extends Value> extends OutputFormat<K, V> {
-
+public abstract class TextOutputFormat<K extends Key, V extends Value> extends FileOutputFormat<K, V>
+{
 	/**
 	 * Serializes the given key/value pair and returns it as byte stream. The delimiter
 	 * between different pairs has to be included at the end of the byte array (e.g.
 	 * '\n' for line based formats).
 	 * 
-	 * @param pair
+	 * @param pair The pair to be serialized.
 	 * @return The serialized KeyValuePair.
 	 */
 	public abstract byte[] writeLine(KeyValuePair<K, V> pair);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	protected void initTypes() {
-		super.ok = getTemplateType1(getClass());
-		super.ov = getTemplateType2(getClass());
-	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void close() {
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void open() {
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void writePair(KeyValuePair<K, V> pair) {
+	public void writeRecord(KeyValuePair<K, V> pair)
+	{
 		byte[] line = writeLine(pair);
 		try {
-			stream.write(line, 0, line.length);
-		} catch (IOException e) {
-			// TODO Log properly
-			throw new RuntimeException("Should not happen", e);
+			this.stream.write(line, 0, line.length);
+		}
+		catch (IOException e) {
+			throw new RuntimeException("I/O error while writing pair to file: " + e.getMessage(), e);
 		}
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void configure(Configuration parameters) {
-	}
-
 }

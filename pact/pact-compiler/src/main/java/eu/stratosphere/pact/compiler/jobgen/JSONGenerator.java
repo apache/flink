@@ -22,8 +22,8 @@ import java.util.Hashtable;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
@@ -144,10 +144,10 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 		String contents;
 		switch (visitable.getPactType()) {
 		case DataSink:
-			contents = ((DataSinkContract<?, ?>) visitable.getPactContract()).getFilePath();
+			contents = ((FileDataSinkContract<?, ?>) visitable.getPactContract()).getFilePath();
 			break;
 		case DataSource:
-			contents = ((DataSourceContract<?, ?>) visitable.getPactContract()).getFilePath();
+			contents = ((FileDataSourceContract<?, ?>) visitable.getPactContract()).getFilePath();
 			break;
 		default:
 			contents = visitable.getPactContract().getName();

@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitAssigner;
-import eu.stratosphere.nephele.template.AbstractFileInputTask;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplit;
@@ -60,10 +59,10 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 		final ExecutionVertex vertex = groupVertex.getGroupMember(0);
 		final AbstractInvokable invokable = vertex.getEnvironment().getInvokable();
 
-		if (!(invokable instanceof AbstractFileInputTask)) {
-			LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
-			return;
-		}
+//		if (!(invokable instanceof AbstractFileInputTask)) {
+//			LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
+//			return;
+//		}
 
 		@SuppressWarnings("unchecked")
 		final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;

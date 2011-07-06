@@ -24,8 +24,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.OutputContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
@@ -656,16 +656,16 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		String output = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for data point input
-		DataSourceContract<PactInteger, CoordVector> dataPoints = new DataSourceContract<PactInteger, CoordVector>(
+		FileDataSourceContract<PactInteger, CoordVector> dataPoints = new FileDataSourceContract<PactInteger, CoordVector>(
 				PointInFormat.class, dataPointInput, "Read Data Points");
-		dataPoints.setFormatParameter("delimiter", "\n");
+		dataPoints.setParameter(PointInFormat.RECORD_DELIMITER, "\n");
 		dataPoints.setDegreeOfParallelism(noSubTasks);
 		dataPoints.setOutputContract(UniqueKey.class);
 
 		// create DataSourceContract for cluster center input
-		DataSourceContract<PactInteger, CoordVector> clusterPoints = new DataSourceContract<PactInteger, CoordVector>(
+		FileDataSourceContract<PactInteger, CoordVector> clusterPoints = new FileDataSourceContract<PactInteger, CoordVector>(
 				PointInFormat.class, clusterInput, "Read Centers");
-		clusterPoints.setFormatParameter("delimiter", "\n");
+		clusterPoints.setParameter(PointInFormat.RECORD_DELIMITER, "\n");
 		clusterPoints.setDegreeOfParallelism(1);
 		clusterPoints.setOutputContract(UniqueKey.class);
 
@@ -688,7 +688,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		recomputeClusterCenter.getCompilerHints().setAvgBytesPerRecord(36);
 
 		// create DataSinkContract for writing the new cluster positions
-		DataSinkContract<PactInteger, CoordVector> newClusterPoints = new DataSinkContract<PactInteger, CoordVector>(
+		FileDataSinkContract<PactInteger, CoordVector> newClusterPoints = new FileDataSinkContract<PactInteger, CoordVector>(
 				PointOutFormat.class, output, "Write new Center Positions");
 		newClusterPoints.setDegreeOfParallelism(noSubTasks);
 

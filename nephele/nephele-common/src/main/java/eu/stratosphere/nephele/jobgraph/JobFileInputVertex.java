@@ -19,14 +19,13 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
+import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -36,13 +35,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class JobFileInputVertex extends JobInputVertex {
-	
-	/**
-	 * Class of input task.
-	 */
-	private Class<? extends AbstractFileInputTask> inputClass = null;
-
+public class JobFileInputVertex extends JobGenericInputVertex
+{
 	/**
 	 * The path pointing to the input file/directory.
 	 */
@@ -111,7 +105,7 @@ public class JobFileInputVertex extends JobInputVertex {
 	 *        the class of the vertex's input task.
 	 */
 	public void setFileInputClass(Class<? extends AbstractFileInputTask> inputClass) {
-		this.inputClass = inputClass;
+		this.inputClass = (Class<? extends AbstractInputTask<?>>) inputClass;
 	}
 
 	/**
@@ -119,42 +113,21 @@ public class JobFileInputVertex extends JobInputVertex {
 	 * 
 	 * @return the class of the vertex's input task or <code>null</code> if no task has yet been set
 	 */
+	@SuppressWarnings("unchecked")
 	public Class<? extends AbstractFileInputTask> getFileInputClass() {
-		return this.inputClass;
+		return (Class<? extends AbstractFileInputTask>) this.inputClass;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInput in) throws IOException
+	{
 		super.read(in);
 
-		// Read class
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			// Read the name of the class and try to instantiate the class object
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-			if (cl == null) {
-				throw new IOException("Cannot find class loader for vertex " + getID());
-			}
-
-			// Read the name of the expected class
-			final String className = StringRecord.readString(in);
-
-			try {
-				this.inputClass = Class.forName(className, true, cl).asSubclass(AbstractFileInputTask.class);
-			} catch (ClassNotFoundException cnfe) {
-				throw new IOException("Class " + className + " not found in one of the supplied jar files: "
-					+ StringUtils.stringifyException(cnfe));
-			} catch (ClassCastException ccex) {
-				throw new IOException("Class " + className + " is not a subclass of "
-					+ AbstractFileInputTask.class.getName() + ": " + StringUtils.stringifyException(ccex));
-			}
-		}
-
 		// Read path of the input file
-		isNotNull = in.readBoolean();
+		boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.path = new Path();
 			this.path.read(in);
@@ -165,16 +138,9 @@ public class JobFileInputVertex extends JobInputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutput out) throws IOException
+	{
 		super.write(out);
-
-		// Write out the name of the class
-		if (this.inputClass == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, this.inputClass.getName());
-		}
 
 		// Write out the path of the input file
 		if (this.path == null) {
@@ -192,7 +158,7 @@ public class JobFileInputVertex extends JobInputVertex {
 	@Override
 	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
 
-		// Check if the user has specifed a path
+		// Check if the user has specified a path
 		if (this.path == null) {
 			throw new IllegalConfigurationException(this.getName() + " does not specify an input path");
 		}
@@ -214,16 +180,7 @@ public class JobFileInputVertex extends JobInputVertex {
 		invokable.getRuntimeConfiguration().setString(AbstractFileInputTask.INPUT_PATH_CONFIG_KEY, this.path.toString());
 
 		// Finally, see if the task itself has a valid configuration
-		invokable.checkConfiguration();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<? extends AbstractInvokable> getInvokableClass() {
-
-		return this.inputClass;
+		super.checkConfiguration(invokable);
 	}
 
 	/**
@@ -248,14 +205,5 @@ public class JobFileInputVertex extends JobInputVertex {
 		}
 
 		return (int) Math.min(numberOfBlocks, invokable.getMaximumNumberOfSubtasks());
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable) {
-
-		return invokable.getMinimumNumberOfSubtasks();
 	}
 }

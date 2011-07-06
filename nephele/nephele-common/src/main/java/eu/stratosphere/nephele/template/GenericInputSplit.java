@@ -75,4 +75,11 @@ public class GenericInputSplit implements InputSplit
 		return this.partitionNumber;
 	}
 
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	public String toString()
+	{
+		return "[" + this.partitionNumber + "]";
+	}
 }

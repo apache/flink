@@ -34,13 +34,12 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.task.DataSinkTask.DataSinkConfig;
-import eu.stratosphere.pact.runtime.task.DataSourceTask.DataSourceConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
@@ -93,19 +92,25 @@ public abstract class TaskTestBase {
 		task.registerInputOutput();
 	}
 
-	public void registerTask(AbstractOutputTask outTask,
-			Class<? extends OutputFormat<PactInteger, PactInteger>> stubClass, String outPath) {
-		new DataSinkConfig(mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
-		new DataSinkConfig(mockEnv.getRuntimeConfiguration()).setFilePath(outPath);
+	public void registerFileOutputTask(AbstractOutputTask outTask,
+			Class<? extends FileOutputFormat<PactInteger, PactInteger>> stubClass, String outPath)
+	{
+		TaskConfig dsConfig = new TaskConfig(mockEnv.getRuntimeConfiguration());
+		
+		dsConfig.setStubClass(stubClass);
+		dsConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outPath);
+	
 		outTask.setEnvironment(mockEnv);
 		outTask.registerInputOutput();
 	}
 
-	public void registerTask(AbstractInputTask inTask,
-			Class<? extends InputFormat<PactInteger, PactInteger>> stubClass, String inPath, String delimiter) {
-		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
-		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).setFilePath(inPath);
-		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).getFormatParameters().setString("delimiter", delimiter);
+	public void registerFileInputTask(AbstractInputTask<?> inTask,
+			Class<? extends TextInputFormat<PactInteger, PactInteger>> stubClass, String inPath, String delimiter)
+	{
+		TaskConfig dsConfig = new TaskConfig(mockEnv.getRuntimeConfiguration()); 
+		dsConfig.setStubClass(stubClass);
+		dsConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, inPath);
+		dsConfig.setStubParameter(TextInputFormat.RECORD_DELIMITER, delimiter);
 
 		final MockInputSplitProvider inputSplitProvider = new MockInputSplitProvider(inPath, 5);
 		mockEnv.setInputSplitProvider(inputSplitProvider);
