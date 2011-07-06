@@ -878,11 +878,25 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST);
 		histogramConfig.addOutputShipStrategy(ShipStrategy.BROADCAST);
 		
-		outputVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		//Add temp vertex to avoid blocking
+		JobTaskVertex tempVertex = generateTempVertex(
+			// source pact stub contains out key and value
+				(Class<? extends Stub<?, ?>>) connection.getSourcePact().getPactContract().getStubClass(),
+				// keep parallelization of source pact
+				sourceDOP);
+		tempVertex.setVertexToShareInstancesWith(outputVertex);
+		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
+
+		outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		tempConfig.addInputShipStrategy(ShipStrategy.FORWARD);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 		
-		//Connect OutputVertex
+		//Connect tempVertex to partitionVertex
+		tempVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+
+		//Connect to receiving vertex
 		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE);
 		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
