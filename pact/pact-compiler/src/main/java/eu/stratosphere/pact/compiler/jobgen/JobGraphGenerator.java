@@ -587,7 +587,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		JobGenericOutputVertex sinkVertex = new JobGenericOutputVertex(sinkNode.getPactContract().getName(), this.jobGraph);
 		// set task class
 		sinkVertex.setOutputClass(DataSinkTask.class);
-
+		
+		// set the degree-of-parallelism into the config to have it available during the output path checking.
+		sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, sinkNode.getDegreeOfParallelism());
+		
 		// get task configuration object
 		TaskConfig sinkConfig = new TaskConfig(sinkVertex.getConfiguration());
 		// set user code class

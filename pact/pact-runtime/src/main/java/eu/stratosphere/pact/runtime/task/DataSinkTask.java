@@ -50,6 +50,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 @SuppressWarnings( { "unchecked", "rawtypes" })
 public class DataSinkTask extends AbstractOutputTask
 {
+	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
+	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
 
@@ -271,33 +273,30 @@ public class DataSinkTask extends AbstractOutputTask
 		// Check if the path is valid
 		try {
 			final FileSystem fs = path.getFileSystem();
-
 			try {
 				final FileStatus f = fs.getFileStatus(path);
-
 				if (f == null) {
 					return 1;
 				}
-
 				// If the path points to a directory we allow an infinity number of subtasks
-				if (f.isDir()) {
+				if (f.isDir())
 					return -1;
-				}
-				else {
+				else
 					return 1;
-				}
 			}
 			catch (FileNotFoundException fnfex) {
 				// The exception is thrown if the requested file/directory does not exist.
 				// if the degree of parallelism is > 1, we create a directory for this path
-//				if (getCurrentNumberOfSubtasks() > 1) {
-					fs.mkdirs(path);
-					return -1;
-//				}
-//				else {
-//					// a none existing file and a degree of parallelism that is one
-//					return 1;
-//				}
+				int dop = getRuntimeConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
+				if (dop == 1) {
+					// a none existing file and a degree of parallelism that is one
+					return 1;
+				}
+
+				// a degree of parallelism greater one, or an unspecified one. in all cases, create a directory
+				// the output
+				fs.mkdirs(path);
+				return -1;
 			}
 		}
 		catch (IOException e) {
