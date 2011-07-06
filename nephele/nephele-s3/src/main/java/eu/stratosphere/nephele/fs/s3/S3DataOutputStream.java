@@ -28,6 +28,8 @@ import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.StorageClass;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 
@@ -41,6 +43,8 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 	public static final int MINIMUM_MULTIPART_SIZE = 5 * 1024 * 1024;
 
 	private final AmazonS3Client s3Client;
+
+	private final boolean useRRS;
 
 	private final byte[] buf;
 
@@ -138,12 +142,14 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		}
 	}
 
-	S3DataOutputStream(final AmazonS3Client s3Client, final String bucket, final String object, final byte[] buf) {
+	S3DataOutputStream(final AmazonS3Client s3Client, final String bucket, final String object, final byte[] buf,
+			final boolean useRRS) {
 
 		this.s3Client = s3Client;
 		this.bucket = bucket;
 		this.object = object;
 		this.buf = buf;
+		this.useRRS = useRRS;
 	}
 
 	/**
@@ -209,8 +215,15 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			final ObjectMetadata om = new ObjectMetadata();
 			om.setContentLength(this.bytesWritten);
 
+			final PutObjectRequest por = new PutObjectRequest(this.bucket, this.object, is, om);
+			if (this.useRRS) {
+				por.setStorageClass(StorageClass.ReducedRedundancy);
+			} else {
+				por.setStorageClass(StorageClass.Standard);
+			}
+
 			try {
-				this.s3Client.putObject(this.bucket, this.object, is, om);
+				this.s3Client.putObject(por);
 			} catch (AmazonServiceException e) {
 				throw new IOException(StringUtils.stringifyException(e));
 			}
@@ -293,6 +306,11 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 
 		boolean operationSuccessful = false;
 		final InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(this.bucket, this.object);
+		if (this.useRRS) {
+			request.setStorageClass(StorageClass.ReducedRedundancy);
+		} else {
+			request.setStorageClass(StorageClass.Standard);
+		}
 
 		try {
 
@@ -315,8 +333,6 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			// This is not a multipart upload, nothing to do here
 			return;
 		}
-
-		System.out.println("Aborting upload");
 
 		try {
 			final AbortMultipartUploadRequest request = new AbortMultipartUploadRequest(this.bucket, this.object,

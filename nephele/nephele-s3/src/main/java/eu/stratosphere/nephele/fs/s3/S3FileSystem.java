@@ -75,6 +75,11 @@ public final class S3FileSystem extends FileSystem {
 	public static final String S3_PORT_KEY = "fs.s3.port";
 
 	/**
+	 * The configuration key to access the S3 Reduced Redundancy Storage setting.
+	 */
+	public static final String S3_RRS_KEY = "fs.s3.rrs";
+
+	/**
 	 * The configuration key to access the S3 access key.
 	 */
 	public static final String S3_ACCESS_KEY_KEY = "fs.s3.accessKey";
@@ -88,6 +93,11 @@ public final class S3FileSystem extends FileSystem {
 	 * The default host to connect to.
 	 */
 	private static final String DEFAULT_S3_HOST = "s3.amazonaws.com";
+
+	/**
+	 * The default setting whether to use S3 Reduced Redundancy Storage
+	 */
+	private static final boolean DEFAULT_S3_RRS = true;
 
 	/**
 	 * The default port to connect to.
@@ -113,12 +123,12 @@ public final class S3FileSystem extends FileSystem {
 	 * The scheme which is used by this file system.
 	 */
 	public static final String S3_SCHEME = "s3";
-	
+
 	/**
 	 * The character set with which the URL is expected to be encoded
 	 */
 	private static final String URL_ENCODE_CHARACTER = "UTF-8";
-	
+
 	/**
 	 * The host to address the REST requests to.
 	 */
@@ -131,6 +141,15 @@ public final class S3FileSystem extends FileSystem {
 	private AmazonS3Client s3Client = null;
 
 	private S3DirectoryStructure directoryStructure = null;
+
+	private final boolean useRRS;
+
+	public S3FileSystem() {
+
+		this.useRRS = GlobalConfiguration.getBoolean(S3_RRS_KEY, DEFAULT_S3_RRS);
+		LOG.info("Creating new S3 file system binding with Reduced Redundancy Storage "
+			+ (this.useRRS ? "enabled" : "disabled"));
+	}
 
 	/**
 	 * {@inheritDoc}
@@ -683,7 +702,7 @@ public final class S3FileSystem extends FileSystem {
 
 		final byte[] buf = new byte[bufferSize]; // TODO: Use memory manager to allocate larger pages
 
-		return new S3DataOutputStream(this.s3Client, bop.getBucket(), bop.getObject(), buf);
+		return new S3DataOutputStream(this.s3Client, bop.getBucket(), bop.getObject(), buf, this.useRRS);
 	}
 
 	/**
