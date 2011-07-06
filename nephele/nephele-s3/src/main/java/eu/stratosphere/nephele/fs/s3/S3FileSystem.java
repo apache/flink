@@ -22,6 +22,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -112,7 +113,12 @@ public final class S3FileSystem extends FileSystem {
 	 * The scheme which is used by this file system.
 	 */
 	public static final String S3_SCHEME = "s3";
-
+	
+	/**
+	 * The character set with which the URL is expected to be encoded
+	 */
+	private static final String URL_ENCODE_CHARACTER = "UTF-8";
+	
 	/**
 	 * The host to address the REST requests to.
 	 */
@@ -171,8 +177,8 @@ public final class S3FileSystem extends FileSystem {
 
 			final String[] splits = userInfo.split(":");
 			if (splits.length > 1) {
-				awsAccessKey = splits[0];
-				awsSecretKey = splits[1];
+				awsAccessKey = URLDecoder.decode(splits[0], URL_ENCODE_CHARACTER);
+				awsSecretKey = URLDecoder.decode(splits[1], URL_ENCODE_CHARACTER);
 			}
 		}
 
