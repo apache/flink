@@ -247,12 +247,6 @@ public class Path implements IOReadableWritable {
 		path = path.replace("//", "/");
 		path = path.replace("\\", "/");
 
-		// trim trailing slash from non-root path (ignoring windows drive)
-		final int minLength = hasWindowsDrive(path, true) ? 4 : 1;
-		if (path.length() > minLength && path.endsWith("/")) {
-			path = path.substring(0, path.length() - 1);
-		}
-
 		return path;
 	}
 
