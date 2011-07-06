@@ -262,7 +262,7 @@ public class PartitionTask extends AbstractTask {
 		
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dpReader = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (config.getInputShipStrategy(1)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dpReader = new PointwiseDistributionPattern();
