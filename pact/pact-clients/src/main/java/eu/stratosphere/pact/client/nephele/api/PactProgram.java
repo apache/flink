@@ -244,7 +244,9 @@ public class PactProgram {
 				JarEntry entry = entries.nextElement();
 				String name = entry.getName();
 				
-				if (name.length() > 4 && ".jar".equalsIgnoreCase(name.substring(name.length() - 4))) {
+				if (name.length() > 8 && 
+						name.startsWith("lib/") && name.endsWith(".jar"))
+				{
 					containedJarFileEntries.add(entry);
 				}
 			}
