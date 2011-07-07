@@ -263,8 +263,7 @@ public class PactProgram {
 				String name = entry.getName();
 				name = name.replace(File.separatorChar, '_');
 				
-				File tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"),
-					entry.getName());
+				File tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"), name);
 				this.extractedTempLibraries[i] = tempFile;
 			
 				// copy the temp file contents to a temporary File
