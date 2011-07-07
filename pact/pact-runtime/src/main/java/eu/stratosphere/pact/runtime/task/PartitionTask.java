@@ -52,28 +52,29 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * input and one or multiple outputs. It is provided with a MapStub
  * implementation.
  * <p>
- * The MapTask creates an iterator over all key-value pairs of its input and hands that 
- * to the <code>map()</code> method of the MapStub.
+ * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>map()</code> method
+ * of the MapStub.
  * 
  * @see eu.stratosphere.pact.common.stub.MapStub
  * @author Fabian Hueske
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class PartitionTask extends AbstractTask {
 
 	// obtain MapTask logger
 	private static final Log LOG = LogFactory.getLog(PartitionTask.class);
-	
+
 	public static final String GLOBAL_PARTITIONING_ORDER = "partitioning.order";
 
 	public static final String DATA_DISTRIBUTION_CLASS = "partitioning.distribution.class";
 
 	public static final String PARTITION_BY_SAMPLING = "partitioning.sampling";
-	
+
 	public static final String NUMBER_OF_PARTITIONS = "partitioning.partitions.count";
 
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> readerPartition;
+
 	private RecordReader<KeyValuePair<Key, Value>> readerData;
 
 	// output collector
@@ -84,22 +85,22 @@ public class PartitionTask extends AbstractTask {
 
 	// task configuration (including stub parameters)
 	private TaskConfig config;
-	
+
 	private OutputEmitter oe;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
-	
+
 	// partitioning function
 	private PartitionFunction func;
-	
+
 	// order used for partitioning
 	private Order order;
-	
+
 	private boolean usesSample;
-	
+
 	private Key[] splitBorders;
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -108,7 +109,7 @@ public class PartitionTask extends AbstractTask {
 		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		
+
 		// Initialize stub implementation
 		initStub();
 
@@ -133,30 +134,30 @@ public class PartitionTask extends AbstractTask {
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
-		if(usesSample) {
-			//Read partition and assign to OutputEmitter
+		if (usesSample) {
+			// Read partition and assign to OutputEmitter
 			readerPartition.hasNext();
-			
+
 			ArrayList<Key> borders = new ArrayList<Key>();
-			while(readerPartition.hasNext()) {
+			while (readerPartition.hasNext()) {
 				borders.add(readerPartition.next().getKey());
 			}
-			
+
 			splitBorders = borders.toArray(new Key[borders.size()]);
 		}
-		
-		//Create partition function based on histogram
+
+		// Create partition function based on histogram
 		func = new HistogramPartitionFunction(splitBorders, order);
-		
-		//Assign partition function to output emitter
+
+		// Assign partition function to output emitter
 		for (RecordWriter<KeyValuePair<Key, Value>> recWriter : output.getWriters()) {
-			ChannelSelector<KeyValuePair<Key, Value>> selector = 
+			ChannelSelector<KeyValuePair<Key, Value>> selector =
 				recWriter.getOutputGate().getChannelSelector();
-			if(selector instanceof OutputEmitter) {
+			if (selector instanceof OutputEmitter) {
 				((OutputEmitter) selector).setPartitionFunction(func);
 			}
 		}
-		
+
 		/**
 		 * Iterator over all input key-value pairs. The iterator wraps the input
 		 * reader of the Nepehele task.
@@ -199,7 +200,7 @@ public class PartitionTask extends AbstractTask {
 		// close output collector
 		output.close();
 
-		if(!this.taskCanceled) {
+		if (!this.taskCanceled) {
 			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -210,7 +211,8 @@ public class PartitionTask extends AbstractTask {
 		}
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
@@ -220,7 +222,7 @@ public class PartitionTask extends AbstractTask {
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
-	
+
 	/**
 	 * Initializes the stub implementation and configuration.
 	 * 
@@ -229,15 +231,15 @@ public class PartitionTask extends AbstractTask {
 	 *         obtained.
 	 */
 	private void initStub() throws RuntimeException {
-		
+
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
 
 		order = Order.valueOf(config.getStubParameters().getString(GLOBAL_PARTITIONING_ORDER, ""));
 		usesSample = config.getStubParameters().getBoolean(PARTITION_BY_SAMPLING, true);
-		
-		//If no sample is used load partition split borders from distribution
-		if(!usesSample) {
+
+		// If no sample is used load partition split borders from distribution
+		if (!usesSample) {
 			Class<DataDistribution> clsDstr = null;
 			DataDistribution distr = null;
 			try {
@@ -248,8 +250,8 @@ public class PartitionTask extends AbstractTask {
 			} catch (Exception e) {
 				throw new RuntimeException("DataDistribution could not be instantiated.", e);
 			}
-			
-			//Generate split points
+
+			// Generate split points
 			int numPartitions = config.getStubParameters().getInteger(NUMBER_OF_PARTITIONS, -1);
 			int numSplits = numPartitions - 1;
 			splitBorders = new Key[numSplits];
@@ -257,7 +259,7 @@ public class PartitionTask extends AbstractTask {
 				splitBorders[i] = distr.getSplit(i, numSplits);
 			}
 		}
-		
+
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
@@ -286,7 +288,7 @@ public class PartitionTask extends AbstractTask {
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializerData = new KeyValuePairDeserializer<Key, Value>(stub
 			.getOutKeyType(), stub.getOutValueType());
-		
+
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dpData = null;
 		switch (config.getInputShipStrategy(0)) {
@@ -297,14 +299,14 @@ public class PartitionTask extends AbstractTask {
 		default:
 			throw new RuntimeException("No input ship strategy provided for Partition/Data.");
 		}
-		
+
 		readerData = new RecordReader<KeyValuePair<Key, Value>>(this, deserializerData, dpData);
-		
-		if(usesSample) {
+
+		if (usesSample) {
 			// create RecordDeserializer
 			RecordDeserializer<KeyValuePair<Key, Value>> deserializerHistogram = new KeyValuePairDeserializer<Key, Value>(
-					stub.getOutKeyType(), (Class<Value>)((Class<? extends Value>)PactNull.class));
-			
+					stub.getOutKeyType(), (Class<Value>) ((Class<? extends Value>) PactNull.class));
+
 			// determine distribution pattern for reader from input ship strategy
 			DistributionPattern dpHistogram = null;
 			switch (config.getInputShipStrategy(1)) {
@@ -312,7 +314,7 @@ public class PartitionTask extends AbstractTask {
 				// forward requires Pointwise DP
 				dpHistogram = new PointwiseDistributionPattern();
 				throw new RuntimeException("EEE");
-				//break;
+				// break;
 			case PARTITION_HASH:
 			case PARTITION_RANGE:
 			case BROADCAST:
@@ -322,7 +324,7 @@ public class PartitionTask extends AbstractTask {
 			default:
 				throw new RuntimeException("No input ship strategy provided for Partition/Sample.");
 			}
-			
+
 			readerPartition = new RecordReader<KeyValuePair<Key, Value>>(this, deserializerHistogram, dpHistogram);
 		}
 	}
@@ -334,10 +336,10 @@ public class PartitionTask extends AbstractTask {
 	private void initOutputCollector() {
 
 		boolean fwdCopyFlag = false;
-		
+
 		// create output collector
 		output = new OutputCollector<Key, Value>();
-		
+
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -355,22 +357,21 @@ public class PartitionTask extends AbstractTask {
 			fwdCopyFlag = true;
 		}
 	}
-	
+
 	/**
 	 * This method is called with an iterator over all k-v pairs that this MapTask processes.
-	 * It calls {@link MapStub#map(Key, Value, Collector)} for each pair. 
+	 * It calls {@link MapStub#map(Key, Value, Collector)} for each pair.
 	 * 
 	 * @param in
 	 *        Iterator over all key-value pairs that this MapTask processes
 	 * @param out
 	 *        A collector for the output of the map() function.
 	 */
-	private void callStub(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out)
-	{
+	private void callStub(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
 		while (!this.taskCanceled && in.hasNext()) {
 			KeyValuePair<Key, Value> pair = in.next();
 			out.collect(pair.getKey(), pair.getValue());
-			//this.stub.map(pair.getKey(), pair.getValue(), out);
+			// this.stub.map(pair.getKey(), pair.getValue(), out);
 		}
 	}
 }
