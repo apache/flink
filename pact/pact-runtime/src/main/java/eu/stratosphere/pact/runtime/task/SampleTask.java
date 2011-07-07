@@ -283,12 +283,10 @@ public class SampleTask extends AbstractTask {
 		int counter = 0;
 		while (!this.taskCanceled && in.hasNext()) {
 			KeyValuePair<Key, Value> pair = in.next();
-			out.collect(pair.getKey(), pair.getValue());
-			if (counter >= 100) {
-				break;
+			counter++;
+			if ((counter % 10) == 0) {
+				out.collect(pair.getKey(), pair.getValue());
 			}
-
-			++counter;
 			// this.stub.map(pair.getKey(), pair.getValue(), out);
 		}
 	}
