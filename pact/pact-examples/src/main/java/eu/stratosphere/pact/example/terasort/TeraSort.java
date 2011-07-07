@@ -63,6 +63,7 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 			TeraOutputFormat.class, output, "Data Sink");
 		sink.setDegreeOfParallelism(noSubTasks);
 		sink.setGlobalOrder(Order.ASCENDING);
+		sink.getCompilerHints().setInputDistributionClass(TeraDistribution.class);
 
 		sink.setInput(source);
 
