@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +31,16 @@ import java.util.TimerTask;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.BlockDeviceMapping;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.RunInstancesResult;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -521,15 +532,19 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			LOG.warn("Supplied instance connection info is null");
 			return null;
 		}
-
+		
 		synchronized (this.reservedInstances) {
 
+			
+			
 			if (this.reservedInstances.size() == 0) {
 				return null;
 			}
 
 			final Iterator<String> it = this.reservedInstances.keySet().iterator();
 
+			
+			//TODO: Change Iteration here.. for each reserved instance, an AWS webservice call is initiated right now
 			while (it.hasNext()) {
 
 				final String instanceID = it.next();
@@ -538,38 +553,37 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 				synchronized (this.jobToInstancesMap) {
 					mapping = this.jobToInstancesMap.get(jobID);
+					
 				}
 
 				if (mapping == null) {
 					LOG.error("Unknown mapping for job ID " + jobID);
 					continue;
 				}
+				
+				AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(mapping.getAwsAccessId(),
+					mapping.getAwsSecretKey());
+				DescribeInstancesRequest request = new DescribeInstancesRequest();
+				DescribeInstancesResult result = ec2client.describeInstances(request);
 
-				final List<com.xerox.amazonws.ec2.ReservationDescription.Instance> instances = describeInstances(
-					mapping.getOwner(), mapping.getAwsAccessId(), mapping.getAwsSecretKey());
+				// Iterate over all Instances
+				for (Reservation r : result.getReservations()) {
+					for (Instance t : r.getInstances()) {
+						InetAddress candidateAddress = null;
 
-				if (instances == null) {
-					continue;
-				}
+						try {
+							candidateAddress = InetAddress.getByName(t.getPrivateIpAddress());
+						} catch (UnknownHostException e) {
+							LOG.warn("Cannot convert " + t.getPrivateIpAddress() + " into an IP address");
+							continue;
+						}
 
-				final Iterator<com.xerox.amazonws.ec2.ReservationDescription.Instance> it2 = instances.iterator();
-
-				while (it2.hasNext()) {
-					final com.xerox.amazonws.ec2.ReservationDescription.Instance i = it2.next();
-
-					InetAddress candidateAddress = null;
-
-					try {
-						candidateAddress = InetAddress.getByName(i.getDnsName());
-					} catch (UnknownHostException e) {
-						LOG.warn("Cannot convert " + i.getDnsName() + " into an IP address");
-						continue;
-					}
-
-					if (instanceConnectionInfo.getAddress().equals(candidateAddress)) {
-						return convertIntoCloudInstance(i, instanceConnectionInfo, mapping.getOwner());
+						if (instanceConnectionInfo.getAddress().equals(candidateAddress)) {
+							return convertIntoCloudInstance(t, instanceConnectionInfo, mapping.getOwner());
+						}
 					}
 				}
+
 			}
 		}
 
@@ -587,7 +601,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 *        the owner of the instance
 	 * @return a cloud instance
 	 */
-	private CloudInstance convertIntoCloudInstance(com.xerox.amazonws.ec2.ReservationDescription.Instance instance,
+	private CloudInstance convertIntoCloudInstance(com.amazonaws.services.ec2.model.Instance instance,
 			InstanceConnectionInfo instanceConnectionInfo, String owner) {
 
 		InstanceType type = null;
@@ -595,7 +609,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		// Find out type of the instance
 		for (int i = 0; i < this.availableInstanceTypes.length; i++) {
 
-			if (this.availableInstanceTypes[i].getIdentifier().equals(instance.getInstanceType().getTypeId())) {
+			if (this.availableInstanceTypes[i].getIdentifier().equals(instance.getInstanceType())) {
 				type = this.availableInstanceTypes[i];
 				break;
 			}
@@ -607,7 +621,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		}
 
 		final CloudInstance cloudInstance = new CloudInstance(instance.getInstanceId(), type, owner,
-			instanceConnectionInfo, instance.getLaunchTime().getTimeInMillis(), this.networkTopology.getRootNode(),
+			instanceConnectionInfo, instance.getLaunchTime().getTime(), this.networkTopology.getRootNode(),
 			this.networkTopology, null); // TODO: Define hardware descriptions for cloud instance types
 		this.cloudInstances.add(cloudInstance);
 		return cloudInstance;
@@ -628,7 +642,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 *         something wrong happens to the job configuration
 	 */
 	@Override
-	public synchronized void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType)
+	public synchronized void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType, int count)
 			throws InstanceException {
 
 		if (conf == null) {
@@ -666,17 +680,38 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		}
 
 		// Check if there is any floating instance with matching owner and type
-		final CloudInstance instance = anyFloatingInstanceAvailable(owner, awsAccessId, awsSecretKey, instanceType);
-		if (instance != null) {
-			jobToInstanceMapping.assignInstanceToJob(instance);
-			this.instanceListener.resourceAllocated(jobID, instance.asAllocatedResource());
+
+		final LinkedList<CloudInstance> floatinginstances = anyFloatingInstanceAvailable(owner, awsAccessId,
+			awsSecretKey, instanceType, count);
+
+		if (floatinginstances.size() >= count) {
+			// we have enough floating instances.. no need to request any new instances.
+
+			for (CloudInstance ci : floatinginstances) {
+				jobToInstanceMapping.assignInstanceToJob(ci);
+				this.instanceListener.resourceAllocated(jobID, ci.asAllocatedResource());
+			}
+
 		} else {
+			// we don't have enough floating instances..
 
-			// If there is no floating instance available we have to allocate a new one from the cloud
-			final String instanceID = allocateCloudInstance(awsAccessId, awsSecretKey, instanceType);
+			// first, use the floating instances we have:
+			for (CloudInstance ci : floatinginstances) {
+				jobToInstanceMapping.assignInstanceToJob(ci);
+				this.instanceListener.resourceAllocated(jobID, ci.asAllocatedResource());
+			}
 
-			// Add the instance ID to reversed instances, so the instance is not treated as floating when it arrives
-			this.reservedInstances.put(instanceID, jobID);
+			// now we still have to request new instances..
+			int neededInstances = count - floatinginstances.size();
+
+			LinkedList<String> instanceIDs = allocateCloudInstance(awsAccessId, awsSecretKey, instanceType,
+				neededInstances);
+
+			for (String i : instanceIDs) {
+				this.reservedInstances.put(i, jobID);
+
+			}
+
 		}
 	}
 
@@ -691,21 +726,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 *        the type of the allocating instance
 	 * @return the ID of the allocated instance
 	 */
-	private String allocateCloudInstance(String awsAccessId, String awsSecretKey, InstanceType instanceType) {
+	private LinkedList<String> allocateCloudInstance(String awsAccessId, String awsSecretKey,
+			InstanceType instanceType, int count) {
 
-		final Boolean isSecure = GlobalConfiguration.getBoolean(EC2WSSECUREKEY, false);
+		// TODO: Implement count!!
 
-		final String server = GlobalConfiguration.getString(EC2WSSERVERKEY, null);
-		if (server == null) {
-			LOG.error("Unable to contact cloud: web service server unknown");
-			return null;
-		}
-
-		final int port = GlobalConfiguration.getInteger(EC2WSPORTKEY, -1);
-		if (port < 0) {
-			LOG.error("cloud.ec2ws.port not defined in config file");
-			return null;
-		}
 
 		final String imageID = GlobalConfiguration.getString("ec2.image.id", null);
 		if (imageID == null) {
@@ -713,42 +738,34 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			return null;
 		}
 
-		com.xerox.amazonws.ec2.Jec2 ec2Client = null;
+		AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
+		
+		
+		com.amazonaws.services.ec2.model.RunInstancesRequest request = new RunInstancesRequest(imageID, count, count);
+		request.setInstanceType(instanceType.getIdentifier());
+        BlockDeviceMapping bdm = new BlockDeviceMapping();
+        bdm.setVirtualName("ephemeral0");
+        bdm.setDeviceName("/dev/sdb1");
+        
+        //request.setKeyName(Configuration.ec2Key); //want to set an SSH key for the image?
+        LinkedList<BlockDeviceMapping> bdmlist = new LinkedList<BlockDeviceMapping>();
+        bdmlist.add(bdm);
+        request.setBlockDeviceMappings(bdmlist);
+        
+        
+        //TODO: User-Data (IP address of jobmanager)
+        //request.setUserData(userData);
+        
+        RunInstancesResult result = ec2client.runInstances(request);
+        
 
-		try {
-			ec2Client = new com.xerox.amazonws.ec2.Jec2(awsAccessId, awsSecretKey, isSecure, server, port);
-			ec2Client.setResourcePrefix("/services/Eucalyptus");
-			ec2Client.setSignatureVersion(1);
-		} catch (Exception e) {
-			LOG.error("Unable to contact cloud: " + StringUtils.stringifyException(e));
-			return null;
+		LinkedList<String> instanceIDs = new LinkedList<String>();
+		
+		for(Instance i: result.getReservation().getInstances()){
+			instanceIDs.add(i.getInstanceId());
 		}
 
-		com.xerox.amazonws.ec2.ReservationDescription reservation = null;
-
-		try {
-			// TODO: Make key name configurable
-			reservation = ec2Client.runInstances(imageID, 1, 1, new ArrayList<String>(), new String(), "mykey", true,
-				com.xerox.amazonws.ec2.InstanceType.getTypeFromString(instanceType.getIdentifier()), new String(),
-				new String(), new String(), new ArrayList<com.xerox.amazonws.ec2.BlockDeviceMapping>());
-		} catch (Exception e) {
-			LOG.error("Unable to allocate instance: " + StringUtils.stringifyException(e));
-			return null;
-		}
-
-		if (reservation == null) {
-			LOG.error("Unable to allocate instance: reservation is null");
-			return null;
-		}
-
-		if (reservation.getInstances().size() != 1) {
-			LOG.error("More or less than one instance reserved at a time, this is unexpected");
-			return null;
-		}
-
-		// Return the instance ID
-		System.out.println(reservation.getInstances().get(0).getLaunchTime());
-		return reservation.getInstances().get(0).getInstanceId();
+		return instanceIDs;
 	}
 
 	/**
@@ -768,56 +785,63 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 * @throws InstanceException
 	 *         something wrong happens to the global configuration
 	 */
-	private CloudInstance anyFloatingInstanceAvailable(String owner, String awsAccessId, String awsSecretKey,
-			InstanceType type) throws InstanceException {
+	private LinkedList<CloudInstance> anyFloatingInstanceAvailable(String owner, String awsAccessId,
+			String awsSecretKey, InstanceType type, int count) throws InstanceException {
+
+		final LinkedList<CloudInstance> floatinginstances = new LinkedList<CloudInstance>();
 
 		synchronized (this.floatingInstances) {
 
 			if (this.floatingInstances.size() == 0) {
 				// There is no floating instance known to the system
-				return null;
+				return floatinginstances; // (empty)
 			}
 
-			final List<com.xerox.amazonws.ec2.ReservationDescription.Instance> instances = describeInstances(owner,
-				awsAccessId, awsSecretKey);
+			AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 
-			if (instances == null) {
-				LOG.debug("EC2 describesInstances includes no instances for owner " + owner);
-				return null;
-			}
+			
+			DescribeInstancesRequest request = new DescribeInstancesRequest();
+			DescribeInstancesResult result = ec2client.describeInstances(request);
 
-			final Iterator<com.xerox.amazonws.ec2.ReservationDescription.Instance> it = instances.iterator();
+			// Iterate over all Instances
+			for (Reservation r : result.getReservations()) {
+				for (Instance t : r.getInstances()) {
 
-			while (it.hasNext()) {
+					if (!t.getInstanceType().equals(type.getIdentifier())) {
+						continue;
+					}
 
-				final com.xerox.amazonws.ec2.ReservationDescription.Instance instance = it.next();
+					InetAddress inetAddress = null;
+					try {
+						inetAddress = InetAddress.getByName(t.getPrivateIpAddress());
 
-				// Check for the correct instance type
-				if (!type.getIdentifier().equals(instance.getInstanceType().getTypeId())) {
+					} catch (UnknownHostException e) {
+						LOG.error("Cannot resolve " + t.getPrivateIpAddress() + " into an IP address: "
+							+ StringUtils.stringifyException(e));
+						continue;
+					}
 
-					continue;
-				}
+					// Check if instance entry is a floating instance
+					if (this.floatingInstances.containsKey(inetAddress)) {
 
-				InetAddress inetAddress = null;
-				try {
-					inetAddress = InetAddress.getByName(instance.getDnsName());
-				} catch (UnknownHostException e) {
-					LOG.error("Cannot resolve " + instance.getDnsName() + " into an IP address: "
-						+ StringUtils.stringifyException(e));
-					continue;
-				}
+						final FloatingInstance floatingInstance = this.floatingInstances.remove(inetAddress);
+						this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
 
-				// Check if instance entry is a floating instance
-				if (this.floatingInstances.containsKey(inetAddress)) {
+						floatinginstances.add(convertIntoCloudInstance(t, floatingInstance.getInstanceConnectionInfo(),
+							owner));
 
-					final FloatingInstance floatingInstance = this.floatingInstances.remove(inetAddress);
-					this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
-					return convertIntoCloudInstance(instance, floatingInstance.getInstanceConnectionInfo(), owner);
+						// If we already have enough floating instances found: return!
+						if (floatinginstances.size() >= count) {
+							return floatinginstances;
+						}
+					}
+
 				}
 			}
 		}
 
-		return null;
+		return floatinginstances;
+
 	}
 
 	/**

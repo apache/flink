@@ -41,10 +41,12 @@ public interface InstanceManager {
 	 *        a configuration object including additional request information (e.g. credentials)
 	 * @param instanceType
 	 *        the type of the requested instance
+	 * @param count
+	 * 	      the number of instances
 	 * @throws InstanceException
 	 *         thrown if an error occurs during the instance request
 	 */
-	void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType) throws InstanceException;
+	void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType, int count) throws InstanceException;
 
 	/**
 	 * Releases an allocated resource from a job.

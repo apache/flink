@@ -92,7 +92,7 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType)
+		public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType, int count)
 				throws InstanceException {
 
 			throw new IllegalStateException("requestInstance called on TestInstanceManager");

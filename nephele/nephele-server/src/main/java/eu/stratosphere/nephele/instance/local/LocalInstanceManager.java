@@ -218,8 +218,9 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType) throws InstanceException {
-
+	public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType, int count) throws InstanceException {
+		//TODO: Implement count - fail if count > 1
+		
 		boolean assignmentSuccessful = false;
 		AllocatedResource allocatedResource = null;
 		synchronized (this.synchronizationObject) {

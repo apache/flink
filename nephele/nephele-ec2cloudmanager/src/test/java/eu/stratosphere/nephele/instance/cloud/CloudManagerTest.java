@@ -305,7 +305,7 @@ public class CloudManagerTest {
 
 		// request instance
 		try {
-			cm.requestInstance(jobID, conf, InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"));
+			cm.requestInstance(jobID, conf, InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),1);
 		} catch (InstanceException e) {
 			e.printStackTrace();
 		}

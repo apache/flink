@@ -254,9 +254,9 @@ public class ClusterManagerTest {
 			final Configuration conf = new Configuration();
 
 			try {
-				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME));
-				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME));
-				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME));
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME),1);
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME),1);
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME),1);
 
 			} catch (InstanceException ie) {
 				fail(ie.getMessage());
@@ -285,7 +285,7 @@ public class ClusterManagerTest {
 			// Try to allocate more resources which must result in an error
 			try {
 
-				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME));
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME),1);
 
 				fail("ClusterManager allowed to request more instances than actually available");
 

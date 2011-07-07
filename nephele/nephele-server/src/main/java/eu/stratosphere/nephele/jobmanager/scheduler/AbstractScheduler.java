@@ -142,11 +142,15 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 			final Map.Entry<InstanceType, Integer> entry = it.next();
 
-			for (int i = 0; i < entry.getValue().intValue(); i++) {
+			/*for (int i = 0; i < entry.getValue().intValue(); i++) {
 				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
 				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
 					entry.getKey());
-			}
+			}*/
+			
+			this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
+				entry.getKey(), entry.getValue().intValue());
+			
 		}
 
 		// Switch vertex state to assigning
