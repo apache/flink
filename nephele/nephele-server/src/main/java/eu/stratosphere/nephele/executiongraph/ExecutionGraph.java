@@ -600,7 +600,7 @@ public class ExecutionGraph implements ExecutionListener {
 			// let the task code compute the input splits
 			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
 				try {
-					inputSplits = ((AbstractInputTask) ev.getEnvironment().getInvokable()).
+					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable()).
 							computeInputSplits(jobVertex.getNumberOfSubtasks());
 				}
 				catch (Exception e) {
