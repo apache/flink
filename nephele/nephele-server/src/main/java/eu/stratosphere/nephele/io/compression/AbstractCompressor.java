@@ -37,7 +37,7 @@ public abstract class AbstractCompressor implements Compressor {
 
 	protected int compressedDataBufferLength;
 
-	private final static int SIZE_LENGTH = 8;
+	public final static int SIZE_LENGTH = 8;
 
 	private final AbstractCompressionLibrary compressionLibrary;
 
