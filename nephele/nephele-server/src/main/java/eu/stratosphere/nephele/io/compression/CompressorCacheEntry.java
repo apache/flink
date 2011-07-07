@@ -13,30 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.compression.library.zlib;
+package eu.stratosphere.nephele.io.compression;
 
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
-import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
+final class CompressorCacheEntry extends AbstractCacheEntry {
 
-/**
- * This class provides an interface for decompressing byte-buffers with the native zlib library.
- * http://www.zlib.net/
- * 
- * @author akli
- */
-public class ZlibDecompressor extends AbstractDecompressor {
+	private final Compressor compressor;
 
-	public ZlibDecompressor(AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
+	CompressorCacheEntry(final Compressor compressor) {
+		this.compressor = compressor;
 	}
 
-	native static void initIDs();
-
-	protected native int decompressBytesDirect(int offset);
-
-	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-		
+	Compressor getCompressor() {
+		return this.compressor;
 	}
 }

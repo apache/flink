@@ -153,11 +153,15 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @throws GraphConversionException
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
-	public ExecutionGraph(JobGraph job, InstanceManager instanceManager)
-																		throws GraphConversionException {
+	public ExecutionGraph(JobGraph job, InstanceManager instanceManager) throws GraphConversionException {
 		this(job.getJobID(), job.getName());
+
 		// Start constructing the new execution graph from given job graph
-		constructExecutionGraph(job, instanceManager);
+		try {
+			constructExecutionGraph(job, instanceManager);
+		} catch (Exception e) {
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
 	}
 
 	/**

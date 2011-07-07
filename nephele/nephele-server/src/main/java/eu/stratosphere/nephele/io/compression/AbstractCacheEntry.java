@@ -13,30 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.compression.library.zlib;
+package eu.stratosphere.nephele.io.compression;
 
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
-import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
+import java.util.HashSet;
+import java.util.Set;
 
-/**
- * This class provides an interface for decompressing byte-buffers with the native zlib library.
- * http://www.zlib.net/
- * 
- * @author akli
- */
-public class ZlibDecompressor extends AbstractDecompressor {
+import eu.stratosphere.nephele.io.channels.ChannelID;
 
-	public ZlibDecompressor(AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
+abstract class AbstractCacheEntry {
+
+	private final Set<ChannelID> assignedChannels = new HashSet<ChannelID>();
+
+	void addAssignedChannel(final ChannelID channelID) {
+
+		if (!this.assignedChannels.add(channelID)) {
+			throw new IllegalStateException(channelID + " has already been added to the set of assigned channels");
+		}
 	}
 
-	native static void initIDs();
+	void removeAssignedChannel(final ChannelID channelID) {
 
-	protected native int decompressBytesDirect(int offset);
+		if (!this.assignedChannels.remove(channelID)) {
+			throw new IllegalStateException(channelID + " has not been in the set of assigned channels");
+		}
+	}
 
-	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-		
+	boolean hasAssignedChannels() {
+
+		return (!this.assignedChannels.isEmpty());
 	}
 }
