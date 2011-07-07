@@ -596,23 +596,22 @@ public class ExecutionGraph implements ExecutionListener {
 		// Register input and output vertices separately
 		if (jobVertex instanceof JobInputVertex) {
 			final InputSplit[] inputSplits;
-			
+
 			// let the task code compute the input splits
 			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
 				try {
 					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable()).
 							computeInputSplits(jobVertex.getNumberOfSubtasks());
-				}
-				catch (Exception e) {
-					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName() + ": "
+				} catch (Exception e) {
+					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
+						+ ": "
 							+ StringUtils.stringifyException(e));
 				}
-			}
-			else {
+			} else {
 				throw new GraphConversionException(
 					"BUG: JobInputVertex contained a task class which was not an input task.");
 			}
-			
+
 			// assign input splits
 			groupVertex.setInputSplits(inputSplits);
 		}
