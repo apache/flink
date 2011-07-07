@@ -1057,7 +1057,14 @@ public class PactCompiler {
 			
 			for (PactConnection conn : visitable.getOutgoingConnections()) {
 				if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+					// One memory consumer for the histogram
 					memoryConsumers += visitable.getInstancesPerMachine();
+					//Reduce available memory because of temp task to avoid spilling
+					this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY *
+					conn.getSourcePact().getDegreeOfParallelism();
+					//TODO: is this correct reducing memory per INSTANCE by multiplying required
+					//memory * the TOTAL DoP?
+					LOG.debug("Memory reduced to "+memoryPerInstance+ " due to TempTask");
 				}
 			}
 
