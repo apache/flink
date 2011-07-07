@@ -265,7 +265,11 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 					connectWithBroadcastStrategy(connection, outputVertex, inputVertex);
 					break;
 				case PARTITION_RANGE:
-					connectWithPartitionRangeStrategy(connection, outputVertex, inputVertex);
+					if(isDistributionGiven(connection)) {
+						connectWithGivenDistributionPartitionRangeStrategy(connection, outputVertex, inputVertex);
+					} else {
+						connectWithSamplingPartitionRangeStrategy(connection, outputVertex, inputVertex);
+					}
 					break;
 				case SFR:
 					connectWithSFRStrategy(connection, outputVertex, inputVertex);
@@ -282,6 +286,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	// ------------------------------------------------------------------------
 	// Methods for creating individual vertices
 	// ------------------------------------------------------------------------
+
+	private boolean isDistributionGiven(PactConnection connection) {
+		return (connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass() != null);
+	}
 
 	/**
 	 * @param mapNode
@@ -794,13 +802,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	}
 	
 	/**
-	 * Adds the necessary vertexes for histogram creation etc
+	 * Adds the necessary vertexes for sampling & histogram creation etc for range partitioning
 	 * @param connection
 	 * @param outputVertex
 	 * @param inputVertex
 	 * @throws JobGraphDefinitionException 
 	 */
-	private void connectWithPartitionRangeStrategy(PactConnection connection, AbstractJobVertex outputVertex,
+	private void connectWithSamplingPartitionRangeStrategy(PactConnection connection, AbstractJobVertex outputVertex,
 			AbstractJobVertex inputVertex) throws JobGraphDefinitionException {
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
@@ -873,10 +881,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
 			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
 		partitionConfig.setStubParameters(partitionStubConfig);
-		//Connect with input
-		histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST);
-		histogramConfig.addOutputShipStrategy(ShipStrategy.BROADCAST);
 		
 		//Add temp vertex to avoid blocking
 		JobTaskVertex tempVertex = generateTempVertex(
@@ -887,15 +891,81 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		tempVertex.setVertexToShareInstancesWith(outputVertex);
 		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
+		//Connect data to tempVertex (partitioner)
 		outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 		tempConfig.addInputShipStrategy(ShipStrategy.FORWARD);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 		
-		//Connect tempVertex to partitionVertex
+		//Connect tempVertex (data) to partitionVertex
 		tempVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
 		tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+		
+		//Connect histogram with partitioner
+		histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST);
+		histogramConfig.addOutputShipStrategy(ShipStrategy.BROADCAST);
 
+		//Connect to receiving vertex
+		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE);
+		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
+	}
+	
+	/**
+	 * Implements range partitioning with a user-defined data distribution
+	 * @param connection
+	 * @param outputVertex
+	 * @param inputVertex
+	 * @throws JobGraphDefinitionException 
+	 */
+	private void connectWithGivenDistributionPartitionRangeStrategy(PactConnection connection,
+			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex) throws JobGraphDefinitionException {
+		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
+		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
+		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
+		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
+		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
+		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+		Class<? extends Stub<?, ?>> sourceStub = connection.getSourcePact().getPactContract().getStubClass();
+		
+		//When parallelism is one there is nothing to partition
+		//if(sourceDOP == 1 && targetDOP == 1) {
+		if(targetDOP == 1) {
+			if(sourceDOP == 1) {
+				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			} else {
+				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			}
+			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+			return;
+		}
+		
+		//Add range distributor vertex
+		JobTaskVertex partitionVertex = new JobTaskVertex("Range partition - partitioning", this.jobGraph);
+		auxVertices.add(partitionVertex);
+		partitionVertex.setTaskClass(PartitionTask.class);
+		partitionVertex.setNumberOfSubtasks(sourceDOP);
+		if (sourceIPM >= 1) {
+			partitionVertex.setNumberOfSubtasksPerInstance(sourceIPM);
+		}
+		TaskConfig partitionConfig = new TaskConfig(partitionVertex.getConfiguration());
+		partitionConfig.setStubClass(sourceStub);
+		Configuration partitionStubConfig = new Configuration();
+		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
+			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+		partitionStubConfig.setBoolean(PartitionTask.PARTITION_BY_SAMPLING, false);
+		partitionStubConfig.setInteger(PartitionTask.NUMBER_OF_PARTITIONS, targetDOP);
+		partitionStubConfig.setClass(PartitionTask.DATA_DISTRIBUTION_CLASS,
+			connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass());
+		partitionConfig.setStubParameters(partitionStubConfig);
+		
+		//Connect partitioner with sending vertex
+		outputVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+		
 		//Connect to receiving vertex
 		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE);

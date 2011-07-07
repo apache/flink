@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
@@ -40,8 +41,10 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.task.util.HistogramPartitionFunction;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.PartitionFunction;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -63,9 +66,15 @@ public class PartitionTask extends AbstractTask {
 	
 	public static final String GLOBAL_PARTITIONING_ORDER = "partitioning.order";
 
+	public static final String DATA_DISTRIBUTION_CLASS = "partitioning.distribution.class";
+
+	public static final String PARTITION_BY_SAMPLING = "partitioning.sampling";
+	
+	public static final String NUMBER_OF_PARTITIONS = "partitioning.partitions.count";
+
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> readerPartition;
-	private RecordReader<KeyValuePair<Key, Value>> readerStub;
+	private RecordReader<KeyValuePair<Key, Value>> readerData;
 
 	// output collector
 	private OutputCollector<Key, Value> output;
@@ -80,6 +89,16 @@ public class PartitionTask extends AbstractTask {
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+	
+	// partitioning function
+	private PartitionFunction func;
+	
+	// order used for partitioning
+	private Order order;
+	
+	private boolean usesSample;
+	
+	private Key[] splitBorders;
 	
 	/**
 	 * {@inheritDoc}
@@ -114,22 +133,27 @@ public class PartitionTask extends AbstractTask {
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
-		//Read partition and assign to OutputEmitter
-		readerPartition.hasNext();
-		
-		ArrayList<Key> borders = new ArrayList<Key>();
-		while(readerPartition.hasNext()) {
-			borders.add(readerPartition.next().getKey());
+		if(usesSample) {
+			//Read partition and assign to OutputEmitter
+			readerPartition.hasNext();
+			
+			ArrayList<Key> borders = new ArrayList<Key>();
+			while(readerPartition.hasNext()) {
+				borders.add(readerPartition.next().getKey());
+			}
+			
+			splitBorders = borders.toArray(new Key[borders.size()]);
 		}
 		
-		//Assign partition borders to output emitter
+		//Create partition function based on histogram
+		func = new HistogramPartitionFunction(splitBorders, order);
+		
+		//Assign partition function to output emitter
 		for (RecordWriter<KeyValuePair<Key, Value>> recWriter : output.getWriters()) {
 			ChannelSelector<KeyValuePair<Key, Value>> selector = 
 				recWriter.getOutputGate().getChannelSelector();
 			if(selector instanceof OutputEmitter) {
-				((OutputEmitter) selector).setPartitionBorders(borders.toArray(new Key[0]));
-				((OutputEmitter) selector).setPartitionOrder(
-					Order.valueOf(config.getStubParameters().getString(GLOBAL_PARTITIONING_ORDER, "")));
+				((OutputEmitter) selector).setPartitionFunction(func);
 			}
 		}
 		
@@ -140,13 +164,13 @@ public class PartitionTask extends AbstractTask {
 		Iterator<KeyValuePair<Key, Value>> input = new Iterator<KeyValuePair<Key, Value>>() {
 
 			public boolean hasNext() {
-				return readerStub.hasNext();
+				return readerData.hasNext();
 			}
 
 			@Override
 			public KeyValuePair<Key, Value> next() {
 				try {
-					return readerStub.next();
+					return readerData.next();
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				} catch (InterruptedException e) {
@@ -209,6 +233,31 @@ public class PartitionTask extends AbstractTask {
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
 
+		order = Order.valueOf(config.getStubParameters().getString(GLOBAL_PARTITIONING_ORDER, ""));
+		usesSample = config.getStubParameters().getBoolean(PARTITION_BY_SAMPLING, true);
+		
+		//If no sample is used load partition split borders from distribution
+		if(!usesSample) {
+			Class<DataDistribution> clsDstr = null;
+			DataDistribution distr = null;
+			try {
+				ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+				String clsName = config.getStubParameters().getString(DATA_DISTRIBUTION_CLASS, null);
+				clsDstr = (Class<DataDistribution>) cl.loadClass(clsName);
+				distr = clsDstr.newInstance();
+			} catch (Exception e) {
+				throw new RuntimeException("DataDistribution could not be instantiated.", e);
+			}
+			
+			//Generate split points
+			int numPartitions = config.getStubParameters().getInteger(NUMBER_OF_PARTITIONS, -1);
+			int numSplits = numPartitions - 1;
+			splitBorders = new Key[numSplits];
+			for (int i = 0; i < numSplits; i++) {
+				splitBorders[i] = distr.getSplit(i, numSplits);
+			}
+		}
+		
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
@@ -234,52 +283,48 @@ public class PartitionTask extends AbstractTask {
 	 *         Thrown if no input ship strategy was provided.
 	 */
 	private void initInputReader() throws RuntimeException {
-
 		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializerPartition = new KeyValuePairDeserializer<Key, Value>(
-				stub.getOutKeyType(), (Class<Value>)((Class<? extends Value>)PactNull.class));
-		
-		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializerReader = new KeyValuePairDeserializer<Key, Value>(stub
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializerData = new KeyValuePairDeserializer<Key, Value>(stub
 			.getOutKeyType(), stub.getOutValueType());
-
+		
 		// determine distribution pattern for reader from input ship strategy
-		DistributionPattern dpPartition = null;
+		DistributionPattern dpData = null;
 		switch (config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
-			dpPartition = new PointwiseDistributionPattern();
-			break;
-		case PARTITION_HASH:
-		case PARTITION_RANGE:
-		case BROADCAST:
-			// partition requires Bipartite DP
-			dpPartition = new BipartiteDistributionPattern();
+			dpData = new PointwiseDistributionPattern();
 			break;
 		default:
-			throw new RuntimeException("No input ship strategy provided for Partition.");
+			throw new RuntimeException("No input ship strategy provided for Partition/Data.");
 		}
 		
-		// determine distribution pattern for reader from input ship strategy
-		DistributionPattern dpReader = null;
-		switch (config.getInputShipStrategy(1)) {
-		case FORWARD:
-			// forward requires Pointwise DP
-			dpReader = new PointwiseDistributionPattern();
-			break;
-		case PARTITION_HASH:
-		case PARTITION_RANGE:
-		case BROADCAST:
-			dpReader = new BipartiteDistributionPattern();
-			break;
-		default:
-			throw new RuntimeException("No input ship strategy provided for MapTask.");
+		readerData = new RecordReader<KeyValuePair<Key, Value>>(this, deserializerData, dpData);
+		
+		if(usesSample) {
+			// create RecordDeserializer
+			RecordDeserializer<KeyValuePair<Key, Value>> deserializerHistogram = new KeyValuePairDeserializer<Key, Value>(
+					stub.getOutKeyType(), (Class<Value>)((Class<? extends Value>)PactNull.class));
+			
+			// determine distribution pattern for reader from input ship strategy
+			DistributionPattern dpHistogram = null;
+			switch (config.getInputShipStrategy(1)) {
+			case FORWARD:
+				// forward requires Pointwise DP
+				dpHistogram = new PointwiseDistributionPattern();
+				throw new RuntimeException("EEE");
+				//break;
+			case PARTITION_HASH:
+			case PARTITION_RANGE:
+			case BROADCAST:
+				// partition requires Bipartite DP
+				dpHistogram = new BipartiteDistributionPattern();
+				break;
+			default:
+				throw new RuntimeException("No input ship strategy provided for Partition/Sample.");
+			}
+			
+			readerPartition = new RecordReader<KeyValuePair<Key, Value>>(this, deserializerHistogram, dpHistogram);
 		}
-
-		// create reader
-		// map has only one input, so we create one reader (id=0).
-		readerPartition = new RecordReader<KeyValuePair<Key, Value>>(this, deserializerPartition, dpPartition);
-		readerStub = new RecordReader<KeyValuePair<Key, Value>>(this, deserializerReader, dpReader);
 	}
 
 	/**
