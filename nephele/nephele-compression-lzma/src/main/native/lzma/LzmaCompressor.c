@@ -54,17 +54,19 @@ JNIEXPORT jint JNICALL Java_eu_stratosphere_nephele_io_compression_library_lzma_
         jobject compressed_buf = (*env)->GetObjectField(env, this, LzmaCompressor_compressedDataBuffer);
 	      jint compressed_buf_len = (*env)->GetIntField(env, this, LzmaCompressor_compressedDataBufferLength);
 	      
-	      // Get access to the uncompressed buffer object
-	      const unsigned char *src = (*env)->GetDirectBufferAddress(env, uncompressed_buf);
+	 // Get access to the uncompressed buffer object
+	 const unsigned char *src = (*env)->GetDirectBufferAddress(env, uncompressed_buf);
 
-	      if (src == 0)
-		      return (jint)0;
+	if (src == 0) {
+	      return (jint)0;
+        }
 
 	      // Get access to the compressed buffer object
         unsigned char *dest = (*env)->GetDirectBufferAddress(env, compressed_buf);
 
-      	if (dest == 0)
+      	if (dest == 0) {
               	return (jint)0;
+        }
               	
         SRes result;
         
@@ -75,8 +77,6 @@ JNIEXPORT jint JNICALL Java_eu_stratosphere_nephele_io_compression_library_lzma_
 
 	size_t no_compressed_bytes = compressed_buf_len;
 	size_t no_uncompressed_bytes = uncompressed_buf_len;
-
-	
 
 	// Compress
 	result = LzmaCompress(dest + SIZE_LENGTH + LZMA_PROPS_SIZE , &no_compressed_bytes, src, uncompressed_buf_len, outProps, &outPropsSize,
@@ -112,5 +112,5 @@ JNIEXPORT jint JNICALL Java_eu_stratosphere_nephele_io_compression_library_lzma_
 		THROW(env, "java/lang/InternalError", exception_msg);
 	}
         
-  return (jint)no_compressed_bytes;        	
+  return (jint)no_compressed_bytes + LZMA_PROPS_SIZE;        	
 }

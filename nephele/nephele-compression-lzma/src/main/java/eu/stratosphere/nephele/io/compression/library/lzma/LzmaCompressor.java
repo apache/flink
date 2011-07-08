@@ -30,8 +30,6 @@ public class LzmaCompressor extends AbstractCompressor {
 		super(compressionLibrary);
 	}
 
-	private static final int SIZE_LENGTH = 13;
-
 	native static void initIDs();
 
 	protected native int compressBytesDirect(int offset);
