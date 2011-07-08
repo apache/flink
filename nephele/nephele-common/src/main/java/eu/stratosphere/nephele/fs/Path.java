@@ -134,6 +134,11 @@ public class Path implements IOReadableWritable {
 				throw new IllegalArgumentException(e);
 			}
 		}
+
+		if (child.uri.getPath().startsWith(Path.SEPARATOR)) {
+			child = new Path(child.uri.getScheme(), child.uri.getAuthority(), child.uri.getPath().substring(1));
+		}
+
 		final URI resolved = parentUri.resolve(child.uri);
 		initialize(resolved.getScheme(), resolved.getAuthority(), normalizePath(resolved.getPath()));
 	}
