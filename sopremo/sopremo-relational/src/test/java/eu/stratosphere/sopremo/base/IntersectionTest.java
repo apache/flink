@@ -4,10 +4,10 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.base.Intersection;
 import eu.stratosphere.sopremo.base.Intersection;
-import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
@@ -119,6 +119,7 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 	@Test
 	public void shouldSupportComplexObject() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
 		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
 		intersection.setKeyProjection(0, createPath("name"));

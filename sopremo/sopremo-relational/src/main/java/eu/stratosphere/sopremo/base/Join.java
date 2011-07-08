@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.base;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
@@ -10,7 +9,6 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -18,18 +16,20 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ArrayMerger;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression;
-import eu.stratosphere.sopremo.expressions.ContainerExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
+import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.ExpressionTag;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoCross;
@@ -188,13 +188,10 @@ public class Join extends CompositeOperator {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
-					Iterator<PactJsonObject> values2,
-					Collector<PactJsonObject.Key, PactJsonObject> out) {
-				if (!values2.hasNext())
-					while (values1.hasNext())
-						out.collect(key,
-							new PactJsonObject(JsonUtil.asArray(values1.next().getValue())));
+			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+				if (values2.isEmpty())
+					for (JsonNode value : values1)
+						out.collect(key, JsonUtil.asArray(value));
 			}
 		}
 	}
@@ -262,10 +259,8 @@ public class Join extends CompositeOperator {
 		public static class Implementation extends
 				SopremoMatch<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
-					Collector<PactJsonObject.Key, PactJsonObject> out) {
-				JsonNode result = JsonUtil.asArray(value1.getValue(), value2.getValue());
-				out.collect(key, new PactJsonObject(result));
+			protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
+				out.collect(key, JsonUtil.asArray(value1, value2));
 			}
 		}
 	}
@@ -296,41 +291,33 @@ public class Join extends CompositeOperator {
 			private boolean leftOuter, rightOuter;
 
 			@Override
-			public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
-					Iterator<PactJsonObject> values2,
-					Collector<PactJsonObject.Key, PactJsonObject> out) {
-
-				if (!values1.hasNext()) {
+			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+				if (values1.isEmpty()) {
 					// special case: no items from first source
 					// emit all values of the second source
 					if (this.rightOuter)
-						while (values2.hasNext())
-							out.collect(key,
-								new PactJsonObject(JsonUtil.asArray(NullNode.getInstance(), values2.next().getValue())));
+						for (JsonNode value : values2)
+							out.collect(key, JsonUtil.asArray(NullNode.getInstance(), value));
 					return;
 				}
 
-				if (!values2.hasNext()) {
+				if (values2.isEmpty()) {
 					// special case: no items from second source
 					// emit all values of the first source
 					if (this.leftOuter)
-						while (values1.hasNext())
-							out.collect(key,
-								new PactJsonObject(JsonUtil.asArray(values1.next().getValue(), NullNode.getInstance())));
+						for (JsonNode value : values1)
+							out.collect(key, JsonUtil.asArray(value, NullNode.getInstance()));
 					return;
 				}
 
 				// TODO: use resettable iterator to avoid OOM
 				ArrayList<JsonNode> firstSourceNodes = new ArrayList<JsonNode>();
-				while (values1.hasNext())
-					firstSourceNodes.add(values1.next().getValue());
+				for (JsonNode value : values1)
+					firstSourceNodes.add(value);
 
-				while (values2.hasNext()) {
-					JsonNode secondSourceNode = values2.next().getValue();
+				for (JsonNode secondSourceNode : values2)
 					for (JsonNode firstSourceNode : firstSourceNodes)
-						out.collect(key,
-							new PactJsonObject(JsonUtil.asArray(firstSourceNode, secondSourceNode)));
-				}
+						out.collect(key, JsonUtil.asArray(firstSourceNode, secondSourceNode));
 			}
 
 			@Override
@@ -355,13 +342,10 @@ public class Join extends CompositeOperator {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
-					Iterator<PactJsonObject> values2,
-					Collector<PactJsonObject.Key, PactJsonObject> out) {
-				if (values2.hasNext())
-					while (values1.hasNext())
-						out.collect(key,
-							new PactJsonObject(JsonUtil.asArray(values1.next().getValue())));
+			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+				if (!values2.isEmpty())
+					for (JsonNode value : values1)
+						out.collect(key, JsonUtil.asArray(value));
 			}
 		}
 	}
@@ -397,12 +381,9 @@ public class Join extends CompositeOperator {
 			}
 
 			@Override
-			public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2,
-					PactJsonObject value2, Collector<PactJsonObject.Key, PactJsonObject> out) {
-				if (this.comparison.evaluate(JsonUtil.asArray(value1.getValue().get(0), value2.getValue().get(1)),
-					this.getContext()) == BooleanNode.TRUE)
-					out.collect(PactJsonObject.keyOf(JsonUtil.asArray(key1.getValue(), key2.getValue())),
-						new PactJsonObject(JsonUtil.asArray(value1.getValue(), value2.getValue())));
+			protected void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out) {
+				if (this.comparison.evaluate(JsonUtil.asArray(value1.get(0), value2.get(1)), this.getContext()) == BooleanNode.TRUE)
+					out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
 			}
 		}
 	}

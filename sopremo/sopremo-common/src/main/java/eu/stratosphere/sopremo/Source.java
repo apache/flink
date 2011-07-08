@@ -1,13 +1,10 @@
-package eu.stratosphere.sopremo.base;
+package eu.stratosphere.sopremo;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.Evaluable;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 

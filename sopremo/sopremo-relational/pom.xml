@@ -11,9 +11,9 @@
 	</parent>
 
 	<groupId>eu.stratosphere</groupId>
-	<artifactId>sopremo-common</artifactId>
+	<artifactId>sopremo-relational</artifactId>
 	<version>0.1</version>
-	<name>sopremo-common</name>
+	<name>sopremo-relational</name>
 
 	<packaging>jar</packaging>
 
@@ -21,44 +21,18 @@
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-common</artifactId>
+			<artifactId>sopremo-common</artifactId>
 			<version>${version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>fastutil</groupId>
-			<artifactId>fastutil</artifactId>
-			<version>5.0.9</version>
-		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.8.2</version>
-			<type>jar</type>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>sopremo-common</artifactId>
+			<version>${version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-clients</artifactId>
-			<version>0.1</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
 
-		<dependency>
-			<groupId>org.codehaus.jackson</groupId>
-			<artifactId>jackson-core-asl</artifactId>
-			<version>1.7.1</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.codehaus.jackson</groupId>
-			<artifactId>jackson-mapper-asl</artifactId>
-			<version>1.7.1</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
 		<dependency>
 			<groupId>nl.jqno.equalsverifier</groupId>
 			<artifactId>equalsverifier</artifactId>
@@ -84,18 +58,6 @@
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.2</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>

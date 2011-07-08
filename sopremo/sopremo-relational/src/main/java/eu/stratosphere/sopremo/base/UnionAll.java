@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.base;
 import java.util.Iterator;
 import java.util.List;
 
+import org.codehaus.jackson.JsonNode;
+
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.PactModule;
@@ -10,6 +12,8 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -56,12 +60,11 @@ public class UnionAll extends ElementaryOperator {
 	public static class TwoInputUnion extends
 			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 		@Override
-		public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-				Collector<PactJsonObject.Key, PactJsonObject> out) {
-			while (values1.hasNext())
-				out.collect(key, values1.next());
-			while (values2.hasNext())
-				out.collect(key, values2.next());
+		protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			for (JsonNode value : values1)
+				out.collect(key, value);
+			for (JsonNode value : values2)
+				out.collect(key, value);
 		}
 	}
 }

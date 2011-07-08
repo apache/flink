@@ -15,9 +15,6 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.base.PersistenceType;
-import eu.stratosphere.sopremo.base.Sink;
-import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.ConversionIterator;
@@ -128,7 +125,7 @@ public class SopremoTestPlan {
 	// public TestObjects setEmpty();
 	// }
 
-	static class Channel<O extends Operator, C extends Channel<O, C>> implements Iterable<PactJsonObject> {
+	static class Channel<O extends Operator, C extends Channel<O, C>> {
 		private TestPairs<PactJsonObject.Key, PactJsonObject> pairs = new TestPairs<PactJsonObject.Key, PactJsonObject>();
 
 		private O operator;
@@ -152,20 +149,17 @@ public class SopremoTestPlan {
 			setEmpty();
 		}
 
-		void setPairs(Iterable<PactJsonObject> pairs) {
-			this.pairs = new TestPairs<PactJsonObject.Key, PactJsonObject>();
-			for (PactJsonObject pactJsonObject : pairs)
-				this.pairs.add(PactJsonObject.Key.NULL, pactJsonObject);
+		public C add(PactJsonObject value) {
+			return add(PactJsonObject.Key.NULL, value);
 		}
 
 		@SuppressWarnings("unchecked")
-		public C add(PactJsonObject object) {
-			this.pairs.add(PactJsonObject.Key.NULL, object);
+		public C add(PactJsonObject key, PactJsonObject value) {
+			this.pairs.add(PactJsonObject.keyOf(key.getValue()), value);
 			return (C) this;
 		}
 
-		@Override
-		public Iterator<PactJsonObject> iterator() {
+		public Iterator<PactJsonObject> valueIterator() {
 			return new ConversionIterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>, PactJsonObject>(
 				this.pairs.iterator()) {
 				@Override
@@ -173,6 +167,10 @@ public class SopremoTestPlan {
 					return inputObject.getValue();
 				}
 			};
+		}
+
+		public Iterator<KeyValuePair<eu.stratosphere.sopremo.pact.PactJsonObject.Key, PactJsonObject>> iterator() {
+			return this.pairs.iterator();
 		}
 
 		int getIndex() {
@@ -294,12 +292,13 @@ public class SopremoTestPlan {
 			Operator unconnectedNode = unconnectedInputs.get(index);
 			if (unconnectedNode instanceof Source)
 				setInputOperator(index, (Source) unconnectedNode);
-			// this.inputs[index].setOperator((Source) unconnectedNode);
 			else {
 				List<Operator.Output> missingInputs = new ArrayList<Operator.Output>(unconnectedNode.getInputs());
-				for (int missingIndex = 0; missingIndex < sinks.length; missingIndex++)
-					if (missingInputs.get(missingIndex) == null)
-						missingInputs.set(missingIndex, this.inputs[index++].getOperator().getOutput(0));
+				for (int missingIndex = 0; missingIndex < missingInputs.size(); missingIndex++)
+					if (missingInputs.get(missingIndex) == null) {
+						missingInputs.set(missingIndex, this.inputs[index].getOperator().getOutput(0));
+						break;
+					}
 				unconnectedNode.setInputs(missingInputs);
 			}
 		}
@@ -317,6 +316,13 @@ public class SopremoTestPlan {
 
 	public Input getInput(int index) {
 		return this.inputs[index];
+	}
+
+	public Input getInputForStream(JsonStream stream) {
+		for (Input input : this.inputs)
+			if (input.getOperator().getOutput(0) == stream.getSource())
+				return input;
+		return null;
 	}
 
 	public Source getInputOperator(int index) {
@@ -341,8 +347,19 @@ public class SopremoTestPlan {
 		return this.expectedOutputs[index];
 	}
 
+	public ExpectedOutput getExpectedOutputForStream(JsonStream stream) {
+		return this.expectedOutputs[getActualOutputForStream(stream).getIndex()];
+	}
+
 	public ActualOutput getActualOutput(int index) {
 		return this.actualOutputs[index];
+	}
+
+	public ActualOutput getActualOutputForStream(JsonStream stream) {
+		for (ActualOutput output : this.actualOutputs)
+			if (output.getOperator().getInput(0) == stream.getSource())
+				return output;
+		return null;
 	}
 
 	public Sink getOutputOperator(int index) {
@@ -375,8 +392,15 @@ public class SopremoTestPlan {
 
 	private transient TestPlan testPlan;
 
+	private EvaluationContext evaluationContext = new EvaluationContext();
+
+	public EvaluationContext getEvaluationContext() {
+		return evaluationContext;
+	}
+
 	public void run() {
 		SopremoPlan sopremoPlan = new SopremoPlan(this.getOutputOperators(0, this.expectedOutputs.length));
+		sopremoPlan.setContext(this.evaluationContext);
 		this.testPlan = new TestPlan(sopremoPlan.assemblePact());
 		for (Input input : this.inputs)
 			input.prepare(this.testPlan);

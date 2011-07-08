@@ -8,7 +8,6 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Stub;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.util.reflect.ReflectUtil;
 

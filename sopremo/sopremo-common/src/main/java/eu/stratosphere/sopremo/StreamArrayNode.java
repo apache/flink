@@ -110,6 +110,8 @@ public abstract class StreamArrayNode extends ContainerNode {
 		return obj == this;
 	}
 
+	public abstract boolean isEmpty();
+
 	@Override
 	public int hashCode() {
 		return 0;
@@ -176,6 +178,11 @@ public abstract class StreamArrayNode extends ContainerNode {
 		}
 
 		@Override
+		public boolean isEmpty() {
+			return !this.nodes.hasNext();
+		}
+
+		@Override
 		public Iterator<JsonNode> getElements() {
 			return this;
 		}
@@ -236,6 +243,11 @@ public abstract class StreamArrayNode extends ContainerNode {
 		public Resettable(Iterator<JsonNode> nodes) {
 			while (nodes.hasNext())
 				this.nodes.add(nodes.next());
+		}
+
+		@Override
+		public boolean isEmpty() {
+			return this.nodes.isEmpty();
 		}
 
 		@Override

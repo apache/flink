@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.base;
+package eu.stratosphere.sopremo;
 
 public enum PersistenceType {
 	HDFS, ADHOC

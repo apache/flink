@@ -1,16 +1,13 @@
 package eu.stratosphere.sopremo;
 
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.List;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
-import nl.jqno.equalsverifier.Warning;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ContainerNode;
 import org.junit.Ignore;
-import org.junit.Test;
 
 @Ignore
 public class CompactArrayNodeTest extends SopremoTest<CompactArrayNode> {

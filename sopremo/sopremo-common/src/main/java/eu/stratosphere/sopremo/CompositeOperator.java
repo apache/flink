@@ -6,13 +6,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.base.Selection;
 
 /**
  * A composite operator may be composed of several {@link ElementaryOperator}s and other CompositeOperators.<br>
  * This class should always be used as a base for new operators which would be translated to more than one PACT,
- * especially if some kind of {@link Projection} or {@link Selection} is used.
+ * especially if some kind of projection or selection is used.
  * 
  * @author Arvid Heise
  */

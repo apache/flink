@@ -1,6 +1,5 @@
-package eu.stratosphere.sopremo.base;
+package eu.stratosphere.sopremo;
 
-import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 
 public class SourceTest extends SopremoTest<Source> {

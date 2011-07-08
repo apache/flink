@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.base;
 
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -10,6 +11,7 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -19,6 +21,7 @@ public class Selection extends ElementaryOperator {
 	 * 
 	 */
 	private static final long serialVersionUID = -7687925343684319311L;
+
 	private final ConditionalExpression condition;
 
 	public Selection(ConditionalExpression condition, JsonStream input) {
@@ -80,8 +83,8 @@ public class Selection extends ElementaryOperator {
 		}
 
 		@Override
-		public void map(PactJsonObject.Key key, PactJsonObject value, Collector<PactJsonObject.Key, PactJsonObject> out) {
-			if (this.condition.evaluate(value.getValue(), this.getContext()) == BooleanNode.TRUE)
+		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+			if (this.condition.evaluate(value, this.getContext()) == BooleanNode.TRUE)
 				out.collect(key, value);
 		}
 

@@ -6,8 +6,6 @@ import java.util.Collection;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
-import eu.stratosphere.sopremo.base.Sink;
 
 /**
  * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
@@ -29,7 +27,28 @@ public class SopremoPlan {
 		this.module = new SopremoModule("plan", 0, 0);
 		for (Sink sink : sinks)
 			this.module.addInternalOutput(sink);
-		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
+	}
+
+	/**
+	 * Returns the evaluation context of this plan.
+	 * 
+	 * @return the evaluation context
+	 */
+	public EvaluationContext getContext() {
+		return this.context;
+	}
+
+	/**
+	 * Sets the evaluation context of this plan.
+	 * 
+	 * @param context
+	 *        the evaluation context
+	 */
+	public void setContext(EvaluationContext context) {
+		if (context == null)
+			throw new NullPointerException("context must not be null");
+
+		this.context = context;
 	}
 
 	/**

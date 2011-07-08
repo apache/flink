@@ -32,6 +32,7 @@ public class AggregationTest extends SopremoTest<Aggregation> {
 	public void shouldGroupTwoSources() {
 
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("dept", createPath("0", "[0]", "dept"));
@@ -72,6 +73,7 @@ public class AggregationTest extends SopremoTest<Aggregation> {
 	public void shouldGroupThreeSources() {
 
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("dept", createPath("0", "[0]", "dept"));
@@ -122,6 +124,7 @@ public class AggregationTest extends SopremoTest<Aggregation> {
 	@Test
 	public void shouldGroupWithSingleSource() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("d", createPath("[0]", "dept"));
@@ -151,6 +154,7 @@ public class AggregationTest extends SopremoTest<Aggregation> {
 	@Test
 	public void shouldPerformSimpleGroupBy() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
 		Aggregation aggregation = new Aggregation(new FunctionCall("count", EvaluableExpression.SAME_VALUE),
 			sopremoPlan.getInputOperator(0));

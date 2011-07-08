@@ -1,13 +1,19 @@
 package eu.stratosphere.sopremo.base;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.codehaus.jackson.JsonNode;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -17,6 +23,8 @@ public class Projection extends ElementaryOperator {
 	 * 
 	 */
 	private static final long serialVersionUID = 2170992457478875950L;
+
+	private static final Log LOG = LogFactory.getLog(Projection.class);
 
 	private final EvaluableExpression keyTransformation, valueTransformation;
 
@@ -109,13 +117,15 @@ public class Projection extends ElementaryOperator {
 		}
 
 		@Override
-		public void map(PactJsonObject.Key key, PactJsonObject value, Collector<PactJsonObject.Key, PactJsonObject> out) {
-			System.out.print(key + " / " + value);
+		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+			if (LOG.isDebugEnabled())
+				LOG.debug(String.format("Projecting %s/%s", key, value));
 			if (this.keyTransformation != EvaluableExpression.SAME_KEY)
-				key = PactJsonObject.keyOf(this.keyTransformation.evaluate(value.getValue(), this.getContext()));
+				key = this.keyTransformation.evaluate(value, this.getContext());
 			if (this.keyTransformation != EvaluableExpression.SAME_VALUE)
-				value = new PactJsonObject(this.valueTransformation.evaluate(value.getValue(), this.getContext()));
-			System.out.println(" -> " + key + " / " + value);
+				value = this.valueTransformation.evaluate(value, this.getContext());
+			if (LOG.isDebugEnabled())
+				LOG.debug(String.format(" to %s/%s", key, value));
 			out.collect(key, value);
 		}
 	}

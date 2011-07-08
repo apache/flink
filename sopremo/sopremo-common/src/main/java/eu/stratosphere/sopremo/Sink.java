@@ -1,10 +1,7 @@
-package eu.stratosphere.sopremo.base;
+package eu.stratosphere.sopremo;
 
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 

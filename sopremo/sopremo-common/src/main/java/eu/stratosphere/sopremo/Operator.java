@@ -230,7 +230,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 
 		this.inputs.clear();
 		for (JsonStream input : inputs)
-			this.inputs.add(input.getSource());
+			this.inputs.add(input == null ? null : input.getSource());
 	}
 
 	/**
@@ -242,10 +242,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 *        the new input
 	 */
 	public void setInput(int index, JsonStream input) {
-		if (input == null)
-			throw new NullPointerException("input must not be null");
-
-		this.inputs.set(index, input.getSource());
+		this.inputs.set(index, input == null ? null : input.getSource());
 	}
 
 	/**
@@ -260,7 +257,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 
 		this.inputs.clear();
 		for (JsonStream input : inputs)
-			this.inputs.add(input.getSource());
+			this.inputs.add(input == null ? null : input.getSource());
 	}
 
 	/**

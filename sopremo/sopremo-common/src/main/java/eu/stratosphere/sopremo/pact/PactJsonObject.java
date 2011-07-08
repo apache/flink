@@ -169,6 +169,10 @@ public class PactJsonObject implements Value {
 		throw new IllegalArgumentException(node.getClass().getSimpleName());
 	}
 
+	public static PactJsonObject valueOf(JsonNode value) {
+		return new PactJsonObject(value);
+	}
+
 	/**
 	 * A subset of possible {@link PactJsonObject}s that can be used as a PACT key.<br>
 	 * Specifically no complex json object may be used since there is no inherent order defined.<br>
@@ -196,38 +200,5 @@ public class PactJsonObject implements Value {
 		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
 			return JsonNodeComparator.INSTANCE.compare(this.getValue(), ((Key) o).getValue());
 		}
-
-		// @Override
-		// public int compareTo(eu.stratosphere.pact.common.type.Key o) {
-		// JsonNode value1 = this.getValue(), value2 = ((Key) o).getValue();
-		// return compare(value1, value2);
-		// }
-		//
-		// public static int compare(JsonNode value1, JsonNode value2) {
-		// if (value1.getClass() != value2.getClass())
-		// throw new ClassCastException();
-		// if (value1 instanceof ArrayNode)
-		// return compareArrays(value1, value2);
-		// if (value1 instanceof TextNode)
-		// return value1.getTextValue().compareTo(value2.getTextValue());
-		// if (value1 instanceof BooleanNode)
-		// return value1.getBooleanValue() == value2.getBooleanValue() ? 0 : value1.getBooleanValue() ? 1 : -1;
-		// if (value1 instanceof NumericNode)
-		// // TODO: optimize
-		// return value1.getDecimalValue().compareTo(value2.getDecimalValue());
-		//
-		// return 0;
-		// }
-		//
-		// private static int compareArrays(JsonNode value1, JsonNode value2) {
-		// if (value1.size() != value2.size())
-		// return value1.size() - value2.size();
-		// for (int index = 0, size = value1.size(); index < size; index++) {
-		// int comparisonResult = compare(value1.get(index), value2.get(index));
-		// if (comparisonResult != 0)
-		// return comparisonResult;
-		// }
-		// return 0;
-		// }
 	}
 }

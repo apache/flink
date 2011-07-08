@@ -828,8 +828,7 @@ public class TestPlan implements Closeable {
 
 	@SuppressWarnings("unchecked")
 	private void validateResults() {
-		for (final DataSinkContract<?, ?> dataSinkContract : this
-				.getDataSinks())
+		for (final DataSinkContract<?, ?> dataSinkContract : this.getDataSinks())
 			// need a format which is deserializable without configuration
 			if (dataSinkContract.getStubClass() == SequentialOutputFormat.class
 					&& this.getExpectedOutput(dataSinkContract).isInitialized()) {

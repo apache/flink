@@ -26,25 +26,29 @@ import java.util.Enumeration;
 import java.util.Iterator;
 
 import junit.framework.AssertionFailedError;
-
 import nl.jqno.equalsverifier.EqualsVerifier;
-import nl.jqno.equalsverifier.Warning;
 
+import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
+import eu.stratosphere.pact.common.contract.CrossContract;
+import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.testing.IdentityMap;
 import eu.stratosphere.pact.testing.TestPairs;
-import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.base.PersistenceType;
-import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.base.Sink;
-import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoCross;
+import eu.stratosphere.sopremo.pact.SopremoMap;
 
 /**
  * Tests {@link SopremoTestPlan}.
@@ -75,6 +79,36 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 				new SopremoTestPlan.Input(1).add(createPactJsonValue(1)));
 	}
 
+	public static class Identity extends ElementaryOperator {
+		public Identity(JsonStream input) {
+			super(input);
+		}
+
+		public static class Implementation
+				extends
+				SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				out.collect(key, value);
+			}
+		}
+	}
+
+	public static class CartesianProduct extends ElementaryOperator {
+		public CartesianProduct(JsonStream input1, JsonStream input2) {
+			super(input1, input2);
+		}
+
+		public static class Implementation
+				extends
+				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			protected void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out) {
+				out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
+			}
+		}
+	}
+
 	/**
 	 * Tests if a {@link SopremoTestPlan} can be executed.
 	 * 
@@ -84,8 +118,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	public void completeTestPasses() throws IOException {
 		final Source source = new Source(PersistenceType.HDFS, getResourcePath("SopremoTestPlan/test.json"));
 
-		final Projection projection = new Projection(EvaluableExpression.SAME_KEY, EvaluableExpression.SAME_VALUE,
-			source);
+		final Identity projection = new Identity(source);
 
 		final Sink sink = new Sink(PersistenceType.HDFS, File.createTempFile(
 			"output", null).toURI().toString(), projection);
@@ -112,8 +145,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 */
 	@Test
 	public void adhocInputAndOutputShouldTransparentlyWork() {
-		SopremoTestPlan testPlan = new SopremoTestPlan(new Projection(EvaluableExpression.SAME_KEY,
-			EvaluableExpression.SAME_VALUE, null));
+		SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
 		testPlan.getInput(0).
 			add(createPactJsonValue("test1")).
 			add(createPactJsonValue("test2"));
@@ -123,8 +155,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			.getActualOutput(0));
 
 		// explicitly check output
-		Iterator<PactJsonObject> outputIterator = testPlan.getActualOutput(0).iterator();
-		Iterator<PactJsonObject> inputIterator = testPlan.getInput(0).iterator();
+		Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> outputIterator = testPlan.getActualOutput(0)
+			.iterator();
+		Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> inputIterator = testPlan.getInput(0).iterator();
 		for (int index = 0; index < 2; index++) {
 			assertTrue("too few actual output values", outputIterator.hasNext());
 			assertTrue("too few input values", outputIterator.hasNext());
@@ -139,12 +172,11 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	}
 
 	/**
-	 * Tests if a {@link SopremoSopremoTestPlan} can be executed.
+	 * Tests if a {@link SopremoTestPlan} can be executed.
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		SopremoTestPlan testPlan = new SopremoTestPlan(new Projection(EvaluableExpression.SAME_KEY,
-			EvaluableExpression.SAME_VALUE, new Source(PersistenceType.HDFS,
+		SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(new Source(PersistenceType.HDFS,
 				getResourcePath("SopremoTestPlan/test.json"))));
 
 		testPlan.getExpectedOutput(0).setOperator(new Source(PersistenceType.HDFS,
@@ -152,61 +184,42 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		testPlan.run();
 	}
 
-	// private String getResourcePath(String resource) {
-	// try {
-	// Enumeration<URL> resources = TestPlanTest.class.getClassLoader().getResources(resource);
-	// if (resources.hasMoreElements())
-	// return resources.nextElement().toString();
-	// } catch (IOException e) {
-	// throw new IllegalStateException(e);
-	// }
-	// throw new IllegalArgumentException("no resources found");
-	// }
-	//
-	// /**
-	// * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.
-	// */
-	// @Test
-	// public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
-	// final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
-	// "Map");
-	// TestPlan testPlan = new TestPlan(map);
-	// testPlan.getInput().
-	// add(new PactInteger(1), new PactString("test1")).
-	// add(new PactInteger(2), new PactString("test2"));
-	// testPlan.getExpectedOutput().
-	// add(new PactInteger(1), new PactString("test1")).
-	// add(new PactInteger(2), new PactString("test2"));
-	// testPlan.run();
-	// }
-	//
-	// /**
-	// * Tests a {@link SopremoTestPlan} with a {@link CrossContract}.
-	// */
-	// @SuppressWarnings("unchecked")
-	// @Test
-	// public void settingValuesShouldWorkWithSourceContracts() {
-	// CrossContract<PactInteger, PactString, PactInteger, PactString, IntPair, StringPair> crossContract = new
-	// CrossContract<PactInteger, PactString, PactInteger, PactString, IntPair, StringPair>(
-	// CartesianProduct.class);
-	//
-	// TestPlan testPlan = new TestPlan(crossContract);
-	// // first and second input are added in TestPlan
-	// testPlan.getInput((DataSourceContract<PactInteger, PactString>) crossContract.getFirstInput()).
-	// add(new PactInteger(1), new PactString("test1")).
-	// add(new PactInteger(2), new PactString("test2"));
-	// testPlan.getInput((DataSourceContract<PactInteger, PactString>) crossContract.getSecondInput()).
-	// add(new PactInteger(3), new PactString("test3")).
-	// add(new PactInteger(4), new PactString("test4"));
-	//
-	// testPlan.getExpectedOutput().
-	// add(new IntPair(1, 3), new StringPair("test1", "test3")).
-	// add(new IntPair(1, 4), new StringPair("test1", "test4")).
-	// add(new IntPair(2, 3), new StringPair("test2", "test3")).
-	// add(new IntPair(2, 4), new StringPair("test2", "test4"));
-	// testPlan.run();
-	// }
-	//
+	/**
+	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.
+	 */
+	@Test
+	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
+		SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
+		testPlan.getInput(0).
+			add(createPactJsonValue("test1")).
+			add(createPactJsonValue("test2"));
+		testPlan.getExpectedOutput(0).
+			add(createPactJsonValue("test1")).
+			add(createPactJsonValue("test2"));
+		testPlan.run();
+	}
+
+	/**
+	 * Tests a {@link SopremoTestPlan} with a {@link CrossContract}.
+	 */
+	@Test
+	public void settingValuesShouldWorkWithSourceContracts() {
+		CartesianProduct cartesianProduct = new CartesianProduct(null, null);
+		SopremoTestPlan testPlan = new SopremoTestPlan(cartesianProduct);
+		testPlan.getInputForStream(cartesianProduct.getInput(0)).
+			add(createPactJsonValue("test1")).
+			add(createPactJsonValue("test2"));
+		testPlan.getInputForStream(cartesianProduct.getInput(1)).
+			add(createPactJsonValue("test3")).
+			add(createPactJsonValue("test4"));
+		testPlan.getExpectedOutputForStream(cartesianProduct.getOutput(0)).
+			add(createPactJsonArray(null, null), createPactJsonArray("test1", "test3")).
+			add(createPactJsonArray(null, null), createPactJsonArray("test1", "test4")).
+			add(createPactJsonArray(null, null), createPactJsonArray("test2", "test3")).
+			add(createPactJsonArray(null, null), createPactJsonArray("test2", "test4"));
+		testPlan.run();
+	}
+
 	// /**
 	// * Creates an output file in the temporary folder for arbitrary key/value pairs coming from the given input
 	// * contract.

@@ -18,6 +18,7 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
@@ -100,9 +101,8 @@ public class Aggregation extends MultiSourceOperator {
 		public static class Implementation extends
 				SopremoReduce<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			public void reduce(PactJsonObject.Key key, Iterator<PactJsonObject> values,
-					Collector<PactJsonObject.Key, PactJsonObject> out) {
-				out.collect(key, new PactJsonObject(JsonUtil.wrapWithNode(true, values)));
+			protected void reduce(JsonNode key1, JsonNode values, JsonCollector out) {
+				out.collect(key1, values);
 			}
 		}
 	}

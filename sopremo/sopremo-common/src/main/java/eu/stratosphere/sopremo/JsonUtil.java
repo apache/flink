@@ -77,7 +77,7 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the stream
 	 */
-	public static JsonNode wrapWithNode(boolean resettable, Iterator<PactJsonObject> objectIterator) {
+	public static StreamArrayNode wrapWithNode(boolean resettable, Iterator<PactJsonObject> objectIterator) {
 		return StreamArrayNode.valueOf(new UnwrappingIterator(objectIterator), resettable);
 	}
 

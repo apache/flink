@@ -256,7 +256,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			final StringBuilder testName = new StringBuilder();
 			StackTraceElement[] stackTrace = new Throwable().getStackTrace();
 			for (int index = stackTrace.length - 1; index > 0; index--) {
-				if(stackTrace[index].getClassName().contains("Test"))
+				if (stackTrace[index].getClassName().contains("Test"))
 					testName.append(stackTrace[index].toString());
 			}
 			// instantiate a sort-merger
@@ -357,7 +357,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			Assert.fail("More elements expected: " + expectedValuesWithCurrentKey + toString(expectedIterator));
 		if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
 			Assert.fail("Less elements expected: " + actualValuesWithCurrentKey + toString(actualIterator));
-		
+
 		close();
 		expectedValues.close();
 	}
@@ -372,8 +372,9 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			actualPair = actualIterator.next();
 			int keyComparison = actualPair.getKey().compareTo(currentKey);
 			if (keyComparison < 0)
-				throw new ArrayComparisonFailure("Unexpected values: ", new AssertionFailedError(Assert.format(" ",
-						new KeyValuePair<Key, Value>(currentKey, expectedValuesWithCurrentKey.get(0)), actualPair)),
+				throw new ArrayComparisonFailure("Unexpected values for key " + currentKey + ": ",
+					new AssertionFailedError(Assert.format(" ", new KeyValuePair<Key, Value>(currentKey,
+						expectedValuesWithCurrentKey.get(0)), actualPair)),
 					itemIndex + expectedValuesWithCurrentKey.size() - 1);
 			if (keyComparison != 0)
 				break;
@@ -385,7 +386,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			actualValuesWithCurrentKey);
 
 		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
-			throw new ArrayComparisonFailure("Unexpected values: ",
+			throw new ArrayComparisonFailure("Unexpected values for key " + currentKey + ": ",
 				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey,
 					actualValuesWithCurrentKey)), itemIndex + expectedValuesWithCurrentKey.size() - 1);
 
@@ -405,8 +406,10 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		return builder.toString();
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object) */
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean equals(final Object obj) {
@@ -465,8 +468,10 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		return this;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode() */
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;

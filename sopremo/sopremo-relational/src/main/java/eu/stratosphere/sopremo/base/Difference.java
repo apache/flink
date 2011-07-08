@@ -3,27 +3,32 @@ package eu.stratosphere.sopremo.base;
 import java.util.Iterator;
 import java.util.List;
 
+import org.codehaus.jackson.JsonNode;
+
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
-public class Union extends MultiSourceOperator {
+public class Difference extends MultiSourceOperator {
+
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -7834959246166207667L;
+	private static final long serialVersionUID = 2805583327454416554L;
 
-	public Union(List<? extends JsonStream> inputs) {
+	public Difference(List<? extends JsonStream> inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
 	}
 
-	public Union(JsonStream... inputs) {
+	public Difference(JsonStream... inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
@@ -36,43 +41,37 @@ public class Union extends MultiSourceOperator {
 
 		Operator leftInput = inputs.get(0);
 		for (int index = 1; index < inputs.size(); index++)
-			leftInput = new TwoInputUnion(leftInput, inputs.get(index));
+			leftInput = new TwoInputDifference(leftInput, inputs.get(index));
 
 		return leftInput;
 	}
 
-	public static class TwoInputUnion extends ElementaryOperator {
+	public static class TwoInputDifference extends ElementaryOperator {
 		/**
 		 * 
 		 */
-		private static final long serialVersionUID = -4170491578238695354L;
+		private static final long serialVersionUID = 2331712414222089266L;
 
-		public TwoInputUnion(JsonStream input1, JsonStream input2) {
+		public TwoInputDifference(JsonStream input1, JsonStream input2) {
 			super(input1, input2);
 		}
 
-		//
 		// @Override
 		// public PactModule asPactModule(EvaluationContext context) {
-		// CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> union
-		// =
+		// CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>
+		// difference =
 		// new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
 		// Implementation.class);
-		// return PactModule.valueOf(toString(), union);
+		// return PactModule.valueOf(toString(), difference);
 		// }
 
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1,
-					Iterator<PactJsonObject> values2,
-					Collector<PactJsonObject.Key, PactJsonObject> out) {
-				if (values1.hasNext())
-					out.collect(key, values1.next());
-				else if (values2.hasNext())
-					out.collect(key, values2.next());
+			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+				if (!values1.isEmpty() && values2.isEmpty())
+					out.collect(key, values1.get(0));
 			}
 		}
 	}
-
 }

@@ -4,8 +4,8 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Intersection;
-import eu.stratosphere.sopremo.base.Source;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
@@ -124,6 +124,7 @@ public class UnionTest extends SopremoTest<Union> {
 	@Test
 	public void shouldSupportComplexObject() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
 		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
 		union.setKeyProjection(0, createPath("name"));
