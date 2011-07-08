@@ -36,7 +36,7 @@ static jfieldID LzmaCompressor_uncompressedDataBufferLength;
 static jfieldID LzmaCompressor_compressedDataBuffer;
 static jfieldID LzmaCompressor_compressedDataBufferLength;
 
-JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_lzma_LzmaCompressor_initIDs (JNIEnv *env, jclass class){
+JNIEXPORT void JNICALL Java_eu_stratosphere_nephele_io_compression_library_lzma_LzmaCompressor_initIDs (JNIEnv *env, jclass class){
 
 	LzmaCompressor_uncompressedDataBuffer = (*env)->GetFieldID(env, class, "uncompressedDataBuffer", "Ljava/nio/ByteBuffer;");
 	LzmaCompressor_uncompressedDataBufferLength = (*env)->GetFieldID(env, class, "uncompressedDataBufferLength", "I");
@@ -45,7 +45,7 @@ JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_lzm
 	
 }
 
-JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_lzma_LzmaCompressor_compressBytesDirect (JNIEnv *env, jobject this, jint offset){
+JNIEXPORT jint JNICALL Java_eu_stratosphere_nephele_io_compression_library_lzma_LzmaCompressor_compressBytesDirect (JNIEnv *env, jobject this, jint offset){
 
         // Get members of LzoCompressor
         jobject uncompressed_buf = (*env)->GetObjectField(env, this, LzmaCompressor_uncompressedDataBuffer);
@@ -73,11 +73,13 @@ JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_lzm
         unsigned char *outProps = dest + SIZE_LENGTH;
         size_t outPropsSize = LZMA_PROPS_SIZE; 
 
-	      size_t no_compressed_bytes = compressed_buf_len;
-	      size_t no_uncompressed_bytes = uncompressed_buf_len;
+	size_t no_compressed_bytes = compressed_buf_len;
+	size_t no_uncompressed_bytes = uncompressed_buf_len;
 
-	      // Compress
-	      result = LzmaCompress(dest + SIZE_LENGTH + LZMA_PROPS_SIZE , &no_compressed_bytes, src, uncompressed_buf_len, outProps, &outPropsSize,
+	
+
+	// Compress
+	result = LzmaCompress(dest + SIZE_LENGTH + LZMA_PROPS_SIZE , &no_compressed_bytes, src, uncompressed_buf_len, outProps, &outPropsSize,
                         4, /* 0 <= level <= 9, default = 5 */
                         (1 << 18), /* use (1 << N) or (3 << N). 4 KB < dictSize <= 128 MB */
                         3, /* 0 <= lc <= 8, default = 3  */
