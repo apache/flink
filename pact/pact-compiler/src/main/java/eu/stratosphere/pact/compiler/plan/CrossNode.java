@@ -52,7 +52,7 @@ public class CrossNode extends TwoInputNode {
 	public CrossNode(CrossContract<?, ?, ?, ?, ?, ?> pactContract) {
 		super(pactContract);
 
-		Configuration conf = getPactContract().getStubParameters();
+		Configuration conf = getPactContract().getParameters();
 		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
 
 		if (localStrategy != null) {

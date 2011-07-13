@@ -15,23 +15,24 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
+import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
-import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -40,15 +41,17 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * DataSinkTask which is executed by a Nephele task manager.
- * The task writes data to files and uses an OutputFormat to serialize KeyValuePairs to a binary data stream.
- * Currently, the distributed Hadoop Filesystem (HDFS) is the only supported data storage.
+ * The task hands the data to an output format.
  * 
  * @see eu.stratosphere.pact.common.io.OutputFormat
+ * 
  * @author Fabian Hueske
  */
 @SuppressWarnings( { "unchecked", "rawtypes" })
-public class DataSinkTask extends AbstractFileOutputTask {
-
+public class DataSinkTask extends AbstractOutputTask
+{
+	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
+	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
 
@@ -59,7 +62,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	private OutputFormat format;
 
 	// task configuration
-	private DataSinkConfig config;
+	private TaskConfig config;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -91,68 +94,59 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
 
-		final Path path = getFileOutputPath();
 		final RecordReader<KeyValuePair<Key, Value>> reader = this.reader;
 		final OutputFormat format = this.format;
-
-		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(path, 
-			this.getEnvironment().getIndexInSubtaskGroup() + 1, 10000);
-		opot.start();
-		
-		FSDataOutputStream fdos = null;
 		
 		try {
-			// get FSDataOutputStream
-			fdos = opot.getFSDataOutputStream();
-
 			// check if task has been canceled
 			if (this.taskCanceled) {
 				return;
 			}
 
 			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Start writing output to " + path.toString()));
+				LOG.debug(getLogString("Starting to produce output"));
 
-			format.setOutput(fdos);
-			format.open();
+			// open
+			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
 
-			while (!this.taskCanceled && reader.hasNext()) {
+			// work
+			while (!this.taskCanceled && reader.hasNext())
+			{
 				KeyValuePair pair = reader.next();
-				format.writePair(pair);
+				format.writeRecord(pair);
+			}
+			
+			// close. We close here such that a regular close throwing an exception marks a task as failed.
+			if (!this.taskCanceled) {
+				this.format.close();
+				this.format = null;
 			}
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
 				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Unexpected ERROR in PACT code"));
+					LOG.error(getLogString("Error in Pact user code: " + ex.getMessage()), ex);
 				throw ex;
 			}
-				
 		}
 		finally {
-			
 			if (this.format != null) {
-				// close format
+				// close format, if it has not been closed, yet.
+				// This should only be the case if we had a previous error, or were cancelled.
 				try {
 					this.format.close();
 				}
-				catch (Throwable t) {}
-			}
-				
-			if (fdos != null) {
-				// close file stream
-				try {
-					fdos.close();
+				catch (Throwable t) {
+					if (LOG.isWarnEnabled())
+						LOG.warn(getLogString("Error closing the ouput format."), t);
 				}
-				catch (Throwable t) {}
 			}
 		}
 
 		if (!this.taskCanceled) {
 			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Finished writing output to " + path.toString()));
+				LOG.debug(getLogString("Finished producing output"));
 
 			if (LOG.isInfoEnabled())
 				LOG.info(getLogString("Finished PACT code"));
@@ -185,26 +179,35 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	private void initOutputFormat()
 	{
 		// obtain task configuration (including stub parameters)
-		config = new DataSinkConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
 		ClassLoader cl;
 		try {
 			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends OutputFormat> formatClass = config.getStubClass(OutputFormat.class, cl);
+			Class<? extends OutputFormat> formatClass = this.config.getStubClass(OutputFormat.class, cl);
 			// obtain instance of stub implementation
 			this.format = formatClass.newInstance();
-			// configure stub implementation
-			this.format.configure(this.config.getStubParameters());
-
-		} catch (IOException ioe) {
+		}
+		catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		} catch (ClassNotFoundException cnfe) {
+		}
+		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("OutputFormat implementation class was not found.", cnfe);
-		} catch (InstantiationException ie) {
+		}
+		catch (InstantiationException ie) {
 			throw new RuntimeException("OutputFormat implementation could not be instanciated.", ie);
-		} catch (IllegalAccessException iae) {
+		}
+		catch (IllegalAccessException iae) {
 			throw new RuntimeException("OutputFormat implementations nullary constructor is not accessible.", iae);
+		}
+		
+		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
+		try {
+			this.format.configure(this.config.getStubParameters());
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
 		}
 	}
 
@@ -218,7 +221,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	{
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(
-			format.getOutKeyType(), format.getOutValueType());
+			this.format.getKeyType(), format.getValueType());
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
@@ -236,153 +239,69 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
 
 	}
-
-	public static class DataSinkConfig extends TaskConfig {
-
-		private static final String FORMAT_CLASS = "formatClass";
-
-		private static final String FILE_PATH = "outputPath";
-
-		public DataSinkConfig(Configuration config) {
-			super(config);
-		}
-
-		@Override
-		public void setStubClass(Class<? extends Stub<?, ?>> formatClass) {
-			config.setString(FORMAT_CLASS, formatClass.getName());
-		}
-
-		@Override
-		public <T extends Stub<?, ?>> Class<? extends T> getStubClass(Class<T> formatClass, ClassLoader cl)
-				throws ClassNotFoundException {
-			String formatClassName = config.getString(FORMAT_CLASS, null);
-			if (formatClassName == null) {
-				throw new IllegalStateException("format class missing");
-			}
-
-			return Class.forName(formatClassName, true, cl).asSubclass(formatClass);
-		}
-
-		public void setFilePath(String filePath) {
-			config.setString(FILE_PATH, filePath);
-		}
-
-		public String getFilePath() {
-			return config.getString(FILE_PATH, null);
-		}
-	}
-
+	
+	// ------------------------------------------------------------------------
+	//                     Degree of parallelism & checks
+	// ------------------------------------------------------------------------
+	
 	/**
-	 * Obtains a DataOutputStream in an thread that is not interrupted.
-	 * The HDFS client is very sensitive to InterruptedExceptions.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * {@inheritDoc}
 	 */
-	public static class OutputPathOpenThread extends Thread {
-
-		private final Object lock = new Object();
+	@Override
+	public int getMaximumNumberOfSubtasks()
+	{
+		if (!(this.format instanceof FileOutputFormat)) {
+			return -1;
+		}
 		
-		private final Path path;
+		// ----------------- This code applies only to file inputs ------------------
 		
-		private final long timeoutMillies;
-
-		private final int taskIndex;
-
-		private volatile FSDataOutputStream fdos;
-
-		private volatile Exception exception;
+		final String pathName = this.config.getStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, null);
+		final Path path;
 		
-		private volatile boolean canceled = false;
+		if (pathName == null) {
+			return 0;
+		}
 		
-
-		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
-			this.path = path;
-			this.timeoutMillies = timeoutMillies;
-			this.taskIndex = taskIndex;
+		try {
+			path = new Path(pathName);
+		}
+		catch (Throwable t) {
+			return 0;
 		}
 
-		@Override
-		public void run() {
-			
+		// Check if the path is valid
+		try {
+			final FileSystem fs = path.getFileSystem();
 			try {
-				final FileSystem fs = path.getFileSystem();
-				Path p = this.path;
-				
-				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
-					// write output in directory
-					p = this.path.suffix("/" + this.taskIndex);
+				final FileStatus f = fs.getFileStatus(path);
+				if (f == null) {
+					return 1;
 				}
-				
-				final FSDataOutputStream stream = fs.create(p, true);
-
-				// create output file
-				synchronized (this.lock) {
-					this.lock.notifyAll();
-					
-					if (!this.canceled) {
-						this.fdos = stream;
-					}
-					else {
-						this.fdos = null;
-						stream.close();
-					}
-				}
+				// If the path points to a directory we allow an infinity number of subtasks
+				if (f.isDir())
+					return -1;
+				else
+					return 1;
 			}
-			catch (Exception t) {
-				synchronized (this.lock) {
-					this.canceled = true;
-					this.exception = t;
+			catch (FileNotFoundException fnfex) {
+				// The exception is thrown if the requested file/directory does not exist.
+				// if the degree of parallelism is > 1, we create a directory for this path
+				int dop = getRuntimeConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
+				if (dop == 1) {
+					// a none existing file and a degree of parallelism that is one
+					return 1;
 				}
+
+				// a degree of parallelism greater one, or an unspecified one. in all cases, create a directory
+				// the output
+				fs.mkdirs(path);
+				return -1;
 			}
 		}
-
-		public FSDataOutputStream getFSDataOutputStream()
-		throws Exception
-		{
-			long start = System.currentTimeMillis();
-			long remaining = this.timeoutMillies;
-			
-			if (this.exception != null) {
-				throw this.exception;
-			}
-			if (this.fdos != null) {
-				return this.fdos;
-			}
-			
-			synchronized (this.lock) {
-				do {
-					try {
-						this.lock.wait(remaining);
-					}
-					catch (InterruptedException iex) {
-						this.canceled = true;
-						if (this.fdos != null) {
-							try  {
-								this.fdos.close();
-							} catch (Throwable t) {}
-						}
-						throw new Exception("Output Path Opener was interrupted.");
-					}
-				}
-				while (this.exception == null && this.fdos == null &&
-						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
-			
-				if (this.exception != null) {
-					if (this.fdos != null) {
-						try  {
-							this.fdos.close();
-						} catch (Throwable t) {}
-					}
-					throw this.exception;
-				}
-				
-				if (this.fdos != null) {
-					return this.fdos;
-				}
-			}
-			
-			// try to forcefully shut this thread down
-			throw new Exception("Output Path Opener timed out.");
+		catch (IOException e) {
+			// any other kind of I/O exception: we assume only a degree of one here
+			return 1;
 		}
 	}
 
@@ -403,7 +322,7 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('"');
+		bld.append(' ').append('(');
 		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
 		bld.append('/');
 		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());

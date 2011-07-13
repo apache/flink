@@ -24,7 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceManager;
-import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
+import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -47,30 +47,33 @@ public class JobManagerUtils {
 
 	/**
 	 * Tries to locate a class with given name and to
-	 * instantiate a {@link Scheduler} object from it.
+	 * instantiate a {@link AbstractScheduler} object from it.
 	 * 
 	 * @param schedulerClassName
 	 *        the name of the class to instantiate the scheduler object from
+	 * @param deploymentManager
+	 *        the deployment manager which shall be passed on to the scheduler
 	 * @param instanceManager
-	 *        the instance manager which shall be passed on the the scheduler
-	 * @return the {@link Scheduler} object instantiated from the class with the provided name
+	 *        the instance manager which shall be passed on to the scheduler
+	 * @return the {@link AbstractScheduler} object instantiated from the class with the provided name
 	 */
 	@SuppressWarnings("unchecked")
-	public static Scheduler loadScheduler(String schedulerClassName, InstanceManager instanceManager) {
+	public static AbstractScheduler loadScheduler(final String schedulerClassName, final DeploymentManager deploymentManager,
+			final InstanceManager instanceManager) {
 
-		Class<? extends Scheduler> schedulerClass;
+		Class<? extends AbstractScheduler> schedulerClass;
 		try {
-			schedulerClass = (Class<? extends Scheduler>) Class.forName(schedulerClassName);
+			schedulerClass = (Class<? extends AbstractScheduler>) Class.forName(schedulerClassName);
 		} catch (ClassNotFoundException e) {
 			LOG.error("Cannot find class " + schedulerClassName + ": " + StringUtils.stringifyException(e));
 			return null;
 		}
 
-		Constructor<? extends Scheduler> constructor;
+		Constructor<? extends AbstractScheduler> constructor;
 
 		try {
 
-			Class<?>[] constructorArgs = { InstanceManager.class };
+			Class<?>[] constructorArgs = { DeploymentManager.class, InstanceManager.class };
 			constructor = schedulerClass.getConstructor(constructorArgs);
 		} catch (NoSuchMethodException e) {
 			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
@@ -80,10 +83,10 @@ public class JobManagerUtils {
 			return null;
 		}
 
-		Scheduler scheduler;
+		AbstractScheduler scheduler;
 
 		try {
-			scheduler = constructor.newInstance(instanceManager);
+			scheduler = constructor.newInstance(deploymentManager, instanceManager);
 		} catch (InstantiationException e) {
 			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
 			return null;
@@ -136,13 +139,13 @@ public class JobManagerUtils {
 	}
 
 	/**
-	 * Tries to read the class name of the {@link Scheduler} implementation from the global configuration which is set
+	 * Tries to read the class name of the {@link AbstractScheduler} implementation from the global configuration which is set
 	 * to be
 	 * used for the provided execution mode.
 	 * 
 	 * @param executionMode
 	 *        the name of the Nephele execution mode
-	 * @return the class name of the {@link Scheduler} implementation to be used or <code>null</code> if no
+	 * @return the class name of the {@link AbstractScheduler} implementation to be used or <code>null</code> if no
 	 *         implementation is configured for the given execution mode
 	 */
 	public static String getSchedulerClassName(String executionMode) {

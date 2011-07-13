@@ -123,6 +123,9 @@
 					<forkMode>always</forkMode>
 					<threadCount>1</threadCount>
 					<perCoreThreadCount>false</perCoreThreadCount>
+					<excludes>
+						<exclude>**/CrossITCase.class</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
       

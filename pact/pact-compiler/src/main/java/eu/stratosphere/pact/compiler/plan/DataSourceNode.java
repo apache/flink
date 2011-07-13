@@ -19,12 +19,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -41,10 +40,9 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class DataSourceNode extends OptimizerNode {
+public class DataSourceNode extends OptimizerNode
+{
 	private List<DataSourceNode> cachedPlans; // the cache in case there are multiple outputs;
-
-	private long fileSize = -1; // the size of the input file. unknown by default.
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -52,7 +50,7 @@ public class DataSourceNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The data source contract object.
 	 */
-	public DataSourceNode(DataSourceContract<?, ?> pactContract) {
+	public DataSourceNode(GenericDataSource<?, ?> pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
@@ -69,35 +67,6 @@ public class DataSourceNode extends OptimizerNode {
 	 */
 	protected DataSourceNode(DataSourceNode template, GlobalProperties gp, LocalProperties lp) {
 		super(template, gp, lp);
-		this.fileSize = template.fileSize;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#determineOutputContractFromStub()
-	 */
-	// @Override
-	// protected OutputContract determineOutputContractFromStub()
-	// {
-	// return OutputContract.getOutputContract(getPactContract().getOutputContract());
-	// }
-
-	/**
-	 * Gets the size of the input file.
-	 * 
-	 * @return The size of the input file, or -1, if the size is unknown.
-	 */
-	public long getFileSize() {
-		return this.fileSize;
-	}
-
-	/**
-	 * Gets the fully qualified path to the input file.
-	 * 
-	 * @return The path to the input file.
-	 */
-	public String getFilePath() {
-		return getPactContract().getFilePath();
 	}
 
 	/**
@@ -105,8 +74,8 @@ public class DataSourceNode extends OptimizerNode {
 	 * 
 	 * @return The contract.
 	 */
-	public DataSourceContract<?, ?> getPactContract() {
-		return (DataSourceContract<?, ?>) super.getPactContract();
+	public GenericDataSource<?, ?> getPactContract() {
+		return (GenericDataSource<?, ?>) super.getPactContract();
 	}
 
 	/*
@@ -150,7 +119,8 @@ public class DataSourceNode extends OptimizerNode {
 	 * based on the file size and the compiler hints. The compiler hints are instantiated with
 	 * conservative default values which are used if no other values are provided.
 	 */
-	public void computeOutputEstimates(DataStatistics statistics) {
+	public void computeOutputEstimates(DataStatistics statistics)
+	{
 		CompilerHints hints = getPactContract().getCompilerHints();
 		
 		// for unique keys, we can have only one value per key
@@ -158,48 +128,72 @@ public class DataSourceNode extends OptimizerNode {
 		if (oc == OutputContract.UniqueKey) {
 			hints.setAvgNumValuesPerKey(1.0f);
 		}
-
-		// see, if we have a statistics object that can tell us a bit about the file
-		if (statistics != null) {
-			// instantiate the input format, as this is needed by the statistics 
-			InputFormat<?, ?> format = null;
-			try {
-				Class<? extends InputFormat<?, ?>> formatClass = getPactContract().getStubClass();
-				format = formatClass.newInstance();
-				format.configure(getPactContract().getFormatParameters());
-			}
-			catch (Throwable t) {
-				LogFactory.getLog(PactCompiler.class).warn("Could not instantiate input format for statistics sampling."
-						+ " Limited statistics will be available.", t);
-			}
-			
-			DataStatistics.BasicFileStatistics bfs = statistics.getFileStatistics(getFilePath(), format);
-
-			long len = bfs.getFileSize();
-			if (len == DataStatistics.UNKNOWN) {
-				PactCompiler.LOG.warn("Pact compiler could not determine the size of file '" + getFilePath() + "'.");
-				this.fileSize = -1;
-			} else if (len >= 0) {
-				this.fileSize = len;
-			}
-
-			float avgBytes = bfs.getAvgBytesPerRecord();
-			if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
-				hints.setAvgBytesPerRecord(avgBytes);
-			}
-		} else {
-			this.fileSize = -1;
-		}
-
-		// the output size is equal to the file size
-		this.estimatedOutputSize = getFileSize();
-
-		// initialize the others to unknown
+		
+		// initialize basic estimates to unknown
+		this.estimatedOutputSize = -1;
 		this.estimatedNumRecords = -1;
 		this.estimatedKeyCardinality = -1;
 
+		// see, if we have a statistics object that can tell us a bit about the file
+		if (statistics != null)
+		{
+			// instantiate the input format, as this is needed by the statistics 
+			InputFormat<?, ?, ?> format = null;
+			String inFormatDescription = "<unknown>";
+			
+			try {
+				Class<? extends InputFormat<?, ?, ?>> formatClass = getPactContract().getFormatClass();
+				format = formatClass.newInstance();
+				format.configure(getPactContract().getParameters());
+			}
+			catch (Throwable t) {
+				if (PactCompiler.LOG.isWarnEnabled())
+					PactCompiler.LOG.warn("Could not instantiate input format to obtain statistics."
+						+ " Limited statistics will be available.", t);
+				return;
+			}
+			try {
+				inFormatDescription = format.toString();
+			}
+			catch (Throwable t) {}
+			
+			// first of all, get the statistics from the cache
+			final String statisticsKey = getPactContract().getParameters().getString(InputFormat.STATISTICS_CACHE_KEY, null);
+			final BaseStatistics cachedStatistics = statistics.getBaseStatistics(statisticsKey);
+			
+			BaseStatistics bs = null;
+			try {
+				bs = format.getStatistics(cachedStatistics);
+			}
+			catch (Throwable t) {
+				if (PactCompiler.LOG.isWarnEnabled())
+					PactCompiler.LOG.warn("Error obtaining statistics from input format: " + t.getMessage(), t);
+			}
+			
+			if (bs != null) {
+				final long len = bs.getTotalInputSize();
+				if (len == BaseStatistics.UNKNOWN) {
+					if (PactCompiler.LOG.isWarnEnabled())
+						PactCompiler.LOG.warn("Pact compiler could not determine the size of input '" + inFormatDescription + "'.");
+				}
+				else if (len >= 0) {
+					this.estimatedOutputSize = len;
+				}
+
+				final float avgBytes = bs.getAverageRecordWidth();
+				if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
+					hints.setAvgBytesPerRecord(avgBytes);
+				}
+				
+				final long card = bs.getNumberOfRecords();
+				if (card != BaseStatistics.UNKNOWN) {
+					this.estimatedNumRecords = card;
+				}
+			}
+		}
+
 		// the estimated number of rows is depending on the average row width
-		if (hints.getAvgBytesPerRecord() >= 1.0f && this.estimatedOutputSize > 0) {
+		if (this.estimatedNumRecords == -1 && hints.getAvgBytesPerRecord() >= 1.0f && this.estimatedOutputSize > 0) {
 			this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerRecord()) + 1;
 		}
 
@@ -265,7 +259,7 @@ public class DataSourceNode extends OptimizerNode {
 		DataSourceNode candidate = new DataSourceNode(this, gp, lp);
 
 		// compute the costs
-		candidate.setCosts(new Costs(0, this.fileSize));
+		candidate.setCosts(new Costs(0, this.estimatedOutputSize));
 
 		// since there is only a single plan for the data-source, return a list with that element only
 		List<DataSourceNode> plans = Collections.singletonList(candidate);

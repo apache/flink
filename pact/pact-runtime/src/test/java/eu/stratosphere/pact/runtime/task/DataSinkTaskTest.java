@@ -63,7 +63,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		
 		DataSinkTask testTask = new DataSinkTask();
 		
-		super.registerTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
 		
 		try {
 			testTask.invoke();
@@ -121,7 +121,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		DataSinkTask testTask = new DataSinkTask();
 		
-		super.registerTask(testTask, MockFailingOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+tempTestPath);
 		
 		boolean stubFailed = false;
 		
@@ -147,7 +147,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		
 		final DataSinkTask testTask = new DataSinkTask();
 		
-		super.registerTask(testTask, MockOutputFormat.class,  "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+tempTestPath);
 		
 		Thread taskRunner = new Thread() {
 			public void run() {

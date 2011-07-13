@@ -39,8 +39,8 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -774,12 +774,12 @@ public class PactCompiler {
 			OptimizerNode n = null;
 
 			// create a node for the pact (or sink or source) if we have not been here before
-			if (c instanceof DataSinkContract<?, ?>) {
-				DataSinkNode dsn = new DataSinkNode((DataSinkContract<?, ?>) c);
+			if (c instanceof FileDataSinkContract<?, ?>) {
+				DataSinkNode dsn = new DataSinkNode((FileDataSinkContract<?, ?>) c);
 				sinks.add(dsn);
 				n = dsn;
-			} else if (c instanceof DataSourceContract<?, ?>) {
-				DataSourceNode dsn = new DataSourceNode((DataSourceContract<?, ?>) c);
+			} else if (c instanceof FileDataSourceContract<?, ?>) {
+				DataSourceNode dsn = new DataSourceNode((FileDataSourceContract<?, ?>) c);
 				sources.add(dsn);
 				n = dsn;
 			} else if (c instanceof MapContract<?, ?, ?, ?>) {
@@ -1460,7 +1460,7 @@ public class PactCompiler {
 				// instead of temping connection duplicate DataSourceNode
 				
 				// duplicate DataSourceNode
-				DataSourceNode duplicateDataSource = new DataSourceNode((DataSourceContract<?, ?>)sourcePact.getPactContract());
+				DataSourceNode duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				
