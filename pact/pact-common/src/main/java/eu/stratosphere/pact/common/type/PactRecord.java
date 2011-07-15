@@ -106,6 +106,30 @@ public final class PactRecord implements IOReadableWritable
 	{
 	}
 	
+	public void removeField(int field) {
+		
+	}
+	
+	public void project(long mask) {
+		
+	}
+	
+	public void project(long[] mask) {
+		
+	}
+	
+	public void setNull(int field) {
+		
+	}
+	
+	public void setNull(long fields) {
+		
+	}
+	
+	public void setNull(long[] fields) {
+		
+	}
+	
 	public void clear()
 	{
 		
@@ -123,7 +147,9 @@ public final class PactRecord implements IOReadableWritable
 	
 	public PactRecord createCopy()
 	{
-		return null;
+		final PactRecord rec = new PactRecord();
+		copyTo(rec);
+		return rec;
 	}
 	
 	// --------------------------------------------------------------------------------------------

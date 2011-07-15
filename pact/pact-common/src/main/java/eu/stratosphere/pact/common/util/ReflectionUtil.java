@@ -36,6 +36,11 @@ public class ReflectionUtil {
 		return (Class<T>) getSuperTemplateTypes(clazz)[num];
 	}
 	
+	@SuppressWarnings("unchecked")
+	public static <T> Class<T> getTemplateType(Class<?> clazz, Class<?> classWithParameter, int num) {
+		return (Class<T>) getSuperTemplateTypes(clazz)[num];
+	}
+	
 	public static <T> Class<T> getTemplateType1(Class<?> clazz) {
 		return getTemplateType(clazz, 0);
 	}
@@ -83,10 +88,36 @@ public class ReflectionUtil {
 			clazz = clazz.getSuperclass();
 		}
 	}
+	
+	public static Class<?>[] getSuperTemplateTypes(Class<?> clazz, Class<?> searchedSuperClass)
+	{
+		if (clazz == null || searchedSuperClass == null) {
+			throw new NullPointerException();
+		}
+		
+		Class<?> superClass = null;
+		do {
+			superClass = clazz.getSuperclass();
+			if (superClass == searchedSuperClass) {
+				break;
+			}
+		}
+		while ((clazz = superClass) != null);
+		
+		if (clazz == null) {
+			throw new IllegalArgumentException("The searched for superclass is not a superclass of the given class.");
+		}
+		
+		final Type type = clazz.getGenericSuperclass();
+		if (type instanceof ParameterizedType) {
+			return getTemplateTypes((ParameterizedType) type);
+		}
+		else {
+			throw new IllegalArgumentException("The searched for superclass is not a generic class.");
+		}
+	}
 
-	public static Class<?>[] getTemplateTypes(ParameterizedType type) {
-		assert (type instanceof ParameterizedType);
-		ParameterizedType paramterizedType = (ParameterizedType) type;
+	public static Class<?>[] getTemplateTypes(ParameterizedType paramterizedType) {
 		Class<?>[] types = new Class<?>[paramterizedType.getActualTypeArguments().length];
 		int i = 0;
 		for (Type templateArgument : paramterizedType.getActualTypeArguments()) {

@@ -24,7 +24,7 @@ import eu.stratosphere.pact.common.type.Value;
  * implementation for each individual input key-value pair. For details on the
  * Map PACT read the documentation of the PACT programming model.
  * <p>
- * The MapStub extension must be parametrized with the types of its input and output keys and values.
+ * The MapStub extension must be parameterized with the types of its input and output keys and values.
  * <p>
  * For a mapper implementation, the <code>map()</code> method must be implemented.
  * 

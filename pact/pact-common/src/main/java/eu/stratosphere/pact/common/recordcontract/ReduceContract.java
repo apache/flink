@@ -21,6 +21,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import eu.stratosphere.pact.common.recordstubs.ReduceStub;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 
 /**
@@ -34,7 +36,111 @@ import eu.stratosphere.pact.common.recordstubs.ReduceStub;
  * @see ReduceStub
  */
 public class ReduceContract extends SingleInputContract<ReduceStub<?>>
-{
+{	
+	private static final String DEFAULT_NAME = "<Unnamed Reducer>";	// the default name for contracts
+	
+	private Class<? extends Key> keyClass;							// the class of the key
+	
+	private final int keyFieldNumber;								// the position of the key field in the record
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation
+	 * and a default name.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 */
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int keyColumn) {
+		this(c, keyColumn, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
+	 * and the given name. 
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int keyColumn, String name) {
+		super(c, name);
+		this.keyFieldNumber = keyColumn;
+		this.keyClass = ReflectionUtil.getTemplateType(c, ReduceStub.class, 0);
+	}
+
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
+	 * It uses the given contract as its input.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param input The contract to use as the input.
+	 */
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int keyColumn, Contract input) {
+		this(c, keyColumn, input, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
+	 * It uses the given contract as its input.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param input The contract to use as the input.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int keyColumn, Contract input, String name) {
+		this(c, keyColumn, name);
+		setInput(input);
+	}
+	
+	/**
+	 * Gets the column number of the key in the input records.
+	 *  
+	 * @return The column number of the key field.
+	 */
+	public int getKeyColumnNumber()
+	{
+		return this.keyFieldNumber;
+	}
+	
+	/**
+	 * Gets the type of the key field on which this reduce contract groups.
+	 * 
+	 * @return The type of the key field.
+	 */
+	public Class<? extends Key> getKeyClass()
+	{
+		return this.keyClass;
+	}
+	
+	/**
+	 * Sets the type of the key field on which this reduce contract groups.
+	 * 
+	 * @param clazz The type of the key field.
+	 */
+	public void setKeyClass(Class<? extends Key> clazz)
+	{
+		this.keyClass = clazz;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
+	 * The annotation indicates that the contract's {@link ReduceStub} implements the 
+	 * {@link ReduceStub#combine(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.recordstubs.Collector)}
+	 * method.
+	 * 
+	 * @return True, if the ReduceContract is combinable, false otherwise.
+	 */
+	public boolean isCombinable()
+	{
+		return getStubClass().getAnnotation(Combinable.class) != null;
+	}
+	
 	/**
 	 * This annotation marks reduce stubs as eligible for the usage of a combiner.
 	 * 
@@ -74,69 +180,4 @@ public class ReduceContract extends SingleInputContract<ReduceStub<?>>
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
 	public @interface Combinable {};
-	
-	private static String DEFAULT_NAME = "<Unnamed Reducer>";
-
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation
-	 * and a default name.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 */
-	public ReduceContract(Class<? extends ReduceStub<?>> c) {
-		super(c, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
-	 * and the given name. 
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param name The name of PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub<?>> c, String name) {
-		super(c, name);
-	}
-
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
-	 * It uses the given contract as its input.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param input The contract to use as the input.
-	 */
-	public ReduceContract(Class<? extends ReduceStub<?>> c, Contract input) {
-		this(c, DEFAULT_NAME);
-		setInput(input);
-	}
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
-	 * It uses the given contract as its input.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param input The contract to use as the input.
-	 * @param name The name of PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub<?>> c, Contract input, String name) {
-		this(c, name);
-		setInput(input);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
-	 * The annotation indicates that the contract's {@link ReduceStub} implements the 
-	 * {@link ReduceStub#combine(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.recordstubs.Collector)}
-	 * method.
-	 * 
-	 * @return True, if the ReduceContract is combinable, false otherwise.
-	 */
-	public boolean isCombinable()
-	{
-		return getStubClass().getAnnotation(Combinable.class) != null;
-	}
 }

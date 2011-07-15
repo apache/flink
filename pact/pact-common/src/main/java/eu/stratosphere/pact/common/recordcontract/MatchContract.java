@@ -16,6 +16,8 @@
 package eu.stratosphere.pact.common.recordcontract;
 
 import eu.stratosphere.pact.common.recordstubs.MatchStub;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 
 /**
@@ -31,16 +33,23 @@ import eu.stratosphere.pact.common.recordstubs.MatchStub;
  */
 public class MatchContract extends DualInputContract<MatchStub<?>>
 {	
-	private static String DEFAULT_NAME = "<Unnamed Matcher>";
+	private static String DEFAULT_NAME = "<Unnamed Matcher>";		// the default name for contracts
+	
+	private Class<? extends Key> keyClass;							// the class of the key
+	
+	private final int keyFieldNumber;								// the position of the key field in the record
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Creates a MatchContract with the provided {@link MatchStub} implementation
 	 * and a default name.
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyColumn The position of the key in the input records.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c) {
-		this(c, DEFAULT_NAME);
+	public MatchContract(Class<? extends MatchStub<?>> c, int keyColumn) {
+		this(c, keyColumn, DEFAULT_NAME);
 	}
 	
 	/**
@@ -48,10 +57,13 @@ public class MatchContract extends DualInputContract<MatchStub<?>>
 	 * and the given name. 
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyColumn The position of the key in the input records.
 	 * @param name The name of PACT.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c, String name) {
+	public MatchContract(Class<? extends MatchStub<?>> c, int keyColumn, String name) {
 		super(c, name);
+		this.keyFieldNumber = keyColumn;
+		this.keyClass = ReflectionUtil.getTemplateType(c, MatchStub.class, 0);
 	}
 
 	/**
@@ -59,11 +71,12 @@ public class MatchContract extends DualInputContract<MatchStub<?>>
 	 * It uses the given contract as its input.
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyColumn The position of the key in the input records.
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c, Contract input1, Contract input2) {
-		this(c, input1, input2, DEFAULT_NAME);
+	public MatchContract(Class<? extends MatchStub<?>> c, int keyColumn, Contract input1, Contract input2) {
+		this(c, keyColumn, input1, input2, DEFAULT_NAME);
 	}
 	
 	/**
@@ -71,13 +84,44 @@ public class MatchContract extends DualInputContract<MatchStub<?>>
 	 * It uses the given contract as its input.
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyColumn The position of the key in the input records.
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 * @param name The name of PACT.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c, Contract input1, Contract input2, String name) {
-		this(c, name);
+	public MatchContract(Class<? extends MatchStub<?>> c, int keyColumn, Contract input1, Contract input2, String name) {
+		this(c, keyColumn, name);
 		setFirstInput(input1);
 		setSecondInput(input2);
+	}
+	
+	/**
+	 * Gets the column number of the key in the input records.
+	 *  
+	 * @return The column number of the key field.
+	 */
+	public int getKeyColumnNumber()
+	{
+		return this.keyFieldNumber;
+	}
+	
+	/**
+	 * Gets the type of the key field on which this reduce contract groups.
+	 * 
+	 * @return The type of the key field.
+	 */
+	public Class<? extends Key> getKeyClass()
+	{
+		return this.keyClass;
+	}
+	
+	/**
+	 * Sets the type of the key field on which this reduce contract groups.
+	 * 
+	 * @param clazz The type of the key field.
+	 */
+	public void setKeyClass(Class<? extends Key> clazz)
+	{
+		this.keyClass = clazz;
 	}
 }

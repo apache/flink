@@ -172,7 +172,7 @@ public class NewWordCount implements PlanAssembler, PlanAssemblerDescription
 
 		FileDataSource source = new FileDataSource(LineInFormat.class, dataInput, "Input Lines");
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
-		ReduceContract reducer = new ReduceContract(CountWords.class, mapper, "Count Words");
+		ReduceContract reducer = new ReduceContract(CountWords.class, 0, mapper, "Count Words");
 		FileDataSink out = new FileDataSink(WordCountOutFormat.class, output, reducer, "Output");
 		
 		out.setDegreeOfParallelism(1); // write into a single file
