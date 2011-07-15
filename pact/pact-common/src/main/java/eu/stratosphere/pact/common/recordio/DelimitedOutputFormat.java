@@ -13,18 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.common.recordio;
 
-import eu.stratosphere.nephele.types.Record;
+
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.type.PactRecord;
+
 
 /**
- * This interface has to be implemented by all data types that act as values. Values are consumed
- * and produced by user functions (PACT stubs) that run inside PACTs.
- * <p>
- * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
- * the serialization of its value.
  * 
- * @see eu.stratosphere.nephele.io.IOReadableWritable
  */
-public interface Value extends Record {
+public abstract class DelimitedOutputFormat extends FileOutputFormat
+{
+
+	public abstract byte[] serializeRecord(PactRecord rec, byte[] target) throws Exception;
+	
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
+	 */
+	@Override
+	public void writeRecord(PactRecord record) throws IOException
+	{
+
+	}
+
 }

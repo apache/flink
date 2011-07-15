@@ -111,7 +111,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 
 	/**
 	 * Counts the number of values for a given key. Hence, the number of
-	 * occurences of a given token (word) is computed and emitted. The key is
+	 * occurrences of a given token (word) is computed and emitted. The key is
 	 * not modified, hence a SameKey OutputContract is attached to this class.
 	 */
 	@SameKey
@@ -161,6 +161,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		MapContract<PactNull, PactString, PactString, PactInteger> mapper = new MapContract<PactNull, PactString, PactString, PactInteger>(
 				TokenizeLine.class, "Tokenize Lines");
 		mapper.setDegreeOfParallelism(noSubTasks);
+		mapper.getParameters().setString("model-file-path", "/var/...");
 
 		ReduceContract<PactString, PactInteger, PactString, PactInteger> reducer = new ReduceContract<PactString, PactInteger, PactString, PactInteger>(
 				CountWords.class, "Count Words");

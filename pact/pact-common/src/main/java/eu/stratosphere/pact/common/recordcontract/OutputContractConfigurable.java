@@ -13,18 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.common.recordcontract;
 
-import eu.stratosphere.nephele.types.Record;
+import java.lang.annotation.Annotation;
 
 /**
- * This interface has to be implemented by all data types that act as values. Values are consumed
- * and produced by user functions (PACT stubs) that run inside PACTs.
- * <p>
- * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
- * the serialization of its value.
- * 
- * @see eu.stratosphere.nephele.io.IOReadableWritable
+ * Interface defining that an output contract can be attached to an object.
  */
-public interface Value extends Record {
+public interface OutputContractConfigurable
+{
+	/**
+	 * Adds an output contract.
+	 * 
+	 * @param clazz The class of the OutputContract to attach.
+	 */
+	public void addOutputContract(Class<? extends Annotation> clazz);
+
+	/**
+	 * Returns the output contracts that were attached to the object.
+	 * 
+	 * @return An array containing the classes of the attached output contracts.
+	 */
+	public Class<? extends Annotation>[] getOutputContracts();
 }

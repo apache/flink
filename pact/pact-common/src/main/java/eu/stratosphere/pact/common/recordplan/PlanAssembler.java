@@ -13,18 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
-
-import eu.stratosphere.nephele.types.Record;
+package eu.stratosphere.pact.common.recordplan;
 
 /**
- * This interface has to be implemented by all data types that act as values. Values are consumed
- * and produced by user functions (PACT stubs) that run inside PACTs.
- * <p>
- * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
- * the serialization of its value.
- * 
- * @see eu.stratosphere.nephele.io.IOReadableWritable
+ * Interface that shows that the class contains the method to generate the plan for a Pact Program.
  */
-public interface Value extends Record {
+public interface PlanAssembler
+{
+	/**
+	 * The method which is invoked by the Pact compiler to get the program's plan, that is then compiled into an
+	 * executable schedule.
+	 * 
+	 * @param args The array of input parameters. Those are taken from the command line or from teh parameter line in the
+	 *             web frontend.
+	 *              
+	 * @return The plan to be compiled and executed.
+	 */
+	Plan getPlan(String... args);
 }

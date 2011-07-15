@@ -13,18 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
-
-import eu.stratosphere.nephele.types.Record;
+package eu.stratosphere.pact.common.recordplan;
 
 /**
- * This interface has to be implemented by all data types that act as values. Values are consumed
- * and produced by user functions (PACT stubs) that run inside PACTs.
- * <p>
- * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
- * the serialization of its value.
- * 
- * @see eu.stratosphere.nephele.io.IOReadableWritable
+ * A visitor encapsulates functionality that is applied to each node in the process of a traversal of a tree or DAD. 
  */
-public interface Value extends Record {
+public interface Visitor<T extends Visitable<T>>
+{
+	/**
+	 * 
+	 * @param visitable
+	 * 
+	 * @return True, if the traversal should continue, false otherwise.
+	 */
+	boolean preVisit(T visitable);
+
+	/**
+	 * @param visitable
+	 */
+	void postVisit(T visitable);
 }

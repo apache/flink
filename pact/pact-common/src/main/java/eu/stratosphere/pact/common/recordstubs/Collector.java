@@ -13,18 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.common.recordstubs;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * This interface has to be implemented by all data types that act as values. Values are consumed
- * and produced by user functions (PACT stubs) that run inside PACTs.
- * <p>
- * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
- * the serialization of its value.
+ * Collects the output of PACT first-order user function implemented as {@link Stub}.
+ * The collected data is forwards to the next contract.
  * 
- * @see eu.stratosphere.nephele.io.IOReadableWritable
+ * @author Erik Nijkamp
+ * @author Fabian Hueske
  */
-public interface Value extends Record {
+public interface Collector
+{	
+	/**
+	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
+	 * 
+	 * @param record The record to collect.
+	 */
+	void collect(PactRecord record);
+
+	/**
+	 * Closes the collector.
+	 */
+	void close();
 }
