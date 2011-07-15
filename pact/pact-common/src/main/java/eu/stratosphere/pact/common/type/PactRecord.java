@@ -42,7 +42,7 @@ public final class PactRecord implements IOReadableWritable
 	
 	private Value[] fields;
 	
-	private int offsets[];
+	private int[] offsets;
 	
 	private long sparsityMask;
 	
@@ -109,6 +109,21 @@ public final class PactRecord implements IOReadableWritable
 	public void clear()
 	{
 		
+	}
+	
+	public void unionFields(PactRecord other)
+	{
+		
+	}
+	
+	public void copyTo(PactRecord target)
+	{
+		
+	}
+	
+	public PactRecord createCopy()
+	{
+		return null;
 	}
 	
 	// --------------------------------------------------------------------------------------------

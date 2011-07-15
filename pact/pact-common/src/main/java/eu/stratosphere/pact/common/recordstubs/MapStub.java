@@ -41,14 +41,4 @@ public abstract class MapStub extends Stub
 	 */
 	public abstract void map(PactRecord record, Collector out) throws Exception;
 	
-	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordstubs.Stub#initTypes()
-	 */
-	@Override
-	protected final void initTypes()
-	{
-		// no generic types in the mapper
-	}
 }

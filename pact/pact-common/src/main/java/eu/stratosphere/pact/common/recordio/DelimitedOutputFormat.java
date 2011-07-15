@@ -13,39 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.recordstubs;
+package eu.stratosphere.pact.common.recordio;
 
-import eu.stratosphere.pact.common.util.ReflectionUtil;
 
-import eu.stratosphere.pact.common.type.Key;
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.type.PactRecord;
+
 
 /**
- * Abstract stub class for all PACT stubs with a single input.
- * PACT stubs must be overwritten to provide user implementations for PACT programs.
  * 
- * @author Fabian Hueske
- * @param <K> Type of the input key.
  */
-abstract class SingleInputKeyStub<K extends Key> extends Stub
+public abstract class DelimitedOutputFormat extends FileOutputFormat
 {
-	/**
-	 * Input key type.
-	 */
-	protected Class<K> keyClass;
 
-	/**
-	 * {@inheritDoc}
+	public abstract byte[] serializeRecord(PactRecord rec, byte[] target) throws Exception;
+	
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
 	 */
-	protected void initTypes() {
-		this.keyClass = ReflectionUtil.getTemplateType(getClass(), 0);
+	@Override
+	public void writeRecord(PactRecord record) throws IOException
+	{
+
 	}
 
-	/**
-	 * Returns the type of the input key.
-	 * 
-	 * @return Type of the input key.
-	 */
-	public Class<K> getKeyType() {
-		return this.keyClass;
-	}
 }

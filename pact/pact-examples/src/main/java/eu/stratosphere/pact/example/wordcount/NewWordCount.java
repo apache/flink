@@ -18,6 +18,7 @@ package eu.stratosphere.pact.example.wordcount;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 
 import eu.stratosphere.pact.common.recordcontract.FileDataSink;
 import eu.stratosphere.pact.common.recordcontract.FileDataSource;
@@ -92,6 +93,9 @@ public class NewWordCount implements PlanAssembler, PlanAssemblerDescription
 	 */
 	public static class TokenizeLine extends MapStub
 	{
+		private final Pattern pattern = Pattern.compile("\\W");
+		private final String replacement = " ";
+		
 		private final PactString string = new PactString();
 		private final PactInteger integer = new PactInteger(1);
 		
@@ -102,7 +106,7 @@ public class NewWordCount implements PlanAssembler, PlanAssemblerDescription
 			PactString str = record.getField(0, PactString.class);
 			
 			// normalize the line
-			String line = str.toString().replaceAll("\\W", " ");
+			String line = pattern.matcher(str).replaceAll(this.replacement);
 			line = line.toLowerCase();
 			
 			// tokenize the line

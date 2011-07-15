@@ -51,6 +51,8 @@ public class TupleOutputFormat extends FileOutputFormat
 	@Override
 	public void configure(Configuration parameters)
 	{
+		super.configure(parameters);
+		
 		int numFields = parameters.getInteger(NUM_FIELDS_PARAMETER, -1);
 		if (numFields < 1) {
 			throw new RuntimeException("Invalid configuration for DelimitedOutputFormat: " +

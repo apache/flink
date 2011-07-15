@@ -161,7 +161,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		MapContract<PactNull, PactString, PactString, PactInteger> mapper = new MapContract<PactNull, PactString, PactString, PactInteger>(
 				TokenizeLine.class, "Tokenize Lines");
 		mapper.setDegreeOfParallelism(noSubTasks);
-		mapper.getStubParameters().setString("model-file-path", "/var/...");
+		mapper.getParameters().setString("model-file-path", "/var/...");
 
 		ReduceContract<PactString, PactInteger, PactString, PactInteger> reducer = new ReduceContract<PactString, PactInteger, PactString, PactInteger>(
 				CountWords.class, "Count Words");

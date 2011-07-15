@@ -86,11 +86,4 @@ public abstract class Stub
 	 */
 	public void close() throws Exception
 	{}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Initializes the classes as inferred from generic arguments.
-	 */
-	protected abstract void initTypes();
 }

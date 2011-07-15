@@ -31,7 +31,7 @@ import eu.stratosphere.pact.common.type.Key;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class PactString implements Key {
+public class PactString implements Key, CharSequence {
 
 	private String value;
 
@@ -204,6 +204,37 @@ public class PactString implements Key {
 			return false;
 		final PactString other = (PactString) obj;
 		return this.value.equals(other.value);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//                              Char Sequence Implementation
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see java.lang.CharSequence#length()
+	 */
+	@Override
+	public int length()
+	{
+		return this.value.length();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.CharSequence#charAt(int)
+	 */
+	@Override
+	public char charAt(int index)
+	{
+		return this.value.charAt(0);
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.CharSequence#subSequence(int, int)
+	 */
+	@Override
+	public CharSequence subSequence(int start, int end)
+	{
+		return this.value.substring(start, end);
 	}
 
 }

@@ -16,9 +16,21 @@
 package eu.stratosphere.pact.common.recordio;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.nephele.fs.FileStatus;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.LineReader;
+import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -30,9 +42,34 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @author Stephan Ewen
  */
 public abstract class DelimitedInputFormat extends FileInputFormat
-{	
-	public static final String FORMAT_PAIR_DELIMITER = "delimiter";
-
+{
+	/**
+	 * The configuration key to set the record delimiter.
+	 */
+	public static final String RECORD_DELIMITER = "textformat.delimiter";
+	
+	/**
+	 * The configuration key to set the number of samples to take for the statistics.
+	 */
+	public static final String NUM_STATISTICS_SAMPLES = "textformat.numSamples";
+	
+	/**
+	 * The log.
+	 */
+	private static final Log LOG = LogFactory.getLog(DelimitedInputFormat.class);
+	
+	/**
+	 * The default read buffer size = 1MB.
+	 */
+	private static final int DEFAULT_READ_BUFFER_SIZE = 1024 * 1024;
+	
+	/**
+	 * The default number of sample lines to consider when calculating the line width.
+	 */
+	private static final int DEFAULT_NUM_SAMPLES = 10;
+	
+	// --------------------------------------------------------------------------------------------
+	
 	private byte[] readBuffer;
 
 	private byte[] wrapBuffer;
@@ -46,68 +83,260 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	private boolean overLimit;
 
 	private boolean end;
-
 	
+	private int bufferSize = -1;
+	
+	private int numLineSamples;										// the number of lines to sample for statistics
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public byte[] getDelimiter() {
-		return delimiter;
-	}
-
 	/**
 	 * This function parses the given byte array which represents a serialized key/value
 	 * pair. The parsed content is then returned by setting the pair variables. If the
 	 * byte array contains invalid content the record can be skipped by returning <tt>false</tt>.
 	 * 
-	 * @param record The target record into which deserialized data is put.
-	 * @param line The serialized binary data.
-	 * @return returns True, if the record was successfully deserialized, false otherwise.
+	 * @param record The holder for the line that is read.
+	 * @param bytes The serialized record.
+	 * @return returns whether the record was successfully deserialized
 	 */
-	public abstract boolean readRecord(PactRecord record, byte[] line);
+	public abstract boolean readRecord(PactRecord target, byte[] bytes);
 
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordio.InputFormat#nextRecord(eu.stratosphere.pact.common.type.PactRecord)
-	 */
-	@Override
-	public boolean nextRecord(PactRecord record) throws IOException
-	{
-		byte[] line = readLine();
-		if (line == null) {
-			this.end = true;
-			return false;
-		}
-		else {
-			return readRecord(record, line);
-		}
-	}
 
 	/**
-	 * {@inheritDoc}
+	 * Gets the delimiter that defines the record boundaries.
+	 * 
+	 * @return The delimiter, as bytes.
+	 */
+	public byte[] getDelimiter()
+	{
+		return delimiter;
+	}
+	
+	/**
+	 * Sets the size of the buffer to be used to find record boundaries. This method has only an effect, if it is called
+	 * before the input format is opened.
+	 * 
+	 * @param bufferSize The buffer size to use.
+	 */
+	public void setBufferSize(int bufferSize)
+	{
+		this.bufferSize = bufferSize;
+	}
+	
+	/**
+	 * Gets the size of the buffer internally used to parse record boundaries.
+	 * 
+	 * @return The size of the parsing buffer.
+	 */
+	public int getBufferSize()
+	{
+		return this.readBuffer == null ? 0: this.readBuffer.length;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Configures this input format by reading the path to the file from the configuration and the string that
+	 * defines the record delimiter.
+	 * 
+	 * @param parameters The configuration object to read the parameters from.
 	 */
 	@Override
-	public void configure(Configuration parameters) {
-		String delimString = parameters.getString(FORMAT_PAIR_DELIMITER, "\n");
-
+	public void configure(Configuration parameters)
+	{
+		super.configure(parameters);
+		
+		String delimString = parameters.getString(RECORD_DELIMITER, "\n");
 		if (delimString == null) {
-			throw new IllegalArgumentException("The delimiter must not be null.");
+			throw new IllegalArgumentException("The delimiter not be null.");
 		}
 
 		this.delimiter = delimString.getBytes();
+		
+		// set the number of samples
+		this.numLineSamples = DEFAULT_NUM_SAMPLES;
+		String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
+		
+		if (samplesString != null) {
+			try {
+				this.numLineSamples = Integer.parseInt(samplesString);
+			}
+			catch (NumberFormatException nfex) {
+				if (LOG.isWarnEnabled())
+					LOG.warn("Invalid value for number of samples to take: " + samplesString +
+							". Using default value of " + DEFAULT_NUM_SAMPLES);
+			}
+		}
+	}
+	
+	
+	
+	// --------------------------------------------------------------------------------------------
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
+	 */
+	@Override
+	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics)
+	{
+		// check the cache
+		FileBaseStatistics stats = null;
+		
+		if (cachedStatistics != null && cachedStatistics instanceof FileBaseStatistics) {
+			stats = (FileBaseStatistics) cachedStatistics;
+		}
+		else {
+			stats = new FileBaseStatistics(-1, BaseStatistics.UNKNOWN, BaseStatistics.UNKNOWN);
+		}
+		
+
+		try {
+			final Path file = this.filePath;
+			final URI uri = file.toUri();
+
+			// get the filesystem
+			final FileSystem fs = FileSystem.get(uri);
+			List<FileStatus> files = null;
+
+			// get the file info and check whether the cached statistics are still
+			// valid.
+			{
+				FileStatus status = fs.getFileStatus(file);
+
+				if (status.isDir()) {
+					FileStatus[] fss = fs.listStatus(file);
+					files = new ArrayList<FileStatus>(fss.length);
+					boolean unmodified = true;
+
+					for (FileStatus s : fss) {
+						if (!s.isDir()) {
+							files.add(s);
+							if (s.getModificationTime() > stats.getLastModificationTime()) {
+								stats.fileModTime = s.getModificationTime();
+								unmodified = false;
+							}
+						}
+					}
+
+					if (unmodified) {
+						return stats;
+					}
+				}
+				else {
+					// check if the statistics are up to date
+					long modTime = status.getModificationTime();	
+					if (stats.getLastModificationTime() == modTime) {
+						return stats;
+					}
+
+					stats.fileModTime = modTime;
+					
+					files = new ArrayList<FileStatus>(1);
+					files.add(status);
+				}
+			}
+
+			stats.avgBytesPerRecord = -1.0f;
+			stats.fileSize = 0;
+			
+			// calculate the whole length
+			for (FileStatus s : files) {
+				stats.fileSize += s.getLen();
+			}
+			
+			// sanity check
+			if (stats.fileSize <= 0) {
+				stats.fileSize = BaseStatistics.UNKNOWN;
+				return stats;
+			}
+			
+
+			// currently, the sampling only works on line separated data
+			final byte[] delimiter = getDelimiter();
+			if (! ((delimiter.length == 1 && delimiter[0] == '\n') ||
+				   (delimiter.length == 2 && delimiter[0] == '\r' && delimiter[1] == '\n')) )
+			{
+				return stats;
+			}
+						
+			// make the samples small for very small files
+			int numSamples = Math.min(this.numLineSamples, (int) (stats.fileSize / 1024));
+			if (numSamples < 2) {
+				numSamples = 2;
+			}
+
+			long offset = 0;
+			long bytes = 0; // one byte for the line-break
+			long stepSize = stats.fileSize / numSamples;
+
+			int fileNum = 0;
+			int samplesTaken = 0;
+
+			// take the samples
+			for (int sampleNum = 0; sampleNum < numSamples && fileNum < files.size(); sampleNum++) {
+				FileStatus currentFile = files.get(fileNum);
+				FSDataInputStream inStream = null;
+
+				try {
+					inStream = fs.open(currentFile.getPath());
+					LineReader lineReader = new LineReader(inStream, offset, currentFile.getLen() - offset, 1024);
+					byte[] line = lineReader.readLine();
+					lineReader.close();
+
+					if (line != null && line.length > 0) {
+						samplesTaken++;
+						bytes += line.length + 1; // one for the linebreak
+					}
+				}
+				finally {
+					// make a best effort to close
+					if (inStream != null) {
+						try {
+							inStream.close();
+						} catch (Throwable t) {}
+					}
+				}
+
+				offset += stepSize;
+
+				// skip to the next file, if necessary
+				while (fileNum < files.size() && offset >= (currentFile = files.get(fileNum)).getLen()) {
+					offset -= currentFile.getLen();
+					fileNum++;
+				}
+			}
+
+			stats.avgBytesPerRecord = bytes / (float) samplesTaken;
+		}
+		catch (IOException ioex) {
+			if (LOG.isWarnEnabled())
+				LOG.warn("Could not determine complete statistics for file '" + filePath + "' due to an io error: "
+						+ ioex.getMessage());
+		}
+		catch (Throwable t) {
+			if (LOG.isErrorEnabled())
+				LOG.error("Unexpected problen while getting the file statistics for file '" + filePath + "': "
+						+ t.getMessage(), t);
+		}
+
+		return stats;
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Opens the given input split. This method opens the input stream to the specified file, allocates read buffers
+	 * and positions the stream at the correct position, making sure that any partial record at the beginning is skipped.
 	 * 
-	 * @throws IOException
+	 * @param split The input split to open.
+	 * 
+	 * @see eu.stratosphere.pact.common.io.FileInputFormat#open(eu.stratosphere.nephele.fs.FileInputSplit)
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException
 	{
 		super.open(split);
 		
+		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
 		this.readBuffer = new byte[this.bufferSize];
 		this.wrapBuffer = new byte[256];
 
@@ -118,6 +347,12 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		if (this.start != 0) {
 			this.stream.seek(this.start);
 			readLine();
+			
+			// if the first partial record already pushes the stream over the limit of our split, then no
+			// record starts within this split 
+			if (this.overLimit) {
+				this.end = true;
+			}
 		}
 		else {
 			fillBuffer();
@@ -125,24 +360,44 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Checks whether the current split is at its end.
+	 * 
+	 * @return True, if the split is at its end, false otherwise.
 	 */
 	@Override
-	public boolean reachedEnd() {
+	public boolean reachedEnd()
+	{
 		return this.end;
+	}
+	
+	@Override
+	public boolean nextRecord(PactRecord record) throws IOException
+	{
+		byte[] line = readLine();
+		if (line == null) {
+			this.end = true;
+			return false;
+		} else {
+			return readRecord(record, line);
+		}
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Closes the input by releasing all buffers and closing the file input stream.
+	 * 
+	 * @throws IOException Thrown, if the closing of the file stream causes an I/O error.
 	 */
 	@Override
 	public void close() throws IOException
 	{
-		super.close();
 		this.wrapBuffer = null;
 		this.readBuffer = null;
+		
+		super.close();
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	private byte[] readLine() throws IOException {
 		if (this.stream == null || this.overLimit) {
 			return null;
@@ -208,7 +463,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 					// reallocate
 					byte[] tmp = new byte[this.wrapBuffer.length * 2];
 					System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
-					wrapBuffer = tmp;
+					this.wrapBuffer = tmp;
 				}
 
 				System.arraycopy(this.readBuffer, startPos, this.wrapBuffer, countInWrapBuffer, count);
@@ -217,8 +472,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		}
 	}
 
-	private final boolean fillBuffer() throws IOException
-	{
+	private final boolean fillBuffer() throws IOException {
 		int toRead = this.length > this.readBuffer.length ? this.readBuffer.length : (int) this.length;
 		if (this.length <= 0) {
 			toRead = this.readBuffer.length;
@@ -231,13 +485,91 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.stream.close();
 			this.stream = null;
 			return false;
-		}
-		else {
+		} else {
 			this.length -= read;
 			this.readPos = 0;
 			this.limit = read;
 			return true;
 		}
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Encapsulation of the basic statistics the optimizer obtains about a file. Contained are the size of the file
+	 * and the average bytes of a single record. The statistics also have a time-stamp that records the modification
+	 * time of the file and indicates as such for which time the statistics were valid.
+	 *
+	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+	 */
+	public static final class FileBaseStatistics implements BaseStatistics
+	{
+		private long fileModTime; // timestamp of the last modification
 
+		private long fileSize; // size of the file(s) in bytes
+
+		private float avgBytesPerRecord; // the average number of bytes for a record
+
+		/**
+		 * Creates a new statistics object.
+		 * 
+		 * @param fileModTime
+		 *        The timestamp of the latest modification of any of the involved files.
+		 * @param fileSize
+		 *        The size of the file, in bytes. <code>-1</code>, if unknown.
+		 * @param avgBytesPerRecord
+		 *        The average number of byte in a record, or <code>-1.0f</code>, if unknown.
+		 */
+		public FileBaseStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
+			this.fileModTime = fileModTime;
+			this.fileSize = fileSize;
+			this.avgBytesPerRecord = avgBytesPerRecord;
+		}
+
+		/**
+		 * Gets the timestamp of the last modification.
+		 * 
+		 * @return The timestamp of the last modification.
+		 */
+		public long getLastModificationTime() {
+			return fileModTime;
+		}
+
+		/**
+		 * Gets the file size.
+		 * 
+		 * @return The fileSize.
+		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getTotalInputSize()
+		 */
+		@Override
+		public long getTotalInputSize()
+		{
+			return this.fileSize;
+		}
+
+		/**
+		 * Gets the estimates number of records in the file, computed as the file size divided by the
+		 * average record width, rounded up.
+		 * 
+		 * @return The estimated number of records in the file.
+		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getNumberOfRecords()
+		 */
+		@Override
+		public long getNumberOfRecords()
+		{
+			return (long) Math.ceil(this.fileSize / this.avgBytesPerRecord);
+		}
+
+		/**
+		 * Gets the estimated average number of bytes per record.
+		 * 
+		 * @return The average number of bytes per record.
+		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getAverageRecordWidth()
+		 */
+		@Override
+		public float getAverageRecordWidth()
+		{
+			return this.avgBytesPerRecord;
+		}
 	}
 }
