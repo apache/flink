@@ -279,10 +279,15 @@ public class DataSinkTask extends AbstractOutputTask
 					return 1;
 				}
 				// If the path points to a directory we allow an infinity number of subtasks
-				if (f.isDir())
+				if (f.isDir()) {
 					return -1;
-				else
+				}
+				else {
+					// path points to an existing file. delete it, to prevent errors appearing
+					// when overwriting the file (HDFS causes non-deterministic errors there)
+					fs.delete(path, false);
 					return 1;
+				}
 			}
 			catch (FileNotFoundException fnfex) {
 				// The exception is thrown if the requested file/directory does not exist.
