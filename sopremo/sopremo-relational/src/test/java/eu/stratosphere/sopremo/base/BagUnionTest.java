@@ -3,8 +3,8 @@ package eu.stratosphere.sopremo.base;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.UnionAll;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class BagUnionTest extends SopremoTest<UnionAll> {
 	@Override

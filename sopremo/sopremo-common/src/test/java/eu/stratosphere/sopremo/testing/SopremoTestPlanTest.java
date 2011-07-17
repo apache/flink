@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.sopremo;
+package eu.stratosphere.sopremo.testing;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -39,10 +39,18 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.TestPairs;
+import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.PersistenceType;
+import eu.stratosphere.sopremo.Sink;
+import eu.stratosphere.sopremo.SopremoTest;
+import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 /**
  * Tests {@link SopremoTestPlan}.

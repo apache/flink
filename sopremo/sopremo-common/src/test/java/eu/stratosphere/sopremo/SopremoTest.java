@@ -32,12 +32,14 @@ public abstract class SopremoTest<T> {
 
 	protected Class<T> type;
 
+	@SuppressWarnings("unchecked")
 	@Before
 	public void initInstances() {
 		this.type = (Class<T>) BoundTypeUtil.getBindingOfSuperclass(this.getClass(), SopremoTest.class).getType();
 		this.createInstances();
 	}
 
+	@SuppressWarnings("unchecked")
 	protected void createInstances() {
 		this.initInstances(this.createDefaultInstance(0), this.createDefaultInstance(1), this.createDefaultInstance(2));
 	}

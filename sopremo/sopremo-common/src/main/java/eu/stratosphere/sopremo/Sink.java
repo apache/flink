@@ -22,6 +22,10 @@ public class Sink extends ElementaryOperator {
 		this.outputName = outputName;
 		this.type = type;
 	}
+	
+	public PersistenceType getType() {
+		return type;
+	}
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {

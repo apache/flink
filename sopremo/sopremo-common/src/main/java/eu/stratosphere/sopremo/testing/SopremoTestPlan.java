@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo;
+package eu.stratosphere.sopremo.testing;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +15,16 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.pact.testing.TestPlan;
+import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.OperatorNavigator;
+import eu.stratosphere.sopremo.PersistenceType;
+import eu.stratosphere.sopremo.Sink;
+import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.ConversionIterator;

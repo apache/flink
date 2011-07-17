@@ -3,12 +3,12 @@ package eu.stratosphere.sopremo.base;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class DifferenceTest extends SopremoTest<Difference> {
 	@Override
