@@ -56,9 +56,9 @@ public class NewWordCount implements PlanAssembler, PlanAssemblerDescription
 		private final PactString string = new PactString();
 		
 		@Override
-		public boolean readRecord(PactRecord record, byte[] line)
+		public boolean readRecord(PactRecord record, byte[] line, int numBytes)
 		{
-			this.string.setValue(line);
+			this.string.setValue(line, 0, numBytes);
 			record.setField(0, this.string);
 			return true;
 		}

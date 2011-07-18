@@ -29,13 +29,17 @@ import eu.stratosphere.pact.common.type.Value;
 /**
  * 
  */
-public class TupleOutputFormat extends FileOutputFormat
+public class RecordOutputFormat extends FileOutputFormat
 {
+	public static final String RECORD_DELIMITER_PARAMETER = "outputformat.delimiter.record";
+	
+	public static final String FIELD_DELIMITER_PARAMETER = "outputformat.delimiter.field";
+	
 	public static final String NUM_FIELDS_PARAMETER = "outputformat.field.number";
 	
 	public static final String FIELD_TYPE_PARAMETER_PREFIX = "outputformat.field.type_";
 	
-	private static final Log LOG = LogFactory.getLog(TupleOutputFormat.class);
+	private static final Log LOG = LogFactory.getLog(RecordOutputFormat.class);
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -55,7 +59,7 @@ public class TupleOutputFormat extends FileOutputFormat
 		
 		int numFields = parameters.getInteger(NUM_FIELDS_PARAMETER, -1);
 		if (numFields < 1) {
-			throw new RuntimeException("Invalid configuration for DelimitedOutputFormat: " +
+			throw new RuntimeException("Invalid configuration for RecordOutputFormat: " +
 					"Need to specify number of fields > 0.");
 		}
 		
@@ -68,7 +72,7 @@ public class TupleOutputFormat extends FileOutputFormat
 			@SuppressWarnings("unchecked")
 			Class<? extends Value> clazz = (Class<? extends Value>) parameters.getClass(FIELD_TYPE_PARAMETER_PREFIX + i, null);
 			if (clazz == null) {
-				throw new RuntimeException("Invalid configuration for DelimitedOutputFormat: " +
+				throw new RuntimeException("Invalid configuration for RecordOutputFormat: " +
 					"No type class for parameter " + i);
 			}
 			
@@ -92,7 +96,7 @@ public class TupleOutputFormat extends FileOutputFormat
 			}
 			else {
 				throw new RuntimeException(
-					"Cannot serialize record with more fields than the DelimitedOutputFormat knows types.");
+					"Cannot serialize record with more fields than the RecordOutputFormat knows types.");
 			}			
 		}
 		

@@ -99,7 +99,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 * @param bytes The serialized record.
 	 * @return returns whether the record was successfully deserialized
 	 */
-	public abstract boolean readRecord(PactRecord target, byte[] bytes);
+	public abstract boolean readRecord(PactRecord target, byte[] bytes, int numBytes);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -378,7 +378,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.end = true;
 			return false;
 		} else {
-			return readRecord(record, line);
+			return readRecord(record, line, line.length);
 		}
 	}
 

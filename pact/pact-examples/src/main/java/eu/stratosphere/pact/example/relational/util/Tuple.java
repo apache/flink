@@ -71,7 +71,7 @@ public class Tuple implements Value {
 	/**
 	 * Returns the internal byte array of the tuple.
 	 * 
-	 * @return The interal byte array of the tuple.
+	 * @return The internal byte array of the tuple.
 	 */
 	public byte[] getBytes() {
 		return bytes;
@@ -513,6 +513,39 @@ public class Tuple implements Value {
 		System.arraycopy(other.bytes, other.offsets[column], bytes, end, len);
 		numCols++;
 		offsets[numCols] = (short) (end + len);
+	}
+	
+	public void setContents(byte[] bytes, int offset, int len, char delimiter)
+	{
+		// make space
+		if (this.bytes == null || this.bytes.length < len) {
+			this.bytes = new byte[len];
+		}
+		
+		// copy the binary data
+		System.arraycopy(bytes, offset, this.bytes, 0, len);
+		
+		int readPos = offset;
+		
+		// allocate the offsets array
+		if (this.offsets == null) {
+			this.offsets = new short[4];
+		}
+
+		int col = 1; // the column we are in
+
+		int startPos = readPos;
+
+		while (readPos < offset + len) {
+			if (bytes[readPos++] == delimiter) {
+				if (offsets.length <= col) {
+					this.offsets = new short[this.offsets.length * 2];
+				}
+				this.offsets[col++] = (short) (readPos - startPos);
+			}
+		}
+		
+		this.numCols = col - 1;
 	}
 
 

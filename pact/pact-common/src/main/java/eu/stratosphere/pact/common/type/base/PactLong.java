@@ -115,11 +115,9 @@ public class PactLong implements Key {
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
-	public int hashCode() {
-		final int prime = 43;
-		int result = 1;
-		result = prime * result + (int) (this.value ^ this.value >>> 32);
-		return result;
+	public int hashCode()
+	{
+		return 43 + (int) (this.value ^ this.value >>> 32);
 	}
 
 	/*
@@ -127,17 +125,11 @@ public class PactLong implements Key {
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
-	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		final PactLong other = (PactLong) obj;
-		if (this.value != other.value)
-			return false;
-		return true;
+	public boolean equals(final Object obj)
+	{
+		if (obj != null & obj instanceof PactLong) {
+			return this.value == ((PactLong) obj).value;  
+		}
+		return false;
 	}
-
 }

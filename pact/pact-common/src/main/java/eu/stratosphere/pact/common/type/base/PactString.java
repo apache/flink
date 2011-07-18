@@ -73,11 +73,11 @@ public class PactString implements Key, CharSequence {
 		this.value = value;
 	}
 	
-	public void setValue(byte[] bytes) {
+	public void setValue(byte[] bytes, int offset, int len) {
 		if (bytes == null)
 			throw new NullPointerException("Bytes must not be null");
 		
-		this.value = new String(bytes);
+		this.value = new String(bytes, offset, len);
 	}
 	
 	/*
