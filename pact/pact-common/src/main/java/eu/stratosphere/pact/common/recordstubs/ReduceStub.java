@@ -75,5 +75,6 @@ public abstract class ReduceStub<K extends Key> extends SingleInputKeyStub<K>
 		// to be implemented, if the reducer should use a combiner. Note that the combining method
 		// is only used, if the stub class is further annotated with the annotation
 		// @ReduceContract.Combinable
+		reduce(key, records, out);
 	}
 }

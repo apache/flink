@@ -41,7 +41,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub<?>>
 	
 	private Class<? extends Key> keyClass;							// the class of the key
 	
-	private final int keyFieldNumber;								// the position of the key field in the record
+	private final int[] keyFields;									// the positions of the key fields in the record
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -53,7 +53,18 @@ public class ReduceContract extends SingleInputContract<ReduceStub<?>>
 	 * @param keyColumn The position of the key in the input records.
 	 */
 	public ReduceContract(Class<? extends ReduceStub<?>> c, int keyColumn) {
-		this(c, keyColumn, DEFAULT_NAME);
+		this(c, new int[] {keyColumn} );
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation
+	 * and a default name. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 */
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int[] keyColumns) {
+		this(c, keyColumns, DEFAULT_NAME);
 	}
 	
 	/**
@@ -65,8 +76,20 @@ public class ReduceContract extends SingleInputContract<ReduceStub<?>>
 	 * @param name The name of PACT.
 	 */
 	public ReduceContract(Class<? extends ReduceStub<?>> c, int keyColumn, String name) {
+		this(c, new int[] {keyColumn}, name);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
+	 * and the given name. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int[] keyColumns, String name) {
 		super(c, name);
-		this.keyFieldNumber = keyColumn;
+		this.keyFields = keyColumns;
 		this.keyClass = ReflectionUtil.getTemplateType(c, ReduceStub.class, 0);
 	}
 
@@ -80,6 +103,18 @@ public class ReduceContract extends SingleInputContract<ReduceStub<?>>
 	 */
 	public ReduceContract(Class<? extends ReduceStub<?>> c, int keyColumn, Contract input) {
 		this(c, keyColumn, input, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
+	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param input The contract to use as the input.
+	 */
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int[] keyColumns, Contract input) {
+		this(c, keyColumns, input, DEFAULT_NAME);
 	}
 	
 	/**
@@ -97,13 +132,27 @@ public class ReduceContract extends SingleInputContract<ReduceStub<?>>
 	}
 	
 	/**
-	 * Gets the column number of the key in the input records.
-	 *  
-	 * @return The column number of the key field.
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
+	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param input The contract to use as the input.
+	 * @param name The name of PACT.
 	 */
-	public int getKeyColumnNumber()
+	public ReduceContract(Class<? extends ReduceStub<?>> c, int[] keyColumns, Contract input, String name) {
+		this(c, keyColumns, name);
+		setInput(input);
+	}
+	
+	/**
+	 * Gets the column numbers of the key fields in the input records.
+	 *  
+	 * @return The column numbers of the key fields.
+	 */
+	public int[] getKeyColumnNumbers()
 	{
-		return this.keyFieldNumber;
+		return this.keyFields;
 	}
 	
 	/**

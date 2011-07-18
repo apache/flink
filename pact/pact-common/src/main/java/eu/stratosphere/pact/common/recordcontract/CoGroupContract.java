@@ -36,7 +36,9 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	
 	private Class<? extends Key> keyClass;							// the class of the key
 	
-	private final int keyFieldNumber;								// the position of the key field in the record
+	private final int firstKeyFieldNumber;							// the key position in the first input's records
+	
+	private final int secondKeyFieldNumber;							// the key position in the second input's records
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -45,10 +47,11 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * and a default name.
 	 * 
 	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
-	 * @param keyColumn The position of the key in the input records.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int keyColumn) {
-		this(c, keyColumn, DEFAULT_NAME);
+	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn) {
+		this(c, firstKeyColumn, secondKeyColumn, DEFAULT_NAME);
 	}
 	
 	/**
@@ -56,12 +59,14 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * and the given name. 
 	 * 
 	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
-	 * @param keyColumn The position of the key in the input records.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param name The name of PACT.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int keyColumn, String name) {
+	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn, String name) {
 		super(c, name);
-		this.keyFieldNumber = keyColumn;
+		this.firstKeyFieldNumber = firstKeyColumn;
+		this.secondKeyFieldNumber = secondKeyColumn;
 		this.keyClass = ReflectionUtil.getTemplateType(c, CoGroupStub.class, 0);
 	}
 
@@ -70,12 +75,15 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * It uses the given contract as its input.
 	 * 
 	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
-	 * @param keyColumn The position of the key in the input records.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int keyColumn, Contract input1, Contract input2) {
-		this(c, keyColumn, input1, input2, DEFAULT_NAME);
+	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn,
+															Contract input1, Contract input2)
+	{
+		this(c, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
 	}
 	
 	/**
@@ -83,25 +91,38 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * It uses the given contract as its input.
 	 * 
 	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
-	 * @param keyColumn The position of the key in the input records.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 * @param name The name of PACT.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int keyColumn, Contract input1, Contract input2, String name) {
-		this(c, keyColumn, name);
+	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn,
+													Contract input1, Contract input2, String name)
+	{
+		this(c, firstKeyColumn, secondKeyColumn, name);
 		setFirstInput(input1);
 		setSecondInput(input2);
 	}
 	
-	/**
-	 * Gets the column number of the key in the input records.
+	/**	/**
+	 * Gets the column number of the key in the first input's records.
 	 *  
-	 * @return The column number of the key field.
+	 * @return The column number of the key field in the first input.
 	 */
-	public int getKeyColumnNumber()
+	public int getFirstKeyColumnNumber()
 	{
-		return this.keyFieldNumber;
+		return this.firstKeyFieldNumber;
+	}
+	
+	/**
+	 * Gets the column number of the key in the second input's records.
+	 *  
+	 * @return The column number of the key field in the second input.
+	 */
+	public int getSecondKeyColumnNumber()
+	{
+		return this.secondKeyFieldNumber;
 	}
 	
 	/**

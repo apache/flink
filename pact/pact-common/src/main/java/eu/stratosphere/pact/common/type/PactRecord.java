@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class PactRecord implements IOReadableWritable
+public final class PactRecord implements Value
 {
 	private byte[] binaryData;
 	
