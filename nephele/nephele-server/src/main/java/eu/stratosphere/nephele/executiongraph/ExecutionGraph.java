@@ -38,7 +38,6 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -912,35 +911,6 @@ public class ExecutionGraph implements ExecutionListener {
 	public boolean isExecutionFinished() {
 
 		return (getJobStatus() == InternalJobStatus.FINISHED);
-	}
-
-	public void prepareChannelsForExecution(ExecutionVertex executionVertex) throws ChannelSetupException {
-
-		// Prepare channels
-		for (int k = 0; k < executionVertex.getEnvironment().getNumberOfOutputGates(); k++) {
-			final OutputGate<? extends Record> outputGate = executionVertex.getEnvironment().getOutputGate(k);
-			for (int l = 0; l < outputGate.getNumberOfOutputChannels(); l++) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(l);
-				final AbstractInputChannel<? extends Record> inputChannel = this.inputChannelMap.get(outputChannel
-					.getConnectedChannelID());
-				if (inputChannel == null) {
-					throw new ChannelSetupException("Cannot find input channel to output channel "
-						+ outputChannel.getID());
-				}
-
-				final ExecutionVertex targetVertex = this.channelToVertexMap.get(inputChannel.getID());
-				final AllocatedResource targetResources = targetVertex.getAllocatedResource();
-				if (targetResources == null) {
-					throw new ChannelSetupException("Cannot find allocated resources for target vertex "
-						+ targetVertex.getID() + " in instance map");
-				}
-
-				if (targetResources.getInstance() instanceof DummyInstance) {
-					throw new ChannelSetupException("Allocated instance for " + targetVertex.getID()
-						+ " is a dummy vertex!");
-				}
-			}
-		}
 	}
 
 	/**
