@@ -101,7 +101,7 @@ public abstract class TaskTestBase {
 		outTask.registerInputOutput();
 	}
 
-	public void registerTask(AbstractInputTask inTask,
+	public void registerTask(AbstractInputTask<?> inTask,
 			Class<? extends InputFormat<PactInteger, PactInteger>> stubClass, String inPath, String delimiter) {
 		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
 		new DataSourceConfig(mockEnv.getRuntimeConfiguration()).setFilePath(inPath);
