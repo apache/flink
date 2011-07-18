@@ -39,7 +39,7 @@ static jfieldID LzmaDecompressor_compressedDataBufferLength;
 static jfieldID LzmaDecompressor_uncompressedDataBuffer;
 static jfieldID LzmaDecompressor_uncompressedDataBufferLength;
 
-JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_lzma_LzmaDecompressor_initIDs (JNIEnv *env, jclass class){
+JNIEXPORT void JNICALL Java_eu_stratosphere_nephele_io_compression_library_lzma_LzmaDecompressor_initIDs (JNIEnv *env, jclass class){
 
 	LzmaDecompressor_compressedDataBuffer = (*env)->GetFieldID(env, class, "compressedDataBuffer", "Ljava/nio/ByteBuffer;");
 	LzmaDecompressor_compressedDataBufferLength = (*env)->GetFieldID(env, class, "compressedDataBufferLength", "I");
@@ -48,7 +48,7 @@ JNIEXPORT void JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_lzm
 	
 }
 
-JNIEXPORT jint JNICALL Java_de_tu_1berlin_cit_nephele_io_compression_library_lzma_LzmaDecompressor_decompressBytesDirect (JNIEnv *env, jobject this, 
+JNIEXPORT jint JNICALL Java_eu_stratosphere_nephele_io_compression_library_lzma_LzmaDecompressor_decompressBytesDirect (JNIEnv *env, jobject this, 
                                                                                                                       jint offset){
         
         // Get members of Bzip2Decompressor  

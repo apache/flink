@@ -44,6 +44,11 @@
     		<artifactId>nephele-hdfs</artifactId>
     		<version>${version}</version>
     	</dependency>
+        <dependency>
+                <groupId>eu.stratosphere</groupId>
+                <artifactId>nephele-s3</artifactId>
+                <version>${version}</version>
+        </dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>nephele-management</artifactId>

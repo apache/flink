@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.io.compression;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 
 public interface Decompressor {
 
@@ -70,6 +71,9 @@ public interface Decompressor {
 
 	/**
 	 * Stops the decompressor and releases all allocated internal resources.
+	 * 
+	 * @param channelID
+	 *        the ID of the channel requesting the shut down
 	 */
-	void shutdown();
+	void shutdown(ChannelID channelID);
 }

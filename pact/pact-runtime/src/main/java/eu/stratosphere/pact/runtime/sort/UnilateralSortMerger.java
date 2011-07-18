@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -149,7 +149,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The parent task that owns this sorter.
 	 */
-	protected final AbstractTask parent;
+	protected final AbstractInvokable parent;
 	
 	/**
 	 * The monitor which guards the iterator field.
@@ -227,7 +227,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator,
 			Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask,
+			AbstractInvokable parentTask,
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
@@ -263,7 +263,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			long totalMemory, long ioMemory,
 			int numSortBuffers, int maxNumFileHandles, SerializationFactory<K> keySerialization,
 			SerializationFactory<V> valueSerialization, Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask,
+			AbstractInvokable parentTask,
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
@@ -553,7 +553,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask,
+			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractInvokable parentTask,
 			long startSpillingBytes)
 	{
 		return new ReadingThread(exceptionHandler, reader, queues, parentTask, startSpillingBytes);
@@ -574,7 +574,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The sorting thread.
 	 */
 	protected ThreadBase getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		return new SortingThread(exceptionHandler, queues, parentTask);
 	}
@@ -595,7 +595,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 */
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, writeMemSize,
 			readMemSize, parentTask);
@@ -914,7 +914,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		/**
 		 * The parent task at whom the thread needs to register.
 		 */
-		private final AbstractTask parentTask;
+		private final AbstractInvokable parentTask;
 
 		/**
 		 * The flag marking this thread as alive.
@@ -932,7 +932,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 *        The queues used to pass buffers between the threads.
 		 */
 		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues queues,
-				AbstractTask parentTask)
+				AbstractInvokable parentTask)
 		{
 			// thread setup
 			super(name);
@@ -1054,7 +1054,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 */
 		public ReadingThread(ExceptionHandler<IOException> exceptionHandler,
 				eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues,
-				AbstractTask parentTask, long startSpillingBytes)
+				AbstractInvokable parentTask, long startSpillingBytes)
 		{
 			super(exceptionHandler, "SortMerger Reading Thread", queues, parentTask);
 
@@ -1257,7 +1257,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 *        The queues used to pass buffers between the threads.
 		 */
 		public SortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				AbstractTask parentTask) {
+				AbstractInvokable parentTask) {
 			super(exceptionHandler, "SortMerger sorting thread", queues, parentTask);
 
 			// members
@@ -1318,7 +1318,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
-				long writeMemSize, long readMemSize, AbstractTask parentTask)
+				long writeMemSize, long readMemSize, AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 

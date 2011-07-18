@@ -46,6 +46,8 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'nephele-s3' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-common' ]]; then
@@ -61,6 +63,14 @@ constructTaskManagerClassPath() {
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'httpcore' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'httpclient' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
 			add=1
 		fi
 

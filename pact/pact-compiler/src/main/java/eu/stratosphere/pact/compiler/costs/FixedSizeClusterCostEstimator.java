@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.costs;
 
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -48,20 +49,33 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 */
 	@Override
 	public void getRangePartitionCost(PactConnection conn, Costs costs) {
-		// TODO: get a realistic estimate for range partitioning costs.
-		// currently, the sole purpose is to make range partitioning more expensive than hash partitioning
-		// initial mock estimate: we need to ship 1.5 times the data over the network to establish the partitioning.
-		// no disk costs.
-		final long estOutShipSize = conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
-		
-		if (estOutShipSize == -1) {
-			costs.setNetworkCost(-1);
-		} else {
-			final long cost = (long) (1.5f * estOutShipSize);
-			costs.setNetworkCost(cost);
-		}
+		Class<? extends DataDistribution> distribution =
+			conn.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();
+		if(distribution == null) {
+			//Assume sampling of 10% of the data
+			final long estOutShipSize = (long) (conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize() * 1.1);
 
-		costs.setSecondaryStorageCost(0);
+			if (estOutShipSize == -1) {
+				costs.setNetworkCost(-1);
+			} else {
+				final long cost = (long) (1.5f * estOutShipSize);
+				costs.setNetworkCost(cost);
+			}
+
+			// we assume a two phase merge sort, so all in all 2 I/O operations per block
+			costs.setSecondaryStorageCost(estOutShipSize == -1 ? -1 : 2 * estOutShipSize);
+		} else {
+			//If data distribution is given, no extra sampling has to be done => same cost as HashPartitioning
+			final long estOutShipSize = conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
+
+			if (estOutShipSize == -1) {
+				costs.setNetworkCost(-1);
+			} else {
+				costs.setNetworkCost(estOutShipSize);
+			}
+
+			costs.setSecondaryStorageCost(0);
+		}
 	}
 
 	/*
