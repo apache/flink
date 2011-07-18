@@ -226,11 +226,9 @@ public class ClusterManager implements InstanceManager {
 							}
 
 							if (instanceListener != null) {
-								instanceListener.allocatedResourceDied(
-									removedSlice.getJobID(),
-									new AllocatedResource(
-										removedSlice.getHostingInstance(), removedSlice.getType(), removedSlice
-											.getAllocationID()));
+								instanceListener.allocatedResourceDied(removedSlice.getJobID(),
+									new AllocatedResource(removedSlice.getHostingInstance(), removedSlice.getType(),
+										removedSlice.getAllocationID()));
 							}
 						}
 
@@ -697,50 +695,66 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType, int count)
-			throws InstanceException {
+	public synchronized void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+			List<String> splitAffinityList) throws InstanceException {
 
-		// TODO: Introduce topology awareness here
-		AllocatedSlice slice = null;
+		// Iterate over all instance types
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceMap.entrySet().iterator();
+		while (it.hasNext()) {
 
-		// Try to match the instance type without slicing first
-		for (final ClusterInstance host : this.registeredHosts.values()) {
-			if (host.getType().equals(instanceType)) {
-				slice = host.createSlice(instanceType, jobID);
-				if (slice != null) {
-					break;
+			// Iterate over all requested instances of a specific type
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+
+			for (int i = 0; i < entry.getValue().intValue(); i++) {
+
+				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
+
+				// TODO: Introduce topology awareness here
+				// TODO: Daniel: Code taken from AbstractScheduler..
+				AllocatedSlice slice = null;
+
+				// Try to match the instance type without slicing first
+				for (final ClusterInstance host : this.registeredHosts.values()) {
+					if (host.getType().equals(entry.getKey())) {
+						slice = host.createSlice(entry.getKey(), jobID);
+						if (slice != null) {
+							break;
+						}
+					}
 				}
-			}
-		}
 
-		// Use slicing now if necessary
-		if (slice == null) {
+				// Use slicing now if necessary
+				if (slice == null) {
 
-			for (final ClusterInstance host : this.registeredHosts.values()) {
-				slice = host.createSlice(instanceType, jobID);
-				if (slice != null) {
-					break;
+					for (final ClusterInstance host : this.registeredHosts.values()) {
+						slice = host.createSlice(entry.getKey(), jobID);
+						if (slice != null) {
+							break;
+						}
+					}
+
 				}
+
+				if (slice == null) {
+					throw new InstanceException("Could not find a suitable instance");
+				}
+
+				List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.get(jobID);
+				if (allocatedSlices == null) {
+					allocatedSlices = new ArrayList<AllocatedSlice>();
+					this.slicesOfJobs.put(jobID, allocatedSlices);
+				}
+				allocatedSlices.add(slice);
+
+				if (this.instanceListener != null) {
+					ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
+						this.instanceListener, slice);
+					clusterInstanceNotifier.start();
+				}
+
 			}
 
 		}
-
-		if (slice == null) {
-			throw new InstanceException("Could not find a suitable instance");
-		}
-
-		List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.get(jobID);
-		if (allocatedSlices == null) {
-			allocatedSlices = new ArrayList<AllocatedSlice>();
-			this.slicesOfJobs.put(jobID, allocatedSlices);
-		}
-		allocatedSlices.add(slice);
-
-		if (this.instanceListener != null) {
-			ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
-				this.instanceListener, slice);
-			clusterInstanceNotifier.start();
-		}		
 	}
 
 	/**

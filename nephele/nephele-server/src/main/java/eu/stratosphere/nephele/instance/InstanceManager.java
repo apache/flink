@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.instance;
 
+import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -46,7 +47,7 @@ public interface InstanceManager {
 	 * @throws InstanceException
 	 *         thrown if an error occurs during the instance request
 	 */
-	void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType, int count) throws InstanceException;
+	void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap, List<String> splitAffinityList) throws InstanceException;
 
 	/**
 	 * Releases an allocated resource from a job.

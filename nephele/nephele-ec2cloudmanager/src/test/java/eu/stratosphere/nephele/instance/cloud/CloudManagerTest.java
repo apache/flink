@@ -305,7 +305,9 @@ public class CloudManagerTest {
 
 		// request instance
 		try {
-			cm.requestInstance(jobID, conf, InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),1);
+			Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
+			instanceMap.put(InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"), 1);
+			cm.requestInstance(jobID, conf, instanceMap, null);
 		} catch (InstanceException e) {
 			e.printStackTrace();
 		}
