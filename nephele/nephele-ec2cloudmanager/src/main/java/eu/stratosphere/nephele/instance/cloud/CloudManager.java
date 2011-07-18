@@ -43,6 +43,9 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.services.ec2.model.TerminateInstancesResult;
+
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -310,53 +313,17 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
 		}
 
-		final Boolean isSecure = GlobalConfiguration.getBoolean(EC2WSSECUREKEY, false);
+		
+		AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 
-		final String server = GlobalConfiguration.getString(EC2WSSERVERKEY, null);
-		if (server == null) {
-			LOG.error("Unable to contact cloud: web service server unknown");
-			return null;
-		}
-
-		final int port = GlobalConfiguration.getInteger(EC2WSPORTKEY, -1);
-		if (port < 0) {
-			LOG.error("cloud.ec2ws.port not defined in config file");
-			return null;
-		}
-
-		com.xerox.amazonws.ec2.Jec2 ec2Client = null;
-
-		try {
-			ec2Client = new com.xerox.amazonws.ec2.Jec2(awsAccessId, awsSecretKey, isSecure, server, port);
-			ec2Client.setResourcePrefix("/services/Eucalyptus");
-			ec2Client.setSignatureVersion(1);
-		} catch (Exception e) {
-			LOG.error("Unable to contact cloud: " + StringUtils.stringifyException(e));
-			return null;
-		}
-
-		List<com.xerox.amazonws.ec2.TerminatingInstanceDescription> terminatedInstances = null;
-		final String[] instanceIDs = { instanceID };
-
-		try {
-			LOG.info("Trying to terminate instance " + instanceID);
-			terminatedInstances = ec2Client.terminateInstances(instanceIDs);
-		} catch (Exception e) {
-			LOG.error("Unable to destroy instance: " + StringUtils.stringifyException(e));
-			return null;
-		}
-
-		if (terminatedInstances == null) {
-			LOG.error("Unable to destroy instance: terminated instance is null");
-			return null;
-		}
-
-		if (terminatedInstances.size() != 1) {
-			LOG.error("More or less than one instance terminated at a time, this is unexpected");
-			return null;
-		}
-
-		return terminatedInstances.get(0).getInstanceId();
+		TerminateInstancesRequest tr = new TerminateInstancesRequest();
+		LinkedList<String> instances = new LinkedList<String>();
+		instances.add(instanceID);
+		tr.setInstanceIds(instances);
+		TerminateInstancesResult trr = ec2client.terminateInstances(tr);
+		
+		return trr.getTerminatingInstances().get(0).getInstanceId();
+		
 	}
 
 	/**

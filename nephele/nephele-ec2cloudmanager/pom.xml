@@ -36,11 +36,6 @@
          <version>3.0</version>
       </dependency>
         
-      <dependency>
-        <groupId>com.google.code.typica</groupId>
-        <artifactId>typica</artifactId>
-        <version>1.6</version>
-      </dependency>
     	
       <dependency>
 	    <groupId>com.amazonaws</groupId>
