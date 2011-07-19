@@ -286,14 +286,14 @@ public class FileBuffer implements InternalBuffer {
 
 	@Override
 	public boolean isReadBuffer() {
-		
-		return true;
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 	@Override
 	public void copyToBuffer(Buffer destinationBuffer) throws IOException {
 		// TODO Auto-generated method stub
-		
+		throw new UnsupportedOperationException("Method is not yet implemented");
 	}
 
 }

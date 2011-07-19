@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Deque;
+import java.util.Queue;
 
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
@@ -28,12 +28,10 @@ public class MemoryBuffer implements InternalBuffer {
 	private final MemoryBufferRecycler bufferRecycler;
 	
 	private final ByteBuffer byteBuffer;
-
-	private final boolean isReadBuffer;
 	
 	private volatile boolean writeMode = true;
 
-	MemoryBuffer(int bufferSize, ByteBuffer byteBuffer, Deque<ByteBuffer> queueForRecycledBuffers, final boolean isReadBuffer) {
+	MemoryBuffer(int bufferSize, ByteBuffer byteBuffer, Queue<ByteBuffer> queueForRecycledBuffers) {
 
 		if (bufferSize > byteBuffer.capacity()) {
 			throw new IllegalArgumentException("Requested buffer size is " + bufferSize
@@ -41,19 +39,16 @@ public class MemoryBuffer implements InternalBuffer {
 		}
 		
 		this.bufferRecycler = new MemoryBufferRecycler(byteBuffer, queueForRecycledBuffers);
-
-		this.isReadBuffer = isReadBuffer;
 		
 		this.byteBuffer = byteBuffer;
 		this.byteBuffer.position(0);
 		this.byteBuffer.limit(bufferSize);
 	}
 	
-	private MemoryBuffer(int bufferSize, ByteBuffer byteBuffer, MemoryBufferRecycler bufferRecycler, final boolean isReadBuffer) {
+	private MemoryBuffer(int bufferSize, ByteBuffer byteBuffer, MemoryBufferRecycler bufferRecycler) {
 		
 		this.bufferRecycler = bufferRecycler;
-		
-		this.isReadBuffer = isReadBuffer;
+
 		
 		this.byteBuffer = byteBuffer;
 		this.byteBuffer.position(0);
@@ -194,7 +189,7 @@ public class MemoryBuffer implements InternalBuffer {
 	public InternalBuffer duplicate() {
 
 		final MemoryBuffer duplicatedMemoryBuffer = new MemoryBuffer(this.byteBuffer.limit(), this.byteBuffer
-			.duplicate(), this.bufferRecycler, this.isReadBuffer);
+			.duplicate(), this.bufferRecycler);
 		
 		this.bufferRecycler.increaseReferenceCounter();
 
@@ -203,12 +198,6 @@ public class MemoryBuffer implements InternalBuffer {
 		duplicatedMemoryBuffer.writeMode = this.writeMode;
 
 		return duplicatedMemoryBuffer;
-	}
-
-	@Override
-	public boolean isReadBuffer() {
-		
-		return this.isReadBuffer;
 	}
 
 	@Override

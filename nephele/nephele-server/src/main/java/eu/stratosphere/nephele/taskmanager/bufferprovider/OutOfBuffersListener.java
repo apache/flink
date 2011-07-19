@@ -13,25 +13,9 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.bufferprovider;
 
-import java.io.IOException;
+public interface OutOfBuffersListener {
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-
-public interface ByteBufferedChannelWrapper {
-
-	public boolean isInputChannel();
-
-	public JobID getJobID();
-
-	public ChannelID getChannelID();
-
-	public ChannelID getConnectedChannelID();
-
-	public void reportIOException(IOException ioe);
-	
-	public void queueTransferEnvelope(TransferEnvelope transferEnvelope);
+	public void outOfByteBuffers();
 }

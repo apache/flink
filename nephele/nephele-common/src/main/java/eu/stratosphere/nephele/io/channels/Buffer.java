@@ -239,9 +239,4 @@ public final class Buffer implements ReadableByteChannel, WritableByteChannel {
 
 		return new Buffer(this.internalBuffer.duplicate());
 	}
-
-	public boolean isReadBuffer() {
-
-		return this.internalBuffer.isReadBuffer();
-	}
 }

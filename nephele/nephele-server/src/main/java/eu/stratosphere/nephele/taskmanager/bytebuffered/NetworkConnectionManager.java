@@ -18,8 +18,6 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,9 +30,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 /**
  * The network connection manager manages incoming and outgoing network connection from and to other hosts.
@@ -81,11 +77,6 @@ public final class NetworkConnectionManager {
 	private final Map<InetSocketAddress, OutgoingConnection> outgoingConnections = new HashMap<InetSocketAddress, OutgoingConnection>();
 
 	/**
-	 * Map containing currently active incoming connections.
-	 */
-	private final Map<IncomingConnectionID, IncomingConnection> incomingConnections = new HashMap<IncomingConnectionID, IncomingConnection>();
-
-	/**
 	 * The number of connection retries before giving up.
 	 */
 	private final int numberOfConnectionRetries;
@@ -93,19 +84,14 @@ public final class NetworkConnectionManager {
 	/**
 	 * A buffer provider for read buffers
 	 */
-	private final ReadBufferProvider readBufferProvider;
+	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
-
-	public NetworkConnectionManager(final ReadBufferProvider readBufferProvider,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final InetAddress bindAddress,
-			final int dataPort) throws IOException {
+	public NetworkConnectionManager(final ByteBufferedChannelManager byteBufferedChannelManager,
+			final InetAddress bindAddress, final int dataPort) throws IOException {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
 
-		this.readBufferProvider = readBufferProvider;
-
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
 		// Start the connection threads
 		final int numberOfOutgoingConnectionThreads = configuration.getInteger(
@@ -122,7 +108,11 @@ public final class NetworkConnectionManager {
 			"channel.network.numgerOfIncomingConnectionThreads", DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS);
 		synchronized (this.incomingConnectionThreads) {
 			for (int i = 0; i < numberOfIncomingConnectionThreads; i++) {
-				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(this, (i == 0),
+				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(null, (i == 0), // TODO:
+																														// Replace
+																														// null
+																														// with
+																														// BytebufferedManager
 					new InetSocketAddress(bindAddress, dataPort));
 
 				incomingConnectionThread.start();
@@ -132,46 +122,6 @@ public final class NetworkConnectionManager {
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
-	}
-
-	public IncomingConnection registerIncomingConnection(IncomingConnectionID incomingConnectionID,
-			ReadableByteChannel readableByteChannel) {
-
-		final IncomingConnection incomingConnection = new IncomingConnection(incomingConnectionID, this,
-			this.transferEnvelopeDispatcher, this.readBufferProvider, readableByteChannel);
-
-		synchronized (this.incomingConnections) {
-
-			System.out.println("Registering incoming connection for " + incomingConnectionID);
-			
-			// Find previous connection
-			final IncomingConnection previousConnection = this.incomingConnections.get(incomingConnectionID);
-
-			// Set previous connection if there is any and set sequence number to expect
-			incomingConnection.setPreviousConnection(previousConnection);
-			this.incomingConnections.put(incomingConnectionID, incomingConnection);
-		}
-
-		// Register connection with an incoming connection thread if this is a network connection
-		if (readableByteChannel instanceof SocketChannel) {
-			getIncomingConnectionThread().addToPendingIncomingConnections(incomingConnection);
-		}
-
-		return incomingConnection;
-	}
-
-	public void unregisterIncomingConnection(IncomingConnectionID incomingConnectionID,
-			ReadableByteChannel readableByteChannel) {
-
-		synchronized (this.incomingConnections) {
-			
-			System.out.println("Unregistering incoming connection for " + incomingConnectionID);
-			
-			final IncomingConnection incomingConnection = this.incomingConnections.remove(incomingConnectionID);
-			if (incomingConnection == null) {
-				LOG.error("Cannot unregister incoming connection from with ID " + incomingConnectionID);
-			}
-		}
 	}
 
 	/**
@@ -259,12 +209,21 @@ public final class NetworkConnectionManager {
 				it.next().interrupt();
 			}
 		}
+	}
 
-		// Finally, do some consistency tests
-		synchronized (this.incomingConnections) {
-			if (!this.incomingConnections.isEmpty()) {
-				LOG.error("Detected inconsistency on shutdown: still " + this.incomingConnections.size()
-					+ " incoming connections registered");
+	public void logBufferUtilization() {
+		synchronized (this.outgoingConnections) {
+
+			System.out.println("\tOutgoing connections:");
+
+			final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
+				System.out
+					.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
 			}
 		}
 	}

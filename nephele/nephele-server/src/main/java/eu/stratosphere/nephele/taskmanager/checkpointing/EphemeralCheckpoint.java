@@ -27,7 +27,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.OutOfByteBuffersListener;
+import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
+import eu.stratosphere.nephele.profiling.ProfilingException;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.OutOfBuffersListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -44,7 +46,7 @@ import eu.stratosphere.nephele.execution.Environment;
  * 
  * @author warneke
  */
-public class EphemeralCheckpoint implements OutOfByteBuffersListener {
+public class EphemeralCheckpoint implements OutOfBuffersListener {
 
 	/**
 	 * The log object used to report problems.
@@ -81,8 +83,6 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 */
 	private final Map<ChannelID, ChannelCheckpoint> channelCheckpoints = new HashMap<ChannelID, ChannelCheckpoint>();
 
-	private boolean decided = false;
-	
 	/**
 	 * Constructs a new ephemeral checkpoint.
 	 * 
@@ -111,9 +111,12 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 */
 	public static EphemeralCheckpoint forNetworkChannel(CheckpointManager checkpointManager,
 			ExecutionVertexID executionVertexID) {
-		//return new EphemeralCheckpoint(checkpointManager, executionVertexID, CheckpointingDecisionState.NO_CHECKPOINTING); 
-		//return new EphemeralCheckpoint(checkpointManager, executionVertexID, CheckpointingDecisionState.CHECKPOINTING); 
-		EphemeralCheckpoint ephemeralCheckpoint = new EphemeralCheckpoint(checkpointManager, executionVertexID,CheckpointingDecisionState.UNDECIDED); 
+		// return new EphemeralCheckpoint(checkpointManager, executionVertexID,
+		// CheckpointingDecisionState.NO_CHECKPOINTING);
+		// return new EphemeralCheckpoint(checkpointManager, executionVertexID,
+		// CheckpointingDecisionState.CHECKPOINTING);
+		EphemeralCheckpoint ephemeralCheckpoint = new EphemeralCheckpoint(checkpointManager, executionVertexID,
+			CheckpointingDecisionState.UNDECIDED);
 		checkpointManager.registerEphermalCheckpoint(ephemeralCheckpoint);
 		return ephemeralCheckpoint;
 	}
@@ -189,20 +192,20 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		try {
 			switch (this.checkpointingDecision) {
 			case NO_CHECKPOINTING:
-				//TODO: Fix me
-				//transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+				// TODO: Fix me
+				// transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 				return;
 			case UNDECIDED:
 				ChannelCheckpoint undeciedChannelCheckpoint = this.channelCheckpoints.get(transferEnvelope.getSource());
-				if(undeciedChannelCheckpoint == null){
+				if (undeciedChannelCheckpoint == null) {
 					LOG.error("Cannot find output channel with ID " + transferEnvelope.getSource());
 					return;
 				}
-//				if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
-//					// Continue working with a copy of the transfer envelope
-//					transferEnvelope = transferEnvelope.duplicate();
-//				}
-				
+				// if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
+				// // Continue working with a copy of the transfer envelope
+				// transferEnvelope = transferEnvelope.duplicate();
+				// }
+
 				undeciedChannelCheckpoint.addToCheckpoint(transferEnvelope);
 				break;
 			case CHECKPOINTING:
@@ -212,18 +215,13 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 					return;
 				}
 
-<<<<<<< HEAD
-//				if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
-//					// Continue working with a copy of the transfer envelope
-//					transferEnvelope = transferEnvelope.duplicate();
-//				}
-=======
-				//TODO: Fix me
-				/*if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
-					// Continue working with a copy of the transfer envelope
-					transferEnvelope = transferEnvelope.duplicate();
-				}*/
->>>>>>> experimental
+				// TODO: Fix me
+				/*
+				 * if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
+				 * // Continue working with a copy of the transfer envelope
+				 * transferEnvelope = transferEnvelope.duplicate();
+				 * }
+				 */
 
 				channelCheckpoint.addToCheckpoint(transferEnvelope);
 				break;
@@ -242,7 +240,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 */
 	@Override
 	public synchronized void outOfByteBuffers() {
-		
+
 		if (this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED) {
 			return;
 		}
@@ -253,29 +251,29 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		} catch (ProfilingException e) {
 			e.printStackTrace();
 		}
-		if(profilingData != null){
-			if(profilingData.getTransmittedBytes() == 0 || profilingData.getReceivedBytes() == 0){
-				//Input/output?
-				//FIXME (marrus) 
+		if (profilingData != null) {
+			if (profilingData.getTransmittedBytes() == 0 || profilingData.getReceivedBytes() == 0) {
+				// Input/output?
+				// FIXME (marrus)
 				discardCheckpoint();
-			}else{
-				//just for testing random checkpointing
+			} else {
+				// just for testing random checkpointing
 				Random random = new Random(System.currentTimeMillis());
 				boolean checkp = random.nextBoolean();
-				
-				if(checkp){
+
+				if (checkp) {
 					makeCheckpointPersistent();
-				}else{
+				} else {
 					discardCheckpoint();
 				}
 			}
-		}else{
+		} else {
 			LOG.info("Discarding Checkpoint no profiling data");
 			discardCheckpoint();
 		}
-		
-		//discardCheckpoint();
-		
+
+		// discardCheckpoint();
+
 	}
 
 	/**
@@ -416,16 +414,11 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			return;
 		}
 
-<<<<<<< HEAD
-		//TODO: Uncomment this when feature is full implemented
+		// TODO: Uncomment this when feature is full implemented
 		this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 	}
 
-	public boolean isDecided(){
+	public boolean isDecided() {
 		return this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED;
-=======
-		// TODO: Uncomment this when feature is full implemented
-		// this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
->>>>>>> experimental
 	}
 }

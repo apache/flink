@@ -18,17 +18,15 @@ package eu.stratosphere.nephele.taskmanager.transferenvelope;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 
 public class TransferEnvelopeDeserializer {
 
@@ -47,7 +45,7 @@ public class TransferEnvelopeDeserializer {
 
 	private DeserializationState deserializationState = DeserializationState.NOTDESERIALIZED;
 
-	private final ReadBufferProvider readBufferProvider;
+	private final BufferProvider bufferProvider;
 
 	private final DeserializationBuffer<ChannelID> channelIDDeserializationBuffer = new DeserializationBuffer<ChannelID>(
 		new DefaultRecordDeserializer<ChannelID>(ChannelID.class), true);
@@ -61,8 +59,6 @@ public class TransferEnvelopeDeserializer {
 	private final ByteBuffer existanceBuffer = ByteBuffer.allocate(1); // 1 byte for existence of buffer
 
 	private final ByteBuffer lengthBuffer = ByteBuffer.allocate(SIZEOFINT);
-
-	private final boolean readsFromCheckpoint;
 
 	private Buffer buffer = null;
 
@@ -80,10 +76,9 @@ public class TransferEnvelopeDeserializer {
 
 	private EventList deserializedEventList = null;
 
-	public TransferEnvelopeDeserializer(ReadBufferProvider readBufferProvider, boolean readsFromCheckpoint) {
+	public TransferEnvelopeDeserializer(BufferProvider bufferProvider) {
 
-		this.readBufferProvider = readBufferProvider;
-		this.readsFromCheckpoint = readsFromCheckpoint;
+		this.bufferProvider = bufferProvider;
 	}
 
 	public void read(ReadableByteChannel readableByteChannel) throws IOException {
@@ -140,7 +135,7 @@ public class TransferEnvelopeDeserializer {
 
 		if (!this.lengthBuffer.hasRemaining()) {
 
-			this.deserializedSequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);			
+			this.deserializedSequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);
 			if (this.deserializedSequenceNumber < 0) {
 				throw new IOException("Received invalid sequence number: " + this.deserializedSequenceNumber);
 			}
@@ -211,10 +206,10 @@ public class TransferEnvelopeDeserializer {
 					throw new IOException("Deserialization error: Expected at least "
 						+ this.existanceBuffer.remaining() + " more bytes to follow");
 				}
-			} else if(bytesRead == 0) {
+			} else if (bytesRead == 0) {
 				try {
 					Thread.sleep(50);
-				} catch(InterruptedException e) {
+				} catch (InterruptedException e) {
 				}
 			}
 
@@ -254,39 +249,20 @@ public class TransferEnvelopeDeserializer {
 
 		if (this.buffer == null) {
 
-			if (this.readsFromCheckpoint) {
+			// Request read buffer from network channelManager
+			this.buffer = this.bufferProvider.requestEmptyBuffer(this.sizeOfBuffer);
 
-				if (!(readableByteChannel instanceof FileChannel)) {
-					throw new IOException(
-						"Reading from checkpoint, but readableByteChannel is no instance of FileChannel!");
-				}
+			if (this.buffer == null) {
 
-				final FileChannel fileChannel = (FileChannel) readableByteChannel;
-				this.buffer = BufferFactory.createFromCheckpoint(this.sizeOfBuffer, this.transferEnvelope.getSource(),
-					fileChannel.position(), this.readBufferProvider.getFileBufferManager());
-				// Skip over buffer and finish deserialization step
-				fileChannel.position(fileChannel.position() + sizeOfBuffer);
-				this.transferEnvelope.setBuffer(this.buffer);
-				this.deserializationState = DeserializationState.FULLYDESERIALIZED;
-				return false;
-
-			} else {
-				// Request read buffer from network channelManager
-				this.buffer = this.readBufferProvider.requestEmptyReadBuffer(this.sizeOfBuffer,
-					this.transferEnvelope.getSource());
-
-				if (this.buffer == null) {
-
-					try {
-						Thread.sleep(100);
-						// Wait for 100 milliseconds, so the NIO thread won't do busy
-						// waiting...
-					} catch (InterruptedException e) {
-						return true;
-					}
-
+				try {
+					Thread.sleep(100);
+					// Wait for 100 milliseconds, so the NIO thread won't do busy
+					// waiting...
+				} catch (InterruptedException e) {
 					return true;
 				}
+
+				return true;
 			}
 
 		} else {

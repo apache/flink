@@ -54,19 +54,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
-import eu.stratosphere.nephele.io.channels.direct.AbstractDirectInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.AbstractDirectOutputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryOutputChannel;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -83,10 +71,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedOutputChannelGroup;
 import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
-import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -130,12 +115,6 @@ public class TaskManager implements TaskOperationProtocol {
 	 * setting up and cleaning up the byte buffered channels of the tasks.
 	 */
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
-
-	/**
-	 * The instance of the {@link DirectChannelManager} which is responsible for
-	 * setting up and cleaning up the direct channels of the tasks.
-	 */
-	private final DirectChannelManager directChannelManager;
 
 	/**
 	 * The instance of the {@link CheckpointManager} to restore
@@ -291,9 +270,6 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
-		// Initialize the direct channel manager
-		this.directChannelManager = new DirectChannelManager();
-
 		// Initialize the checkpoint manager
 		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath,this);
 
@@ -372,133 +348,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Shut down
 		taskManager.shutdown();
-	}
-
-	/**
-	 * Registers the input channels of an incoming task with the task manager.
-	 * 
-	 * @param eig
-	 *        the input gate whose input channels should be registered
-	 * @throws ChannelSetupException
-	 *         thrown if one of the channels could not be set up correctly
-	 */
-	// This method is called by the RPC server thread
-	private void registerInputChannels(InputGate<? extends Record> eig) throws ChannelSetupException {
-
-		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
-
-		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
-
-			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
-
-			if (eic instanceof NetworkInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
-			} else if (eic instanceof FileInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
-				// Start recovery of the checkpoint
-				this.checkpointManager.recoverChannelCheckpoint(eic.getConnectedChannelID());
-			} else if (eic instanceof InMemoryInputChannel<?>) {
-				this.directChannelManager
-					.registerDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
-			} else {
-				throw new ChannelSetupException("Type of input channel " + eic.getID() + " is not supported");
-			}
-		}
-	}
-
-	/**
-	 * Registers the output channels of an incoming task with the task manager.
-	 * 
-	 * @param eig
-	 *        the output gate whose input channels should be registered
-	 * @param channelGroup
-	 *        the channel group which is requied by byte buffered channel to create checkpoints
-	 * @throws ChannelSetupException
-	 *         thrown if one of the channels could not be registered
-	 */
-	// This method is called by the RPC server thread
-	private void registerOutputChannels(OutputGate<? extends Record> eog, ByteBufferedOutputChannelGroup channelGroup)
-			throws ChannelSetupException {
-
-		for (int i = 0; i < eog.getNumberOfOutputChannels(); i++) {
-
-			AbstractOutputChannel<? extends Record> eoc = eog.getOutputChannel(i);
-			if (eoc instanceof NetworkOutputChannel<?>) {
-				this.byteBufferedChannelManager.registerByteBufferedOutputChannel(
-					(AbstractByteBufferedOutputChannel<? extends Record>) eoc, channelGroup);
-			} else if (eoc instanceof FileOutputChannel<?>) {
-				this.byteBufferedChannelManager.registerByteBufferedOutputChannel(
-					(AbstractByteBufferedOutputChannel<? extends Record>) eoc, channelGroup);
-			} else if (eoc instanceof InMemoryOutputChannel<?>) {
-				this.directChannelManager
-					.registerDirectOutputChannel((AbstractDirectOutputChannel<? extends Record>) eoc);
-			} else {
-				throw new ChannelSetupException("Type of output channel " + eoc.getID() + " is not supported");
-			}
-		}
-	}
-
-	/**
-	 * Unregisters the input channels of a finished or aborted task.
-	 * 
-	 * @param eig
-	 *        the input gate whose input channels should be unregistered
-	 */
-	// This method is called by the respective task thread
-	private void unregisterInputChannels(InputGate<? extends Record> eig) {
-
-		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
-
-		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
-			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
-
-			if (eic instanceof NetworkInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
-			} else if (eic instanceof FileInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
-			} else if (eic instanceof InMemoryInputChannel<?>) {
-				this.directChannelManager
-					.unregisterDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
-			} else {
-				LOG.error("Type of input channel " + eic.getID() + " is not supported");
-			}
-		}
-	}
-
-	/**
-	 * Unregisters the output channels of a finished or aborted task.
-	 * 
-	 * @param eig
-	 *        the output gate whose input channels should be unregistered
-	 */
-	// This method is called by the respective task thread
-	private void unregisterOutputChannels(OutputGate<? extends Record> eog) {
-
-		for (int i = 0; i < eog.getNumberOfOutputChannels(); i++) {
-			AbstractOutputChannel<? extends Record> eoc = eog.getOutputChannel(i);
-
-			if (eoc instanceof NetworkOutputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedOutputChannel((AbstractByteBufferedOutputChannel<? extends Record>) eoc);
-			} else if (eoc instanceof FileOutputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedOutputChannel((AbstractByteBufferedOutputChannel<? extends Record>) eoc);
-			} else if (eoc instanceof InMemoryOutputChannel<?>) {
-				this.directChannelManager
-					.unregisterDirectOutputChannel((AbstractDirectOutputChannel<? extends Record>) eoc);
-			} else {
-				LOG.error("Type of output channel " + eoc.getID() + " is not supported");
-			}
-		}
-
 	}
 
 	// This method is called by the TaskManagers main thread
@@ -694,77 +543,31 @@ public class TaskManager implements TaskOperationProtocol {
 		final EnvironmentWrapper wrapper = new EnvironmentWrapper(this, id, ee);
 		ee.registerExecutionListener(wrapper);
 
+		// Register the task with the byte buffered channel manager			
+		this.byteBufferedChannelManager.register(id, ee);
+			
 		boolean enableProfiling = false;
 		if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
 			enableProfiling = true;
 		}
-
-		if (enableProfiling) {
+		
+		// Register environment, input, and output gates for profiling
+		if(enableProfiling) {
+			
 			this.profiler.registerExecutionListener(id, jobConfiguration, ee);
-		}
-
-		try {
-			// Register input gates
+			
 			for (int i = 0; i < ee.getNumberOfInputGates(); i++) {
-				registerInputChannels(ee.getInputGate(i));
-				if (enableProfiling) {
-					this.profiler.registerInputGateListener(id, jobConfiguration, ee.getInputGate(i));
-				}
+				this.profiler.registerInputGateListener(id, jobConfiguration, ee.getInputGate(i));
 			}
-
-			// Try to find common channel type among the output channels
-			final ChannelType commonChannelType = hasCommonOutputChannelType(ee);
-			final ByteBufferedOutputChannelGroup channelGroup = new ByteBufferedOutputChannelGroup(
-				this.byteBufferedChannelManager, this.byteBufferedChannelManager.getBufferProvider(),
-				this.checkpointManager, commonChannelType, id);
-
-			// Register output gates
+			
 			for (int i = 0; i < ee.getNumberOfOutputGates(); i++) {
-				registerOutputChannels(ee.getOutputGate(i), channelGroup);
-				if (enableProfiling) {
-					this.profiler.registerOutputGateListener(id, jobConfiguration, ee.getOutputGate(i));
-				}
+				this.profiler.registerOutputGateListener(id, jobConfiguration, ee.getOutputGate(i));
 			}
-		} catch (ChannelSetupException e) {
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription(e.getMessage());
-			return result;
 		}
-
+		
 		// The environment itself will put the task into the running task map
 
 		return null;
-	}
-
-	/**
-	 * Checks if all output channels of the given environment have a common channel type.
-	 * 
-	 * @param environment
-	 *        the environment whose output channels are checked
-	 * @return the common {@link ChannelType} or <code>null</code> if no common channel type exists
-	 */
-	private ChannelType hasCommonOutputChannelType(Environment environment) {
-
-		ChannelType outputChannelType = null;
-
-		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
-
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-
-				if (outputChannelType == null) {
-					outputChannelType = outputChannel.getType();
-				} else {
-					if (!outputChannelType.equals(outputChannel.getType())) {
-						return null;
-					}
-				}
-			}
-		}
-
-		return outputChannelType;
 	}
 
 	/**
@@ -777,22 +580,13 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private void unregisterTask(ExecutionVertexID id, Environment environment) {
 
-		// Unregister channels
-		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
-			unregisterOutputChannels(environment.getOutputGate(i));
-		}
+		// Unregister task from the byte buffered channel manager
+		this.byteBufferedChannelManager.unregister(id, environment);
+		
+		// Unregister task from profiling
 		if (this.profiler != null) {
 			this.profiler.unregisterOutputGateListeners(id);
-		}
-
-		for (int i = 0; i < environment.getNumberOfInputGates(); i++) {
-			unregisterInputChannels(environment.getInputGate(i));
-		}
-		if (this.profiler != null) {
 			this.profiler.unregisterInputGateListeners(id);
-		}
-
-		if (this.profiler != null) {
 			this.profiler.unregisterExecutionListener(id);
 		}
 

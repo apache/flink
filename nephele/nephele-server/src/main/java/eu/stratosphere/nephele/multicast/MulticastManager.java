@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
+import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.types.Record;
@@ -43,13 +43,13 @@ import eu.stratosphere.nephele.types.Record;
 
 public class MulticastManager implements ChannelLookupProtocol {
 
-	private final Scheduler scheduler;
+	private final AbstractScheduler scheduler;
 
 	private final Map<ChannelID, MulticastForwardingTable> cachedTrees = new HashMap<ChannelID, MulticastForwardingTable>();
 
 	private final TopologyInformationSupplier topologySupplier = new TopologyInformationSupplier();
 
-	public MulticastManager(Scheduler scheduler) {
+	public MulticastManager(final AbstractScheduler scheduler) {
 		this.scheduler = scheduler;
 	}
 
@@ -95,11 +95,10 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			// receivers up and running.. create tree
 			LinkedList<TreeNode> treenodes = extractTreeNodes(caller, jobID, sourceChannelID);
-			
-			
+
 			cachedTrees.put(sourceChannelID, MulticastCluster.createClusteredTree(treenodes, 2));
-			
-			//cachedTrees.put(sourceChannelID, createSequentialTree(treenodes));
+
+			// cachedTrees.put(sourceChannelID, createSequentialTree(treenodes));
 
 			System.out.println("==RETURNING ENTRY TO " + caller + " ==");
 			System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));

@@ -145,9 +145,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final InputSplitManager inputSplitManager;
 
+	private final AbstractScheduler scheduler;
+	
 	private final MulticastManager multicastManager;
 
-	private final InstanceManager instanceManager;
+	private InstanceManager instanceManager;
 
 	private final int recommendedClientPollingInterval;
 
@@ -162,7 +164,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	/**
 	 * Constructs a new job manager, starts its discovery service and its IPC service.
 	 */
-	public JobManager(String configDir, String executionMode) {
+	public JobManager(final String configDir, final String executionMode) {
 
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);

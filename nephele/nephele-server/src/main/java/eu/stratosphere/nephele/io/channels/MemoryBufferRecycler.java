@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.io.channels;
 
 import java.nio.ByteBuffer;
-import java.util.Deque;
+import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,7 +45,7 @@ public final class MemoryBufferRecycler {
 	/**
 	 * The queue to which the byte buffer shall be appended after all copies have been processed.
 	 */
-	private final Deque<ByteBuffer> queueForRecycledBuffers;
+	private final Queue<ByteBuffer> queueForRecycledBuffers;
 
 	/**
 	 * The number of memory buffer objects which may still access the physical buffer.
@@ -65,7 +65,7 @@ public final class MemoryBufferRecycler {
 	 * @param queueForRecycledBuffers
 	 *        the queue to append the buffer for recycling
 	 */
-	MemoryBufferRecycler(final ByteBuffer originalBuffer, final Deque<ByteBuffer> queueForRecycledBuffers) {
+	MemoryBufferRecycler(final ByteBuffer originalBuffer, final Queue<ByteBuffer> queueForRecycledBuffers) {
 
 		this.originalBuffer = originalBuffer;
 		this.queueForRecycledBuffers = queueForRecycledBuffers;
