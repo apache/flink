@@ -438,7 +438,7 @@ public class CrossTask extends AbstractTask
 				throw new RuntimeException("Unable to open SpillingResettableIterator", ie);
 			}
 			
-			// check if task was cancelled while data was read
+			// check if task was canceled while data was read
 			if (this.taskCanceled)
 				return;
 			
@@ -455,35 +455,37 @@ public class CrossTask extends AbstractTask
 	
 			boolean moreOuterBlocks = false;
 
-			do {
-				// loop over the spilled resettable iterator
-				while (!this.taskCanceled && innerInput.hasNext()) {
-					// get inner pair
-					KeyValuePair<Key, Value> innerPair = innerInput.next();
-					// loop over the pairs in the current memory block
-					while (!this.taskCanceled && outerInput.hasNext()) {
-						// get outer pair
-						KeyValuePair<Key, Value> outerPair = outerInput.next();
+			if (innerInput.hasNext()) { // avoid painful work when one input is empty
+				do {
+					// loop over the spilled resettable iterator
+					while (!this.taskCanceled && innerInput.hasNext()) {
+						// get inner pair
+						KeyValuePair<Key, Value> innerPair = innerInput.next();
+						// loop over the pairs in the current memory block
+						while (!this.taskCanceled && outerInput.hasNext()) {
+							// get outer pair
+							KeyValuePair<Key, Value> outerPair = outerInput.next();
+		
+							// call cross() method of CrossStub depending on local strategy
+							if(firstInputIsOuter) {
+								stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(), output);
+							} else {
+								stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(), output);
+							}
 	
-						// call cross() method of CrossStub depending on local strategy
-						if(firstInputIsOuter) {
-							stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(), output);
-						} else {
-							stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(), output);
+							innerPair = innerInput.repeatLast();
 						}
-
-						innerPair = innerInput.repeatLast();
+						// reset the memory block iterator to the beginning of the
+						// current memory block (outer side)
+						outerInput.reset();
 					}
-					// reset the memory block iterator to the beginning of the
-					// current memory block (outer side)
-					outerInput.reset();
-				}
-				// reset the spilling resettable iterator (inner side)
-				moreOuterBlocks = outerInput.nextBlock();
-				if(moreOuterBlocks) {
-					innerInput.reset();
-				}
-			} while (!this.taskCanceled && moreOuterBlocks);
+					// reset the spilling resettable iterator (inner side)
+					moreOuterBlocks = outerInput.nextBlock();
+					if(moreOuterBlocks) {
+						innerInput.reset();
+					}
+				} while (!this.taskCanceled && moreOuterBlocks);
+			}
 				
 			// close stub implementation
 			this.stub.close();

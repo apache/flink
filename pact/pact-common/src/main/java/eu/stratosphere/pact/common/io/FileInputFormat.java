@@ -113,7 +113,7 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 	protected long start;
 
 	/**
-	 * Teh length of the split that this parallel instance must consume.
+	 * The length of the split that this parallel instance must consume.
 	 */
 	protected long length;
 
