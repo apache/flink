@@ -160,6 +160,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
 
 		// First, check if there are enough resources to run this job
+		/*
 		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
 			.getMapOfAvailableInstanceTypes();
 
@@ -173,6 +174,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			while (it.hasNext()) {
 
 				final Map.Entry<InstanceType, Integer> entry = it.next();
+
 				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
 				if (descr == null) {
 					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
@@ -187,6 +189,8 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 				}
 			}
 		}
+		*/
+		
 
 		// Subscribe to job status notifications
 		executionGraph.registerJobStatusListener(this);

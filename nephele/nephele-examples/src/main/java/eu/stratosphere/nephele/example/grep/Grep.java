@@ -15,7 +15,9 @@
 
 package eu.stratosphere.nephele.example.grep;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
@@ -31,6 +33,7 @@ import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.nephele.util.JarFileCreator;
 
 public class Grep {
 
@@ -40,37 +43,72 @@ public class Grep {
 
 		JobFileInputVertex input = new JobFileInputVertex("Input 1", jobGraph);
 		input.setFileInputClass(FileLineReader.class);
-		input.setFilePath(new Path("file:///Users/casp/test2.txt"));
-
+		input.setFilePath(new Path("file:///home/ec2-user/test.txt"));
+		input.setInstanceType("t1.micro");
+		
 		JobTaskVertex task1 = new JobTaskVertex("Task 1", jobGraph);
 		task1.setTaskClass(GrepTask.class);
+		task1.setInstanceType("t1.micro");
 
+		
 		JobFileOutputVertex output = new JobFileOutputVertex("Output 1", jobGraph);
 		output.setFileOutputClass(FileLineWriter.class);
-		output.setFilePath(new Path("file:///Users/casp/output.txt"));
-
-		jobGraph.addJar(new Path("file:///Users/casp/GrepTask.jar"));
+		output.setFilePath(new Path("file:///tmp/"));
+		output.setInstanceType("t1.micro");
 
 		try {
 
-			input.connectTo(task1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			task1.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			input.connectTo(task1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			task1.connectTo(output, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 
 		} catch (JobGraphDefinitionException e) {
 			e.printStackTrace();
 		}
 
-		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
+		// Create jar file and attach it
+		final File jarFile = new File("/tmp/broadcastJob.jar");
+		final JarFileCreator jarFileCreator = new JarFileCreator(jarFile);
+		jarFileCreator.addClass(GrepTask.class);
 
-		conf.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, "6023");
 		try {
-			JobClient jobClient = new JobClient(jobGraph, conf);
-			JobSubmissionResult result = jobClient.submitJob();
-			System.out.println(result.getDescription());
+			jarFileCreator.createJarFile();
+			System.out.println("done creating!!");
 		} catch (IOException ioe) {
-			ioe.printStackTrace();
+
+			if (jarFile.exists()) {
+				jarFile.delete();
+			}
+
+			System.out.println("ERROR creating jar");
+			return;
 		}
 
+		jobGraph.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+
+		// Submit job
+		Configuration conf = new Configuration();
+		//conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
+		//conf.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, "6123");
+		conf.setString("ec2.image.id", "ami-ea5b6b9e");
+		conf.setString("job.cloud.username", "noname");
+		conf.setString("job.cloud.awsaccessid", "AKIAJYQJNI7QH227NDQA");
+		conf.setString("job.cloud.awssecretkey", "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");
+		conf.setString("job.cloud.sshkeypair", "caspeu");
+		InetSocketAddress jobmanager = new InetSocketAddress("127.0.0.1", 6123);
+		
+		
+		try {
+			final JobClient jobClient = new JobClient(jobGraph, conf, jobmanager);
+			System.out.println("submitting");
+			jobClient.submitJobAndWait();
+			System.out.println("done.");
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+
+		if (jarFile.exists()) {
+			jarFile.delete();
+		}
 	}
+
 }

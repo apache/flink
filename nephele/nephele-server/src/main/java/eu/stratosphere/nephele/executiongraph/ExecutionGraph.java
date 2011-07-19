@@ -937,7 +937,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 				if (targetResources.getInstance() instanceof DummyInstance) {
 					throw new ChannelSetupException("Allocated instance for " + targetVertex.getID()
-						+ " is a dummy vertex!");
+						+ " is a dummy instance!");
 				}
 			}
 		}

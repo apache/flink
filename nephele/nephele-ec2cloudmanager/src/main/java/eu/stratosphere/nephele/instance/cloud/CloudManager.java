@@ -46,7 +46,6 @@ import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.ec2.model.TerminateInstancesResult;
 
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AbstractInstance;
@@ -313,7 +312,6 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
 		}
 
-		
 		AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 
 		TerminateInstancesRequest tr = new TerminateInstancesRequest();
@@ -321,9 +319,9 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		instances.add(instanceID);
 		tr.setInstanceIds(instances);
 		TerminateInstancesResult trr = ec2client.terminateInstances(tr);
-		
+
 		return trr.getTerminatingInstances().get(0).getInstanceId();
-		
+
 	}
 
 	/**
@@ -429,7 +427,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 			// Collect Jobs that have reserved instances
 			final HashSet<JobID> jobsWithReservedInstances = new HashSet<JobID>();
-			
+
 			for (JobID id : this.reservedInstances.values()) {
 				jobsWithReservedInstances.add(id);
 			}
@@ -451,7 +449,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 				AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(mapping.getAwsAccessId(),
 					mapping.getAwsSecretKey());
-				
+
 				DescribeInstancesRequest request = new DescribeInstancesRequest();
 				DescribeInstancesResult result = ec2client.describeInstances(request);
 
@@ -530,20 +528,24 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		// TODO: maybe load default credentials from config?
 
 		// First check, if all required configuration entries are available
-		final String owner = conf.getString("job.cloud.username", null);
-		if (owner == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find username");
-		}
+		/*
+		 * final String owner = conf.getString("job.cloud.username", null);
+		 * if (owner == null) {
+		 * throw new InstanceException("Unable to allocate cloud instance: Cannot find username");
+		 * }
+		 * final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
+		 * if (awsAccessId == null) {
+		 * throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS access ID");
+		 * }
+		 * final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
+		 * if (awsSecretKey == null) {
+		 * throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
+		 * }
+		 */
 
-		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
-		if (awsAccessId == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS access ID");
-		}
-
-		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
-		if (awsSecretKey == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
-		}
+		final String awsAccessId = "AKIAJYQJNI7QH227NDQA";
+		final String awsSecretKey = "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";
+		final String owner = "nobody";
 
 		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
 
@@ -573,29 +575,33 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			final InstanceType actualInstanceType = entry.getKey();
 			final int neededinstancecount = entry.getValue();
 
+			LOG.info("Request for " + neededinstancecount + " instances of type " + actualInstanceType.getIdentifier());
+
 			// Now check, if floating instances of specific type are available...
 			final LinkedList<CloudInstance> floatinginstances = anyFloatingInstanceAvailable(owner, awsAccessId,
 				awsSecretKey, actualInstanceType, neededinstancecount);
 
-			if (floatinginstances.size() >= neededinstancecount) {
-				// We have enough floating instances of that particular type. Grab them!
+			// now we assign all found floating instances...
+			final JobToInstancesMapping mapping = this.jobToInstancesMap.get(jobID);
+			if (mapping == null) {
+				LOG.error("Cannot find mapping for job ID " + jobID);
+				return;
+			}
 
-				for (CloudInstance ci : floatinginstances) {
-					jobToInstanceMapping.assignInstanceToJob(ci);
-					this.instanceListener.resourceAllocated(jobID, ci.asAllocatedResource());
-				}
+			LOG.info("Found " + floatinginstances.size() + " suitable floating instances.");
+			for (CloudInstance ci : floatinginstances) {
+				mapping.assignInstanceToJob(ci);
+				CloudInstanceNotifier notifier = new CloudInstanceNotifier(this.instanceListener, jobID, ci);
+				notifier.start();
+			}
 
-			} else {
-
-				// We don't have enough floating instances.. first request those available
-				for (CloudInstance ci : floatinginstances) {
-					jobToInstanceMapping.assignInstanceToJob(ci);
-					this.instanceListener.resourceAllocated(jobID, ci.asAllocatedResource());
-				}
+			if (floatinginstances.size() < neededinstancecount) {
+				// we (still?) need to request new instances.
 
 				// Add instances that need to be requested to the map..
 				final int instancerequestcount = neededinstancecount - floatinginstances.size();
 				instancesToBeRequested.put(actualInstanceType, instancerequestcount);
+
 			}
 
 		}// End iterating over instance types
@@ -627,11 +633,14 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	private LinkedList<String> allocateCloudInstance(String awsAccessId, String awsSecretKey,
 			Map<InstanceType, Integer> instancesToBeRequested, String sshKeyPair) {
 
-		final String imageID = GlobalConfiguration.getString("ec2.image.id", null);
-		if (imageID == null) {
-			LOG.error("Unable to allocate instance: Image ID is unknown");
-			return null;
-		}
+		/*
+		 * final String imageID = GlobalConfiguration.getString("ec2.image.id", null);
+		 * if (imageID == null) {
+		 * LOG.error("Unable to allocate instance: Image ID is unknown");
+		 * return null;
+		 * }
+		 */
+		final String imageID = "ami-ea5b6b9e";
 		final String jobManagerIPAddress = GlobalConfiguration.getString("jobmanager.rpc.address", null);
 		if (jobManagerIPAddress == null) {
 			LOG.error("JobManager IP address is not set (jobmanager.rpc.address)");
@@ -701,6 +710,13 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	private LinkedList<CloudInstance> anyFloatingInstanceAvailable(String owner, String awsAccessId,
 			String awsSecretKey, InstanceType type, int count) throws InstanceException {
 
+		LOG.info("Check for floating instance of type" + type.getIdentifier() + " requested count: " + count + ".");
+
+		for (InstanceConnectionInfo i : this.floatingInstances.keySet()) {
+			LOG.info("Floating instance available: " + i.getAddress() + " " + i.getHostName() + " hash: "
+				+ i.hashCode());
+		}
+
 		final LinkedList<CloudInstance> floatinginstances = new LinkedList<CloudInstance>();
 
 		synchronized (this.floatingInstances) {
@@ -726,27 +742,47 @@ public class CloudManager extends TimerTask implements InstanceManager {
 					InetAddress inetAddress = null;
 					try {
 						inetAddress = InetAddress.getByName(t.getPrivateIpAddress());
-
 					} catch (UnknownHostException e) {
-						LOG.error("Cannot resolve " + t.getPrivateIpAddress() + " into an IP address: "
+						LOG.error("Cannot resolve " + t.getPrivateDnsName() + " into an IP address: "
 							+ StringUtils.stringifyException(e));
 						continue;
 					}
 
 					// Check if instance entry is a floating instance
-					if (this.floatingInstances.containsKey(inetAddress)) {
 
-						final FloatingInstance floatingInstance = this.floatingInstances.remove(inetAddress);
-						this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
+					for (Entry<InstanceConnectionInfo, FloatingInstance> e : this.floatingInstances.entrySet()) {
+						if (e.getKey().getAddress().equals(inetAddress)) {
+							LOG.info("Suitable floating instance found.");
 
-						floatinginstances.add(convertIntoCloudInstance(t, floatingInstance.getInstanceConnectionInfo(),
-							owner));
+							final FloatingInstance floatingInstance = this.floatingInstances.remove(e.getKey());
+							this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
 
-						// If we already have enough floating instances found: return!
-						if (floatinginstances.size() >= count) {
-							return floatinginstances;
+							// TODO JobToInstanceMapping!
+
+							floatinginstances.add(convertIntoCloudInstance(t,
+								floatingInstance.getInstanceConnectionInfo(), owner));
+
+							// If we already have enough floating instances found: return!
+							if (floatinginstances.size() >= count) {
+								return floatinginstances;
+							}
 						}
+
 					}
+
+					/*
+					 * if (this.floatingInstances.containsKey(inetAddress)) {
+					 * LOG.info("FOUND INSTANCE!!!!");
+					 * final FloatingInstance floatingInstance = this.floatingInstances.remove(inetAddress);
+					 * this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
+					 * floatinginstances.add(convertIntoCloudInstance(t, floatingInstance.getInstanceConnectionInfo(),
+					 * owner));
+					 * // If we already have enough floating instances found: return!
+					 * if (floatinginstances.size() >= count) {
+					 * return floatinginstances;
+					 * }
+					 * }
+					 */
 
 				}
 			}

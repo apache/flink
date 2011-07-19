@@ -51,7 +51,7 @@ public class EC2ClientFactory {
 		AmazonEC2Client client = new AmazonEC2Client(credentials);
 		
 		//TODO: Make endpoints configurable (US, EU, Asia etc).
-		//client.setEndpoint(arg0)
+		client.setEndpoint("ec2.eu-west-1.amazonaws.com");
 		ec2clients.put(awsAccessId, client);
 		return client;
 	}

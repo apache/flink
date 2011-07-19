@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.testing;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -100,8 +101,8 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public void requestInstance(final JobID jobID, final Configuration conf,
-			final InstanceType instanceType) throws InstanceException {
+	public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+			List<String> splitAffinityList) throws InstanceException {
 		this.instanceListener.resourceAllocated(jobID, this.allocatedResource);
 	}
 

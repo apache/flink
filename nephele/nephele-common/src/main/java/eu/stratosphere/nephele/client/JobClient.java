@@ -162,6 +162,30 @@ public class JobClient {
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
 	}
+	
+	
+	/**
+	 * Constructs a new job client object and instantiates a local
+	 * RPC proxy for the {@link JobSubmissionProtocol}.
+	 * 
+	 * @param jobGraph
+	 *        the job graph to run
+	 * @param configuration
+	 *        configuration object which can include special configuration settings for the job client
+	 * @param jobManagerAddress
+	 *        IP/Port of the jobmanager (not taken from provided configuration object).
+	 * @throws IOException
+	 *         thrown on error while initializing the RPC connection to the job manager
+	 */	
+	public JobClient(JobGraph jobGraph, Configuration configuration, InetSocketAddress jobManagerAddress) throws IOException {
+
+
+		this.jobSubmitClient = (JobManagementProtocol) RPC.getProxy(JobManagementProtocol.class, jobManagerAddress, NetUtils
+			.getSocketFactory());
+		this.jobGraph = jobGraph;
+		this.configuration = configuration;
+		this.jobCleanUp = new JobCleanUp(this);
+	} 
 
 	/**
 	 * Close the <code>JobClient</code>.
