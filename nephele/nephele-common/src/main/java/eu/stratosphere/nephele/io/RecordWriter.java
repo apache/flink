@@ -65,7 +65,7 @@ public class RecordWriter<T extends Record> extends AbstractRecordWriter<T> {
 	 * @param outputClass
 	 *        the class of records that can be emitted with this record writer
 	 */
-	public RecordWriter(AbstractInputTask inputBase, Class<T> outputClass) {
+	public RecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass) {
 		super(inputBase, outputClass, null, false);
 	}
 
@@ -79,7 +79,7 @@ public class RecordWriter<T extends Record> extends AbstractRecordWriter<T> {
 	 * @param selector
 	 *        the channel selector to be used to determine the output channel to be used for a record
 	 */
-	public RecordWriter(AbstractInputTask inputBase, Class<T> outputClass, ChannelSelector<T> selector) {
+	public RecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass, ChannelSelector<T> selector) {
 		super(inputBase, outputClass, selector, false);
 	}
 }

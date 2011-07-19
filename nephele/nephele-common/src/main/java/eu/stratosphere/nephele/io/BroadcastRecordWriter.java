@@ -50,7 +50,7 @@ public class BroadcastRecordWriter<T extends Record> extends AbstractRecordWrite
 	 * @param outputClass
 	 *        the class of records that can be emitted with this record writer
 	 */
-	public BroadcastRecordWriter(AbstractInputTask inputBase, Class<T> outputClass) {
+	public BroadcastRecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass) {
 		super(inputBase, outputClass, null, true);
 	}
 }

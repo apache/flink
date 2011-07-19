@@ -232,4 +232,10 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 
 		return this.jobID;
 	}
+
+	/**
+	 * Releases the allocated resources (particularly buffer) of all channels attached to this gate. This method
+	 * should only be called after the respected task has stopped running.
+	 */
+	public abstract void releaseAllChannelResources();
 }

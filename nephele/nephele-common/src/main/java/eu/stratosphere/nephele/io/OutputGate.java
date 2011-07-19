@@ -390,22 +390,6 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 
 		super.read(in);
 
-<<<<<<< HEAD
-		try {
-			final String classNameSelector = StringRecord.readString(in);
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(getJobID());
-			this.channelSelector = (ChannelSelector<T>) Class.forName(classNameSelector, true, cl).newInstance();
-			this.channelSelector.read(in);
-		} catch (InstantiationException e) {
-			LOG.error(e);
-		} catch (IllegalAccessException e) {
-			LOG.error(e);
-		} catch (ClassNotFoundException e) {
-			LOG.error(e);
-		}
-
-=======
->>>>>>> experimental
 		final int numOutputChannels = in.readInt();
 
 		final Class<?>[] parameters = { this.getClass(), int.class, ChannelID.class, CompressionLevel.class };
@@ -581,5 +565,18 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	public ChannelSelector<T> getChannelSelector() {
 
 		return this.channelSelector;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseAllChannelResources() {
+
+		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
+
+		while (it.hasNext()) {
+			it.next().releaseResources();
+		}
 	}
 }
