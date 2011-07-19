@@ -258,6 +258,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				case FORWARD:
 					connectWithForwardStrategy(connection, outputVertex, inputVertex);
 					break;
+				case PARTITION_LOCAL_HASH:
 				case PARTITION_HASH:
 					connectWithPartitionStrategy(connection, outputVertex, inputVertex);
 					break;
@@ -1031,6 +1032,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 			tempVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
 
+			tempVertex.setVertexToShareInstancesWith(outputVertex);
+			
 			// get tempVertex config
 			tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
@@ -1055,6 +1058,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			outputVertex.connectTo(tempVertex, channelType, CompressionLevel.NO_COMPRESSION);
 			tempVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
+			tempVertex.setVertexToShareInstancesWith(inputVertex);
+			
 			// get tempVertex config
 			tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
