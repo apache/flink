@@ -70,7 +70,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
 		
 		try {
 			testTask.invoke();
@@ -134,7 +134,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.ASCENDING.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
 		
 		try {
 			testTask.invoke();
@@ -190,7 +190,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.DESCENDING.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
 		
 		try {
 			testTask.invoke();
@@ -245,7 +245,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerTask(testTask, MockFailingOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+tempTestPath);
 		
 		boolean stubFailed = false;
 		
@@ -275,7 +275,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerTask(testTask, MockOutputFormat.class,  "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+tempTestPath);
 		
 		Thread taskRunner = new Thread() {
 			public void run() {

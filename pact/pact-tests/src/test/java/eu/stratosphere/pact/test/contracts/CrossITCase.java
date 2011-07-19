@@ -29,8 +29,8 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -149,37 +149,37 @@ public class CrossITCase extends TestBase
 
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		DataSourceContract<PactString, PactString> input_left = new DataSourceContract<PactString, PactString>(
+		FileDataSourceContract<PactString, PactString> input_left = new FileDataSourceContract<PactString, PactString>(
 				CrossTestInFormat.class, pathPrefix + "/cross_left");
-		input_left.setFormatParameter("delimiter", "\n");
+		input_left.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
-		DataSourceContract<PactString, PactString> input_right = new DataSourceContract<PactString, PactString>(
+		FileDataSourceContract<PactString, PactString> input_right = new FileDataSourceContract<PactString, PactString>(
 				CrossTestInFormat.class, pathPrefix + "/cross_right");
-		input_right.setFormatParameter("delimiter", "\n");
+		input_right.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		CrossContract<PactString, PactString, PactString, PactString, PactString, PactInteger> testCross = new CrossContract<PactString, PactString, PactString, PactString, PactString, PactInteger>(
 				TestCross.class);
 		testCross.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
-		testCross.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testCross.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("CrossTest#LocalStrategy", ""));
 		if (config.getString("CrossTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
-			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
+			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
-			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
+			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
 		} else if (config.getString("CrossTest#ShipStrategy", "").equals("BROADCAST_SECOND")) {
-			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
+			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
-			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
+			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
 		} else {
-			testCross.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 					config.getString("CrossTest#ShipStrategy", ""));
 		}
 
-		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
+		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
 				CrossTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 

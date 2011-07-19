@@ -80,13 +80,13 @@ public class RecordWriter<T extends Record> implements Writer<T> {
 
 	}
 
-	public RecordWriter(AbstractInputTask inputBase, Class<T> outputClass) {
+	public RecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass) {
 
 		this.environment = inputBase.getEnvironment();
 		connectOutputGate(outputClass, null);
 	}
 
-	public RecordWriter(AbstractInputTask inputBase, Class<T> outputClass, ChannelSelector<T> selector) {
+	public RecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass, ChannelSelector<T> selector) {
 		this.environment = inputBase.getEnvironment();
 		connectOutputGate(outputClass, selector);
 	}

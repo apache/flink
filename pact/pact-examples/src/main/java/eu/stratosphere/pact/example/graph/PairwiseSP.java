@@ -27,8 +27,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
@@ -598,14 +598,14 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		String output    = (args.length > 2 ? args[2] : "");
 		boolean rdfInput = (args.length > 3 ? Boolean.parseBoolean(args[3]) : false);
 
-		DataSourceContract<NodePair, Path> pathsInput;
+		FileDataSourceContract<NodePair, Path> pathsInput;
 		
 		if(rdfInput) {
-			pathsInput = new DataSourceContract<NodePair, Path>(RDFTripleInFormat.class, paths);
+			pathsInput = new FileDataSourceContract<NodePair, Path>(RDFTripleInFormat.class, paths);
 		} else {
-			pathsInput = new DataSourceContract<NodePair, Path>(PathInFormat.class, paths);
+			pathsInput = new FileDataSourceContract<NodePair, Path>(PathInFormat.class, paths);
 		}
-		pathsInput.setFormatParameter("delimiter", "\n");
+		pathsInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		pathsInput.setDegreeOfParallelism(noSubTasks);
 
 		MapContract<NodePair, Path, PactString, Path> pathStarts = new MapContract<NodePair, Path, PactString, Path>(
@@ -624,7 +624,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			FindShortestPath.class, "Find Shortest Paths");
 		findShortestPaths.setDegreeOfParallelism(noSubTasks);
 
-		DataSinkContract<PactNull, Path> result = new DataSinkContract<PactNull, Path>(PathOutFormat.class,
+		FileDataSinkContract<PactNull, Path> result = new FileDataSinkContract<PactNull, Path>(PathOutFormat.class,
 			output);
 		result.setDegreeOfParallelism(noSubTasks);
 

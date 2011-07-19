@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.Stub;
@@ -79,9 +80,6 @@ public class PartitionTask extends AbstractTask {
 	// output collector
 	private OutputCollector<Key, Value> output;
 
-	// map stub implementation
-	private Stub stub;
-
 	// task configuration (including stub parameters)
 	private TaskConfig config;
 	
@@ -89,6 +87,10 @@ public class PartitionTask extends AbstractTask {
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+	
+	private Class<Key> keyType;
+	
+	private Class<Value> valueType;
 	
 	// partitioning function
 	private PartitionFunction func;
@@ -110,7 +112,7 @@ public class PartitionTask extends AbstractTask {
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		
 		// Initialize stub implementation
-		initStub();
+		initPartitioner();
 
 		// Initialize input reader
 		initInputReader();
@@ -228,7 +230,7 @@ public class PartitionTask extends AbstractTask {
 	 *         Throws if instance of stub implementation can not be
 	 *         obtained.
 	 */
-	private void initStub() throws RuntimeException {
+	private void initPartitioner() throws RuntimeException {
 		
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
@@ -261,10 +263,20 @@ public class PartitionTask extends AbstractTask {
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends Stub> mapClass = config.getStubClass(Stub.class, cl);
-			// obtain instance of stub implementation
-			stub = mapClass.newInstance();
-
+			Class<?> userClass = config.getStubClass(Object.class, cl);
+			if(Stub.class.isAssignableFrom(userClass)) {
+				Stub stub = (Stub) userClass.newInstance();
+				keyType = stub.getOutKeyType();
+				valueType = stub.getOutValueType();
+			}
+			else if(InputFormat.class.isAssignableFrom(userClass)) {
+				InputFormat format = (InputFormat) userClass.newInstance();
+				KeyValuePair pair = format.createPair();
+				keyType = (Class<Key>) pair.getKey().getClass();
+				valueType = (Class<Value>) pair.getValue().getClass();
+			} else {
+				throw new RuntimeException("Unsupported task type " + userClass);
+			}
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -284,8 +296,8 @@ public class PartitionTask extends AbstractTask {
 	 */
 	private void initInputReader() throws RuntimeException {
 		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializerData = new KeyValuePairDeserializer<Key, Value>(stub
-			.getOutKeyType(), stub.getOutValueType());
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializerData = new KeyValuePairDeserializer<Key, Value>(keyType,
+				valueType);
 		
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dpData = null;
@@ -303,7 +315,7 @@ public class PartitionTask extends AbstractTask {
 		if(usesSample) {
 			// create RecordDeserializer
 			RecordDeserializer<KeyValuePair<Key, Value>> deserializerHistogram = new KeyValuePairDeserializer<Key, Value>(
-					stub.getOutKeyType(), (Class<Value>)((Class<? extends Value>)PactNull.class));
+					keyType, (Class<Value>)((Class<? extends Value>)PactNull.class));
 			
 			// determine distribution pattern for reader from input ship strategy
 			DistributionPattern dpHistogram = null;

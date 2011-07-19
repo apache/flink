@@ -29,8 +29,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
@@ -161,12 +161,12 @@ public class GlobalSortingITCase extends TestBase {
 			String recordsPath    = (args.length > 1 ? args[1] : "");
 			String output        = (args.length > 2 ? args[2] : "");
 			
-			DataSourceContract<PactInteger, PactNull> source =
-				new DataSourceContract<PactInteger, PactNull>(IntegerInputFormat.class, recordsPath);
+			FileDataSourceContract<PactInteger, PactNull> source =
+				new FileDataSourceContract<PactInteger, PactNull>(IntegerInputFormat.class, recordsPath);
 			source.setDegreeOfParallelism(noSubtasks);
 			
-			DataSinkContract<PactInteger, PactNull> sink =
-				new DataSinkContract<PactInteger, PactNull>(IntegerOutputFormat.class, output);
+			FileDataSinkContract<PactInteger, PactNull> sink =
+				new FileDataSinkContract<PactInteger, PactNull>(IntegerOutputFormat.class, output);
 			sink.setDegreeOfParallelism(noSubtasks);
 			sink.setGlobalOrder(Order.ASCENDING);
 			sink.setInput(source);

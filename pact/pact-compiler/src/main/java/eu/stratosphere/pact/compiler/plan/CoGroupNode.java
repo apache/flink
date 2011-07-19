@@ -55,7 +55,7 @@ public class CoGroupNode extends TwoInputNode {
 		super(pactContract);
 		
 		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getStubParameters();
+		Configuration conf = getPactContract().getParameters();
 		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
 
 		if (localStrategy != null) {

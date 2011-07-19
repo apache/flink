@@ -17,8 +17,8 @@ package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -62,11 +62,11 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 			this.outputPath = args[2];
 		}
 		
-		DataSourceContract<PactInteger, Tuple> lineItems =
-			new DataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
+		FileDataSourceContract<PactInteger, Tuple> lineItems =
+			new FileDataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
 		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
+		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
 				StringTupleDataOutFormat.class, this.outputPath, "Output");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		
