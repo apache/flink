@@ -89,9 +89,8 @@ public class FileInputChannelTest {
 	 */
 	@Test
 	@PrepareForTest(CompressionLoader.class)
-	public void deserializeNextRecordTest() throws IOException {
-
-		final StringRecord record = new StringRecord("abc");
+	public void deserializeNextRecordTest() throws IOException, InterruptedException {
+		StringRecord record = new StringRecord("abc");
 		Decompressor decompressorMock = mock(Decompressor.class);
 		this.uncompressedDataBuffer = mock(Buffer.class);
 		BufferPairResponse bufferPair = new BufferPairResponse(this.uncompressedDataBuffer, this.uncompressedDataBuffer);

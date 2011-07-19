@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.io.channels.direct;
 
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -27,34 +26,41 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 
-
 /**
  * This class contains tests to check the functionality of the direct channels, using Gates.
+ * 
  * @author casp
- *
  */
 public class DirectChannelsTest {
 
 	/**
-	 * This test creates an input and output gate and, connects them using direct channels (INMEMORY) and 
+	 * The job ID used during the tests.
+	 */
+	private static final JobID JOB_ID = new JobID();
+
+	/**
+	 * This test creates an input and output gate and, connects them using direct channels (INMEMORY) and
 	 * tests the functioning of record and event transmission and flushing.
 	 */
 	@Test
 	public void testDirectChannels() {
 
-		//create gates
-		final InputGate<StringRecord> inGate = new InputGate<StringRecord>(new DefaultRecordDeserializer<StringRecord>(
-			StringRecord.class), 1, null);
-		final OutputGate<StringRecord> outGate = new OutputGate<StringRecord>(StringRecord.class, 2);
+		// create gates
+		final InputGate<StringRecord> inGate = new InputGate<StringRecord>(JOB_ID,
+			new DefaultRecordDeserializer<StringRecord>(
+				StringRecord.class), 1, null);
+		final OutputGate<StringRecord> outGate = new OutputGate<StringRecord>(JOB_ID, StringRecord.class, 2, null,
+			false);
 
-		//create channels
+		// create channels
 		final InMemoryInputChannel<StringRecord> in = inGate.createInMemoryInputChannel(new ChannelID(),
 			CompressionLevel.NO_COMPRESSION);
-		
-		//set buffer size and count (usually being done by TaskManager)
+
+		// set buffer size and count (usually being done by TaskManager)
 		in.initializeBuffers(4, 100);
 
 		final InMemoryOutputChannel<StringRecord> out = outGate.createInMemoryOutputChannel(new ChannelID(),
@@ -70,69 +76,64 @@ public class DirectChannelsTest {
 		in.setDirectChannelBroker(broker);
 		out.setDirectChannelBroker(broker);
 
-		
 		assertEquals(in.getConnectedChannelID(), out.getID());
 		assertEquals(out.getConnectedChannelID(), in.getID());
 
 		try {
-			
-			//write and flush records..
+
+			// write and flush records..
 			outGate.writeRecord(new StringRecord("test"));
 			outGate.flush();
-			
-			//is record there?
-			 StringRecord readrecord = inGate.readRecord();
+
+			// is record there?
+			StringRecord readrecord = inGate.readRecord();
 			assertEquals("test", readrecord.toString());
-			
-			//write again after flushing..
+
+			// write again after flushing..
 			outGate.writeRecord(new StringRecord("test"));
 			outGate.flush();
-			
-			//is record there?
+
+			// is record there?
 			readrecord = inGate.readRecord();
 			assertEquals("test", readrecord.toString());
-				
-			//now write until buffer is full + 5 events
-			for(int i = 0; i < 105; i++){
+
+			// now write until buffer is full + 5 events
+			for (int i = 0; i < 105; i++) {
 				outGate.writeRecord(new StringRecord("test"));
 			}
-			
-			//buffer size is set to 100.. so we should read 100 entries.
-			int i = 0; 
-			while(i < 100 && inGate.readRecord() != null){
+
+			// buffer size is set to 100.. so we should read 100 entries.
+			int i = 0;
+			while (i < 100 && inGate.readRecord() != null) {
 				i++;
 			}
-			
+
 			assertEquals(i, 100);
-						
-			
-			//request flush of remaining 5 entries in buffer
+
+			// request flush of remaining 5 entries in buffer
 			outGate.flush();
-			
-			i = 0; 
-			while(i < 5 && inGate.readRecord() != null){
+
+			i = 0;
+			while (i < 5 && inGate.readRecord() != null) {
 				i++;
 			}
-			
+
 			assertEquals(i, 5);
-			
+
 			inGate.publishEvent(new StringTaskEvent("test"));
 			outGate.publishEvent(new StringTaskEvent("test"));
-			
+
 			outGate.requestClose();
 			inGate.close();
-			
 
 			assertTrue(outGate.isClosed());
 			assertTrue(inGate.isClosed());
-			
+
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			fail();
 		}
-
-
 
 	}
 

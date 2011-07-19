@@ -28,8 +28,10 @@ public interface ByteBufferedOutputChannelBroker {
 	 * @return one or possibly two byte buffers to write in, depending on whether compression is enabled or not
 	 * @throws InterruptedException
 	 *         thrown if the connected task is interrupted while waiting for the buffers
+	 * @throws IOException
+	 *         thrown if an error occurs while requesting the empty write buffers.
 	 */
-	BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException;
+	BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException, IOException;
 
 	/**
 	 * Returns a filled write buffers to the broker. The broker will take care

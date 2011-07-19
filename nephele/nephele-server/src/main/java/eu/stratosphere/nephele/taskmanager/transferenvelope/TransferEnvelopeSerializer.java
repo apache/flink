@@ -13,16 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
 import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.io.ID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 
 public class TransferEnvelopeSerializer {
@@ -30,8 +30,8 @@ public class TransferEnvelopeSerializer {
 	private enum SerializationState {
 		NOTSERIALIZED,
 		SEQUENCENUMBERSERIALIZED,
+		JOBIDSERIALIZED,
 		SOURCESERIALIZED,
-		TARGETSERIALIZED,
 		NOTIFICATIONSSERIALIZED,
 		FULLYSERIALIZED
 	};
@@ -69,12 +69,12 @@ public class TransferEnvelopeSerializer {
 				moreDataFollows = writeSequenceNumber(writableByteChannel, this.transferEnvelope.getSequenceNumber());
 				break;
 			case SEQUENCENUMBERSERIALIZED:
-				moreDataFollows = writeChannelID(writableByteChannel, this.transferEnvelope.getSource());
+				moreDataFollows = writeID(writableByteChannel, this.transferEnvelope.getJobID());
+				break;
+			case JOBIDSERIALIZED:
+				moreDataFollows = writeID(writableByteChannel, this.transferEnvelope.getSource());
 				break;
 			case SOURCESERIALIZED:
-				moreDataFollows = writeChannelID(writableByteChannel, this.transferEnvelope.getTarget());
-				break;
-			case TARGETSERIALIZED:
 				moreDataFollows = writeNotification(writableByteChannel, this.transferEnvelope.getEventList());
 				break;
 			case NOTIFICATIONSSERIALIZED:
@@ -115,16 +115,16 @@ public class TransferEnvelopeSerializer {
 		return true;
 	}
 
-	private boolean writeChannelID(WritableByteChannel writableByteChannel, ChannelID channelID) throws IOException {
+	private boolean writeID(WritableByteChannel writableByteChannel, ID id) throws IOException {
 
-		if (!writeIOReadableWritable(writableByteChannel, channelID)) {
+		if (!writeIOReadableWritable(writableByteChannel, id)) {
 			// We're done, all the data has been written to the channel
 			if (this.serializationState == SerializationState.SEQUENCENUMBERSERIALIZED) {
 				// System.out.println("OUTGOING Serialized source: " + channelID);
-				this.serializationState = SerializationState.SOURCESERIALIZED;
+				this.serializationState = SerializationState.JOBIDSERIALIZED;
 			} else {
 				// System.out.println("OUTGOING Serialized target: " + channelID);
-				this.serializationState = SerializationState.TARGETSERIALIZED;
+				this.serializationState = SerializationState.SOURCESERIALIZED;
 			}
 			return false;
 		}

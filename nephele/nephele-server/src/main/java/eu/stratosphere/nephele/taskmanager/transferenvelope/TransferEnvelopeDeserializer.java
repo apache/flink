@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -27,15 +27,16 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
 
 public class TransferEnvelopeDeserializer {
 
 	private enum DeserializationState {
 		NOTDESERIALIZED,
 		SEQUENCENUMBERDESERIALIZED,
+		JOBIDDESERIALIZED,
 		SOURCEDESERIALIZED,
-		TARGETDESERIALIZED,
 		NOTIFICATIONSDESERIALIZED,
 		FULLYDESERIALIZED
 	};
@@ -46,10 +47,13 @@ public class TransferEnvelopeDeserializer {
 
 	private DeserializationState deserializationState = DeserializationState.NOTDESERIALIZED;
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final ReadBufferProvider readBufferProvider;
 
 	private final DeserializationBuffer<ChannelID> channelIDDeserializationBuffer = new DeserializationBuffer<ChannelID>(
 		new DefaultRecordDeserializer<ChannelID>(ChannelID.class), true);
+
+	private final DeserializationBuffer<JobID> jobIDDeserializationBuffer = new DeserializationBuffer<JobID>(
+			new DefaultRecordDeserializer<JobID>(JobID.class), true);
 
 	private final DeserializationBuffer<EventList> notificationListDeserializationBuffer = new DeserializationBuffer<EventList>(
 		new DefaultRecordDeserializer<EventList>(EventList.class), true);
@@ -68,9 +72,17 @@ public class TransferEnvelopeDeserializer {
 
 	private int sizeOfBuffer = -1;
 
-	public TransferEnvelopeDeserializer(ByteBufferedChannelManager byteBufferedChannelManager,
-			boolean readsFromCheckpoint) {
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+	private int deserializedSequenceNumber = -1;
+
+	private JobID deserializedJobID = null;
+
+	private ChannelID deserializedSourceID = null;
+
+	private EventList deserializedEventList = null;
+
+	public TransferEnvelopeDeserializer(ReadBufferProvider readBufferProvider, boolean readsFromCheckpoint) {
+
+		this.readBufferProvider = readBufferProvider;
 		this.readsFromCheckpoint = readsFromCheckpoint;
 	}
 
@@ -87,12 +99,12 @@ public class TransferEnvelopeDeserializer {
 				waitingForMoreData = readSequenceNumber(readableByteChannel);
 				break;
 			case SEQUENCENUMBERDESERIALIZED:
-				waitingForMoreData = readChannelID(readableByteChannel);
+				waitingForMoreData = readID(readableByteChannel);
+				break;
+			case JOBIDDESERIALIZED:
+				waitingForMoreData = readID(readableByteChannel);
 				break;
 			case SOURCEDESERIALIZED:
-				waitingForMoreData = readChannelID(readableByteChannel);
-				break;
-			case TARGETDESERIALIZED:
 				waitingForMoreData = readNotificationList(readableByteChannel);
 				break;
 			case NOTIFICATIONSDESERIALIZED:
@@ -128,19 +140,19 @@ public class TransferEnvelopeDeserializer {
 
 		if (!this.lengthBuffer.hasRemaining()) {
 
-			final int sequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);
-			if (sequenceNumber < 0) {
-				throw new IOException("Received invalid sequence number: " + sequenceNumber);
+			this.deserializedSequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);			
+			if (this.deserializedSequenceNumber < 0) {
+				throw new IOException("Received invalid sequence number: " + this.deserializedSequenceNumber);
 			}
 
 			this.deserializationState = DeserializationState.SEQUENCENUMBERDESERIALIZED;
 			this.sequenceNumberDeserializationStarted = false;
-			this.transferEnvelope = new TransferEnvelope();
-			this.transferEnvelope.setSequenceNumber(sequenceNumber);
+			this.transferEnvelope = null;
 			this.sizeOfBuffer = -1;
 			this.bufferExistanceDeserialized = false;
 			this.existanceBuffer.clear();
 			this.lengthBuffer.clear();
+			this.jobIDDeserializationBuffer.clear();
 			this.channelIDDeserializationBuffer.clear();
 			this.buffer = null;
 			return false;
@@ -149,20 +161,25 @@ public class TransferEnvelopeDeserializer {
 		return true;
 	}
 
-	private boolean readChannelID(ReadableByteChannel readableByteChannel) throws IOException {
+	private boolean readID(ReadableByteChannel readableByteChannel) throws IOException {
 
-		final ChannelID channelID = this.channelIDDeserializationBuffer.readData(readableByteChannel);
-		if (channelID == null) {
-			return true;
-		}
 		if (this.deserializationState == DeserializationState.SEQUENCENUMBERDESERIALIZED) {
-			// System.out.println("INCOMING: Source " + channelID);
-			this.transferEnvelope.setSource(channelID);
-			this.deserializationState = DeserializationState.SOURCEDESERIALIZED;
+
+			this.deserializedJobID = this.jobIDDeserializationBuffer.readData(readableByteChannel);
+			if (this.deserializedJobID == null) {
+				return true;
+			}
+
+			this.deserializationState = DeserializationState.JOBIDDESERIALIZED;
+
 		} else {
-			// System.out.println("INCOMING: Target " + channelID);
-			this.transferEnvelope.setTarget(channelID);
-			this.deserializationState = DeserializationState.TARGETDESERIALIZED;
+
+			this.deserializedSourceID = this.channelIDDeserializationBuffer.readData(readableByteChannel);
+			if (this.deserializedSourceID == null) {
+				return true;
+			}
+
+			this.deserializationState = DeserializationState.SOURCEDESERIALIZED;
 		}
 
 		return false;
@@ -170,11 +187,12 @@ public class TransferEnvelopeDeserializer {
 
 	private boolean readNotificationList(ReadableByteChannel readableByteChannel) throws IOException {
 
-		final EventList eventList = this.notificationListDeserializationBuffer.readData(readableByteChannel);
-		if (eventList == null) {
+		this.deserializedEventList = this.notificationListDeserializationBuffer.readData(readableByteChannel);
+		if (this.deserializedEventList == null) {
 			return true;
 		} else {
-			this.transferEnvelope.setEventList(eventList);
+			this.transferEnvelope = new TransferEnvelope(this.deserializedSequenceNumber, this.deserializedJobID,
+				this.deserializedSourceID, this.deserializedEventList);
 			this.deserializationState = DeserializationState.NOTIFICATIONSDESERIALIZED;
 			return false;
 		}
@@ -244,9 +262,8 @@ public class TransferEnvelopeDeserializer {
 				}
 
 				final FileChannel fileChannel = (FileChannel) readableByteChannel;
-				final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
 				this.buffer = BufferFactory.createFromCheckpoint(this.sizeOfBuffer, this.transferEnvelope.getSource(),
-					fileChannel.position(), fileBufferManager);
+					fileChannel.position(), this.readBufferProvider.getFileBufferManager());
 				// Skip over buffer and finish deserialization step
 				fileChannel.position(fileChannel.position() + sizeOfBuffer);
 				this.transferEnvelope.setBuffer(this.buffer);
@@ -255,7 +272,7 @@ public class TransferEnvelopeDeserializer {
 
 			} else {
 				// Request read buffer from network channelManager
-				this.buffer = this.byteBufferedChannelManager.requestEmptyReadBuffer(this.sizeOfBuffer,
+				this.buffer = this.readBufferProvider.requestEmptyReadBuffer(this.sizeOfBuffer,
 					this.transferEnvelope.getSource());
 
 				if (this.buffer == null) {
@@ -305,14 +322,6 @@ public class TransferEnvelopeDeserializer {
 
 	public Buffer getBuffer() {
 		return this.buffer;
-	}
-
-	public ChannelID getTarget() {
-		if (this.transferEnvelope != null) {
-			return this.transferEnvelope.getTarget();
-		}
-
-		return null;
 	}
 
 	public void reset() {

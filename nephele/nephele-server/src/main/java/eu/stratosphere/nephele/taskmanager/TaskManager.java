@@ -284,8 +284,7 @@ public class TaskManager implements TaskOperationProtocol {
 		ByteBufferedChannelManager byteBufferedChannelManager = null;
 		try {
 			byteBufferedChannelManager = new ByteBufferedChannelManager(this.lookupService,
-				this.localInstanceConnectionInfo.getAddress(), this.localInstanceConnectionInfo.getDataPort(),
-				tmpDirPath);
+				this.localInstanceConnectionInfo);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
@@ -716,7 +715,8 @@ public class TaskManager implements TaskOperationProtocol {
 			// Try to find common channel type among the output channels
 			final ChannelType commonChannelType = hasCommonOutputChannelType(ee);
 			final ByteBufferedOutputChannelGroup channelGroup = new ByteBufferedOutputChannelGroup(
-				this.byteBufferedChannelManager, this.checkpointManager, commonChannelType, id);
+				this.byteBufferedChannelManager, this.byteBufferedChannelManager.getBufferProvider(),
+				this.checkpointManager, commonChannelType, id);
 
 			// Register output gates
 			for (int i = 0; i < ee.getNumberOfOutputGates(); i++) {

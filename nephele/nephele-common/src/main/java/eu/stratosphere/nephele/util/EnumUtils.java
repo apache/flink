@@ -74,7 +74,5 @@ public class EnumUtils {
 			out.writeBoolean(true);
 			StringRecord.writeString(out, enumVal.name());
 		}
-
 	}
-
 }

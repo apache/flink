@@ -39,9 +39,9 @@ public abstract class BufferFactory {
 	}
 
 	public static Buffer createFromMemory(int bufferSize, ByteBuffer byteBuffer,
-			Deque<ByteBuffer> queueForRecycledBuffers) {
+			Deque<ByteBuffer> queueForRecycledBuffers, boolean isReadBuffer) {
 
-		final InternalBuffer internalBuffer = new MemoryBuffer(bufferSize, byteBuffer, queueForRecycledBuffers);
+		final InternalBuffer internalBuffer = new MemoryBuffer(bufferSize, byteBuffer, queueForRecycledBuffers, isReadBuffer);
 		return new Buffer(internalBuffer);
 	}
 }

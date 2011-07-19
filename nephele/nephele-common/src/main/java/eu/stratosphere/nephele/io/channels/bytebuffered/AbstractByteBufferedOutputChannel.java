@@ -52,7 +52,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private boolean closeRequested = false;
 
 	/**
-	 * Stores whether the channel has received the acknowledgement
+	 * Stores whether the channel has received the acknowledgment
 	 * for the close request from its connected input channel.
 	 */
 	private boolean closeAcknowledgementReceived = false;
@@ -139,7 +139,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
-			transferEvent(new ByteBufferedChannelCloseEvent());
+			
+			if(!isBroadcastChannel() || getChannelIndex() == 0) {
+				transferEvent(new ByteBufferedChannelCloseEvent());
+			}
 		}
 	}
 
@@ -150,9 +153,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * This method blocks until the requested number of buffers is available.
 	 * 
 	 * @throws InterruptedException
-	 *         throws if the thread is interrupted while waiting for the buffers
+	 *         thrown if the thread is interrupted while waiting for the buffers
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while waiting for the buffers
 	 */
-	private void requestWriteBuffersFromBroker() throws InterruptedException {
+	private void requestWriteBuffersFromBroker() throws InterruptedException, IOException {
 
 		final BufferPairResponse bufferPair = this.outputChannelBroker.requestEmptyWriteBuffers();
 		this.compressedDataBuffer = bufferPair.getCompressedDataBuffer();
@@ -169,9 +174,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * further processing.
 	 * 
 	 * @throws IOException
-	 *         thrown if an I/O error while releasing the buffers
+	 *         thrown if an I/O error occurs while releasing the buffers
 	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the buffers to be released
+	 *         thrown if the thread is interrupted while releasing the buffers
 	 */
 	private void releaseWriteBuffers() throws IOException, InterruptedException {
 

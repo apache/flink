@@ -33,6 +33,9 @@ import eu.stratosphere.nephele.io.ID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
@@ -58,9 +61,9 @@ public class TransferEnvelopeSerializerTest {
 	private static final int SIZE_OF_SEQ_NR = 4;
 
 	/**
-	 * The size of a channel ID.
+	 * The size of an ID.
 	 */
-	private static final int SIZE_OF_CHANNEL_ID = 16;
+	private static final int SIZE_OF_ID = 16;
 
 	/**
 	 * The size of an integer number.
@@ -68,21 +71,21 @@ public class TransferEnvelopeSerializerTest {
 	private static final int SIZE_OF_INTEGER = 4;
 
 	/**
-	 * The target channel ID used during the serialization process.
+	 * The job ID used during the serialization process.
 	 */
-	private final ChannelID sourceChannelID = new ChannelID();
+	private final JobID jobID = new JobID();
 
 	/**
 	 * The target channel ID used during the serialization process.
 	 */
-	private final ChannelID targetChannelID = new ChannelID();
+	private final ChannelID sourceChannelID = new ChannelID();
 
 	/**
 	 * Auxiliary class to explicitly access the internal buffer of an ID object.
 	 * 
 	 * @author warneke
 	 */
-	private static class SerializationTestChannelID extends ID {
+	private static class SerializationTestID extends ID {
 
 		/**
 		 * Constructs a new ID.
@@ -90,7 +93,7 @@ public class TransferEnvelopeSerializerTest {
 		 * @param content
 		 *        a byte buffer representing the ID
 		 */
-		private SerializationTestChannelID(byte[] content) {
+		private SerializationTestID(byte[] content) {
 			super(content);
 		}
 	}
@@ -126,14 +129,14 @@ public class TransferEnvelopeSerializerTest {
 	 */
 	private File generateDataStream() throws IOException {
 
-		final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
+		final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+			+ ServerTestUtils.getRandomFilename());
 		final FileOutputStream outputStream = new FileOutputStream(outputFile);
 		final FileChannel fileChannel = outputStream.getChannel();
 		final Deque<ByteBuffer> recycleQueue = new ArrayDeque<ByteBuffer>();
 		final TransferEnvelopeSerializer serializer = new TransferEnvelopeSerializer();
 		final ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 		final ByteBuffer initBuffer = ByteBuffer.allocate(1);
-		final TransferEnvelopeProcessingLog processingLog = new TransferEnvelopeProcessingLog(true, true);
 
 		// The byte buffer is initialized from this buffer
 		initBuffer.put(BUFFER_CONTENT);
@@ -144,7 +147,7 @@ public class TransferEnvelopeSerializerTest {
 
 		for (int i = 0; i < BUFFER_SIZE; i++) {
 
-			final Buffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), recycleQueue);
+			final Buffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), recycleQueue, true);
 
 			// Initialize buffer
 			for (int j = 0; j < i; j++) {
@@ -155,9 +158,7 @@ public class TransferEnvelopeSerializerTest {
 			// Finish write phase
 			buffer.finishWritePhase();
 
-			final TransferEnvelope transferEnvelope = new TransferEnvelope(this.sourceChannelID, this.targetChannelID,
-				processingLog);
-			transferEnvelope.setSequenceNumber(i);
+			final TransferEnvelope transferEnvelope = new TransferEnvelope(i, this.jobID, this.sourceChannelID);
 			transferEnvelope.setBuffer(buffer);
 
 			// set envelope to be serialized and write it to file channel
@@ -189,8 +190,8 @@ public class TransferEnvelopeSerializerTest {
 		for (int i = 0; i < BUFFER_SIZE; i++) {
 
 			readAndCheckSequenceNumber(fileInputStream, i);
-			readAndCheckChannelID(fileInputStream, this.sourceChannelID);
-			readAndCheckChannelID(fileInputStream, this.targetChannelID);
+			readAndCheckID(fileInputStream, this.jobID);
+			readAndCheckID(fileInputStream, this.sourceChannelID);
 			readAndCheckNotificationList(fileInputStream);
 			readAndCheckBuffer(fileInputStream, i);
 		}
@@ -274,26 +275,25 @@ public class TransferEnvelopeSerializerTest {
 	 * 
 	 * @param fileInputStream
 	 *        the file input stream to read from
-	 * @param expectedChannelID
-	 *        the channel ID the read ID is expected to match
+	 * @param expectedID
+	 *        the ID which the read ID is expected to match
 	 * @throws IOException
 	 *         thrown if an I/O occurs while reading data from the stream
 	 */
-	private void readAndCheckChannelID(FileInputStream fileInputStream, ChannelID expectedChannelID) throws IOException {
+	private void readAndCheckID(FileInputStream fileInputStream, ID expectedID) throws IOException {
 
 		byte[] temp = new byte[SIZE_OF_INTEGER];
 		fileInputStream.read(temp);
 
-		final int sizeOfChannelID = bufferToInteger(temp); // Channel ID has fixed size and therefore does not announce
-															// its size
+		final int sizeOfID = bufferToInteger(temp); // ID has fixed size and therefore does not announce its size
 
-		assertEquals(sizeOfChannelID, SIZE_OF_CHANNEL_ID);
+		assertEquals(sizeOfID, SIZE_OF_ID);
 
-		byte[] channelid = new byte[sizeOfChannelID];
-		fileInputStream.read(channelid);
+		byte[] id = new byte[sizeOfID];
+		fileInputStream.read(id);
 
-		final ID channelID = new SerializationTestChannelID(channelid);
-		assertEquals(expectedChannelID, channelID);
+		final ID channelID = new SerializationTestID(id);
+		assertEquals(expectedID, channelID);
 	}
 
 	/**

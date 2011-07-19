@@ -33,19 +33,21 @@ public class IncomingConnectionThread extends Thread {
 
 	private static final Log LOG = LogFactory.getLog(IncomingConnectionThread.class);
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final NetworkConnectionManager networkConnectionManager;
 
 	private final Selector selector;
 
 	private final ServerSocketChannel listeningSocket;
 
-	public IncomingConnectionThread(ByteBufferedChannelManager networkChannelManager, boolean isListeningThread,
+	private final Queue<IncomingConnection> pendingIncomingConnections = new ArrayDeque<IncomingConnection>();
+
+	public IncomingConnectionThread(NetworkConnectionManager networkConnectionManager, boolean isListeningThread,
 			InetSocketAddress listeningAddress)
 												throws IOException {
 		super("Incoming Connection Thread");
 
 		this.selector = Selector.open();
-		this.byteBufferedChannelManager = networkChannelManager;
+		this.networkConnectionManager = networkConnectionManager;
 
 		if (isListeningThread) {
 			this.listeningSocket = ServerSocketChannel.open();
@@ -122,16 +124,11 @@ public class IncomingConnectionThread extends Thread {
 			return;
 		}
 
-		final IncomingConnection incomingConnection = new IncomingConnection(this.byteBufferedChannelManager,
-			clientSocket);
-		SelectionKey clientKey = null;
-		try {
-			clientSocket.configureBlocking(false);
-			clientKey = clientSocket.register(this.selector, SelectionKey.OP_READ);
-			clientKey.attach(incomingConnection);
-		} catch (IOException ioe) {
-			incomingConnection.reportTransmissionProblem(clientKey, ioe);
-		}
+		// Register the new incoming connection with the byte buffered channel manager
+		final InetSocketAddress remoteAddress = (InetSocketAddress) clientSocket.socket().getRemoteSocketAddress();
+		final IncomingConnectionID incomingConnectionID = new IncomingConnectionID(remoteAddress.getAddress());
+		this.networkConnectionManager.registerIncomingConnection(incomingConnectionID, clientSocket);
+
 	}
 
 	private void doRead(SelectionKey key) {

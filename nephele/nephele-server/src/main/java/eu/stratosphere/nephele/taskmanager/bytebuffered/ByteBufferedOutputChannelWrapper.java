@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -30,6 +31,8 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChanne
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.OutOfByteBuffersListener;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -130,7 +133,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	 * {@inheritDoc}
 	 */
 	@Override
-	public BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException {
+	public BufferPairResponse requestEmptyWriteBuffers() throws IOException, InterruptedException {
 
 		if (this.outgoingTransferEnvelope == null) {
 			this.outgoingTransferEnvelope = createNewOutgoingTransferEnvelope();
@@ -184,17 +187,15 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 
 	/**
 	 * Creates a new {@link TransferEnvelope} object. The method assigns
-	 * and increases the sequence number.
+	 * and increases the sequence number. Moreover, it will look up the list of receivers for this transfer envelope.
+	 * This method will block until the lookup is completed.
 	 * 
-	 * @return a new {@link TransferEnvelope} object
+	 * @return a new {@link TransferEnvelope} object containing the correct sequence number and receiver list
 	 */
 	private TransferEnvelope createNewOutgoingTransferEnvelope() {
 
-		final TransferEnvelope transferEnvelope = new TransferEnvelope(this.byteBufferedOutputChannel.getID(),
-			this.byteBufferedOutputChannel.getConnectedChannelID(), this.byteBufferedOutputChannelGroup
-				.getProcessingLog(this.byteBufferedOutputChannel.getType()));
-
-		transferEnvelope.setSequenceNumber(this.sequenceNumber++);
+		final TransferEnvelope transferEnvelope = new TransferEnvelope(this.sequenceNumber++, getJobID(),
+			getChannelID());
 
 		return transferEnvelope;
 	}
@@ -203,7 +204,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException {
+	public void transferEventToInputChannel(AbstractEvent event) throws InterruptedException, IOException {
 
 		if (this.outgoingTransferEnvelope != null) {
 			this.outgoingTransferEnvelope.addEvent(event);
@@ -279,41 +280,17 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 		this.byteBufferedOutputChannel.channelCapacityExhausted();
 	}
 
-	/**
-	 * Triggers the encapsulated output channel to flush and release its internal working buffers.
-	 * 
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while flushing the buffers
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the channel to flush
-	 */
-	public void flush() throws IOException, InterruptedException {
-
-		this.byteBufferedOutputChannel.flush();
-	}
-
-	/**
-	 * Returns the number of remaining bytes that can be written to encapsulated channel's working buffer. This method
-	 * must not be called from any thread than the task thread itself.
-	 * 
-	 * @return the number of remaining bytes that can written to the encapsulated channel's working buffer or
-	 *         <code>-1</code> if the channel currently has no working buffer allocated
-	 */
-	public int getRemainingBytesOfWorkingBuffer() {
-
-		if (this.byteBufferedOutputChannel.getCompressionLevel() == CompressionLevel.NO_COMPRESSION) {
-			if (this.outgoingTransferEnvelope != null) {
-				final Buffer writeBuffer = this.outgoingTransferEnvelope.getBuffer();
-				if (writeBuffer != null) {
-					return writeBuffer.remaining();
-				}
-			}
-		} else {
-			if (this.uncompressedDataBuffer != null) {
-				return this.uncompressedDataBuffer.remaining();
-			}
+	@Override
+	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
+		
+		if(transferEnvelope.getBuffer() != null) {
+			LOG.error("Transfer envelope for output channel has buffer attached");
 		}
-
-		return -1;
+		
+		Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
+		while(it.hasNext()) {
+			
+			this.byteBufferedOutputChannel.processEvent(it.next());
+		}
 	}
 }

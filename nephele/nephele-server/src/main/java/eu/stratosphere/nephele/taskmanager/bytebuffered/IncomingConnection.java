@@ -24,6 +24,10 @@ import java.nio.channels.SocketChannel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.taskmanager.bufferprovider.ReadBufferProvider;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDeserializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -51,21 +55,27 @@ public class IncomingConnection {
 	 */
 	private final TransferEnvelopeDeserializer deserializer;
 
-	/**
-	 * The byte buffered channel manager which handles and dispatches the received transfer envelopes.
-	 */
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+
+	private final NetworkConnectionManager networkConnectionManager;
 
 	/**
 	 * Indicates if this incoming connection object reads from a checkpoint or a TCP connection.
 	 */
 	private final boolean readsFromCheckpoint;
 
-	public IncomingConnection(ByteBufferedChannelManager byteBufferedChannelManager,
-			ReadableByteChannel readableByteChannel) {
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+	private final IncomingConnectionID incomingConnectionID;
+
+	private IncomingConnection previousConnection = null;
+
+	public IncomingConnection(IncomingConnectionID incomingConnectionID,
+			NetworkConnectionManager networkConnectionManager, TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			ReadBufferProvider readBufferProvider, ReadableByteChannel readableByteChannel) {
+		this.incomingConnectionID = incomingConnectionID;
+		this.networkConnectionManager = networkConnectionManager;
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.readsFromCheckpoint = (this.readableByteChannel instanceof FileChannel);
-		this.deserializer = new TransferEnvelopeDeserializer(byteBufferedChannelManager, readsFromCheckpoint);
+		this.deserializer = new TransferEnvelopeDeserializer(readBufferProvider, readsFromCheckpoint);
 		this.readableByteChannel = readableByteChannel;
 	}
 
@@ -96,22 +106,78 @@ public class IncomingConnection {
 		}
 
 		this.deserializer.reset();
+		// Unregister incoming connection
+		this.networkConnectionManager.unregisterIncomingConnection(this.incomingConnectionID, this.readableByteChannel);
 	}
 
-	public void read() throws IOException, InterruptedException {
+	private TransferEnvelope currentTransferEnvelope = null;
+	
+	public void read() throws IOException, EOFException {
 
-		this.deserializer.read(this.readableByteChannel);
-
-		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
-		if (transferEnvelope != null) {
-			this.byteBufferedChannelManager.queueIncomingTransferEnvelope(transferEnvelope);
+		if (!isActiveConnection()) {
+			System.out.println("Is not active connection");
+			return;
 		}
+>>>>>>> experimental
 
+		if(this.currentTransferEnvelope == null) {
+		
+			this.deserializer.read(this.readableByteChannel);
+
+			this.currentTransferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
+		}
+		
+		if(this.currentTransferEnvelope != null) {
+			if(this.transferEnvelopeDispatcher.processEnvelopeFromNetworkOrCheckpoint(this.currentTransferEnvelope)) {
+				this.currentTransferEnvelope = null;
+			} else {
+				try {
+					Thread.sleep(100);
+				} catch(InterruptedException e) {
+					LOG.debug(StringUtils.stringifyException(e));
+				}
+			}
+		}
+		
+		//TODO: Clean up strategy for current transfer envelope
 	}
 
 	public boolean isCloseUnexpected() {
 
 		return this.deserializer.hasUnfinishedData();
+	}
+
+	public void setPreviousConnection(IncomingConnection previousConnection) {
+		this.previousConnection = previousConnection;
+	}
+
+	private boolean isActiveConnection() {
+
+		if (this.readsFromCheckpoint) {
+			return true;
+		}
+
+		// Channel is connected, if there is no previous connection, this is the active connection
+		if (this.previousConnection == null) {
+			return true;
+		}
+
+		// This cannot be the active connection if corresponding byte channel is closed
+		if (!this.readableByteChannel.isOpen()) {
+			System.out.println("readableByteChannel is not open");
+			return false;
+		}
+
+		// If the previous connection still considers itself as the active connection, wait for the previous connection
+		// to finish first
+		if (this.previousConnection.isActiveConnection()) {
+			System.out.println("Previous connection is still open");
+			return false;
+		} else {
+			this.previousConnection = null;
+		}
+
+		return true;
 	}
 
 	public ReadableByteChannel getReadableByteChannel() {
@@ -130,5 +196,8 @@ public class IncomingConnection {
 		if (key != null) {
 			key.cancel();
 		}
+
+		this.networkConnectionManager.unregisterIncomingConnection(this.incomingConnectionID,
+			this.readableByteChannel);
 	}
 }
