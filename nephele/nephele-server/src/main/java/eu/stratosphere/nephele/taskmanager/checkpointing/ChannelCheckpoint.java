@@ -96,7 +96,11 @@ public class ChannelCheckpoint {
 	}
 
 	private void writeEnvelopeToDisk(TransferEnvelope transferEnvelope) throws IOException {
-
+		TransferEnvelope duplicatTransferEnvelope = transferEnvelope;
+		if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
+			// Continue working with a copy of the transfer envelope
+			duplicatTransferEnvelope = transferEnvelope.duplicate();
+		}
 		if (this.fileChannel == null) {
 
 			final FileOutputStream fos = new FileOutputStream(getFilename());
@@ -107,11 +111,9 @@ public class ChannelCheckpoint {
 			this.transferEnvelopeSerializer = new TransferEnvelopeSerializer();
 		}
 
-		this.transferEnvelopeSerializer.setTransferEnvelope(transferEnvelope);
+		this.transferEnvelopeSerializer.setTransferEnvelope(duplicatTransferEnvelope);
 
-		while (this.transferEnvelopeSerializer.write(this.fileChannel))
-			;
-
+		while (this.transferEnvelopeSerializer.write(this.fileChannel));
 		transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 	}
 

@@ -175,17 +175,20 @@ public class ByteBufferedChannelManager {
 
 				requestor.outOfWriteBuffers();
 
-				/*
-				 * synchronized(this.registeredOutOfWriteBuffersListeners) {
-				 * if(!this.registeredOutOfWriteBuffersListeners.isEmpty()) {
-				 * final Iterator<OutOfByteBuffersListener> it = this.registeredOutOfWriteBuffersListeners.iterator();
-				 * while(it.hasNext()) {
-				 * it.next().outOfByteBuffers();
-				 * }
-				 * }
-				 * }
-				 */
+				
+				synchronized(this.registeredOutOfWriteBuffersListeners) {
+					if(!this.registeredOutOfWriteBuffersListeners.isEmpty()) {
+						final Iterator<OutOfByteBuffersListener> it = this.registeredOutOfWriteBuffersListeners.iterator();
+						while(it.hasNext()) {
+							it.next().outOfByteBuffers();
+						}
+						this.logBufferUtilization();
+					}
+				}
 
+				if(this.emptyWriteBuffers.size() >= bufferPairRequest.getNumberOfRequestedByteBuffers()){
+					break;
+				}
 				this.emptyWriteBuffers.wait();
 			}
 

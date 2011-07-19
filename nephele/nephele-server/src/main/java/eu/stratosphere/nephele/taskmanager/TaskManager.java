@@ -71,6 +71,8 @@ import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
+import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
@@ -294,7 +296,7 @@ public class TaskManager implements TaskOperationProtocol {
 		this.directChannelManager = new DirectChannelManager();
 
 		// Initialize the checkpoint manager
-		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath);
+		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath,this);
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -981,5 +983,12 @@ public class TaskManager implements TaskOperationProtocol {
 	public void logBufferUtilization() throws IOException {
 
 		this.byteBufferedChannelManager.logBufferUtilization();
+	}
+	
+	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException{
+		if(profiler != null){
+			return this.profiler.getCheckpointProfilingData();
+		}
+		return null;
 	}
 }
