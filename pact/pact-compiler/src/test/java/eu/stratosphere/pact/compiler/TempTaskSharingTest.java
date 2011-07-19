@@ -18,13 +18,13 @@ import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.compiler.DataStatistics.BasicFileStatistics;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.MapNode;
@@ -34,7 +34,6 @@ import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
-import eu.stratosphere.pact.compiler.util.MockDataStatistics;
 import eu.stratosphere.pact.runtime.task.MapTask;
 import eu.stratosphere.pact.runtime.task.TempTask;
 
@@ -69,8 +68,9 @@ public class TempTaskSharingTest {
 			InetSocketAddress dummyAddress = new InetSocketAddress(InetAddress.getLocalHost(), 12345);
 			
 			// prepare the statistics
-			MockDataStatistics dataStats = new MockDataStatistics();
-			dataStats.setStatsForFile(IN_FILE_1, new BasicFileStatistics(1000, 128 * 1024 * 1024, 8.0f));
+			DataStatistics dataStats = new DataStatistics();
+			dataStats.cacheBaseStatistics(new TextInputFormat.FileBaseStatistics(1000, 128 * 1024 * 1024, 8.0f),
+				FileDataSourceContract.getInputIdentifier(DummyInputFormat.class, IN_FILE_1));
 			
 			this.compiler = new PactCompiler(dataStats, new FixedSizeClusterCostEstimator(), dummyAddress);
 		}
@@ -136,14 +136,14 @@ public class TempTaskSharingTest {
 	
 	private JobGraph generateTempTaskJobGraph(final TempMode mode) {
 		// construct the plan
-		DataSourceContract<PactInteger, PactInteger> source = new DataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
+		FileDataSourceContract<PactInteger, PactInteger> source = new FileDataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
 		source.setDegreeOfParallelism(defaultParallelism);
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
 		map1.setDegreeOfParallelism(defaultParallelism);
 		map1.setInput(source);
 		
-		DataSinkContract<PactInteger, PactInteger> sink = new DataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
+		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(defaultParallelism);
 		sink.setInput(map1);
 		
