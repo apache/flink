@@ -57,6 +57,7 @@ import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -102,7 +103,10 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	private static final int DEFAULTCLEANUPINTERVAL = 2 * 60 * 1000; // 2 min
 
 	/** The user pays fee for his instances every time unit. */
-	private static final long TIMEUNIT = 60 * 60 * 1000; // 1 hour
+	private static final long TIMEUNIT = 60 * 60 * 1000; // 1 hour in ms.
+
+	/** time to full next hour when instance is kicked. */
+	private static final long TIMETHRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
 
 	/** The array of all available instance types in the cloud. */
 	private final InstanceType[] availableInstanceTypes;
@@ -266,13 +270,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			this.cloudInstances.remove(instance);
 
 			final long currentTime = System.currentTimeMillis();
-			final long remainingTime = ((CloudInstance) instance).getAllocationTime()
-				+ ((currentTime - ((CloudInstance) instance).getAllocationTime()) / TIMEUNIT + 1) * TIMEUNIT
-				- currentTime;
 
 			this.floatingInstances.put(instance.getInstanceConnectionInfo(), new FloatingInstance(
-				((CloudInstance) instance).getInstanceID(), instance.getInstanceConnectionInfo(), currentTime,
-				remainingTime));
+				((CloudInstance) instance).getInstanceID(), instance.getInstanceConnectionInfo(),
+				((CloudInstance) instance).getAllocationTime()));
+
 			this.floatingInstanceIDs.put(((CloudInstance) instance).getInstanceID(), conf);
 
 			LOG.info("Convert " + ((CloudInstance) instance).getInstanceID()
@@ -510,7 +512,9 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		final CloudInstance cloudInstance = new CloudInstance(instance.getInstanceId(), type, owner,
 			instanceConnectionInfo, instance.getLaunchTime().getTime(), this.networkTopology.getRootNode(),
-			this.networkTopology, null); // TODO: Define hardware descriptions for cloud instance types
+			this.networkTopology, null);
+
+		// TODO: Define hardware descriptions for cloud instance types
 		this.cloudInstances.add(cloudInstance);
 		return cloudInstance;
 	}
@@ -543,8 +547,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		 * }
 		 */
 
-		final String awsAccessId = "HERE";
-		final String awsSecretKey = "HERE";
+		final String awsAccessId = "AKIAJYQJNI7QH227NDQA";
+		final String awsSecretKey = "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";
 		final String owner = "nobody";
 
 		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
@@ -750,17 +754,17 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 					// Check if instance entry is a floating instance
 
-					
-					final Iterator<Map.Entry<InstanceConnectionInfo, FloatingInstance>> it = this.floatingInstances.entrySet().iterator();
+					final Iterator<Map.Entry<InstanceConnectionInfo, FloatingInstance>> it = this.floatingInstances
+						.entrySet().iterator();
 
 					while (it.hasNext()) {
-						
+
 						Entry<InstanceConnectionInfo, FloatingInstance> e = it.next();
 						if (e.getKey().getAddress().equals(inetAddress)) {
 							LOG.info("Suitable floating instance found.");
 							final FloatingInstance floatingInstance = e.getValue();
 							it.remove();
-							
+
 							this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
 
 							floatinginstances.add(convertIntoCloudInstance(t,
@@ -771,9 +775,9 @@ public class CloudManager extends TimerTask implements InstanceManager {
 								return floatinginstances;
 							}
 						}
-						
+
 					}
-					
+
 					for (Entry<InstanceConnectionInfo, FloatingInstance> e : this.floatingInstances.entrySet()) {
 						if (e.getKey().getAddress().equals(inetAddress)) {
 							LOG.info("Suitable floating instance found.");
@@ -781,8 +785,6 @@ public class CloudManager extends TimerTask implements InstanceManager {
 							final FloatingInstance floatingInstance = this.floatingInstances.remove(e.getKey());
 							this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
 
-							// TODO JobToInstanceMapping!
-
 							floatinginstances.add(convertIntoCloudInstance(t,
 								floatingInstance.getInstanceConnectionInfo(), owner));
 
@@ -793,20 +795,6 @@ public class CloudManager extends TimerTask implements InstanceManager {
 						}
 
 					}
-
-					/*
-					 * if (this.floatingInstances.containsKey(inetAddress)) {
-					 * LOG.info("FOUND INSTANCE!!!!");
-					 * final FloatingInstance floatingInstance = this.floatingInstances.remove(inetAddress);
-					 * this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
-					 * floatinginstances.add(convertIntoCloudInstance(t, floatingInstance.getInstanceConnectionInfo(),
-					 * owner));
-					 * // If we already have enough floating instances found: return!
-					 * if (floatinginstances.size() >= count) {
-					 * return floatinginstances;
-					 * }
-					 * }
-					 */
 
 				}
 			}
@@ -835,8 +823,14 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 					final Map.Entry<InstanceConnectionInfo, FloatingInstance> entry = it.next();
 
-					if (currentTime - entry.getValue().getAllocationTime() > entry.getValue().getRemainingTime()) {
+					// Time in ms remaining until next full hour (or whatever TIMEUNIT is)
+					long msremaining = TIMEUNIT - ((currentTime - entry.getValue().getLaunchTime()) % TIMEUNIT);
 
+					// LOG.info("Floating Remaining Time: " + entry.getValue().getInstanceID() + " ms: " + msremaining
+					// + ". seconds: " + Math.round(((double) msremaining / (double) 1000)));
+
+					if (msremaining < TIMETHRESHOLD) {
+						// Kick this instance!
 						try {
 							destroyCloudInstance(this.floatingInstanceIDs.get(entry.getValue().getInstanceID()), entry
 								.getValue().getInstanceID());
@@ -848,6 +842,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 						this.floatingInstanceIDs.remove(entry.getValue().getInstanceID());
 
 						LOG.info("Instance " + entry.getValue().getInstanceID() + " terminated");
+
 					}
 
 				}
@@ -922,8 +917,13 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
-		// TODO Auto-generated method stub
-		return null;
+		Map<InstanceType, InstanceTypeDescription> availableinstances = new HashMap<InstanceType, InstanceTypeDescription>();
+
+		for (InstanceType t : this.availableInstanceTypes) {
+			availableinstances.put(t, InstanceTypeDescriptionFactory.construct(t, null, -1));
+		}
+
+		return availableinstances;
 	}
 
 }
