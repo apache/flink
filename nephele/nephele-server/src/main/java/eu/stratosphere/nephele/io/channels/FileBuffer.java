@@ -21,7 +21,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
 public class FileBuffer implements InternalBuffer {
@@ -30,7 +30,7 @@ public class FileBuffer implements InternalBuffer {
 
 	private final FileBufferManager fileBufferManager;
 
-	private final ChannelID channelID;
+	private final GateID gateID;
 
 	private FileChannel fileChannel;
 
@@ -42,9 +42,9 @@ public class FileBuffer implements InternalBuffer {
 
 	private long offset = 0;
 
-	FileBuffer(int bufferSize, ChannelID channelID, FileBufferManager fileBufferManager) {
+	FileBuffer(int bufferSize, GateID gateID, FileBufferManager fileBufferManager) {
 		this.bufferSize = bufferSize;
-		this.channelID = channelID;
+		this.gateID = gateID;
 		this.fileBufferManager = fileBufferManager;
 	}
 
@@ -57,7 +57,7 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID);
 			} catch (InterruptedException e) {
 				return -1;
 			}
@@ -88,7 +88,7 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID);
 			} catch (InterruptedException e) {
 				return -1;
 			}
@@ -132,7 +132,7 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
 			} catch (ChannelCanceledException cce) {
 				return writeContentForCanceledChannel(readableByteChannel);
 			}
@@ -199,7 +199,7 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
 			} catch (ChannelCanceledException e) {
 				throw new IOException("Received unexpected ChannelCanceledException");
 			}
@@ -249,7 +249,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public void recycleBuffer() {
 
-		this.fileBufferManager.reportFileBufferAsConsumed(this.channelID);
+		this.fileBufferManager.reportFileBufferAsConsumed(this.gateID);
 	}
 
 	@Override
@@ -267,7 +267,7 @@ public class FileBuffer implements InternalBuffer {
 			// System.out.println("Buffer size: " + this.bufferSize);
 			// TODO: Check synchronization
 			this.writeMode = false;
-			this.fileBufferManager.reportEndOfWritePhase(this.channelID, currentFileSize);
+			this.fileBufferManager.reportEndOfWritePhase(this.gateID, currentFileSize);
 		}
 
 	}
@@ -282,12 +282,6 @@ public class FileBuffer implements InternalBuffer {
 	public InternalBuffer duplicate() {
 
 		throw new RuntimeException("Not yet implemented");
-	}
-
-	@Override
-	public boolean isReadBuffer() {
-		// TODO Auto-generated method stub
-		return false;
 	}
 
 	@Override

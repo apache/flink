@@ -13,25 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.types.Record;
-
-public final class NetworkOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
-
-	public NetworkOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel, boolean followsPushModel) {
-		super(outputGate, channelIndex, channelID, compressionLevel, followsPushModel);
-	}
-
-	@Override
-	public ChannelType getType() {
-
-		return ChannelType.NETWORK;
-	}
+/**
+ * A class for statistically unique gate IDs.
+ * 
+ * @author warneke
+ */
+public final class GateID extends AbstractID {
 
 }

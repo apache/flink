@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.direct.AbstractDirectInputChannel;
 import eu.stratosphere.nephele.io.channels.direct.AbstractDirectOutputChannel;
 import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;

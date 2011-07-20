@@ -24,18 +24,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.FileUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -60,11 +58,9 @@ public class FileBufferManager {
 	 */
 	private final String tmpDir;
 
-	private final Map<ChannelID, Object> channelGroupMap = new ConcurrentHashMap<ChannelID, Object>();
+	private final Map<GateID, WritableSpillingFile> writableSpillingFileMap = new HashMap<GateID, WritableSpillingFile>();
 
-	private final Map<Object, WritableSpillingFile> writableSpillingFileMap = new HashMap<Object, WritableSpillingFile>();
-
-	private final Map<Object, Queue<ReadableSpillingFile>> readableSpillingFileMap = new HashMap<Object, Queue<ReadableSpillingFile>>();
+	private final Map<GateID, Queue<ReadableSpillingFile>> readableSpillingFileMap = new HashMap<GateID, Queue<ReadableSpillingFile>>();
 
 	private final Set<ChannelID> canceledChannels;
 
@@ -76,20 +72,15 @@ public class FileBufferManager {
 		this.canceledChannels = canceledChannels;
 	}
 
-	public FileChannel getFileChannelForReading(final ChannelID sourceChannelID) throws IOException,
+	public FileChannel getFileChannelForReading(final GateID gateID) throws IOException,
 			InterruptedException {
-
-		final Object groupObject = this.channelGroupMap.get(sourceChannelID);
-		if (groupObject == null) {
-			throw new IOException("Cannot find input gate for source channel ID " + sourceChannelID);
-		}
 
 		Queue<ReadableSpillingFile> queue = null;
 		synchronized (this.readableSpillingFileMap) {
-			queue = this.readableSpillingFileMap.get(groupObject);
+			queue = this.readableSpillingFileMap.get(gateID);
 			if (queue == null) {
 				queue = new ArrayDeque<ReadableSpillingFile>(1);
-				this.readableSpillingFileMap.put(groupObject, queue);
+				this.readableSpillingFileMap.put(gateID, queue);
 			}
 		}
 
@@ -99,13 +90,13 @@ public class FileBufferManager {
 			while (queue.isEmpty()) {
 
 				synchronized (this.writableSpillingFileMap) {
-					WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(groupObject);
+					WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(gateID);
 					if (writableSpillingFile != null) {
 						writableSpillingFile.requestReadAccess();
 
 						if (writableSpillingFile.isSafeToClose()) {
 							writableSpillingFile.close();
-							this.writableSpillingFileMap.remove(groupObject);
+							this.writableSpillingFileMap.remove(gateID);
 							queue.add(new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
 						}
 					}
@@ -122,26 +113,17 @@ public class FileBufferManager {
 		return readableSpillingFile.lockReadableFileChannel();
 	}
 
-	public void reportFileBufferAsConsumed(final ChannelID sourceChannelID) {
+	public void reportFileBufferAsConsumed(final GateID gateID) {
 
 		try {
-			final Object groupObject = this.channelGroupMap.get(sourceChannelID);
-			if (groupObject == null) {
-				if (this.canceledChannels.contains(sourceChannelID)) {
-					return;
-				} else {
-					throw new IOException("Cannot find input gate for source channel ID " + sourceChannelID);
-				}
-			}
-
 			Queue<ReadableSpillingFile> queue = null;
 			synchronized (this.readableSpillingFileMap) {
-				queue = this.readableSpillingFileMap.get(groupObject);
+				queue = this.readableSpillingFileMap.get(gateID);
 				if (queue == null) {
-					if(this.canceledChannels.contains(sourceChannelID)) {
+					if (this.canceledChannels.contains(gateID)) {
 						return;
 					} else {
-						throw new IOException("Cannot find readable spilling file queue for group object " + groupObject);
+						throw new IOException("Cannot find readable spilling file queue for gate ID " + gateID);
 					}
 				}
 
@@ -149,11 +131,10 @@ public class FileBufferManager {
 				synchronized (queue) {
 					readableSpillingFile = queue.peek();
 					if (readableSpillingFile == null) {
-						if (this.canceledChannels.contains(sourceChannelID)) {
+						if (this.canceledChannels.contains(gateID)) {
 							return;
 						} else {
-							throw new IOException("Cannot find readable spilling file for source channel "
-								+ sourceChannelID);
+							throw new IOException("Cannot find readable spilling file for gate ID " + gateID);
 						}
 					}
 					try {
@@ -161,11 +142,11 @@ public class FileBufferManager {
 						if (readableSpillingFile.checkForEndOfFile()) {
 							queue.poll();
 							if (queue.isEmpty()) {
-								this.readableSpillingFileMap.remove(groupObject);
+								this.readableSpillingFileMap.remove(gateID);
 							}
 						}
 					} catch (ClosedChannelException e) {
-						if (this.canceledChannels.contains(sourceChannelID)) {
+						if (this.canceledChannels.contains(gateID)) {
 							// The user thread has been interrupted
 							readableSpillingFile.getPhysicalFile().delete();
 						} else {
@@ -183,8 +164,8 @@ public class FileBufferManager {
 	/**
 	 * Locks and returns a file channel from a {@link WritableSpillingFile}.
 	 * 
-	 * @param sourceChannelID
-	 *        the ID of the {@link AbstractByteBufferedOutputChannel} the file channel shall be locked for
+	 * @param gateID
+	 *        the ID of the gate the file channel shall be locked for
 	 * @return the file channel object if the lock could be acquired or <code>null</code> if the locking operation
 	 *         failed
 	 * @throws IOException
@@ -192,25 +173,16 @@ public class FileBufferManager {
 	 * @throws ChannelCancelException
 	 *         thrown to indicate that the input channel for which the data is written has been canceled
 	 */
-	public FileChannel getFileChannelForWriting(final ChannelID sourceChannelID) throws IOException,
+	public FileChannel getFileChannelForWriting(final GateID gateID) throws IOException,
 			ChannelCanceledException {
-
-		final Object groupObject = this.channelGroupMap.get(sourceChannelID);
-		if (groupObject == null) {
-			if (this.canceledChannels.contains(sourceChannelID)) {
-				throw new ChannelCanceledException();
-			} else {
-				throw new IOException("Cannot find input gate for source channel ID " + sourceChannelID);
-			}
-		}
 
 		synchronized (this.writableSpillingFileMap) {
 
-			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(groupObject);
+			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(gateID);
 			if (writableSpillingFile == null) {
 				final String filename = this.tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
 				writableSpillingFile = new WritableSpillingFile(new File(filename));
-				this.writableSpillingFileMap.put(groupObject, writableSpillingFile);
+				this.writableSpillingFileMap.put(gateID, writableSpillingFile);
 			}
 
 			return writableSpillingFile.lockWritableFileChannel();
@@ -220,37 +192,28 @@ public class FileBufferManager {
 	/**
 	 * Returns the lock for a file channel of a {@link WritableSpillingFile}.
 	 * 
-	 * @param sourceChannelID
-	 *        the ID of the {@link AbstractByteBufferedOutputChannel} the lock has been acquired for
+	 * @param gateID
+	 *        the ID of the gate the lock has been acquired for
 	 * @param currentFileSize
 	 *        the size of the file after the last write operation using the locked file channel
 	 * @throws IOException
 	 *         thrown if the lock could not be released
 	 */
-	public void reportEndOfWritePhase(final ChannelID sourceChannelID, final long currentFileSize) throws IOException {
-
-		final Object groupObject = this.channelGroupMap.get(sourceChannelID);
-		if (groupObject == null) {
-			if (this.canceledChannels.contains(sourceChannelID)) {
-				return;
-			} else {
-				throw new IOException("Cannot find input gate for source channel ID " + sourceChannelID);
-			}
-		}
+	public void reportEndOfWritePhase(final GateID gateID, final long currentFileSize) throws IOException {
 
 		WritableSpillingFile writableSpillingFile = null;
 		boolean removed = false;
 		synchronized (this.writableSpillingFileMap) {
 
-			writableSpillingFile = this.writableSpillingFileMap.get(groupObject);
+			writableSpillingFile = this.writableSpillingFileMap.get(gateID);
 			if (writableSpillingFile == null) {
-				throw new IOException("Cannot find writable spilling file for group object " + groupObject);
+				throw new IOException("Cannot find writable spilling file for gate ID " + gateID);
 			}
 
 			writableSpillingFile.unlockWritableFileChannel(currentFileSize);
 
 			if (writableSpillingFile.isReadRequested() && writableSpillingFile.isSafeToClose()) {
-				this.writableSpillingFileMap.remove(groupObject);
+				this.writableSpillingFileMap.remove(gateID);
 				removed = true;
 			}
 		}
@@ -259,117 +222,15 @@ public class FileBufferManager {
 			writableSpillingFile.close();
 			Queue<ReadableSpillingFile> queue = null;
 			synchronized (this.readableSpillingFileMap) {
-				queue = this.readableSpillingFileMap.get(groupObject);
+				queue = this.readableSpillingFileMap.get(gateID);
 				if (queue == null) {
 					queue = new ArrayDeque<ReadableSpillingFile>(1);
-					this.readableSpillingFileMap.put(groupObject, queue);
+					this.readableSpillingFileMap.put(gateID, queue);
 				}
 			}
 			synchronized (queue) {
 				queue.add(new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
 				queue.notify();
-			}
-		}
-	}
-
-	public void registerExternalDataSourceForChannel(final ChannelID sourceChannelID, final String filename)
-			throws IOException {
-
-		final Object groupObject = this.channelGroupMap.get(sourceChannelID);
-		if (groupObject == null) {
-			throw new IOException("Cannot find input gate for source channel ID " + sourceChannelID);
-		}
-
-		Queue<ReadableSpillingFile> queue = null;
-		synchronized (this.readableSpillingFileMap) {
-
-			queue = this.readableSpillingFileMap.get(groupObject);
-			if (queue == null) {
-				queue = new ArrayDeque<ReadableSpillingFile>(1);
-				this.readableSpillingFileMap.put(groupObject, queue);
-			}
-		}
-
-		synchronized (queue) {
-			queue.add(new ReadableSpillingFile(new File(filename)));
-			queue.notify();
-		}
-	}
-
-	public void registerChannelToGateMapping(final ChannelID sourceChannelID,
-			final InputGate<? extends Record> inputGate) {
-
-		final Object previousGate = this.channelGroupMap.put(sourceChannelID, inputGate);
-		if (previousGate != null) {
-			LOG.error("Source channel ID has been previously registered to input gate " + inputGate.getJobID() + ", "
-				+ inputGate.getIndex());
-		}
-	}
-
-	public void unregisterChannelToGateMapping(final ChannelID sourceChannelID) {
-
-		final Object groupObject = this.channelGroupMap.remove(sourceChannelID);
-		if (groupObject == null) {
-			LOG.error("Source channel ID has not been registered with any input gate");
-		}
-
-		boolean canceled = this.canceledChannels.contains(sourceChannelID);
-
-		WritableSpillingFile writableSpillingFile = null;
-		synchronized (this.writableSpillingFileMap) {
-			writableSpillingFile = this.writableSpillingFileMap.remove(groupObject);
-		}
-
-		if (writableSpillingFile != null) {
-			if (canceled) {
-				try {
-					writableSpillingFile.close();
-					File file = writableSpillingFile.getPhysicalFile();
-					if (file != null) {
-						file.delete();
-					}
-				} catch (IOException ioe) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(StringUtils.stringifyException(ioe));
-					}
-				}
-			} else {
-				LOG.error("There is still a writable spilling file for source channel " + sourceChannelID);
-			}
-		}
-
-		Queue<ReadableSpillingFile> queue = null;
-		synchronized (this.readableSpillingFileMap) {
-			queue = this.readableSpillingFileMap.remove(groupObject);
-		}
-
-		if (queue != null) {
-			if (canceled) {
-				try {
-					while (!queue.isEmpty()) {
-						final ReadableSpillingFile rsf = queue.poll();
-						if (rsf.isReadableChannelLocked()) {
-							rsf.unlockReadableFileChannel();
-						}
-						final FileChannel fc = rsf.lockReadableFileChannel();
-						fc.close();
-						final File file = rsf.getPhysicalFile();
-						if (file != null) {
-							file.delete();
-						}
-					}
-				} catch (IOException ioe) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(StringUtils.stringifyException(ioe));
-					}
-				} catch (InterruptedException ie) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(StringUtils.stringifyException(ie));
-					}
-				}
-			} else {
-				LOG.error("There is still " + queue.size() + " readable spilling file(s) for source channel "
-					+ sourceChannelID);
 			}
 		}
 	}

@@ -67,8 +67,7 @@ public class IncomingConnection {
 			ReadableByteChannel readableByteChannel) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.readsFromCheckpoint = (this.readableByteChannel instanceof FileChannel);
-		this.deserializer = new TransferEnvelopeDeserializer(byteBufferedChannelManager.getBufferProvider(),
-			this.readsFromCheckpoint);
+		this.deserializer = new TransferEnvelopeDeserializer(byteBufferedChannelManager);
 		this.readableByteChannel = readableByteChannel;
 	}
 

@@ -18,28 +18,21 @@ package eu.stratosphere.nephele.io.channels;
 import java.nio.ByteBuffer;
 import java.util.Queue;
 
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
 public abstract class BufferFactory {
 
-	public static Buffer createFromCheckpoint(int bufferSize, ChannelID sourceChannelID, long offset,
-			FileBufferManager fileBufferManager) {
+	public static Buffer createFromFile(final int bufferSize, final GateID gateID,
+			final FileBufferManager fileBufferManager) {
 
-		final InternalBuffer internalBuffer = new CheckpointFileBuffer(bufferSize, sourceChannelID, offset,
-			fileBufferManager);
+		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, gateID, fileBufferManager);
 		return new Buffer(internalBuffer);
 	}
 
-	public static Buffer createFromFile(int bufferSize, ChannelID sourceChannelID, FileBufferManager fileBufferManager) {
-
-		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, sourceChannelID, fileBufferManager);
-		return new Buffer(internalBuffer);
-	}
-
-	public static Buffer createFromMemory(int bufferSize, ByteBuffer byteBuffer,
-			Queue<ByteBuffer> queueForRecycledBuffers) {
+	public static Buffer createFromMemory(final int bufferSize, final ByteBuffer byteBuffer,
+			final Queue<ByteBuffer> queueForRecycledBuffers) {
 
 		final InternalBuffer internalBuffer = new MemoryBuffer(bufferSize, byteBuffer, queueForRecycledBuffers);
 		return new Buffer(internalBuffer);

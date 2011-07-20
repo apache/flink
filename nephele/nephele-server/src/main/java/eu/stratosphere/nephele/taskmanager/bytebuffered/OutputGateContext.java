@@ -2,24 +2,42 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.BufferFactory;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
+import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 final class OutputGateContext implements BufferProvider {
 
-	private TaskContext taskContext;
+	private final TaskContext taskContext;
+
+	private final OutputGate<?> outputGate;
+
+	private final FileBufferManager fileBufferManager;
+
+	private final EphemeralCheckpoint ephemeralCheckpoint;
 
 	/**
 	 * The dispatcher for received transfer envelopes.
 	 */
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
-	OutputGateContext(final TaskContext taskContext, final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+	OutputGateContext(final TaskContext taskContext, final OutputGate<?> outputGate,
+			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final FileBufferManager fileBufferManager) {
 
 		this.taskContext = taskContext;
+		this.outputGate = outputGate;
+
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.fileBufferManager = fileBufferManager;
+
+		this.ephemeralCheckpoint = new EphemeralCheckpoint((outputGate.getChannelType() == ChannelType.FILE) ? false
+			: true);
 	}
 
 	/**
@@ -28,7 +46,7 @@ final class OutputGateContext implements BufferProvider {
 	@Override
 	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
-		return this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
+		throw new IllegalStateException("requestEmpty Buffer called on OutputGateContext");
 	}
 
 	/**
@@ -56,38 +74,30 @@ final class OutputGateContext implements BufferProvider {
 	 * 
 	 * @param outgoingTransferEnvelope
 	 *        the transfer envelope to be forwarded
+	 * @param forwardToReceiver
+	 *        states whether the transfer envelope shall be forwarded to the receiver
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while processing the envelope
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
-	public void processEnvelope(final TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
+	public void processEnvelope(final TransferEnvelope outgoingTransferEnvelope, final boolean forwardToReceiver)
+			throws IOException,
+			InterruptedException {
 
-		// TODO: Adapt code to work with checkpointing again
-		/*
-		 * final TransferEnvelopeReceiverList processingLog = outgoingTransferEnvelope.getProcessingLog();
-		 * // Check if the provided envelope must be written to the checkpoint
-		 * if (this.ephemeralCheckpoint != null && processingLog.mustBeWrittenToCheckpoint()) {
-		 * this.ephemeralCheckpoint.addTransferEnvelope(outgoingTransferEnvelope);
-		 * // Look for a close event
-		 * final EventList eventList = outgoingTransferEnvelope.getEventList();
-		 * if (!eventList.isEmpty() && this.commonChannelType == ChannelType.FILE) {
-		 * final Iterator<AbstractEvent> it = eventList.iterator();
-		 * while (it.hasNext()) {
-		 * if (it.next() instanceof ByteBufferedChannelCloseEvent) {
-		 * // Mark corresponding channel as closed
-		 * this.ephemeralCheckpoint.markChannelAsFinished(outgoingTransferEnvelope.getSource());
-		 * // If checkpoint is persistent it is save to acknowledge the close event
-		 * if (this.ephemeralCheckpoint.isPersistent()) {
-		 * channelWrapper.processEvent(new ByteBufferedChannelCloseEvent());
-		 * }
-		 * break;
-		 * }
-		 * }
-		 * }
-		 * }
-		 */
+		if (!this.ephemeralCheckpoint.isDiscarded()) {
 
-		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
+			final TransferEnvelope dup = outgoingTransferEnvelope.duplicate();
+			this.ephemeralCheckpoint.addTransferEnvelope(dup);
+		}
+
+		if (forwardToReceiver) {
+			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
+		}
+	}
+
+	public Buffer getFileBuffer(final int bufferSize) throws IOException {
+
+		return BufferFactory.createFromFile(bufferSize, this.outputGate.getGateID(), this.fileBufferManager);
 	}
 }

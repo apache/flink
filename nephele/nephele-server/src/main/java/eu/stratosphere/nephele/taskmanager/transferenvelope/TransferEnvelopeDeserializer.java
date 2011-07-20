@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 
 public class TransferEnvelopeDeserializer {
 
@@ -45,8 +46,6 @@ public class TransferEnvelopeDeserializer {
 
 	private DeserializationState deserializationState = DeserializationState.NOTDESERIALIZED;
 
-	private final BufferProvider bufferProvider;
-
 	private final DeserializationBuffer<ChannelID> channelIDDeserializationBuffer = new DeserializationBuffer<ChannelID>(
 		new DefaultRecordDeserializer<ChannelID>(ChannelID.class), true);
 
@@ -55,6 +54,8 @@ public class TransferEnvelopeDeserializer {
 
 	private final DeserializationBuffer<EventList> notificationListDeserializationBuffer = new DeserializationBuffer<EventList>(
 		new DefaultRecordDeserializer<EventList>(EventList.class), true);
+
+	private final BufferProviderBroker bufferProviderBroker;
 
 	private final ByteBuffer existanceBuffer = ByteBuffer.allocate(1); // 1 byte for existence of buffer
 
@@ -76,9 +77,9 @@ public class TransferEnvelopeDeserializer {
 
 	private EventList deserializedEventList = null;
 
-	public TransferEnvelopeDeserializer(BufferProvider bufferProvider) {
+	public TransferEnvelopeDeserializer(final BufferProviderBroker bufferProviderBroker) {
 
-		this.bufferProvider = bufferProvider;
+		this.bufferProviderBroker = bufferProviderBroker;
 	}
 
 	public void read(ReadableByteChannel readableByteChannel) throws IOException {
@@ -249,8 +250,9 @@ public class TransferEnvelopeDeserializer {
 
 		if (this.buffer == null) {
 
-			// Request read buffer from network channelManager
-			this.buffer = this.bufferProvider.requestEmptyBuffer(this.sizeOfBuffer);
+			// Find buffer provider for this channel
+			final BufferProvider bufferProvider = this.bufferProviderBroker.getBufferProvider(deserializedSourceID);
+			this.buffer = bufferProvider.requestEmptyBuffer(this.sizeOfBuffer);
 
 			if (this.buffer == null) {
 

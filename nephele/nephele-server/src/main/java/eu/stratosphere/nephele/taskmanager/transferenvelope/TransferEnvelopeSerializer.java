@@ -20,7 +20,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
 import eu.stratosphere.nephele.event.task.EventList;
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
@@ -115,7 +115,7 @@ public class TransferEnvelopeSerializer {
 		return true;
 	}
 
-	private boolean writeID(WritableByteChannel writableByteChannel, ID id) throws IOException {
+	private boolean writeID(WritableByteChannel writableByteChannel, AbstractID id) throws IOException {
 
 		if (!writeIOReadableWritable(writableByteChannel, id)) {
 			// We're done, all the data has been written to the channel

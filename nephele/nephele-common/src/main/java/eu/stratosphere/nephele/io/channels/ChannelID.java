@@ -15,13 +15,13 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 
 /**
  * A class for statistically unique channel IDs.
  * 
  * @author warneke
  */
-public class ChannelID extends ID {
+public final class ChannelID extends AbstractID {
 
 }

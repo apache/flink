@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
 /**
@@ -24,7 +24,7 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * 
  * @author warneke
  */
-public class ExecutionVertexID extends ID {
+public class ExecutionVertexID extends AbstractID {
 
 	/**
 	 * Converts the execution vertex ID into a

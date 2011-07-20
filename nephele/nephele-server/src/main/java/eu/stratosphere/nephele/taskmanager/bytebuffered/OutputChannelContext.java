@@ -1,7 +1,9 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,6 +40,8 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 */
 	private TransferEnvelope outgoingTransferEnvelope = null;
 
+	private Queue<TransferEnvelope> queuedOutgoingEnvelopes;
+
 	/**
 	 * The sequence number for the next {@link TransferEnvelope} to be created.
 	 */
@@ -49,6 +53,8 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		this.outputGateContext = outputGateContext;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
+
+		this.queuedOutgoingEnvelopes = new ArrayDeque<TransferEnvelope>();
 	}
 
 	/**
@@ -119,9 +125,20 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			this.byteBufferedOutputChannel.reportIOException(ioe);
 		}
 
-		this.outputGateContext.processEnvelope(this.outgoingTransferEnvelope);
-		this.outgoingTransferEnvelope = null;
+		if (this.byteBufferedOutputChannel.followsPushModel()) {
 
+			final Buffer memBuffer = this.outgoingTransferEnvelope.getBuffer();
+			final Buffer fileBuffer = this.outputGateContext.getFileBuffer(memBuffer.size());
+			memBuffer.copyToBuffer(fileBuffer);
+			this.outgoingTransferEnvelope.setBuffer(fileBuffer);
+			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
+			memBuffer.recycleBuffer();
+		}
+
+		this.outputGateContext.processEnvelope(this.outgoingTransferEnvelope,
+			this.byteBufferedOutputChannel.followsPushModel());
+
+		this.outgoingTransferEnvelope = null;
 	}
 
 	/**
@@ -133,9 +150,12 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		if (this.outgoingTransferEnvelope != null) {
 			this.outgoingTransferEnvelope.addEvent(event);
 		} else {
+			
 			final TransferEnvelope ephemeralTransferEnvelope = createNewOutgoingTransferEnvelope();
 			ephemeralTransferEnvelope.addEvent(event);
-			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope);
+			
+			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope,
+				this.byteBufferedOutputChannel.followsPushModel());
 		}
 	}
 
@@ -159,7 +179,6 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 		return false;
 	}
-	
 
 	/**
 	 * Called by the framework to report events to
@@ -211,14 +230,14 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 	@Override
 	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
-		
-		if(transferEnvelope.getBuffer() != null) {
+
+		if (transferEnvelope.getBuffer() != null) {
 			LOG.error("Transfer envelope for output channel has buffer attached");
 		}
-		
+
 		Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
-		while(it.hasNext()) {
-			
+		while (it.hasNext()) {
+
 			this.byteBufferedOutputChannel.processEvent(it.next());
 		}
 	}

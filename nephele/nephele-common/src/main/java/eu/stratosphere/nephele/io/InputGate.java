@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -105,6 +105,8 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * 
 	 * @param jobID
 	 *        the ID of the job this input gate belongs to
+	 * @param gateID
+	 *        the ID of the gate
 	 * @param inputClass
 	 *        the class of the record that can be transported through this gate
 	 * @param index
@@ -112,10 +114,10 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * @param distributionPattern
 	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
 	 */
-	public InputGate(final JobID jobID, final RecordDeserializer<T> deserializer, final int index,
+	public InputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer, final int index,
 			final DistributionPattern distributionPattern) {
 
-		super(jobID, deserializer.getRecordType(), index);
+		super(jobID, gateID, deserializer.getRecordType(), index);
 
 		this.deserializer = deserializer;
 

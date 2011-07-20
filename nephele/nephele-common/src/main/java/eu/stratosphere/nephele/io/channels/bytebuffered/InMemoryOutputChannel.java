@@ -13,39 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.direct;
+package eu.stratosphere.nephele.io.channels.bytebuffered;
 
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
-/**
- * In-memory input channels are a concrete implementation of input channels. In-memory input channels directly read
- * records from corresponding
- * in-memory output channels without deserialization. Two vertices connected by in-memory channels must run in the same
- * stage (i.e. at the same time)
- * and on the same instance.
- * 
- * @author warneke
- * @param <T>
- *        the type of record that can be transported through this channel
- */
-public final class InMemoryInputChannel<T extends Record> extends AbstractDirectInputChannel<T> {
+public final class InMemoryOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
 
-	public InMemoryInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
-			ChannelID channelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, deserializer, channelID, compressionLevel);
+	public InMemoryOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
+			CompressionLevel compressionLevel, boolean followsPushModel) {
+		super(outputGate, channelIndex, channelID, compressionLevel, followsPushModel);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public ChannelType getType() {
 
 		return ChannelType.INMEMORY;
 	}
+
 }

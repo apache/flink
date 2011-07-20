@@ -42,6 +42,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private final SerializationBuffer<T> serializationBuffer = new SerializationBuffer<T>();
 
 	/**
+	 * States whether this channel follows a push or a pull model.
+	 */
+	private final boolean followsPushModel;
+
+	/**
 	 * Buffer for the compressed output data.
 	 */
 	private Buffer compressedDataBuffer = null;
@@ -102,10 +107,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 *        the level of compression to be used for this channel
 	 */
 	public AbstractByteBufferedOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel) {
+			CompressionLevel compressionLevel, boolean followsPushModel) {
 		super(outputGate, channelIndex, channelID, compressionLevel);
 
 		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel, this);
+		this.followsPushModel = followsPushModel;
 	}
 
 	/**
@@ -139,8 +145,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
-			
-			if(!isBroadcastChannel() || getChannelIndex() == 0) {
+
+			if (!isBroadcastChannel() || getChannelIndex() == 0) {
 				transferEvent(new ByteBufferedChannelCloseEvent());
 			}
 		}
@@ -378,6 +384,17 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	}
 
 	/**
+	 * States whether this channel follows a push or pull-based transfer model.
+	 * 
+	 * @return <code>true</code> if this channel follows a push-based transfer model, <code>false</code> for a
+	 *         pull-based one.
+	 */
+	public boolean followsPushModel() {
+
+		return this.followsPushModel;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -400,8 +417,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.uncompressedDataBuffer.recycleBuffer();
 			this.uncompressedDataBuffer = null;
 		}
-		
-		if(this.compressor != null) {
+
+		if (this.compressor != null) {
 			this.compressor.shutdown(getID());
 		}
 	}

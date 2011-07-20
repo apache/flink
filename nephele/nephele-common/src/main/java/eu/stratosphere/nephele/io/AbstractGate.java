@@ -52,6 +52,11 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	private final JobID jobID;
 
 	/**
+	 * The ID of this gate.
+	 */
+	private final GateID gateID;
+
+	/**
 	 * The index of the gate in the list of available input/output gates.
 	 */
 	private final int index;
@@ -71,13 +76,16 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	 * 
 	 * @param jobID
 	 *        the ID of the job this gate belongs to
+	 * @param gateID
+	 *        the ID of this gate
 	 * @param type
 	 *        the ID of the job this gate belongs to
 	 * @param index
 	 *        the index of the gate in the list of available input/output gates.
 	 */
-	protected AbstractGate(final JobID jobID, final Class<T> type, final int index) {
+	protected AbstractGate(final JobID jobID, final GateID gateID, final Class<T> type, final int index) {
 		this.jobID = jobID;
+		this.gateID = gateID;
 		this.type = type;
 		this.index = index;
 	}
@@ -231,6 +239,16 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	public JobID getJobID() {
 
 		return this.jobID;
+	}
+
+	/**
+	 * Returns the ID of the gate.
+	 * 
+	 * @return the ID of the gate
+	 */
+	public GateID getGateID() {
+
+		return this.gateID;
 	}
 
 	/**

@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public abstract class ID implements IOReadableWritable {
+public abstract class AbstractID implements IOReadableWritable {
 
 	/**
 	 * The size of the ID in byte.
@@ -42,7 +42,7 @@ public abstract class ID implements IOReadableWritable {
 	/**
 	 * Constructs a new ID with a specific bytes value.
 	 */
-	public ID(byte[] bytes) {
+	public AbstractID(byte[] bytes) {
 		
 		if(bytes.length == SIZE) {
 			System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
@@ -52,7 +52,7 @@ public abstract class ID implements IOReadableWritable {
 	/**
 	 * Constructs a new random ID from a uniform distribution.
 	 */
-	public ID() {
+	public AbstractID() {
 		
 		for (int i = 0; i < SIZE; i++) {
 			this.bytes[i] = (byte) ((Math.random() * 256.0) + Byte.MIN_VALUE);
@@ -93,7 +93,7 @@ public abstract class ID implements IOReadableWritable {
 	 * @param src
 	 *        the source ID
 	 */
-	public void setID(ID src) {
+	public void setID(AbstractID src) {
 		setBytes(src.getBytes());
 	}
 
@@ -103,11 +103,11 @@ public abstract class ID implements IOReadableWritable {
 	@Override
 	public boolean equals(Object obj) {
 
-		if (!(obj instanceof ID)) {
+		if (!(obj instanceof AbstractID)) {
 			return false;
 		}
 
-		final ID src = (ID) obj;
+		final AbstractID src = (AbstractID) obj;
 
 		final byte[] srcBytes = src.getBytes();
 

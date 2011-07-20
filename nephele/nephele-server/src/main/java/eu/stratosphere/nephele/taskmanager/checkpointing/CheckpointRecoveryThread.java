@@ -21,20 +21,10 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager
 
 public class CheckpointRecoveryThread extends Thread {
 
-	private final NetworkConnectionManager networkConnectionManager;
-
-	private final FileBufferManager fileBufferManager;
-
-	private final ChannelCheckpoint channelCheckpoint;
-
 	public CheckpointRecoveryThread(final NetworkConnectionManager networkConnectionManager,
-			final FileBufferManager fileBufferManager, final ChannelCheckpoint channelCheckpoint,
-			final ChannelID sourceChannelID) {
+			final FileBufferManager fileBufferManager, final ChannelID sourceChannelID) {
 		super("CheckpointRecoveryThread for channel " + sourceChannelID);
 
-		this.networkConnectionManager = networkConnectionManager;
-		this.fileBufferManager = fileBufferManager;
-		this.channelCheckpoint = channelCheckpoint;
 	}
 
 	/**
@@ -43,6 +33,6 @@ public class CheckpointRecoveryThread extends Thread {
 	@Override
 	public void run() {
 
-		this.channelCheckpoint.recover(this.networkConnectionManager, this.fileBufferManager);
+		//TODO: Implement me
 	}
 }

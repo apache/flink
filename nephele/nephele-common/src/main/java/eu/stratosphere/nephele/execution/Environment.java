@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -574,6 +575,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		final int numOuputGates = in.readInt();
 
 		for (int i = 0; i < numOuputGates; i++) {
+
+			final GateID gateID = new GateID();
+			gateID.read(in);
+
 			final String typeClassName = StringRecord.readString(in);
 			Class<? extends Record> type = null;
 			try {
@@ -603,10 +608,9 @@ public class Environment implements Runnable, IOReadableWritable {
 				channelSelector.read(in);
 			}
 
-			
-
 			@SuppressWarnings("rawtypes")
-			final OutputGate<? extends Record> eog = new OutputGate(this.jobID, type, i, channelSelector, isBroadcast);
+			final OutputGate<? extends Record> eog = new OutputGate(this.jobID, gateID, type, i, channelSelector,
+				isBroadcast);
 			eog.read(in);
 			this.outputGates.add(eog);
 			// Mark as unbound for reconnection of RecordWriter
@@ -616,6 +620,9 @@ public class Environment implements Runnable, IOReadableWritable {
 		final int numInputGates = in.readInt();
 
 		for (int i = 0; i < numInputGates; i++) {
+
+			final GateID gateID = new GateID();
+			gateID.read(in);
 
 			final String deserializerClassName = StringRecord.readString(in);
 			RecordDeserializer<? extends Record> recordDeserializer = null;
@@ -654,7 +661,7 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 
 			@SuppressWarnings("rawtypes")
-			final InputGate<? extends Record> eig = new InputGate(this.jobID, recordDeserializer, i,
+			final InputGate<? extends Record> eig = new InputGate(this.jobID, gateID, recordDeserializer, i,
 				distributionPattern);
 			eig.read(in);
 			this.inputGates.add(eig);
@@ -716,6 +723,7 @@ public class Environment implements Runnable, IOReadableWritable {
 		out.writeInt(getNumberOfOutputGates());
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
 			final OutputGate<? extends Record> outputGate = getOutputGate(i);
+			outputGate.getGateID().write(out);
 			StringRecord.writeString(out, outputGate.getType().getName());
 			out.writeBoolean(outputGate.isBroadcast());
 			if (!outputGate.isBroadcast()) {
@@ -731,6 +739,7 @@ public class Environment implements Runnable, IOReadableWritable {
 		out.writeInt(getNumberOfInputGates());
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
 			final InputGate<? extends Record> inputGate = getInputGate(i);
+			inputGate.getGateID().write(out);
 			StringRecord.writeString(out, inputGate.getRecordDeserializer().getClass().getName());
 			inputGate.getRecordDeserializer().write(out);
 			StringRecord.writeString(out, inputGate.getDistributionPattern().getClass().getName());

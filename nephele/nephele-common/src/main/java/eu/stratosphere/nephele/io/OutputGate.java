@@ -33,7 +33,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -89,6 +89,8 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 * 
 	 * @param jobID
 	 *        the ID of the job this input gate belongs to
+	 * @param gateID
+	 *        the ID of the gate
 	 * @param inputClass
 	 *        the class of the record that can be transported through this
 	 *        gate
@@ -100,10 +102,10 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 *        <code>true</code> if every records passed to this output gate shall be transmitted through all connected
 	 *        output channels, <code>false</code> otherwise
 	 */
-	public OutputGate(final JobID jobID, final Class<T> inputClass, final int index,
+	public OutputGate(final JobID jobID, final GateID gateID, final Class<T> inputClass, final int index,
 			final ChannelSelector<T> channelSelector, final boolean isBroadcast) {
 
-		super(jobID, inputClass, index);
+		super(jobID, gateID, inputClass, index);
 
 		this.isBroadcast = isBroadcast;
 
@@ -159,7 +161,8 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 		this.outputChannels.clear();
 	}
 
-	public AbstractOutputChannel<T> replaceChannel(ChannelID oldChannelID, ChannelType newChannelType) {
+	public AbstractOutputChannel<T> replaceChannel(ChannelID oldChannelID, ChannelType newChannelType,
+			boolean followsPushModel) {
 
 		AbstractOutputChannel<T> oldOutputChannel = null;
 
@@ -184,11 +187,11 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 			break;
 		case INMEMORY:
 			newOutputChannel = new InMemoryOutputChannel<T>(this, oldOutputChannel.getChannelIndex(), oldOutputChannel
-				.getID(), oldOutputChannel.getCompressionLevel());
+				.getID(), oldOutputChannel.getCompressionLevel(), true);
 			break;
 		case NETWORK:
 			newOutputChannel = new NetworkOutputChannel<T>(this, oldOutputChannel.getChannelIndex(), oldOutputChannel
-				.getID(), oldOutputChannel.getCompressionLevel());
+				.getID(), oldOutputChannel.getCompressionLevel(), followsPushModel);
 			break;
 		default:
 			return null;
@@ -244,12 +247,15 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
+	 * @param followsPushModel
+	 *        states whether this channel follows a push or a pull-based transfer model
 	 * @return the new network output channel
 	 */
-	public NetworkOutputChannel<T> createNetworkOutputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
+	public NetworkOutputChannel<T> createNetworkOutputChannel(ChannelID channelID, CompressionLevel compressionLevel,
+			boolean followsPushModel) {
 
 		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(this, this.outputChannels.size(), channelID,
-			compressionLevel);
+			compressionLevel, followsPushModel);
 		addOutputChannel(enoc);
 
 		return enoc;
@@ -285,7 +291,7 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	public InMemoryOutputChannel<T> createInMemoryOutputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
 
 		final InMemoryOutputChannel<T> einoc = new InMemoryOutputChannel<T>(this, this.outputChannels.size(),
-			channelID, compressionLevel);
+			channelID, compressionLevel, true);
 		addOutputChannel(einoc);
 
 		return einoc;

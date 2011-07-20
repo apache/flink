@@ -465,7 +465,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 		switch (channelType) {
 		case NETWORK:
-			outputChannel = outputGate.createNetworkOutputChannel(null, compressionLevel);
+			outputChannel = outputGate.createNetworkOutputChannel(null, compressionLevel, true);
 			inputChannel = inputGate.createNetworkInputChannel(null, compressionLevel);
 			break;
 		case INMEMORY:
@@ -967,7 +967,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 						// Replace channels
 						final AbstractOutputChannel<? extends Record> newOutputChannel = outputGate.replaceChannel(
-							oldOutputChannel.getID(), ChannelType.INMEMORY);
+							oldOutputChannel.getID(), ChannelType.INMEMORY, false);
 						final AbstractInputChannel<? extends Record> newInputChannel = inputGate.replaceChannel(
 							oldInputChannel.getID(), ChannelType.INMEMORY);
 

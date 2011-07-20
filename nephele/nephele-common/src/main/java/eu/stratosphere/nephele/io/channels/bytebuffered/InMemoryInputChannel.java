@@ -13,9 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bufferprovider;
+package eu.stratosphere.nephele.io.channels.bytebuffered;
 
-public interface OutOfBuffersListener {
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.types.Record;
 
-	public void outOfByteBuffers();
+public final class InMemoryInputChannel<T extends Record> extends AbstractByteBufferedInputChannel<T> {
+
+	public InMemoryInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
+			ChannelID channelID, CompressionLevel compressionLevel) {
+		super(inputGate, channelIndex, deserializer, channelID, compressionLevel);
+	}
+
+	@Override
+	public ChannelType getType() {
+
+		return ChannelType.INMEMORY;
+	}
 }
