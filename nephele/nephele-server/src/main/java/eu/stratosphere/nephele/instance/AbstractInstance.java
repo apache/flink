@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -76,8 +77,9 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @param hardwareDescription
 	 *        the hardware description provided by the instance itself
 	 */
-	public AbstractInstance(InstanceType instanceType, InstanceConnectionInfo instanceConnectionInfo,
-			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+	public AbstractInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
+			final NetworkNode parentNode, final NetworkTopology networkTopology,
+			final HardwareDescription hardwareDescription) {
 		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
 		this.instanceType = instanceType;
 		this.instanceConnectionInfo = instanceConnectionInfo;
@@ -140,7 +142,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while checking for the libraries
 	 */
-	public synchronized void checkLibraryAvailability(JobID jobID) throws IOException {
+	public synchronized void checkLibraryAvailability(final JobID jobID) throws IOException {
 
 		// Now distribute the required libraries for the job
 		String[] requiredLibraries = LibraryCacheManager.getRequiredJarFiles(jobID);
@@ -178,10 +180,26 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the task
 	 */
-	public synchronized TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration,
-			Environment environment) throws IOException {
+	public synchronized TaskSubmissionResult submitTask(final ExecutionVertexID id,
+			final Configuration jobConfiguration,
+			final Environment environment) throws IOException {
 
 		return getTaskManager().submitTask(id, jobConfiguration, environment);
+	}
+
+	/**
+	 * Submits a list of tasks to the instance's {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
+	 * 
+	 * @param tasks
+	 *        the list of tasks to be submitted
+	 * @return the result of the submission attempt
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the task
+	 */
+	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks)
+			throws IOException {
+
+		return getTaskManager().submitTasks(tasks);
 	}
 
 	/**
@@ -194,7 +212,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *         thrown if an error occurs while transmitting the request or receiving the response
 	 * @return the result of the cancel attempt
 	 */
-	public synchronized TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException {
+	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
 		return getTaskManager().cancelTask(id);
 	}
@@ -208,7 +226,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
 	 */
-	public synchronized void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 
 		getTaskManager().removeCheckpoints(listOfVertexIDs);
 	}

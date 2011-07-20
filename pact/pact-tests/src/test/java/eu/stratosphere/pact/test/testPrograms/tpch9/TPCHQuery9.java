@@ -71,7 +71,6 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
 public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 	public final String ARGUMENTS = "dop partInputPath partSuppInputPath ordersInputPath lineItemInputPath supplierInputPath nationInputPath outputPath";
 
-	@SuppressWarnings("unused")
 	private static Logger LOGGER = Logger.getLogger(TPCHQuery9.class);
 
 	private int degreeOfParallelism = 1;

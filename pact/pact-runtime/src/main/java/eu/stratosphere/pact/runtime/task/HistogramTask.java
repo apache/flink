@@ -306,8 +306,6 @@ public class HistogramTask extends AbstractTask {
 	 */
 	private void initOutputCollector() {
 
-		boolean fwdCopyFlag = false;
-		
 		// create output collector
 		output = new OutputCollector<Key, Value>();
 		
@@ -325,8 +323,6 @@ public class HistogramTask extends AbstractTask {
 			// all following must send copies
 			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
 			output.addWriter(writer, true);
-			fwdCopyFlag = true;
-			
 		}
 	}
 

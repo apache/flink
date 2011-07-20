@@ -815,7 +815,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
 		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
 		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+		// int targetIPM = connection.getTargetPact().getInstancesPerMachine();
 		Class<? extends Stub<?, ?>> sourceStub = connection.getSourcePact().getPactContract().getStubClass();
 		
 		//TODO: Check for which pact types it makes sense
@@ -926,7 +926,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
 		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
 		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+		// int targetIPM = connection.getTargetPact().getInstancesPerMachine();
 		Class<? extends Stub<?, ?>> sourceStub = connection.getSourcePact().getPactContract().getStubClass();
 		
 		//When parallelism is one there is nothing to partition

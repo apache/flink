@@ -543,8 +543,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		 * }
 		 */
 
-		final String awsAccessId = "AKIAJYQJNI7QH227NDQA";
-		final String awsSecretKey = "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";
+		final String awsAccessId = "HERE";
+		final String awsSecretKey = "HERE";
 		final String owner = "nobody";
 
 		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
@@ -640,7 +640,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		 * return null;
 		 * }
 		 */
-		final String imageID = "ami-ea5b6b9e";
+		final String imageID = "ami-a24272d6";
 		final String jobManagerIPAddress = GlobalConfiguration.getString("jobmanager.rpc.address", null);
 		if (jobManagerIPAddress == null) {
 			LOG.error("JobManager IP address is not set (jobmanager.rpc.address)");
@@ -750,6 +750,30 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 					// Check if instance entry is a floating instance
 
+					
+					final Iterator<Map.Entry<InstanceConnectionInfo, FloatingInstance>> it = this.floatingInstances.entrySet().iterator();
+
+					while (it.hasNext()) {
+						
+						Entry<InstanceConnectionInfo, FloatingInstance> e = it.next();
+						if (e.getKey().getAddress().equals(inetAddress)) {
+							LOG.info("Suitable floating instance found.");
+							final FloatingInstance floatingInstance = e.getValue();
+							it.remove();
+							
+							this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
+
+							floatinginstances.add(convertIntoCloudInstance(t,
+								floatingInstance.getInstanceConnectionInfo(), owner));
+
+							// If we already have enough floating instances found: return!
+							if (floatinginstances.size() >= count) {
+								return floatinginstances;
+							}
+						}
+						
+					}
+					
 					for (Entry<InstanceConnectionInfo, FloatingInstance> e : this.floatingInstances.entrySet()) {
 						if (e.getKey().getAddress().equals(inetAddress)) {
 							LOG.info("Suitable floating instance found.");

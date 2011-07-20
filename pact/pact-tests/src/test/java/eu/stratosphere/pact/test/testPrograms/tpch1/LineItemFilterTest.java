@@ -45,7 +45,7 @@ public class LineItemFilterTest {
 	@Mock
 	RecordWriter<KeyValuePair<PactString, Tuple>> recordStringWriterMock; 
 	
-	private List<RecordWriter> writerList = new ArrayList<RecordWriter>();
+	private List<RecordWriter<?>> writerList = new ArrayList<RecordWriter<?>>();
 	
 	@Before
 	public void setUp()
@@ -63,6 +63,7 @@ public class LineItemFilterTest {
 		Tuple input = createInputTuple(shipDate);
 		
 		PactInteger inputKey = new PactInteger();
+		@SuppressWarnings("rawtypes")
 		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		PactString returnFlag = new PactString(RETURN_FLAG);
@@ -82,6 +83,7 @@ public class LineItemFilterTest {
 		
 		Tuple input = createInputTuple(shipDate);
 		PactInteger inputKey = new PactInteger();
+		@SuppressWarnings("rawtypes")
 		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
@@ -95,6 +97,7 @@ public class LineItemFilterTest {
 		
 		Tuple input = null;
 		PactInteger inputKey = new PactInteger();
+		@SuppressWarnings("rawtypes")
 		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
@@ -110,6 +113,7 @@ public class LineItemFilterTest {
 		
 		Tuple input = createInputTuple(shipDate);
 		PactInteger inputKey = new PactInteger();
+		@SuppressWarnings("rawtypes")
 		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
@@ -135,6 +139,7 @@ public class LineItemFilterTest {
 		//the relevant column is missing now
 		
 		PactInteger inputKey = new PactInteger();
+		@SuppressWarnings("rawtypes")
 		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
 		
 		out.map(inputKey, input, collector);
