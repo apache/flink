@@ -15,11 +15,19 @@
 
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.BufferFactory;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 
 /**
  * An ephemeral checkpoint is a checkpoint that can be used to recover from
@@ -41,6 +49,21 @@ public class EphemeralCheckpoint {
 	private static final Log LOG = LogFactory.getLog(EphemeralCheckpoint.class);
 
 	/**
+	 * The enveloped which are currently queued until the state of the checkpoint is decided
+	 */
+	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
+
+	/**
+	 * The ID of the gate this ephemeral checkpoint belongs to.
+	 */
+	private final GateID gateID;
+
+	/**
+	 * The file buffer manager used to allocate file buffers.
+	 */
+	private final FileBufferManager fileBufferManager;
+
+	/**
 	 * This enumeration reflects the possible states an ephemeral
 	 * checkpoint can be in.
 	 * 
@@ -55,9 +78,12 @@ public class EphemeralCheckpoint {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
-	public EphemeralCheckpoint(final boolean ephemeral) {
+	public EphemeralCheckpoint(final GateID gateID, final boolean ephemeral, final FileBufferManager fileBufferManager) {
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.NO_CHECKPOINTING);
+
+		this.gateID = gateID;
+		this.fileBufferManager = fileBufferManager;
 	}
 
 	/**
@@ -65,9 +91,26 @@ public class EphemeralCheckpoint {
 	 * 
 	 * @param transferEnvelope
 	 *        the transfer envelope to be added
+	 * @throws IOException
+	 *         thrown when an I/O error occurs while writing the envelope to disk
 	 */
-	public void addTransferEnvelope(TransferEnvelope transferEnvelope) {
+	public void addTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
 
+		if (this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING) {
+			final Buffer buffer = transferEnvelope.getBuffer();
+			if (buffer != null) {
+				buffer.recycleBuffer();
+			}
+
+			return;
+		}
+
+		if (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED) {
+			this.queuedEnvelopes.add(transferEnvelope);
+			return;
+		}
+
+		writeTransferEnvelope(transferEnvelope);
 	}
 
 	/**
@@ -83,9 +126,50 @@ public class EphemeralCheckpoint {
 	public boolean isDecided() {
 		return this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED;
 	}
-	
+
 	public boolean isDiscarded() {
-		
+
 		return this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING;
+	}
+
+	public void destroy() {
+
+		while (!this.queuedEnvelopes.isEmpty()) {
+
+			final TransferEnvelope transferEnvelope = this.queuedEnvelopes.poll();
+			final Buffer buffer = transferEnvelope.getBuffer();
+			if (buffer != null) {
+				buffer.recycleBuffer();
+			}
+		}
+
+		this.checkpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
+	}
+
+	public void write() throws IOException {
+
+		while (!this.queuedEnvelopes.isEmpty()) {
+			writeTransferEnvelope(this.queuedEnvelopes.poll());
+		}
+
+		this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
+	}
+
+	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException {
+
+		final Buffer buffer = transferEnvelope.getBuffer();
+		if (buffer != null) {
+			if (buffer.isBackedByMemory()) {
+
+				// Make sure we transfer the encapsulated buffer to a file and release the memory buffer again
+				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.gateID,
+					this.fileBufferManager);
+				buffer.copyToBuffer(fileBuffer);
+				transferEnvelope.setBuffer(fileBuffer);
+				buffer.recycleBuffer();
+			}
+		}
+		
+		//TODO: Implement to write meta data to disk
 	}
 }

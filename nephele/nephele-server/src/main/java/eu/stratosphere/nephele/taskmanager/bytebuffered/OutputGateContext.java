@@ -36,8 +36,8 @@ final class OutputGateContext implements BufferProvider {
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.fileBufferManager = fileBufferManager;
 
-		this.ephemeralCheckpoint = new EphemeralCheckpoint((outputGate.getChannelType() == ChannelType.FILE) ? false
-			: true);
+		this.ephemeralCheckpoint = new EphemeralCheckpoint(this.outputGate.getGateID(),
+			(outputGate.getChannelType() == ChannelType.FILE) ? false : true, this.fileBufferManager);
 	}
 
 	/**
@@ -56,14 +56,15 @@ final class OutputGateContext implements BufferProvider {
 	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
 		final Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
-		if(buffer != null) {
+		if (buffer != null) {
 			return buffer;
 		} else {
-			if(!this.ephemeralCheckpoint.isDecided()) {
-				System.out.println("Checkpoint requires decision");	
+			if (!this.ephemeralCheckpoint.isDecided()) {
+				this.ephemeralCheckpoint.destroy();
+				//this.ephemeralCheckpoint.write();
 			}
 		}
-		
+
 		return this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
