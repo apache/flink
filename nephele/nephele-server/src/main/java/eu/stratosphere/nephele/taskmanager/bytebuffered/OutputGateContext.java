@@ -55,6 +55,15 @@ final class OutputGateContext implements BufferProvider {
 	@Override
 	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
+		final Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
+		if(buffer != null) {
+			return buffer;
+		} else {
+			if(!this.ephemeralCheckpoint.isDecided()) {
+				System.out.println("Checkpoint requires decision");	
+			}
+		}
+		
 		return this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 

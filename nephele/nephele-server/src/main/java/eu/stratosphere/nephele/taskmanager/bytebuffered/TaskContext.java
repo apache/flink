@@ -41,4 +41,15 @@ final class TaskContext implements BufferProvider {
 
 		return this.localBufferCache.getMaximumBufferSize();
 	}
+	
+	public void releaseAllResources() {
+		
+		//Clear the buffer cache
+		this.localBufferCache.clear();
+	}
+	
+	public void setBufferLimit(int bufferLimit) {
+		
+		this.localBufferCache.setDesignatedNumberOfBuffers(bufferLimit);
+	}
 }

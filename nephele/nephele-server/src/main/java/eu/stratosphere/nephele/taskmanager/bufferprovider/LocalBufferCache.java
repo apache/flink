@@ -92,6 +92,7 @@ public final class LocalBufferCache implements BufferProvider {
 					}
 
 					this.buffers.add(buffer);
+					this.requestedNumberOfBuffers++;
 				}
 
 			} else if (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
@@ -104,10 +105,11 @@ public final class LocalBufferCache implements BufferProvider {
 					}
 
 					this.globalBufferPool.releaseGlobalBuffer(buffer);
+					this.requestedNumberOfBuffers--;
 				}
 
 			}
-
+			
 			while(this.buffers.isEmpty()) {
 				
 				if(block) {
@@ -145,4 +147,20 @@ public final class LocalBufferCache implements BufferProvider {
 		}
 	}
 
+	public void clear() {
+		
+		synchronized(this.buffers) {
+			
+			if(this.requestedNumberOfBuffers != this.buffers.size()) {
+				LOG.error("Clear is called, but some buffers are still missing...");
+			}
+			
+			while(!this.buffers.isEmpty()) {
+				this.globalBufferPool.releaseGlobalBuffer(this.buffers.poll());
+			}
+			
+			this.requestedNumberOfBuffers = 0;
+		}
+		
+	}
 }

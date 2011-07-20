@@ -115,4 +115,14 @@ public final class GlobalBufferPool {
 		releasedBuffer.clear();
 		this.buffers.add(releasedBuffer);
 	}
+
+	/**
+	 * Returns the total number of buffers managed by this pool.
+	 * 
+	 * @return the total number of buffers managed by this pool
+	 */
+	public int getTotalNumberOfBuffers() {
+
+		return this.numberOfBuffers;
+	}
 }

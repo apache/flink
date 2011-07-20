@@ -20,7 +20,6 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,6 +31,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
@@ -53,7 +53,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	private static final Log LOG = LogFactory.getLog(ByteBufferedChannelManager.class);
 
-	private final Map<ChannelID, ChannelContext> registeredChannels = new ConcurrentHashMap<ChannelID, ChannelContext>();
+	private final Map<ChannelID, ChannelContext> registeredChannels = new HashMap<ChannelID, ChannelContext>();
 
 	private final NetworkConnectionManager networkConnectionManager;
 
@@ -64,6 +64,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private final CanceledChannelSet canceledChannelSet;
 
 	private final FileBufferManager fileBufferManager;
+
+	private final Map<ExecutionVertexID, TaskContext> taskMap = new HashMap<ExecutionVertexID, TaskContext>();
 
 	/**
 	 * This map caches transfer envelope receiver lists.
@@ -102,57 +104,66 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		final TaskContext taskContext = new TaskContext();
 
-		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<?> outputGate = environment.getOutputGate(i);
-			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate, this,
+		synchronized (this.registeredChannels) {
+
+			for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+				final OutputGate<?> outputGate = environment.getOutputGate(i);
+				final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate, this,
 					this.fileBufferManager);
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
-				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
-					LOG.error("Output channel " + outputChannel.getID() + "of job " + environment.getJobID()
+				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+					final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
+					if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
+						LOG.error("Output channel " + outputChannel.getID() + "of job " + environment.getJobID()
 							+ " is not a byte buffered output channel, skipping...");
-					continue;
+						continue;
+					}
+
+					final AbstractByteBufferedOutputChannel<?> bboc = (AbstractByteBufferedOutputChannel<?>) outputChannel;
+
+					if (this.registeredChannels.containsKey(bboc.getID())) {
+						LOG.error("Byte buffered output channel " + bboc.getID() + " is already registered");
+						continue;
+					}
+
+					LOG.info("Registering byte buffered input channel " + bboc.getID());
+
+					final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc);
+					this.registeredChannels.put(bboc.getID(), outputChannelContext);
 				}
-
-				final AbstractByteBufferedOutputChannel<?> bboc = (AbstractByteBufferedOutputChannel<?>) outputChannel;
-
-				if (this.registeredChannels.containsKey(bboc.getID())) {
-					LOG.error("Byte buffered output channel " + bboc.getID() + " is already registered");
-					continue;
-				}
-
-				LOG.info("Registering byte buffered input channel " + bboc.getID());
-
-				final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc);
-				this.registeredChannels.put(bboc.getID(), outputChannelContext);
 			}
-		}
 
-		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final InputGate<?> inputGate = environment.getInputGate(i);
-			final InputGateContext inputGateContext = new InputGateContext(taskContext);
-			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
-				if (!(inputChannel instanceof AbstractByteBufferedInputChannel)) {
-					LOG.error("Input channel " + inputChannel.getID() + "of job " + environment.getJobID()
+			for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
+				final InputGate<?> inputGate = environment.getInputGate(i);
+				final InputGateContext inputGateContext = new InputGateContext(taskContext);
+				for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+					final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
+					if (!(inputChannel instanceof AbstractByteBufferedInputChannel)) {
+						LOG.error("Input channel " + inputChannel.getID() + "of job " + environment.getJobID()
 							+ " is not a byte buffered input channel, skipping...");
-					continue;
-				}
+						continue;
+					}
 
-				final AbstractByteBufferedInputChannel<?> bbic = (AbstractByteBufferedInputChannel<?>) inputChannel;
+					final AbstractByteBufferedInputChannel<?> bbic = (AbstractByteBufferedInputChannel<?>) inputChannel;
 
-				if (this.registeredChannels.containsKey(bbic.getID())) {
-					LOG.error("Byte buffered input channel " + bbic.getID() + " is already registered");
-					continue;
-				}
+					if (this.registeredChannels.containsKey(bbic.getID())) {
+						LOG.error("Byte buffered input channel " + bbic.getID() + " is already registered");
+						continue;
+					}
 
-				LOG.info("Registering byte buffered input channel " + bbic.getID());
+					LOG.info("Registering byte buffered input channel " + bbic.getID());
 
-				final InputChannelContext inputChannelContext = new InputChannelContext(inputGateContext, this,
+					final InputChannelContext inputChannelContext = new InputChannelContext(inputGateContext, this,
 						bbic);
-				this.registeredChannels.put(bbic.getID(), inputChannelContext);
+					this.registeredChannels.put(bbic.getID(), inputChannelContext);
+				}
 			}
 		}
+
+		synchronized (this.taskMap) {
+			this.taskMap.put(vertexID, taskContext);
+		}
+		
+		redistributeGlobalBuffers();
 	}
 
 	/**
@@ -165,21 +176,36 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	public void unregister(final ExecutionVertexID vertexID, final Environment environment) {
 
-		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<?> outputGate = environment.getOutputGate(i);
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
-				this.registeredChannels.remove(outputChannel.getID());
-			}
-		}
+		synchronized (this.registeredChannels) {
 
-		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final InputGate<?> inputGate = environment.getInputGate(i);
-			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
-				this.registeredChannels.remove(inputChannel.getID());
+			for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+				final OutputGate<?> outputGate = environment.getOutputGate(i);
+				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+					final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
+					this.registeredChannels.remove(outputChannel.getID());
+				}
+			}
+
+			for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
+				final InputGate<?> inputGate = environment.getInputGate(i);
+				for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+					final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
+					this.registeredChannels.remove(inputChannel.getID());
+				}
 			}
 		}
+		
+		synchronized (this.taskMap) {
+			final TaskContext taskContext = this.taskMap.remove(vertexID);
+			if(taskContext == null) {
+				LOG.error("taskContext is null!");
+				return;
+			}
+			
+			taskContext.releaseAllResources();
+		}
+		
+		redistributeGlobalBuffers();
 	}
 
 	/**
@@ -253,6 +279,14 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private boolean processEnvelopeWithBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList, final BufferProvider bufferProvider) throws IOException,
 			InterruptedException {
+
+		System.out.println("Processing envelope " + transferEnvelope.getSequenceNumber());
+
+		// Throw everything away
+		final Buffer buffer = transferEnvelope.getBuffer();
+		if (buffer != null) {
+			buffer.recycleBuffer();
+		}
 
 		return true;
 	}
@@ -468,5 +502,20 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public BufferProvider getBufferProvider(ChannelID channelID) {
 		// TODO Auto-generated method stub
 		return null;
+	}
+	
+	private void redistributeGlobalBuffers() {
+		
+		final int totalNumberOfBuffers = GlobalBufferPool.getInstance().getTotalNumberOfBuffers();
+		
+		synchronized(this.taskMap) {
+			
+			final int buffersPerTask = (int) Math.ceil((double) totalNumberOfBuffers / (double) this.taskMap.size());
+			final Iterator<TaskContext> it = this.taskMap.values().iterator();
+			while(it.hasNext()) {
+				it.next().setBufferLimit(buffersPerTask);
+			}
+		}
+		
 	}
 }

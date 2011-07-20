@@ -125,7 +125,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			this.byteBufferedOutputChannel.reportIOException(ioe);
 		}
 
-		if (this.byteBufferedOutputChannel.followsPushModel()) {
+		if (!this.byteBufferedOutputChannel.followsPushModel()) {
 
 			final Buffer memBuffer = this.outgoingTransferEnvelope.getBuffer();
 			final Buffer fileBuffer = this.outputGateContext.getFileBuffer(memBuffer.size());
