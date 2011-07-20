@@ -36,9 +36,9 @@ public final class TransferEnvelope {
 	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source) {
 		this(sequenceNumber, jobID, source, new EventList());
 	}
-	
+
 	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source, EventList eventList) {
-		
+
 		this.sequenceNumber = sequenceNumber;
 		this.jobID = jobID;
 		this.source = source;
@@ -57,7 +57,7 @@ public final class TransferEnvelope {
 
 		this.eventList.add(event);
 	}
-	
+
 	public EventList getEventList() {
 
 		return this.eventList;
@@ -85,6 +85,16 @@ public final class TransferEnvelope {
 		} else {
 			duplicatedTransferEnvelope.buffer = null;
 		}
+
+		return duplicatedTransferEnvelope;
+	}
+
+	public TransferEnvelope duplicateWithoutBuffer() {
+
+		final TransferEnvelope duplicatedTransferEnvelope = new TransferEnvelope(this.sequenceNumber, this.jobID,
+			this.source, this.eventList); // No need to duplicate event list
+
+		duplicatedTransferEnvelope.buffer = null;
 
 		return duplicatedTransferEnvelope;
 	}

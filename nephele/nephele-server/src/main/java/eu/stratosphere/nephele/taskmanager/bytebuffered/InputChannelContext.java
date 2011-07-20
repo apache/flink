@@ -16,10 +16,11 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInpu
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
-final class InputChannelContext implements ChannelContext, ByteBufferedInputChannelBroker {
+final class InputChannelContext implements ChannelContext, ByteBufferedInputChannelBroker, BufferProvider {
 
 	private static final Log LOG = LogFactory.getLog(InputChannelContext.class);
 
@@ -222,5 +223,23 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 			return count;
 		}
+	}
+
+	@Override
+	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
+
+		return this.inputGateContext.requestEmptyBuffer(minimumSizeOfBuffer);
+	}
+
+	@Override
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
+
+		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
+	}
+
+	@Override
+	public int getMaximumBufferSize() {
+
+		return this.inputGateContext.getMaximumBufferSize();
 	}
 }
