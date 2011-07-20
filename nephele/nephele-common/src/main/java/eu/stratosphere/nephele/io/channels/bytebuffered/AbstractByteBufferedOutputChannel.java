@@ -42,11 +42,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private final SerializationBuffer<T> serializationBuffer = new SerializationBuffer<T>();
 
 	/**
-	 * States whether this channel follows a push or a pull model.
-	 */
-	private final boolean followsPushModel;
-
-	/**
 	 * Buffer for the compressed output data.
 	 */
 	private Buffer compressedDataBuffer = null;
@@ -108,10 +103,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 */
 	public AbstractByteBufferedOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
 			CompressionLevel compressionLevel, boolean followsPushModel) {
-		super(outputGate, channelIndex, channelID, compressionLevel);
+		super(outputGate, channelIndex, channelID, compressionLevel, followsPushModel);
 
 		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel, this);
-		this.followsPushModel = followsPushModel;
 	}
 
 	/**
@@ -280,6 +274,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 *        the output channel broker the channel should contact to request and release write buffers
 	 */
 	public void setByteBufferedOutputChannelBroker(ByteBufferedOutputChannelBroker byteBufferedOutputChannelBroker) {
+
 		this.outputChannelBroker = byteBufferedOutputChannelBroker;
 	}
 
@@ -381,17 +376,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			// Wake up thread if it has been throttled down
 			this.synchronisationObject.notify();
 		}
-	}
-
-	/**
-	 * States whether this channel follows a push or pull-based transfer model.
-	 * 
-	 * @return <code>true</code> if this channel follows a push-based transfer model, <code>false</code> for a
-	 *         pull-based one.
-	 */
-	public boolean followsPushModel() {
-
-		return this.followsPushModel;
 	}
 
 	/**

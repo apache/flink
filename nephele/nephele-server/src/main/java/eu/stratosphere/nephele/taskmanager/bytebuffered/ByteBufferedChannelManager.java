@@ -108,7 +108,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					this.fileBufferManager);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
-				if (outputChannel instanceof AbstractByteBufferedOutputChannel) {
+				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
 					LOG.error("Output channel " + outputChannel.getID() + "of job " + environment.getJobID()
 							+ " is not a byte buffered output channel, skipping...");
 					continue;
@@ -133,7 +133,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final InputGateContext inputGateContext = new InputGateContext(taskContext);
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
-				if (inputChannel instanceof AbstractByteBufferedInputChannel) {
+				if (!(inputChannel instanceof AbstractByteBufferedInputChannel)) {
 					LOG.error("Input channel " + inputChannel.getID() + "of job " + environment.getJobID()
 							+ " is not a byte buffered input channel, skipping...");
 					continue;
