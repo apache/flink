@@ -41,8 +41,6 @@ public class CloudInstance extends AbstractInstance {
 	/** The instance ID. */
 	private final String instanceID;
 
-	/** The owner of the instance. */
-	private final String instanceOwner;
 
 	/** The time the instance was allocated. */
 	private final long allocationTime;
@@ -68,7 +66,7 @@ public class CloudInstance extends AbstractInstance {
 	 * @param hardwareDescription
 	 *        the hardware description reported by the instance itself
 	 */
-	public CloudInstance(String instanceID, InstanceType type, String instanceOwner,
+	public CloudInstance(String instanceID, InstanceType type, 
 			InstanceConnectionInfo instanceConnectionInfo, long allocationTime, NetworkNode parentNode,
 			NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
 		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
@@ -76,7 +74,7 @@ public class CloudInstance extends AbstractInstance {
 		this.allocatedResource = new AllocatedResource(this, type, new AllocationID());
 
 		this.instanceID = instanceID;
-		this.instanceOwner = instanceOwner;
+
 		this.allocationTime = allocationTime;
 	}
 
@@ -114,14 +112,7 @@ public class CloudInstance extends AbstractInstance {
 		return this.allocationTime;
 	}
 
-	/**
-	 * Returns the instance's owner.
-	 * 
-	 * @return the instance's owner
-	 */
-	public String getOwner() {
-		return this.instanceOwner;
-	}
+
 
 	public AllocatedResource asAllocatedResource() {
 		return this.allocatedResource;

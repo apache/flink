@@ -20,6 +20,8 @@ import java.util.Hashtable;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+
 /**
  * This class is managing the EC2 clients.
  * @author casp
@@ -27,15 +29,15 @@ import com.amazonaws.services.ec2.AmazonEC2Client;
  */
 public class EC2ClientFactory {
 
-	//Already created EC2 clients are stored in this hashtable.
-	//This makes it possible to use multiple EC2 credentials.
+	// Already created EC2 clients are stored in this hashtable.
+	// This makes it possible to use multiple EC2 credentials.
 	private static Hashtable<String, AmazonEC2Client> ec2clients = new Hashtable<String, AmazonEC2Client>();
 	
 	/**
 	 * This factory method returns a the corresponding EC2Client object for the given credentials.
 	 * @param awsAccessId
 	 * @param awsSecretKey
-	 * @return
+	 * @return the desired AmazonEC2Client.
 	 */
 	static synchronized AmazonEC2Client getEC2Client(String awsAccessId, String awsSecretKey){
 
@@ -50,8 +52,10 @@ public class EC2ClientFactory {
 		BasicAWSCredentials credentials = new BasicAWSCredentials(awsAccessId, awsSecretKey);
 		AmazonEC2Client client = new AmazonEC2Client(credentials);
 		
-		//TODO: Make endpoints configurable (US, EU, Asia etc).
-		client.setEndpoint("ec2.eu-west-1.amazonaws.com");
+		final String endpoint = GlobalConfiguration.getString("ec2.webservice.endpoint", "ec2.eu-west-1.amazonaws.com");
+		
+		client.setEndpoint(endpoint);
+		
 		ec2clients.put(awsAccessId, client);
 		return client;
 	}

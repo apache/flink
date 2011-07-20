@@ -30,9 +30,6 @@ public class JobToInstancesMapping {
 	/** The list of assigned cloud instances for the job. */
 	private final List<CloudInstance> assignedInstances = new ArrayList<CloudInstance>();
 
-	/** The owner of the job. */
-	private final String owner;
-
 	/** The access ID into Amazon Web Services. */
 	private final String awsAccessId;
 
@@ -42,15 +39,13 @@ public class JobToInstancesMapping {
 	/**
 	 * Creates a new mapping for job to instances.
 	 * 
-	 * @param owner
-	 *        the owner of the job
 	 * @param awsAccessId
 	 *        the access ID into AWS
 	 * @param awsSecretKey
 	 *        the secret key used to generate signatures for authentication
 	 */
-	public JobToInstancesMapping(String owner, String awsAccessId, String awsSecretKey) {
-		this.owner = owner;
+	public JobToInstancesMapping(String awsAccessId, String awsSecretKey) {
+
 		this.awsAccessId = awsAccessId;
 		this.awsSecretKey = awsSecretKey;
 	}
@@ -132,14 +127,6 @@ public class JobToInstancesMapping {
 		return null;
 	}
 
-	/**
-	 * Returns the owner of the job.
-	 * 
-	 * @return the owner of the job
-	 */
-	public String getOwner() {
-		return this.owner;
-	}
 
 	/**
 	 * Returns the access ID into AWS.
