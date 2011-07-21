@@ -36,7 +36,7 @@ public final class GlobalBufferPool {
 	/**
 	 * The default buffer size in bytes.
 	 */
-	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 64 * 1024; // 64k
+	public static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 64 * 1024; // 64k
 
 	/**
 	 * The number of buffers created at startup.

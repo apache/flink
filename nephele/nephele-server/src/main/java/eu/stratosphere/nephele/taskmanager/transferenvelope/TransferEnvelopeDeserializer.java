@@ -57,6 +57,8 @@ public class TransferEnvelopeDeserializer {
 
 	private final BufferProviderBroker bufferProviderBroker;
 
+	private BufferProvider bufferProvider = null;
+
 	private final ByteBuffer existanceBuffer = ByteBuffer.allocate(1); // 1 byte for existence of buffer
 
 	private final ByteBuffer lengthBuffer = ByteBuffer.allocate(SIZEOFINT);
@@ -250,20 +252,22 @@ public class TransferEnvelopeDeserializer {
 
 		if (this.buffer == null) {
 
-			// Find buffer provider for this channel
-			final BufferProvider bufferProvider = this.bufferProviderBroker.getBufferProvider(deserializedSourceID);
-			this.buffer = bufferProvider.requestEmptyBuffer(this.sizeOfBuffer);
+			try {
+				// Find buffer provider for this channel
+				this.bufferProvider = this.bufferProviderBroker.getBufferProvider(this.deserializedJobID,
+					this.deserializedSourceID);
+				
+				this.buffer = bufferProvider.requestEmptyBufferBlocking(this.sizeOfBuffer);
 
-			if (this.buffer == null) {
+				if (this.buffer == null) {
 
-				try {
 					Thread.sleep(100);
 					// Wait for 100 milliseconds, so the NIO thread won't do busy
 					// waiting...
-				} catch (InterruptedException e) {
+
 					return true;
 				}
-
+			} catch (InterruptedException e) {
 				return true;
 			}
 
@@ -330,5 +334,10 @@ public class TransferEnvelopeDeserializer {
 		}
 
 		return integer;
+	}
+
+	public BufferProvider getBufferProvider() {
+
+		return this.bufferProvider;
 	}
 }

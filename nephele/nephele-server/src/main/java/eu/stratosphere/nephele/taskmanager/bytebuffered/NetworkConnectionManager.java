@@ -108,11 +108,8 @@ public final class NetworkConnectionManager {
 			"channel.network.numgerOfIncomingConnectionThreads", DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS);
 		synchronized (this.incomingConnectionThreads) {
 			for (int i = 0; i < numberOfIncomingConnectionThreads; i++) {
-				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(null, (i == 0), // TODO:
-																														// Replace
-																														// null
-																														// with
-																														// BytebufferedManager
+				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(
+					this.byteBufferedChannelManager, (i == 0),
 					new InetSocketAddress(bindAddress, dataPort));
 
 				incomingConnectionThread.start();

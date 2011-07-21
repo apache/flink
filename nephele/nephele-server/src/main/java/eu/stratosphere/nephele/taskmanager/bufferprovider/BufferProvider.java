@@ -55,4 +55,11 @@ public interface BufferProvider {
 	 * @return the maximum buffer size in bytes available at this buffer provider
 	 */
 	int getMaximumBufferSize();
+
+	/**
+	 * Returns if this buffer provider is shared between different entities (for examples tasks).
+	 * 
+	 * @return <code>true</code> if this buffer provider is shared, <code>false</code> otherwise
+	 */
+	boolean isShared();
 }

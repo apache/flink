@@ -56,8 +56,6 @@ public class TransferEnvelopeReceiverList {
 		this.remoteReceivers = Collections.unmodifiableList(tmpList);
 	}
 
-	// TODO: Check points
-
 	public boolean hasLocalReceivers() {
 
 		return (!this.localReceivers.isEmpty());

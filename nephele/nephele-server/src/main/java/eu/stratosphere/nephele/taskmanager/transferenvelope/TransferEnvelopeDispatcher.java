@@ -39,18 +39,5 @@ public interface TransferEnvelopeDispatcher {
 
 	void processEnvelopeFromInputChannel(TransferEnvelope transferEnvelope) throws IOException, InterruptedException;
 
-	/**
-	 * Processes a transfer envelope from an incoming network connection or a checkpoint. The method will return
-	 * immediately even if not enough resources for further processing could be allocated. In this case the method must
-	 * be called again with the same envelope. The success of the method call is indicated by the return value.
-	 * 
-	 * @param transferEnvelope
-	 *        the transfer envelope to be processed
-	 * @return <code>true</code> if enough resources could be allocated to further process the envelope or
-	 *         <code>false</code> if resources to further process the envelope are currently missing. In the latter case
-	 *         the method must be called again with the same envelope.
-	 * @throws IOException
-	 *         thrown if an error occurs while allocating the resources to further process the envelope
-	 */
-	boolean processEnvelopeFromNetworkOrCheckpoint(TransferEnvelope transferEnvelope) throws IOException;
+	void processEnvelopeFromNetwork(TransferEnvelope transferEnvelope, boolean freeSourceBuffer) throws IOException;
 }

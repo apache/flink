@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.io.channels.BufferFactory;
 public final class LocalBufferCache implements BufferProvider {
 
 	private final static Log LOG = LogFactory.getLog(LocalBufferCache.class);
-	
+
 	private final GlobalBufferPool globalBufferPool;
 
 	private final int maximumBufferSize;
@@ -55,10 +55,10 @@ public final class LocalBufferCache implements BufferProvider {
 
 		try {
 			return requestBufferInternal(minimumSizeOfBuffer, false);
-		} catch(InterruptedException e) {
+		} catch (InterruptedException e) {
 			LOG.error("Caught unexpected InterruptedException");
 		}
-		
+
 		return null;
 	}
 
@@ -71,8 +71,8 @@ public final class LocalBufferCache implements BufferProvider {
 		return requestBufferInternal(minimumSizeOfBuffer, true);
 	}
 
-	
-	private Buffer requestBufferInternal(final int minimumSizeOfBuffer, final boolean block) throws InterruptedException {
+	private Buffer requestBufferInternal(final int minimumSizeOfBuffer, final boolean block)
+			throws InterruptedException {
 
 		if (minimumSizeOfBuffer > this.maximumBufferSize) {
 			throw new IllegalArgumentException("Buffer of " + minimumSizeOfBuffer
@@ -81,21 +81,8 @@ public final class LocalBufferCache implements BufferProvider {
 
 		synchronized (this.buffers) {
 
-			// Check if the number of cached buffers matches the number of designated buffers
-			if (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
-
-				while (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
-
-					final ByteBuffer buffer = this.globalBufferPool.lockGlobalBuffer();
-					if (buffer == null) {
-						break;
-					}
-
-					this.buffers.add(buffer);
-					this.requestedNumberOfBuffers++;
-				}
-
-			} else if (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
+			// Make sure we return excess buffers immediately
+			if (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
 
 				while (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
 
@@ -109,18 +96,30 @@ public final class LocalBufferCache implements BufferProvider {
 				}
 
 			}
-			
-			while(this.buffers.isEmpty()) {
+
+			while (this.buffers.isEmpty()) {
+
+				// Check if the number of cached buffers matches the number of designated buffers
+				if (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
+
+					final ByteBuffer buffer = this.globalBufferPool.lockGlobalBuffer();
+					if (buffer != null) {
+
+						this.buffers.add(buffer);
+						this.requestedNumberOfBuffers++;
+						continue;
+					}
+				}
 				
-				if(block) {
+				if (block) {
 					this.buffers.wait();
 				} else {
 					return null;
 				}
 			}
-			
+
 			final ByteBuffer byteBuffer = this.buffers.poll();
-			
+
 			return BufferFactory.createFromMemory(minimumSizeOfBuffer, byteBuffer, this.buffers);
 		}
 	}
@@ -144,23 +143,34 @@ public final class LocalBufferCache implements BufferProvider {
 
 		synchronized (this.buffers) {
 			this.designatedNumberOfBuffers = designatedNumberOfBuffers;
+			
+			this.buffers.notify();
 		}
 	}
 
 	public void clear() {
-		
-		synchronized(this.buffers) {
-			
-			if(this.requestedNumberOfBuffers != this.buffers.size()) {
+
+		synchronized (this.buffers) {
+
+			if (this.requestedNumberOfBuffers != this.buffers.size()) {
 				LOG.error("Clear is called, but some buffers are still missing...");
 			}
-			
-			while(!this.buffers.isEmpty()) {
+
+			while (!this.buffers.isEmpty()) {
 				this.globalBufferPool.releaseGlobalBuffer(this.buffers.poll());
 			}
-			
+
 			this.requestedNumberOfBuffers = 0;
 		}
-		
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isShared() {
+
+		return false;
 	}
 }

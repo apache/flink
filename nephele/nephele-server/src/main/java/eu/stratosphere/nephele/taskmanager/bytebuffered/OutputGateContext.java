@@ -61,7 +61,7 @@ final class OutputGateContext implements BufferProvider {
 		} else {
 			if (!this.ephemeralCheckpoint.isDecided()) {
 				this.ephemeralCheckpoint.destroy();
-				//this.ephemeralCheckpoint.write();
+				// this.ephemeralCheckpoint.write();
 			}
 		}
 
@@ -109,5 +109,14 @@ final class OutputGateContext implements BufferProvider {
 	public Buffer getFileBuffer(final int bufferSize) throws IOException {
 
 		return BufferFactory.createFromFile(bufferSize, this.outputGate.getGateID(), this.fileBufferManager);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isShared() {
+
+		return this.taskContext.isShared();
 	}
 }

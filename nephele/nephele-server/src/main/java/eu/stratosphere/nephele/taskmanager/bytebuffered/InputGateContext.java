@@ -1,11 +1,9 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class InputGateContext implements BufferProvider {
 
@@ -40,5 +38,11 @@ final class InputGateContext implements BufferProvider {
 	public int getMaximumBufferSize() {
 
 		return this.taskContext.getMaximumBufferSize();
+	}
+
+	@Override
+	public boolean isShared() {
+		
+		return this.taskContext.isShared();
 	}
 }

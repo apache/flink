@@ -242,4 +242,10 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		return this.inputGateContext.getMaximumBufferSize();
 	}
+
+	@Override
+	public boolean isShared() {
+		
+		return this.inputGateContext.isShared();
+	}
 }

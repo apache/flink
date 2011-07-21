@@ -24,6 +24,7 @@ import java.nio.channels.SocketChannel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDeserializer;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -106,7 +107,13 @@ public class IncomingConnection {
 
 		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
 		if (transferEnvelope != null) {
-			this.byteBufferedChannelManager.processEnvelopeFromNetworkOrCheckpoint(transferEnvelope);
+			
+			final BufferProvider bufferProvider = this.deserializer.getBufferProvider();
+			if(bufferProvider == null) {
+				this.byteBufferedChannelManager.processEnvelopeFromNetwork(transferEnvelope, false);
+			} else {
+				this.byteBufferedChannelManager.processEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
+			}
 		}
 
 	}

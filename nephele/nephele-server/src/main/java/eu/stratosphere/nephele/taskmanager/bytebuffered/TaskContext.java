@@ -52,4 +52,13 @@ final class TaskContext implements BufferProvider {
 		
 		this.localBufferCache.setDesignatedNumberOfBuffers(bufferLimit);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isShared() {
+		
+		return false;
+	}
 }
