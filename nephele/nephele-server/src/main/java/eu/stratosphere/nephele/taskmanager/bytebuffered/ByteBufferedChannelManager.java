@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -76,7 +77,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	/**
 	 * This map caches transfer envelope receiver lists.
 	 */
-	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new HashMap<ChannelID, TransferEnvelopeReceiverList>();
+	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, TransferEnvelopeReceiverList>();
 
 	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService,
 			InstanceConnectionInfo localInstanceConnectionInfo)
@@ -399,59 +400,56 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID)
 			throws IOException, InterruptedException {
 
-		synchronized (this.receiverCache) {
+		TransferEnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
+		if (receiverList == null) {
 
-			TransferEnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
-			if (receiverList == null) {
+			while (true) {
 
-				while (true) {
-
-					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
 							this.localConnectionInfo, jobID, sourceChannelID);
 
-					if (lookupResponse.receiverNotFound()) {
-						throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
+				if (lookupResponse.receiverNotFound()) {
+					throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
 							+ sourceChannelID);
-					}
-
-					if (lookupResponse.receiverNotReady()) {
-						Thread.sleep(500);
-						continue;
-					}
-
-					if (lookupResponse.receiverReady()) {
-						receiverList = new TransferEnvelopeReceiverList(lookupResponse);
-						break;
-					}
 				}
 
-				if (receiverList == null) {
-					LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
-				} else {
-					this.receiverCache.put(sourceChannelID, receiverList);
+				if (lookupResponse.receiverNotReady()) {
+					Thread.sleep(500);
+					continue;
+				}
 
-					System.out.println("Receiver list for source channel ID " + sourceChannelID + " at task manager "
-						+ this.localConnectionInfo);
-					if (receiverList.hasLocalReceivers()) {
-						System.out.println("\tLocal receivers:");
-						final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
-						while (it.hasNext()) {
-							System.out.println("\t\t" + it.next());
-						}
-					}
-
-					if (receiverList.hasRemoteReceivers()) {
-						System.out.println("Remote receivers:");
-						final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
-						while (it.hasNext()) {
-							System.out.println("\t\t" + it.next());
-						}
-					}
+				if (lookupResponse.receiverReady()) {
+					receiverList = new TransferEnvelopeReceiverList(lookupResponse);
+					break;
 				}
 			}
 
-			return receiverList;
+			if (receiverList == null) {
+				LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
+			} else {
+				this.receiverCache.put(sourceChannelID, receiverList);
+
+				System.out.println("Receiver list for source channel ID " + sourceChannelID + " at task manager "
+						+ this.localConnectionInfo);
+				if (receiverList.hasLocalReceivers()) {
+					System.out.println("\tLocal receivers:");
+					final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
+					while (it.hasNext()) {
+						System.out.println("\t\t" + it.next());
+					}
+				}
+
+				if (receiverList.hasRemoteReceivers()) {
+					System.out.println("Remote receivers:");
+					final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
+					while (it.hasNext()) {
+						System.out.println("\t\t" + it.next());
+					}
+				}
+			}
 		}
+
+		return receiverList;
 	}
 
 	/**

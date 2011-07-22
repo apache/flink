@@ -75,7 +75,11 @@ public class TransferEnvelopeDeserializer {
 
 	private JobID deserializedJobID = null;
 
+	private JobID lastDeserializedJobID = null;
+
 	private ChannelID deserializedSourceID = null;
+
+	private ChannelID lastDeserializedSourceID = null;
 
 	private EventList deserializedEventList = null;
 
@@ -254,10 +258,17 @@ public class TransferEnvelopeDeserializer {
 
 			try {
 				// Find buffer provider for this channel
-				this.bufferProvider = this.bufferProviderBroker.getBufferProvider(this.deserializedJobID,
-					this.deserializedSourceID);
-				
-				this.buffer = bufferProvider.requestEmptyBufferBlocking(this.sizeOfBuffer);
+				if (!this.deserializedJobID.equals(this.lastDeserializedJobID)
+					|| !this.deserializedSourceID.equals(this.lastDeserializedSourceID)) {
+
+					this.bufferProvider = this.bufferProviderBroker.getBufferProvider(this.deserializedJobID,
+						this.deserializedSourceID);
+
+					this.lastDeserializedJobID = this.deserializedJobID;
+					this.lastDeserializedSourceID = this.deserializedSourceID;
+				}
+
+				this.buffer = this.bufferProvider.requestEmptyBufferBlocking(this.sizeOfBuffer);
 
 				if (this.buffer == null) {
 
