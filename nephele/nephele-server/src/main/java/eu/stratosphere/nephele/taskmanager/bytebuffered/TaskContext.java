@@ -12,7 +12,7 @@ final class TaskContext implements BufferProvider {
 
 	public TaskContext() {
 
-		this.localBufferCache = new LocalBufferCache(1);
+		this.localBufferCache = new LocalBufferCache(1, false);
 	}
 
 	/**

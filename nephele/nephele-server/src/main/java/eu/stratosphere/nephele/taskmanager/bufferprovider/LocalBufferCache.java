@@ -38,13 +38,16 @@ public final class LocalBufferCache implements BufferProvider {
 
 	private int requestedNumberOfBuffers = 0;
 
+	private final boolean isShared;
+	
 	private final Queue<ByteBuffer> buffers = new ArrayDeque<ByteBuffer>();
 
-	public LocalBufferCache(final int designatedNumberOfBuffers) {
+	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared) {
 
 		this.globalBufferPool = GlobalBufferPool.getInstance();
 		this.maximumBufferSize = this.globalBufferPool.getMaximumBufferSize();
 		this.designatedNumberOfBuffers = designatedNumberOfBuffers;
+		this.isShared = isShared;
 	}
 
 	/**
@@ -144,6 +147,16 @@ public final class LocalBufferCache implements BufferProvider {
 		synchronized (this.buffers) {
 			this.designatedNumberOfBuffers = designatedNumberOfBuffers;
 			
+			while(this.designatedNumberOfBuffers > this.requestedNumberOfBuffers) {
+				
+				if(this.buffers.isEmpty()) {
+					break;
+				}
+				
+				this.globalBufferPool.releaseGlobalBuffer(this.buffers.poll());
+				this.requestedNumberOfBuffers--;
+			}
+			
 			this.buffers.notify();
 		}
 	}
@@ -171,6 +184,6 @@ public final class LocalBufferCache implements BufferProvider {
 	@Override
 	public boolean isShared() {
 
-		return false;
+		return this.isShared;
 	}
 }

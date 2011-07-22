@@ -42,7 +42,7 @@ import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.TransitBufferPool;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferCache;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
@@ -67,9 +67,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final FileBufferManager fileBufferManager;
 
-	private final TransitBufferPool transitBufferPool;
+	private final LocalBufferCache transitBufferPool;
 
 	private final Map<ExecutionVertexID, TaskContext> taskMap = new HashMap<ExecutionVertexID, TaskContext>();
+
+	private final boolean multicastEnabled = true;
 
 	/**
 	 * This map caches transfer envelope receiver lists.
@@ -92,7 +94,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		GlobalBufferPool.getInstance();
 
 		// Initialize the transit buffer pool
-		this.transitBufferPool = TransitBufferPool.getInstance();
+		this.transitBufferPool = new LocalBufferCache(128, true);
 
 		this.networkConnectionManager = new NetworkConnectionManager(this,
 			localInstanceConnectionInfo.getAddress(),
@@ -297,9 +299,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			}
 
 			final ChannelID localReceiver = localReceivers.get(0);
-			
+
 			synchronized (this.registeredChannels) {
-				
+
 				final ChannelContext cc = this.registeredChannels.get(localReceiver);
 				if (cc == null) {
 					throw new IOException("Cannot find channel context for local receiver " + localReceiver);
@@ -309,10 +311,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					throw new IOException("Local receiver " + localReceiver
 						+ " is not an input channel, but is supposed to accept a buffer");
 				}
-				
+
 				cc.queueTransferEnvelope(transferEnvelope);
 			}
-			
+
 			return;
 		}
 
@@ -337,6 +339,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 					final InputChannelContext inputChannelContext = (InputChannelContext) cc;
 					final Buffer destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
+					srcBuffer.copyToBuffer(destBuffer);
 					// TODO: See if we can save one duplicate step here
 					final TransferEnvelope dup = transferEnvelope.duplicateWithoutBuffer();
 					dup.setBuffer(destBuffer);
@@ -348,10 +351,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		if (receiverList.hasRemoteReceivers()) {
 
 			final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
-			for (int i = 0; i < remoteReceivers.size(); ++i) {
+			for (final InetSocketAddress remoteReceiver : remoteReceivers) {
 
-				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceivers.get(i),
-					transferEnvelope.duplicate());
+				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope.duplicate());
 			}
 		}
 
@@ -497,7 +499,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void logBufferUtilization() {
 
 		System.out.println("Buffer utilization for at " + System.currentTimeMillis());
-		
+
 		// TODO: Fix me
 		/*
 		 * synchronized (this.emptyWriteBuffers) {
@@ -566,7 +568,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public BufferProvider getBufferProvider(final JobID jobID, final ChannelID sourceChannelID) throws IOException,
 			InterruptedException {
-		
+
 		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
 
 		if (receiverList.hasLocalReceivers() && !receiverList.hasRemoteReceivers()) {
@@ -579,7 +581,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					final ChannelID localReceiver = localReceivers.get(0);
 					final ChannelContext cc = this.registeredChannels.get(localReceiver);
 					if (cc == null) {
-						throw new IOException("Cannot find Channel context for local receiver " + localReceiver);
+						throw new IOException("Cannot find channel context for local receiver " + localReceiver);
 					}
 
 					if (!cc.isInputChannel()) {
@@ -603,17 +605,21 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		synchronized (this.taskMap) {
 
-			if(this.taskMap.isEmpty()) {
+			if (this.taskMap.isEmpty()) {
 				return;
 			}
-			
-			final int buffersPerTask = (int) Math.ceil((double) totalNumberOfBuffers / (double) this.taskMap.size());
+
+			final int numberOfTasks = this.taskMap.size() + (this.multicastEnabled ? 1 : 0);
+			final int buffersPerTask = (int) Math.ceil((double) totalNumberOfBuffers / (double) numberOfTasks);
 			System.out.println("Buffers per task: " + buffersPerTask);
 			final Iterator<TaskContext> it = this.taskMap.values().iterator();
 			while (it.hasNext()) {
 				it.next().setBufferLimit(buffersPerTask);
 			}
-		}
 
+			if (this.multicastEnabled) {
+				this.transitBufferPool.setDesignatedNumberOfBuffers(buffersPerTask);
+			}
+		}
 	}
 }
