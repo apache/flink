@@ -53,7 +53,7 @@ public class ReduceNode extends SingleInputNode {
 	 * @param pactContract
 	 *        The reduce contract object.
 	 */
-	public ReduceNode(ReduceContract<?, ?, ?, ?> pactContract) {
+	public ReduceNode(ReduceContract pactContract) {
 		super(pactContract);
 		
 		// see if an internal hint dictates the strategy to use
@@ -101,8 +101,8 @@ public class ReduceNode extends SingleInputNode {
 	 * 
 	 * @return The contract.
 	 */
-	public ReduceContract<?, ?, ?, ?> getPactContract() {
-		return (ReduceContract<?, ?, ?, ?>) super.getPactContract();
+	public ReduceContract getPactContract() {
+		return (ReduceContract) super.getPactContract();
 	}
 
 	/**

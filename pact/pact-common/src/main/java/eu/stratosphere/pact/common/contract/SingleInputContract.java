@@ -15,75 +15,38 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.lang.annotation.Annotation;
+
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stub.SingleInputStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
+import eu.stratosphere.pact.common.stubs.Stub;
 
 /**
- * Contract for all tasks that have one input like "map".
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
  */
-public abstract class SingleInputContract<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
-		AbstractPact<OK, OV, SingleInputStub<IK, IV, OK, OV>>
+public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T> implements OutputContractConfigurable
 {
-	// input contract of this contract
+	/**
+	 * The input which produces the data consumed by this Pact.
+	 */
 	protected Contract input;
 
+	// --------------------------------------------------------------------------------------------
+
 	/**
-	 * Creates a new contract using the given stub and the given name
+	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
 	 * 
-	 * @param clazz
-	 *        the stub class that is represented by this contract
-	 * @param name
-	 *        name for the task represented by this contract
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param stubClass The class containing the user function.
 	 */
-	public SingleInputContract(Class<? extends SingleInputStub<IK, IV, OK, OV>> clazz, String name) {
-		super(clazz, name);
+	protected SingleInputContract(Class<? extends T> stubClass, String name)
+	{
+		super(stubClass, name);
 	}
 
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the class type of the input key
-	 * 
-	 * @return The class of the input key.
-	 */
-	public Class<? extends Key> getInputKeyClass() {
-		return ReflectionUtil.getTemplateType1(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the input value
-	 * 
-	 * @return The class of the input value.
-	 */
-	public Class<? extends Value> getInputValueClass() {
-		return ReflectionUtil.getTemplateType2(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output key
-	 * 
-	 * @return The class of the output key.
-	 */
-	public Class<? extends Key> getOutputKeyClass() {
-		return ReflectionUtil.getTemplateType3(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output value
-	 * 
-	 * @return The class of the output value.
-	 */
-	public Class<? extends Value> getOutputValueClass() {
-		return ReflectionUtil.getTemplateType4(this.getClass());
-	}
-
-	/**
-	 * Returns the input or null if none is set
+	 * Returns the input, or null, if none is set.
 	 * 
 	 * @return The contract's input contract.
 	 */
@@ -99,15 +62,48 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	public void setInput(Contract input) {
 		this.input = input;
 	}
-
-
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
+	 */
 	@Override
-	public void accept(Visitor<Contract> visitor) {
-		boolean descend = visitor.preVisit(this);
-		
+	public void addOutputContract(Class<? extends Annotation> oc)
+	{
+		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
+			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
+		}
+
+		this.ocs.add(oc);
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#getOutputContracts()
+	 */
+	@Override
+	public Class<? extends Annotation>[] getOutputContracts() {
+		@SuppressWarnings("unchecked")
+		Class<? extends Annotation>[] targetArray = new Class[this.ocs.size()];
+		return (Class<? extends Annotation>[]) this.ocs.toArray(targetArray);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Accepts the visitor and applies it this instance. The visitors pre-visit method is called and, if returning 
+	 * <tt>true</tt>, the visitor is recursively applied on the single input. After the recursion returned,
+	 * the post-visit method is called.
+	 * 
+	 * @param visitor The visitor.
+	 *  
+	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 */
+	@Override
+	public void accept(Visitor<Contract> visitor)
+	{
+		boolean descend = visitor.preVisit(this);	
 		if (descend) {
-			if (input != null) {
-				input.accept(visitor);
+			if (this.input != null) {
+				this.input.accept(visitor);
 			}
 			visitor.postVisit(this);
 		}

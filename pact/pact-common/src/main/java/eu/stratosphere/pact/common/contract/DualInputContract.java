@@ -15,140 +15,123 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.lang.annotation.Annotation;
+
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stub.DualInputStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
+import eu.stratosphere.pact.common.stubs.Stub;
 
 /**
- * Contract for all tasks that have two inputs.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * Abstract contract superclass for for all contracts that have two inputs, like "match" or "cross".
  */
-public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 extends Key, IV2 extends Value, OK extends Key, OV extends Value>
-		extends AbstractPact<OK, OV, DualInputStub<IK1, IV1, IK2, IV2, OK, OV>>
+public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> implements OutputContractConfigurable
 {
-	// first input contract of this contract 
-	protected Contract firstInput;
-	// second input contract of this contract
-	protected Contract secondInput;
+	/**
+	 * The contract producing the first input.
+	 */
+	protected Contract input1;
+	
+	/**
+	 * The contract producing the second input.
+	 */
+	protected Contract input2;
+
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a new contract using the given stub and the given name
+	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
 	 * 
-	 * @param clazz
-	 *        the stub class that is represented by this contract
-	 * @param name
-	 *        name for the task represented by this contract
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param stubClass The class containing the user function.
 	 */
-	public DualInputContract(Class<? extends DualInputStub<IK1, IV1, IK2, IV2, OK, OV>> clazz, String name) {
-		super(clazz, name);
+	protected DualInputContract(Class<? extends T> stubClass, String name)
+	{
+		super(stubClass, name);
 	}
 
-	/**
-	 * Returns the class type of the first input key
-	 * 
-	 * @return The class of the first input key.
-	 */
-	public Class<? extends Key> getFirstInputKeyClass() {
-		return ReflectionUtil.getTemplateType1(this.getClass());
-	}
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the class type of the first input value
+	 * Returns the first input, or null, if none is set.
 	 * 
-	 * @return The class of the first input value.
-	 */
-	public Class<? extends Value> getFirstInputValueClass() {
-		return ReflectionUtil.getTemplateType2(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the second input key
-	 * 
-	 * @return The class of the second input key.
-	 */
-	public Class<? extends Key> getSecondInputKeyClass() {
-		return ReflectionUtil.getTemplateType3(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the second input value
-	 * 
-	 * @return The type of the second input value.
-	 */
-	public Class<? extends Value> getSecondInputValueClass() {
-		return ReflectionUtil.getTemplateType4(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output key
-	 * 
-	 * @return The class of the output key.
-	 */
-	public Class<? extends Key> getOutputKeyClass() {
-		return ReflectionUtil.getTemplateType5(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output value
-	 * 
-	 * @return The class of the output value.
-	 */
-	public Class<? extends Value> getOutputValueClass() {
-		return ReflectionUtil.getTemplateType6(this.getClass());
-	}
-
-	/**
-	 * Returns the first input or null if none is set
-	 * 
-	 * @return The contract's first input contract.
+	 * @return The contract's first input.
 	 */
 	public Contract getFirstInput() {
-		return firstInput;
+		return input1;
 	}
-
+	
 	/**
-	 * Returns the second input or null if none is set
+	 * Returns the second input, or null, if none is set.
 	 * 
-	 * @return The contract's second input contract.
+	 * @return The contract's second input.
 	 */
 	public Contract getSecondInput() {
-		return secondInput;
+		return input2;
 	}
 
 	/**
-	 * Connects the first input to the task wrapped in this contract
+	 * Connects the first input to the task wrapped in this contract.
 	 * 
-	 * @param firstInput The contract that is connected as the first input.
+	 * @param input The contract will be set as the first input.
 	 */
-	public void setFirstInput(Contract firstInput) {
-		this.firstInput = firstInput;
+	public void setFirstInput(Contract input) {
+		this.input1 = input;
 	}
-
+	
 	/**
-	 * Connects the second input to the task wrapped in this contract
+	 * Connects the second input to the task wrapped in this contract.
 	 * 
-	 * @param secondInput The contract that is connected as the second input.
+	 * @param input The contract will be set as the second input.
 	 */
-	public void setSecondInput(Contract secondInput) {
-		this.secondInput = secondInput;
+	public void setSecondInput(Contract input) {
+		this.input2 = input;
 	}
-
-	/**
-	 * {@inheritDoc}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
 	 */
 	@Override
-	public void accept(Visitor<Contract> visitor) {
-		if (visitor.preVisit(this)) {
-			if (firstInput != null)
-				firstInput.accept(visitor);
-			if (secondInput != null)
-				secondInput.accept(visitor);
+	public void addOutputContract(Class<? extends Annotation> oc)
+	{
+		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
+			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
+		}
+
+		this.ocs.add(oc);
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#getOutputContracts()
+	 */
+	@Override
+	public Class<? extends Annotation>[] getOutputContracts() {
+		@SuppressWarnings("unchecked")
+		Class<? extends Annotation>[] targetArray = new Class[this.ocs.size()];
+		return (Class<? extends Annotation>[]) this.ocs.toArray(targetArray);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Accepts the visitor and applies it this instance. The visitors pre-visit method is called and, if returning 
+	 * <tt>true</tt>, the visitor is recursively applied on the single input. After the recursion returned,
+	 * the post-visit method is called.
+	 * 
+	 * @param visitor The visitor.
+	 *  
+	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 */
+	@Override
+	public void accept(Visitor<Contract> visitor)
+	{
+		boolean descend = visitor.preVisit(this);	
+		if (descend) {
+			if (this.input1 != null) {
+				this.input1.accept(visitor);
+			}
+			if (this.input2 != null) {
+				this.input2.accept(visitor);
+			}
 			visitor.postVisit(this);
 		}
 	}
-
 }

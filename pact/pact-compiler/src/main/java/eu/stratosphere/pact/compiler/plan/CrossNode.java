@@ -49,7 +49,7 @@ public class CrossNode extends TwoInputNode {
 	 * @param pactContract
 	 *        The Cross contract object.
 	 */
-	public CrossNode(CrossContract<?, ?, ?, ?, ?, ?> pactContract) {
+	public CrossNode(CrossContract pactContract) {
 		super(pactContract);
 
 		Configuration conf = getPactContract().getParameters();
@@ -105,8 +105,8 @@ public class CrossNode extends TwoInputNode {
 	 * 
 	 * @return The contract.
 	 */
-	public CrossContract<?, ?, ?, ?, ?, ?> getPactContract() {
-		return (CrossContract<?, ?, ?, ?, ?, ?>) super.getPactContract();
+	public CrossContract getPactContract() {
+		return (CrossContract) super.getPactContract();
 	}
 
 	/*

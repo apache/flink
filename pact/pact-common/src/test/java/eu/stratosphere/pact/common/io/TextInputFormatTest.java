@@ -17,7 +17,6 @@ package eu.stratosphere.pact.common.io;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,7 +42,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.fs.hdfs.DistributedDataInputStream;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 @RunWith(PowerMockRunner.class)
@@ -56,7 +55,7 @@ public class TextInputFormatTest
 	
 	protected File tempFile;
 	
-	private final TextInputFormat<PactString, PactString> format = new MyTextInputFormat();
+	private final DelimitedInputFormat format = new MyTextInputFormat();
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -79,7 +78,7 @@ public class TextInputFormatTest
 	// --------------------------------------------------------------------------------------------
 	@Test
 	public void testConfigure() {
-		when(this.config.getString(Matchers.matches(TextInputFormat.RECORD_DELIMITER), Matchers.anyString()))
+		when(this.config.getString(Matchers.matches(DelimitedInputFormat.RECORD_DELIMITER), Matchers.anyString()))
 			.thenReturn("\n");
 		when(this.config.getString(Matchers.matches(FileInputFormat.FILE_PARAMETER_KEY), Matchers.anyString()))
 		.thenReturn("file:///some/file/that/will/not/be/read");
@@ -88,7 +87,7 @@ public class TextInputFormatTest
 		verify(this.config, times(3)).getString(Matchers.any(String.class), Matchers.any(String.class));
 		assertEquals("\n", new String(format.getDelimiter()));
 
-		when(this.config.getString(Matchers.matches(TextInputFormat.RECORD_DELIMITER), Matchers.anyString()))
+		when(this.config.getString(Matchers.matches(DelimitedInputFormat.RECORD_DELIMITER), Matchers.anyString()))
 			.thenReturn("&-&");
 		format.configure(this.config);
 		verify(this.config, times(6)).getString(Matchers.any(String.class), Matchers.any(String.class));
@@ -110,15 +109,6 @@ public class TextInputFormatTest
 	}
 
 	@Test
-	public void testCreatePair() {
-		KeyValuePair<PactString, PactString> pair = format.createPair();
-		assertNotNull(pair);
-		assertNotNull(pair.getKey());
-		assertNotNull(pair.getValue());
-
-	}
-
-	@Test
 	public void testRead() throws IOException
 	{
 		final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
@@ -126,20 +116,22 @@ public class TextInputFormatTest
 		
 		final Configuration parameters = new Configuration();
 		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-		parameters.setString(TextInputFormat.RECORD_DELIMITER, "$$$");
+		parameters.setString(DelimitedInputFormat.RECORD_DELIMITER, "$$$");
 		
 		format.configure(parameters);
 		format.open(split);
-		KeyValuePair<PactString, PactString> pair = new KeyValuePair<PactString, PactString>();
-		pair.setKey(new PactString());
-		pair.setValue(new PactString());
-		assertTrue(format.nextRecord(pair));
-		assertEquals("my key", pair.getKey().toString());
-		assertEquals("my val", pair.getValue().toString());
-		assertTrue(format.nextRecord(pair));
-		assertEquals("my key2\n$$ctd.$$", pair.getKey().getValue());
-		assertEquals("my value2", pair.getValue().toString());
-		assertFalse(format.nextRecord(pair));
+		
+		PactRecord theRecord = new PactRecord();
+
+		assertTrue(format.nextRecord(theRecord));
+		assertEquals("my key", theRecord.getField(0, PactString.class).getValue());
+		assertEquals("my val", theRecord.getField(1, PactString.class).getValue());
+		
+		assertTrue(format.nextRecord(theRecord));
+		assertEquals("my key2\n$$ctd.$$", theRecord.getField(0, PactString.class).getValue());
+		assertEquals("my value2", theRecord.getField(1, PactString.class).getValue());
+		
+		assertFalse(format.nextRecord(theRecord));
 		assertTrue(format.reachedEnd());
 	}
 	
@@ -152,23 +144,24 @@ public class TextInputFormatTest
 		
 		final Configuration parameters = new Configuration();
 		parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
-		parameters.setString(TextInputFormat.RECORD_DELIMITER, "\n");
+		parameters.setString(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		
 		
 		format.configure(parameters);
 		format.open(split);
-		KeyValuePair<PactString, PactString> pair = new KeyValuePair<PactString, PactString>();
-		pair.setKey(new PactString());
-		pair.setValue(new PactString());
-		assertTrue(format.nextRecord(pair));
-		assertEquals("my key", pair.getKey().toString());
-		assertEquals("my val$$$my key2", pair.getValue().toString());
-		assertTrue(format.nextRecord(pair));
-		assertEquals("$$ctd.$$", pair.getKey().getValue());
-		assertEquals("my value2", pair.getValue().toString());
-		assertFalse(format.nextRecord(pair));
-		assertTrue(format.reachedEnd());
 
+		PactRecord theRecord = new PactRecord();
+
+		assertTrue(format.nextRecord(theRecord));
+		assertEquals("my key", theRecord.getField(0, PactString.class).getValue());
+		assertEquals("my val$$$my key2", theRecord.getField(1, PactString.class).getValue());
+		
+		assertTrue(format.nextRecord(theRecord));
+		assertEquals("$$ctd.$$", theRecord.getField(0, PactString.class).getValue());
+		assertEquals("my value2", theRecord.getField(1, PactString.class).getValue());
+		
+		assertFalse(format.nextRecord(theRecord));
+		assertTrue(format.reachedEnd());
 	}
 	
 	private FileInputSplit createTempFile(String contents) throws IOException
@@ -181,13 +174,23 @@ public class TextInputFormatTest
 		return new FileInputSplit(0, new Path("file://" + this.tempFile.getAbsolutePath()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
-	private final class MyTextInputFormat extends TextInputFormat<PactString, PactString> {
-
+	private final class MyTextInputFormat extends DelimitedInputFormat
+	{
+		private final PactString str1 = new PactString();
+		private final PactString str2 = new PactString();
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+		 */
 		@Override
-		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] record) {
-			String theRecord = new String(record);
-			pair.getKey().setValue(theRecord.substring(0, theRecord.indexOf('|')));
-			pair.getValue().setValue(theRecord.substring(theRecord.indexOf('|') + 1));
+		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+			String theRecord = new String(bytes, 0, numBytes);
+			
+			str1.setValue(theRecord.substring(0, theRecord.indexOf('|')));
+			str2.setValue(theRecord.substring(theRecord.indexOf('|') + 1));
+			
+			target.setField(0, str1);
+			target.setField(1, str2);
 			return true;
 		}
 	}

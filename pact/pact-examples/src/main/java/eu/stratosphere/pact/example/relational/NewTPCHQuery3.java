@@ -21,21 +21,21 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.recordcontract.FileDataSink;
-import eu.stratosphere.pact.common.recordcontract.FileDataSource;
-import eu.stratosphere.pact.common.recordcontract.MapContract;
-import eu.stratosphere.pact.common.recordcontract.MatchContract;
-import eu.stratosphere.pact.common.recordcontract.OutputContract;
-import eu.stratosphere.pact.common.recordcontract.ReduceContract;
-import eu.stratosphere.pact.common.recordcontract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.recordio.RecordOutputFormat;
-import eu.stratosphere.pact.common.recordplan.Plan;
-import eu.stratosphere.pact.common.recordplan.PlanAssembler;
-import eu.stratosphere.pact.common.recordplan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.recordstubs.Collector;
-import eu.stratosphere.pact.common.recordstubs.MapStub;
-import eu.stratosphere.pact.common.recordstubs.MatchStub;
-import eu.stratosphere.pact.common.recordstubs.ReduceStub;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.MatchContract;
+import eu.stratosphere.pact.common.contract.OutputContract;
+import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.io.RecordOutputFormat;
+import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.plan.PlanAssembler;
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -87,7 +87,7 @@ public class NewTPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		/**
 		 * Reads the filter literals from the configuration.
 		 * 
-		 * @see eu.stratosphere.pact.common.recordstubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
+		 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
 		 */
 		@Override
 		public void open(Configuration parameters) {

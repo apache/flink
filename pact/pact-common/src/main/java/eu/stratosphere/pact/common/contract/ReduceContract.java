@@ -20,65 +20,210 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+
 
 /**
- * ReduceContract represents a Reduce InputContract of the PACT Programming Model.
- * InputContracts are second-order functions. 
- * They have one or multiple input sets of key/value-pairs and a first-order user function (stub implementation).
+ * MapContract represents a Pact with a Map Input Contract.
+ * InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
+ * user function (stub implementation).
  * <p> 
- * Reduce works on a single input and calls the first-order user function of a 
- * {@see eu.stratosphere.pact.common.stub.ReduceStub} for each group of key/value-pairs that share the same key independently.
+ * Map works on a single input and calls the first-order user function of a {@see eu.stratosphere.pact.common.stub.MapStub} 
+ * for each record independently.
  * 
- * @see eu.stratosphere.pact.common.stub.ReduceStub
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @see ReduceStub
  */
-public class ReduceContract<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
-		SingleInputContract<IK, IV, OK, OV> {
+public class ReduceContract extends SingleInputContract<ReduceStub>
+{	
+	private static final String DEFAULT_NAME = "<Unnamed Reducer>";	// the default name for contracts
 	
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target(ElementType.TYPE)
-	public @interface Combinable {
-	};
+	private Class<? extends Key>[] keyClasses;						// the classes of the keys
+	
+	private final int[] keyFields;									// the positions of the key fields in the record
 
-	private static String defaultName = "Reduce #";
-
-	private static int nextID = 1;
-
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Creates a ReduceContract with the provided {@see eu.stratosphere.pact.common.stub.ReduceStub} implementation 
-	 * and the given name. 
-	 * 
-	 * @param reducer The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param n The name of the PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub<IK, IV, OK, OV>> reducer, String n) {
-		super(reducer, n);
-	}
-
-	/**
-	 * Creates a ReduceContract with the provided {@see eu.stratosphere.pact.common.stub.ReduceStub} implementation
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation
 	 * and a default name.
 	 * 
-	 * @param reducer The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param keyClass The class of the key's type.
 	 */
-	public ReduceContract(Class<? extends ReduceStub<IK, IV, OK, OV>> reducer) {
-		super(reducer, defaultName + (nextID++));
+	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass) {
+		this(c, keyColumn, keyClass, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation
+	 * and a default name. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param keyClasses The classes of the data types of the key fields.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses) {
+		this(c, keyColumns, keyClasses, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
+	 * and the given name. 
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param keyClass The class of the key's type.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass, String name) {
+		this(c, new int[] {keyColumn}, asArray(keyClass), name);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
+	 * and the given name. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, String name) {
+		super(c, name);
+		this.keyFields = keyColumns;
+		this.keyClasses = keyClasses;
 	}
 
 	/**
-	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
-	 * The annotation indicates that the contract's {@see eu.stratosphere.pact.common.stub.ReduceStub} implements 
-	 * the {@see  eu.stratosphere.pact.common.stub.ReduceStub#combine(Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector) method.
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
+	 * It uses the given contract as its input.
 	 * 
-	 * @return true if the ReduceContract is combinable, false otherwise.
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param keyClass The class of the key's type.
+	 * @param input The contract to use as the input.
 	 */
-	public boolean isCombinable() {
-		return (getUserCodeClass().getAnnotation(Combinable.class) != null);
+	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass, Contract input) {
+		this(c, keyColumn, keyClass, input, DEFAULT_NAME);
 	}
-
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
+	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param input The contract to use as the input.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, Contract input) {
+		this(c, keyColumns, keyClasses, input, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
+	 * It uses the given contract as its input.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param keyClass The class of the key's type.
+	 * @param input The contract to use as the input.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass, Contract input, String name) {
+		this(c, keyColumn, keyClass, name);
+		setInput(input);
+	}
+	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
+	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param input The contract to use as the input.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, Contract input, String name) {
+		this(c, keyColumns, keyClasses, name);
+		setInput(input);
+	}
+	
+	/**
+	 * Gets the column numbers of the key fields in the input records.
+	 *  
+	 * @return The column numbers of the key fields.
+	 */
+	public int[] getKeyColumnNumbers()
+	{
+		return this.keyFields;
+	}
+	
+	/**
+	 * Gets the types of the key fields on which this reduce contract groups.
+	 * 
+	 * @return The types of the key fields.
+	 */
+	public Class<? extends Key>[] getKeyClasses()
+	{
+		return this.keyClasses;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
+	 * The annotation indicates that the contract's {@link ReduceStub} implements the 
+	 * {@link ReduceStub#combine(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)}
+	 * method.
+	 * 
+	 * @return True, if the ReduceContract is combinable, false otherwise.
+	 */
+	public boolean isCombinable()
+	{
+		return getUserCodeClass().getAnnotation(Combinable.class) != null;
+	}
+	
+	/**
+	 * This annotation marks reduce stubs as eligible for the usage of a combiner.
+	 * 
+	 * The following code excerpt shows how to make a simple reduce stub combinable (assuming here that
+	 * the reducer function and combiner function do the same):
+	 * 
+	 * <code>
+	 * \@Combinable
+	 * public static class CountWords extends ReduceStub&lt;PactString&gt;
+	 * {
+	 *     private final PactInteger theInteger = new PactInteger();
+	 * 
+	 *     \@Override
+	 *     public void reduce(PactString key, Iterator&lt;PactRecord&gt; records, Collector out) throws Exception
+	 *     {
+	 *         PactRecord element = null;
+	 *         int sum = 0;
+	 *         while (records.hasNext()) {
+	 *             element = records.next();
+	 *             element.getField(1, this.theInteger);
+	 *             // we could have equivalently used PactInteger i = record.getField(1, PactInteger.class);
+	 *          
+	 *             sum += this.theInteger.getValue();
+	 *         }
+	 *      
+	 *         element.setField(1, this.theInteger);
+	 *         out.collect(element);
+	 *     }
+	 *     
+	 *     public void combine(PactString key, Iterator&lt;PactRecord&gt; records, Collector out) throws Exception
+	 *     {
+	 *         this.reduce(key, records, out);
+	 *     }
+	 * }
+	 * </code>
+	 */
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.TYPE)
+	public @interface Combinable {};
 }

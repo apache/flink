@@ -15,10 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.plan.Visitor;
 
 /**
  * Contract for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another
@@ -28,13 +26,13 @@ import eu.stratosphere.pact.common.io.OutputFormat;
  * 
  * @param T The type of output format invoked by instances of this data source.
  */
-public class GenericDataSink<KT extends Key, VT extends Value> extends Contract 
+public class GenericDataSink extends Contract 
 {
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Sink>";
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected final Class<? extends OutputFormat<KT, VT>> clazz;
+	protected final Class<? extends OutputFormat> clazz;
 
 	private Contract input;
 
@@ -50,7 +48,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c) {
+	public GenericDataSink(Class<? extends OutputFormat> c) {
 		this(c, DEFAULT_NAME);
 	}
 	
@@ -61,7 +59,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c, String name) {
+	public GenericDataSink(Class<? extends OutputFormat> c, String name) {
 		super(name);
 		this.clazz = c;
 	}
@@ -73,7 +71,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c, Contract input) {
+	public GenericDataSink(Class<? extends OutputFormat> c, Contract input) {
 		this(c, input, DEFAULT_NAME);
 	}
 	
@@ -85,7 +83,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c, Contract input, String name) {
+	public GenericDataSink(Class<? extends OutputFormat> c, Contract input, String name) {
 		this(c, name);
 		setInput(input);
 	}
@@ -159,22 +157,22 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @return The output format class.
 	 */
-	public Class<? extends OutputFormat<KT, VT>> getFormatClass()
+	public Class<? extends OutputFormat> getFormatClass()
 	{
-		return clazz;
+		return this.clazz;
 	}
 	
 	/**
-	 * Gets the class describing the input format.
+	 * Gets the class describing the output format.
 	 * <p>
 	 * This method is basically identical to {@link #getFormatClass()}.
 	 * 
-	 * @return The class describing the input format.
+	 * @return The class describing the output format.
 	 * 
 	 * @see eu.stratosphere.pact.common.contract.Contract#getUserCodeClass()
 	 */
 	@Override
-	public Class<?> getUserCodeClass()
+	public Class<? extends OutputFormat> getUserCodeClass()
 	{
 		return this.clazz;
 	}

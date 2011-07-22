@@ -22,15 +22,17 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
 
 /**
- * 
+ * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
+ * file streams.
  */
-public abstract class FileOutputFormat<K extends Key, V extends Value> extends OutputFormat<K, V>
+public abstract class FileOutputFormat extends OutputFormat
 {
+	/**
+	 * The key under which the name of the target path is stored in the configuration. 
+	 */
 	public static final String FILE_PARAMETER_KEY = "pact.output.file";
 	
 	/**

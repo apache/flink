@@ -25,7 +25,8 @@ import eu.stratosphere.pact.common.contract.Order;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class GlobalProperties implements Cloneable {
+public final class GlobalProperties implements Cloneable
+{
 	private PartitionProperty partitioning; // the partitioning
 
 	private Order keyOrder; // order across all partitions

@@ -35,7 +35,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class MapNode extends SingleInputNode {
+public class MapNode extends SingleInputNode
+{
 	private List<MapNode> cachedPlans; // a cache for the computed alternative plans
 
 	/**
@@ -44,7 +45,7 @@ public class MapNode extends SingleInputNode {
 	 * @param pactContract
 	 *        The map contract object.
 	 */
-	public MapNode(MapContract<?, ?, ?, ?> pactContract) {
+	public MapNode(MapContract pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
@@ -76,8 +77,8 @@ public class MapNode extends SingleInputNode {
 	 * 
 	 * @return The contract.
 	 */
-	public MapContract<?, ?, ?, ?> getPactContract() {
-		return (MapContract<?, ?, ?, ?>) super.getPactContract();
+	public MapContract getPactContract() {
+		return (MapContract) super.getPactContract();
 	}
 
 	/*
