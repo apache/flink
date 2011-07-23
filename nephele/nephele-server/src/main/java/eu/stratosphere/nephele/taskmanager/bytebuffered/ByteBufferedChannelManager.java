@@ -139,10 +139,13 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						continue;
 					}
 
-					LOG.info("Registering byte buffered input channel " + bboc.getID());
+					final boolean isActive = activeOutputChannels.contains(bboc.getID());
+
+					LOG.info("Registering byte buffered output channel " + bboc.getID() + " ("
+						+ (isActive ? "active" : "inactive") + ")");
 
 					final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc,
-						activeOutputChannels.contains(bboc.getID()));
+						isActive);
 					this.registeredChannels.put(bboc.getID(), outputChannelContext);
 				}
 			}
