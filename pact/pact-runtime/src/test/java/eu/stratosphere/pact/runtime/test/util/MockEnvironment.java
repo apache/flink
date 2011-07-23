@@ -22,6 +22,7 @@ import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
@@ -108,7 +109,7 @@ public class MockEnvironment extends Environment {
 		private Iterator<T> it;
 
 		public MockInputGate(int id, Iterator<T> it, RecordDeserializer<T> d) {
-			super(new JobID(), d, id, null);
+			super(new JobID(), new GateID(), d, id, null);
 			this.it = it;
 		}
 
@@ -127,7 +128,7 @@ public class MockEnvironment extends Environment {
 		private List<T> out;
 
 		public MockOutputGate(int index, List<T> outList, Class<T> inputClass) {
-			super(new JobID(), inputClass, index, null, false);
+			super(new JobID(), new GateID(), inputClass, index, null, false);
 			this.out = outList;
 		}
 
