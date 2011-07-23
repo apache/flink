@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.jobmanager.scheduler.local;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +36,7 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -156,11 +156,11 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 
 		for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
 
-			final Map<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			final ExecutionStage stage = executionGraph.getStage(i);
-			stage.collectRequiredInstanceTypes(requiredInstanceTypes, ExecutionState.CREATED);
+			stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
-			final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstanceTypes.entrySet().iterator();
+			final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
 			while (it.hasNext()) {
 
 				final Map.Entry<InstanceType, Integer> entry = it.next();

@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
@@ -101,7 +102,7 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+	public void requestInstance(JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
 			List<String> splitAffinityList) throws InstanceException {
 		this.instanceListener.resourceAllocated(jobID, this.allocatedResource);
 	}

@@ -42,6 +42,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
@@ -93,7 +94,7 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+		public void requestInstance(JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
 				List<String> splitAffinityList) throws InstanceException {
 
 			throw new IllegalStateException("requestInstance called on TestInstanceManager");
@@ -274,9 +275,9 @@ public class ExecutionGraphTest {
 			}
 
 			// test all methods of ExecutionGraph
-			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
-			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.SCHEDULED);
 			assertEquals(1, requiredInstances.size());
 			assertEquals(1,
 				(int) requiredInstances.get(INSTANCE_MANAGER.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));

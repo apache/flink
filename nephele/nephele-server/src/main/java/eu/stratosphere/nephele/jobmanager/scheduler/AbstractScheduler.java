@@ -35,8 +35,8 @@ import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 
@@ -131,35 +131,38 @@ public abstract class AbstractScheduler implements InstanceListener {
 	protected void requestInstances(final ExecutionStage executionStage) throws InstanceException {
 
 		final ExecutionGraph executionGraph = executionStage.getExecutionGraph();
-		final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
-		executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
+		final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+		executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.SCHEDULED);
 
-		if (requiredInstances.isEmpty()) {
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
+		LOG.info("Requesting the following instances for job " + executionGraph.getJobID());
+		while (it.hasNext()) {
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+			LOG.info(" " + entry.getKey() + " [" + entry.getValue().intValue() + ", "
+				+ instanceRequestMap.getMaximumNumberOfInstances(entry.getKey()) + "]");
+		}
+
+		if (instanceRequestMap.isEmpty()) {
 			return;
 		}
-		
-		
-		this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(), requiredInstances,null);
+
+		this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
+			instanceRequestMap, null);
 
 		/*
 		 * ... stuff moved to instance manager
-		final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstances.entrySet().iterator();
-		while (it.hasNext()) {
-
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-
-			for (int i = 0; i < entry.getValue().intValue(); i++) {
-				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
-				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-					entry.getKey());
-			}
-			
-			this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-				entry.getKey(), entry.getValue().intValue());
-			
-		}*/
-		
-		
+		 * final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstances.entrySet().iterator();
+		 * while (it.hasNext()) {
+		 * final Map.Entry<InstanceType, Integer> entry = it.next();
+		 * for (int i = 0; i < entry.getValue().intValue(); i++) {
+		 * LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
+		 * this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
+		 * entry.getKey());
+		 * }
+		 * this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
+		 * entry.getKey(), entry.getValue().intValue());
+		 * }
+		 */
 
 		// Switch vertex state to assigning
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph
