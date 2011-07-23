@@ -138,6 +138,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			memBuffer.copyToBuffer(fileBuffer);
 			this.outgoingTransferEnvelope.setBuffer(fileBuffer);
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
+			this.outgoingTransferEnvelope = null;
 			memBuffer.recycleBuffer();
 			
 			return;
