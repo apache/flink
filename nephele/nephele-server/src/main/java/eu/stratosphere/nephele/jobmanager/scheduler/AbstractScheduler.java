@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 
@@ -136,7 +137,12 @@ public abstract class AbstractScheduler implements InstanceListener {
 		if (requiredInstances.isEmpty()) {
 			return;
 		}
+		
+		
+		this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(), requiredInstances,null);
 
+		/*
+		 * ... stuff moved to instance manager
 		final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstances.entrySet().iterator();
 		while (it.hasNext()) {
 
@@ -147,7 +153,13 @@ public abstract class AbstractScheduler implements InstanceListener {
 				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
 					entry.getKey());
 			}
-		}
+			
+			this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
+				entry.getKey(), entry.getValue().intValue());
+			
+		}*/
+		
+		
 
 		// Switch vertex state to assigning
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph

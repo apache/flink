@@ -13,37 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.example.grep;
+package eu.stratosphere.nephele.instance.cloud;
 
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
+/**
+ * This class provides auxiliary methods needed to set up the custom EC2-image.
+ * @author casp
+ *
+ */
+public class EC2Utilities {
 
-public class GrepTask extends AbstractTask {
+	
+    public static synchronized String createTaskManagerUserData(String JobManagerIpAddress) {
 
-	private RecordReader<StringRecord> input = null;
+        /*
+         * When the type is set to TASKMANAGER (in /tmp/STRATOSPHERE_TYPE
+         * then the AMI assumes that another file called /tmp/JOBMANAGER_ADDRESS
+         * exists containing the (internal) IP address of the jobmanager instance.
+         */
 
-	private RecordWriter<StringRecord> output = null;
+        final String taskManagerUserData = "#!/bin/bash \n echo TASKMANAGER >> /tmp/STRATOSPHERE_TYPE \n echo " + JobManagerIpAddress + " >> /tmp/JOBMANAGER_ADDRESS";
 
-	private int i = 0;
+        return new String(org.apache.commons.codec.binary.Base64.encodeBase64(taskManagerUserData.getBytes()));
 
-	@Override
-	public void invoke() throws Exception {
-
-		while (this.input.hasNext()) {
-
-			StringRecord s = input.next();
-			this.output.emit(s);
-			i++;
-		}
-
-		System.out.println("GREP: Emmited all " + i + " records");
-	}
-
-	@Override
-	public void registerInputOutput() {
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class, null);
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
-	}
+    }
 }

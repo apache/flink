@@ -36,7 +36,7 @@ public class GrepJob implements Job {
 
 		JobFileInputVertex input = new JobFileInputVertex("Input 1", jobGraph);
 		input.setFileInputClass(FileLineReader.class);
-		input.setFilePath(new Path("hdfs://localhost:8000/user/wenjun/input1"));
+		input.setFilePath(new Path("file:///home/ec2-user/text.txt"));
 
 		JobTaskVertex task1 = new JobTaskVertex("Task 1", jobGraph);
 		task1.setTaskClass(GrepTask.class);
@@ -46,15 +46,15 @@ public class GrepJob implements Job {
 
 		JobFileOutputVertex output = new JobFileOutputVertex("Output 1", jobGraph);
 		output.setFileOutputClass(FileLineWriter.class);
-		output.setFilePath(new Path("hdfs://localhost:8000/user/wenjun/output1"));
+		output.setFilePath(new Path("file:///tmp/"));
 
 		task1.setNumberOfSubtasks(2);
 
 		try {
 
-			input.connectTo(task1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			task1.connectTo(task2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			task2.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			input.connectTo(task1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			task1.connectTo(task2, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			task2.connectTo(output, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 
 		} catch (JobGraphDefinitionException e) {
 			e.printStackTrace();
