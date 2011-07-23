@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -54,6 +55,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -271,7 +273,7 @@ public class TaskManager implements TaskOperationProtocol {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
 		// Initialize the checkpoint manager
-		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath,this);
+		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath, this);
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -448,7 +450,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	@Override
 	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment ee)
+			final Environment ee, final Set<ChannelID> activeOutputChannels)
 			throws IOException {
 
 		// Register task manager components in environment
@@ -459,7 +461,7 @@ public class TaskManager implements TaskOperationProtocol {
 		ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
 
 		// Register the task
-		TaskSubmissionResult result = registerTask(id, jobConfiguration, ee);
+		TaskSubmissionResult result = registerTask(id, jobConfiguration, ee, activeOutputChannels);
 		if (result != null) { // If result is non-null, an error occurred during task registration
 			return result;
 		}
@@ -485,7 +487,8 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		for (final TaskSubmissionWrapper tsw : tasks) {
-			submissionResultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment()));
+			submissionResultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment(),
+				tsw.getActiveOutputChannels()));
 		}
 
 		return submissionResultList;
@@ -500,10 +503,13 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the job configuration that has been attached to the original job graph
 	 * @param ee
 	 *        the environment of the task to register
+	 * @param activeOutputChannels
+	 *        the set of initially active output channels
 	 * @return <code>null</code> if the registration has been successful or a {@link TaskSubmissionResult} containing
 	 *         the error that occurred
 	 */
-	private TaskSubmissionResult registerTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee) {
+	private TaskSubmissionResult registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final Environment ee, final Set<ChannelID> activeOutputChannels) {
 
 		// Check if incoming task has an ID
 		if (id == null) {
@@ -543,28 +549,28 @@ public class TaskManager implements TaskOperationProtocol {
 		final EnvironmentWrapper wrapper = new EnvironmentWrapper(this, id, ee);
 		ee.registerExecutionListener(wrapper);
 
-		// Register the task with the byte buffered channel manager			
-		this.byteBufferedChannelManager.register(id, ee);
-			
+		// Register the task with the byte buffered channel manager
+		this.byteBufferedChannelManager.register(id, ee, activeOutputChannels);
+
 		boolean enableProfiling = false;
 		if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
 			enableProfiling = true;
 		}
-		
+
 		// Register environment, input, and output gates for profiling
-		if(enableProfiling) {
-			
+		if (enableProfiling) {
+
 			this.profiler.registerExecutionListener(id, jobConfiguration, ee);
-			
+
 			for (int i = 0; i < ee.getNumberOfInputGates(); i++) {
 				this.profiler.registerInputGateListener(id, jobConfiguration, ee.getInputGate(i));
 			}
-			
+
 			for (int i = 0; i < ee.getNumberOfOutputGates(); i++) {
 				this.profiler.registerOutputGateListener(id, jobConfiguration, ee.getOutputGate(i));
 			}
 		}
-		
+
 		// The environment itself will put the task into the running task map
 
 		return null;
@@ -582,7 +588,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Unregister task from the byte buffered channel manager
 		this.byteBufferedChannelManager.unregister(id, environment);
-		
+
 		// Unregister task from profiling
 		if (this.profiler != null) {
 			this.profiler.unregisterOutputGateListeners(id);
@@ -778,9 +784,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 		this.byteBufferedChannelManager.logBufferUtilization();
 	}
-	
-	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException{
-		if(profiler != null){
+
+	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException {
+		if (profiler != null) {
 			return this.profiler.getCheckpointProfilingData();
 		}
 		return null;

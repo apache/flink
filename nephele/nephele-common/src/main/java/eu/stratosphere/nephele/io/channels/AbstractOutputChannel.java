@@ -41,11 +41,6 @@ import eu.stratosphere.nephele.util.StringUtils;
 public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel {
 
 	private OutputGate<T> outputGate = null;
-
-	/**
-	 * States whether this channel follows a push or a pull model.
-	 */
-	private final boolean followsPushModel;
 	
 	/**
 	 * Creates a new output channel object.
@@ -60,10 +55,9 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	 *        the level of compression to be used for this channel
 	 */
 	public AbstractOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel, boolean followsPushModel) {
+			CompressionLevel compressionLevel) {
 		super(channelIndex, channelID, compressionLevel);
 		this.outputGate = outputGate;
-		this.followsPushModel = followsPushModel;
 	}
 
 	/**
@@ -202,16 +196,5 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	public boolean isBroadcastChannel() {
 
 		return this.outputGate.isBroadcast();
-	}
-	
-	/**
-	 * States whether this channel follows a push or pull-based transfer model.
-	 * 
-	 * @return <code>true</code> if this channel follows a push-based transfer model, <code>false</code> for a
-	 *         pull-based one.
-	 */
-	public boolean followsPushModel() {
-
-		return this.followsPushModel;
 	}
 }

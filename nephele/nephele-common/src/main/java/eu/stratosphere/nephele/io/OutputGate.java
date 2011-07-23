@@ -187,11 +187,11 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 			break;
 		case INMEMORY:
 			newOutputChannel = new InMemoryOutputChannel<T>(this, oldOutputChannel.getChannelIndex(), oldOutputChannel
-				.getID(), oldOutputChannel.getCompressionLevel(), true);
+				.getID(), oldOutputChannel.getCompressionLevel());
 			break;
 		case NETWORK:
 			newOutputChannel = new NetworkOutputChannel<T>(this, oldOutputChannel.getChannelIndex(), oldOutputChannel
-				.getID(), oldOutputChannel.getCompressionLevel(), followsPushModel);
+				.getID(), oldOutputChannel.getCompressionLevel());
 			break;
 		default:
 			return null;
@@ -247,15 +247,12 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
-	 * @param followsPushModel
-	 *        states whether this channel follows a push or a pull-based transfer model
 	 * @return the new network output channel
 	 */
-	public NetworkOutputChannel<T> createNetworkOutputChannel(ChannelID channelID, CompressionLevel compressionLevel,
-			boolean followsPushModel) {
+	public NetworkOutputChannel<T> createNetworkOutputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
 
 		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(this, this.outputChannels.size(), channelID,
-			compressionLevel, followsPushModel);
+			compressionLevel);
 		addOutputChannel(enoc);
 
 		return enoc;
@@ -291,7 +288,7 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	public InMemoryOutputChannel<T> createInMemoryOutputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
 
 		final InMemoryOutputChannel<T> einoc = new InMemoryOutputChannel<T>(this, this.outputChannels.size(),
-			channelID, compressionLevel, true);
+			channelID, compressionLevel);
 		addOutputChannel(einoc);
 
 		return einoc;
@@ -398,17 +395,10 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 
 		final int numOutputChannels = in.readInt();
 
-		Class<?>[] parameters = { this.getClass(), int.class, ChannelID.class, CompressionLevel.class };
-
-		Class<?>[] networkParameters = { this.getClass(), int.class, ChannelID.class, CompressionLevel.class, boolean.class };
+		final Class<?>[] parameters = { this.getClass(), int.class, ChannelID.class, CompressionLevel.class };
 
 		for (int i = 0; i < numOutputChannels; i++) {
 
-			final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-			boolean followsPushModel = false;
-			if (channelType == ChannelType.NETWORK) {
-				followsPushModel = in.readBoolean();
-			}
 			final ChannelID channelID = new ChannelID();
 			channelID.read(in);
 			final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
@@ -423,28 +413,20 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 			if (c == null) {
 				throw new IOException("Class is null!");
 			}
-			
+
 			AbstractOutputChannel<T> eoc = null;
 			try {
-				Constructor<AbstractOutputChannel<T>> constructor;
-				
-				if(channelType == ChannelType.NETWORK) {
-					constructor = (Constructor<AbstractOutputChannel<T>>) c.getDeclaredConstructor(networkParameters);
-				} else {
-					constructor = (Constructor<AbstractOutputChannel<T>>) c.getDeclaredConstructor(parameters);
-				}
+				final Constructor<AbstractOutputChannel<T>> constructor = (Constructor<AbstractOutputChannel<T>>) c
+					.getDeclaredConstructor(parameters);
 
 				if (constructor == null) {
 					throw new IOException("Constructor is null!");
 				}
 
 				constructor.setAccessible(true);
+
+				eoc = constructor.newInstance(this, i, channelID, compressionLevel);
 				
-				if(channelType == ChannelType.NETWORK) {
-					eoc = constructor.newInstance(this, i, channelID, compressionLevel, followsPushModel);
-				} else {
-					eoc = constructor.newInstance(this, i, channelID, compressionLevel);
-				}
 			} catch (InstantiationException e) {
 				LOG.error(e);
 			} catch (IllegalArgumentException e) {
@@ -479,10 +461,6 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 		out.writeInt(this.getNumberOfOutputChannels());
 
 		for (int i = 0; i < getNumberOfOutputChannels(); i++) {
-			EnumUtils.writeEnum(out, getOutputChannel(i).getType());
-			if (getOutputChannel(i).getType() == ChannelType.NETWORK) {
-				out.writeBoolean(getOutputChannel(i).followsPushModel());
-			}
 			getOutputChannel(i).getID().write(out);
 			EnumUtils.writeEnum(out, getOutputChannel(i).getCompressionLevel());
 			StringRecord.writeString(out, getOutputChannel(i).getClass().getName());

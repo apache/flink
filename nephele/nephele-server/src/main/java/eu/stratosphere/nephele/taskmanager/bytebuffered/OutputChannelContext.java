@@ -40,6 +40,11 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 */
 	private TransferEnvelope outgoingTransferEnvelope = null;
 
+	/**
+	 * Indicates whether the receiver of an envelope is currently running.
+	 */
+	private volatile boolean isReceiverRunning = false;
+	
 	private Queue<TransferEnvelope> queuedOutgoingEnvelopes;
 
 	/**
@@ -48,11 +53,12 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	private int sequenceNumber = 0;
 
 	OutputChannelContext(final OutputGateContext outputGateContext,
-			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel) {
+			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel, final boolean isReceiverRunning) {
 
 		this.outputGateContext = outputGateContext;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
+		this.isReceiverRunning = isReceiverRunning;
 
 		this.queuedOutgoingEnvelopes = new ArrayDeque<TransferEnvelope>();
 	}
@@ -124,8 +130,8 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		} catch (final IOException ioe) {
 			this.byteBufferedOutputChannel.reportIOException(ioe);
 		}
-
-		if (!this.byteBufferedOutputChannel.followsPushModel()) {
+		
+		if (!this.isReceiverRunning) {
 
 			final Buffer memBuffer = this.outgoingTransferEnvelope.getBuffer();
 			final Buffer fileBuffer = this.outputGateContext.getFileBuffer(memBuffer.size());
@@ -133,11 +139,15 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			this.outgoingTransferEnvelope.setBuffer(fileBuffer);
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 			memBuffer.recycleBuffer();
+			
+			return;
+		}
+			
+		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
+			this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
 		}
 
-		this.outputGateContext.processEnvelope(this.outgoingTransferEnvelope,
-			this.byteBufferedOutputChannel.followsPushModel());
-
+		this.outputGateContext.processEnvelope(this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
 	}
 
@@ -154,8 +164,18 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			final TransferEnvelope ephemeralTransferEnvelope = createNewOutgoingTransferEnvelope();
 			ephemeralTransferEnvelope.addEvent(event);
 			
-			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope,
-				this.byteBufferedOutputChannel.followsPushModel());
+			if(!this.isReceiverRunning) {
+				
+				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
+				
+				return;
+			}
+			
+			while(!this.queuedOutgoingEnvelopes.isEmpty()) {
+				this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
+			}
+			
+			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope);
 		}
 	}
 

@@ -84,14 +84,12 @@ final class OutputGateContext implements BufferProvider {
 	 * 
 	 * @param outgoingTransferEnvelope
 	 *        the transfer envelope to be forwarded
-	 * @param forwardToReceiver
-	 *        states whether the transfer envelope shall be forwarded to the receiver
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while processing the envelope
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
-	public void processEnvelope(final TransferEnvelope outgoingTransferEnvelope, final boolean forwardToReceiver)
+	public void processEnvelope(final TransferEnvelope outgoingTransferEnvelope)
 			throws IOException,
 			InterruptedException {
 
@@ -101,9 +99,7 @@ final class OutputGateContext implements BufferProvider {
 			this.ephemeralCheckpoint.addTransferEnvelope(dup);
 		}
 
-		if (forwardToReceiver) {
-			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
-		}
+		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
 	}
 
 	public Buffer getFileBuffer(final int bufferSize) throws IOException {

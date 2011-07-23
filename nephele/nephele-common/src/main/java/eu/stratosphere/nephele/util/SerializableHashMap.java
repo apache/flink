@@ -50,7 +50,7 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		
 		out.writeInt(size());
 		
@@ -74,7 +74,7 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 	@SuppressWarnings("unchecked")
 	// TODO: See if type safety can be improved here
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		
 		final int numberOfMapEntries = in.readInt();
 		

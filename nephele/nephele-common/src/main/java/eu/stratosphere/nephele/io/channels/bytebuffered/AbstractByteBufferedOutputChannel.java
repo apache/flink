@@ -102,8 +102,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 *        the level of compression to be used for this channel
 	 */
 	public AbstractByteBufferedOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel, boolean followsPushModel) {
-		super(outputGate, channelIndex, channelID, compressionLevel, followsPushModel);
+			CompressionLevel compressionLevel) {
+		super(outputGate, channelIndex, channelID, compressionLevel);
 
 		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel, this);
 	}

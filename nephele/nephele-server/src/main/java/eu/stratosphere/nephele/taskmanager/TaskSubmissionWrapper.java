@@ -18,11 +18,14 @@ package eu.stratosphere.nephele.taskmanager;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
  * A task submission wrapper is simply a wrapper class which bundles a task's execution vertex ID, its execution
@@ -48,6 +51,11 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	Configuration configuration = null;
 
 	/**
+	 * The set of initially active output channels.
+	 */
+	SerializableHashSet<ChannelID> activeOutputChannels;
+
+	/**
 	 * Constructs a new task submission wrapper.
 	 * 
 	 * @param vertexID
@@ -58,7 +66,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 *        the task's configuration
 	 */
 	public TaskSubmissionWrapper(final ExecutionVertexID vertexID, final Environment environment,
-			final Configuration configuration) {
+			final Configuration configuration, final SerializableHashSet<ChannelID> activeOutputChannels) {
 
 		if (vertexID == null) {
 			throw new IllegalArgumentException("Argument vertexID is null");
@@ -72,9 +80,14 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 			throw new IllegalArgumentException("Argument configuration is null");
 		}
 
+		if (activeOutputChannels == null) {
+			throw new IllegalArgumentException("Argument activeOutputChannels is null");
+		}
+
 		this.vertexID = vertexID;
 		this.environment = environment;
 		this.configuration = configuration;
+		this.activeOutputChannels = activeOutputChannels;
 	}
 
 	/**
@@ -92,6 +105,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 		this.vertexID.write(out);
 		this.environment.write(out);
 		this.configuration.write(out);
+		this.activeOutputChannels.write(out);
 	}
 
 	/**
@@ -106,6 +120,8 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 		this.environment.read(in);
 		this.configuration = new Configuration();
 		this.configuration.read(in);
+		this.activeOutputChannels = new SerializableHashSet<ChannelID>();
+		this.activeOutputChannels.read(in);
 	}
 
 	/**
@@ -136,5 +152,15 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	public Configuration getConfiguration() {
 
 		return this.configuration;
+	}
+
+	/**
+	 * Returns the set of initially active output channels.
+	 * 
+	 * @return the set of initially active output channels
+	 */
+	public Set<ChannelID> getActiveOutputChannels() {
+
+		return this.activeOutputChannels;
 	}
 }

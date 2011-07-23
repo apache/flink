@@ -146,7 +146,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final InputSplitManager inputSplitManager;
 
 	private final AbstractScheduler scheduler;
-	
+
 	private final MulticastManager multicastManager;
 
 	private InstanceManager instanceManager;
@@ -720,13 +720,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
-		
-		if(outputChannel == null) {
+
+		if (outputChannel == null) {
 			AbstractInputChannel<? extends Record> inputChannel = eg.getInputChannelByID(sourceChannelID);
-			
+
 			final ChannelID connectedChannelID = inputChannel.getConnectedChannelID();
 			final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
-			
+
 			final AbstractInstance assignedInstance = connectedVertex.getAllocatedResource().getInstance();
 			if (assignedInstance == null) {
 				LOG.error("Cannot resolve lookup: vertex found for channel ID " + connectedChannelID
@@ -743,7 +743,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					.getInstanceConnectionInfo());
 			}
 		}
-		
+
 		if (outputChannel.isBroadcastChannel() && outputChannel.getType() != ChannelType.INMEMORY) {
 
 			// TODO: Implement broadcast functionality here
@@ -784,9 +784,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
-		//LOG.error("Receiver(s) not found");
+		// LOG.error("Receiver(s) not found");
 
-		//return ConnectionInfoLookupResponse.createReceiverNotFound();
+		// return ConnectionInfoLookupResponse.createReceiverNotFound();
 	}
 
 	/**
@@ -1081,7 +1081,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					}
 
 					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
-						.getExecutionGraph().getJobConfiguration()));
+						.getExecutionGraph().getJobConfiguration(), vertex.constructActiveOutputChannelsSet()));
 
 					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
 				}

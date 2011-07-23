@@ -147,7 +147,7 @@ public class TransferEnvelopeSerializerTest {
 
 		for (int i = 0; i < BUFFER_SIZE; i++) {
 
-			final Buffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), recycleQueue, true);
+			final Buffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), recycleQueue);
 
 			// Initialize buffer
 			for (int j = 0; j < i; j++) {

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
@@ -109,8 +110,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 *        the ID of the task to be registered
 	 * @param environment
 	 *        the environment of the task
+	 * @param the
+	 *        set of output channels which are initially active
 	 */
-	public void register(final ExecutionVertexID vertexID, final Environment environment) {
+	public void register(final ExecutionVertexID vertexID, final Environment environment,
+			final Set<ChannelID> activeOutputChannels) {
 
 		final TaskContext taskContext = new TaskContext();
 
@@ -137,7 +141,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 					LOG.info("Registering byte buffered input channel " + bboc.getID());
 
-					final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc);
+					final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc,
+						activeOutputChannels.contains(bboc.getID()));
 					this.registeredChannels.put(bboc.getID(), outputChannelContext);
 				}
 			}

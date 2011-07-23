@@ -25,7 +25,7 @@ public final class FileOutputChannel<T extends Record> extends AbstractByteBuffe
 
 	public FileOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
 			CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, compressionLevel, false);
+		super(outputGate, channelIndex, channelID, compressionLevel);
 	}
 
 	@Override
