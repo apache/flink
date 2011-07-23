@@ -13,6 +13,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelActivateEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -44,7 +45,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 * Indicates whether the receiver of an envelope is currently running.
 	 */
 	private volatile boolean isReceiverRunning = false;
-	
+
 	private Queue<TransferEnvelope> queuedOutgoingEnvelopes;
 
 	/**
@@ -130,7 +131,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		} catch (final IOException ioe) {
 			this.byteBufferedOutputChannel.reportIOException(ioe);
 		}
-		
+
 		if (!this.isReceiverRunning) {
 
 			final Buffer memBuffer = this.outgoingTransferEnvelope.getBuffer();
@@ -140,11 +141,11 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 			this.outgoingTransferEnvelope = null;
 			memBuffer.recycleBuffer();
-			
+
 			return;
 		}
-			
-		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
+
+		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
 			this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
 		}
 
@@ -161,21 +162,21 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		if (this.outgoingTransferEnvelope != null) {
 			this.outgoingTransferEnvelope.addEvent(event);
 		} else {
-			
+
 			final TransferEnvelope ephemeralTransferEnvelope = createNewOutgoingTransferEnvelope();
 			ephemeralTransferEnvelope.addEvent(event);
-			
-			if(!this.isReceiverRunning) {
-				
+
+			if (!this.isReceiverRunning) {
+
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
-				
+
 				return;
 			}
-			
-			while(!this.queuedOutgoingEnvelopes.isEmpty()) {
+
+			while (!this.queuedOutgoingEnvelopes.isEmpty()) {
 				this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
 			}
-			
+
 			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope);
 		}
 	}
@@ -259,7 +260,13 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
 		while (it.hasNext()) {
 
-			this.byteBufferedOutputChannel.processEvent(it.next());
+			final AbstractEvent event = it.next();
+
+			if (event instanceof ByteBufferedChannelActivateEvent) {
+				this.isReceiverRunning = true;
+			} else {
+				this.byteBufferedOutputChannel.processEvent(event);
+			}
 		}
 	}
 }

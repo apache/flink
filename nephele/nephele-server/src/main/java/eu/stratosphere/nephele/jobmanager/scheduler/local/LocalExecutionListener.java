@@ -19,6 +19,7 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 
 /**
@@ -62,6 +63,22 @@ public class LocalExecutionListener implements ExecutionListener {
 			final String optionalMessage) {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
+
+		// Check if the resource can be used by another vertex of the group
+		// TODO: Quick hack, replace this
+		if (newExecutionState == ExecutionState.FINISHED) {
+			final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
+			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
+				if (groupMember.getExecutionState() == ExecutionState.ASSIGNING) {
+					groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
+					groupMember.setExecutionState(ExecutionState.ASSIGNED);
+					
+					this.localScheduler.deployAssignedVertices(eg);
+					return;
+				}
+			}
+		}
 
 		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 			|| newExecutionState == ExecutionState.FAILED) {

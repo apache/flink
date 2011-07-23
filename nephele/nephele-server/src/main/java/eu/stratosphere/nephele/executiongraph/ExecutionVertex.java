@@ -383,7 +383,7 @@ public class ExecutionVertex {
 		return this.groupVertex.isOutputVertex();
 	}
 
-	public SerializableHashSet<ChannelID> constructActiveOutputChannelsSet() {
+	public SerializableHashSet<ChannelID> constructInitialActiveOutputChannelsSet() {
 
 		final SerializableHashSet<ChannelID> activeOutputChannels = new SerializableHashSet<ChannelID>();
 
@@ -442,7 +442,7 @@ public class ExecutionVertex {
 			env = this.environment;
 		}
 
-		final SerializableHashSet<ChannelID> activeOutputChannels = constructActiveOutputChannelsSet();
+		final SerializableHashSet<ChannelID> activeOutputChannels = constructInitialActiveOutputChannelsSet();
 
 		try {
 			return allocatedRes.getInstance().submitTask(this.vertexID, this.executionGraph.getJobConfiguration(), env,

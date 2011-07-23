@@ -183,7 +183,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * @param executionGraph
 	 *        the execution graph to collect the vertices from
 	 */
-	protected void deployAssignedVertices(final ExecutionGraph executionGraph) {
+	public void deployAssignedVertices(final ExecutionGraph executionGraph) {
 
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
 		final int indexOfCurrentExecutionStage = executionGraph.getIndexOfCurrentExecutionStage();

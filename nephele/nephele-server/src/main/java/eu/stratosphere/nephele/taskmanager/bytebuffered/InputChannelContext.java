@@ -14,11 +14,13 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelActivateEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.util.StringUtils;
 
 final class InputChannelContext implements ChannelContext, ByteBufferedInputChannelBroker, BufferProvider {
 
@@ -40,6 +42,13 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.byteBufferedInputChannel = byteBufferedInputChannel;
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
+		
+		//Make sure the corresponding output channel is activated
+		try {
+			transferEventToOutputChannel(new ByteBufferedChannelActivateEvent());
+		} catch(Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
 	}
 
 	@Override

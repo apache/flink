@@ -1070,7 +1070,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				}
 
 				final List<TaskSubmissionWrapper> submissionList = new SerializableArrayList<TaskSubmissionWrapper>();
-
+				
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
@@ -1079,14 +1079,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 						LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
 							+ vertex.getExecutionState());
 					}
-
+					
 					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
-						.getExecutionGraph().getJobConfiguration(), vertex.constructActiveOutputChannelsSet()));
+						.getExecutionGraph().getJobConfiguration(), vertex.constructInitialActiveOutputChannelsSet()));
 
 					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
 				}
 
-				// TODO: Implement lazy initialization
 				List<TaskSubmissionResult> submissionResultList = null;
 
 				try {
