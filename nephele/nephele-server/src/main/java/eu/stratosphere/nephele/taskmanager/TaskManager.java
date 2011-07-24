@@ -341,7 +341,6 @@ public class TaskManager implements TaskOperationProtocol {
 			taskManager = new TaskManager(configDir);
 		} catch (Throwable t) {
 			LOG.fatal("Taskmanager startup failed:" + t.getMessage());
-			LOG.error(System.err);
 			System.exit(FAILURERETURNCODE);
 		}
 
