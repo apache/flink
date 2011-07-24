@@ -207,7 +207,7 @@ public class QueueSchedulerTest {
 		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
 		when(this.graphIterator2.next()).thenReturn(this.vertex1);
 		when(this.graphIterator2.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.ASSIGNING);
+		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.SCHEDULED);
 		try {
 			whenNew(ExecutionGraphIterator.class).withArguments(Matchers.any(ExecutionGraph.class),
 				Matchers.anyBoolean()).thenReturn(this.graphIterator);
@@ -233,7 +233,7 @@ public class QueueSchedulerTest {
 		when(resource.getInstanceType()).thenReturn(instanceType);
 
 		toTest.resourceAllocated(jobid, resource);
-		verify(this.vertex1, times(4)).setExecutionState(ExecutionState.ASSIGNED);
+		verify(this.vertex1, times(4)).setExecutionState(ExecutionState.READY);
 
 	}
 

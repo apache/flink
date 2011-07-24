@@ -1,7 +1,6 @@
 package eu.stratosphere.nephele.instance.cloud;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.jobgraph.JobID;
 

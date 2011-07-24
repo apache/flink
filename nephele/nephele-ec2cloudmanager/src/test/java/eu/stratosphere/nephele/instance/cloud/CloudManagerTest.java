@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,11 +43,10 @@ import org.xml.sax.SAXException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.cloud.CloudInstance;
@@ -73,7 +70,7 @@ public class CloudManagerTest {
 			assertTrue(resourcesOfJob != null);
 			assertTrue(resourcesOfJob.contains(allocatedResource));
 			resourcesOfJob.remove(allocatedResource);
-			if(resourcesOfJob.isEmpty()) {
+			if (resourcesOfJob.isEmpty()) {
 				this.resourcesOfJobs.remove(jobID);
 			}
 		}
@@ -84,7 +81,7 @@ public class CloudManagerTest {
 			assertTrue(nrAvailable >= 0);
 			++nrAvailable;
 			List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
-			if(resourcesOfJob == null) {
+			if (resourcesOfJob == null) {
 				resourcesOfJob = new ArrayList<AllocatedResource>();
 				this.resourcesOfJobs.put(jobID, resourcesOfJob);
 			}
@@ -305,9 +302,11 @@ public class CloudManagerTest {
 
 		// request instance
 		try {
-			Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
-			instanceMap.put(InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"), 1);
-			cm.requestInstance(jobID, conf, instanceMap, null);
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+			final InstanceType instanceType = InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10");
+			instanceRequestMap.setMinimumNumberOfInstances(instanceType, 1);
+			instanceRequestMap.setMaximumNumberOfInstances(instanceType, 1);
+			cm.requestInstance(jobID, conf, instanceRequestMap, null);
 		} catch (InstanceException e) {
 			e.printStackTrace();
 		}
@@ -322,29 +321,28 @@ public class CloudManagerTest {
 		String instanceID = null;
 
 		try {
-			//using legacy EC2 client...
-			/*Method m1 = CloudManager.class.getDeclaredMethod("describeInstances", new Class[] { String.class,
-				String.class, String.class });
-			m1.setAccessible(true);
-			Object instanceList = m1.invoke(cm, new Object[] { conf.getString("job.cloud.username", null),
-				conf.getString("job.cloud.awsaccessid", null), conf.getString("job.cloud.awssecretkey", null) });
-
-			assertEquals(1, ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList).size());
-
-			com.xerox.amazonws.ec2.ReservationDescription.Instance instance = ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList)
-				.get(0);
-			instanceID = instance.getInstanceId();
-			
-
-			// report heart beat
-			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
-				32L * 1024L * 1024L * 1024L, 32L * 1024L * 1024L * 1024L);
-			cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000, 20000),
-				hardwareDescription);
-*/
+			// using legacy EC2 client...
+			/*
+			 * Method m1 = CloudManager.class.getDeclaredMethod("describeInstances", new Class[] { String.class,
+			 * String.class, String.class });
+			 * m1.setAccessible(true);
+			 * Object instanceList = m1.invoke(cm, new Object[] { conf.getString("job.cloud.username", null),
+			 * conf.getString("job.cloud.awsaccessid", null), conf.getString("job.cloud.awssecretkey", null) });
+			 * assertEquals(1, ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList).size());
+			 * com.xerox.amazonws.ec2.ReservationDescription.Instance instance =
+			 * ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList)
+			 * .get(0);
+			 * instanceID = instance.getInstanceId();
+			 * // report heart beat
+			 * final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
+			 * 32L * 1024L * 1024L * 1024L, 32L * 1024L * 1024L * 1024L);
+			 * cm.reportHeartBeat(new InstanceConnectionInfo(InetAddress.getByName(instance.getDnsName()), 10000,
+			 * 20000),
+			 * hardwareDescription);
+			 */
 		} catch (Exception e) {
 			e.printStackTrace();
-		} 
+		}
 
 		assertEquals(0, ((Map<String, JobID>) reservedInstances).size());
 		assertEquals(1, ((List<CloudInstance>) cloudInstances).size());

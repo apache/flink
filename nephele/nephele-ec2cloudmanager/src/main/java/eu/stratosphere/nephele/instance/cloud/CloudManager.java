@@ -54,6 +54,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
@@ -97,7 +98,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 	/** Timelimit to full next hour when instance is kicked. */
 	private static final long TIMETHRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
-	
+
 	/** TMs that send HeartBeats but do not belong to any job will be blacklisted */
 	private final HashSet<InstanceConnectionInfo> blackListedTms = new HashSet<InstanceConnectionInfo>();
 
@@ -325,12 +326,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			HardwareDescription hardwareDescription) {
 
 		// Check if this TM is blacklisted
-		if(this.blackListedTms.contains(instanceConnectionInfo)){
+		if (this.blackListedTms.contains(instanceConnectionInfo)) {
 			LOG.debug("Received HeartBeat from blacklisted TM " + instanceConnectionInfo);
 			return;
 		}
-		
-		
+
 		// Check if heart beat belongs to a floating instance
 		if (this.floatingInstances.containsKey(instanceConnectionInfo)) {
 			final FloatingInstance floatingInstance = this.floatingInstances.get(instanceConnectionInfo);
@@ -373,11 +373,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			this.instanceListener.resourceAllocated(jobID, instance.asAllocatedResource());
 			return;
 		}
-		
+
 		// This TM seems to be unknown to the JobManager.. blacklist
 		LOG.info("Received HeartBeat from unknown TM. Blacklisting. Address is: " + instanceConnectionInfo);
 		this.blackListedTms.add(instanceConnectionInfo);
-		
+
 	}
 
 	/**
@@ -522,8 +522,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
-			List<String> splitAffinityList) throws InstanceException {
+	public void requestInstance(final JobID jobID, Configuration conf, final InstanceRequestMap instanceRequestMap,
+			final List<String> splitAffinityList) throws InstanceException {
 
 		if (conf == null) {
 			throw new InstanceException("No job configuration provided, unable to acquire credentials");
@@ -564,7 +564,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		// First we check, if there are any floating instances available that we can use
 
 		// Iterate over all instance types
-		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceMap.entrySet().iterator();
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
 		while (it.hasNext()) {
 			final Map.Entry<InstanceType, Integer> entry = it.next();
 			final InstanceType actualInstanceType = entry.getKey();
@@ -679,14 +679,15 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 			// Request instances!
 			RunInstancesResult result = ec2client.runInstances(request);
-			
+
 			// Check if reservation went well...
-			
-			if(result.getReservation().getInstances().size() != neededinstancecount){
+
+			if (result.getReservation().getInstances().size() != neededinstancecount) {
 				// Something went wront..
-				LOG.error("Requested " + neededinstancecount + " instances of type " + actualInstanceType.getIdentifier() + " but only got " + result.getReservation().getInstances().size() + " instances reserved.");
+				LOG.error("Requested " + neededinstancecount + " instances of type "
+					+ actualInstanceType.getIdentifier() + " but only got "
+					+ result.getReservation().getInstances().size() + " instances reserved.");
 			}
-			
 
 			for (Instance i : result.getReservation().getInstances()) {
 				instanceIDs.add(i.getInstanceId());

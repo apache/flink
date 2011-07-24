@@ -145,4 +145,29 @@ public final class InstanceRequestMap {
 
 		return this.minimumMap.entrySet().iterator();
 	}
+
+	/**
+	 * Returns the number of different instance types stored in this request map.
+	 * 
+	 * @return the number of different instance types stored in this request map
+	 */
+	public int size() {
+
+		final int s = this.maximumMap.size();
+
+		if (s != this.minimumMap.size()) {
+			throw new IllegalStateException("InstanceRequestMap is in an inconsistent state");
+		}
+
+		return s;
+	}
+
+	/**
+	 * Clears the instance request map.
+	 */
+	public void clear() {
+
+		this.maximumMap.clear();
+		this.minimumMap.clear();
+	}
 }
