@@ -281,13 +281,19 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public InternalBuffer duplicate() {
 
-		throw new RuntimeException("Not yet implemented");
+		throw new RuntimeException("FileBuffer duplication is no yet implemented");
 	}
 
 	@Override
-	public void copyToBuffer(Buffer destinationBuffer) throws IOException {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Method is not yet implemented");
+	public void copyToBuffer(final Buffer destinationBuffer) throws IOException {
+		
+		if(destinationBuffer.isBackedByMemory()) {
+			destinationBuffer.write(this);
+			destinationBuffer.finishWritePhase();
+			return;
+		}
+		
+		throw new UnsupportedOperationException("FileBuffer-to-FileBuffer copy is not yet implemented");
 	}
 
 	/**
