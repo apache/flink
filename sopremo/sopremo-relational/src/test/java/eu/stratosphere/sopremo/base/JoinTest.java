@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.base;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
@@ -12,6 +11,7 @@ import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class JoinTest extends SopremoTest<Join> {
 	@Override

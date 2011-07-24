@@ -128,9 +128,9 @@ public class ElementaryOperator extends Operator {
 	 */
 	@SuppressWarnings("unchecked")
 	protected Class<? extends Stub<?, ?>> getStubClass() {
-		for (Class<?> contractClass : this.getClass().getDeclaredClasses())
-			if ((contractClass.getModifiers() & Modifier.STATIC) != 0 && Stub.class.isAssignableFrom(contractClass))
-				return (Class<? extends Stub<?, ?>>) contractClass;
+		for (Class<?> stubClass : this.getClass().getDeclaredClasses())
+			if ((stubClass.getModifiers() & Modifier.STATIC) != 0 && Stub.class.isAssignableFrom(stubClass))
+				return (Class<? extends Stub<?, ?>>) stubClass;
 		return null;
 	}
 }

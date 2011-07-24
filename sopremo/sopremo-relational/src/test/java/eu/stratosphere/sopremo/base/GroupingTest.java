@@ -3,19 +3,17 @@ package eu.stratosphere.sopremo.base;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
-import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
 import eu.stratosphere.sopremo.expressions.BatchAggregationExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class GroupingTest extends SopremoTest<Grouping> {
 	@Override

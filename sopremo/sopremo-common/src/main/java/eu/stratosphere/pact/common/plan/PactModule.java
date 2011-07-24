@@ -33,36 +33,42 @@ import eu.stratosphere.util.dag.NodePrinter;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
 /**
- * The PactModule is a subgraph of a {@link PactProgram} with an arbitrary but well-defined number of inputs and
- * outputs. It is designed to facilitate modularization and thus to increase the maintainability of large
- * PactPrograms. While the interface of the module are the number of inputs and outputs, the actual implementation
- * consists of several interconnected {@link Contract}s that are connected to the inputs and outputs of the PactModule.
+ * The PactModule is a subgraph of a {@link PactProgram} with an arbitrary but
+ * well-defined number of inputs and outputs. It is designed to facilitate
+ * modularization and thus to increase the maintainability of large
+ * PactPrograms. While the interface of the module are the number of inputs and
+ * outputs, the actual implementation consists of several interconnected
+ * {@link Contract}s that are connected to the inputs and outputs of the
+ * PactModule.
  */
-public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, DataSinkContract<?, ?>> implements
+public class PactModule extends
+		GraphModule<Contract, DataSourceContract<?, ?>, DataSinkContract<?, ?>> implements
 		Visitable<Contract> {
 	/**
-	 * Initializes a PactModule having the given name, number of inputs, and number of outputs.
+	 * Initializes a PactModule having the given name, number of inputs, and
+	 * number of outputs.
 	 * 
 	 * @param name
-	 *        the name of the PactModule
+	 *            the name of the PactModule
 	 * @param numberOfInputs
-	 *        the number of inputs
+	 *            the number of inputs
 	 * @param numberOfOutputs
-	 *        the number of outputs.
+	 *            the number of outputs.
 	 */
 	public PactModule(String name, int numberOfInputs, int numberOfOutputs) {
 		super(name, new DataSourceContract[numberOfInputs], new DataSinkContract[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(JsonInputFormat.class,
-				String.format("%s %d", name, index));
+			this.inputNodes[index] = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
+				JsonInputFormat.class, String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new DataSinkContract<PactJsonObject.Key, PactJsonObject>(JsonOutputFormat.class,
-					String.format("%s %d", name, index));
+			this.outputNodes[index] = new DataSinkContract<PactJsonObject.Key, PactJsonObject>(
+				JsonOutputFormat.class, String.format("%s %d", name, index));
 	}
 
 	/**
-	 * Traverses the pact plan, starting from the data outputs that were added to this program.
+	 * Traverses the pact plan, starting from the data outputs that were added
+	 * to this program.
 	 * 
 	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
 	 */
@@ -93,12 +99,13 @@ public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, 
 	}
 
 	/**
-	 * Wraps the graph given by the sinks and referenced contracts in a PactModule.
+	 * Wraps the graph given by the sinks and referenced contracts in a
+	 * PactModule.
 	 * 
 	 * @param name
-	 *        the name of the PactModule
+	 *            the name of the PactModule
 	 * @param sinks
-	 *        all sinks that span the graph to wrap
+	 *            all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
 	public static PactModule valueOf(String name, Contract... sinks) {
@@ -106,12 +113,13 @@ public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, 
 	}
 
 	/**
-	 * Wraps the graph given by the sinks and referenced contracts in a PactModule.
+	 * Wraps the graph given by the sinks and referenced contracts in a
+	 * PactModule.
 	 * 
 	 * @param name
-	 *        the name of the PactModule
+	 *            the name of the PactModule
 	 * @param sinks
-	 *        all sinks that span the graph to wrap
+	 *            all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
 	public static PactModule valueOf(String name, Collection<Contract> sinks) {
@@ -146,10 +154,12 @@ public class PactModule extends GraphModule<Contract, DataSourceContract<?, ?>, 
 			Contract[] contractInputs = ContractUtil.getInputs(node);
 			if (contractInputs.length == 0)
 				module.inputNodes[index++] = (DataSourceContract<?, ?>) node;
-			else
-				for (Contract input : contractInputs)
-					if (input == null)
-						inputs.add(module.getInput(index++));
+			else {
+				for (int unconnectedIndex = 0; unconnectedIndex < contractInputs.length; unconnectedIndex++)
+					if (contractInputs[unconnectedIndex] == null)
+						contractInputs[unconnectedIndex] = module.getInput(index++);
+				ContractUtil.setInputs(node, contractInputs);
+			}
 		}
 		return module;
 	}

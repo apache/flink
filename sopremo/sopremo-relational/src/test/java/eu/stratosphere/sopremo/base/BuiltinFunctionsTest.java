@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.base;
 
-import static org.junit.Assert.fail;
-
 import java.math.BigDecimal;
 
 import junit.framework.Assert;

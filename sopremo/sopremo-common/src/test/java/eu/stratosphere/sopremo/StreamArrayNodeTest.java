@@ -3,8 +3,11 @@ package eu.stratosphere.sopremo;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.Ignore;
+
 import nl.jqno.equalsverifier.EqualsVerifier;
 
+@Ignore
 public class StreamArrayNodeTest extends SopremoTest<StreamArrayNode> {
 	@Override
 	protected StreamArrayNode createDefaultInstance(int index) {
