@@ -1080,6 +1080,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 							+ vertex.getExecutionState());
 					}
 					
+					vertex.setExecutionState(ExecutionState.STARTING);
+					
 					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
 						.getExecutionGraph().getJobConfiguration(), vertex.constructInitialActiveOutputChannelsSet()));
 

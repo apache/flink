@@ -38,6 +38,11 @@ public enum ExecutionState {
 	READY,
 
 	/**
+	 * The task is currently deployed to the assigned to task manager.
+	 */
+	STARTING,
+	
+	/**
 	 * The task is currently running.
 	 */
 	RUNNING,

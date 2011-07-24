@@ -987,7 +987,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.READY) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.RUNNING) {
+		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.STARTING) {
+			unexpectedStateChange = false;
+		}
+		if (this.executionState == ExecutionState.STARTING && newExecutionState == ExecutionState.RUNNING) {
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.FINISHING) {
@@ -1009,7 +1012,12 @@ public class Environment implements Runnable, IOReadableWritable {
 			 */
 			unexpectedStateChange = false;
 		}
-
+		if (this.executionState == ExecutionState.STARTING && newExecutionState == ExecutionState.FAILED) {
+			/**
+			 * This transition can appear if a task cannot be deployed at the assigned task manager.
+			 */
+			unexpectedStateChange = false;
+		}
 		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.FAILED) {
 			/**
 			 * This is a regular transition in case of a task error.

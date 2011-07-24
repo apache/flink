@@ -859,6 +859,7 @@ public class ExecutionGraphTest {
 				final ExecutionVertex ev = it.next();
 				ev.setExecutionState(ExecutionState.SCHEDULED);
 				ev.setExecutionState(ExecutionState.READY);
+				ev.setExecutionState(ExecutionState.STARTING);
 				ev.setExecutionState(ExecutionState.RUNNING);
 				ev.setExecutionState(ExecutionState.FINISHING);
 				ev.setExecutionState(ExecutionState.FINISHED);
