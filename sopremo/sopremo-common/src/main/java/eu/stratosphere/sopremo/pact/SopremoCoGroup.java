@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.pact;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
@@ -30,7 +31,23 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 	@Override
 	public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
 			Collector<PactJsonObject.Key, PactJsonObject> out) {
-		coGroup(key.getValue(), JsonUtil.wrapWithNode(true, values1), JsonUtil.wrapWithNode(true, values2),
+		context.increaseInputCounter();
+		if (SopremoUtil.LOG.isDebugEnabled()) {
+			ArrayList<PactJsonObject> cached1 = new ArrayList<PactJsonObject>(), cached2 = new ArrayList<PactJsonObject>();
+			while (values1.hasNext())
+				cached1.add(values1.next());
+			while (values2.hasNext())
+				cached2.add(values2.next());
+			SopremoUtil.LOG.debug(String.format("%s %s/%s/%s", getClass().getSimpleName(), key, cached1, cached2));
+			values1 = cached1.iterator();
+			values2 = cached2.iterator();
+		}
+		coGroup(key.getValue(), JsonUtil.wrapWithNode(needsResettableIterator(0, key, values1), values1),
+			JsonUtil.wrapWithNode(needsResettableIterator(0, key, values2), values2),
 			new JsonCollector(out));
+	}
+
+	protected boolean needsResettableIterator(int input, PactJsonObject.Key key, Iterator<PactJsonObject> values) {
+		return false;
 	}
 }

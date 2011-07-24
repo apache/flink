@@ -6,7 +6,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 
 @OptimizerHints(scope = Scope.ANY)
-public class IdentifierAccess extends EvaluableExpression {
+public class IdentifierAccess extends EvaluationExpression {
 	/**
 	 * 
 	 */

@@ -13,15 +13,15 @@ public class UnaryExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = -4256326224698296602L;
 
-	private Evaluable expr1;
+	private EvaluationExpression expr1;
 
 	private boolean negate = false;
 
-	public UnaryExpression(Evaluable booleanExpr) {
+	public UnaryExpression(EvaluationExpression booleanExpr) {
 		this(booleanExpr, false);
 	}
 
-	public UnaryExpression(Evaluable expr1, boolean negate) {
+	public UnaryExpression(EvaluationExpression expr1, boolean negate) {
 		this.expr1 = expr1;
 		this.negate = negate;
 	}

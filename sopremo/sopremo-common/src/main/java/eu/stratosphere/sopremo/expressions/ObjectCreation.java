@@ -39,7 +39,6 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	};
 
-	// private Map<String, EvaluableExpression> mappings = new LinkedHashMap<String, EvaluableExpression>();
 	private List<Mapping> mappings;
 
 	public ObjectCreation() {
@@ -58,7 +57,7 @@ public class ObjectCreation extends ContainerExpression {
 		this.mappings.add(mapping);
 	}
 
-	public void addMapping(String target, EvaluableExpression expression) {
+	public void addMapping(String target, EvaluationExpression expression) {
 		this.mappings.add(new Mapping(target, expression));
 	}
 
@@ -103,17 +102,17 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<EvaluableExpression> iterator() {
-		return new ConversionIterator<Mapping, EvaluableExpression>(this.mappings.iterator()) {
+	public Iterator<EvaluationExpression> iterator() {
+		return new ConversionIterator<Mapping, EvaluationExpression>(this.mappings.iterator()) {
 			@Override
-			protected EvaluableExpression convert(Mapping inputObject) {
+			protected EvaluationExpression convert(Mapping inputObject) {
 				return inputObject.getExpression();
 			}
 		};
 	}
 
 	@Override
-	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
+	public void replace(EvaluationExpression toReplace, EvaluationExpression replaceFragment) {
 		for (Mapping mapping : this.mappings)
 			if (mapping.getExpression() instanceof ContainerExpression)
 				((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
@@ -138,7 +137,7 @@ public class ObjectCreation extends ContainerExpression {
 		 */
 		private static final long serialVersionUID = -8809405108852546800L;
 
-		public CopyFields(EvaluableExpression expression) {
+		public CopyFields(EvaluationExpression expression) {
 			super("*", expression);
 		}
 
@@ -163,9 +162,9 @@ public class ObjectCreation extends ContainerExpression {
 
 		private final String target;
 
-		private final EvaluableExpression expression;
+		private final EvaluationExpression expression;
 
-		public Mapping(String target, EvaluableExpression expression) {
+		public Mapping(String target, EvaluationExpression expression) {
 			this.target = target;
 			this.expression = expression;
 		}
@@ -186,7 +185,7 @@ public class ObjectCreation extends ContainerExpression {
 			transformedNode.put(this.target, this.expression.evaluate(node, context));
 		}
 
-		public EvaluableExpression getExpression() {
+		public EvaluationExpression getExpression() {
 			return this.expression;
 		}
 

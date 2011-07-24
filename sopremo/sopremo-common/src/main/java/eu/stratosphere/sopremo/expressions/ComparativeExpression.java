@@ -15,11 +15,11 @@ public class ComparativeExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = 4684417232092074534L;
 
-	private EvaluableExpression expr1, expr2;
+	private EvaluationExpression expr1, expr2;
 
 	private BinaryOperator binaryOperator;
 
-	public ComparativeExpression(EvaluableExpression expr1, BinaryOperator binaryOperator, EvaluableExpression expr2) {
+	public ComparativeExpression(EvaluationExpression expr1, BinaryOperator binaryOperator, EvaluationExpression expr2) {
 		this.expr1 = expr1;
 		this.binaryOperator = binaryOperator;
 		this.expr2 = expr2;
@@ -52,11 +52,11 @@ public class ComparativeExpression extends BooleanExpression {
 		return this.binaryOperator;
 	}
 
-	public EvaluableExpression getExpr1() {
+	public EvaluationExpression getExpr1() {
 		return this.expr1;
 	}
 
-	public EvaluableExpression getExpr2() {
+	public EvaluationExpression getExpr2() {
 		return this.expr2;
 	}
 

@@ -4,19 +4,18 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
-import eu.stratosphere.sopremo.base.Selection;
+import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
-import eu.stratosphere.sopremo.expressions.ConditionalExpression;
-import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.expressions.OrExpression;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
 
 public class SelectionTest extends SopremoTest<Selection> {
 	@Override
 	protected Selection createDefaultInstance(int index) {
-		ConditionalExpression condition = new ConditionalExpression(new UnaryExpression(
+		AndExpression condition = new AndExpression(new UnaryExpression(
 			createPath(String.valueOf(index))));
 		return new Selection(condition, null);
 	}
@@ -28,7 +27,7 @@ public class SelectionTest extends SopremoTest<Selection> {
 		ComparativeExpression incomeComparison = new ComparativeExpression(new ObjectAccess("income"),
 			BinaryOperator.GREATER, new ConstantExpression(30000));
 		UnaryExpression mgrFlag = new UnaryExpression(new ObjectAccess("mgr"));
-		ConditionalExpression condition = new ConditionalExpression(Combination.OR, mgrFlag, incomeComparison);
+		OrExpression condition = new OrExpression(mgrFlag, incomeComparison);
 		sopremoPlan.getOutputOperator(0).setInputs(
 			new Selection(condition, sopremoPlan.getInputOperator(0)));
 

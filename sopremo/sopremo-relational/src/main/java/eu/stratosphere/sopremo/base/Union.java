@@ -1,16 +1,14 @@
 package eu.stratosphere.sopremo.base;
 
-import java.util.Iterator;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
@@ -24,13 +22,13 @@ public class Union extends MultiSourceOperator {
 	public Union(List<? extends JsonStream> inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
 	public Union(JsonStream... inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluableExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
 	@Override

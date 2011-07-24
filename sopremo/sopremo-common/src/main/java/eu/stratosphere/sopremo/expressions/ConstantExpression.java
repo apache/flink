@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
 @OptimizerHints(scope = Scope.ANY)
-public class ConstantExpression extends EvaluableExpression {
+public class ConstantExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */

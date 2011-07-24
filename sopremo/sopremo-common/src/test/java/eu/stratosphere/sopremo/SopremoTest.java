@@ -16,8 +16,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
-import eu.stratosphere.sopremo.expressions.ArrayProjection;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -123,9 +123,9 @@ public abstract class SopremoTest<T> {
 	}
 
 	public static PathExpression createPath(List<String> parts) {
-		List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
+		List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 		for (int index = 0; index < parts.size(); index++) {
-			EvaluableExpression segment;
+			EvaluationExpression segment;
 			String part = parts.get(index);
 			if (part.equals("$"))
 				segment = new InputSelection(0);
@@ -133,7 +133,7 @@ public abstract class SopremoTest<T> {
 				segment = new InputSelection(Integer.parseInt(part));
 			else if (part.matches("\\[.*\\]")) {
 				if (part.charAt(1) == '*') {
-					segment = new ArrayProjection(createPath(parts.subList(index + 1, parts.size())));
+					segment = new LazyArrayProjection(createPath(parts.subList(index + 1, parts.size())));
 					index = parts.size();
 				} else if (part.contains(":")) {
 					int delim = part.indexOf(":");

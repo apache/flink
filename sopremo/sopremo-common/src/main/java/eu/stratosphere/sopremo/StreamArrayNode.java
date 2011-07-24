@@ -99,11 +99,6 @@ public abstract class StreamArrayNode extends ContainerNode {
 		throw new UnsupportedOperationException();
 	}
 
-	@Override
-	public String toString() {
-		return "[?]";
-	}
-
 	// equals and hashCode are added to avoid an EqualsVerifier bug
 	@Override
 	public boolean equals(Object obj) {
@@ -115,6 +110,10 @@ public abstract class StreamArrayNode extends ContainerNode {
 	@Override
 	public int hashCode() {
 		return 0;
+	}
+
+	public StreamArrayNode ensureResettable() {
+		return this;
 	}
 
 	/**
@@ -235,6 +234,16 @@ public abstract class StreamArrayNode extends ContainerNode {
 		public boolean isResettable() {
 			return false;
 		}
+
+		@Override
+		public String toString() {
+			return "[?]";
+		}
+
+		@Override
+		public StreamArrayNode ensureResettable() {
+			return StreamArrayNode.valueOf(this.nodes, true);
+		}
 	}
 
 	private static class Resettable extends StreamArrayNode {
@@ -297,6 +306,11 @@ public abstract class StreamArrayNode extends ContainerNode {
 		@Override
 		public boolean isResettable() {
 			return true;
+		}
+
+		@Override
+		public String toString() {
+			return this.nodes.toString();
 		}
 	}
 

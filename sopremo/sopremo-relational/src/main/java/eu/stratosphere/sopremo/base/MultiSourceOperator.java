@@ -9,7 +9,8 @@ import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class MultiSourceOperator extends CompositeOperator {
 
@@ -18,13 +19,13 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 	 */
 	private static final long serialVersionUID = -4054964985762240025L;
 
-	private Map<Operator.Output, EvaluableExpression>
-			keyProjections = new IdentityHashMap<Operator.Output, EvaluableExpression>(),
-			valueProjections = new IdentityHashMap<Operator.Output, EvaluableExpression>();
+	private Map<Operator.Output, EvaluationExpression>
+			keyProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>(),
+			valueProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>();
 
-	private EvaluableExpression defaultKeyProjection = EvaluableExpression.NULL;
+	private EvaluationExpression defaultKeyProjection = EvaluationExpression.NULL;
 
-	private EvaluableExpression defaultValueProjection = EvaluableExpression.SAME_VALUE;
+	private EvaluationExpression defaultValueProjection = EvaluationExpression.SAME_VALUE;
 
 	public MultiSourceOperator(JsonStream... inputs) {
 		super(inputs);
@@ -47,83 +48,12 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 		Operator lastOperator = this.createElementaryOperations(inputs);
 
 		module.getOutput(0).setInput(0,
-			new Projection(EvaluableExpression.NULL, EvaluableExpression.SAME_VALUE, lastOperator));
+			new Projection(EvaluationExpression.NULL, EvaluationExpression.SAME_VALUE, lastOperator));
 
 		return module;
 	}
 
 	protected abstract Operator createElementaryOperations(List<Operator> inputs);
-
-	public EvaluableExpression getKeyProjection(int index) {
-		return this.getKeyProjection(this.getInput(index));
-	}
-
-	public EvaluableExpression getKeyProjection(JsonStream input) {
-		Output source = input == null ? null : input.getSource();
-		EvaluableExpression keyProjection = this.keyProjections.get(source);
-		if (keyProjection == null)
-			keyProjection = this.getDefaultKeyProjection(source);
-		return keyProjection;
-	}
-
-	protected EvaluableExpression getDefaultKeyProjection(Output source) {
-		return this.defaultKeyProjection;
-	}
-
-	protected EvaluableExpression getDefaultValueProjection(Output source) {
-		return this.defaultValueProjection;
-	}
-
-	public void setKeyProjection(int inputIndex, EvaluableExpression keyProjection) {
-		this.setKeyProjection(this.getInput(inputIndex), keyProjection);
-	}
-
-	public void setKeyProjection(JsonStream input, EvaluableExpression keyProjection) {
-		if (keyProjection == null)
-			throw new NullPointerException("keyProjection must not be null");
-
-		this.keyProjections.put(input.getSource(), keyProjection);
-	}
-
-	public EvaluableExpression getValueProjection(int index) {
-		return this.getValueProjection(this.getInput(index));
-	}
-
-	public EvaluableExpression getValueProjection(JsonStream input) {
-		Output source = input == null ? null : input.getSource();
-		EvaluableExpression valueProjection = this.valueProjections.get(source);
-		if (valueProjection == null)
-			valueProjection = this.getDefaultValueProjection(source);
-		return valueProjection;
-	}
-
-	public void setValueProjection(int inputIndex, EvaluableExpression valueProjection) {
-		this.setValueProjection(this.getInput(inputIndex), valueProjection);
-	}
-
-	public void setValueProjection(JsonStream input, EvaluableExpression valueProjection) {
-		if (valueProjection == null)
-			throw new NullPointerException("valueProjection must not be null");
-
-		this.valueProjections.put(input.getSource(), valueProjection);
-	}
-
-	protected void setDefaultValueProjection(EvaluableExpression defaultValueProjection) {
-		this.defaultValueProjection = defaultValueProjection;
-	}
-
-	protected void setDefaultKeyProjection(EvaluableExpression defaultKeyProjection) {
-		this.defaultKeyProjection = defaultKeyProjection;
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + this.keyProjections.hashCode();
-		result = prime * result + this.valueProjections.hashCode();
-		return result;
-	}
 
 	@Override
 	public boolean equals(Object obj) {
@@ -135,6 +65,77 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 			return false;
 		MultiSourceOperator other = (MultiSourceOperator) obj;
 		return this.keyProjections.equals(other.keyProjections) && this.valueProjections.equals(other.valueProjections);
+	}
+
+	protected EvaluationExpression getDefaultKeyProjection(Output source) {
+		return this.defaultKeyProjection;
+	}
+
+	protected EvaluationExpression getDefaultValueProjection(Output source) {
+		return this.defaultValueProjection;
+	}
+
+	public EvaluationExpression getKeyProjection(int index) {
+		return this.getKeyProjection(this.getInput(index));
+	}
+
+	public EvaluationExpression getKeyProjection(JsonStream input) {
+		Output source = input == null ? null : input.getSource();
+		EvaluationExpression keyProjection = this.keyProjections.get(source);
+		if (keyProjection == null)
+			keyProjection = this.getDefaultKeyProjection(source);
+		return keyProjection;
+	}
+
+	public EvaluationExpression getValueProjection(int index) {
+		return this.getValueProjection(this.getInput(index));
+	}
+
+	public EvaluationExpression getValueProjection(JsonStream input) {
+		Output source = input == null ? null : input.getSource();
+		EvaluationExpression valueProjection = this.valueProjections.get(source);
+		if (valueProjection == null)
+			valueProjection = this.getDefaultValueProjection(source);
+		return valueProjection;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + this.keyProjections.hashCode();
+		result = prime * result + this.valueProjections.hashCode();
+		return result;
+	}
+
+	protected void setDefaultKeyProjection(EvaluationExpression defaultKeyProjection) {
+		this.defaultKeyProjection = defaultKeyProjection;
+	}
+
+	protected void setDefaultValueProjection(EvaluationExpression defaultValueProjection) {
+		this.defaultValueProjection = defaultValueProjection;
+	}
+
+	public void setKeyProjection(int inputIndex, EvaluationExpression keyProjection) {
+		this.setKeyProjection(this.getInput(inputIndex), keyProjection);
+	}
+
+	public void setKeyProjection(JsonStream input, EvaluationExpression keyProjection) {
+		if (keyProjection == null)
+			throw new NullPointerException("keyProjection must not be null");
+
+		this.keyProjections.put(input.getSource(), keyProjection);
+	}
+
+	public void setValueProjection(int inputIndex, EvaluationExpression valueProjection) {
+		this.setValueProjection(this.getInput(inputIndex), valueProjection);
+	}
+
+	public void setValueProjection(JsonStream input, EvaluationExpression valueProjection) {
+		if (valueProjection == null)
+			throw new NullPointerException("valueProjection must not be null");
+
+		this.valueProjections.put(input.getSource(), valueProjection);
 	}
 
 	// @Override

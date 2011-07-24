@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.pact;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
@@ -9,6 +10,8 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 
 public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
 		extends ReduceStub<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
@@ -23,11 +26,24 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 		return this.context;
 	}
 
-	protected abstract void reduce(JsonNode key1, JsonNode values, JsonCollector out);
+	protected abstract void reduce(JsonNode key, StreamArrayNode values, JsonCollector out);
 
 	@Override
 	public void reduce(PactJsonObject.Key key, Iterator<PactJsonObject> values,
 			Collector<PactJsonObject.Key, PactJsonObject> out) {
-		reduce(key.getValue(), JsonUtil.wrapWithNode(true, values), new JsonCollector(out));
+		context.increaseInputCounter();
+		if (SopremoUtil.LOG.isDebugEnabled()) {
+			ArrayList<PactJsonObject> cached = new ArrayList<PactJsonObject>();
+			while (values.hasNext())
+				cached.add(values.next());
+			SopremoUtil.LOG.debug(String.format("%s %s/%s", getClass().getSimpleName(), key, cached));
+			values = cached.iterator();
+		}
+		reduce(key.getValue(), JsonUtil.wrapWithNode(needsResettableIterator(key, values), values), new JsonCollector(
+			out));
+	}
+
+	protected boolean needsResettableIterator(PactJsonObject.Key key, Iterator<PactJsonObject> values) {
+		return false;
 	}
 }

@@ -18,9 +18,9 @@ public class FunctionCall extends ContainerExpression {
 
 	private String name;
 
-	private EvaluableExpression[] paramExprs;
+	private EvaluationExpression[] paramExprs;
 
-	public FunctionCall(String name, EvaluableExpression... params) {
+	public FunctionCall(String name, EvaluationExpression... params) {
 		this.name = name;
 		this.paramExprs = params;
 	}
@@ -61,7 +61,7 @@ public class FunctionCall extends ContainerExpression {
 	// }
 
 	@Override
-	public Iterator<EvaluableExpression> iterator() {
+	public Iterator<EvaluationExpression> iterator() {
 		return Arrays.asList(this.paramExprs).iterator();
 	}
 

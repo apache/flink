@@ -12,6 +12,16 @@ public class EvaluationContext implements SerializableSopremoType {
 
 	private FunctionRegistry functionRegistry = new FunctionRegistry();
 
+	private int inputCounter = 0;
+
+	public void increaseInputCounter() {
+		this.inputCounter++;
+	}
+
+	public int getInputCounter() {
+		return this.inputCounter;
+	}
+
 	/**
 	 * Returns the {@link FunctionRegistry} containing all registered function in the current evaluation context.
 	 * 

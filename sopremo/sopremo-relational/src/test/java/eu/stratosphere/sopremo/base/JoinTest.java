@@ -4,25 +4,21 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.SopremoTestPlan;
-import eu.stratosphere.sopremo.base.Join;
-import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
-import eu.stratosphere.sopremo.expressions.ConditionalExpression;
-import eu.stratosphere.sopremo.expressions.ConditionalExpression.Combination;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class JoinTest extends SopremoTest<Join> {
 	@Override
 	protected Join createDefaultInstance(int index) {
 		ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("field", createPath("0", "[" + index + "]"));
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+		AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.EQUAL, createPath("1",
 				"userid")));
 		return new Join(transformation, condition, null, null);
@@ -32,7 +28,7 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformEquiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+		AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.EQUAL, createPath("1", "userid")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
@@ -64,8 +60,8 @@ public class JoinTest extends SopremoTest<Join> {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		EvaluableExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.PRESERVE);
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(leftJoinKey,
+		EvaluationExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.PRESERVE);
+		AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
 			BinaryOperator.EQUAL, createPath("1", "userid")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
@@ -99,8 +95,8 @@ public class JoinTest extends SopremoTest<Join> {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		EvaluableExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.PRESERVE);
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+		EvaluationExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.PRESERVE);
+		AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.EQUAL, rightJoinKey));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
@@ -135,9 +131,9 @@ public class JoinTest extends SopremoTest<Join> {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		EvaluableExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.PRESERVE);
-		EvaluableExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.PRESERVE);
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(leftJoinKey,
+		EvaluationExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.PRESERVE);
+		EvaluationExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.PRESERVE);
+		AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
 			BinaryOperator.EQUAL, rightJoinKey));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
@@ -168,7 +164,7 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformThetaJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ComparativeExpression(createPath("0", "id"),
+		AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.LESS, createPath("1",
 				"userid")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
@@ -209,7 +205,7 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformAntiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ElementInSetExpression(
+		AndExpression condition = new AndExpression(new ElementInSetExpression(
 			createPath("0", "DeptName"), Quantor.EXISTS_NOT_IN, createPath("1", "Name")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
@@ -233,7 +229,7 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformSemiJoin() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(new ElementInSetExpression(createPath("0",
+		AndExpression condition = new AndExpression(new ElementInSetExpression(createPath("0",
 			"DeptName"), Quantor.EXISTS_IN,
 			createPath("1", "Name")));
 		Join join = new Join(ObjectCreation.CONCATENATION, condition, sopremoPlan.getInputOperators(0, 2));
@@ -258,7 +254,7 @@ public class JoinTest extends SopremoTest<Join> {
 	public void shouldPerformEquiJoinOnThreeInputs() {
 		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
-		ConditionalExpression condition = new ConditionalExpression(Combination.AND,
+		AndExpression condition = new AndExpression(
 			new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1", "userid")),
 			new ComparativeExpression(createPath("1", "url"), BinaryOperator.EQUAL, createPath("2", "page")));
 		ObjectCreation transformation = new ObjectCreation();

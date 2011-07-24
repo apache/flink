@@ -24,6 +24,9 @@ public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends Pa
 	@Override
 	public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
 			Collector<Key, PactJsonObject> out) {
+		context.increaseInputCounter();
+		if (SopremoUtil.LOG.isDebugEnabled())
+			SopremoUtil.LOG.debug(String.format("%s %s/%s/%s", getClass().getSimpleName(), key, value1, value2));
 		match(key.getValue(), value1.getValue(), value2.getValue(), new JsonCollector(out));
 	}
 

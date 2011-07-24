@@ -10,7 +10,8 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.expressions.ConditionalExpression;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -22,9 +23,9 @@ public class Selection extends ElementaryOperator {
 	 */
 	private static final long serialVersionUID = -7687925343684319311L;
 
-	private final ConditionalExpression condition;
+	private final BooleanExpression condition;
 
-	public Selection(ConditionalExpression condition, JsonStream input) {
+	public Selection(BooleanExpression condition, JsonStream input) {
 		super(input);
 		this.condition = condition;
 	}
@@ -40,7 +41,7 @@ public class Selection extends ElementaryOperator {
 		return super.equals(obj) && this.condition.equals(((Selection) obj).condition);
 	}
 
-	public ConditionalExpression getCondition() {
+	public BooleanExpression getCondition() {
 		return this.condition;
 	}
 
@@ -74,12 +75,12 @@ public class Selection extends ElementaryOperator {
 
 	public static class SelectionStub extends
 			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-		private ConditionalExpression condition;
+		private BooleanExpression condition;
 
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
-			this.condition = SopremoUtil.deserialize(parameters, "condition", ConditionalExpression.class);
+			this.condition = SopremoUtil.deserialize(parameters, "condition", BooleanExpression.class);
 		}
 
 		@Override

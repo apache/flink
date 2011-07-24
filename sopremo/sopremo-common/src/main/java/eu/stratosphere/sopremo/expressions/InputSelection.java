@@ -5,7 +5,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 1, maxNodes = OptimizerHints.UNBOUND)
-public class InputSelection extends EvaluableExpression {
+public class InputSelection extends EvaluationExpression {
 	/**
 	 * 
 	 */

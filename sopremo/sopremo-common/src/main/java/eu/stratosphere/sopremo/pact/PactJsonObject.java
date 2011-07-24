@@ -29,6 +29,7 @@ import org.codehaus.jackson.node.ValueNode;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.StreamArrayNode;
 
 /**
  * Wraps a Jackson {@link JsonNode}.
@@ -105,10 +106,7 @@ public class PactJsonObject implements Value {
 
 	@Override
 	public void read(final DataInput in) throws IOException {
-		this.serializationString.read(in);
-		JsonParser parser = JsonUtil.FACTORY.createJsonParser(this.serializationString.toString());
-		parser.setCodec(JsonUtil.OBJECT_MAPPER);
-		this.value = parser.readValueAsTree();
+		this.value = SopremoUtil.deserializeNode(in);
 	}
 
 	/**
@@ -131,12 +129,7 @@ public class PactJsonObject implements Value {
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
-		final StringWriter writer = new StringWriter();
-		JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
-		generator.setCodec(JsonUtil.OBJECT_MAPPER);
-		generator.writeTree(this.value);
-		this.serializationString.setValue(writer.toString());
-		this.serializationString.write(out);
+		SopremoUtil.serializeNode(out, this.value);
 	}
 
 	private static boolean isValidArray(JsonNode node) {
@@ -159,17 +152,23 @@ public class PactJsonObject implements Value {
 	 *         if the node is not of a comparable type
 	 */
 	public static Key keyOf(JsonNode node) {
-		if (node instanceof ValueNode)
-			return new Key(node);
-		if (node.isArray()) {
-			if (!isValidArray(node))
-				throw new IllegalArgumentException(node + " is not a valid key array");
-			return new Key(node);
-		}
-		throw new IllegalArgumentException(node.getClass().getSimpleName());
+		return new Key(node);
+//		if (node instanceof ValueNode)
+//			return new Key(node);
+//		if (node.isArray()) {
+//			if (!isValidArray(node))
+//				throw new IllegalArgumentException(node + " is not a valid key array");
+//			return new Key(node);
+//		}
+//		throw new IllegalArgumentException(node.getClass().getSimpleName());
 	}
 
 	public static PactJsonObject valueOf(JsonNode value) {
+		if (value instanceof StreamArrayNode && !((StreamArrayNode) value).isResettable()) {
+			value = StreamArrayNode.valueOf(value.getElements(), true);
+			if (SopremoUtil.LOG.isInfoEnabled())
+				SopremoUtil.LOG.info(String.format("needed to materialize the stream array " + value));
+		}
 		return new PactJsonObject(value);
 	}
 

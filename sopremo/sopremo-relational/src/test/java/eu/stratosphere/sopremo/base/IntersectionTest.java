@@ -10,14 +10,14 @@ import eu.stratosphere.sopremo.base.Intersection;
 import eu.stratosphere.sopremo.base.Intersection;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class IntersectionTest extends SopremoTest<Intersection> {
 	@Override
 	protected Intersection createDefaultInstance(int index) {
-		Intersection intersection = new Intersection(new Source(EvaluableExpression.NULL), null, null);
+		Intersection intersection = new Intersection(new Source(EvaluationExpression.NULL), null, null);
 		intersection.setKeyProjection(0, createPath(String.valueOf(index)));
 		return intersection;
 	}

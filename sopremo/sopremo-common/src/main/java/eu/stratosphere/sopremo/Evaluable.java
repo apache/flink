@@ -2,12 +2,12 @@ package eu.stratosphere.sopremo;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.function.Function;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
 
 /**
- * Represents all evaluable entities such as {@link EvaluableExpression}s or {@link Function}s.
+ * Represents all evaluable entities such as {@link EvaluationExpression}s or {@link Function}s.
  * 
  * @author Arvid Heise
  */

@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.pact;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
@@ -25,6 +26,9 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 	protected abstract void map(JsonNode key, JsonNode value, JsonCollector out);
 
 	public void map(PactJsonObject.Key key, PactJsonObject value, Collector<PactJsonObject.Key, PactJsonObject> out) {
+		context.increaseInputCounter();
+		if (SopremoUtil.LOG.isDebugEnabled()) 
+			SopremoUtil.LOG.debug(String.format("%s %s/%s", getClass().getSimpleName(), key, value));
 		map(key.getValue(), value.getValue(), new JsonCollector(out));
 	};
 }

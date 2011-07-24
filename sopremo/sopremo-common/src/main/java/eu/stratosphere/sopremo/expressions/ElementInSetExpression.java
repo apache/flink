@@ -16,11 +16,11 @@ public class ElementInSetExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = -2695263646399347776L;
 
-	private EvaluableExpression elementExpr, setExpr;;
+	private EvaluationExpression elementExpr, setExpr;;
 
 	private Quantor quantor;
 
-	public ElementInSetExpression(EvaluableExpression elementExpr, Quantor quantor, EvaluableExpression setExpr) {
+	public ElementInSetExpression(EvaluationExpression elementExpr, Quantor quantor, EvaluationExpression setExpr) {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
@@ -50,7 +50,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	// return super.evaluate(input);
 	// }
 
-	public EvaluableExpression getElementExpr() {
+	public EvaluationExpression getElementExpr() {
 		return this.elementExpr;
 	}
 
@@ -58,7 +58,7 @@ public class ElementInSetExpression extends BooleanExpression {
 		return this.quantor;
 	}
 
-	public EvaluableExpression getSetExpr() {
+	public EvaluationExpression getSetExpr() {
 		return this.setExpr;
 	}
 

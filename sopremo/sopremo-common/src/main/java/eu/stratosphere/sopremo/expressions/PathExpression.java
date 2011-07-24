@@ -18,21 +18,21 @@ public class PathExpression extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
 
-	private List<EvaluableExpression> fragments = new ArrayList<EvaluableExpression>();
+	private List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 
-	public PathExpression(EvaluableExpression... fragments) {
+	public PathExpression(EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
 	}
 
-	public PathExpression(List<EvaluableExpression> fragments) {
-		for (EvaluableExpression evaluableExpression : fragments)
+	public PathExpression(List<? extends EvaluationExpression> fragments) {
+		for (EvaluationExpression evaluableExpression : fragments)
 			if (evaluableExpression instanceof PathExpression)
 				this.fragments.addAll(((PathExpression) evaluableExpression).fragments);
 			else
 				this.fragments.add(evaluableExpression);
 	}
 
-	public void add(EvaluableExpression fragment) {
+	public void add(EvaluationExpression fragment) {
 		this.fragments.add(fragment);
 	}
 
@@ -60,11 +60,11 @@ public class PathExpression extends ContainerExpression {
 		return this.fragments.size();
 	}
 
-	public EvaluableExpression getFragment(int index) {
+	public EvaluationExpression getFragment(int index) {
 		return this.fragments.get(index);
 	}
 
-	public List<EvaluableExpression> getFragments() {
+	public List<EvaluationExpression> getFragments() {
 		return this.fragments;
 	}
 
@@ -83,12 +83,12 @@ public class PathExpression extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<EvaluableExpression> iterator() {
+	public Iterator<EvaluationExpression> iterator() {
 		return this.fragments.iterator();
 	}
 
 	@Override
-	public void replace(EvaluableExpression toReplace, EvaluableExpression replaceFragment) {
+	public void replace(EvaluationExpression toReplace, EvaluationExpression replaceFragment) {
 		super.replace(toReplace, replaceFragment);
 
 		PathExpression pathToFind = this.wrapAsPath(toReplace);
@@ -109,11 +109,11 @@ public class PathExpression extends ContainerExpression {
 
 	@Override
 	protected void toString(StringBuilder builder) {
-		for (EvaluableExpression fragment : this.fragments)
+		for (EvaluationExpression fragment : this.fragments)
 			fragment.toString(builder);
 	}
 
-	private PathExpression wrapAsPath(EvaluableExpression expression) {
+	private PathExpression wrapAsPath(EvaluationExpression expression) {
 		if (expression instanceof PathExpression)
 			return (PathExpression) expression;
 		return new PathExpression(expression);

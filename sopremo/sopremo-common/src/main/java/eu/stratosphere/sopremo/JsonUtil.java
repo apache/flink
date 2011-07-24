@@ -6,6 +6,7 @@ import java.util.List;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -33,6 +34,8 @@ public class JsonUtil {
 	 * configured JsonFactory is needed, a new instance should be created.
 	 */
 	public static final JsonFactory FACTORY = new JsonFactory();
+
+	public static final JsonNode ZERO = new IntNode(0);
 
 	/**
 	 * Creates an efficient read-only wrapper for the given node array.

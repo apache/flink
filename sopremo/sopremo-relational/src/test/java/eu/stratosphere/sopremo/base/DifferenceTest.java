@@ -7,13 +7,13 @@ import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 
 public class DifferenceTest extends SopremoTest<Difference> {
 	@Override
 	protected Difference createDefaultInstance(int index) {
-		Difference difference = new Difference(new Source(EvaluableExpression.NULL), null, null);
+		Difference difference = new Difference(new Source(EvaluationExpression.NULL), null, null);
 		difference.setKeyProjection(0, createPath(String.valueOf(index)));
 		return difference;
 	}

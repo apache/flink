@@ -3,7 +3,9 @@ package eu.stratosphere.sopremo.expressions;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
+import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.codehaus.jackson.JsonNode;
@@ -24,7 +26,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.NUMBER, minNodes = 2, maxNodes = 2, transitive = true)
-public class ArithmeticExpression extends EvaluableExpression {
+public class ArithmeticExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -32,10 +34,10 @@ public class ArithmeticExpression extends EvaluableExpression {
 
 	private ArithmeticExpression.ArithmeticOperator operator;
 
-	private EvaluableExpression op1, op2;
+	private EvaluationExpression op1, op2;
 
 	/**
-	 * Initializes Arithmetic with two {@link EvaluableExpression}s and an {@link ArithmeticOperator} in infix notation.
+	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix notation.
 	 * 
 	 * @param op1
 	 *        the first operand
@@ -44,7 +46,7 @@ public class ArithmeticExpression extends EvaluableExpression {
 	 * @param op2
 	 *        the second operand
 	 */
-	public ArithmeticExpression(EvaluableExpression op1, ArithmeticOperator operator, EvaluableExpression op2) {
+	public ArithmeticExpression(EvaluationExpression op1, ArithmeticOperator operator, EvaluationExpression op2) {
 		this.operator = operator;
 		this.op1 = op1;
 		this.op2 = op2;

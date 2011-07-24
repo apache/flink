@@ -19,7 +19,7 @@ import eu.stratosphere.sopremo.JsonUtil;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
-public class ArrayAccess extends EvaluableExpression {
+public class ArrayAccess extends EvaluationExpression {
 
 	/**
 	 * 

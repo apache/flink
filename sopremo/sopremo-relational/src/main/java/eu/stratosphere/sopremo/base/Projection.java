@@ -12,7 +12,8 @@ import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -24,11 +25,9 @@ public class Projection extends ElementaryOperator {
 	 */
 	private static final long serialVersionUID = 2170992457478875950L;
 
-	private static final Log LOG = LogFactory.getLog(Projection.class);
+	private final EvaluationExpression keyTransformation, valueTransformation;
 
-	private final EvaluableExpression keyTransformation, valueTransformation;
-
-	public Projection(EvaluableExpression keyTransformation, EvaluableExpression valueTransformation, JsonStream input) {
+	public Projection(EvaluationExpression keyTransformation, EvaluationExpression valueTransformation, JsonStream input) {
 		super(input);
 		if (valueTransformation == null || keyTransformation == null)
 			throw new NullPointerException();
@@ -36,8 +35,8 @@ public class Projection extends ElementaryOperator {
 		this.valueTransformation = valueTransformation;
 	}
 
-	public Projection(EvaluableExpression valueTransformation, JsonStream input) {
-		this(EvaluableExpression.SAME_KEY, valueTransformation, input);
+	public Projection(EvaluationExpression valueTransformation, JsonStream input) {
+		this(EvaluationExpression.SAME_KEY, valueTransformation, input);
 	}
 
 	@Override
@@ -89,7 +88,7 @@ public class Projection extends ElementaryOperator {
 	 * 
 	 * @return the key transformation of this operation
 	 */
-	public EvaluableExpression getKeyTransformation() {
+	public EvaluationExpression getKeyTransformation() {
 		return this.keyTransformation;
 	}
 
@@ -98,34 +97,30 @@ public class Projection extends ElementaryOperator {
 	 * 
 	 * @return the value transformation of this operation
 	 */
-	public EvaluableExpression getValueTransformation() {
+	public EvaluationExpression getValueTransformation() {
 		return this.valueTransformation;
 	}
 
 	public static class ProjectionStub extends
 			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 
-		private EvaluableExpression keyTransformation, valueTransformation;
+		private EvaluationExpression keyTransformation, valueTransformation;
 
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
 			this.keyTransformation = SopremoUtil
-				.deserialize(parameters, "keyTransformation", EvaluableExpression.class);
+				.deserialize(parameters, "keyTransformation", EvaluationExpression.class);
 			this.valueTransformation = SopremoUtil.deserialize(parameters, "valueTransformation",
-				EvaluableExpression.class);
+				EvaluationExpression.class);
 		}
 
 		@Override
 		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-			if (LOG.isDebugEnabled())
-				LOG.debug(String.format("Projecting %s/%s", key, value));
-			if (this.keyTransformation != EvaluableExpression.SAME_KEY)
+			if (this.keyTransformation != EvaluationExpression.SAME_KEY)
 				key = this.keyTransformation.evaluate(value, this.getContext());
-			if (this.keyTransformation != EvaluableExpression.SAME_VALUE)
+			if (this.keyTransformation != EvaluationExpression.SAME_VALUE)
 				value = this.valueTransformation.evaluate(value, this.getContext());
-			if (LOG.isDebugEnabled())
-				LOG.debug(String.format(" to %s/%s", key, value));
 			out.collect(key, value);
 		}
 	}

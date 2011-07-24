@@ -11,7 +11,7 @@ import eu.stratosphere.sopremo.EvaluationException;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.OBJECT)
-public class ObjectAccess extends EvaluableExpression {
+public class ObjectAccess extends EvaluationExpression {
 
 	/**
 	 * 

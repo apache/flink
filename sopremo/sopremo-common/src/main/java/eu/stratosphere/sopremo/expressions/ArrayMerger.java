@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.JsonUtil;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.ARRAY, transitive = true, minNodes = 1, maxNodes = OptimizerHints.UNBOUND, iterating = true)
-public class ArrayMerger extends EvaluableExpression {
+public class ArrayMerger extends EvaluationExpression {
 	/**
 	 * 
 	 */

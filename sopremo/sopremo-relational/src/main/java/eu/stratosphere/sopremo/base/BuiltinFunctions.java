@@ -5,17 +5,30 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import javassist.expr.NewArray;
+
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.DoubleNode;
 import org.codehaus.jackson.node.IntNode;
+import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.NumericNode;
 
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.aggregation.MaterializingAggregationFunction;
+import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
+import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.Scope;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
@@ -25,7 +38,7 @@ import eu.stratosphere.util.ConcatenatingIterator;
  * @author Arvid Heise
  */
 public class BuiltinFunctions {
-	private static final JsonNode ZERO = JsonUtil.OBJECT_MAPPER.valueToTree(0);
+	private static final NumericNode ZERO = new IntNode(0), ONE = new IntNode(1);
 
 	/**
 	 * Concatenates the textual representation of the nodes.
@@ -116,4 +129,57 @@ public class BuiltinFunctions {
 				union.add(child);
 		return union;
 	}
+
+	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
+		@Override
+		protected JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context) {
+			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, (NumericNode) node);
+		}
+	};
+
+	public static final AggregationFunction COUNT = new TransitiveAggregationFunction("count", ZERO) {
+		@Override
+		protected JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context) {
+			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, ONE);
+		}
+	};
+
+	public static final AggregationFunction FIRST = new TransitiveAggregationFunction("first", NullNode.getInstance()) {
+		@Override
+		protected JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context) {
+			return aggregate.isNull() ? node : aggregate;
+		}
+	};
+
+	public static final AggregationFunction SORT = new MaterializingAggregationFunction("sort") {
+		protected List<JsonNode> processNodes(List<JsonNode> nodes) {
+			Collections.sort(nodes, JsonNodeComparator.INSTANCE);
+			return nodes;
+		}
+	};
+
+	public static final AggregationFunction AVERAGE = new AggregationFunction("avg") {
+		private transient int count;
+
+		private transient double value;
+
+		@Override
+		public JsonNode getFinalAggregate() {
+			if (count == 0)
+				return DoubleNode.valueOf(Double.NaN);
+			return DoubleNode.valueOf(value / count);
+		}
+
+		@Override
+		public void initialize() {
+			count = 0;
+			value = 0;
+		}
+
+		@Override
+		public void aggregate(JsonNode node, EvaluationContext context) {
+			value += node.getDoubleValue();
+			count++;
+		}
+	};
 }

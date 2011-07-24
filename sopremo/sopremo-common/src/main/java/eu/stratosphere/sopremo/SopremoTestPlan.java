@@ -213,7 +213,8 @@ public class SopremoTestPlan {
 		}
 	}
 
-	public static class Input extends Channel<Source, Input> {
+	public static class Input extends Channel<Source, Input> implements
+			Iterable<KeyValuePair<PactJsonObject.Key, PactJsonObject>> {
 		public Input(int index) {
 			super(new MockupSource(index), index);
 		}
@@ -224,7 +225,8 @@ public class SopremoTestPlan {
 		}
 	}
 
-	public static class ExpectedOutput extends Channel<Source, ExpectedOutput> {
+	public static class ExpectedOutput extends Channel<Source, ExpectedOutput> implements
+			Iterable<KeyValuePair<PactJsonObject.Key, PactJsonObject>> {
 		public ExpectedOutput(int index) {
 			super(new MockupSource(index), index);
 		}

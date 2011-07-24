@@ -8,13 +8,13 @@ import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Intersection;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 
 public class UnionTest extends SopremoTest<Union> {
 	@Override
 	protected Union createDefaultInstance(int index) {
-		Union union = new Union(new Source(EvaluableExpression.NULL), null, null);
+		Union union = new Union(new Source(EvaluationExpression.NULL), null, null);
 		union.setKeyProjection(0, createPath(String.valueOf(index)));
 		return union;
 	}

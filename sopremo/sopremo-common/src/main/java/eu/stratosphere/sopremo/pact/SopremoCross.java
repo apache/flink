@@ -25,6 +25,10 @@ public abstract class SopremoCross<IK1 extends PactJsonObject.Key, IV1 extends P
 	@Override
 	public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2, PactJsonObject value2,
 			Collector<PactJsonObject.Key, PactJsonObject> out) {
+		context.increaseInputCounter();
+		if (SopremoUtil.LOG.isDebugEnabled())
+			SopremoUtil.LOG.debug(String.format("%s %s/%s %s/%s", getClass().getSimpleName(), key1, value1, key2,
+				value2));
 		cross(key1.getValue(), value1.getValue(), key2.getValue(), value2.getValue(), new JsonCollector(out));
 	}
 

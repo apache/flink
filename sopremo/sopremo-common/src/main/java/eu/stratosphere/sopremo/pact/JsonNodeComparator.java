@@ -2,7 +2,9 @@ package eu.stratosphere.sopremo.pact;
 
 import java.util.Comparator;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
@@ -47,7 +49,6 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 				throw new EvaluationException("Cannot compare two objects");
 			}
 		};
-		this.nodeComparators.put(ObjectNode.class, cannotCompare);
 		this.nodeComparators.put(POJONode.class, cannotCompare);
 		this.nodeComparators.put(BinaryNode.class, cannotCompare);
 		this.nodeComparators.put(MissingNode.class, cannotCompare);
@@ -83,6 +84,30 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		@Override
 		public int compare(DoubleNode value1, DoubleNode value2) {
 			return Double.compare(value1.getDoubleValue(), value2.getDoubleValue());
+		}
+	}
+
+	public final static class ObjectNodeComparator implements Comparator<ObjectNode> {
+		public final static JsonNodeComparator.ObjectNodeComparator INSTANCE = new ObjectNodeComparator();
+
+		@Override
+		public int compare(ObjectNode value1, ObjectNode value2) {
+			Iterator<Entry<String, JsonNode>> fields1 = value1.getFields();
+			Iterator<Entry<String, JsonNode>> fields2 = value2.getFields();
+
+			while (fields1.hasNext() && fields2.hasNext()) {
+				Entry<String, JsonNode> field1 = fields1.next();
+				Entry<String, JsonNode> field2 = fields2.next();
+
+				int keyComparison = field1.getKey().compareTo(field2.getKey());
+				if (keyComparison != 0)
+					return keyComparison;
+				int valueComparison = JsonNodeComparator.INSTANCE.compare(field1.getValue(), field2.getValue());
+				if (valueComparison != 0)
+					return valueComparison;
+			}
+
+			return fields1.hasNext() ? -1 : (fields2.hasNext() ? 1 : 0);
 		}
 	}
 

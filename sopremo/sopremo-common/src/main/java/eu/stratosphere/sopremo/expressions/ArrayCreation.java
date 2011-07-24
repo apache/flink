@@ -23,7 +23,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
 
-	private EvaluableExpression[] elements;
+	private EvaluationExpression[] elements;
 
 	/**
 	 * Initializes ArrayCreation to create an array of the given expressions.
@@ -31,7 +31,7 @@ public class ArrayCreation extends ContainerExpression {
 	 * @param elements
 	 *        the expressions that evaluate to the elements in the array
 	 */
-	public ArrayCreation(EvaluableExpression... elements) {
+	public ArrayCreation(EvaluationExpression... elements) {
 		this.elements = elements;
 	}
 
@@ -41,8 +41,8 @@ public class ArrayCreation extends ContainerExpression {
 	 * @param elements
 	 *        the expressions that evaluate to the elements in the array
 	 */
-	public ArrayCreation(List<EvaluableExpression> elements) {
-		this.elements = elements.toArray(new EvaluableExpression[elements.size()]);
+	public ArrayCreation(List<EvaluationExpression> elements) {
+		this.elements = elements.toArray(new EvaluationExpression[elements.size()]);
 	}
 
 	@Override
@@ -66,7 +66,7 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<EvaluableExpression> iterator() {
+	public Iterator<EvaluationExpression> iterator() {
 		return Arrays.asList(this.elements).iterator();
 	}
 

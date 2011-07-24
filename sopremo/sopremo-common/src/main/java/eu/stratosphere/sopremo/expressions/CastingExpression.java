@@ -8,7 +8,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 
 @OptimizerHints(scope = Scope.NUMBER)
-public class CastingExpression extends EvaluableExpression {
+public class CastingExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */
