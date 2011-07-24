@@ -112,7 +112,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean isClosed() throws IOException {
+	public boolean isClosed() throws IOException, InterruptedException {
 
 		if (this.closeRequested && this.uncompressedDataBuffer == null
 			&& !this.serializationBuffer.dataLeftFromPreviousSerialization()) {
@@ -121,6 +121,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				throw this.ioException;
 			}
 
+			if(this.outputChannelBroker.hasDataLeftToTransmit()) {
+				return false;
+			}
+			
 			synchronized (this.synchronisationObject) {
 				if (this.closeAcknowledgementReceived) {
 					return true;

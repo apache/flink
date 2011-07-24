@@ -479,7 +479,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean isClosed() throws IOException {
+	public boolean isClosed() throws IOException, InterruptedException {
 
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);

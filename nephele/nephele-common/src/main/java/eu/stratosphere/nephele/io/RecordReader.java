@@ -208,8 +208,9 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 * @return <code>true</code> if the respective input channel is already closed, otherwise <code>false</code>
 	 * @throws IOException
 	 *         thrown if an error occurred while closing the input channel
+	 * @throws InterruptedException thrown if the channel is interrupted while processing this call
 	 */
-	public boolean isInputChannelClosed(int index) throws IOException {
+	public boolean isInputChannelClosed(int index) throws IOException, InterruptedException {
 
 		if (index < this.inputGate.getNumberOfInputChannels()) {
 			return this.inputGate.getInputChannel(index).isClosed();

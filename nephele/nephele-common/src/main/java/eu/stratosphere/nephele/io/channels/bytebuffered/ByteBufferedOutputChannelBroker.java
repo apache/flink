@@ -45,6 +45,18 @@ public interface ByteBufferedOutputChannelBroker {
 	void releaseWriteBuffers() throws IOException, InterruptedException;
 
 	/**
+	 * Checks if there is still data created by this output channel that must be transfered to the corresponding input
+	 * channel.
+	 * 
+	 * @return <code>true</code> if the channel has data left to transmit, <code>false</code> otherwise
+	 * @throws InterruptedException
+	 *         thrown if the connected task is interrupted while waiting for the remaining data to be transmitted
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the remaining data
+	 */
+	boolean hasDataLeftToTransmit() throws IOException, InterruptedException;
+
+	/**
 	 * Forwards the given event to the connected network input channel on a best effort basis.
 	 * 
 	 * @param event

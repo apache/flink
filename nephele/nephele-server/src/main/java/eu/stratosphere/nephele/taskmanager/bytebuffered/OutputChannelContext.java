@@ -250,6 +250,9 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		return this.byteBufferedOutputChannel.getJobID();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
 
@@ -257,7 +260,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			LOG.error("Transfer envelope for output channel has buffer attached");
 		}
 
-		Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
+		final Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
 		while (it.hasNext()) {
 
 			final AbstractEvent event = it.next();
@@ -268,5 +271,19 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 				this.byteBufferedOutputChannel.processEvent(event);
 			}
 		}
+	}
+
+	@Override
+	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
+		
+		if(!this.isReceiverRunning) {
+			return true;
+		}
+		
+		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
+			this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
+		}
+		
+		return false;
 	}
 }

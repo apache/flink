@@ -26,7 +26,7 @@ public final class InMemoryInputChannel<T extends Record> extends AbstractByteBu
 
 	public InMemoryInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
 			ChannelID channelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, deserializer, channelID, compressionLevel);
+		super(inputGate, channelIndex, deserializer, channelID, CompressionLevel.NO_COMPRESSION);
 	}
 
 	@Override

@@ -400,6 +400,8 @@ public class EnvironmentTest {
 			}
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		}
 	}
 

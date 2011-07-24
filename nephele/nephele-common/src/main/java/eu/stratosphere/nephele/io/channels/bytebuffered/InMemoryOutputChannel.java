@@ -25,7 +25,7 @@ public final class InMemoryOutputChannel<T extends Record> extends AbstractByteB
 
 	public InMemoryOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
 			CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, compressionLevel);
+		super(outputGate, channelIndex, channelID, CompressionLevel.NO_COMPRESSION);
 	}
 
 	@Override

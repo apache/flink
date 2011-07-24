@@ -310,15 +310,10 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	}
 
 	/**
-	 * Checks if the output gate is already closed. A gate is closed when all
-	 * its associated output channels are closed.
-	 * 
-	 * @return <code>true</code> if the gate is closed, <code>false</code> otherwise
-	 * @throws IOException
-	 *         thrown if an error has occurred while closing the channels
+	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean isClosed() throws IOException {
+	public boolean isClosed() throws IOException, InterruptedException {
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
 			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
 			if (!outputChannel.isClosed()) {

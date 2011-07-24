@@ -123,8 +123,10 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	 * @return <code>true</code> if the gate is closed, <code>false</code> otherwise
 	 * @throws IOException
 	 *         thrown if any error occurred while closing the gate
+	 * @throws InterruptedException
+	 *         thrown if the gate is interrupted while waiting for this operation to complete
 	 */
-	public abstract boolean isClosed() throws IOException;
+	public abstract boolean isClosed() throws IOException, InterruptedException;
 
 	/**
 	 * Checks if the considered gate is an input gate.
