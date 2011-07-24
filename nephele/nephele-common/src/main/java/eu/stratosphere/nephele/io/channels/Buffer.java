@@ -225,6 +225,10 @@ public final class Buffer implements ReadableByteChannel, WritableByteChannel {
 				+ size() + " vs. " + destinationBuffer.size());
 		}
 
+		if (this.internalBuffer.isInWriteMode()) {
+			throw new IllegalStateException("Cannot copy buffer that is still in write mode");
+		}
+
 		this.internalBuffer.copyToBuffer(destinationBuffer);
 	}
 
@@ -236,6 +240,10 @@ public final class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * @return the duplicated buffer
 	 */
 	public Buffer duplicate() {
+
+		if (this.internalBuffer.isInWriteMode()) {
+			throw new IllegalStateException("Cannot duplicate buffer that is still in write mode");
+		}
 
 		return new Buffer(this.internalBuffer.duplicate());
 	}

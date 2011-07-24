@@ -290,4 +290,13 @@ public class FileBuffer implements InternalBuffer {
 		throw new UnsupportedOperationException("Method is not yet implemented");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isInWriteMode() {
+		
+		return this.writeMode;
+	}
+
 }

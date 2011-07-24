@@ -215,4 +215,13 @@ public class MemoryBuffer implements InternalBuffer {
 			destinationBuffer.finishWritePhase();
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isInWriteMode() {
+		
+		return this.writeMode;
+	}
 }
