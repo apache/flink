@@ -132,7 +132,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 		final ExecutionGraph executionGraph = executionStage.getExecutionGraph();
 		final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
-		executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.SCHEDULED);
+		executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
 		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
 		LOG.info("Requesting the following instances for job " + executionGraph.getJobID());
@@ -170,8 +170,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 		while (it2.hasNext()) {
 
 			final ExecutionVertex vertex = it2.next();
-			if (vertex.getExecutionState() == ExecutionState.SCHEDULED) {
-				vertex.setExecutionState(ExecutionState.ASSIGNING);
+			if (vertex.getExecutionState() == ExecutionState.CREATED) {
+				vertex.setExecutionState(ExecutionState.SCHEDULED);
 			}
 		}
 	}
@@ -193,7 +193,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
-			if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
+			if (vertex.getExecutionState() == ExecutionState.READY) {
 				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
 				if (instance instanceof DummyInstance) {
@@ -210,7 +210,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 				}
 
 				verticesForInstance.add(vertex);
-				vertex.setExecutionState(ExecutionState.READY);
 			}
 		}
 

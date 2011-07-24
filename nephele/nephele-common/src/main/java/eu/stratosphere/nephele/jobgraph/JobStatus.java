@@ -31,7 +31,7 @@ public enum JobStatus {
 	CREATED,
 
 	/**
-	 * All tasks of the job are in the execution state
+	 * All tasks of the job have been accepted by the scheduler, resources have been requested
 	 */
 	SCHEDULED,
 

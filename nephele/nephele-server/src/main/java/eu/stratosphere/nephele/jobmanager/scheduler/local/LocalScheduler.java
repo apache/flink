@@ -124,7 +124,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 				final ExecutionVertex vertex = it.next();
 				final ExecutionState state = vertex.getExecutionState();
 
-				if (state == ExecutionState.ASSIGNED || state == ExecutionState.READY
+				if (state == ExecutionState.SCHEDULED || state == ExecutionState.READY
 					|| state == ExecutionState.RUNNING || state == ExecutionState.FINISHING
 					|| state == ExecutionState.CANCELING) {
 					instanceCanBeReleased = false;
@@ -182,19 +182,11 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		// Subscribe to job status notifications
 		executionGraph.registerJobStatusListener(this);
 
-		// Set state of each vertex for scheduled
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
 		while (it2.hasNext()) {
 
 			final ExecutionVertex vertex = it2.next();
-			if (vertex.getExecutionState() != ExecutionState.CREATED) {
-				LOG.error("Execution vertex " + vertex + " has state " + vertex.getExecutionState() + ", expected "
-					+ ExecutionState.CREATED);
-			}
-
 			vertex.getEnvironment().registerExecutionListener(new LocalExecutionListener(this, vertex));
-			vertex.setExecutionState(ExecutionState.SCHEDULED);
-
 		}
 
 		// Register the scheduler as an execution stage listener
@@ -283,7 +275,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 			while (it.hasNext()) {
 
 				final ExecutionVertex vertex = it.next();
-				if (vertex.getExecutionState() == ExecutionState.ASSIGNING && vertex.getAllocatedResource() != null) {
+				if (vertex.getExecutionState() == ExecutionState.SCHEDULED && vertex.getAllocatedResource() != null) {
 					// In local mode, we do not consider any topology, only the instance type
 					if (vertex.getAllocatedResource().getInstanceType().equals(
 						allocatedResource.getInstanceType())) {
@@ -310,7 +302,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 				final ExecutionVertex vertex = it.next();
 				if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
 					vertex.setAllocatedResource(allocatedResource);
-					vertex.setExecutionState(ExecutionState.ASSIGNED);
+					vertex.setExecutionState(ExecutionState.READY);
 				}
 			}
 

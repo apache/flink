@@ -70,9 +70,9 @@ public class LocalExecutionListener implements ExecutionListener {
 			final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
 			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
 				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
-				if (groupMember.getExecutionState() == ExecutionState.ASSIGNING) {
+				if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
 					groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
-					groupMember.setExecutionState(ExecutionState.ASSIGNED);
+					groupMember.setExecutionState(ExecutionState.READY);
 					
 					this.localScheduler.deployAssignedVertices(eg);
 					return;

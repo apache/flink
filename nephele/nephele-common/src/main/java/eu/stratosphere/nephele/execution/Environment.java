@@ -984,13 +984,7 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.executionState == ExecutionState.CREATED && newExecutionState == ExecutionState.SCHEDULED) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.ASSIGNING) {
-			unexpectedStateChange = false;
-		}
-		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.ASSIGNED) {
-			unexpectedStateChange = false;
-		}
-		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.READY) {
+		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.READY) {
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.RUNNING) {
@@ -1003,30 +997,9 @@ public class Environment implements Runnable, IOReadableWritable {
 			unexpectedStateChange = false;
 		}
 
-		// The following error cases are not unexpected
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.ASSIGNED) {
-			/**
-			 * This transition can appear if an instance is used in different stages. In this case
-			 * the respective vertices in the upper stages may already be assigned an instance although the
-			 * scheduler did not explicitly ask for it.
-			 */
-			unexpectedStateChange = false;
-		}
 		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
-			 */
-			unexpectedStateChange = false;
-		}
-		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELED) {
-			/**
-			 * This transition can appear if a task is canceled after an instance request has been triggered.
-			 */
-			unexpectedStateChange = false;
-		}
-		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELED) {
-			/**
-			 * This transition can appear if a task is canceled after an instance request has been triggered.
 			 */
 			unexpectedStateChange = false;
 		}

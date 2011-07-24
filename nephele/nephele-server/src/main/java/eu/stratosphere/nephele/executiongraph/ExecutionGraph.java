@@ -1208,8 +1208,7 @@ public class ExecutionGraph implements ExecutionListener {
 		while (it.hasNext()) {
 
 			final ExecutionState s = it.next().getExecutionState();
-			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.ASSIGNING
-				&& s != ExecutionState.ASSIGNED && s != ExecutionState.READY) {
+			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.READY) {
 				return false;
 			}
 		}
