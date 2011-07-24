@@ -45,6 +45,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
@@ -695,11 +696,11 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
-			List<String> splitAffinityList) throws InstanceException {
+	public synchronized void requestInstance(final JobID jobID, Configuration conf, final InstanceRequestMap instanceRequestMap,
+			final List<String> splitAffinityList) throws InstanceException {
 
 		// Iterate over all instance types
-		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceMap.entrySet().iterator();
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
 		while (it.hasNext()) {
 
 			// Iterate over all requested instances of a specific type

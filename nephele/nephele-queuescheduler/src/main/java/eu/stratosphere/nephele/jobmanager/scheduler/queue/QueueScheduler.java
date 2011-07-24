@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.util.StringUtils;
@@ -32,7 +31,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.AllocatedResource;
-import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
@@ -94,62 +92,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		if (!removedFromQueue) {
 			LOG.error("Cannot find job " + executionGraphToRemove.getJobName() + " ("
 				+ executionGraphToRemove.getJobID() + ") to remove");
-		}
-	}
-
-	/**
-	 * Checks if the given {@link AllocatedResource} is still required for the
-	 * execution of the given execution graph. If the resource is no longer
-	 * assigned to a vertex that is either currently running or about to run
-	 * the given resource is returned to the instance manager for deallocation.
-	 * 
-	 * @param executionGraph
-	 *        the execution graph the provided resource has been used for so far
-	 * @param allocatedResource
-	 *        the allocated resource to check the assignment for
-	 */
-	void checkAndReleaseAllocatedResource(final ExecutionGraph executionGraph, final AllocatedResource allocatedResource) {
-
-		if (allocatedResource.getInstance() == null) {
-			LOG.error("Instance of allocated resource is null");
-			return;
-		}
-
-		if (allocatedResource.getInstance() instanceof DummyInstance) {
-			return;
-		}
-
-		synchronized (this.jobQueue) {
-
-			final List<ExecutionVertex> assignedVertices = executionGraph
-				.getVerticesAssignedToResource(allocatedResource);
-			if (assignedVertices.isEmpty()) {
-				return;
-			}
-
-			boolean instanceCanBeReleased = true;
-			final Iterator<ExecutionVertex> it = assignedVertices.iterator();
-			while (it.hasNext()) {
-				final ExecutionVertex vertex = it.next();
-				final ExecutionState state = vertex.getExecutionState();
-
-				if (state == ExecutionState.SCHEDULED || state == ExecutionState.READY
-					|| state == ExecutionState.RUNNING || state == ExecutionState.FINISHING
-					|| state == ExecutionState.CANCELING) {
-					instanceCanBeReleased = false;
-					break;
-				}
-			}
-
-			if (instanceCanBeReleased) {
-				LOG.info("Releasing instance " + allocatedResource.getInstance());
-				try {
-					getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
-						.getJobConfiguration(), allocatedResource);
-				} catch (InstanceException e) {
-					LOG.error(StringUtils.stringifyException(e));
-				}
-			}
 		}
 	}
 

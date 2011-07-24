@@ -1,0 +1,107 @@
+package eu.stratosphere.nephele.jobmanager.scheduler;
+
+import java.util.Iterator;
+
+import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.ExecutionListener;
+import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
+
+public abstract class AbstractExecutionListener implements ExecutionListener {
+
+	/**
+	 * The instance of the {@link LocalScheduler}.
+	 */
+	private final AbstractScheduler scheduler;
+
+	/**
+	 * The {@link ExecutionVertex} this wrapper object belongs to.
+	 */
+	private final ExecutionVertex executionVertex;
+
+	/**
+	 * Constructs a new wrapper object for the given {@link ExecutionVertex}.
+	 * 
+	 * @param AbstractScheduler
+	 *        the instance of the {@link AbstractScheduler}
+	 * @param executionVertex
+	 *        the {@link ExecutionVertex} the received notification refer to
+	 */
+	public AbstractExecutionListener(final AbstractScheduler scheduler, final ExecutionVertex executionVertex) {
+		this.scheduler = scheduler;
+		this.executionVertex = executionVertex;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void executionStateChanged(final Environment ee, final ExecutionState newExecutionState,
+			final String optionalMessage) {
+
+		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
+
+		if (newExecutionState == ExecutionState.FINISHED) {
+			
+			final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
+			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
+				if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
+					groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
+					groupMember.setExecutionState(ExecutionState.READY);
+
+					this.scheduler.deployAssignedVertices(eg);
+					return;
+				}
+			}
+			
+			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(), true, true);
+			while(it.hasNext()) {
+				
+				final ExecutionVertex nextVertex = it.next();
+				if(nextVertex.getExecutionState() == ExecutionState.SCHEDULED) {
+					nextVertex.setAllocatedResource(this.executionVertex.getAllocatedResource());
+					nextVertex.setExecutionState(ExecutionState.READY);
+
+					this.scheduler.deployAssignedVertices(eg);
+					return;
+				}
+			}
+		}
+
+		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
+			|| newExecutionState == ExecutionState.FAILED) {
+			// Check if instance can be released
+			this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
+		}
+
+		// In case of an error, check if vertex can be rescheduled
+		if (newExecutionState == ExecutionState.FAILED) {
+			if (this.executionVertex.hasRetriesLeft()) {
+				// Reschedule vertex
+				this.executionVertex.setExecutionState(ExecutionState.SCHEDULED);
+			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void userThreadFinished(final Environment ee, final Thread userThread) {
+		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void userThreadStarted(final Environment ee, final Thread userThread) {
+		// Nothing to do here
+	}
+
+}

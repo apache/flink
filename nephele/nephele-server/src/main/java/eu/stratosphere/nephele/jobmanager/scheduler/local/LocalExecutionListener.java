@@ -15,12 +15,8 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler.local;
 
-import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionListener;
-import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
 
 /**
  * This is a wrapper class for the {@link LocalScheduler} to receive
@@ -30,85 +26,10 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
  * 
  * @author warneke
  */
-public class LocalExecutionListener implements ExecutionListener {
+public class LocalExecutionListener extends AbstractExecutionListener {
 
-	/**
-	 * The instance of the {@link LocalScheduler}.
-	 */
-	private final LocalScheduler localScheduler;
-
-	/**
-	 * The {@link ExecutionVertex} this wrapper object belongs to.
-	 */
-	private final ExecutionVertex executionVertex;
-
-	/**
-	 * Constructs a new wrapper object for the given {@link ExecutionVertex}.
-	 * 
-	 * @param localScheduler
-	 *        the instance of the {@link LocalScheduler}
-	 * @param executionVertex
-	 *        the {@link ExecutionVertex} the received notification refer to
-	 */
-	public LocalExecutionListener(final LocalScheduler localScheduler, final ExecutionVertex executionVertex) {
-		this.localScheduler = localScheduler;
-		this.executionVertex = executionVertex;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void executionStateChanged(final Environment ee, final ExecutionState newExecutionState,
-			final String optionalMessage) {
-
-		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
-
-		// Check if the resource can be used by another vertex of the group
-		// TODO: Quick hack, replace this
-		if (newExecutionState == ExecutionState.FINISHED) {
-			final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
-			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
-				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
-				if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
-					groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
-					groupMember.setExecutionState(ExecutionState.READY);
-					
-					this.localScheduler.deployAssignedVertices(eg);
-					return;
-				}
-			}
-		}
-
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
-			|| newExecutionState == ExecutionState.FAILED) {
-			// Check if instance can be released
-			this.localScheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
-		}
-
-		// In case of an error, check if vertex can be rescheduled
-		if (newExecutionState == ExecutionState.FAILED) {
-			if (this.executionVertex.hasRetriesLeft()) {
-				// Reschedule vertex
-				this.executionVertex.setExecutionState(ExecutionState.SCHEDULED);
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadFinished(final Environment ee, final Thread userThread) {
-		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadStarted(final Environment ee, final Thread userThread) {
-		// Nothing to do here
+	public LocalExecutionListener(final LocalScheduler scheduler, final ExecutionVertex executionVertex) {
+		super(scheduler, executionVertex);
 	}
 
 }

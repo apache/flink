@@ -307,4 +307,61 @@ public abstract class AbstractScheduler implements InstanceListener {
 			deployAssignedVertices(eg);
 		}
 	}
+	
+	/**
+	 * Checks if the given {@link AllocatedResource} is still required for the
+	 * execution of the given execution graph. If the resource is no longer
+	 * assigned to a vertex that is either currently running or about to run
+	 * the given resource is returned to the instance manager for deallocation.
+	 * 
+	 * @param executionGraph
+	 *        the execution graph the provided resource has been used for so far
+	 * @param allocatedResource
+	 *        the allocated resource to check the assignment for
+	 */
+	public void checkAndReleaseAllocatedResource(ExecutionGraph executionGraph, AllocatedResource allocatedResource) {
+
+		if (allocatedResource == null) {
+			LOG.error("Resource to lock is null!");
+			return;
+		}
+
+		if (allocatedResource.getInstance() instanceof DummyInstance) {
+			LOG.debug("Available instance is of type DummyInstance!");
+			return;
+		}
+
+		synchronized (executionGraph) {
+
+			final List<ExecutionVertex> assignedVertices = executionGraph
+				.getVerticesAssignedToResource(allocatedResource);
+			if (assignedVertices.isEmpty()) {
+				return;
+			}
+
+			boolean instanceCanBeReleased = true;
+			final Iterator<ExecutionVertex> it = assignedVertices.iterator();
+			while (it.hasNext()) {
+				final ExecutionVertex vertex = it.next();
+				final ExecutionState state = vertex.getExecutionState();
+
+				if (state == ExecutionState.SCHEDULED || state == ExecutionState.READY
+					|| state == ExecutionState.RUNNING || state == ExecutionState.FINISHING
+					|| state == ExecutionState.CANCELING) {
+					instanceCanBeReleased = false;
+					break;
+				}
+			}
+
+			if (instanceCanBeReleased) {
+				LOG.info("Releasing instance " + allocatedResource.getInstance());
+				try {
+					getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
+						.getJobConfiguration(), allocatedResource);
+				} catch (InstanceException e) {
+					LOG.error(StringUtils.stringifyException(e));
+				}
+			}
+		}
+	}
 }
