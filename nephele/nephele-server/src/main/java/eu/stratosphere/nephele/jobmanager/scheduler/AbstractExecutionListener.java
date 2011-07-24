@@ -46,7 +46,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
 		if (newExecutionState == ExecutionState.FINISHED) {
-			
+
 			final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
 			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
 				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
@@ -58,17 +58,22 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 					return;
 				}
 			}
-			
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(), true, true);
-			while(it.hasNext()) {
-				
-				final ExecutionVertex nextVertex = it.next();
-				if(nextVertex.getExecutionState() == ExecutionState.SCHEDULED) {
-					nextVertex.setAllocatedResource(this.executionVertex.getAllocatedResource());
-					nextVertex.setExecutionState(ExecutionState.READY);
 
-					this.scheduler.deployAssignedVertices(eg);
-					return;
+			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
+				true, true);
+			while (it.hasNext()) {
+
+				final ExecutionVertex nextVertex = it.next();
+				if (nextVertex.getExecutionState() == ExecutionState.SCHEDULED) {
+					if (nextVertex.getAllocatedResource().getInstanceType()
+						.equals(this.executionVertex.getAllocatedResource().getInstanceType())) {
+						nextVertex.setAllocatedResource(this.executionVertex.getAllocatedResource());
+						nextVertex.setExecutionState(ExecutionState.READY);
+
+						this.scheduler.deployAssignedVertices(eg);
+
+						return;
+					}
 				}
 			}
 		}
