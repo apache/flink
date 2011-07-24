@@ -22,6 +22,6 @@ import eu.stratosphere.nephele.io.AbstractID;
  * 
  * @author warneke
  */
-public final class ChannelID extends AbstractID {
+public class ChannelID extends AbstractID {
 
 }

@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  * @author warneke
  */
-public final class Buffer implements ReadableByteChannel, WritableByteChannel {
+public class Buffer implements ReadableByteChannel, WritableByteChannel {
 
 	/**
 	 * The concrete buffer implementation to which all method calls on
