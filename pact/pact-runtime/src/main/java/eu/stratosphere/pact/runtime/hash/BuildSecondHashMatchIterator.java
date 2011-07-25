@@ -111,7 +111,7 @@ public final class BuildSecondHashMatchIterator<K extends Key, V1 extends Value,
 		{
 			// we have a next key, get the iterators to the probe and build side values
 			final HashJoin.HashBucketIterator<K, V2> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			final HashJoin.ProbeSideIterator<K, V1> probeIterator = this.hashJoin.getProbeSideIterator();
+			final HashJoin.KeyGroupIterator<K, V1> probeIterator = this.hashJoin.getProbeSideIterator();
 			boolean notFirst = false;
 			
 			while (probeIterator.hasNext()) {

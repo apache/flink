@@ -13,24 +13,39 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.runtime.util;
+
+import java.io.IOException;
+import java.util.Iterator;
+
+import eu.stratosphere.nephele.io.Reader;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * This interface has to be implemented by all data types that act as key. Keys are used to establish
- * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
- * the same type. In addition, keys must implement a correct {@link java.lang.Object#hashCode()} method
- * and {@link java.lang.Object#equals(Object)} method to ensure that grouping on keys works properly.
- * <p>
- * This interface extends {@link eu.stratosphere.pact.common.type.Value} and requires to implement
- * the serialization of its value.
+ * Wraps a Java Iterator into a Nephele reader.
  * 
- * @see eu.stratosphere.pact.common.type.Value
- * @see eu.stratosphere.nephele.io.IOReadableWritable
- * @see java.lang.Comparable
+ * @see Reader
+ * @see Iterator
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
  */
-public interface Key extends Value, Comparable<Key>
-{
-	public int hashCode();
+public class IteratorNepheleReader<T extends Record> implements Reader<T> {
+
+	private final Iterator<T> it;
 	
-	public boolean equals(Object other);
+	public IteratorNepheleReader(Iterator<T> it) {
+		this.it = it;
+	}
+	
+	@Override
+	public boolean hasNext() {
+		return it.hasNext();
+	}
+
+	@Override
+	public T next() throws IOException,
+			InterruptedException {
+		return it.next();
+	}
 }

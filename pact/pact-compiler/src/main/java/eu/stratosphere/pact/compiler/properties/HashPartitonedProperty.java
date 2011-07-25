@@ -13,24 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.compiler.properties;
+
 
 /**
- * This interface has to be implemented by all data types that act as key. Keys are used to establish
- * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
- * the same type. In addition, keys must implement a correct {@link java.lang.Object#hashCode()} method
- * and {@link java.lang.Object#equals(Object)} method to ensure that grouping on keys works properly.
- * <p>
- * This interface extends {@link eu.stratosphere.pact.common.type.Value} and requires to implement
- * the serialization of its value.
- * 
- * @see eu.stratosphere.pact.common.type.Value
- * @see eu.stratosphere.nephele.io.IOReadableWritable
- * @see java.lang.Comparable
+ *
+ *
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface Key extends Value, Comparable<Key>
+public class HashPartitonedProperty extends DisjunctPartitioningProperty
 {
-	public int hashCode();
-	
-	public boolean equals(Object other);
+	/**
+	 * @param fields
+	 */
+	public HashPartitonedProperty(int[] fields) {
+		super(fields);
+	}
+
 }

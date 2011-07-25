@@ -13,24 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.common.stubs;
+
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * This interface has to be implemented by all data types that act as key. Keys are used to establish
- * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
- * the same type. In addition, keys must implement a correct {@link java.lang.Object#hashCode()} method
- * and {@link java.lang.Object#equals(Object)} method to ensure that grouping on keys works properly.
- * <p>
- * This interface extends {@link eu.stratosphere.pact.common.type.Value} and requires to implement
- * the serialization of its value.
+ * Collects the output of PACT first-order user function implemented as {@link Stub}.
+ * The collected data is forwards to the next contract.
  * 
- * @see eu.stratosphere.pact.common.type.Value
- * @see eu.stratosphere.nephele.io.IOReadableWritable
- * @see java.lang.Comparable
+ * @author Erik Nijkamp
+ * @author Fabian Hueske
  */
-public interface Key extends Value, Comparable<Key>
-{
-	public int hashCode();
-	
-	public boolean equals(Object other);
+public interface Collector
+{	
+	/**
+	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
+	 * 
+	 * @param record The record to collect.
+	 */
+	void collect(PactRecord record);
+
+	/**
+	 * Closes the collector.
+	 */
+	void close();
 }

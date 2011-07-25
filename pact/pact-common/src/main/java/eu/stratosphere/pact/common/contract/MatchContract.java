@@ -31,7 +31,7 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  * @see MatchStub
  */
-public class MatchContract extends DualInputContract<MatchStub<?>>
+public class MatchContract extends DualInputContract<MatchStub>
 {	
 	private static String DEFAULT_NAME = "<Unnamed Matcher>";		// the default name for contracts
 	
@@ -51,7 +51,7 @@ public class MatchContract extends DualInputContract<MatchStub<?>>
 	 * @param firstKeyColumn The position of the key in the first input's records.
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c, int firstKeyColumn, int secondKeyColumn) {
+	public MatchContract(Class<? extends MatchStub> c, int firstKeyColumn, int secondKeyColumn) {
 		this(c, firstKeyColumn, secondKeyColumn, DEFAULT_NAME);
 	}
 	
@@ -64,7 +64,7 @@ public class MatchContract extends DualInputContract<MatchStub<?>>
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param name The name of PACT.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c, int firstKeyColumn, int secondKeyColumn, String name) {
+	public MatchContract(Class<? extends MatchStub> c, int firstKeyColumn, int secondKeyColumn, String name) {
 		super(c, name);
 		this.firstKeyFieldNumber = firstKeyColumn;
 		this.secondKeyFieldNumber = secondKeyColumn;
@@ -81,7 +81,7 @@ public class MatchContract extends DualInputContract<MatchStub<?>>
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c, int firstKeyColumn, int secondKeyColumn, 
+	public MatchContract(Class<? extends MatchStub> c, int firstKeyColumn, int secondKeyColumn, 
 															Contract input1, Contract input2)
 	{
 		this(c, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
@@ -98,7 +98,7 @@ public class MatchContract extends DualInputContract<MatchStub<?>>
 	 * @param input2 The contract to use as the second input.
 	 * @param name The name of PACT.
 	 */
-	public MatchContract(Class<? extends MatchStub<?>> c, int firstKeyColumn, int secondKeyColumn,
+	public MatchContract(Class<? extends MatchStub> c, int firstKeyColumn, int secondKeyColumn,
 											Contract input1, Contract input2, String name)
 	{
 		this(c, firstKeyColumn, secondKeyColumn, name);

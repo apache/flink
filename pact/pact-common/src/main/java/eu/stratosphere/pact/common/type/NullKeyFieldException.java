@@ -15,22 +15,31 @@
 
 package eu.stratosphere.pact.common.type;
 
+
 /**
- * This interface has to be implemented by all data types that act as key. Keys are used to establish
- * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
- * the same type. In addition, keys must implement a correct {@link java.lang.Object#hashCode()} method
- * and {@link java.lang.Object#equals(Object)} method to ensure that grouping on keys works properly.
- * <p>
- * This interface extends {@link eu.stratosphere.pact.common.type.Value} and requires to implement
- * the serialization of its value.
- * 
- * @see eu.stratosphere.pact.common.type.Value
- * @see eu.stratosphere.nephele.io.IOReadableWritable
- * @see java.lang.Comparable
+ * An exception specifying that a required key field was not (null) set in a record.
  */
-public interface Key extends Value, Comparable<Key>
+public class NullKeyFieldException extends RuntimeException
 {
-	public int hashCode();
-	
-	public boolean equals(Object other);
+	/**
+	 * UID for serialization interoperability. 
+	 */
+	private static final long serialVersionUID = 5645812615711209578L;
+
+	/**
+     * Constructs an {@code NullKeyFieldException} with {@code null}
+     * as its error detail message.
+     */
+	public NullKeyFieldException() {
+		super();
+	}
+
+	/**
+     * Constructs an {@code NullKeyFieldException} with the specified detail message.
+     *
+     * @param message The detail message.
+     */
+	public NullKeyFieldException(String message) {
+		super(message);
+	}
 }

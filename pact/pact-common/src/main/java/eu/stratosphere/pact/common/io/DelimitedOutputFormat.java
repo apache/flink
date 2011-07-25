@@ -13,39 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.pact.common.io;
+
 
 import java.io.IOException;
-import java.util.Iterator;
 
-import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.type.PactRecord;
+
 
 /**
- * Wraps a Java Iterator into a Nephele reader.
  * 
- * @see Reader
- * @see Iterator
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
  */
-public class IteratorNepheleReader<T extends Record> implements Reader<T> {
+public abstract class DelimitedOutputFormat extends FileOutputFormat
+{
 
-	private final Iterator<T> it;
+	public abstract byte[] serializeRecord(PactRecord rec, byte[] target) throws Exception;
 	
-	public IteratorNepheleReader(Iterator<T> it) {
-		this.it = it;
-	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
+	 */
 	@Override
-	public boolean hasNext() {
-		return it.hasNext();
+	public void writeRecord(PactRecord record) throws IOException
+	{
+
 	}
 
-	@Override
-	public T next() throws IOException,
-			InterruptedException {
-		return it.next();
-	}
 }

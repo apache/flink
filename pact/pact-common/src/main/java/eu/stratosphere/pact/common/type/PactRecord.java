@@ -258,6 +258,16 @@ public final class PactRecord implements Value
 		return true;
 	}
 	
+	public boolean getFields(int[] positions, Value[] targets)
+	{
+		for (int i = 0; i < positions.length; i++) {
+			if (!getField(positions[i], targets[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
 	
 	private final <T extends Value> T deserialize(T target, int offset, int limit)
 	{
@@ -394,8 +404,21 @@ public final class PactRecord implements Value
 		copyTo(rec);
 		return rec;
 	}
+
+	// --------------------------------------------------------------------------------------------
 	
+	public final boolean equalsFields(int[] positions, Value[] searchValues, Value[] deserializationHolders)
+	{
+		for (int i = 0; i < positions.length; i++) {
+			getField(positions[i], deserializationHolders[i]);
+			if (deserializationHolders[i].equals(searchValues[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
 	
+	// --------------------------------------------------------------------------------------------
 	
 	public void syncBinaryState()
 	{

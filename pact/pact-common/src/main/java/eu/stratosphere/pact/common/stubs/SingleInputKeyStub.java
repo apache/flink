@@ -13,24 +13,39 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.type;
+package eu.stratosphere.pact.common.stubs;
+
+import eu.stratosphere.pact.common.util.ReflectionUtil;
+
+import eu.stratosphere.pact.common.type.Key;
 
 /**
- * This interface has to be implemented by all data types that act as key. Keys are used to establish
- * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
- * the same type. In addition, keys must implement a correct {@link java.lang.Object#hashCode()} method
- * and {@link java.lang.Object#equals(Object)} method to ensure that grouping on keys works properly.
- * <p>
- * This interface extends {@link eu.stratosphere.pact.common.type.Value} and requires to implement
- * the serialization of its value.
+ * Abstract stub class for all PACT stubs with a single input.
+ * PACT stubs must be overwritten to provide user implementations for PACT programs.
  * 
- * @see eu.stratosphere.pact.common.type.Value
- * @see eu.stratosphere.nephele.io.IOReadableWritable
- * @see java.lang.Comparable
+ * @author Fabian Hueske
+ * @param <K> Type of the input key.
  */
-public interface Key extends Value, Comparable<Key>
+abstract class SingleInputKeyStub<K extends Key> extends Stub
 {
-	public int hashCode();
-	
-	public boolean equals(Object other);
+	/**
+	 * Input key type.
+	 */
+	protected Class<K> keyClass;
+
+	/**
+	 * {@inheritDoc}
+	 */
+	protected void initTypes() {
+		this.keyClass = ReflectionUtil.getTemplateType(getClass(), 0);
+	}
+
+	/**
+	 * Returns the type of the input key.
+	 * 
+	 * @return Type of the input key.
+	 */
+	public Class<K> getKeyType() {
+		return this.keyClass;
+	}
 }

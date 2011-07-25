@@ -44,7 +44,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
-import eu.stratosphere.pact.runtime.task.util.EmptyIterator;
+import eu.stratosphere.pact.runtime.util.EmptyIterator;
 
 /**
  * The {@link UnilateralSortMerger} is part of a merge-sort implementation.
