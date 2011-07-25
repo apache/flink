@@ -563,7 +563,7 @@ public class ClusterManager implements InstanceManager {
 			LOG.info("Found user-defined instance type for cluster instance with IP "
 				+ instanceConnectionInfo.getAddress() + ": " + instanceType);
 		} else {
-			instanceType = mactchHardwareDescriptionWithInstanceType(hardwareDescription);
+			instanceType = matchHardwareDescriptionWithInstanceType(hardwareDescription);
 			if (instanceType != null) {
 				LOG.info("Hardware profile of cluster instance with IP " + instanceConnectionInfo.getAddress()
 					+ " matches with instance type " + instanceType);
@@ -636,7 +636,7 @@ public class ClusterManager implements InstanceManager {
 	 *        the hardware description as reported by the instance
 	 * @return the best matching instance type or <code>null</code> if no matching instance type can be found
 	 */
-	private InstanceType mactchHardwareDescriptionWithInstanceType(HardwareDescription hardwareDescription) {
+	private InstanceType matchHardwareDescriptionWithInstanceType(HardwareDescription hardwareDescription) {
 
 		// Assumes that the available instance types are ordered by number of CPU cores in descending order
 		for (int i = 0; i < this.availableInstanceTypes.length; i++) {
@@ -696,7 +696,8 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void requestInstance(final JobID jobID, Configuration conf, final InstanceRequestMap instanceRequestMap,
+	public synchronized void requestInstance(final JobID jobID, Configuration conf,
+			final InstanceRequestMap instanceRequestMap,
 			final List<String> splitAffinityList) throws InstanceException {
 
 		// Iterate over all instance types
@@ -705,8 +706,9 @@ public class ClusterManager implements InstanceManager {
 
 			// Iterate over all requested instances of a specific type
 			final Map.Entry<InstanceType, Integer> entry = it.next();
+			final int maximumNumberOfInstances = entry.getValue().intValue();
 
-			for (int i = 0; i < entry.getValue().intValue(); i++) {
+			for (int i = 0; i < maximumNumberOfInstances; i++) {
 
 				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
 
@@ -737,7 +739,12 @@ public class ClusterManager implements InstanceManager {
 				}
 
 				if (slice == null) {
-					throw new InstanceException("Could not find a suitable instance");
+					if (i < instanceRequestMap.getMinimumNumberOfInstances(entry.getKey())) {
+						removeAllSlicesOfJob(jobID);
+						throw new InstanceException("Could not find a suitable instance");
+					} else {
+						break;
+					}
 				}
 
 				List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.get(jobID);
@@ -754,7 +761,14 @@ public class ClusterManager implements InstanceManager {
 				}
 
 			}
+		}
+	}
 
+	private void removeAllSlicesOfJob(final JobID jobID) {
+
+		final List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.remove(jobID);
+		for (final AllocatedSlice slice : allocatedSlices) {
+			slice.getHostingInstance().removeAllocatedSlice(slice.getAllocationID());
 		}
 	}
 
