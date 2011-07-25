@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.Buffer;
@@ -75,7 +77,7 @@ public final class TransferEnvelope {
 		return this.buffer;
 	}
 
-	public TransferEnvelope duplicate() {
+	public TransferEnvelope duplicate() throws IOException, InterruptedException {
 
 		final TransferEnvelope duplicatedTransferEnvelope = new TransferEnvelope(this.sequenceNumber, this.jobID,
 			this.source, this.eventList); // No need to duplicate event list

@@ -137,15 +137,15 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		// Add job to the job queue (important to add job to queue before requesting instances)
 		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
+		}
 
-			// Request resources for the first stage of the job
-			final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
-			try {
-				requestInstances(executionStage);
-			} catch (InstanceException e) {
-				// TODO: Handle this error correctly
-				LOG.error(StringUtils.stringifyException(e));
-			}
+		// Request resources for the first stage of the job
+		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
+		try {
+			requestInstances(executionStage);
+		} catch (InstanceException e) {
+			// TODO: Handle this error correctly
+			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
 
@@ -212,18 +212,15 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 	@Override
 	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
 
-		synchronized (this.jobQueue) {
-
-			// Request new instances if necessary
-			try {
-				requestInstances(executionStage);
-			} catch (InstanceException e) {
-				// TODO: Handle this error correctly
-				LOG.error(StringUtils.stringifyException(e));
-			}
-
-			// Deploy the assigned vertices
-			deployAssignedVertices(executionStage.getExecutionGraph());
+		// Request new instances if necessary
+		try {
+			requestInstances(executionStage);
+		} catch (InstanceException e) {
+			// TODO: Handle this error correctly
+			LOG.error(StringUtils.stringifyException(e));
 		}
+
+		// Deploy the assigned vertices
+		deployAssignedVertices(executionStage.getExecutionGraph());
 	}
 }

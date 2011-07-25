@@ -133,47 +133,36 @@ public abstract class AbstractScheduler implements InstanceListener {
 	protected void requestInstances(final ExecutionStage executionStage) throws InstanceException {
 
 		final ExecutionGraph executionGraph = executionStage.getExecutionGraph();
-		final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
-		executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
-		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
-		LOG.info("Requesting the following instances for job " + executionGraph.getJobID());
-		while (it.hasNext()) {
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-			LOG.info(" " + entry.getKey() + " [" + entry.getValue().intValue() + ", "
-				+ instanceRequestMap.getMaximumNumberOfInstances(entry.getKey()) + "]");
-		}
+		synchronized (executionGraph) {
 
-		if (instanceRequestMap.isEmpty()) {
-			return;
-		}
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
-		this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-			instanceRequestMap, null);
+			final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
+			LOG.info("Requesting the following instances for job " + executionGraph.getJobID());
+			while (it.hasNext()) {
+				final Map.Entry<InstanceType, Integer> entry = it.next();
+				LOG.info(" " + entry.getKey() + " [" + entry.getValue().intValue() + ", "
+					+ instanceRequestMap.getMaximumNumberOfInstances(entry.getKey()) + "]");
+			}
 
-		/*
-		 * ... stuff moved to instance manager
-		 * final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstances.entrySet().iterator();
-		 * while (it.hasNext()) {
-		 * final Map.Entry<InstanceType, Integer> entry = it.next();
-		 * for (int i = 0; i < entry.getValue().intValue(); i++) {
-		 * LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
-		 * this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-		 * entry.getKey());
-		 * }
-		 * this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-		 * entry.getKey(), entry.getValue().intValue());
-		 * }
-		 */
+			if (instanceRequestMap.isEmpty()) {
+				return;
+			}
+			
+			this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
+				instanceRequestMap, null);
+			
+			// Switch vertex state to assigning
+			final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph
+				.getIndexOfCurrentExecutionStage(), true, true);
+			while (it2.hasNext()) {
 
-		// Switch vertex state to assigning
-		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph
-			.getIndexOfCurrentExecutionStage(), true, true);
-		while (it2.hasNext()) {
-
-			final ExecutionVertex vertex = it2.next();
-			if (vertex.getExecutionState() == ExecutionState.CREATED) {
-				vertex.setExecutionState(ExecutionState.SCHEDULED);
+				final ExecutionVertex vertex = it2.next();
+				if (vertex.getExecutionState() == ExecutionState.CREATED) {
+					vertex.setExecutionState(ExecutionState.SCHEDULED);
+				}
 			}
 		}
 	}
@@ -307,7 +296,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			deployAssignedVertices(eg);
 		}
 	}
-	
+
 	/**
 	 * Checks if the given {@link AllocatedResource} is still required for the
 	 * execution of the given execution graph. If the resource is no longer

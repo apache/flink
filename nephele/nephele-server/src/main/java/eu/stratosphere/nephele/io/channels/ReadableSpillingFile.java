@@ -26,15 +26,12 @@ public final class ReadableSpillingFile {
 
 	private final File physicalFile;
 
-	private final long fileSize;
-
-	private long lastPosition = 0;
-
 	private final FileChannel readableFileChannel;
 
+	private int leaseCounter = 1;
+	
 	public ReadableSpillingFile(final File physicalFile) throws IOException {
 		this.physicalFile = physicalFile;
-		this.fileSize = physicalFile.length();
 		this.readableFileChannel = new FileInputStream(this.physicalFile).getChannel();
 	}
 
@@ -57,15 +54,6 @@ public final class ReadableSpillingFile {
 
 		this.readableChannelLocked = true;
 
-		/*
-		 * try {
-		 * System.out.println("---- Locking read channel at position " + this.readableFileChannel.position() + " for " +
-		 * sourceChannelID);
-		 * } catch(IOException ioe) {
-		 * ioe.printStackTrace();
-		 * }
-		 */
-
 		return this.readableFileChannel;
 	}
 
@@ -77,19 +65,13 @@ public final class ReadableSpillingFile {
 
 		this.readableChannelLocked = false;
 		this.notify();
-
-		if (this.readableFileChannel.position() < this.lastPosition) {
-			System.out.println("READ Invalid position " + this.readableFileChannel.position() + ", last was"
-				+ this.lastPosition);
-		}
-		this.lastPosition = this.readableFileChannel.position();
-		// System.out.println("---- Unlocking read channel at position " + this.lastPosition + " for " +
-		// sourceChannelID);
 	}
 
 	public synchronized boolean checkForEndOfFile() throws IOException {
 
-		if (this.readableFileChannel.position() >= this.fileSize) {
+		--this.leaseCounter;
+		
+		if (this.leaseCounter == 0) {
 			// Close the file
 			this.readableFileChannel.close();
 
@@ -100,4 +82,8 @@ public final class ReadableSpillingFile {
 		return false;
 	}
 
+	public synchronized void increaseLeaseCounter() {
+		
+		++this.leaseCounter;
+	}
 }

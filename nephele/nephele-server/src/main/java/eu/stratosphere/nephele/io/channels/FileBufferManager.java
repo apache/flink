@@ -19,10 +19,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
-import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -60,7 +58,7 @@ public class FileBufferManager {
 
 	private final Map<GateID, WritableSpillingFile> writableSpillingFileMap = new HashMap<GateID, WritableSpillingFile>();
 
-	private final Map<GateID, Queue<ReadableSpillingFile>> readableSpillingFileMap = new HashMap<GateID, Queue<ReadableSpillingFile>>();
+	private final Map<GateID, Map<FileID, ReadableSpillingFile>> readableSpillingFileMap = new HashMap<GateID, Map<FileID, ReadableSpillingFile>>();
 
 	private final Set<ChannelID> canceledChannels;
 
@@ -72,22 +70,29 @@ public class FileBufferManager {
 		this.canceledChannels = canceledChannels;
 	}
 
-	public FileChannel getFileChannelForReading(final GateID gateID) throws IOException,
+	private ReadableSpillingFile getReadableSpillingFile(final GateID gateID, final FileID fileID) throws IOException,
 			InterruptedException {
 
-		Queue<ReadableSpillingFile> queue = null;
+		if (gateID == null) {
+			throw new IllegalStateException("gateID is null");
+		}
+
+		if (fileID == null) {
+			throw new IllegalStateException("fileID is null");
+		}
+
+		Map<FileID, ReadableSpillingFile> map = null;
 		synchronized (this.readableSpillingFileMap) {
-			queue = this.readableSpillingFileMap.get(gateID);
-			if (queue == null) {
-				queue = new ArrayDeque<ReadableSpillingFile>(1);
-				this.readableSpillingFileMap.put(gateID, queue);
+			map = this.readableSpillingFileMap.get(gateID);
+			if (map == null) {
+				map = new HashMap<FileID, ReadableSpillingFile>();
+				this.readableSpillingFileMap.put(gateID, map);
 			}
 		}
 
-		ReadableSpillingFile readableSpillingFile = null;
-		synchronized (queue) {
+		synchronized (map) {
 
-			while (queue.isEmpty()) {
+			while (!map.containsKey(fileID)) {
 
 				synchronized (this.writableSpillingFileMap) {
 					WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(gateID);
@@ -97,29 +102,40 @@ public class FileBufferManager {
 						if (writableSpillingFile.isSafeToClose()) {
 							writableSpillingFile.close();
 							this.writableSpillingFileMap.remove(gateID);
-							queue.add(new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
+							map.put(
+								writableSpillingFile.getFileID(),
+								new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
 						}
 					}
 				}
 
-				if (queue.isEmpty()) {
-					queue.wait(WritableSpillingFile.MAXIMUM_TIME_WITHOUT_WRITE_ACCESS);
+				if (!map.containsKey(fileID)) {
+					map.wait(WritableSpillingFile.MAXIMUM_TIME_WITHOUT_WRITE_ACCESS);
 				}
 			}
 
-			readableSpillingFile = queue.peek();
+			return map.get(fileID);
 		}
-
-		return readableSpillingFile.lockReadableFileChannel();
 	}
 
-	public void reportFileBufferAsConsumed(final GateID gateID) {
+	public FileChannel getFileChannelForReading(final GateID gateID, final FileID fileID) throws IOException,
+			InterruptedException {
+
+		return getReadableSpillingFile(gateID, fileID).lockReadableFileChannel();
+	}
+
+	public void increaseFileCounter(final GateID gateID, final FileID fileID) throws IOException, InterruptedException {
+
+		getReadableSpillingFile(gateID, fileID).increaseLeaseCounter();
+	}
+
+	public void reportFileBufferAsConsumed(final GateID gateID, final FileID fileID) {
 
 		try {
-			Queue<ReadableSpillingFile> queue = null;
+			Map<FileID, ReadableSpillingFile> map = null;
 			synchronized (this.readableSpillingFileMap) {
-				queue = this.readableSpillingFileMap.get(gateID);
-				if (queue == null) {
+				map = this.readableSpillingFileMap.get(gateID);
+				if (map == null) {
 					if (this.canceledChannels.contains(gateID)) {
 						return;
 					} else {
@@ -128,8 +144,8 @@ public class FileBufferManager {
 				}
 
 				ReadableSpillingFile readableSpillingFile = null;
-				synchronized (queue) {
-					readableSpillingFile = queue.peek();
+				synchronized (map) {
+					readableSpillingFile = map.get(fileID);
 					if (readableSpillingFile == null) {
 						if (this.canceledChannels.contains(gateID)) {
 							return;
@@ -140,8 +156,8 @@ public class FileBufferManager {
 					try {
 						readableSpillingFile.unlockReadableFileChannel();
 						if (readableSpillingFile.checkForEndOfFile()) {
-							queue.poll();
-							if (queue.isEmpty()) {
+							map.remove(fileID);
+							if (map.isEmpty()) {
 								this.readableSpillingFileMap.remove(gateID);
 							}
 						}
@@ -181,7 +197,7 @@ public class FileBufferManager {
 			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(gateID);
 			if (writableSpillingFile == null) {
 				final String filename = this.tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
-				writableSpillingFile = new WritableSpillingFile(new File(filename));
+				writableSpillingFile = new WritableSpillingFile(new FileID(), new File(filename));
 				this.writableSpillingFileMap.put(gateID, writableSpillingFile);
 			}
 
@@ -199,7 +215,7 @@ public class FileBufferManager {
 	 * @throws IOException
 	 *         thrown if the lock could not be released
 	 */
-	public void reportEndOfWritePhase(final GateID gateID, final long currentFileSize) throws IOException {
+	public FileID reportEndOfWritePhase(final GateID gateID, final long currentFileSize) throws IOException {
 
 		WritableSpillingFile writableSpillingFile = null;
 		boolean removed = false;
@@ -220,18 +236,22 @@ public class FileBufferManager {
 
 		if (removed) {
 			writableSpillingFile.close();
-			Queue<ReadableSpillingFile> queue = null;
+			Map<FileID, ReadableSpillingFile> map = null;
 			synchronized (this.readableSpillingFileMap) {
-				queue = this.readableSpillingFileMap.get(gateID);
-				if (queue == null) {
-					queue = new ArrayDeque<ReadableSpillingFile>(1);
-					this.readableSpillingFileMap.put(gateID, queue);
+				map = this.readableSpillingFileMap.get(gateID);
+				if (map == null) {
+					map = new HashMap<FileID, ReadableSpillingFile>();
+					this.readableSpillingFileMap.put(gateID, map);
 				}
 			}
-			synchronized (queue) {
-				queue.add(new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
-				queue.notify();
+
+			synchronized (map) {
+				map.put(writableSpillingFile.getFileID(),
+					new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
+				map.notify();
 			}
 		}
+
+		return writableSpillingFile.getFileID();
 	}
 }

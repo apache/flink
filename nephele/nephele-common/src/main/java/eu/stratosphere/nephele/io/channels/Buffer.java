@@ -239,7 +239,7 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * 
 	 * @return the duplicated buffer
 	 */
-	public Buffer duplicate() {
+	public Buffer duplicate() throws IOException, InterruptedException {
 
 		if (this.internalBuffer.isInWriteMode()) {
 			throw new IllegalStateException("Cannot duplicate buffer that is still in write mode");

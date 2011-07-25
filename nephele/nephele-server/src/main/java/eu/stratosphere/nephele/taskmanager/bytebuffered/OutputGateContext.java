@@ -93,11 +93,11 @@ final class OutputGateContext implements BufferProvider {
 			throws IOException,
 			InterruptedException {
 
-		if (!this.ephemeralCheckpoint.isDiscarded()) {
+		/*if (!this.ephemeralCheckpoint.isDiscarded()) {
 
 			final TransferEnvelope dup = outgoingTransferEnvelope.duplicate();
 			this.ephemeralCheckpoint.addTransferEnvelope(dup);
-		}
+		}*/
 
 		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
 	}

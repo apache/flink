@@ -32,6 +32,8 @@ public class FileBuffer implements InternalBuffer {
 
 	private final GateID gateID;
 
+	private FileID fileID = null;
+
 	private FileChannel fileChannel;
 
 	private volatile boolean writeMode = true;
@@ -57,13 +59,11 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
 			} catch (InterruptedException e) {
 				return -1;
 			}
 			if (this.fileChannel.position() != this.offset) {
-				System.out.println("Expected offset " + this.offset + ", but channel position is "
-					+ this.fileChannel.position());
 				this.fileChannel.position(this.offset);
 			}
 		}
@@ -88,13 +88,11 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
 			} catch (InterruptedException e) {
 				return -1;
 			}
 			if (this.fileChannel.position() != this.offset) {
-				System.out.println("Expected offset " + this.offset + ", but channel position is "
-					+ this.fileChannel.position());
 				this.fileChannel.position(this.offset);
 			}
 		}
@@ -249,7 +247,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public void recycleBuffer() {
 
-		this.fileBufferManager.reportFileBufferAsConsumed(this.gateID);
+		this.fileBufferManager.reportFileBufferAsConsumed(this.gateID, this.fileID);
 	}
 
 	@Override
@@ -259,15 +257,12 @@ public class FileBuffer implements InternalBuffer {
 
 			final long currentFileSize = this.offset + this.totalBytesWritten;
 			// If the input channel this buffer belongs to is already canceled, fileChannel may be null
-			if (this.fileChannel != null) {
-				this.fileChannel.position(currentFileSize);
-			}
 			this.fileChannel = null;
 			this.bufferSize = this.totalBytesWritten;
 			// System.out.println("Buffer size: " + this.bufferSize);
 			// TODO: Check synchronization
 			this.writeMode = false;
-			this.fileBufferManager.reportEndOfWritePhase(this.gateID, currentFileSize);
+			this.fileID = this.fileBufferManager.reportEndOfWritePhase(this.gateID, currentFileSize);
 		}
 
 	}
@@ -279,20 +274,27 @@ public class FileBuffer implements InternalBuffer {
 	}
 
 	@Override
-	public InternalBuffer duplicate() {
+	public InternalBuffer duplicate() throws IOException, InterruptedException {
 
-		throw new RuntimeException("FileBuffer duplication is no yet implemented");
+		this.fileBufferManager.increaseFileCounter(this.gateID, this.fileID);
+
+		final FileBuffer dup = new FileBuffer((int) this.bufferSize, this.gateID, this.fileBufferManager);
+		dup.writeMode = this.writeMode;
+		dup.fileID = this.fileID;
+		dup.offset = this.offset;
+		
+		return dup;
 	}
 
 	@Override
 	public void copyToBuffer(final Buffer destinationBuffer) throws IOException {
-		
-		if(destinationBuffer.isBackedByMemory()) {
+
+		if (destinationBuffer.isBackedByMemory()) {
 			destinationBuffer.write(this);
 			destinationBuffer.finishWritePhase();
 			return;
 		}
-		
+
 		throw new UnsupportedOperationException("FileBuffer-to-FileBuffer copy is not yet implemented");
 	}
 
@@ -301,7 +303,7 @@ public class FileBuffer implements InternalBuffer {
 	 */
 	@Override
 	public boolean isInWriteMode() {
-		
+
 		return this.writeMode;
 	}
 
