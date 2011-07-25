@@ -104,7 +104,7 @@ public class FileBufferManager {
 							this.writableSpillingFileMap.remove(gateID);
 							map.put(
 								writableSpillingFile.getFileID(),
-								new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
+								writableSpillingFile.toReadableSpillingFile());
 						}
 					}
 				}
@@ -126,10 +126,10 @@ public class FileBufferManager {
 
 	public void increaseFileCounter(final GateID gateID, final FileID fileID) throws IOException, InterruptedException {
 
-		getReadableSpillingFile(gateID, fileID).increaseLeaseCounter();
+		getReadableSpillingFile(gateID, fileID).increaseNumberOfBuffers();
 	}
 
-	public void reportFileBufferAsConsumed(final GateID gateID, final FileID fileID) {
+	public void releaseFileChannelForReading(final GateID gateID, final FileID fileID, boolean deleteFile) {
 
 		try {
 			Map<FileID, ReadableSpillingFile> map = null;
@@ -155,10 +155,12 @@ public class FileBufferManager {
 					}
 					try {
 						readableSpillingFile.unlockReadableFileChannel();
-						if (readableSpillingFile.checkForEndOfFile()) {
-							map.remove(fileID);
-							if (map.isEmpty()) {
-								this.readableSpillingFileMap.remove(gateID);
+						if (deleteFile) {
+							if (readableSpillingFile.checkForEndOfFile()) {
+								map.remove(fileID);
+								if (map.isEmpty()) {
+									this.readableSpillingFileMap.remove(gateID);
+								}
 							}
 						}
 					} catch (ClosedChannelException e) {
@@ -247,7 +249,7 @@ public class FileBufferManager {
 
 			synchronized (map) {
 				map.put(writableSpillingFile.getFileID(),
-					new ReadableSpillingFile(writableSpillingFile.getPhysicalFile()));
+					writableSpillingFile.toReadableSpillingFile());
 				map.notify();
 			}
 		}

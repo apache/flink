@@ -63,8 +63,8 @@ public class FileBuffer implements InternalBuffer {
 			} catch (InterruptedException e) {
 				return -1;
 			}
-			if (this.fileChannel.position() != this.offset) {
-				this.fileChannel.position(this.offset);
+			if (this.fileChannel.position() != (this.offset + this.totalBytesRead)) {
+				this.fileChannel.position(this.offset + this.totalBytesRead);
 			}
 		}
 
@@ -92,8 +92,8 @@ public class FileBuffer implements InternalBuffer {
 			} catch (InterruptedException e) {
 				return -1;
 			}
-			if (this.fileChannel.position() != this.offset) {
-				this.fileChannel.position(this.offset);
+			if (this.fileChannel.position() != (this.offset + this.totalBytesRead)) {
+				this.fileChannel.position(this.offset + this.totalBytesRead);
 			}
 		}
 
@@ -247,7 +247,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public void recycleBuffer() {
 
-		this.fileBufferManager.reportFileBufferAsConsumed(this.gateID, this.fileID);
+		this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID, true);
 	}
 
 	@Override
@@ -257,6 +257,9 @@ public class FileBuffer implements InternalBuffer {
 
 			final long currentFileSize = this.offset + this.totalBytesWritten;
 			// If the input channel this buffer belongs to is already canceled, fileChannel may be null
+			if(this.fileChannel != null) {
+				this.fileChannel.position(currentFileSize);
+			}
 			this.fileChannel = null;
 			this.bufferSize = this.totalBytesWritten;
 			// System.out.println("Buffer size: " + this.bufferSize);
@@ -290,8 +293,17 @@ public class FileBuffer implements InternalBuffer {
 	public void copyToBuffer(final Buffer destinationBuffer) throws IOException {
 
 		if (destinationBuffer.isBackedByMemory()) {
+			final long tbr = this.totalBytesRead;
+			if(this.fileChannel != null) {
+				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID, false);
+			}
+			this.totalBytesRead = 0;
 			destinationBuffer.write(this);
 			destinationBuffer.finishWritePhase();
+			this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID, false);
+			this.fileChannel = null;
+			this.totalBytesRead = tbr;
+			
 			return;
 		}
 

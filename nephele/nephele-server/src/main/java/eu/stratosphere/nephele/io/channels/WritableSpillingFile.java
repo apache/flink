@@ -68,7 +68,7 @@ public final class WritableSpillingFile implements Closeable {
 	 * The file channel used to write data to the file.
 	 */
 	private final FileChannel writableFileChannel;
-	
+
 	/**
 	 * Time stamp of the last file channel unlock operation.
 	 */
@@ -78,6 +78,11 @@ public final class WritableSpillingFile implements Closeable {
 	 * The size of the spilling file after the last unlock operation.
 	 */
 	private long currentFileSize = 0;
+
+	/**
+	 * The number of file buffers backed by this writable spilling file.
+	 */
+	private int numberOfBuffers = 0;
 
 	/**
 	 * Constructs a new writable spilling file.
@@ -181,6 +186,8 @@ public final class WritableSpillingFile implements Closeable {
 
 		this.currentFileSize = currentFileSize;
 		this.lastUnlockTime = System.currentTimeMillis();
+		
+		++this.numberOfBuffers;
 	}
 
 	/**
@@ -209,5 +216,10 @@ public final class WritableSpillingFile implements Closeable {
 	FileID getFileID() {
 
 		return this.fileID;
+	}
+	
+	ReadableSpillingFile toReadableSpillingFile() throws IOException {
+		
+		return new ReadableSpillingFile(this.physicalFile, this.numberOfBuffers);
 	}
 }

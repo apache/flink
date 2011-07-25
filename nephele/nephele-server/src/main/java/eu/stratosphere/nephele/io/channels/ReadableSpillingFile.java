@@ -28,10 +28,11 @@ public final class ReadableSpillingFile {
 
 	private final FileChannel readableFileChannel;
 
-	private int leaseCounter = 1;
+	private int numberOfBuffers;
 	
-	public ReadableSpillingFile(final File physicalFile) throws IOException {
+	public ReadableSpillingFile(final File physicalFile, int numberOfBuffers) throws IOException {
 		this.physicalFile = physicalFile;
+		this.numberOfBuffers = numberOfBuffers;
 		this.readableFileChannel = new FileInputStream(this.physicalFile).getChannel();
 	}
 
@@ -62,16 +63,16 @@ public final class ReadableSpillingFile {
 		if (!this.readableChannelLocked) {
 			return;
 		}
-
+		
 		this.readableChannelLocked = false;
 		this.notify();
 	}
 
 	public synchronized boolean checkForEndOfFile() throws IOException {
 
-		--this.leaseCounter;
+		--this.numberOfBuffers;
 		
-		if (this.leaseCounter == 0) {
+		if (this.numberOfBuffers == 0) {
 			// Close the file
 			this.readableFileChannel.close();
 
@@ -82,8 +83,8 @@ public final class ReadableSpillingFile {
 		return false;
 	}
 
-	public synchronized void increaseLeaseCounter() {
+	public synchronized void increaseNumberOfBuffers() {
 		
-		++this.leaseCounter;
+		++this.numberOfBuffers;
 	}
 }
