@@ -722,6 +722,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
 
 		if (outputChannel == null) {
+
 			AbstractInputChannel<? extends Record> inputChannel = eg.getInputChannelByID(sourceChannelID);
 
 			final ChannelID connectedChannelID = inputChannel.getConnectedChannelID();
@@ -730,7 +731,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			final AbstractInstance assignedInstance = connectedVertex.getAllocatedResource().getInstance();
 			if (assignedInstance == null) {
 				LOG.error("Cannot resolve lookup: vertex found for channel ID " + connectedChannelID
-					+ " but no instance assigned");
+						+ " but no instance assigned");
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			// Check execution state
+			final ExecutionState executionState = connectedVertex.getExecutionState();
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
@@ -744,10 +751,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
-		if (outputChannel.isBroadcastChannel() && outputChannel.getType() != ChannelType.INMEMORY) {
+		if (outputChannel.isBroadcastChannel()) {
 
-			// TODO: Implement broadcast functionality here
-			// will do so! ;)
 			return multicastManager.lookupConnectionInfo(caller, jobID, sourceChannelID);
 
 		} else {
@@ -765,25 +770,24 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
-			// TODO: Start vertex if in lazy mode
-
 			final AbstractInstance assignedInstance = targetVertex.getAllocatedResource().getInstance();
 			if (assignedInstance == null) {
-				LOG.error("Cannot resolve lookup: vertex found for channel ID " + outputChannel.getConnectedChannelID()
-					+ " but no instance assigned");
+				LOG.error("Cannot resolve lookup: vertex found for channel ID "
+						+ outputChannel.getConnectedChannelID()
+						+ " but no instance assigned");
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
 			if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
 				// Receiver runs on the same task manager
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(outputChannel.getConnectedChannelID());
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(outputChannel
+						.getConnectedChannelID());
 			} else {
 				// Receiver runs on a different task manager
 				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance
-					.getInstanceConnectionInfo());
+						.getInstanceConnectionInfo());
 			}
 		}
-
 		// LOG.error("Receiver(s) not found");
 
 		// return ConnectionInfoLookupResponse.createReceiverNotFound();
@@ -1053,6 +1057,17 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return;
 		}
 
+		for (final ExecutionVertex vertex : verticesToBeDeployed) {
+
+			// Check vertex state
+			if (vertex.getExecutionState() != ExecutionState.READY) {
+				LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
+					+ vertex.getExecutionState());
+			}
+
+			vertex.setExecutionState(ExecutionState.STARTING);
+		}
+
 		// Create a new runnable and pass it the executor service
 		final Runnable deploymentRunnable = new Runnable() {
 
@@ -1070,18 +1085,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				}
 
 				final List<TaskSubmissionWrapper> submissionList = new SerializableArrayList<TaskSubmissionWrapper>();
-				
+
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
-					// Check vertex state
-					if (vertex.getExecutionState() != ExecutionState.READY) {
-						LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
-							+ vertex.getExecutionState());
-					}
-					
-					vertex.setExecutionState(ExecutionState.STARTING);
-					
 					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
 						.getExecutionGraph().getJobConfiguration(), vertex.constructInitialActiveOutputChannelsSet()));
 
