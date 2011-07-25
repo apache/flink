@@ -292,4 +292,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			this.decompressor.shutdown(getID());
 		}
 	}
+	
+	@Override
+	public void activate() throws IOException, InterruptedException {
+		
+		transferEvent(new ByteBufferedChannelActivateEvent());
+	}
 }

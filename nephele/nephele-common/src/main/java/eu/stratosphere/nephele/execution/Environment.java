@@ -344,6 +344,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		}
 
 		try {
+
+			// Activate input channels
+			activateInputChannels();
+
 			this.invokable.invoke();
 
 			// Make sure, we enter the catch block when the task has been canceled
@@ -409,6 +413,25 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		// Finally, switch execution state to FINISHED and report to job manager
 		changeExecutionState(ExecutionState.FINISHED, null);
+	}
+
+	/**
+	 * Activates all of the task's input channels.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transmitting one of the activation requests to the corresponding
+	 *         output channels
+	 * @throws InterruptedException
+	 *         throws if the task is interrupted while waiting for the activation process to complete
+	 */
+	private void activateInputChannels() throws IOException, InterruptedException {
+
+		for (int i = 0; i < getNumberOfInputGates(); ++i) {
+			final InputGate<? extends Record> eig = getInputGate(i);
+			for (int j = 0; j < eig.getNumberOfInputChannels(); ++j) {
+				eig.getInputChannel(j).activate();
+			}
+		}
 	}
 
 	/**
