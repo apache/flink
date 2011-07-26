@@ -139,7 +139,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						continue;
 					}
 
-					final boolean isActive = activeOutputChannels.contains(bboc.getID());
+					final boolean isActive = /*activeOutputChannels.contains(bboc.getID())*/ true; //TODO: Uncomment hash map access
 
 					LOG.info("Registering byte buffered output channel " + bboc.getID() + " ("
 						+ (isActive ? "active" : "inactive") + ")");
