@@ -124,12 +124,13 @@ public class FileBufferManager {
 		return getReadableSpillingFile(gateID, fileID).lockReadableFileChannel();
 	}
 
-	public void increaseFileCounter(final GateID gateID, final FileID fileID) throws IOException, InterruptedException {
+	public void increaseBufferCounter(final GateID gateID, final FileID fileID) throws IOException,
+			InterruptedException {
 
 		getReadableSpillingFile(gateID, fileID).increaseNumberOfBuffers();
 	}
 
-	public void releaseFileChannelForReading(final GateID gateID, final FileID fileID, boolean deleteFile) {
+	public void decreaseBufferCounter(final GateID gateID, final FileID fileID) {
 
 		try {
 			Map<FileID, ReadableSpillingFile> map = null;
@@ -154,13 +155,10 @@ public class FileBufferManager {
 						}
 					}
 					try {
-						readableSpillingFile.unlockReadableFileChannel();
-						if (deleteFile) {
-							if (readableSpillingFile.checkForEndOfFile()) {
-								map.remove(fileID);
-								if (map.isEmpty()) {
-									this.readableSpillingFileMap.remove(gateID);
-								}
+						if (readableSpillingFile.checkForEndOfFile()) {
+							map.remove(fileID);
+							if (map.isEmpty()) {
+								this.readableSpillingFileMap.remove(gateID);
 							}
 						}
 					} catch (ClosedChannelException e) {
@@ -173,9 +171,17 @@ public class FileBufferManager {
 					}
 				}
 			}
-
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
+		}
+	}
+
+	public void releaseFileChannelForReading(final GateID gateID, final FileID fileID) {
+
+		try {
+			getReadableSpillingFile(gateID, fileID).unlockReadableFileChannel();
+		} catch(Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
 
