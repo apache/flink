@@ -139,7 +139,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						continue;
 					}
 
-					final boolean isActive = /*activeOutputChannels.contains(bboc.getID())*/ true; //TODO: Uncomment hash map access
+					final boolean isActive = activeOutputChannels.contains(bboc.getID());
 
 					LOG.info("Registering byte buffered output channel " + bboc.getID() + " ("
 						+ (isActive ? "active" : "inactive") + ")");
@@ -301,7 +301,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		// Handle the most common (unicast) case first
 		if (!freeSourceBuffer) {
-
+			
 			final List<ChannelID> localReceivers = receiverList.getLocalReceivers();
 			if (localReceivers.size() != 1) {
 				throw new IOException("Expected receiver list to have exactly one element");
