@@ -370,7 +370,9 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			}
 			mapping.assignInstanceToJob(instance);
 			// Trigger notification that instance is available (outside synchronized section)
-			this.instanceListener.resourceAllocated(jobID, instance.asAllocatedResource());
+			final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>(1);
+			allocatedResources.add(instance.asAllocatedResource());
+			this.instanceListener.resourcesAllocated(jobID, allocatedResources);
 			return;
 		}
 
@@ -544,7 +546,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		// First we check, if there are any orphaned TMs that are accessible with the provided configuration
 		checkAndConvertOrphanedInstances(conf);
-		
+
 		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
 
 		JobToInstancesMapping jobToInstanceMapping = null;
@@ -568,6 +570,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		// Iterate over all instance types
 		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
+		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+
 		while (it.hasNext()) {
 			final Map.Entry<InstanceType, Integer> entry = it.next();
 			final InstanceType actualInstanceType = entry.getKey();
@@ -589,8 +593,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			LOG.info("Found " + floatinginstances.size() + " suitable floating instances.");
 			for (CloudInstance ci : floatinginstances) {
 				mapping.assignInstanceToJob(ci);
-				CloudInstanceNotifier notifier = new CloudInstanceNotifier(this.instanceListener, jobID, ci);
-				notifier.start();
+				allocatedResources.add(ci.asAllocatedResource());
 			}
 
 			if (floatinginstances.size() < neededinstancecount) {
@@ -613,6 +616,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			this.reservedInstances.put(i, jobID);
 
 		}
+
+		// Finally, inform the scheduler about the instances which have been floating before
+		final CloudInstanceNotifier notifier = new CloudInstanceNotifier(this.instanceListener, jobID,
+			allocatedResources);
+		notifier.start();
 	}
 
 	/**
@@ -704,8 +712,9 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	/**
 	 * Checks, if there are any orphaned Instances listed that are accessible via the provided configuration.
 	 * If so, orphaned Instances will be converted to floating instances related to the given configuration.
+	 * 
 	 * @param conf
-	 * 		The configuration provided upon instances request
+	 *        The configuration provided upon instances request
 	 */
 	private void checkAndConvertOrphanedInstances(Configuration conf) {
 		if (this.orphanedTMs.size() == 0) {
@@ -714,7 +723,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
 		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
-		
+
 		LOG.debug("Checking orphaned Instances... " + this.orphanedTMs.size() + " orphaned instances listed.");
 		AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 
@@ -724,7 +733,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		// Iterate over all Instances
 		for (Reservation r : result.getReservations()) {
 			for (Instance t : r.getInstances()) {
-				
+
 				InetAddress inetAddress = null;
 				try {
 					inetAddress = InetAddress.getByName(t.getPrivateIpAddress());
@@ -733,21 +742,22 @@ public class CloudManager extends TimerTask implements InstanceManager {
 						+ StringUtils.stringifyException(e));
 					continue;
 				}
-				
+
 				final Iterator<InstanceConnectionInfo> it = this.orphanedTMs.iterator();
-				
-				while(it.hasNext()){
+
+				while (it.hasNext()) {
 					InstanceConnectionInfo oi = it.next();
-					if(oi.getAddress().equals(inetAddress)){
+					if (oi.getAddress().equals(inetAddress)) {
 						LOG.info("Orphaned Instance " + oi + " converted into floating instance.");
 						// We have found the corresponding orphaned TM.. take the poor lamb back to its nest.
-						FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t.getLaunchTime().getTime());
+						FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t
+							.getLaunchTime().getTime());
 						this.floatingInstances.put(oi, floatinginstance);
 						this.floatingInstanceIDs.put(t.getInstanceId(), conf);
 						break;
 					}
 				}
-				
+
 			}
 		}
 	}

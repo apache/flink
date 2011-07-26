@@ -1,6 +1,9 @@
 package eu.stratosphere.nephele.instance.cloud;
 
+import java.util.List;
+
 import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -21,22 +24,25 @@ public class CloudInstanceNotifier extends Thread {
 	 */
 	private final InstanceListener instanceListener;
 
-	private final CloudInstance instance;
+	private final List<AllocatedResource> allocatedResources;
 
-	private final JobID id;
+	private final JobID jobID;
 
 	/**
 	 * Constructs a new instance notifier object.
 	 * 
 	 * @param instanceListener
 	 *        the listener to send the notification to
-	 * @param allocatedSlice
-	 *        the slice with has been allocated for the job
+	 * @param jobID
+	 *        the ID of the job the notification refers to
+	 * @param allocatedResources
+	 *        the resources which have been allocated for the job with the given ID
 	 */
-	public CloudInstanceNotifier(InstanceListener instanceListener, JobID id, CloudInstance instance) {
+	public CloudInstanceNotifier(final InstanceListener instanceListener, final JobID jobID,
+			final List<AllocatedResource> allocatedResources) {
 		this.instanceListener = instanceListener;
-		this.instance = instance;
-		this.id = id;
+		this.jobID = jobID;
+		this.allocatedResources = allocatedResources;
 	}
 
 	/**
@@ -44,6 +50,6 @@ public class CloudInstanceNotifier extends Thread {
 	 */
 	@Override
 	public void run() {
-		this.instanceListener.resourceAllocated(id, instance.asAllocatedResource());
+		this.instanceListener.resourcesAllocated(this.jobID, this.allocatedResources);
 	}
 }

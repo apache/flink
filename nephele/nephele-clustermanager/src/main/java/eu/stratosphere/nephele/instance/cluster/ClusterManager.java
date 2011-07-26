@@ -200,6 +200,7 @@ public class ClusterManager implements InstanceManager {
 			synchronized (ClusterManager.this) {
 
 				final List<Map.Entry<InstanceConnectionInfo, ClusterInstance>> hostsToRemove = new ArrayList<Map.Entry<InstanceConnectionInfo, ClusterInstance>>();
+				final Map<JobID, List<AllocatedResource>> staleResources = new HashMap<JobID, List<AllocatedResource>>();
 
 				// check all hosts whether they did not send heat-beat messages.
 				for (Map.Entry<InstanceConnectionInfo, ClusterInstance> entry : registeredHosts.entrySet()) {
@@ -226,14 +227,26 @@ public class ClusterManager implements InstanceManager {
 								slicesOfJobs.remove(jobID);
 							}
 
-							if (instanceListener != null) {
-								instanceListener.allocatedResourceDied(removedSlice.getJobID(),
-									new AllocatedResource(removedSlice.getHostingInstance(), removedSlice.getType(),
-										removedSlice.getAllocationID()));
+							List<AllocatedResource> staleResourcesOfJob = staleResources.get(removedSlice.getJobID());
+							if (staleResourcesOfJob == null) {
+								staleResourcesOfJob = new ArrayList<AllocatedResource>();
+								staleResources.put(removedSlice.getJobID(), staleResourcesOfJob);
 							}
+
+							staleResourcesOfJob.add(new AllocatedResource(removedSlice.getHostingInstance(),
+								removedSlice.getType(),
+								removedSlice.getAllocationID()));
 						}
 
 						hostsToRemove.add(entry);
+					}
+				}
+
+				final Iterator<Map.Entry<JobID, List<AllocatedResource>>> it = staleResources.entrySet().iterator();
+				while (it.hasNext()) {
+					final Map.Entry<JobID, List<AllocatedResource>> entry = it.next();
+					if (instanceListener != null) {
+						instanceListener.allocatedResourcesDied(entry.getKey(), entry.getValue());
 					}
 				}
 
@@ -700,6 +713,8 @@ public class ClusterManager implements InstanceManager {
 			final InstanceRequestMap instanceRequestMap,
 			final List<String> splitAffinityList) throws InstanceException {
 
+		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+
 		// Iterate over all instance types
 		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
 		while (it.hasNext()) {
@@ -754,13 +769,15 @@ public class ClusterManager implements InstanceManager {
 				}
 				allocatedSlices.add(slice);
 
-				if (this.instanceListener != null) {
-					ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
-						this.instanceListener, slice);
-					clusterInstanceNotifier.start();
-				}
-
+				allocatedResources.add(new AllocatedResource(slice.getHostingInstance(), slice.getType(), slice
+					.getAllocationID()));
 			}
+		}
+
+		if (this.instanceListener != null) {
+			final ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
+				this.instanceListener, jobID, allocatedResources);
+			clusterInstanceNotifier.start();
 		}
 	}
 

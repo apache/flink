@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -341,9 +342,12 @@ public class LocalInstanceManager implements InstanceManager {
 					}
 				}
 
+				final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>(1);
+				allocatedResources.add(this.allocatedResource);
+				
 				if (assignmentSuccessful) {
 					// Spawn a new thread to send the notification
-					new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResource).start();
+					new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResources).start();
 				} else {
 					throw new InstanceException("No instance of type " + entry.getKey() + " available");
 				}

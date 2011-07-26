@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.util.StringUtils;
@@ -152,7 +153,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
 		}
-		
+
 		// Request resources for the first stage of the job
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 		try {
@@ -188,7 +189,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void allocatedResourceDied(final JobID jobID, final AllocatedResource allocatedResource) {
+	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 		// TODO Auto-generated method stub
 
 	}

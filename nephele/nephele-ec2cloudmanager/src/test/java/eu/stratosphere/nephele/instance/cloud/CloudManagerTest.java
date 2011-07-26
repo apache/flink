@@ -64,19 +64,23 @@ public class CloudManagerTest {
 		final Map<JobID, List<AllocatedResource>> resourcesOfJobs = new HashMap<JobID, List<AllocatedResource>>();
 
 		@Override
-		public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
+		public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
 			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
 			assertTrue(resourcesOfJob != null);
-			assertTrue(resourcesOfJob.contains(allocatedResource));
-			resourcesOfJob.remove(allocatedResource);
+
+			for (final AllocatedResource allocatedResource : allocatedResources) {
+				assertTrue(resourcesOfJob.contains(allocatedResource));
+				resourcesOfJob.remove(allocatedResource);
+			}
+
 			if (resourcesOfJob.isEmpty()) {
 				this.resourcesOfJobs.remove(jobID);
 			}
 		}
 
 		@Override
-		public void resourceAllocated(JobID jobID, AllocatedResource allocatedResource) {
+		public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
 			assertTrue(nrAvailable >= 0);
 			++nrAvailable;
@@ -85,8 +89,11 @@ public class CloudManagerTest {
 				resourcesOfJob = new ArrayList<AllocatedResource>();
 				this.resourcesOfJobs.put(jobID, resourcesOfJob);
 			}
-			assertFalse(resourcesOfJob.contains(allocatedResource));
-			resourcesOfJob.add(allocatedResource);
+
+			for (final AllocatedResource allocatedResource : allocatedResources) {
+				assertFalse(resourcesOfJob.contains(allocatedResource));
+				resourcesOfJob.add(allocatedResource);
+			}
 		}
 	};
 

@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobmanager.scheduler.local;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.util.StringUtils;
@@ -176,7 +177,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void allocatedResourceDied(final JobID jobID, final AllocatedResource allocatedResource) {
+	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
 		// TODO Auto-generated method stub
 
 	}

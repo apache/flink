@@ -150,10 +150,10 @@ public abstract class AbstractScheduler implements InstanceListener {
 			if (instanceRequestMap.isEmpty()) {
 				return;
 			}
-			
+
 			this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
 				instanceRequestMap, null);
-			
+
 			// Switch vertex state to assigning
 			final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph
 				.getIndexOfCurrentExecutionStage(), true, true);
@@ -217,23 +217,31 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 	}
 
-	public void resourceAllocated(final JobID jobID, final AllocatedResource allocatedResource) {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
-		if (allocatedResource == null) {
-			LOG.error("Resource to lock is null!");
-			return;
-		}
+		for (final AllocatedResource allocatedResource : allocatedResources) {
 
-		if (allocatedResource.getInstance() instanceof DummyInstance) {
-			LOG.debug("Available instance is of type DummyInstance!");
-			return;
-		}
+			if (allocatedResources == null) {
+				LOG.error("Resource to lock is null!");
+				return;
+			}
 
-		// Check if all required libraries are available on the instance
-		try {
-			allocatedResource.getInstance().checkLibraryAvailability(jobID);
-		} catch (IOException ioe) {
-			LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
+			if (allocatedResource.getInstance() instanceof DummyInstance) {
+				LOG.debug("Available instance is of type DummyInstance!");
+				return;
+			}
+
+			// Check if all required libraries are available on the instance
+			// TODO: Move this to job manager so it is executed in parallel
+			try {
+				allocatedResource.getInstance().checkLibraryAvailability(jobID);
+			} catch (IOException ioe) {
+				LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
+			}
 		}
 
 		final ExecutionGraph eg = getExecutionGraphByID(jobID);
@@ -244,7 +252,9 @@ public abstract class AbstractScheduler implements InstanceListener {
 			 * we release the instance immediately.
 			 */
 			try {
-				getInstanceManager().releaseAllocatedResource(jobID, null, allocatedResource);
+				for (final AllocatedResource allocatedResource : allocatedResources) {
+					getInstanceManager().releaseAllocatedResource(jobID, null, allocatedResource);
+				}
 			} catch (InstanceException e) {
 				LOG.error(e);
 			}
@@ -255,40 +265,45 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 			final int indexOfCurrentStage = eg.getIndexOfCurrentExecutionStage();
 
-			AllocatedResource resourceToBeReplaced = null;
-			// Important: only look for instances to be replaced in the current stage
-			ExecutionGraphIterator it = new ExecutionGraphIterator(eg, indexOfCurrentStage, true, true);
-			while (it.hasNext()) {
+			for (final AllocatedResource allocatedResource : allocatedResources) {
 
-				final ExecutionVertex vertex = it.next();
-				if (vertex.getExecutionState() == ExecutionState.SCHEDULED && vertex.getAllocatedResource() != null) {
-					// In local mode, we do not consider any topology, only the instance type
-					if (vertex.getAllocatedResource().getInstanceType().equals(
-						allocatedResource.getInstanceType())) {
-						resourceToBeReplaced = vertex.getAllocatedResource();
-						break;
+				AllocatedResource resourceToBeReplaced = null;
+				// Important: only look for instances to be replaced in the current stage
+				ExecutionGraphIterator it = new ExecutionGraphIterator(eg, indexOfCurrentStage, true, true);
+				while (it.hasNext()) {
+
+					final ExecutionVertex vertex = it.next();
+					if (vertex.getExecutionState() == ExecutionState.SCHEDULED && vertex.getAllocatedResource() != null) {
+						// In local mode, we do not consider any topology, only the instance type
+						if (vertex.getAllocatedResource().getInstanceType().equals(
+							allocatedResource.getInstanceType())) {
+							resourceToBeReplaced = vertex.getAllocatedResource();
+							break;
+						}
 					}
 				}
-			}
 
-			// For some reason, we don't need this instance
-			if (resourceToBeReplaced == null) {
-				LOG.error("Instance " + allocatedResource.getInstance() + " is not required for job" + eg.getJobID());
-				try {
-					getInstanceManager().releaseAllocatedResource(jobID, eg.getJobConfiguration(), allocatedResource);
-				} catch (InstanceException e) {
-					LOG.error(e);
+				// For some reason, we don't need this instance
+				if (resourceToBeReplaced == null) {
+					LOG.error("Instance " + allocatedResource.getInstance() + " is not required for job"
+						+ eg.getJobID());
+					try {
+						getInstanceManager().releaseAllocatedResource(jobID, eg.getJobConfiguration(),
+							allocatedResource);
+					} catch (InstanceException e) {
+						LOG.error(e);
+					}
+					return;
 				}
-				return;
-			}
 
-			// Replace the selected instance in the entire graph with the new instance
-			it = new ExecutionGraphIterator(eg, true);
-			while (it.hasNext()) {
-				final ExecutionVertex vertex = it.next();
-				if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
-					vertex.setAllocatedResource(allocatedResource);
-					vertex.setExecutionState(ExecutionState.READY);
+				// Replace the selected instance in the entire graph with the new instance
+				it = new ExecutionGraphIterator(eg, true);
+				while (it.hasNext()) {
+					final ExecutionVertex vertex = it.next();
+					if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
+						vertex.setAllocatedResource(allocatedResource);
+						vertex.setExecutionState(ExecutionState.READY);
+					}
 				}
 			}
 

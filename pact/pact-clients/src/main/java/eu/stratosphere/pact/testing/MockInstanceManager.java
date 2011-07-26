@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.testing;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,8 +64,16 @@ class MockInstanceManager implements InstanceManager {
 		return INSTANCE;
 	}
 
-	private final AllocatedResource allocatedResource = new AllocatedResource(
-			new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT, new AllocationID());
+	private final List<AllocatedResource> allocatedResources;
+
+	public MockInstanceManager() {
+
+		final AllocatedResource ar = new AllocatedResource(new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT,
+			new AllocationID());
+
+		this.allocatedResources = new ArrayList<AllocatedResource>(1);
+		this.allocatedResources.add(ar);
+	}
 
 	private InstanceListener instanceListener;
 
@@ -104,7 +113,7 @@ class MockInstanceManager implements InstanceManager {
 	@Override
 	public void requestInstance(JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
 			List<String> splitAffinityList) throws InstanceException {
-		this.instanceListener.resourceAllocated(jobID, this.allocatedResource);
+		this.instanceListener.resourcesAllocated(jobID, this.allocatedResources);
 	}
 
 	@Override

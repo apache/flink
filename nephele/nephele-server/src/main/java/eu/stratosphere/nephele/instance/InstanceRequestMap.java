@@ -53,7 +53,7 @@ public final class InstanceRequestMap {
 	 * @param number
 	 *        the minimum number of instances to request
 	 */
-	public void setMinimumNumberOfInstances(final InstanceType instanceType, int number) {
+	public void setMinimumNumberOfInstances(final InstanceType instanceType, final int number) {
 
 		this.minimumMap.put(instanceType, Integer.valueOf(number));
 	}
@@ -66,9 +66,23 @@ public final class InstanceRequestMap {
 	 * @param number
 	 *        the maximum number of instances to request
 	 */
-	public void setMaximumNumberOfInstances(final InstanceType instanceType, int number) {
+	public void setMaximumNumberOfInstances(final InstanceType instanceType, final int number) {
 
 		this.maximumMap.put(instanceType, Integer.valueOf(number));
+	}
+
+	/**
+	 * Sets both the minimum and the maximum number of instances to be requested from the given instance type.
+	 * 
+	 * @param instanceType
+	 *        the type of instance to request
+	 * @param number
+	 *        the minimum and the maximum number of instances to request
+	 */
+	public void setNumberOfInstances(final InstanceType instanceType, final int number) {
+
+		setMinimumNumberOfInstances(instanceType, number);
+		setMaximumNumberOfInstances(instanceType, number);
 	}
 
 	/**
