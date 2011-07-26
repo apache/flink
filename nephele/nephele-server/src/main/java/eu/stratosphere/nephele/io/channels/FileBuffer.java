@@ -247,7 +247,16 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public void recycleBuffer() {
 
-		this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID, true);
+		try {
+			if (this.fileChannel != null) {
+				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
+				this.fileChannel = null;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		this.fileBufferManager.decreaseBufferCounter(this.gateID, this.fileID);
 	}
 
 	@Override
@@ -257,7 +266,7 @@ public class FileBuffer implements InternalBuffer {
 
 			final long currentFileSize = this.offset + this.totalBytesWritten;
 			// If the input channel this buffer belongs to is already canceled, fileChannel may be null
-			if(this.fileChannel != null) {
+			if (this.fileChannel != null) {
 				this.fileChannel.position(currentFileSize);
 			}
 			this.fileChannel = null;
@@ -279,13 +288,13 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public InternalBuffer duplicate() throws IOException, InterruptedException {
 
-		this.fileBufferManager.increaseFileCounter(this.gateID, this.fileID);
+		this.fileBufferManager.increaseBufferCounter(this.gateID, this.fileID);
 
 		final FileBuffer dup = new FileBuffer((int) this.bufferSize, this.gateID, this.fileBufferManager);
 		dup.writeMode = this.writeMode;
 		dup.fileID = this.fileID;
 		dup.offset = this.offset;
-		
+
 		return dup;
 	}
 
@@ -293,17 +302,20 @@ public class FileBuffer implements InternalBuffer {
 	public void copyToBuffer(final Buffer destinationBuffer) throws IOException {
 
 		if (destinationBuffer.isBackedByMemory()) {
+
 			final long tbr = this.totalBytesRead;
-			if(this.fileChannel != null) {
-				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID, false);
+			if (this.fileChannel != null) {
+				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
 			}
 			this.totalBytesRead = 0;
 			destinationBuffer.write(this);
 			destinationBuffer.finishWritePhase();
-			this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID, false);
+			if (this.fileChannel != null) {
+				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
+			}
 			this.fileChannel = null;
 			this.totalBytesRead = tbr;
-			
+
 			return;
 		}
 
