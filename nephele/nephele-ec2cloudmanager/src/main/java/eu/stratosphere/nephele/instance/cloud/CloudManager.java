@@ -97,9 +97,9 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 	/** Timelimit to full next hour when instance is kicked. */
 	private static final long TIMETHRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
-	
-	/** TMs that send HeartBeats but do not belong to any job will be blacklisted */
-	private final HashSet<InstanceConnectionInfo> blackListedTms = new HashSet<InstanceConnectionInfo>();
+
+	/** TMs that send HeartBeats but do not belong to any job are kept in this set. */
+	private final HashSet<InstanceConnectionInfo> orphanedTMs = new HashSet<InstanceConnectionInfo>();
 
 	/** The array of all available instance types in the cloud. */
 	private final InstanceType[] availableInstanceTypes;
@@ -325,12 +325,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			HardwareDescription hardwareDescription) {
 
 		// Check if this TM is blacklisted
-		if(this.blackListedTms.contains(instanceConnectionInfo)){
-			LOG.debug("Received HeartBeat from blacklisted TM " + instanceConnectionInfo);
+		if (this.orphanedTMs.contains(instanceConnectionInfo)) {
+			LOG.debug("Received HeartBeat from orphaned TM " + instanceConnectionInfo);
 			return;
 		}
-		
-		
+
 		// Check if heart beat belongs to a floating instance
 		if (this.floatingInstances.containsKey(instanceConnectionInfo)) {
 			final FloatingInstance floatingInstance = this.floatingInstances.get(instanceConnectionInfo);
@@ -373,11 +372,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			this.instanceListener.resourceAllocated(jobID, instance.asAllocatedResource());
 			return;
 		}
-		
+
 		// This TM seems to be unknown to the JobManager.. blacklist
-		LOG.info("Received HeartBeat from unknown TM. Blacklisting. Address is: " + instanceConnectionInfo);
-		this.blackListedTms.add(instanceConnectionInfo);
-		
+		LOG.info("Received HeartBeat from unknown TM. Put into orphaned TM set. Address is: " + instanceConnectionInfo);
+		this.orphanedTMs.add(instanceConnectionInfo);
+
 	}
 
 	/**
@@ -542,6 +541,9 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
 		}
 
+		// First we check, if there are any orphaned TMs that are accessible with the provided configuration
+		checkAndConvertOrphanedInstances(conf);
+		
 		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
 
 		JobToInstancesMapping jobToInstanceMapping = null;
@@ -679,14 +681,15 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 			// Request instances!
 			RunInstancesResult result = ec2client.runInstances(request);
-			
+
 			// Check if reservation went well...
-			
-			if(result.getReservation().getInstances().size() != neededinstancecount){
+
+			if (result.getReservation().getInstances().size() != neededinstancecount) {
 				// Something went wront..
-				LOG.error("Requested " + neededinstancecount + " instances of type " + actualInstanceType.getIdentifier() + " but only got " + result.getReservation().getInstances().size() + " instances reserved.");
+				LOG.error("Requested " + neededinstancecount + " instances of type "
+					+ actualInstanceType.getIdentifier() + " but only got "
+					+ result.getReservation().getInstances().size() + " instances reserved.");
 			}
-			
 
 			for (Instance i : result.getReservation().getInstances()) {
 				instanceIDs.add(i.getInstanceId());
@@ -695,6 +698,57 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		}
 
 		return instanceIDs;
+	}
+
+	/**
+	 * Checks, if there are any orphaned Instances listed that are accessible via the provided configuration.
+	 * If so, orphaned Instances will be converted to floating instances related to the given configuration.
+	 * @param conf
+	 * 		The configuration provided upon instances request
+	 */
+	private void checkAndConvertOrphanedInstances(Configuration conf) {
+		if (this.orphanedTMs.size() == 0) {
+			return;
+		}
+
+		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
+		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
+		
+		LOG.debug("Checking orphaned Instances... " + this.orphanedTMs.size() + " orphaned instances listed.");
+		AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
+
+		DescribeInstancesRequest request = new DescribeInstancesRequest();
+		DescribeInstancesResult result = ec2client.describeInstances(request);
+
+		// Iterate over all Instances
+		for (Reservation r : result.getReservations()) {
+			for (Instance t : r.getInstances()) {
+				
+				InetAddress inetAddress = null;
+				try {
+					inetAddress = InetAddress.getByName(t.getPrivateIpAddress());
+				} catch (UnknownHostException e) {
+					LOG.error("Cannot resolve " + t.getPrivateDnsName() + " into an IP address: "
+						+ StringUtils.stringifyException(e));
+					continue;
+				}
+				
+				final Iterator<InstanceConnectionInfo> it = this.orphanedTMs.iterator();
+				
+				while(it.hasNext()){
+					InstanceConnectionInfo oi = it.next();
+					if(oi.getAddress().equals(inetAddress)){
+						LOG.info("Orphaned Instance " + oi + " converted into floating instance.");
+						// We have found the corresponding orphaned TM.. take the poor lamb back to its nest.
+						FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t.getLaunchTime().getTime());
+						this.floatingInstances.put(oi, floatinginstance);
+						this.floatingInstanceIDs.put(t.getInstanceId(), conf);
+						break;
+					}
+				}
+				
+			}
+		}
 	}
 
 	/**
