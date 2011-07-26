@@ -449,7 +449,7 @@ public class HashJoin
 		for (int i = 0; i < keyHolders.length; i++) {
 			keyHolders[i] = InstantiationUtil.instantiate(this.keyClasses[i], Key.class);
 		}
-		this.bucketIterator = new HashBucketIterator(this.keyFields, this.keyHolders);
+		this.bucketIterator = new HashBucketIterator(this.keyFields, keyHolders);
 	}
 	
 	/**
@@ -570,9 +570,9 @@ public class HashJoin
 	/**
 	 * @return
 	 */
-	public ProbeIterator getProbeSideIterator()
+	public PactRecord getCurrentProbeRecord()
 	{
-		return this.probeIterator;
+		return this.probeIterator.getCurrent();
 	}
 	
 	/**
@@ -674,8 +674,8 @@ public class HashJoin
 			final PactRecord record = input.next();
 			int hashCode = 0;
 			for (int i = 0; i < positions.length; i++) {
-				final Key k = keys[i];
-				if (record.getField(positions[i], k)) {
+				Key k = keys[i];
+				if ((k = record.getField(positions[i], k)) != null) {
 					hashCode ^= hash(k.hashCode(), 0);
 				}
 				else {
@@ -1146,8 +1146,8 @@ public class HashJoin
 	{
 		int hashCode = 0;
 		for (int i = 0; i < this.keyFields.length; i++) {
-			final Key k = this.keyHolders[i];
-			if (record.getField(this.keyFields[i], k)) {
+			Key k = this.keyHolders[i];
+			if ((k = record.getField(this.keyFields[i], k)) != null) {
 				hashCode ^= hash(k.hashCode(), recursionLevel);
 			}
 			else {

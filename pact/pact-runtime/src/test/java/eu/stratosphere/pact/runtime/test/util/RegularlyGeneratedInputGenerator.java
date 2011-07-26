@@ -17,11 +17,15 @@ package eu.stratosphere.pact.runtime.test.util;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
-public class RegularlyGeneratedInputGenerator implements Iterator<KeyValuePair<PactInteger, PactInteger>> {
+public class RegularlyGeneratedInputGenerator implements Iterator<PactRecord> {
 
+	private final PactInteger key = new PactInteger();
+	private final PactInteger value = new PactInteger();
+	private final PactRecord record = new PactRecord();
+	
 	int numKeys;
 	int numVals;
 	
@@ -53,29 +57,28 @@ public class RegularlyGeneratedInputGenerator implements Iterator<KeyValuePair<P
 	}
 
 	@Override
-	public KeyValuePair<PactInteger, PactInteger> next() {
+	public PactRecord next() {
 		if(!repeatKey) {
-			PactInteger key = new PactInteger(keyCnt++);
-			PactInteger val = new PactInteger(valCnt);
+			key.setValue(keyCnt++);
+			value.setValue(valCnt);
 			
 			if(keyCnt == numKeys) {
 				keyCnt = 0;
 				valCnt++;
 			}
-		
-			return new KeyValuePair<PactInteger, PactInteger>(key,val);
-			
 		} else {
-			PactInteger key = new PactInteger(keyCnt);
-			PactInteger val = new PactInteger(valCnt++);
+			key.setValue(keyCnt);
+			value.setValue(valCnt++);
 			
 			if(valCnt == numVals) {
 				valCnt = 0;
 				keyCnt++;
 			}
-		
-			return new KeyValuePair<PactInteger, PactInteger>(key,val);
 		}
+		
+		this.record.setField(0, this.key);
+		this.record.setField(1, this.value);
+		return this.record;
 	}
 
 	@Override
