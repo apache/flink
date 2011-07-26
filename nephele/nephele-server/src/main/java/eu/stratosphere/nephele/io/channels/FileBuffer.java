@@ -60,6 +60,9 @@ public class FileBuffer implements InternalBuffer {
 		if (this.fileChannel == null) {
 			try {
 				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
+				if(this.fileChannel == null) {
+					return 0;
+				}
 			} catch (InterruptedException e) {
 				return -1;
 			}
@@ -89,6 +92,9 @@ public class FileBuffer implements InternalBuffer {
 		if (this.fileChannel == null) {
 			try {
 				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
+				if(this.fileChannel == null) {
+					return 0;
+				}
 			} catch (InterruptedException e) {
 				return -1;
 			}

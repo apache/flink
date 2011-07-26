@@ -45,12 +45,10 @@ public final class ReadableSpillingFile {
 		return this.physicalFile;
 	}
 
-	public synchronized FileChannel lockReadableFileChannel()
-			throws InterruptedException {
+	public synchronized FileChannel lockReadableFileChannel() {
 
-		while (this.readableChannelLocked) {
-
-			this.wait();
+		if (this.readableChannelLocked) {
+			return null;
 		}
 
 		this.readableChannelLocked = true;
