@@ -58,8 +58,8 @@ public class Grep {
 
 		try {
 
-			input.connectTo(task1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-			task1.connectTo(output, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			input.connectTo(task1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			task1.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 		} catch (JobGraphDefinitionException e) {
 			e.printStackTrace();
@@ -87,13 +87,12 @@ public class Grep {
 
 		// Submit job
 		Configuration conf = new Configuration();
-		//conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
-		//conf.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, "6123");
-		conf.setString("ec2.image.id", "ami-ea5b6b9e");
-		conf.setString("job.cloud.username", "noname");
-		conf.setString("job.cloud.awsaccessid", "AKIAJYQJNI7QH227NDQA");
-		conf.setString("job.cloud.awssecretkey", "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");
-		conf.setString("job.cloud.sshkeypair", "caspeu");
+
+		jobGraph.getJobConfiguration().setString("job.cloud.awsaccessid", "xxx");
+		jobGraph.getJobConfiguration().setString("job.cloud.awssecretkey", "xxx");
+		jobGraph.getJobConfiguration().setString("job.cloud.sshkeypair", "caspeu");
+		jobGraph.getJobConfiguration().setString("job.ec2.image.id", "ami-d64474a2");		
+
 		InetSocketAddress jobmanager = new InetSocketAddress("127.0.0.1", 6123);
 		
 		
