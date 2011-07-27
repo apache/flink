@@ -48,7 +48,7 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<V>
 	 * @see eu.stratosphere.nephele.io.RecordDeserializer#deserialize(java.io.DataInput)
 	 */
 	@Override
-	public V deserialize(DataInput in) {
+	public V deserialize(V target, DataInput in) {
 		try {
 			V value = getInstance();
 			value.read(in);
@@ -56,15 +56,6 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<V>
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.RecordDeserializer#getRecordType()
-	 */
-	@Override
-	public Class<V> getRecordType() {
-		return valueClass;
 	}
 
 	/*

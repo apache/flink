@@ -79,7 +79,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 * @throws IOException
 	 *         thrown if the input channel is already closed {@link EOFException} or a transmission error has occurred
 	 */
-	public abstract T readRecord() throws IOException;
+	public abstract T readRecord(T target) throws IOException;
 
 	@Override
 	public void read(DataInput in) throws IOException {

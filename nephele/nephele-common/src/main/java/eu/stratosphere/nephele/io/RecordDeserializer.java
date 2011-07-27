@@ -36,7 +36,7 @@ public interface RecordDeserializer<T extends IOReadableWritable> extends IORead
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while deserializing the record from the stream
 	 */
-	T deserialize(DataInput in) throws IOException;
+	T deserialize(T target, DataInput in) throws IOException;
 
 	/**
 	 * Returns a new instance of the record deserialized by this record deserializer.
@@ -44,13 +44,6 @@ public interface RecordDeserializer<T extends IOReadableWritable> extends IORead
 	 * @return a new instance of the record deserialized by this deserializer
 	 */
 	T getInstance();
-
-	/**
-	 * Returns the type of the record deserialized by this record deserializer.
-	 * 
-	 * @return the type of the record deserialized by this record deserializer
-	 */
-	Class<T> getRecordType();
 
 	/**
 	 * Sets the class loader the record deserializer shall use.

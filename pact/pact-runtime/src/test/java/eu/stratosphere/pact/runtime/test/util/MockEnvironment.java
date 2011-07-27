@@ -114,7 +114,7 @@ public class MockEnvironment extends Environment {
 		}
 
 		@Override
-		public T readRecord() throws IOException, InterruptedException {
+		public T readRecord(T target) throws IOException, InterruptedException {
 			if (it.hasNext()) {
 				return it.next();
 			} else {

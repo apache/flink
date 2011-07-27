@@ -142,8 +142,7 @@ public class ManagementGraphFactory {
 
 			for (int i = 0; i < ev.getEnvironment().getNumberOfInputGates(); i++) {
 				final InputGate<? extends Record> inputGate = ev.getEnvironment().getInputGate(i);
-				final ManagementGate managementGate = new ManagementGate(managementVertex, i, true, inputGate.getType()
-					.toString());
+				final ManagementGate managementGate = new ManagementGate(managementVertex, i, true, "");
 				gateMap.put(inputGate, managementGate);
 			}
 		}

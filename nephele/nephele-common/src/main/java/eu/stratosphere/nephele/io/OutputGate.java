@@ -70,6 +70,11 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	private final ChannelSelector<T> channelSelector;
 
 	/**
+	 * The class of the record transported through this output gate.
+	 */
+	private final Class<T> type;
+	
+	/**
 	 * The listener objects registered for this output gate.
 	 */
 	private OutputGateListener[] outputGateListeners = null;
@@ -105,10 +110,11 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	public OutputGate(final JobID jobID, final GateID gateID, final Class<T> inputClass, final int index,
 			final ChannelSelector<T> channelSelector, final boolean isBroadcast) {
 
-		super(jobID, gateID, inputClass, index);
+		super(jobID, gateID, index);
 
 		this.isBroadcast = isBroadcast;
-
+		this.type = inputClass;
+		
 		if (this.isBroadcast) {
 			this.channelSelector = null;
 		} else {
@@ -120,6 +126,15 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 		}
 	}
 
+	/**
+	 * Returns the type of record that can be transported through this gate.
+	 * 
+	 * @return the type of record that can be transported through this gate
+	 */
+	public final Class<T> getType() {
+		return this.type;
+	}
+	
 	/**
 	 * Adds a new output channel to the output gate.
 	 * 

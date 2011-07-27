@@ -117,7 +117,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	public InputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer, final int index,
 			final DistributionPattern distributionPattern) {
 
-		super(jobID, gateID, deserializer.getRecordType(), index);
+		super(jobID, gateID, index);
 
 		this.deserializer = deserializer;
 
@@ -318,7 +318,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 *         thrown if an error occurred while reading the channels
 	 */
 
-	public T readRecord() throws IOException, InterruptedException {
+	public T readRecord(final T target) throws IOException, InterruptedException {
 
 		T record = null;
 
@@ -336,7 +336,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
-				record = this.getInputChannel(this.channelToReadFrom).readRecord();
+				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
 			} catch (EOFException e) {
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
 				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");

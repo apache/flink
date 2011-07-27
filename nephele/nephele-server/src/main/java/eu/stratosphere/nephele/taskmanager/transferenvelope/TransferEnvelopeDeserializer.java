@@ -167,7 +167,7 @@ public class TransferEnvelopeDeserializer {
 
 		if (this.deserializationState == DeserializationState.SEQUENCENUMBERDESERIALIZED) {
 
-			this.deserializedJobID = this.jobIDDeserializationBuffer.readData(readableByteChannel);
+			this.deserializedJobID = this.jobIDDeserializationBuffer.readData(null, readableByteChannel);
 			if (this.deserializedJobID == null) {
 				return true;
 			}
@@ -176,7 +176,7 @@ public class TransferEnvelopeDeserializer {
 
 		} else {
 
-			this.deserializedSourceID = this.channelIDDeserializationBuffer.readData(readableByteChannel);
+			this.deserializedSourceID = this.channelIDDeserializationBuffer.readData(null, readableByteChannel);
 			if (this.deserializedSourceID == null) {
 				return true;
 			}
@@ -189,7 +189,7 @@ public class TransferEnvelopeDeserializer {
 
 	private boolean readNotificationList(ReadableByteChannel readableByteChannel) throws IOException {
 
-		this.deserializedEventList = this.notificationListDeserializationBuffer.readData(readableByteChannel);
+		this.deserializedEventList = this.notificationListDeserializationBuffer.readData(null, readableByteChannel);
 		if (this.deserializedEventList == null) {
 			return true;
 		} else {

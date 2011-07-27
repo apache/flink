@@ -42,11 +42,6 @@ import eu.stratosphere.nephele.util.EnumUtils;
 public abstract class AbstractGate<T extends Record> implements IOReadableWritable {
 
 	/**
-	 * The class of the record transported through this gate.
-	 */
-	private final Class<T> type;
-
-	/**
 	 * The ID of the job this gate belongs to.
 	 */
 	private final JobID jobID;
@@ -78,25 +73,13 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	 *        the ID of the job this gate belongs to
 	 * @param gateID
 	 *        the ID of this gate
-	 * @param type
-	 *        the ID of the job this gate belongs to
 	 * @param index
 	 *        the index of the gate in the list of available input/output gates.
 	 */
-	protected AbstractGate(final JobID jobID, final GateID gateID, final Class<T> type, final int index) {
+	protected AbstractGate(final JobID jobID, final GateID gateID, final int index) {
 		this.jobID = jobID;
 		this.gateID = gateID;
-		this.type = type;
 		this.index = index;
-	}
-
-	/**
-	 * Returns the type of record that can be transported through this gate.
-	 * 
-	 * @return the type of record that can be transported through this gate
-	 */
-	public final Class<T> getType() {
-		return this.type;
 	}
 
 	/**

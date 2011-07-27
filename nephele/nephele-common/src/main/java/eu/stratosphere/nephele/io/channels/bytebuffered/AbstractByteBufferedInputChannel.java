@@ -102,7 +102,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * @throws ExecutionFailureException
 	 *         if the record cannot be deserialized
 	 */
-	private T deserializeNextRecord() throws IOException {
+	private T deserializeNextRecord(final T target) throws IOException {
 
 		if (this.bufferedRecord != null) {
 			final T record = this.bufferedRecord;
@@ -130,7 +130,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			}
 		}
 
-		final T nextRecord = this.deserializationBuffer.readData(this.uncompressedDataBuffer);
+		final T nextRecord = this.deserializationBuffer.readData(target, this.uncompressedDataBuffer);
 
 		if (this.uncompressedDataBuffer.remaining() == 0) {
 			releasedConsumedReadBuffer();
@@ -163,13 +163,13 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * {@inheritDoc}
 	 */
 	@Override
-	public T readRecord() throws IOException {
+	public T readRecord(final T target) throws IOException {
 
 		if (isClosed()) {
 			throw new EOFException();
 		}
 
-		return deserializeNextRecord();
+		return deserializeNextRecord(target);
 	}
 
 	/**

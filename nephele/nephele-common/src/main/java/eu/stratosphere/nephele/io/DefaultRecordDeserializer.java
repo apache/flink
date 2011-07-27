@@ -63,19 +63,13 @@ public class DefaultRecordDeserializer<T extends IOReadableWritable> implements 
 	 * {@inheritDoc}
 	 */
 	@Override
-	public T deserialize(final DataInput in) throws IOException {
-		
-		final T record = getInstance();
-		record.read(in);
-		return record;
-	}
+	public T deserialize(T target, final DataInput in) throws IOException {
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<T> getRecordType() {
-		return recordClass;
+		if (target == null) {
+			target = getInstance();
+		}
+		target.read(in);
+		return target;
 	}
 
 	/**
@@ -97,7 +91,7 @@ public class DefaultRecordDeserializer<T extends IOReadableWritable> implements 
 	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
-		
+
 		StringRecord.writeString(out, this.recordClass.getName());
 	}
 

@@ -89,7 +89,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 	 * @throws IOException
 	 *         thrown if an error occurs while reading the data or deserializing the object
 	 */
-	public T readData(ReadableByteChannel readableByteChannel) throws IOException {
+	public T readData(T target, ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (this.recordLength < 0) {
 			if (readableByteChannel.read(this.lengthBuf) == -1 && this.propagateEndOfStream) {
@@ -130,7 +130,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 		}
 
 		deserializationBuffer.reset(tempBuffer.array(), this.recordLength);
-		final T record = deserializer.deserialize(deserializationBuffer);
+		final T record = deserializer.deserialize(target, deserializationBuffer);
 
 		this.recordLength = -1;
 		this.lengthBuf.clear();
