@@ -50,13 +50,13 @@ public class JsonInputFormatTest {
 		KeyValuePair<PactLong, PactJsonObject> pair = inputFormat.createPair();
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
-			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextPair(pair));
+			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(pair));
 			Assert
 				.assertEquals("other order expected", index, pair.getValue().getValue().get("id").getIntValue());
 		}
 
 		if (!inputFormat.reachedEnd()) {
-			Assert.assertTrue("no more pairs but reachedEnd did not return false", inputFormat.nextPair(pair));
+			Assert.assertTrue("no more pairs but reachedEnd did not return false", inputFormat.nextRecord(pair));
 			Assert.fail("pair unexpected: " + pair);
 		}
 	}
@@ -77,12 +77,12 @@ public class JsonInputFormatTest {
 		KeyValuePair<PactLong, PactJsonObject> pair = inputFormat.createPair();
 
 		if (!inputFormat.reachedEnd()) {
-			if (!inputFormat.nextPair(pair))
+			if (!inputFormat.nextRecord(pair))
 				Assert.fail("one value expected expected: " + pair);
 		}
 
 		if (!inputFormat.reachedEnd()) {
-			Assert.assertTrue("no more values but reachedEnd did not return false", inputFormat.nextPair(pair));
+			Assert.assertTrue("no more values but reachedEnd did not return false", inputFormat.nextRecord(pair));
 			Assert.fail("value unexpected: " + pair);
 		}
 

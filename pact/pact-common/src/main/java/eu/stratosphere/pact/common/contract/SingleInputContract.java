@@ -15,8 +15,6 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.lang.annotation.Annotation;
-
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stub.SingleInputStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -30,16 +28,10 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public abstract class SingleInputContract<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
-		Contract implements OutputContractConfigurable {
-	
-	// user implemented stub class
-	protected final Class<? extends SingleInputStub<IK, IV, OK, OV>> clazz;
-
+		AbstractPact<OK, OV, SingleInputStub<IK, IV, OK, OV>>
+{
 	// input contract of this contract
 	protected Contract input;
-
-	// output contract
-	protected Class<? extends Annotation> outputContract;
 
 	/**
 	 * Creates a new contract using the given stub and the given name
@@ -50,17 +42,9 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	 *        name for the task represented by this contract
 	 */
 	public SingleInputContract(Class<? extends SingleInputStub<IK, IV, OK, OV>> clazz, String name) {
-		super(name);
-		this.clazz = clazz;
+		super(clazz, name);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<? extends SingleInputStub<IK, IV, OK, OV>> getStubClass() {
-		return clazz;
-	}
 
 	/**
 	 * Returns the class type of the input key
@@ -116,25 +100,6 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 		this.input = input;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setOutputContract(Class<? extends Annotation> oc) {
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
-			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
-		}
-
-		this.outputContract = oc;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<? extends Annotation> getOutputContract() {
-		return this.outputContract;
-	}
 
 	@Override
 	public void accept(Visitor<Contract> visitor) {

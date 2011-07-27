@@ -244,7 +244,9 @@ public class PactProgram {
 				JarEntry entry = entries.nextElement();
 				String name = entry.getName();
 				
-				if (name.length() > 4 && ".jar".equalsIgnoreCase(name.substring(name.length() - 4))) {
+				if (name.length() > 8 && 
+						name.startsWith("lib/") && name.endsWith(".jar"))
+				{
 					containedJarFileEntries.add(entry);
 				}
 			}
@@ -261,8 +263,7 @@ public class PactProgram {
 				String name = entry.getName();
 				name = name.replace(File.separatorChar, '_');
 				
-				File tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"),
-					entry.getName());
+				File tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"), name);
 				this.extractedTempLibraries[i] = tempFile;
 			
 				// copy the temp file contents to a temporary File

@@ -20,8 +20,8 @@ import java.util.Iterator;
 import org.apache.log4j.Logger;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -29,6 +29,7 @@ import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.OutputContract.SuperKey;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -274,18 +275,18 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
-		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> orders = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, ordersPath, "Orders");
-		orders.setFormatParameter("delimiter", "\n");
+		orders.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		orders.setDegreeOfParallelism(noSubtasks);
 		orders.setOutputContract(UniqueKey.class);
 		// set compiler hints
 		orders.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSourceContract for LineItems input
-		DataSourceContract<PactInteger, Tuple> lineitems = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> lineitems = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, lineitemsPath, "LineItems");
-		lineitems.setFormatParameter("delimiter", "\n");
+		lineitems.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		lineitems.setDegreeOfParallelism(noSubtasks);
 		// set compiler hints
 		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
@@ -295,8 +296,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			FilterO.class, "FilterO");
 		filterO.setDegreeOfParallelism(noSubtasks);
 		// set stub parameters
-		filterO.setStubParameter("YEAR_FILTER", 1993);
-		filterO.setStubParameter("PRIO_FILTER", "5");
+		filterO.setParameter("YEAR_FILTER", 1993);
+		filterO.setParameter("PRIO_FILTER", "5");
 		// set compiler hints
 		filterO.getCompilerHints().setAvgBytesPerRecord(32);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
@@ -329,7 +330,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result
-		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
+		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
 			StringTupleDataOutFormat.class, output, "Output");
 		result.setDegreeOfParallelism(noSubtasks);
 

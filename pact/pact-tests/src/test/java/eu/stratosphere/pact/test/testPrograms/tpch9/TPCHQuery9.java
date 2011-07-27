@@ -17,12 +17,13 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -112,45 +113,45 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		
 		/* Create the 6 data sources: */
 		/* part: (partkey | name, mfgr, brand, type, size, container, retailprice, comment) */
-		DataSourceContract<PactInteger, Tuple> partInput = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> partInput = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, this.partInputPath, "\"part\" source");
-		partInput.setFormatParameter("delimiter", "\n");
+		partInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		partInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		partInput.setOutputContract(UniqueKey.class);
 		partInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* partsupp: (partkey | suppkey, availqty, supplycost, comment) */
-		DataSourceContract<PactInteger, Tuple> partSuppInput = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> partSuppInput = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, this.partSuppInputPath, "\"partsupp\" source");
-		partSuppInput.setFormatParameter("delimiter", "\n");
+		partSuppInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		partSuppInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* orders: (orderkey | custkey, orderstatus, totalprice, orderdate, orderpriority, clerk, shippriority, comment) */
-		DataSourceContract<PactInteger, Tuple> ordersInput = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> ordersInput = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, this.ordersInputPath, "\"orders\" source");
-		ordersInput.setFormatParameter("delimiter", "\n");
+		ordersInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		ordersInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		ordersInput.setOutputContract(UniqueKey.class);
 		ordersInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* lineitem: (orderkey | partkey, suppkey, linenumber, quantity, extendedprice, discount, tax, ...) */
-		DataSourceContract<PactInteger, Tuple> lineItemInput = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> lineItemInput = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, this.lineItemInputPath, "\"lineitem\" source");
-		lineItemInput.setFormatParameter("delimiter", "\n");
+		lineItemInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		lineItemInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* supplier: (suppkey | name, address, nationkey, phone, acctbal, comment) */
-		DataSourceContract<PactInteger, Tuple> supplierInput = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> supplierInput = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, this.supplierInputPath, "\"supplier\" source");
-		supplierInput.setFormatParameter("delimiter", "\n");
+		supplierInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		supplierInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		supplierInput.setOutputContract(UniqueKey.class);
 		supplierInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* nation: (nationkey | name, regionkey, comment) */
-		DataSourceContract<PactInteger, Tuple> nationInput = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> nationInput = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, this.nationInputPath, "\"nation\" source");
-		nationInput.setFormatParameter("delimiter", "\n");
+		nationInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		nationInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		nationInput.setOutputContract(UniqueKey.class);
 		nationInput.getCompilerHints().setAvgNumValuesPerKey(1);
@@ -237,7 +238,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		sumAmountAggregate.setInput(partListJoin);
 
 		/* Connect sink: */
-		DataSinkContract<StringIntPair, PactString> result = new DataSinkContract<StringIntPair, PactString>(
+		FileDataSinkContract<StringIntPair, PactString> result = new FileDataSinkContract<StringIntPair, PactString>(
 				StringIntPairStringDataOutFormat.class, this.outputPath, "Results sink");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		result.setInput(sumAmountAggregate);

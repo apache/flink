@@ -15,8 +15,6 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.lang.annotation.Annotation;
-
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stub.DualInputStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -30,18 +28,12 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 extends Key, IV2 extends Value, OK extends Key, OV extends Value>
-		extends Contract implements OutputContractConfigurable {
-	
-	// user implemented stub class
-	protected final Class<? extends DualInputStub<IK1, IV1, IK2, IV2, OK, OV>> clazz;
-
+		extends AbstractPact<OK, OV, DualInputStub<IK1, IV1, IK2, IV2, OK, OV>>
+{
 	// first input contract of this contract 
 	protected Contract firstInput;
 	// second input contract of this contract
 	protected Contract secondInput;
-
-	// this contract's output contract
-	protected Class<? extends Annotation> outputContract;
 
 	/**
 	 * Creates a new contract using the given stub and the given name
@@ -52,16 +44,7 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	 *        name for the task represented by this contract
 	 */
 	public DualInputContract(Class<? extends DualInputStub<IK1, IV1, IK2, IV2, OK, OV>> clazz, String name) {
-		super(name);
-		this.clazz = clazz;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<? extends DualInputStub<IK1, IV1, IK2, IV2, OK, OV>> getStubClass() {
-		return clazz;
+		super(clazz, name);
 	}
 
 	/**
@@ -152,26 +135,6 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	 */
 	public void setSecondInput(Contract secondInput) {
 		this.secondInput = secondInput;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setOutputContract(Class<? extends Annotation> oc) {
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
-			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
-		}
-
-		this.outputContract = oc;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<? extends Annotation> getOutputContract() {
-		return this.outputContract;
 	}
 
 	/**
