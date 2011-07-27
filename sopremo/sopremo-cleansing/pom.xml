@@ -32,6 +32,14 @@
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>simmetrics</groupId>
+			<artifactId>simmetrics</artifactId>
+			<version>1.6.2</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/simmetrics_jar_v1_6_2_d07_02_07.jar</systemPath>
+		</dependency>
 
 		<dependency>
 			<groupId>nl.jqno.equalsverifier</groupId>

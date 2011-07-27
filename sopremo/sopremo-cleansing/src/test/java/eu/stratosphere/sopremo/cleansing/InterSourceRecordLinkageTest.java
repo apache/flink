@@ -3,12 +3,12 @@ package eu.stratosphere.sopremo.cleansing;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
 import static eu.stratosphere.sopremo.SopremoTest.createPath;
 
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.JaccardSimilarity;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
-import eu.stratosphere.sopremo.SopremoTestPlan;
 import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.cleansing.RecordLinkage.Partitioning;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
@@ -18,6 +18,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 /**
  * Base for inner source {@link RecordLinkage} test cases between at least two sources.
@@ -27,6 +28,7 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
  *        the {@link Partitioning}
  */
 @RunWith(Parameterized.class)
+@Ignore
 public class InterSourceRecordLinkageTest<P extends Partitioning> {
 	/**
 	 * Returns the similarity function for the test case.

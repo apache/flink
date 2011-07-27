@@ -1,26 +1,19 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static org.junit.Assert.*;
 import junit.framework.Assert;
 
-import nl.jqno.equalsverifier.EqualsVerifier;
-
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.JsonUtil;
-
-public class SpreadTest extends EvaluableExpressionTest<ArrayProjection> {
+public class LazyArrayProjectionTest extends EvaluableExpressionTest<LazyArrayProjection> {
 	@Override
-	protected ArrayProjection createDefaultInstance(int index) {
-		return new ArrayProjection(new ObjectAccess(String.valueOf(index)));
+	protected LazyArrayProjection createDefaultInstance(int index) {
+		return new LazyArrayProjection(new ObjectAccess(String.valueOf(index)));
 	}
 
 	@Test
 	public void shouldAccessFieldOfArray() {
-		JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			context);
@@ -29,7 +22,7 @@ public class SpreadTest extends EvaluableExpressionTest<ArrayProjection> {
 
 	@Test
 	public void shouldAccessFieldOfStreamArray() {
-		JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createStreamArray(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			context);

@@ -1,11 +1,9 @@
 package eu.stratosphere.sopremo.base;
 
-import java.util.Iterator;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
