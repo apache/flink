@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
@@ -39,11 +40,11 @@ import eu.stratosphere.pact.common.type.Value;
  *        the type of the values
  */
 public class InputFileIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>>, Closeable {
-	private final List<InputFormat<K, V>> inputFormats;
+	private final List<FileInputFormat<K, V>> inputFormats;
 
-	private final Iterator<InputFormat<K, V>> formatIterator;
+	private final Iterator<FileInputFormat<K, V>> formatIterator;
 
-	private InputFormat<K, V> currentFormat;
+	private FileInputFormat<K, V> currentFormat;
 
 	private KeyValuePair<K, V> pair;
 
@@ -57,7 +58,7 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 	 * @param inputFormats
 	 *        the inputFormats to wrap
 	 */
-	public InputFileIterator(final boolean reusePair, final InputFormat<K, V>... inputFormats) {
+	public InputFileIterator(final boolean reusePair, final FileInputFormat<K, V>... inputFormats) {
 		this.inputFormats = Arrays.asList(inputFormats);
 		this.formatIterator = this.inputFormats.iterator();
 		this.currentFormat = inputFormats[0];
@@ -75,8 +76,8 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 	/**
 	 * @return the current format which can return a pair
 	 */
-	private InputFormat<K, V> currentFormat() {
-		InputFormat<K, V> format = this.currentFormat;
+	private FileInputFormat<K, V> currentFormat() {
+		FileInputFormat<K, V> format = this.currentFormat;
 		try {
 			while (format != null && format.reachedEnd())
 				if (this.formatIterator.hasNext())
@@ -94,10 +95,10 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 		try {
 			if (!this.hasNext())
 				throw new NoSuchElementException();
-			final InputFormat<K, V> currentFormat = this.currentFormat();
+			final FileInputFormat<K, V> currentFormat = this.currentFormat();
 			if (!this.reusePair)
 				this.pair = currentFormat.createPair();
-			currentFormat.nextPair(this.pair);
+			currentFormat.nextRecord(this.pair);
 			return this.pair;
 		} catch (final IOException e) {
 			TestPlan.fail(e, "reading expected values");
@@ -107,7 +108,7 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 
 	@Override
 	public void close() throws IOException {
-		for (final InputFormat<K, V> inputFormat : this.inputFormats)
+		for (final FileInputFormat<K, V> inputFormat : this.inputFormats)
 			inputFormat.close();
 	}
 

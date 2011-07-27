@@ -20,15 +20,12 @@ import java.io.DataOutput;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * A JobFileOutputVertex is a specific subtype of a {@link JobOutputVertex} and is designed
@@ -37,13 +34,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class JobFileOutputVertex extends JobOutputVertex {
-
-	/**
-	 * The class of the output task.
-	 */
-	private Class<? extends AbstractFileOutputTask> outputClass = null;
-
+public class JobFileOutputVertex extends JobGenericOutputVertex
+{
 	/**
 	 * The path pointing to the output file/directory.
 	 */
@@ -121,41 +113,21 @@ public class JobFileOutputVertex extends JobOutputVertex {
 	 * 
 	 * @return the class of the vertex's output task or <code>null</code> if no task has yet been set
 	 */
+	@SuppressWarnings("unchecked")
 	public Class<? extends AbstractFileOutputTask> getFileOutputClass() {
-		return this.outputClass;
+		return (Class<? extends AbstractFileOutputTask>) this.outputClass;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInput in) throws IOException
+	{
 		super.read(in);
-
-		// Read class
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-
-			// Read the name of the class and try to instantiate the class object
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-			if (cl == null) {
-				throw new IOException("Cannot find class loader for vertex " + getID());
-			}
-
-			// Read the name of the expected class
-			final String className = StringRecord.readString(in);
-
-			try {
-				this.outputClass = (Class<? extends AbstractFileOutputTask>) Class.forName(className, true, cl);
-			} catch (ClassNotFoundException cnfe) {
-				throw new IOException("Class " + className + " not found in one of the supplied jar files: "
-					+ StringUtils.stringifyException(cnfe));
-			}
-		}
-
+		
 		// Read path of the input file
-		isNotNull = in.readBoolean();
+		boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.path = new Path();
 			this.path.read(in);
@@ -166,16 +138,9 @@ public class JobFileOutputVertex extends JobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutput out) throws IOException
+	{
 		super.write(out);
-
-		// Write out the name of the class
-		if (this.outputClass == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, this.outputClass.getName());
-		}
 
 		// Write out the path of the input file
 		if (this.path == null) {
@@ -192,30 +157,20 @@ public class JobFileOutputVertex extends JobOutputVertex {
 	@Override
 	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
 
-		// Check if the user has specifed a path
+		// Check if the user has specified a path
 		if (this.path == null) {
 			throw new IllegalConfigurationException(this.getName() + " does not specify an output path");
 		}
 
-		// Finally, see if the task itself has a valid configuration
-		invokable.checkConfiguration();
+		super.checkConfiguration(invokable);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Class<? extends AbstractInvokable> getInvokableClass() {
-
-		return this.outputClass;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable) {
-
+	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable)
+	{
 		if (this.path == null) {
 			return 0;
 		}
@@ -252,15 +207,5 @@ public class JobFileOutputVertex extends JobOutputVertex {
 		}
 
 		return 1;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable) {
-
-		// Delegate call to invokable
-		return invokable.getMinimumNumberOfSubtasks();
 	}
 }

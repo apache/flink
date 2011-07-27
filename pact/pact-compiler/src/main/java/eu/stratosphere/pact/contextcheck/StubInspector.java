@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.contextcheck;
 
-import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
@@ -28,7 +27,7 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
 public class StubInspector {
 	private final Class<?>[] types;
 
-	public StubInspector(Class<? extends Stub<?, ?>> stub) {
+	public StubInspector(Class<?> stub) {
 		this.types = ReflectionUtil.getSuperTemplateTypes(stub);
 	}
 

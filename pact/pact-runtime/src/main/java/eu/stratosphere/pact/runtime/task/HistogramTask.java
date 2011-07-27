@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.stub.Stub;
@@ -74,9 +75,6 @@ public class HistogramTask extends AbstractTask {
 	// output collector
 	private OutputCollector output;
 
-	// reduce stub implementation instance
-	private Stub stub;
-
 	// task config including stub parameters
 	private TaskConfig config;
 	
@@ -93,6 +91,8 @@ public class HistogramTask extends AbstractTask {
 	private volatile boolean taskCanceled = false;
 	
 	private int numBuckets;
+
+	private Class<Key> keyType;
 	// ------------------------------------------------------------------------
 	
 	/**
@@ -247,11 +247,18 @@ public class HistogramTask extends AbstractTask {
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends Stub> stubClass = config.getStubClass(Stub.class, cl);
-			// obtain stub implementation instance
-			stub = stubClass.newInstance();
-			// configure stub instance
-			stub.configure(config.getStubParameters());
+			Class<?> userClass = config.getStubClass(Object.class, cl);
+			if(Stub.class.isAssignableFrom(userClass)) {
+				Stub stub = (Stub) userClass.newInstance();
+				keyType = stub.getOutKeyType();
+			}
+			else if(InputFormat.class.isAssignableFrom(userClass)) {
+				InputFormat format = (InputFormat) userClass.newInstance();
+				KeyValuePair pair = format.createPair();
+				keyType = (Class<Key>) pair.getKey().getClass();
+			} else {
+				throw new RuntimeException("Unsupported task type " + userClass);
+			}
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -273,7 +280,7 @@ public class HistogramTask extends AbstractTask {
 
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(
-			stub.getOutKeyType(),
+			keyType,
 			PactNull.class);
 
 		// determine distribution pattern for reader from input ship strategy
@@ -343,7 +350,7 @@ public class HistogramTask extends AbstractTask {
 		final IOManager ioManager = getEnvironment().getIOManager();
 
 		// obtain input key type
-		final Class<Key> keyClass = (Class<Key>) stub.getOutKeyType();
+		final Class<Key> keyClass = (Class<Key>) keyType;
 		// obtain input value type
 		final Class<? extends Value> valueClass = PactNull.class;
 

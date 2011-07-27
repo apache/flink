@@ -24,7 +24,9 @@ import org.codehaus.jackson.JsonToken;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;
 import eu.stratosphere.pact.common.type.base.PactLong;
@@ -35,7 +37,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
  * 
  * @author Arvid Heise
  */
-public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
+public class JsonInputFormat extends FileInputFormat<PactLong, PactJsonObject> {
 
 	private boolean array;
 
@@ -45,6 +47,9 @@ public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
 
 	private JsonParser parser;
 
+	
+	
+	
 	private void checkEnd() throws IOException, JsonParseException {
 		if (this.array && this.parser.nextToken() == JsonToken.END_ARRAY || !this.array
 			&& this.parser.nextToken() == null)
@@ -53,11 +58,13 @@ public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
 
 	@Override
 	public void close() throws IOException {
+		super.close();
 		this.parser.close();
 	}
 
 	@Override
 	public void configure(final Configuration parameters) {
+		super.configure(parameters);
 	}
 
 	@Override
@@ -66,15 +73,9 @@ public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
 	}
 
 	@Override
-	protected void initTypes() {
-		this.ok = PactLong.class;
-		this.ov = PactJsonObject.class;
-	}
-
-	@Override
-	public boolean nextPair(final KeyValuePair<PactLong, PactJsonObject> pair) throws JsonProcessingException,
-			IOException {
-
+	public boolean nextRecord(final KeyValuePair<PactLong, PactJsonObject> pair) throws JsonProcessingException,
+			IOException
+	{
 		if (!this.end) {
 			pair.getKey().setValue(this.currentId++);
 			pair.getValue().setValue(this.parser.readValueAsTree());
@@ -86,7 +87,9 @@ public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
 	}
 
 	@Override
-	public void open() throws JsonParseException, IOException {
+	public void open(FileInputSplit split) throws JsonParseException, IOException {
+		super.open(split);
+		
 		this.end = false;
 		this.currentId = 0;
 		this.parser = new JsonFactory().createJsonParser(this.stream);
@@ -99,6 +102,14 @@ public class JsonInputFormat extends InputFormat<PactLong, PactJsonObject> {
 	@Override
 	public boolean reachedEnd() {
 		return this.end;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
+	 */
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		return null;
 	}
 
 }

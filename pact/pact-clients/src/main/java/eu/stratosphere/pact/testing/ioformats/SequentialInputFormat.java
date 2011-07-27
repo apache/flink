@@ -18,7 +18,9 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -36,44 +38,53 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  *        the type of the value to read
  * @see SequentialOutputFormat
  */
-public class SequentialInputFormat<K extends Key, V extends Value> extends InputFormat<K, V> {
+public class SequentialInputFormat<K extends Key, V extends Value> extends FileInputFormat<K, V>
+{
+	private Class<K> keyClass;
+	
+	private Class<V> valueClass;
+	
 	private DataInputStream dataInputStream;
 
+	@SuppressWarnings("unchecked")
+	public SequentialInputFormat() {
+		if (this.getClass() != SequentialInputFormat.class) {
+			this.keyClass = ReflectionUtil.getTemplateType1(this.getClass());
+			this.valueClass = ReflectionUtil.getTemplateType2(this.getClass());
+		} else {
+			// default values -> should be overwritten when file is opened and nonempty
+			this.keyClass = (Class<K>) PactInteger.class;
+			this.valueClass = (Class<V>) PactInteger.class;
+		}
+	}
+	
+	
 	@Override
 	public void close() throws IOException {
+		super.close();
 		this.dataInputStream.close();
 	}
 
 	@Override
-	public void configure(final Configuration parameters) {
+	public void configure(final Configuration parameters)
+	{
+		super.configure(parameters);
+		
 		final Class<K> keyClass = parameters.getClass("key", null, (Class<K>) null);
 		if (keyClass != null)
-			super.ok = keyClass;
+			this.keyClass = keyClass;
 		final Class<V> valueClass = parameters.getClass("value", null, (Class<V>) null);
 		if (keyClass != null)
-			super.ov = valueClass;
+			this.valueClass = valueClass;
 	}
 
 	@Override
 	public KeyValuePair<K, V> createPair() {
-		return new KeyValuePair<K, V>(ReflectionUtil.newInstance(this.ok), ReflectionUtil.newInstance(this.ov));
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	protected void initTypes() {
-		if (this.getClass() != SequentialInputFormat.class) {
-			super.ok = ReflectionUtil.getTemplateType1(this.getClass());
-			super.ov = ReflectionUtil.getTemplateType2(this.getClass());
-		} else {
-			// default values -> should be overwritten when file is opened and nonempty
-			super.ok = (Class<K>) PactInteger.class;
-			super.ov = (Class<V>) PactInteger.class;
-		}
+		return new KeyValuePair<K, V>(ReflectionUtil.newInstance(this.keyClass), ReflectionUtil.newInstance(this.valueClass));
 	}
 
 	@Override
-	public boolean nextPair(final KeyValuePair<K, V> pair) throws IOException {
+	public boolean nextRecord(final KeyValuePair<K, V> pair) throws IOException {
 		if (this.dataInputStream.available() == 0)
 			return false;
 
@@ -83,17 +94,20 @@ public class SequentialInputFormat<K extends Key, V extends Value> extends Input
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void open() throws IOException {
+	public void open(FileInputSplit split) throws IOException
+	{
+		super.open(split);
+		
 		this.dataInputStream = new DataInputStream(this.stream);
 
 		if (this.dataInputStream.available() > 0) {
 			try {
-				super.ok = (Class<K>) Class.forName(this.dataInputStream.readUTF());
+				this.keyClass = (Class<K>) Class.forName(this.dataInputStream.readUTF());
 			} catch (final ClassNotFoundException e) {
 				throw new IOException("Cannot resolve key type " + e);
 			}
 			try {
-				super.ov = (Class<V>) Class.forName(this.dataInputStream.readUTF());
+				this.valueClass = (Class<V>) Class.forName(this.dataInputStream.readUTF());
 			} catch (final ClassNotFoundException e) {
 				throw new IOException("Cannot resolve value type " + e);
 			}
@@ -103,5 +117,14 @@ public class SequentialInputFormat<K extends Key, V extends Value> extends Input
 	@Override
 	public boolean reachedEnd() throws IOException {
 		return this.dataInputStream.available() == 0;
+	}
+
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
+	 */
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		return null;
 	}
 }

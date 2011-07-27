@@ -23,7 +23,7 @@ public class ContractInspector {
 	private final StubInspector stubInspector;
 
 	public ContractInspector(Contract contract) {
-		stubInspector = new StubInspector(contract.getStubClass());
+		stubInspector = new StubInspector(contract.getUserCodeClass());
 	}
 
 	public Class<? extends Key> getOutputKeyClass() {

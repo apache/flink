@@ -17,14 +17,15 @@ package eu.stratosphere.pact.example.relational;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
@@ -192,17 +193,17 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
-		DataSourceContract<PactInteger, Tuple> orders = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> orders = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, ordersPath, "Orders");
-		orders.setFormatParameter("delimiter", "\n");
+		orders.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		orders.setDegreeOfParallelism(noSubtasks);
 		orders.setOutputContract(UniqueKey.class);
 		orders.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSourceContract for LineItems input
-		DataSourceContract<PactInteger, Tuple> customers = new DataSourceContract<PactInteger, Tuple>(
+		FileDataSourceContract<PactInteger, Tuple> customers = new FileDataSourceContract<PactInteger, Tuple>(
 			IntTupleDataInFormat.class, customerPath, "Customers");
-		customers.setFormatParameter("delimiter", "\n");
+		customers.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		customers.setDegreeOfParallelism(noSubtasks);
 		customers.setOutputContract(UniqueKey.class);
 
@@ -234,7 +235,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		aggCO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result
-		DataSinkContract<PactString, PactInteger> result = new DataSinkContract<PactString, PactInteger>(
+		FileDataSinkContract<PactString, PactInteger> result = new FileDataSinkContract<PactString, PactInteger>(
 			StringIntOutFormat.class, output, "Output");
 		result.setDegreeOfParallelism(noSubtasks);
 
