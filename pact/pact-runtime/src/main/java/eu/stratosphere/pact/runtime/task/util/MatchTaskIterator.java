@@ -57,9 +57,9 @@ public interface MatchTaskIterator
 	 * @param matchFunction The match stub containing the match function which is called with the keys.
 	 * @param collector The collector to pass the match function.
 	 * @return True, if a next key exists, false if no more keys exist.
-	 * @throws IOException Thrown, if an I/O error occurs while retrieving the records for the next key.
+	 * @throws Exception Exceptions from the user code are forwarded.
 	 */
-	boolean callWithNextKey(MatchStub matchFunction, Collector collector) throws IOException;
+	boolean callWithNextKey(MatchStub matchFunction, Collector collector) throws Exception;
 	
 	/**
 	 * Aborts the matching process. This extra abort method is supplied, because a significant time may pass while

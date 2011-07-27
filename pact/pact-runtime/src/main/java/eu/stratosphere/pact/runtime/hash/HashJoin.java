@@ -43,6 +43,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.HashJoin.Partition.PartitionIterator;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 
 /**
@@ -214,12 +215,12 @@ public class HashJoin
 	/**
 	 * An iterator over the input that will be used to build the hash-table.
 	 */
-	private final Iterator<PactRecord> buildSideInput;
+	private final ReadingIterator<PactRecord> buildSideInput;
 	
 	/**
 	 * An iterator over the input that will be used to probe the hash-table.
 	 */
-	private final Iterator<PactRecord> probeSideInput;
+	private final ReadingIterator<PactRecord> probeSideInput;
 	
 	/**
 	 * The class of the field that is hash key.
@@ -356,14 +357,14 @@ public class HashJoin
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
 	
-	public HashJoin(Iterator<PactRecord> buildSideInput, Iterator<PactRecord> probeSideInput, int[] keyPositions,
+	public HashJoin(ReadingIterator<PactRecord> buildSideInput, ReadingIterator<PactRecord> probeSideInput, int[] keyPositions,
 			Class<? extends Key>[] keyClasses, List<MemorySegment> memorySegments, IOManager ioManager)
 	{
 		this(buildSideInput, probeSideInput, keyPositions, keyClasses, memorySegments, ioManager, DEFAULT_RECORD_LEN);
 	}
 	
 	
-	public HashJoin(Iterator<PactRecord> buildSideInput, Iterator<PactRecord> probeSideInput, int[] keyPositions,
+	public HashJoin(ReadingIterator<PactRecord> buildSideInput, ReadingIterator<PactRecord> probeSideInput, int[] keyPositions,
 			Class<? extends Key>[] keyClasses, List<MemorySegment> memorySegments,	IOManager ioManager, int avgRecordLen)
 	{
 		// some sanity checks first
@@ -550,8 +551,7 @@ public class HashJoin
 			memory.add(getNextBuffer());
 			memory.add(getNextBuffer());
 			
-			Iterator<PactRecord> probeReader = new BlockReaderUtilIterator(
-					this.currentSpilledProbeSide, returnQueue, memory, this.availableMemory, p.probeBlockCounter);
+			BlockReaderIterator probeReader = new BlockReaderIterator(this.currentSpilledProbeSide, returnQueue, memory, this.availableMemory, p.probeBlockCounter);
 			this.probeIterator.set(probeReader);
 			
 			// unregister the pending partition
@@ -650,7 +650,7 @@ public class HashJoin
 	 * @param input
 	 * @throws IOException
 	 */
-	protected void buildInitialTable(final Iterator<PactRecord> input)
+	protected void buildInitialTable(final ReadingIterator<PactRecord> input)
 	throws IOException
 	{
 		// create the partitions
@@ -669,9 +669,9 @@ public class HashJoin
 		final Key[] keys = this.keyHolders;
 		
 		// go over the complete input and insert every element into the hash table
-		while (input.hasNext())
+		PactRecord record = new PactRecord();
+		while ((record = input.next(record)) != null)
 		{
-			final PactRecord record = input.next();
 			int hashCode = 0;
 			for (int i = 0; i < positions.length; i++) {
 				Key k = keys[i];
@@ -785,9 +785,9 @@ public class HashJoin
 			final BlockReaderIterator reader = new BlockReaderIterator(this.ioManager,
 					p.buildSideChannel.getChannelID(), segments, this.availableMemory, p.buildSideBlockCounter);
 			
-			final PactRecord rec = new PactRecord();
+			PactRecord rec = new PactRecord();
 			
-			while (reader.next(rec))
+			while ((rec = reader.next(rec)) != null)
 			{	
 				final int hashCode = hash(rec, nextRecursionLevel);
 				insertIntoTable(rec, hashCode);
@@ -1983,24 +1983,25 @@ public class HashJoin
 	
 	public static final class ProbeIterator
 	{
-		private Iterator<PactRecord> source;
+		private ReadingIterator<PactRecord> source;
+		
+		private PactRecord instance = new PactRecord();
 		
 		private PactRecord current;
 		
-		public ProbeIterator(Iterator<PactRecord> source)
+		public ProbeIterator(ReadingIterator<PactRecord> source)
 		{
 			set(source);
 		}
 		
-		public void set(Iterator<PactRecord> source) 
+		public void set(ReadingIterator<PactRecord> source) 
 		{
 			this.source = source;
 		}
 		
 		public PactRecord next()
 		{
-			this.current = this.source.hasNext() ? this.source.next() : null;
-			return this.current;
+			return (this.current = this.source.next(this.instance));
 		}
 		
 		public PactRecord getCurrent()
@@ -2136,7 +2137,7 @@ public class HashJoin
 
 	// ======================================================================================================
 	
-	protected static class BlockReaderIterator implements MutableObjectIterator<PactRecord>
+	protected static class BlockReaderIterator implements ReadingIterator<PactRecord>
 	{		
 		private MemorySegment currentSegment;
 		
@@ -2206,7 +2207,7 @@ public class HashJoin
 		 * @see java.util.Iterator#next()
 		 */
 		@Override
-		public boolean next(PactRecord target)
+		public PactRecord next(PactRecord target)
 		{
 			if (this.currentSegment != null) {
 				// get the next element from the buffer
@@ -2219,7 +2220,7 @@ public class HashJoin
 				
 				int pos = this.currentSegment.inputView.getPosition();
 				if (pos < this.currentEndPos) {
-					return true;
+					return target;
 				}
 				else if (pos == this.currentEndPos) {
 					// segment done
@@ -2253,7 +2254,7 @@ public class HashJoin
 						this.currentSegment = null;
 					}
 					
-					return true;
+					return target;
 				}
 				else {
 					// serialization error
@@ -2262,76 +2263,76 @@ public class HashJoin
 				}
 			}
 			else {
-				return false;
+				return null;
 			}
 		}
 		
 	} // end BlockReaderIterator
 	
-	private static final class BlockReaderUtilIterator extends BlockReaderIterator
-		implements Iterator<PactRecord>
-	{
-		private PactRecord next;
-
-		/**
-		 * @param reader
-		 * @param returnQueue
-		 * @param segments
-		 * @param freeMemTarget
-		 * @param numBlocks
-		 * @throws IOException
-		 */
-		public BlockReaderUtilIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
-				List<MemorySegment> segments, List<MemorySegment> freeMemTarget, int numBlocks)
-		throws IOException
-		{
-			super(reader, returnQueue, segments, freeMemTarget, numBlocks);
-		}
-
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#hasNext()
-		 */
-		@Override
-		public boolean hasNext()
-		{
-			if (this.next == null) {
-				PactRecord rec = new PactRecord();
-				if (next(rec)) {
-					this.next = rec;
-					return true;
-				}
-				else {
-					return false;
-				}
-			}
-			else {
-				return true;
-			}
-		}
-
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#next()
-		 */
-		@Override
-		public PactRecord next()
-		{
-			if (this.next != null || hasNext()) {
-				PactRecord temp = this.next;
-				this.next = null;
-				return temp;
-			}
-			else {
-				throw new NoSuchElementException();
-			}
-		}
-
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#remove()
-		 */
-		@Override
-		public void remove()
-		{
-			throw new UnsupportedOperationException();	
-		}
-	}
+//	private static final class BlockReaderUtilIterator extends BlockReaderIterator
+//		implements Iterator<PactRecord>
+//	{
+//		private PactRecord next;
+//
+//		/**
+//		 * @param reader
+//		 * @param returnQueue
+//		 * @param segments
+//		 * @param freeMemTarget
+//		 * @param numBlocks
+//		 * @throws IOException
+//		 */
+//		public BlockReaderUtilIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
+//				List<MemorySegment> segments, List<MemorySegment> freeMemTarget, int numBlocks)
+//		throws IOException
+//		{
+//			super(reader, returnQueue, segments, freeMemTarget, numBlocks);
+//		}
+//
+//		/* (non-Javadoc)
+//		 * @see java.util.Iterator#hasNext()
+//		 */
+//		@Override
+//		public boolean hasNext()
+//		{
+//			if (this.next == null) {
+//				PactRecord rec = new PactRecord();
+//				if (next(rec)) {
+//					this.next = rec;
+//					return true;
+//				}
+//				else {
+//					return false;
+//				}
+//			}
+//			else {
+//				return true;
+//			}
+//		}
+//
+//		/* (non-Javadoc)
+//		 * @see java.util.Iterator#next()
+//		 */
+//		@Override
+//		public PactRecord next()
+//		{
+//			if (this.next != null || hasNext()) {
+//				PactRecord temp = this.next;
+//				this.next = null;
+//				return temp;
+//			}
+//			else {
+//				throw new NoSuchElementException();
+//			}
+//		}
+//
+//		/* (non-Javadoc)
+//		 * @see java.util.Iterator#remove()
+//		 */
+//		@Override
+//		public void remove()
+//		{
+//			throw new UnsupportedOperationException();	
+//		}
+//	}
 }

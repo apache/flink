@@ -15,12 +15,11 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.util.Iterator;
-
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
-public class RegularlyGeneratedInputGenerator implements Iterator<PactRecord> {
+public class RegularlyGeneratedInputGenerator implements ReadingIterator<PactRecord> {
 
 	private final PactInteger key = new PactInteger();
 	private final PactInteger value = new PactInteger();
@@ -38,27 +37,14 @@ public class RegularlyGeneratedInputGenerator implements Iterator<PactRecord> {
 		this.numVals = numVals;
 		this.repeatKey = repeatKey;
 	}
-	
-	@Override
-	public boolean hasNext() {
-		if(!repeatKey) {
-			if(valCnt < numVals) {
-				return true;
-			} else {
-				return false;
-			}
-		} else {
-			if(keyCnt < numKeys) {
-				return true;
-			} else {
-				return false;
-			}
-		}
-	}
 
 	@Override
-	public PactRecord next() {
+	public PactRecord next(PactRecord target) {
 		if(!repeatKey) {
+			if(valCnt >= numVals) {
+				return null;
+			}
+			
 			key.setValue(keyCnt++);
 			value.setValue(valCnt);
 			
@@ -67,6 +53,9 @@ public class RegularlyGeneratedInputGenerator implements Iterator<PactRecord> {
 				valCnt++;
 			}
 		} else {
+			if(keyCnt >= numKeys) {
+				return null;
+			}
 			key.setValue(keyCnt);
 			value.setValue(valCnt++);
 			
@@ -80,10 +69,4 @@ public class RegularlyGeneratedInputGenerator implements Iterator<PactRecord> {
 		this.record.setField(1, this.value);
 		return this.record;
 	}
-
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
-
 }

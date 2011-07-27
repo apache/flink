@@ -73,7 +73,9 @@ public final class PactRecord implements Value
 	 * Required nullary constructor for instantiation by serialization logic.
 	 */
 	public PactRecord()
-	{}
+	{
+		this.fields = new Value[2];
+	}
 	
 	/**
 	 * Creates a new record containing only a single field, which is the given value.
@@ -365,6 +367,7 @@ public final class PactRecord implements Value
 	 */
 	public void setField(int fieldNum, Value value)
 	{
+		this.fields[fieldNum] = value;
 		// range check
 		if (fieldNum < 0) {
 			throw new IndexOutOfBoundsException();
@@ -406,29 +409,29 @@ public final class PactRecord implements Value
 		}
 	}
 	
-	public void removeField(int field) {
-		throw new UnsupportedOperationException();
-	}
-	
-	public void project(long mask) {
-		throw new UnsupportedOperationException();
-	}
-	
-	public void project(long[] mask) {
-		throw new UnsupportedOperationException();
-	}
-	
-	public void setNull(int field) {
-		throw new UnsupportedOperationException();
-	}
-	
-	public void setNull(long fields) {
-		throw new UnsupportedOperationException();
-	}
-	
-	public void setNull(long[] fields) {
-		throw new UnsupportedOperationException();
-	}
+//	public void removeField(int field) {
+//		throw new UnsupportedOperationException();
+//	}
+//	
+//	public void project(long mask) {
+//		throw new UnsupportedOperationException();
+//	}
+//	
+//	public void project(long[] mask) {
+//		throw new UnsupportedOperationException();
+//	}
+//	
+//	public void setNull(int field) {
+//		throw new UnsupportedOperationException();
+//	}
+//	
+//	public void setNull(long fields) {
+//		throw new UnsupportedOperationException();
+//	}
+//	
+//	public void setNull(long[] fields) {
+//		throw new UnsupportedOperationException();
+//	}
 	
 	/**
 	 * Clears the record. After this operation, the record will have zero fields.
@@ -447,7 +450,29 @@ public final class PactRecord implements Value
 	
 	public void copyTo(PactRecord target)
 	{
-		throw new UnsupportedOperationException();
+		updateBinaryRepresenation();
+		
+		if (target.binaryData == null || target.binaryData.length < this.binaryLen) {
+			target.binaryData = new byte[this.binaryLen];
+		}
+		if (target.offsets == null || target.offsets.length < this.numFields) {
+			target.offsets = new int[this.numFields];
+		}
+		if (target.lengths == null || target.lengths.length < this.numFields) {
+			target.lengths = new int[this.numFields];
+		}
+		if (target.fields == null || target.fields.length < this.numFields) {
+			target.fields = new Value[this.numFields];
+		}
+		
+		System.arraycopy(this.binaryData, 0, target.binaryData, 0, this.binaryLen);
+		System.arraycopy(this.offsets, 0, target.offsets, 0, this.numFields);
+		System.arraycopy(this.lengths, 0, target.lengths, 0, this.numFields);
+		
+		target.binaryLen = this.binaryLen;
+		target.numFields = this.numFields;
+		target.firstModifiedPos = Integer.MAX_VALUE;
+		target.lastUnmodifiedPos = this.numFields - 1;
 	}
 	
 	/**
@@ -643,10 +668,13 @@ public final class PactRecord implements Value
 		
 		// read the binary data
 		in.readFully(data, 0, len);
-		
+		initFields(data, 0, len);
+	}
+	
+	private final void initFields(byte[] data, int begin, int len) {
 		// read number of fields, variable length encoded reverse at the back
-		int pos = len - 2;
-		int numFields = data[len - 1];
+		int pos = begin + len - 2;
+		int numFields = data[begin + len - 1];
 		if (numFields >= MAX_BIT) {
 			int shift = 7;
 			int curr;
@@ -694,11 +722,11 @@ public final class PactRecord implements Value
 							}
 							start |= curr << shift;
 						}
-						this.offsets[field] = start;
+						this.offsets[field] = start + begin;
 						this.lengths[lastNonNullField] = start - this.offsets[lastNonNullField];
 					}
 					else {
-						this.offsets[field] = 0;
+						this.offsets[field] = begin;
 					}
 					lastNonNullField = field;
 				}
@@ -714,6 +742,29 @@ public final class PactRecord implements Value
 		}
 		this.firstModifiedPos = Integer.MAX_VALUE;
 		this.lastUnmodifiedPos = numFields - 1;
+	}
+	
+	public boolean readBinary(int[] fields, Value[] holders, byte[] binData, int offset)
+	{
+		// read the length
+		int val = binData[offset++] & 0xff;
+		if (val >= MAX_BIT) {
+			int shift = 7;
+			int curr;
+			val = val & 0x7f;
+			while ((curr = binData[offset++] & 0xff) >= MAX_BIT) {
+				val |= (curr & 0x7f) << shift;
+				shift += 7;
+			}
+			val |= curr << shift;
+		}
+		
+		// initialize the fields
+		this.binaryData = binData;
+		initFields(binData, offset, val);
+		
+		// get the values
+		return getFields(fields, holders);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -1112,6 +1163,7 @@ public final class PactRecord implements Value
 
 			if (utflen > 65535)
 				throw new UTFDataFormatException("Encoded string is too long: " + utflen);
+			
 			else if (this.position > this.memory.length - utflen) {
 				resize(utflen);
 			}

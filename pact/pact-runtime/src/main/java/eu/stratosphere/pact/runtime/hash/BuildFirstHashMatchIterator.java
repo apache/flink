@@ -27,11 +27,9 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
+import eu.stratosphere.pact.runtime.util.ReadingIteratorWrapper;
 
 
 /**
@@ -55,22 +53,23 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	
 	private PactRecord nextBuildSideObject; 
 	
+	private PactRecord probeCopy = new PactRecord();
+	
 	private volatile boolean running = true;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	
 	public BuildFirstHashMatchIterator(Iterator<PactRecord> firstInput, Iterator<PactRecord> secondInput,
-			Class<K> keyClass, Class<V1> firstValueClass, Class<V2> secondValueClass,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, 
-			long totalMemory)
+			int[] keyPositions, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
+			AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{		
 		this.memManager = memManager;
 		this.nextBuildSideObject = new PactRecord();
 		
-		this.hashJoin = getHashJoin(firstInput, secondInput, keyClass, firstValueClass, secondValueClass,
-			memManager, ioManager, ownerTask, totalMemory);
+		this.hashJoin = getHashJoin(firstInput, secondInput, keyPositions, keyClasses, memManager, ioManager,
+			ownerTask, totalMemory);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -99,60 +98,48 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	 */
 	@Override
 	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
-	throws IOException
+	throws Exception
 	{
-		if (this.hashJoin.nextKey())
+		if (this.hashJoin.nextRecord())
 		{
-			// we have a next key, get the iterators to the probe and build side values
-			final HashJoin.HashBucketIterator<K, V1> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			final HashJoin.KeyGroupIterator<K, V2> probeIterator = this.hashJoin.getProbeSideIterator();
-			boolean notFirst = false;
+			// we have a next record, get the iterators to the probe and build side values
+			final HashJoin.HashBucketIterator buildSideIterator = this.hashJoin.getBuildSideIterator();
+			PactRecord probeRecord = this.hashJoin.getCurrentProbeRecord();
+			PactRecord nextBuildSidePair = this.nextBuildSideObject;
 			
-			while (probeIterator.hasNext()) {
-				V2 probeValue = probeIterator.nextValue();
+			// get the first build side value
+			if (buildSideIterator.next(nextBuildSidePair)) {
+				PactRecord tmpPair = new PactRecord();
 				
-				if (notFirst) {
-					buildSideIterator.reset();
-				}
-				notFirst = true;
-				
-				KeyValuePair<K, V1> nextBuildSidePair = this.nextBuildSideObject;
-				
-				// get the first build side value
-				if (buildSideIterator.next(nextBuildSidePair)) {
-					KeyValuePair<K, V1> tmpPair = newBuildSidePair();
+				// check if there is another build-side value
+				if (buildSideIterator.next(tmpPair)) {
+					// more than one build-side value --> copy the probe side
+					probeRecord.copyTo(this.probeCopy);
 					
-					// check if there is another build-side value
-					if (buildSideIterator.next(tmpPair)) {
-						// more than one build-side value --> copy the probe side
-						this.probeSideCopier.setCopy(probeValue);
-						
-						// call match on the first pair
-						matchFunction.match(nextBuildSidePair.getKey(), nextBuildSidePair.getValue(), probeValue, collector);
-						
-						// call match on the second pair
-						probeValue = newProbeValue();
-						this.probeSideCopier.getCopy(probeValue);
-						matchFunction.match(tmpPair.getKey(), tmpPair.getValue(), probeValue, collector);
-						
-						tmpPair = newBuildSidePair();
-						while (this.running && buildSideIterator.next(tmpPair)) {
-							// call match on the next pair
-							probeValue = newProbeValue();
-							this.probeSideCopier.getCopy(probeValue);
-							matchFunction.match(tmpPair.getKey(), tmpPair.getValue(), probeValue, collector);
-							tmpPair = newBuildSidePair();
-						}
-						this.nextBuildSideObject = tmpPair;
+					// call match on the first pair
+					matchFunction.match(nextBuildSidePair, probeRecord, collector);
+					
+					// call match on the second pair
+					probeRecord = new PactRecord();
+					this.probeCopy.copyTo(probeRecord);
+					matchFunction.match(tmpPair, probeRecord, collector);
+					
+					tmpPair = new PactRecord();
+					while (this.running && buildSideIterator.next(tmpPair)) {
+						// call match on the next pair
+						probeRecord = new PactRecord();
+						this.probeCopy.copyTo(probeRecord);
+						matchFunction.match(tmpPair, probeRecord, collector);
+						tmpPair = new PactRecord();
 					}
-					else {
-						// only single pair matches
-						this.nextBuildSideObject = tmpPair;
-						matchFunction.match(nextBuildSidePair.getKey(), nextBuildSidePair.getValue(), probeValue, collector);
-					}
+					this.nextBuildSideObject = tmpPair;
+				}
+				else {
+					// only single pair matches
+					this.nextBuildSideObject = tmpPair;
+					matchFunction.match(nextBuildSidePair, probeRecord, collector);
 				}
 			}
-			
 			return true;
 		}
 		else {
@@ -174,22 +161,15 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * @param <KK>
-	 * @param <BV>
-	 * @param <PV>
-	 * 
 	 * @param buildSideInput
 	 * @param probeSideInput
-	 * @param keyClass
-	 * @param buildSideValueClass
-	 * @param probeSideValueClass
+	 * @param keyFields
+	 * @param keyClasses
 	 * @param memManager
 	 * @param ioManager
 	 * @param ownerTask
 	 * @param totalMemory
-	 * 
 	 * @return
-	 * 
 	 * @throws MemoryAllocationException
 	 */
 	public static HashJoin getHashJoin(Iterator<PactRecord> buildSideInput, Iterator<PactRecord> probeSideInput,
@@ -204,6 +184,9 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 		
 		final List<MemorySegment> memorySegments = memManager.allocateStrict(ownerTask, numPages, HASH_JOIN_PAGE_SIZE);
 		
-		return new HashJoin(buildSideInput, probeSideInput, keyFields, keyClasses, memorySegments, ioManager);
+		return new HashJoin(
+			new ReadingIteratorWrapper<PactRecord>(buildSideInput),
+			new ReadingIteratorWrapper<PactRecord>(probeSideInput)
+			, keyFields, keyClasses, memorySegments, ioManager);
 	}
 }

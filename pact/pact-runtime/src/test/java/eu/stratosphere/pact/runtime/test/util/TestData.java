@@ -22,7 +22,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Random;
 
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Test data utilities classes.
@@ -151,10 +151,6 @@ public final class TestData {
 			FIX_LENGTH, RANDOM_LENGTH
 		};
 
-		public enum CreationMode {
-			MUTABLE, IMMUTABLE
-		}
-
 		private static char[] alpha = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'a', 'b', 'c',
 			'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm' };
 
@@ -168,61 +164,47 @@ public final class TestData {
 
 		private final ValueMode valueMode;
 
-		private final CreationMode creationMode;
-
 		private Random random;
 
 		private int counter;
 
-		private KeyValuePair<Key, Value> pair;
+		private PactRecord record = new PactRecord();
+		private Key key;
+		private Value value;
 
 		public Generator(long seed, int keyMax, int valueLength) {
 			this(seed, keyMax, valueLength, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		}
 
 		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode) {
-			this(seed, keyMax, valueLength, keyMode, valueMode, CreationMode.IMMUTABLE);
-		}
-
-		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode,
-				CreationMode creationMode) {
 			this.seed = seed;
 			this.keyMax = keyMax;
 			this.valueLength = valueLength;
 			this.keyMode = keyMode;
 			this.valueMode = valueMode;
-			this.creationMode = creationMode;
 
 			this.random = new Random(seed);
 			this.counter = 0;
+			
+			this.key = new Key();
+			this.value = new Value();
+			this.record = new PactRecord();
 		}
 
-		public KeyValuePair<Key, Value> next() {
-			if (creationMode == CreationMode.IMMUTABLE) {
-				Key key = new Key(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-				Value value = new Value(randomString());
-
-				return new KeyValuePair<Key, Value>(key, value);
-			} else {
-				if (pair == null) {
-					Key key = new Key(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-					Value value = new Value(randomString());
-
-					pair = new KeyValuePair<Key, Value>(key, value);
-				} else {
-					pair.getKey().key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
-					pair.getValue().value = randomString();
-				}
-				return pair;
-			}
+		public PactRecord next() {
+			this.key.key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
+			this.value.value = randomString();
+			this.record.setField(0, this.key);
+			this.record.setField(1, this.value);
+			return this.record;
 		}
 
-		public int sizeOf(KeyValuePair<Key, Value> pair) {
+		public int sizeOf(PactRecord rec) {
 			// key
 			int valueLength = Integer.SIZE / 8;
 
 			// value
-			String text = pair.getValue().value;
+			String text = rec.getField(1, Value.class).value;
 			int strlen = text.length();
 			int utflen = 0;
 			int c;
@@ -267,7 +249,7 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class RecordReaderMock implements eu.stratosphere.nephele.io.Reader<KeyValuePair<Key, Value>> {
+	public static class RecordReaderMock implements eu.stratosphere.nephele.io.Reader<PactRecord> {
 		private final Generator generator;
 
 		private final int numberOfRecords;
@@ -285,7 +267,7 @@ public final class TestData {
 			return counter < numberOfRecords;
 		}
 
-		public KeyValuePair<Key, Value> next() {
+		public PactRecord next() {
 			counter++;
 			return generator.next();
 		}
@@ -294,10 +276,10 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class RecordReaderIterMock implements eu.stratosphere.nephele.io.Reader<KeyValuePair<Key, Value>> {
-		private final Iterator<KeyValuePair<Key, Value>> iterator;
+	public static class RecordReaderIterMock implements eu.stratosphere.nephele.io.Reader<PactRecord> {
+		private final Iterator<PactRecord> iterator;
 
-		public RecordReaderIterMock(Iterator<KeyValuePair<Key, Value>> iterator) {
+		public RecordReaderIterMock(Iterator<PactRecord> iterator) {
 			this.iterator = iterator;
 		}
 
@@ -305,7 +287,7 @@ public final class TestData {
 			return iterator.hasNext();
 		}
 
-		public KeyValuePair<Key, Value> next() {
+		public PactRecord next() {
 			return iterator.next();
 		}
 	}
@@ -313,7 +295,7 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class GeneratorIterator implements Iterator<KeyValuePair<Key, Value>> {
+	public static class GeneratorIterator implements Iterator<PactRecord> {
 		private final Generator generator;
 
 		private final int numberOfRecords;
@@ -333,7 +315,7 @@ public final class TestData {
 		}
 
 		@Override
-		public KeyValuePair<Key, Value> next() {
+		public PactRecord next() {
 			counter++;
 			return generator.next();
 		}
@@ -348,11 +330,14 @@ public final class TestData {
 		}
 	}
 	
-	public static class ConstantValueIterator implements Iterator<KeyValuePair<Key, Value>>
+	public static class ConstantValueIterator implements Iterator<PactRecord>
 	{
+		private final PactRecord record;
+		
+		private final Value value;
+		
 		private final String valueValue;
 		
-		private final int keyValue;
 		
 		private final int numPairs;
 		
@@ -360,7 +345,10 @@ public final class TestData {
 		
 		
 		public ConstantValueIterator(int keyValue, String valueValue, int numPairs) {
-			this.keyValue = keyValue;
+			this.record = new PactRecord();
+			this.record.setField(0, new Key(keyValue));
+
+			this.value = new Value();			
 			this.valueValue = valueValue;
 			this.numPairs = numPairs;
 		}
@@ -371,10 +359,11 @@ public final class TestData {
 		}
 		
 		@Override
-		public KeyValuePair<Key, Value> next() {
-			KeyValuePair<Key, Value> pair = new KeyValuePair<Key, Value>(new Key(this.keyValue), new Value(this.valueValue + ' ' + pos));
+		public PactRecord next() {
+			this.value.value = this.valueValue + ' ' + pos;
+			this.record.setField(1, this.value);
 			pos++;
-			return pair;
+			return this.record;
 		}
 		
 		@Override

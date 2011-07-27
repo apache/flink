@@ -33,13 +33,11 @@ import org.junit.Test;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -91,16 +89,14 @@ public class BufferSortableGuarenteedTest {
 		}
 	}
 
-	private BufferSortableGuaranteed<TestData.Key, TestData.Value> newSortBuffer(MemorySegment memory)
-			throws Exception {
-		SerializationFactory<TestData.Key> keySerialization = new WritableSerializationFactory<TestData.Key>(
-			TestData.Key.class);
-		SerializationFactory<TestData.Value> valSerialization = new WritableSerializationFactory<TestData.Value>(
-			TestData.Value.class);
+	private BufferSortableGuaranteed newSortBuffer(MemorySegment memory) throws Exception
+	{
 		Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-		RawComparator comparator = new DeserializerComparator<TestData.Key>(keySerialization.getDeserializer(),
-			keyComparator);
-		return new BufferSortableGuaranteed<TestData.Key, TestData.Value>(memory, comparator, keySerialization, valSerialization);
+		@SuppressWarnings("unchecked")
+		RawComparator comparator = new DeserializerComparator(new int[]{0}, new Class[]{TestData.Key.class},
+			new Comparator[]{keyComparator});
+		
+		return new BufferSortableGuaranteed(memory, comparator);
 	}
 
 	@Test
@@ -115,13 +111,13 @@ public class BufferSortableGuarenteedTest {
 		{
 			TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
 				ValueMode.FIX_LENGTH);
-			BufferSortableGuaranteed<TestData.Key, TestData.Value> buffer = newSortBuffer(memory);
+			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			int writtenBytes = 0;
-			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
-			while (buffer.write(pair)) {
-				writtenBytes += generator.sizeOf(pair);
+			PactRecord rec = generator.next();
+			while (buffer.write(rec)) {
+				writtenBytes += generator.sizeOf(rec);
 				writtenPairs++;
-				pair = generator.next();
+				rec = generator.next();
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
@@ -133,9 +129,8 @@ public class BufferSortableGuarenteedTest {
 		{
 			Buffer.Input buffer = new Buffer.Input(memory);
 			buffer.reset(position);
-			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
-				new TestData.Key(), new TestData.Value());
-			while (buffer.read(pair)) {
+			PactRecord readRec = new PactRecord();
+			while (buffer.read(readRec)) {
 				readPairs++;
 			}
 			LOG.debug("Read " + readPairs + " pairs from buffer.");
@@ -161,14 +156,14 @@ public class BufferSortableGuarenteedTest {
 		{
 			TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 				ValueMode.RANDOM_LENGTH);
-			BufferSortableGuaranteed<TestData.Key, TestData.Value> buffer = newSortBuffer(memory);
+			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			int writtenBytes = 0;
-			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
-			while (buffer.write(pair)) {
-				LOG.debug("<- " + pair);
-				writtenBytes += generator.sizeOf(pair);
+			PactRecord rec = generator.next();
+			while (buffer.write(rec)) {
+				LOG.debug("<- " + rec);
+				writtenBytes += generator.sizeOf(rec);
 				writtenPairs++;
-				pair = generator.next();
+				rec = generator.next();
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
 				+ " bytes.");
@@ -181,11 +176,10 @@ public class BufferSortableGuarenteedTest {
 			Buffer.Input buffer = new Buffer.Input(memory);
 			buffer.reset(limit);
 			
-			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
-				new TestData.Key(), new TestData.Value());
+			PactRecord readRec = new PactRecord();
 			
-			while (buffer.read(pair) && buffer.getPosition() <= limit) {
-				LOG.debug("-> " + pair);
+			while (buffer.read(readRec) && buffer.getPosition() <= limit) {
+				LOG.debug("-> " + readRec);
 				readPairs++;
 			}
 			LOG.debug("Read " + readPairs + " pairs from buffer.");
@@ -206,7 +200,7 @@ public class BufferSortableGuarenteedTest {
 
 		// allocate buffer for unsorted pairs
 		MemorySegment unsortedMemory = memoryManager.allocate(memOwner, MEMORY_SIZE >> 1);
-		final BufferSortableGuaranteed<TestData.Key, TestData.Value> unsortedBuffer = newSortBuffer(unsortedMemory);
+		final BufferSortableGuaranteed unsortedBuffer = newSortBuffer(unsortedMemory);
 
 		// write pairs to buffer
 		{
@@ -261,19 +255,18 @@ public class BufferSortableGuarenteedTest {
 			buffer.reset(sortedPos);
 			
 			// comparable pairs
-			KeyValuePair<TestData.Key, TestData.Value> pair1 = new KeyValuePair<TestData.Key, TestData.Value>(
-				new TestData.Key(), new TestData.Value());
-			KeyValuePair<TestData.Key, TestData.Value> pair2 = new KeyValuePair<TestData.Key, TestData.Value>(
-				new TestData.Key(), new TestData.Value());
-			buffer.read(pair1);
+			PactRecord rec1 = new PactRecord();
+			PactRecord rec2 = new PactRecord();
+
+			buffer.read(rec1);
 			readPairs++;
-			while (buffer.read(pair2)) {
+			while (buffer.read(rec2)) {
 				readPairs++;
-				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
+				Assert.assertTrue(keyComparator.compare(rec1.getField(0, TestData.Key.class), rec2.getField(0, TestData.Key.class)) <= 0);
 				
-				KeyValuePair<TestData.Key, TestData.Value> tmp = pair1;
-				pair1 = pair2;
-				pair2 = tmp;
+				PactRecord tmp = rec1;
+				rec1 = rec2;
+				rec2 = tmp;
 			}
 		}
 
@@ -294,29 +287,29 @@ public class BufferSortableGuarenteedTest {
 
 		// write pairs to buffer
 		{
-			BufferSortableGuaranteed<TestData.Key, TestData.Value> buffer = newSortBuffer(memory);
+			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			for(int i = 1; i <= 3; i++)
 			{
-				KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
-				buffer.write(pair);
+				PactRecord rec = new PactRecord(new TestData.Key(i), new TestData.Value(""+i));
+				buffer.write(rec);
 			}
 			
 			buffer.swap(0, 1);
 			
 			{
-				Iterator<KeyValuePair<TestData.Key, TestData.Value>> iter = buffer.getIterator();
-				Assert.assertEquals(2, iter.next().getKey().getKey());
-				Assert.assertEquals(1, iter.next().getKey().getKey());
-				Assert.assertEquals(3, iter.next().getKey().getKey());
+				Iterator<PactRecord> iter = buffer.getIterator();
+				Assert.assertEquals(2, iter.next().getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(1, iter.next().getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(3, iter.next().getField(0, TestData.Key.class).getKey());
 			}
 			
 			buffer.swap(1, 2);
 			
 			{
-				Iterator<KeyValuePair<TestData.Key, TestData.Value>> iter = buffer.getIterator();
-				Assert.assertEquals(2, iter.next().getKey().getKey());
-				Assert.assertEquals(3, iter.next().getKey().getKey());
-				Assert.assertEquals(1, iter.next().getKey().getKey());
+				Iterator<PactRecord> iter = buffer.getIterator();
+				Assert.assertEquals(2, iter.next().getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(3, iter.next().getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(1, iter.next().getField(0, TestData.Key.class).getKey());
 			}
 			
 			{
@@ -343,7 +336,7 @@ public class BufferSortableGuarenteedTest {
 					Buffer.Input buffer2 = new Buffer.Input(memory2);
 					
 					@SuppressWarnings("unused")
-					KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(), new TestData.Value());
+					PactRecord rec = new PactRecord(new TestData.Key(), new TestData.Value());
 					/*
 					while (buffer2.read(pair) && buffer2.getPosition() <= position) 
 					{
@@ -373,23 +366,23 @@ public class BufferSortableGuarenteedTest {
 
 		// write pairs to buffer
 		{
-			BufferSortableGuaranteed<TestData.Key, TestData.Value> buffer = newSortBuffer(memory);
+			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			for(int i = 1; i < 4; i++)
 			{
-				KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(new TestData.Key(i), new TestData.Value(""+i));
+				PactRecord pair = new PactRecord(new TestData.Key(i), new TestData.Value(""+i));
 				buffer.write(pair);
 			}
 			
 
-			Iterator<KeyValuePair<TestData.Key, TestData.Value>> iter = buffer.getIterator();
+			Iterator<PactRecord> iter = buffer.getIterator();
 			for(int i = 1; i < 4; i++)
 			{
 				if(!iter.hasNext())
 				{
 					throw new IllegalStateException();
 				}
-				KeyValuePair<TestData.Key, TestData.Value> pair = iter.next();
-				Assert.assertEquals(i, pair.getKey().getKey());
+				PactRecord pair = iter.next();
+				Assert.assertEquals(i, pair.getField(0, TestData.Key.class).getKey());
 			}
 			
 			{
@@ -433,9 +426,9 @@ public class BufferSortableGuarenteedTest {
 		{
 			TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
 				ValueMode.FIX_LENGTH);
-			BufferSortableGuaranteed<TestData.Key, TestData.Value> buffer = newSortBuffer(memory);
+			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			int writtenBytes = 0;
-			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
+			PactRecord pair = generator.next();
 			while (buffer.write(pair)) {
 				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
 				writtenPairs++;
@@ -444,7 +437,7 @@ public class BufferSortableGuarenteedTest {
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
-			Iterator<KeyValuePair<TestData.Key, TestData.Value>> iter = buffer.getIterator();
+			Iterator<PactRecord> iter = buffer.getIterator();
 
 			while (iter.hasNext()) {
 				iter.next();
