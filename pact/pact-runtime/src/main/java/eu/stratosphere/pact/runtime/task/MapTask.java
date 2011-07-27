@@ -168,6 +168,7 @@ public class MapTask extends AbstractTask {
 			// obtain instance of stub implementation
 			stub = mapClass.newInstance();
 			// configure stub implementation
+			config.getStubParameters().setInteger(TASK_ID, getEnvironment().getIndexInSubtaskGroup());
 			stub.configure(config.getStubParameters());
 
 		} catch (IOException ioe) {

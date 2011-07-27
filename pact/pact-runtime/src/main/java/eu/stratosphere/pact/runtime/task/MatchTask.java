@@ -252,6 +252,7 @@ public class MatchTask extends AbstractTask
 			// obtain stub implementation instance
 			this.matchStub = matchClass.newInstance();
 			// configure stub instance
+			config.getStubParameters().setInteger(TASK_ID, getEnvironment().getIndexInSubtaskGroup());
 			this.matchStub.configure(config.getStubParameters());
 		}
 		catch (IOException ioe) {

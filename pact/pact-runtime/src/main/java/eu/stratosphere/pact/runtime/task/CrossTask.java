@@ -229,6 +229,7 @@ public class CrossTask extends AbstractTask
 			// obtain stub implementation instance
 			this.stub = stubClass.newInstance();
 			// configure stub instance
+			config.getStubParameters().setInteger(TASK_ID, getEnvironment().getIndexInSubtaskGroup());
 			this.stub.configure(this.config.getStubParameters());
 		}
 		catch (IOException ioe) {

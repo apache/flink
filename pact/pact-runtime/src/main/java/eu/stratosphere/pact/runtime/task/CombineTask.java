@@ -211,6 +211,7 @@ public class CombineTask extends AbstractTask {
 			// obtain stub implementation instance
 			stub = stubClass.newInstance();
 			// configure stub instance
+			config.getStubParameters().setInteger(TASK_ID, getEnvironment().getIndexInSubtaskGroup());
 			stub.configure(config.getStubParameters());
 		}
 		catch (IOException ioe) {
