@@ -150,7 +150,8 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 
 		if (this.entryVertices.size() > 0) {
 			final TraversalEntry te = new TraversalEntry(this.entryVertices.get(0), 0);
-			traversalStack.push(te);
+			this.traversalStack.push(te);
+			this.alreadyVisited.add(te.getGroupVertex());
 		}
 	}
 
@@ -218,10 +219,10 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	@Override
 	public boolean hasNext() {
 
-		if (traversalStack.isEmpty()) {
+		if (this.traversalStack.isEmpty()) {
 
-			numVisitedEntryVertices++;
-			if (this.entryVertices.size() <= numVisitedEntryVertices) {
+			++this.numVisitedEntryVertices;
+			if (this.entryVertices.size() <= this.numVisitedEntryVertices) {
 				return false;
 			}
 		}
@@ -236,18 +237,19 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	@Override
 	public ExecutionGroupVertex next() {
 
-		if (traversalStack.isEmpty()) {
+		if (this.traversalStack.isEmpty()) {
 
-			final TraversalEntry newentry = new TraversalEntry(this.entryVertices.get(numVisitedEntryVertices), 0);
-			traversalStack.push(newentry);
+			final TraversalEntry newentry = new TraversalEntry(this.entryVertices.get(this.numVisitedEntryVertices), 0);
+			this.traversalStack.push(newentry);
+			this.alreadyVisited.add(newentry.getGroupVertex());
 		}
 
-		final ExecutionGroupVertex returnVertex = traversalStack.peek().getGroupVertex();
+		final ExecutionGroupVertex returnVertex = this.traversalStack.peek().getGroupVertex();
 
 		// Propose vertex to be visited next
 		do {
 
-			final TraversalEntry te = traversalStack.peek();
+			final TraversalEntry te = this.traversalStack.peek();
 
 			// Check if we can traverse deeper into the graph
 			final ExecutionGroupVertex candidateVertex = getCandidateVertex(te, forward);
@@ -257,14 +259,12 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 			} else {
 				// Create new entry and put it on the stack
 				final TraversalEntry newte = new TraversalEntry(candidateVertex, 0);
-				traversalStack.add(newte);
+				this.traversalStack.push(newte);
+				this.alreadyVisited.add(newte.getGroupVertex());
 				break;
 			}
 
-		} while (!traversalStack.isEmpty());
-
-		// Mark vertex as already visited
-		alreadyVisited.add(returnVertex);
+		} while (!this.traversalStack.isEmpty());
 
 		return returnVertex;
 
@@ -308,13 +308,13 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 			te.increaseCurrentLink();
 
 			// If stage >= 0, tmp must be in the same stage as te.getGroupVertex()
-			if (stage >= 0) {
-				if (tmp.getStageNumber() != stage) {
+			if (this.stage >= 0) {
+				if (tmp.getStageNumber() != this.stage) {
 					continue;
 				}
 			}
 
-			if (!alreadyVisited.contains(tmp)) {
+			if (!this.alreadyVisited.contains(tmp)) {
 				return tmp;
 			}
 		}

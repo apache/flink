@@ -15,24 +15,13 @@
 
 package eu.stratosphere.nephele.io.compression.library.dynamic;
 
-import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLibrary;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 
-public class StubCompressionLibrary implements CompressionLibrary {
-
-	@Override
-	public Compressor getCompressor() throws CompressionException {
-
-		return new StubCompressor();
-	}
-
-	@Override
-	public Decompressor getDecompressor() throws CompressionException {
-
-		return new StubDecompressor();
-	}
+public class StubCompressionLibrary extends AbstractCompressionLibrary {
 
 	@Override
 	public int getUncompressedBufferSize(int compressedBufferSize) {
@@ -43,8 +32,20 @@ public class StubCompressionLibrary implements CompressionLibrary {
 
 	@Override
 	public String getLibraryName() {
-		// TODO Auto-generated method stub
-		return null;
+		
+		return "STUB";
+	}
+
+	@Override
+	protected Compressor initNewCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel) {
+
+		return new StubCompressor(this);
+	}
+
+	@Override
+	protected Decompressor initNewDecompressor(final AbstractByteBufferedInputChannel<?> inputChannel) {
+
+		return new StubDecompressor(this);
 	}
 
 }

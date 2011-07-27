@@ -24,7 +24,6 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
@@ -111,6 +110,8 @@ public class JobClient {
 				// Terminate the running job if the configuration says so
 				if (this.jobClient.getConfiguration().getBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY,
 					ConfigConstants.DEFAULT_JOBCLIENT_SHUTDOWN_TERMINATEJOB)) {
+					System.out.println(AbstractEvent.timestampToString(System.currentTimeMillis())
+						+ ":\tJobClient is shutting down, canceling job...");
 					this.jobClient.cancelJob();
 				}
 
@@ -197,12 +198,7 @@ public class JobClient {
 
 		synchronized (this.jobSubmitClient) {
 
-			final JobSubmissionResult result = this.jobSubmitClient.submitJob(this.jobGraph);
-			if (result.getReturnCode() == ReturnCode.SUCCESS) {
-				// Make sure the job is properly terminated when the user shut's down the client
-				Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
-			}
-			return result;
+			return this.jobSubmitClient.submitJob(this.jobGraph);
 		}
 	}
 
@@ -214,8 +210,6 @@ public class JobClient {
 	 *         thrown if an error occurred while transmitting the request to the job manager
 	 */
 	public JobCancelResult cancelJob() throws IOException {
-
-		Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 
 		synchronized (this.jobSubmitClient) {
 			return this.jobSubmitClient.cancelJob(this.jobGraph.getJobID());
@@ -253,10 +247,10 @@ public class JobClient {
 			if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
 				LOG.error("ERROR: " + submissionResult.getDescription());
 				throw new JobExecutionException(submissionResult.getDescription(), false);
-			} else {
-				// Make sure the job is properly terminated when the user shut's down the client
-				Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
 			}
+
+			// Make sure the job is properly terminated when the user shut's down the client
+			Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
 		}
 
 		long sleep = 0;
@@ -310,7 +304,8 @@ public class JobClient {
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
-						throw new JobExecutionException(jobEvent.getOptionalMessage(), (jobStatus == JobStatus.CANCELED) ? true : false);
+						throw new JobExecutionException(jobEvent.getOptionalMessage(),
+							(jobStatus == JobStatus.CANCELED) ? true : false);
 					}
 				}
 			}

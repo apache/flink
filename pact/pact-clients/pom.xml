@@ -7,12 +7,12 @@
   <parent>
     <artifactId>pact</artifactId>
     <groupId>eu.stratosphere</groupId>
-    <version>0.1</version>
+    <version>0.1.1</version>
   </parent>
 
   <groupId>eu.stratosphere</groupId>
   <artifactId>pact-clients</artifactId>
-  <version>0.1</version>
+  <version>0.1.1</version>
   <name>pact-clients</name>
 
   <packaging>jar</packaging>

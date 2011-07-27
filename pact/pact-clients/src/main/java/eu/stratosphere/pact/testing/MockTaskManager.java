@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -43,6 +44,7 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
 import eu.stratosphere.nephele.types.Record;
 
@@ -208,6 +210,18 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	@Override
 	public void logBufferUtilization() throws IOException {
+	}
+
+	@Override
+	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
+
+		final List<TaskSubmissionResult> resultList = new ArrayList<TaskSubmissionResult>();
+
+		for (final TaskSubmissionWrapper tsw : tasks) {
+			resultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment()));
+		}
+
+		return resultList;
 	}
 
 }
