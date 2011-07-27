@@ -46,16 +46,17 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * input and one or multiple outputs. It is provided with a MapStub
  * implementation.
  * <p>
- * The MapTask creates an iterator over all key-value pairs of its input and hands that 
- * to the <code>map()</code> method of the MapStub.
+ * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>map()</code> method
+ * of the MapStub.
  * 
  * @see eu.stratosphere.pact.common.stub.MapStub
  * @author Fabian Hueske
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class SampleTask extends AbstractTask {
-	
+
 	public static final String IN_KEY = "sampling.key.class";
+
 	public static final String IN_VALUE = "sample.value.class";
 
 	// obtain MapTask logger
@@ -72,9 +73,10 @@ public class SampleTask extends AbstractTask {
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+
 	private Class keyType;
 	private Class valueType;
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -83,7 +85,7 @@ public class SampleTask extends AbstractTask {
 		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		
+
 		// Initialize stub implementation
 		initPrecedingStub();
 
@@ -136,7 +138,7 @@ public class SampleTask extends AbstractTask {
 		};
 
 		// open stub implementation
-		//stub.open();
+		// stub.open();
 		try {
 			// run stub implementation
 			callStub(input, output);
@@ -152,9 +154,9 @@ public class SampleTask extends AbstractTask {
 		// close output collector
 		output.close();
 		// close stub implementation
-		//stub.close();
+		// stub.close();
 
-		if(!this.taskCanceled) {
+		if (!this.taskCanceled) {
 			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
 				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
@@ -165,7 +167,8 @@ public class SampleTask extends AbstractTask {
 		}
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
@@ -175,7 +178,7 @@ public class SampleTask extends AbstractTask {
 			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
-	
+
 	/**
 	 * Initializes the stub implementation and configuration.
 	 * 
@@ -187,7 +190,7 @@ public class SampleTask extends AbstractTask {
 
 		// obtain task configuration (including stub parameters)
 		config = new TaskConfig(getRuntimeConfiguration());
-		
+
 		try {
 			// obtain stub class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
@@ -256,10 +259,10 @@ public class SampleTask extends AbstractTask {
 	private void initOutputCollector() {
 
 		boolean fwdCopyFlag = false;
-		
+
 		// create output collector
 		output = new OutputCollector<Key, Value>();
-		
+
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
@@ -277,26 +280,25 @@ public class SampleTask extends AbstractTask {
 			fwdCopyFlag = true;
 		}
 	}
-	
+
 	/**
 	 * This method is called with an iterator over all k-v pairs that this MapTask processes.
-	 * It calls {@link MapStub#map(Key, Value, Collector)} for each pair. 
+	 * It calls {@link MapStub#map(Key, Value, Collector)} for each pair.
 	 * 
 	 * @param in
 	 *        Iterator over all key-value pairs that this MapTask processes
 	 * @param out
 	 *        A collector for the output of the map() function.
 	 */
-	private void callStub(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out)
-	{
+	private void callStub(Iterator<KeyValuePair<Key, Value>> in, Collector<Key, Value> out) {
 		int counter = 0;
 		while (!this.taskCanceled && in.hasNext()) {
 			KeyValuePair<Key, Value> pair = in.next();
 			counter++;
-			if((counter%10) == 0) {
+			if ((counter % 10) == 0) {
 				out.collect(pair.getKey(), pair.getValue());
 			}
-			//this.stub.map(pair.getKey(), pair.getValue(), out);
+			// this.stub.map(pair.getKey(), pair.getValue(), out);
 		}
 	}
 }

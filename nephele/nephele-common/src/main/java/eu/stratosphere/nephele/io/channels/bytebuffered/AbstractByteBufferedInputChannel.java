@@ -92,7 +92,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		super(inputGate, channelIndex, channelID, compressionLevel);
 		this.deserializationBuffer = new DeserializationBuffer<T>(deserializer, false);
 
-		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel);
+		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel, this);
 	}
 
 	/**
@@ -289,7 +289,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		// The buffers are recycled by the input channel wrapper
 
 		if (this.decompressor != null) {
-			this.decompressor.shutdown();
+			this.decompressor.shutdown(getID());
 		}
 	}
 }
