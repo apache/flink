@@ -314,7 +314,9 @@ public class FileBuffer implements InternalBuffer {
 				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
 			}
 			this.totalBytesRead = 0;
-			destinationBuffer.write(this);
+			while(remaining() > 0) {
+				destinationBuffer.write(this);
+			}
 			destinationBuffer.finishWritePhase();
 			if (this.fileChannel != null) {
 				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);

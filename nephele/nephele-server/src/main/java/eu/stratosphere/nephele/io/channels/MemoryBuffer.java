@@ -204,6 +204,7 @@ public class MemoryBuffer implements InternalBuffer {
 	public void copyToBuffer(Buffer destinationBuffer) throws IOException {
 		
 		final int oldPos = this.byteBuffer.position();
+		this.byteBuffer.position(0);
 		
 		while(remaining() > 0) {
 			destinationBuffer.write(this);
@@ -211,9 +212,7 @@ public class MemoryBuffer implements InternalBuffer {
 		
 		this.byteBuffer.position(oldPos);
 		
-		if(!this.writeMode) {
-			destinationBuffer.finishWritePhase();
-		}
+		destinationBuffer.finishWritePhase();
 	}
 
 	/**
