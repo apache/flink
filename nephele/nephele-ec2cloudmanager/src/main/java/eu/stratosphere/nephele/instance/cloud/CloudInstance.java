@@ -40,13 +40,20 @@ public class CloudInstance extends AbstractInstance {
 
 	/** The instance ID. */
 	private final String instanceID;
-
-
+	
+	/** The AWS Access Key to access this machine */
+	private String awsAccessKey;
+	
+	/** The AWS Secret Key to access this machine */
+	private String awsSecretKey;
+	
 	/** The time the instance was allocated. */
-	private final long allocationTime;
+	private final long launchTime;
 
 	/** The last received heart beat. */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
+	
+	
 
 	/**
 	 * Creates a new cloud instance.
@@ -55,8 +62,6 @@ public class CloudInstance extends AbstractInstance {
 	 *        the instance ID assigned by the cloud management system
 	 * @param type
 	 *        the instance type
-	 * @param instanceOwner
-	 *        the owner of the instance
 	 * @param instanceConnectionInfo
 	 *        the information required to connect to the instance's task manager
 	 * @param allocationTime
@@ -65,17 +70,25 @@ public class CloudInstance extends AbstractInstance {
 	 *        the parent node in the network topology
 	 * @param hardwareDescription
 	 *        the hardware description reported by the instance itself
+	 * @param awsAccessKey
+	 * 		  The AWS Access Key to access this machine
+	 * @param awsSecretKey
+	 * 		  The AWS Secret Key to access this machine
 	 */
 	public CloudInstance(String instanceID, InstanceType type, 
-			InstanceConnectionInfo instanceConnectionInfo, long allocationTime, NetworkNode parentNode,
-			NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+			InstanceConnectionInfo instanceConnectionInfo, long launchTime, NetworkNode parentNode,
+			NetworkTopology networkTopology, HardwareDescription hardwareDescription, String awsAccessKey, String awsSecretKey) {
 		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
 		this.allocatedResource = new AllocatedResource(this, type, new AllocationID());
 
 		this.instanceID = instanceID;
 
-		this.allocationTime = allocationTime;
+		this.launchTime = launchTime;
+		
+		this.awsAccessKey = awsAccessKey;
+		
+		this.awsSecretKey = awsSecretKey;
 	}
 
 	/**
@@ -109,12 +122,18 @@ public class CloudInstance extends AbstractInstance {
 	 * @return the time the instance was allocated
 	 */
 	public long getAllocationTime() {
-		return this.allocationTime;
+		return this.launchTime;
 	}
-
-
 
 	public AllocatedResource asAllocatedResource() {
 		return this.allocatedResource;
+	}
+
+	/**
+	 * Returns this Instance as a FloatingInstance object
+	 * @return
+	 */
+	public FloatingInstance asFloatingInstance(){
+		return new FloatingInstance(this.instanceID, this.getInstanceConnectionInfo(), this.launchTime, this.getType(), this.awsAccessKey, this.awsSecretKey);
 	}
 }

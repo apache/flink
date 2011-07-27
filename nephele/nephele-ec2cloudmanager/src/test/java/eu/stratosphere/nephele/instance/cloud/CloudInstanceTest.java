@@ -38,7 +38,7 @@ public class CloudInstanceTest {
 		final CloudInstance cloudInstance = new CloudInstance("i-1234ABCD",
 			InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),
 			new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121),
-			1234567890, networkTopology.getRootNode(), networkTopology, hardwareDescription);
+			1234567890, networkTopology.getRootNode(), networkTopology, hardwareDescription, null, null);
 		
 		return cloudInstance;
 	}

@@ -72,7 +72,7 @@ public class JobToInstancesMapping {
 	 *        the cloud instance which will be unassigned
 	 * @return the unassigned cloud instance
 	 */
-	public boolean unassignedInstanceFromJob(CloudInstance instance) {
+	public boolean unassignInstanceFromJob(CloudInstance instance) {
 
 		synchronized (this.assignedInstances) {
 			return this.assignedInstances.remove(instance);
