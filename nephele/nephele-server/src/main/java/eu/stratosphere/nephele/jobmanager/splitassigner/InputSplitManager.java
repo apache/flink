@@ -132,7 +132,16 @@ public final class InputSplitManager {
 		while (it.hasNext()) {
 
 			final ExecutionGroupVertex groupVertex = it.next();
+			final InputSplit[] inputSplits = groupVertex.getInputSplits();
 
+			if (inputSplits == null) {
+				continue;
+			}
+
+			if (inputSplits.length == 0) {
+				continue;
+			}
+			
 			final InputSplitAssigner assigner = this.assignerCache.remove(groupVertex);
 			if (assigner == null) {
 				LOG.error("Group vertex " + groupVertex.getName()
