@@ -65,8 +65,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final InstanceConnectionInfo localConnectionInfo;
 
-	private final CanceledChannelSet canceledChannelSet;
-
 	private final FileBufferManager fileBufferManager;
 
 	private final LocalBufferCache transitBufferPool;
@@ -88,9 +86,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		this.localConnectionInfo = localInstanceConnectionInfo;
 
-		this.canceledChannelSet = new CanceledChannelSet();
-
-		this.fileBufferManager = new FileBufferManager(this.canceledChannelSet);
+		this.fileBufferManager = new FileBufferManager();
 
 		// Initialize the global buffer pool
 		GlobalBufferPool.getInstance();
@@ -523,26 +519,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						+ numberOfQueuedEnvelopes + ")");
 			}
 		}
-	}
-
-	/**
-	 * Triggers the clean-up method of the canceled channel set.
-	 */
-	public void cleanUpCanceledChannelSet() {
-
-		this.canceledChannelSet.cleanup();
-	}
-
-	/**
-	 * Marks the channel with the given ID as canceled. This means the channel belongs to a task which as about to be
-	 * canceled.
-	 * 
-	 * @param channelID
-	 *        the ID of the channel to be marked as canceled
-	 */
-	public void markChannelAsCanceled(ChannelID channelID) {
-
-		this.canceledChannelSet.add(channelID);
 	}
 
 	/**

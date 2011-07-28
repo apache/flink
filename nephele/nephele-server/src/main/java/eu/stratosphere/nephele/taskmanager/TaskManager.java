@@ -51,12 +51,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -376,9 +371,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Check the status of the task threads to detect unexpected thread terminations
 			checkTaskExecution();
-
-			// Clean up set of canceled channels
-			this.byteBufferedChannelManager.cleanUpCanceledChannelSet();
 		}
 
 		// Shutdown the individual components of the task manager
@@ -411,29 +403,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 			@Override
 			public void run() {
-
-				// Mark all input channels as canceled
-				for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-					final InputGate<?> inputGate = environment.getInputGate(i);
-					for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-						final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
-						if (inputChannel.getType() != ChannelType.INMEMORY) {
-							// Note that we always use the ID of the source channel
-							byteBufferedChannelManager.markChannelAsCanceled(inputChannel.getConnectedChannelID());
-						}
-					}
-				}
-
-				// Mark all output channels as canceled
-				for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-					final OutputGate<?> outputGate = environment.getOutputGate(i);
-					for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-						final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
-						if (outputChannel.getType() != ChannelType.INMEMORY) {
-							byteBufferedChannelManager.markChannelAsCanceled(outputChannel.getID());
-						}
-					}
-				}
 
 				// Finally, request user code to cancel
 				environment.cancelExecution();

@@ -60,7 +60,7 @@ public class FileBuffer implements InternalBuffer {
 		if (this.fileChannel == null) {
 			try {
 				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
-				if(this.fileChannel == null) {
+				if (this.fileChannel == null) {
 					return 0;
 				}
 			} catch (InterruptedException e) {
@@ -92,7 +92,7 @@ public class FileBuffer implements InternalBuffer {
 		if (this.fileChannel == null) {
 			try {
 				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
-				if(this.fileChannel == null) {
+				if (this.fileChannel == null) {
 					return 0;
 				}
 			} catch (InterruptedException e) {
@@ -128,18 +128,14 @@ public class FileBuffer implements InternalBuffer {
 	}
 
 	@Override
-	public int write(ReadableByteChannel readableByteChannel) throws IOException {
+	public int write(final ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.writeMode) {
 			throw new IOException("Cannot write to buffer, buffer already switched to read mode");
 		}
 
 		if (this.fileChannel == null) {
-			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
-			} catch (ChannelCanceledException cce) {
-				return writeContentForCanceledChannel(readableByteChannel);
-			}
+			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -157,56 +153,15 @@ public class FileBuffer implements InternalBuffer {
 		return (int) bytesWritten;
 	}
 
-	private int writeContentForCanceledChannel(final ReadableByteChannel readableByteChannel) throws IOException {
-
-		final ByteBuffer tmpBuffer = ByteBuffer.allocate(128);
-		long bytesWritten = 0;
-
-		long diff = this.bufferSize - this.totalBytesWritten;
-		if (diff <= 0) {
-			return 0;
-		}
-
-		while (diff > 0) {
-
-			// Make sure we don't read too much data from the stream
-			if (diff < tmpBuffer.remaining()) {
-				tmpBuffer.limit(tmpBuffer.position() + (int) diff);
-			}
-
-			final long b = readableByteChannel.read(tmpBuffer);
-			if (b == 0) {
-				break;
-			}
-			if (b == -1) {
-				throw new IOException("Read unexception -1 from stream");
-			}
-
-			if (!tmpBuffer.hasRemaining()) {
-				tmpBuffer.clear();
-			}
-
-			bytesWritten += b;
-			this.totalBytesWritten += b;
-			diff = this.bufferSize - this.totalBytesWritten;
-		}
-
-		return (int) bytesWritten;
-	}
-
 	@Override
-	public int write(ByteBuffer src) throws IOException {
+	public int write(final ByteBuffer src) throws IOException {
 
 		if (!this.writeMode) {
 			throw new IOException("Cannot write to buffer, buffer already switched to read mode");
 		}
 
 		if (this.fileChannel == null) {
-			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
-			} catch (ChannelCanceledException e) {
-				throw new IOException("Received unexpected ChannelCanceledException");
-			}
+			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -314,7 +269,7 @@ public class FileBuffer implements InternalBuffer {
 				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
 			}
 			this.totalBytesRead = 0;
-			while(remaining() > 0) {
+			while (remaining() > 0) {
 				destinationBuffer.write(this);
 			}
 			destinationBuffer.finishWritePhase();

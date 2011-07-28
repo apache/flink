@@ -17,11 +17,9 @@ package eu.stratosphere.nephele.io.channels;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -29,7 +27,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.util.FileUtils;
@@ -60,14 +57,10 @@ public class FileBufferManager {
 
 	private final Map<GateID, Map<FileID, ReadableSpillingFile>> readableSpillingFileMap = new HashMap<GateID, Map<FileID, ReadableSpillingFile>>();
 
-	private final Set<ChannelID> canceledChannels;
-
-	public FileBufferManager(final Set<ChannelID> canceledChannels) {
+	public FileBufferManager() {
 
 		this.tmpDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
-
-		this.canceledChannels = canceledChannels;
 	}
 
 	private ReadableSpillingFile getReadableSpillingFile(final GateID gateID, final FileID fileID) throws IOException,
@@ -137,36 +130,20 @@ public class FileBufferManager {
 			synchronized (this.readableSpillingFileMap) {
 				map = this.readableSpillingFileMap.get(gateID);
 				if (map == null) {
-					if (this.canceledChannels.contains(gateID)) {
-						return;
-					} else {
-						throw new IOException("Cannot find readable spilling file queue for gate ID " + gateID);
-					}
+					throw new IOException("Cannot find readable spilling file queue for gate ID " + gateID);
 				}
 
 				ReadableSpillingFile readableSpillingFile = null;
 				synchronized (map) {
 					readableSpillingFile = map.get(fileID);
 					if (readableSpillingFile == null) {
-						if (this.canceledChannels.contains(gateID)) {
-							return;
-						} else {
-							throw new IOException("Cannot find readable spilling file for gate ID " + gateID);
-						}
+						throw new IOException("Cannot find readable spilling file for gate ID " + gateID);
 					}
-					try {
-						if (readableSpillingFile.checkForEndOfFile()) {
-							map.remove(fileID);
-							if (map.isEmpty()) {
-								this.readableSpillingFileMap.remove(gateID);
-							}
-						}
-					} catch (ClosedChannelException e) {
-						if (this.canceledChannels.contains(gateID)) {
-							// The user thread has been interrupted
-							readableSpillingFile.getPhysicalFile().delete();
-						} else {
-							throw e; // This is actually an exception
+
+					if (readableSpillingFile.checkForEndOfFile()) {
+						map.remove(fileID);
+						if (map.isEmpty()) {
+							this.readableSpillingFileMap.remove(gateID);
 						}
 					}
 				}
@@ -180,7 +157,7 @@ public class FileBufferManager {
 
 		try {
 			getReadableSpillingFile(gateID, fileID).unlockReadableFileChannel();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
@@ -194,11 +171,8 @@ public class FileBufferManager {
 	 *         failed
 	 * @throws IOException
 	 *         thrown if no spilling for the given channel ID could be allocated
-	 * @throws ChannelCancelException
-	 *         thrown to indicate that the input channel for which the data is written has been canceled
 	 */
-	public FileChannel getFileChannelForWriting(final GateID gateID) throws IOException,
-			ChannelCanceledException {
+	public FileChannel getFileChannelForWriting(final GateID gateID) throws IOException {
 
 		synchronized (this.writableSpillingFileMap) {
 
