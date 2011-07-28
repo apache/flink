@@ -19,18 +19,19 @@ final class TaskContext implements BufferProvider {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
 
-		return this.localBufferCache.requestEmptyBuffer(minimumSizeOfBuffer);
+		return this.localBufferCache.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, final int minimumReserve) throws IOException,
+			InterruptedException {
 
-		return this.localBufferCache.requestEmptyBufferBlocking(minimumSizeOfBuffer);
+		return this.localBufferCache.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	/**
@@ -41,15 +42,15 @@ final class TaskContext implements BufferProvider {
 
 		return this.localBufferCache.getMaximumBufferSize();
 	}
-	
+
 	public void releaseAllResources() {
-		
-		//Clear the buffer cache
+
+		// Clear the buffer cache
 		this.localBufferCache.clear();
 	}
-	
+
 	public void setBufferLimit(int bufferLimit) {
-		
+
 		this.localBufferCache.setDesignatedNumberOfBuffers(bufferLimit);
 	}
 
@@ -58,7 +59,7 @@ final class TaskContext implements BufferProvider {
 	 */
 	@Override
 	public boolean isShared() {
-		
+
 		return false;
 	}
 }

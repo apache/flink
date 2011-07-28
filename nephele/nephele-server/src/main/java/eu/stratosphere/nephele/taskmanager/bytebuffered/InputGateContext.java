@@ -17,18 +17,19 @@ final class InputGateContext implements BufferProvider {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
 
-		return this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
+		return this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
+			throws IOException, InterruptedException {
 
-		return this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
+		return this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	/**
@@ -42,7 +43,7 @@ final class InputGateContext implements BufferProvider {
 
 	@Override
 	public boolean isShared() {
-		
+
 		return this.taskContext.isShared();
 	}
 }

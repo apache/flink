@@ -83,7 +83,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		final int uncompressedBufferSize = calculateBufferSize();
 
 		// TODO: This implementation breaks compression, we have to fix it later
-		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize);
+		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(this, uncompressedBufferSize);
 		final BufferPairResponse bufferResponse = new BufferPairResponse(null, buffer);
 
 		// Put the buffer into the transfer envelope
@@ -146,10 +146,10 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		}
 
 		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-			this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
+			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
 		}
 
-		this.outputGateContext.processEnvelope(this.outgoingTransferEnvelope);
+		this.outputGateContext.processEnvelope(this, this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
 	}
 
@@ -174,10 +174,10 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			}
 
 			while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-				this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
+				this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
 			}
 
-			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope);
+			this.outputGateContext.processEnvelope(this, ephemeralTransferEnvelope);
 		}
 	}
 
@@ -275,15 +275,49 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 	@Override
 	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
-		
-		if(!this.isReceiverRunning) {
+
+		if (!this.isReceiverRunning) {
 			return true;
 		}
-		
-		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
-			this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
+
+		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
+			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
 		}
-		
+
 		return false;
+	}
+
+	/**
+	 * Returns the number of remaining bytes that can be written to encapsulated channel's working buffer. This method
+	 * must not be called from any thread than the task thread itself.
+	 * 
+	 * @return the number of remaining bytes that can written to the encapsulated channel's working buffer or
+	 *         <code>-1</code> if the channel currently has no working buffer allocated
+	 */
+	int getRemainingBytesOfWorkingBuffer() {
+
+		if (this.outgoingTransferEnvelope != null) {
+			final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
+			if (buffer != null) {
+				if (buffer.isBackedByMemory()) {
+					return buffer.remaining();
+				}
+			}
+		}
+
+		return -1;
+	}
+
+	/**
+	 * Triggers the encapsulated output channel to flush and release its internal working buffers.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while flushing the buffers
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the channel to flush
+	 */
+	void flush() throws IOException, InterruptedException {
+
+		this.byteBufferedOutputChannel.flush();
 	}
 }

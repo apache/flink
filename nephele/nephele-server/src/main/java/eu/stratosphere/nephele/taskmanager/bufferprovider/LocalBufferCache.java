@@ -39,7 +39,7 @@ public final class LocalBufferCache implements BufferProvider {
 	private int requestedNumberOfBuffers = 0;
 
 	private final boolean isShared;
-	
+
 	private final Queue<ByteBuffer> buffers = new ArrayDeque<ByteBuffer>();
 
 	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared) {
@@ -54,10 +54,10 @@ public final class LocalBufferCache implements BufferProvider {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
 
 		try {
-			return requestBufferInternal(minimumSizeOfBuffer, false);
+			return requestBufferInternal(minimumSizeOfBuffer, minimumReserve, false);
 		} catch (InterruptedException e) {
 			LOG.error("Caught unexpected InterruptedException");
 		}
@@ -69,12 +69,13 @@ public final class LocalBufferCache implements BufferProvider {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
+			throws IOException, InterruptedException {
 
-		return requestBufferInternal(minimumSizeOfBuffer, true);
+		return requestBufferInternal(minimumSizeOfBuffer, minimumReserve, true);
 	}
 
-	private Buffer requestBufferInternal(final int minimumSizeOfBuffer, final boolean block)
+	private Buffer requestBufferInternal(final int minimumSizeOfBuffer, int minimumReserve, final boolean block)
 			throws InterruptedException {
 
 		if (minimumSizeOfBuffer > this.maximumBufferSize) {
@@ -85,22 +86,23 @@ public final class LocalBufferCache implements BufferProvider {
 		synchronized (this.buffers) {
 
 			// Make sure we return excess buffers immediately
-			if (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
+			while (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
 
-				while (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
-
-					final ByteBuffer buffer = this.buffers.poll();
-					if (buffer == null) {
-						break;
-					}
-
-					this.globalBufferPool.releaseGlobalBuffer(buffer);
-					this.requestedNumberOfBuffers--;
+				final ByteBuffer buffer = this.buffers.poll();
+				if (buffer == null) {
+					break;
 				}
 
+				this.globalBufferPool.releaseGlobalBuffer(buffer);
+				this.requestedNumberOfBuffers--;
 			}
 
-			while (this.buffers.isEmpty()) {
+			if (minimumReserve > this.requestedNumberOfBuffers) {
+				LOG.warn("Minimum reserve is larger than number of requested buffers, reducing reserve...");
+				minimumReserve = this.requestedNumberOfBuffers;
+			}
+
+			while (this.buffers.size() <= minimumReserve) {
 
 				// Check if the number of cached buffers matches the number of designated buffers
 				if (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
@@ -113,7 +115,7 @@ public final class LocalBufferCache implements BufferProvider {
 						continue;
 					}
 				}
-				
+
 				if (block) {
 					this.buffers.wait();
 				} else {
@@ -145,18 +147,20 @@ public final class LocalBufferCache implements BufferProvider {
 	public void setDesignatedNumberOfBuffers(final int designatedNumberOfBuffers) {
 
 		synchronized (this.buffers) {
+
 			this.designatedNumberOfBuffers = designatedNumberOfBuffers;
-			
-			while(this.designatedNumberOfBuffers > this.requestedNumberOfBuffers) {
-				
-				if(this.buffers.isEmpty()) {
+
+			// Make sure we return excess buffers immediately
+			while (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
+
+				if (this.buffers.isEmpty()) {
 					break;
 				}
-				
+
 				this.globalBufferPool.releaseGlobalBuffer(this.buffers.poll());
 				this.requestedNumberOfBuffers--;
 			}
-			
+
 			this.buffers.notify();
 		}
 	}

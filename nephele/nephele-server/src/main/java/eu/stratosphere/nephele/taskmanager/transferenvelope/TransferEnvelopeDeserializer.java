@@ -268,7 +268,9 @@ public class TransferEnvelopeDeserializer {
 					this.lastDeserializedSourceID = this.deserializedSourceID;
 				}
 
-				this.buffer = this.bufferProvider.requestEmptyBufferBlocking(this.sizeOfBuffer);
+				final int minimumReserve = this.bufferProvider.isShared() ? 0 : 1;
+
+				this.buffer = this.bufferProvider.requestEmptyBufferBlocking(this.sizeOfBuffer, minimumReserve);
 
 				if (this.buffer == null) {
 

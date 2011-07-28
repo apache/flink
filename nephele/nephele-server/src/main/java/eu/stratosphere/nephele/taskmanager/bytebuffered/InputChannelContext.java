@@ -226,15 +226,16 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 	}
 
 	@Override
-	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
 
-		return this.inputGateContext.requestEmptyBuffer(minimumSizeOfBuffer);
+		return this.inputGateContext.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	@Override
-	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
+			throws IOException, InterruptedException {
 
-		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
+		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	@Override
@@ -245,7 +246,7 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 	@Override
 	public boolean isShared() {
-		
+
 		return this.inputGateContext.isShared();
 	}
 }
