@@ -46,6 +46,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -854,11 +855,20 @@ public final class CloudManager extends TimerTask implements InstanceManager {
 
 		final Map<InstanceType, InstanceTypeDescription> availableinstances = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
-		for (InstanceType t : this.availableInstanceTypes) {
-			availableinstances.put(t, InstanceTypeDescriptionFactory.construct(t, null, -1));
+		for (final InstanceType t : this.availableInstanceTypes) {
+			availableinstances.put(t, InstanceTypeDescriptionFactory.construct(t, estimateHardwareDescription(t), -1));
 		}
 
 		return availableinstances;
 	}
 
+	private HardwareDescription estimateHardwareDescription(final InstanceType instanceType) {
+
+		final int numberOfCPUCores = instanceType.getNumberOfCores();
+		final long sizeOfPhysicalMemory = (long) instanceType.getMemorySize() * 1024L * 1024L; // getMemorySize is in MB
+		final long sizeOfFreeMemory = (long) Math.floor((double) sizeOfPhysicalMemory * 0.6f); // 0.6 is just a rough
+																								// estimation
+
+		return HardwareDescriptionFactory.construct(numberOfCPUCores, sizeOfPhysicalMemory, sizeOfFreeMemory);
+	}
 }
