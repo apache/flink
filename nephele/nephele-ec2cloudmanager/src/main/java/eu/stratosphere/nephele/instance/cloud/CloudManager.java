@@ -93,12 +93,6 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	private static final int DEFAULTCLEANUPINTERVAL = 2 * 60 * 1000; // 2 min
 
-	/** The user pays fee for his instances every time unit. */
-	private static final long TIMEUNIT = 60 * 60 * 1000; // 1 hour in ms.
-
-	/** Timelimit to full next hour when instance is kicked. */
-	private static final long TIMETHRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
-
 	/** TMs that send HeartBeats but do not belong to any job are kept in this set. */
 	private final HashSet<InstanceConnectionInfo> orphanedTMs = new HashSet<InstanceConnectionInfo>();
 
@@ -106,19 +100,13 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	private final InstanceType[] availableInstanceTypes;
 
 	/** Mapping jobs to instances. */
-	private final Map<JobID, JobToInstancesMapping> jobToInstancesMap = new HashMap<JobID, JobToInstancesMapping>();
+	private final Map<JobID, JobToInstancesMapping> jobToInstancesAssignmentMap = new HashMap<JobID, JobToInstancesMapping>();
 
 	/** All reserved instances. Mapping instance IDs to job IDs. */
-	private final Map<String, JobID> reservedInstances = new HashMap<String, JobID>();
+	private final Map<String, JobID> reservedInstancesToJobMapping = new HashMap<String, JobID>();
 
 	/** All floating instances. Mapping task managers' addresses to floating instances. */
 	private final Map<InstanceConnectionInfo, FloatingInstance> floatingInstances = new HashMap<InstanceConnectionInfo, FloatingInstance>();
-
-	/** The list of all cloud instances. */
-	private final List<CloudInstance> cloudInstances = new ArrayList<CloudInstance>();
-
-	/** Mapping floating instance IDs to their configurations. */
-	private final Map<String, Configuration> floatingInstanceIDs = new HashMap<String, Configuration>();
 
 	/** Object that is notified if instances become available or vanish. */
 	private InstanceListener instanceListener;
@@ -249,8 +237,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		JobToInstancesMapping jobToInstanceMapping = null;
 
-		synchronized (this.jobToInstancesMap) {
-			jobToInstanceMapping = this.jobToInstancesMap.get(jobID);
+		synchronized (this.jobToInstancesAssignmentMap) {
+			jobToInstanceMapping = this.jobToInstancesAssignmentMap.get(jobID);
 
 			if (jobToInstanceMapping == null) {
 				LOG.error("No mapping for job " + jobID);
@@ -260,14 +248,16 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 		if (jobToInstanceMapping.getAssignedInstances().contains(instance)) {
 
-			jobToInstanceMapping.unassignedInstanceFromJob((CloudInstance) instance);
-			this.cloudInstances.remove(instance);
+			// Unassign Instance
+			jobToInstanceMapping.unassignInstanceFromJob((CloudInstance) instance);
 
-			this.floatingInstances.put(instance.getInstanceConnectionInfo(), new FloatingInstance(
-				((CloudInstance) instance).getInstanceID(), instance.getInstanceConnectionInfo(),
-				((CloudInstance) instance).getAllocationTime()));
+			// Make it a floating Instance
+			this.floatingInstances.put(instance.getInstanceConnectionInfo(),
+				((CloudInstance) instance).asFloatingInstance());
 
-			this.floatingInstanceIDs.put(((CloudInstance) instance).getInstanceID(), conf);
+			// this.floatingInstances.put(instance.getInstanceConnectionInfo(), new FloatingInstance(
+			// ((CloudInstance) instance).getInstanceID(), instance.getInstanceConnectionInfo(),
+			// ((CloudInstance) instance).getAllocationTime()));
 
 			LOG.info("Convert " + ((CloudInstance) instance).getInstanceID()
 				+ " from allocated instance to floating instance");
@@ -276,46 +266,6 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			LOG.error("Job " + jobID + " contains no such instance");
 			return;
 		}
-	}
-
-	/**
-	 * Terminates an instance (virtual machine) in the cloud.
-	 * 
-	 * @param conf
-	 *        the configuration of the job, whom the terminating instance belongs to.
-	 * @param instanceID
-	 *        the ID of the terminating instance
-	 * @return the ID of the terminated instance
-	 * @throws InstanceException
-	 *         something wrong happens to the job configuration
-	 */
-	private String destroyCloudInstance(Configuration conf, String instanceID) throws InstanceException {
-
-		if (conf == null) {
-			throw new InstanceException("No job configuration provided, unable to acquire credentials");
-		}
-
-		// First check, if all required configuration entries are available
-		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
-		if (awsAccessId == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS access ID");
-		}
-
-		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
-		if (awsSecretKey == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
-		}
-
-		AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
-
-		TerminateInstancesRequest tr = new TerminateInstancesRequest();
-		LinkedList<String> instances = new LinkedList<String>();
-		instances.add(instanceID);
-		tr.setInstanceIds(instances);
-		TerminateInstancesResult trr = ec2client.terminateInstances(tr);
-
-		return trr.getTerminatingInstances().get(0).getInstanceId();
-
 	}
 
 	/**
@@ -354,25 +304,27 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		}
 		if (instance != null) {
 			JobID jobID = null;
-			jobID = this.reservedInstances.get(instance.getInstanceID());
+			jobID = this.reservedInstancesToJobMapping.get(instance.getInstanceID());
 			if (jobID == null) {
 				LOG.error("Cannot find job ID to instance ID " + instance.getInstanceID());
 				return;
 			}
 
-			this.reservedInstances.remove(instance.getInstanceID());
+			this.reservedInstancesToJobMapping.remove(instance.getInstanceID());
 			instance.updateLastReceivedHeartBeat();
 
-			final JobToInstancesMapping mapping = this.jobToInstancesMap.get(jobID);
+			final JobToInstancesMapping mapping = this.jobToInstancesAssignmentMap.get(jobID);
 			if (mapping == null) {
 				LOG.error("Cannot find mapping for job ID " + jobID);
 				return;
 			}
 			mapping.assignInstanceToJob(instance);
+
 			// Trigger notification that instance is available (outside synchronized section)
 			final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>(1);
 			allocatedResources.add(instance.asAllocatedResource());
 			this.instanceListener.resourcesAllocated(jobID, allocatedResources);
+
 			return;
 		}
 
@@ -391,14 +343,14 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	private CloudInstance isAssignedInstance(InstanceConnectionInfo instanceConnectionInfo) {
 
-		synchronized (this.jobToInstancesMap) {
+		synchronized (this.jobToInstancesAssignmentMap) {
 
-			final Iterator<JobID> it = this.jobToInstancesMap.keySet().iterator();
+			final Iterator<JobID> it = this.jobToInstancesAssignmentMap.keySet().iterator();
 
 			while (it.hasNext()) {
 
 				final JobID jobID = it.next();
-				final JobToInstancesMapping m = this.jobToInstancesMap.get(jobID);
+				final JobToInstancesMapping m = this.jobToInstancesAssignmentMap.get(jobID);
 				final CloudInstance instance = m.getInstanceByConnectionInfo(instanceConnectionInfo);
 				if (instance != null) {
 					return instance;
@@ -425,16 +377,16 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			return null;
 		}
 
-		synchronized (this.reservedInstances) {
+		synchronized (this.reservedInstancesToJobMapping) {
 
-			if (this.reservedInstances.size() == 0) {
+			if (this.reservedInstancesToJobMapping.size() == 0) {
 				return null;
 			}
 
 			// Collect Jobs that have reserved instances
 			final HashSet<JobID> jobsWithReservedInstances = new HashSet<JobID>();
 
-			for (JobID id : this.reservedInstances.values()) {
+			for (JobID id : this.reservedInstancesToJobMapping.values()) {
 				jobsWithReservedInstances.add(id);
 			}
 
@@ -444,8 +396,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 				JobToInstancesMapping mapping = null;
 
-				synchronized (this.jobToInstancesMap) {
-					mapping = this.jobToInstancesMap.get(id);
+				synchronized (this.jobToInstancesAssignmentMap) {
+					mapping = this.jobToInstancesAssignmentMap.get(id);
 				}
 
 				if (mapping == null) {
@@ -472,7 +424,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 						}
 
 						if (instanceConnectionInfo.getAddress().equals(candidateAddress)) {
-							return convertIntoCloudInstance(t, instanceConnectionInfo);
+							return convertIntoCloudInstance(t, instanceConnectionInfo, mapping.getAwsAccessId(),
+								mapping.getAwsSecretKey());
 						}
 					}
 				}
@@ -494,7 +447,7 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 * @return a cloud instance
 	 */
 	private CloudInstance convertIntoCloudInstance(com.amazonaws.services.ec2.model.Instance instance,
-			InstanceConnectionInfo instanceConnectionInfo) {
+			InstanceConnectionInfo instanceConnectionInfo, String awsAccessKey, String awsSecretKey) {
 
 		InstanceType type = null;
 
@@ -513,10 +466,11 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		}
 
 		final CloudInstance cloudInstance = new CloudInstance(instance.getInstanceId(), type, instanceConnectionInfo,
-			instance.getLaunchTime().getTime(), this.networkTopology.getRootNode(), this.networkTopology, null);
+			instance.getLaunchTime().getTime(), this.networkTopology.getRootNode(), this.networkTopology, null,
+			awsAccessKey, awsSecretKey);
 
 		// TODO: Define hardware descriptions for cloud instance types
-		this.cloudInstances.add(cloudInstance);
+
 		return cloudInstance;
 	}
 
@@ -547,80 +501,90 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		// First we check, if there are any orphaned TMs that are accessible with the provided configuration
 		checkAndConvertOrphanedInstances(conf);
 
-		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
-
-		JobToInstancesMapping jobToInstanceMapping = null;
-
 		// Check if there already exist a mapping for this job
-		synchronized (this.jobToInstancesMap) {
-			jobToInstanceMapping = this.jobToInstancesMap.get(jobID);
+		JobToInstancesMapping jobToInstanceMapping = null;
+		synchronized (this.jobToInstancesAssignmentMap) {
+			jobToInstanceMapping = this.jobToInstancesAssignmentMap.get(jobID);
 
 			// Create new mapping if it does not yet exist
 			if (jobToInstanceMapping == null) {
 				LOG.debug("Creating new mapping for job " + jobID);
 				jobToInstanceMapping = new JobToInstancesMapping(awsAccessId, awsSecretKey);
-				this.jobToInstancesMap.put(jobID, jobToInstanceMapping);
+				this.jobToInstancesAssignmentMap.put(jobID, jobToInstanceMapping);
 			}
 		}
 
-		// Map containing the instances that will actually be requested via the EC2 interface..
-		final Map<InstanceType, Integer> instancesToBeRequested = new HashMap<InstanceType, Integer>();
+		// Our bill with all instances that we will provide...
+		final LinkedList<FloatingInstance> floatinginstances = new LinkedList<FloatingInstance>();
+		final LinkedList<String> requestedinstances = new LinkedList<String>();
 
-		// First we check, if there are any floating instances available that we can use
-
-		// Iterate over all instance types
+		// We iterate over the maximum of requested Instances...
 		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
-		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
 
 		while (it.hasNext()) {
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-			final InstanceType actualInstanceType = entry.getKey();
-			final int neededinstancecount = entry.getValue();
+			Map.Entry<InstanceType, Integer> e = it.next();
 
-			LOG.info("Request for " + neededinstancecount + " instances of type " + actualInstanceType.getIdentifier());
+			// This is our actual type...
+			final InstanceType actualtype = e.getKey();
+			final int maxcount = e.getValue();
+			final int mincount = instanceRequestMap.getMinimumNumberOfInstances(actualtype);
 
-			// Now check, if floating instances of specific type are available...
-			final LinkedList<CloudInstance> floatinginstances = anyFloatingInstanceAvailable(awsAccessId, awsSecretKey,
-				actualInstanceType, neededinstancecount);
+			// And this is the list of instances we will have...
+			LinkedList<FloatingInstance> actualfloatinginstances = new LinkedList<FloatingInstance>();
+			LinkedList<String> actualrequestedinstances = new LinkedList<String>();
 
-			// now we assign all found floating instances...
-			final JobToInstancesMapping mapping = this.jobToInstancesMap.get(jobID);
-			if (mapping == null) {
-				LOG.error("Cannot find mapping for job ID " + jobID);
-				return;
+			// Check if floating instances available...
+			actualfloatinginstances = anyFloatingInstancesAvailable(awsAccessId, awsSecretKey, actualtype, maxcount);
+
+			// Do we need more instances?
+			if (actualfloatinginstances.size() < maxcount) {
+				int minimumrequestcount = Math.max(mincount - actualfloatinginstances.size(), 1);
+				int maximumrequestcount = maxcount - actualfloatinginstances.size();
+
+				actualrequestedinstances = allocateCloudInstance(conf, actualtype, minimumrequestcount,
+					maximumrequestcount);
 			}
 
-			LOG.info("Found " + floatinginstances.size() + " suitable floating instances.");
-			for (CloudInstance ci : floatinginstances) {
-				mapping.assignInstanceToJob(ci);
-				allocatedResources.add(ci.asAllocatedResource());
-			}
+			// Add provided Instances to overall bill...
+			floatinginstances.addAll(actualfloatinginstances);
+			requestedinstances.addAll(actualrequestedinstances);
 
-			if (floatinginstances.size() < neededinstancecount) {
-				// we (still?) need to request new instances.
+			// Are we outer limits?
+			if (actualrequestedinstances.size() + actualfloatinginstances.size() < mincount) {
+				LOG.error("Requested: " + mincount + " to " + maxcount + " instanes of type "
+					+ actualtype.getIdentifier() + ". Could only provide "
+					+ (actualrequestedinstances.size() + actualfloatinginstances.size()) + ".");
 
-				// Add instances that need to be requested to the map..
-				final int instancerequestcount = neededinstancecount - floatinginstances.size();
-				instancesToBeRequested.put(actualInstanceType, instancerequestcount);
+				// something went wrong.. give the floating instances back!
+				synchronized (this.floatingInstances) {
+					for (FloatingInstance i : floatinginstances) {
+						this.floatingInstances.put(i.getInstanceConnectionInfo(), i);
+					}
+				}
+				throw new InstanceException("Cloud not allocate enough cloud instances");
+			} // End outer limits
 
-			}
+		} // End iterating over instance types..
 
-		}// End iterating over instance types
+		// If we reached this point, everything went well
+		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
 
-		// Now, we need to request the EC2 instances..
-
-		final LinkedList<String> instanceIDs = allocateCloudInstance(conf, awsAccessId, awsSecretKey,
-			instancesToBeRequested, sshKeyPair);
-
-		for (String i : instanceIDs) {
-			this.reservedInstances.put(i, jobID);
-
+		// Convert and allocate Floating Instances...
+		for (FloatingInstance fi : floatinginstances) {
+			CloudInstance ci = fi.asCloudInstance();
+			jobToInstanceMapping.assignInstanceToJob(ci);
+			allocatedResources.add(ci.asAllocatedResource());
 		}
 
 		// Finally, inform the scheduler about the instances which have been floating before
 		final CloudInstanceNotifier notifier = new CloudInstanceNotifier(this.instanceListener, jobID,
 			allocatedResources);
 		notifier.start();
+
+		// Add reserved Instances to Job Mapping...
+		for (String i : requestedinstances) {
+			this.reservedInstancesToJobMapping.put(i, jobID);
+		}
 	}
 
 	/**
@@ -637,8 +601,10 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 * @return
 	 *         List containing the instance IDs of the allocated instances.
 	 */
-	private LinkedList<String> allocateCloudInstance(Configuration conf, String awsAccessId, String awsSecretKey,
-			Map<InstanceType, Integer> instancesToBeRequested, String sshKeyPair) {
+	private LinkedList<String> allocateCloudInstance(Configuration conf, InstanceType type, int mincount, int maxcount) {
+
+		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
+		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
 
 		String imageID = conf.getString("job.ec2.image.id", null);
 		LOG.info("EC2 Image ID from job conf: " + imageID);
@@ -656,54 +622,37 @@ public class CloudManager extends TimerTask implements InstanceManager {
 			LOG.error("JobManager IP address is not set (jobmanager.rpc.address)");
 			return null;
 		}
+		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
 
 		AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 		LinkedList<String> instanceIDs = new LinkedList<String>();
 
 		// Iterate over instance types..
 
-		final Iterator<Map.Entry<InstanceType, Integer>> it = instancesToBeRequested.entrySet().iterator();
+		RunInstancesRequest request = new RunInstancesRequest(imageID, mincount, maxcount);
+		request.setInstanceType(type.getIdentifier());
 
-		while (it.hasNext()) {
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-			final InstanceType actualInstanceType = entry.getKey();
-			final int neededinstancecount = entry.getValue();
+		// TODO: Make this configurable!
+		BlockDeviceMapping bdm = new BlockDeviceMapping();
+		bdm.setVirtualName("ephemeral0");
+		bdm.setDeviceName("/dev/sdb1");
 
-			RunInstancesRequest request = new RunInstancesRequest(imageID, neededinstancecount, neededinstancecount);
-			request.setInstanceType(actualInstanceType.getIdentifier());
+		if (sshKeyPair != null) {
+			request.setKeyName(sshKeyPair);
+		}
 
-			// TODO: Make this configurable!
-			BlockDeviceMapping bdm = new BlockDeviceMapping();
-			bdm.setVirtualName("ephemeral0");
-			bdm.setDeviceName("/dev/sdb1");
+		LinkedList<BlockDeviceMapping> bdmlist = new LinkedList<BlockDeviceMapping>();
+		bdmlist.add(bdm);
+		request.setBlockDeviceMappings(bdmlist);
 
-			if (sshKeyPair != null) {
-				request.setKeyName(sshKeyPair);
-			}
+		// Setting User-Data parameters
+		request.setUserData(EC2Utilities.createTaskManagerUserData(jobManagerIPAddress));
 
-			LinkedList<BlockDeviceMapping> bdmlist = new LinkedList<BlockDeviceMapping>();
-			bdmlist.add(bdm);
-			request.setBlockDeviceMappings(bdmlist);
+		// Request instances!
+		RunInstancesResult result = ec2client.runInstances(request);
 
-			// Setting User-Data parameters
-			request.setUserData(EC2Utilities.createTaskManagerUserData(jobManagerIPAddress));
-
-			// Request instances!
-			RunInstancesResult result = ec2client.runInstances(request);
-
-			// Check if reservation went well...
-
-			if (result.getReservation().getInstances().size() != neededinstancecount) {
-				// Something went wront..
-				LOG.error("Requested " + neededinstancecount + " instances of type "
-					+ actualInstanceType.getIdentifier() + " but only got "
-					+ result.getReservation().getInstances().size() + " instances reserved.");
-			}
-
-			for (Instance i : result.getReservation().getInstances()) {
-				instanceIDs.add(i.getInstanceId());
-			}
-
+		for (Instance i : result.getReservation().getInstances()) {
+			instanceIDs.add(i.getInstanceId());
 		}
 
 		return instanceIDs;
@@ -734,6 +683,17 @@ public class CloudManager extends TimerTask implements InstanceManager {
 		for (Reservation r : result.getReservations()) {
 			for (Instance t : r.getInstances()) {
 
+				InstanceType type = null;
+
+				// Find out type of the instance
+				for (int i = 0; i < this.availableInstanceTypes.length; i++) {
+
+					if (this.availableInstanceTypes[i].getIdentifier().equals(t.getInstanceType())) {
+						type = this.availableInstanceTypes[i];
+						break;
+					}
+				}
+
 				InetAddress inetAddress = null;
 				try {
 					inetAddress = InetAddress.getByName(t.getPrivateIpAddress());
@@ -747,13 +707,15 @@ public class CloudManager extends TimerTask implements InstanceManager {
 
 				while (it.hasNext()) {
 					InstanceConnectionInfo oi = it.next();
-					if (oi.getAddress().equals(inetAddress)) {
+					if (oi.getAddress().equals(inetAddress) && type != null) {
 						LOG.info("Orphaned Instance " + oi + " converted into floating instance.");
+
 						// We have found the corresponding orphaned TM.. take the poor lamb back to its nest.
 						FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t
-							.getLaunchTime().getTime());
+							.getLaunchTime().getTime(), type, awsAccessId, awsSecretKey);
+
 						this.floatingInstances.put(oi, floatinginstance);
-						this.floatingInstanceIDs.put(t.getInstanceId(), conf);
+						it.remove();
 						break;
 					}
 				}
@@ -763,9 +725,8 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	}
 
 	/**
-	 * Checks whether there is a floating instance with the specific type. If there is a floating
-	 * instance, it will be
-	 * changed into a cloud instance and returned.
+	 * Checks whether there is a floating instance with the specific type. If there are instances available,
+	 * they will be removed from the list and returned...
 	 * 
 	 * @param awsAccessId
 	 *        the access ID into AWS
@@ -773,100 +734,39 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 *        the secret key used to generate signatures for authentication
 	 * @param type
 	 *        the type of the floating instance, which is checked
-	 * @return a cloud instance
+	 * @return a list of suitable floating instances.
 	 * @throws InstanceException
 	 *         something wrong happens to the global configuration
 	 */
-	private LinkedList<CloudInstance> anyFloatingInstanceAvailable(String awsAccessId, String awsSecretKey,
+	private LinkedList<FloatingInstance> anyFloatingInstancesAvailable(String awsAccessId, String awsSecretKey,
 			InstanceType type, int count) throws InstanceException {
 
 		LOG.info("Check for floating instance of type" + type.getIdentifier() + " requested count: " + count + ".");
 
-		for (InstanceConnectionInfo i : this.floatingInstances.keySet()) {
-			LOG.info("Floating instance available: " + i.getAddress() + " " + i.getHostName() + " hash: "
-				+ i.hashCode());
-		}
-
-		final LinkedList<CloudInstance> floatinginstances = new LinkedList<CloudInstance>();
+		final LinkedList<FloatingInstance> foundfloatinginstances = new LinkedList<FloatingInstance>();
 
 		synchronized (this.floatingInstances) {
 
-			if (this.floatingInstances.size() == 0) {
-				// There is no floating instance known to the system
-				return floatinginstances; // (empty)
-			}
-
-			AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
-
-			DescribeInstancesRequest request = new DescribeInstancesRequest();
-			DescribeInstancesResult result = ec2client.describeInstances(request);
-
-			// Iterate over all Instances
-			for (Reservation r : result.getReservations()) {
-				for (Instance t : r.getInstances()) {
-
-					if (!t.getInstanceType().equals(type.getIdentifier())) {
-						continue;
+			Iterator<Map.Entry<InstanceConnectionInfo, FloatingInstance>> it = this.floatingInstances.entrySet()
+				.iterator();
+			while (it.hasNext()) {
+				FloatingInstance i = it.next().getValue();
+				// Check if we own this instance
+				if (i.isFromThisOwner(awsAccessId, awsSecretKey)) {
+					// Yes it is.. now check if it is of the desired type..
+					if (i.getType().equals(type)) {
+						// Found..
+						it.remove();
+						foundfloatinginstances.add(i);
 					}
-
-					InetAddress inetAddress = null;
-					try {
-						inetAddress = InetAddress.getByName(t.getPrivateIpAddress());
-					} catch (UnknownHostException e) {
-						LOG.error("Cannot resolve " + t.getPrivateDnsName() + " into an IP address: "
-							+ StringUtils.stringifyException(e));
-						continue;
-					}
-
-					// Check if instance entry is a floating instance
-
-					final Iterator<Map.Entry<InstanceConnectionInfo, FloatingInstance>> it = this.floatingInstances
-						.entrySet().iterator();
-
-					while (it.hasNext()) {
-
-						Entry<InstanceConnectionInfo, FloatingInstance> e = it.next();
-						if (e.getKey().getAddress().equals(inetAddress)) {
-							LOG.info("Suitable floating instance found.");
-							final FloatingInstance floatingInstance = e.getValue();
-							it.remove();
-
-							this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
-
-							floatinginstances.add(convertIntoCloudInstance(t,
-								floatingInstance.getInstanceConnectionInfo()));
-
-							// If we already have enough floating instances found: return!
-							if (floatinginstances.size() >= count) {
-								return floatinginstances;
-							}
-						}
-
-					}
-
-					for (Entry<InstanceConnectionInfo, FloatingInstance> e : this.floatingInstances.entrySet()) {
-						if (e.getKey().getAddress().equals(inetAddress)) {
-							LOG.info("Suitable floating instance found.");
-
-							final FloatingInstance floatingInstance = this.floatingInstances.remove(e.getKey());
-							this.floatingInstanceIDs.remove(floatingInstance.getInstanceID());
-
-							floatinginstances.add(convertIntoCloudInstance(t,
-								floatingInstance.getInstanceConnectionInfo()));
-
-							// If we already have enough floating instances found: return!
-							if (floatinginstances.size() >= count) {
-								return floatinginstances;
-							}
-						}
-
-					}
-
 				}
 			}
+
 		}
 
-		return floatinginstances;
+		LOG.info("Found " + foundfloatinginstances.size() + " suitable floating instances.");
+
+		return foundfloatinginstances;
 
 	}
 
@@ -875,48 +775,22 @@ public class CloudManager extends TimerTask implements InstanceManager {
 	 */
 	public void run() {
 
-		final long currentTime = System.currentTimeMillis();
-
 		synchronized (this.floatingInstances) {
+			Iterator<Map.Entry<InstanceConnectionInfo, FloatingInstance>> it = this.floatingInstances.entrySet()
+				.iterator();
 
-			synchronized (this.floatingInstanceIDs) {
+			while (it.hasNext()) {
+				final Map.Entry<InstanceConnectionInfo, FloatingInstance> entry = it.next();
 
-				final Set<Map.Entry<InstanceConnectionInfo, FloatingInstance>> entries = this.floatingInstances
-					.entrySet();
-				final Iterator<Map.Entry<InstanceConnectionInfo, FloatingInstance>> it = entries.iterator();
-
-				while (it.hasNext()) {
-
-					final Map.Entry<InstanceConnectionInfo, FloatingInstance> entry = it.next();
-
-					// Time in ms remaining until next full hour (or whatever TIMEUNIT is)
-					long msremaining = TIMEUNIT - ((currentTime - entry.getValue().getLaunchTime()) % TIMEUNIT);
-
-					// LOG.info("Floating Remaining Time: " + entry.getValue().getInstanceID() + " ms: " + msremaining
-					// + ". seconds: " + Math.round(((double) msremaining / (double) 1000)));
-
-					if (msremaining < TIMETHRESHOLD) {
-						// Kick this instance!
-						try {
-							destroyCloudInstance(this.floatingInstanceIDs.get(entry.getValue().getInstanceID()), entry
-								.getValue().getInstanceID());
-						} catch (InstanceException e) {
-							e.printStackTrace();
-						}
-
-						this.floatingInstances.remove(entry.getKey());
-						this.floatingInstanceIDs.remove(entry.getValue().getInstanceID());
-
-						LOG.info("Instance " + entry.getValue().getInstanceID() + " terminated");
-
-					}
-
+				// Call lifecycle method for each floating instance. If true, remove from floatinginstances list.
+				if (entry.getValue().checkIfLifeCycleEnded()) {
+					it.remove();
+					LOG.info("Floating Instance " + entry.getValue().getInstanceID()
+						+ " ended its lifecycle. Terminated");
 				}
-
 			}
 
 		}
-
 	}
 
 	/**
