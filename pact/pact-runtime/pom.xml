@@ -48,6 +48,8 @@
 				<configuration>
 					<excludes>
 						<exclude>**/TestData.java</exclude>
+						<!--  Performance Tests are excluded -->
+						<exclude>**/HashVsSortTest.java</exclude>
 					</excludes>
 					<forkMode>once</forkMode>
 					<argLine>-Xms512m -Xmx1024m</argLine>
