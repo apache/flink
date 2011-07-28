@@ -17,7 +17,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public class CloudInstanceNotifier extends Thread {
+final class CloudInstanceNotifier extends Thread {
 
 	/**
 	 * The {@link InstanceListener} object to send the notification to.
