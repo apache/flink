@@ -141,7 +141,7 @@ public final class InputSplitManager {
 			if (inputSplits.length == 0) {
 				continue;
 			}
-			
+
 			final InputSplitAssigner assigner = this.assignerCache.remove(groupVertex);
 			if (assigner == null) {
 				LOG.error("Group vertex " + groupVertex.getName()
