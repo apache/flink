@@ -41,18 +41,25 @@ public class Plan implements Visitable<Contract> {
 	 * The maximal number of machines to use in the job.
 	 */
 	protected int maxNumberMachines;
+	
+	/**
+	 * The plan's configuration 
+	 */
+	protected PlanConfiguration planConfiguration;
 
 	// ------------------------------------------------------------------------
 
 	public Plan(Collection<FileDataSinkContract<?, ?>> sinks, String jobName) {
 		this.sinks = sinks;
 		this.jobName = jobName;
+		this.planConfiguration = new PlanConfiguration();
 	}
 
 	public Plan(FileDataSinkContract<?, ?> sink, String jobName) {
 		this.sinks = new ArrayList<FileDataSinkContract<?, ?>>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
+		this.planConfiguration = new PlanConfiguration();
 	}
 
 	public Plan(Collection<FileDataSinkContract<?, ?>> sinks) {
@@ -93,6 +100,13 @@ public class Plan implements Visitable<Contract> {
 	 */
 	public String getJobName() {
 		return this.jobName;
+	}
+	
+	/**
+	 * Gets the plans configuration
+	 */
+	public PlanConfiguration getPlanConfiguration() {
+		return this.planConfiguration;
 	}
 
 	/**

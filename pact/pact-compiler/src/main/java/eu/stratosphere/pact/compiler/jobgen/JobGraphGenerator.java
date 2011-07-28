@@ -110,7 +110,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		this.vertices = new HashMap<OptimizerNode, AbstractJobVertex>();
 		this.auxVertices = new ArrayList<AbstractJobVertex>();
 		this.maxDegreeVertex = null;
-
+		
+		// set Nephele JobGraph config
+		pactPlan.getPlanConfiguration().extractNepheleConfiguration(this.jobGraph.getJobConfiguration());
+		
 		// generate Nephele job graph
 		pactPlan.accept(this);
 
@@ -146,7 +149,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// return job graph
 		return graph;
 	}
-
+	
 	/**
 	 * This methods implements the pre-visiting during a depth-first traversal. It create the job vertex and
 	 * sets local strategy.
@@ -282,7 +285,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
 		}
 	}
-
+	
 	// ------------------------------------------------------------------------
 	// Methods for creating individual vertices
 	// ------------------------------------------------------------------------
@@ -290,7 +293,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private boolean isDistributionGiven(PactConnection connection) {
 		return (connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass() != null);
 	}
-
+	
 	/**
 	 * @param mapNode
 	 * @return
