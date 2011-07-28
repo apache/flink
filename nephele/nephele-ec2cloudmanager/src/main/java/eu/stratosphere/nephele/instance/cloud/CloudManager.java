@@ -57,20 +57,17 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.nephele.util.SerializableHashMap;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * The task of cloud manager is managing instances (virtual machines) in the cloud. The cloud manager can allocate and
- * release instances.
- * There are three types of instances: reserved instance, cloud instance and floating instance. The reserved instance is
- * reserved for a
- * specific job. The cloud instance is an instance in the running state. The floating instance is idle and not reserved
- * for any job. The
- * type of an instance in the cloud may vary among these three states. One instance belongs to only one user, i.e. the
- * user can use only
- * his own instances in the cloud. The user pays fee for allocated instances hourly. The cloud manager checks the
- * floating instances
- * every 30 seconds in order to terminate the floating instances which expire.
+ * release instances. There are three types of instances: reserved instance, cloud instance and floating instance. The
+ * reserved instance is reserved for a specific job. The cloud instance is an instance in the running state. The
+ * floating instance is idle and not reserved for any job. The type of an instance in the cloud may vary among these
+ * three states. One instance belongs to only one user, i.e. the user can use only his own instances in the cloud. The
+ * user pays fee for allocated instances hourly. The cloud manager checks the floating instances every 60 seconds in
+ * order to terminate the floating instances which expire.
  */
 public final class CloudManager extends TimerTask implements InstanceManager {
 
@@ -849,9 +846,13 @@ public final class CloudManager extends TimerTask implements InstanceManager {
 		this.instanceListener = instanceListener;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
-		Map<InstanceType, InstanceTypeDescription> availableinstances = new HashMap<InstanceType, InstanceTypeDescription>();
+
+		final Map<InstanceType, InstanceTypeDescription> availableinstances = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
 		for (InstanceType t : this.availableInstanceTypes) {
 			availableinstances.put(t, InstanceTypeDescriptionFactory.construct(t, null, -1));
