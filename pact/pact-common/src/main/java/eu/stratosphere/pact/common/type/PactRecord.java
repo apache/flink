@@ -73,9 +73,7 @@ public final class PactRecord implements Value
 	 * Required nullary constructor for instantiation by serialization logic.
 	 */
 	public PactRecord()
-	{
-		this.fields = new Value[2];
-	}
+	{}
 	
 	/**
 	 * Creates a new record containing only a single field, which is the given value.
@@ -312,17 +310,31 @@ public final class PactRecord implements Value
 	 * @param targets
 	 * @return
 	 */
-	public boolean getFields(int[] positions, Value[] targets)
+	public boolean getFieldsInto(int[] positions, Value[] targets)
 	{
 		for (int i = 0; i < positions.length; i++) {
-			Value v = getField(positions[i], targets[i]);
-			if (v == null) {
+			if (!getFieldInto(positions[i], targets[i]))
 				return false;
-			}
-			targets[i] = v;
 		}
 		return true;
 	}
+	
+//	/**
+//	 * @param positions
+//	 * @param targets
+//	 * @return
+//	 */
+//	public boolean getFields(int[] positions, Value[] targets)
+//	{
+//		for (int i = 0; i < positions.length; i++) {
+//			Value v = getField(positions[i], targets[i]);
+//			if (v == null) {
+//				return false;
+//			}
+//			targets[i] = v;
+//		}
+//		return true;
+//	}
 	
 	/**
 	 * Deserializes the given object from the binary string, starting at the given position.
@@ -367,7 +379,6 @@ public final class PactRecord implements Value
 	 */
 	public void setField(int fieldNum, Value value)
 	{
-		this.fields[fieldNum] = value;
 		// range check
 		if (fieldNum < 0) {
 			throw new IndexOutOfBoundsException();
@@ -723,7 +734,7 @@ public final class PactRecord implements Value
 							start |= curr << shift;
 						}
 						this.offsets[field] = start + begin;
-						this.lengths[lastNonNullField] = start - this.offsets[lastNonNullField];
+						this.lengths[lastNonNullField] = start + begin - this.offsets[lastNonNullField];
 					}
 					else {
 						this.offsets[field] = begin;
@@ -764,7 +775,7 @@ public final class PactRecord implements Value
 		initFields(binData, offset, val);
 		
 		// get the values
-		return getFields(fields, holders);
+		return getFieldsInto(fields, holders);
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -13,18 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.sort;
+package eu.stratosphere.pact.runtime.util;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import java.util.Comparator;
+
+import eu.stratosphere.pact.common.type.Key;
+
 
 /**
- * The SortMerger interface representing the public interface to all specific Sort-Merge implementations.
- * 
- * @author Erik Nijkamp
+ * A generic comparator for two keys, which returns a result as defined by the keys compareTo methods.
+ *
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface SortMerger extends CloseableInputProvider<PactRecord>
+public class KeyComparator implements Comparator<Key>
 {
-	ReadingIterator<PactRecord> getIterator() throws InterruptedException;
+	/* (non-Javadoc)
+	 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
+	 */
+	@Override
+	public int compare(Key o1, Key o2) {
+		return o1.compareTo(o2);
+	}
+
 }

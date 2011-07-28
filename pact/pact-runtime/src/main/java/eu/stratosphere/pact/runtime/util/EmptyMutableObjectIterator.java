@@ -13,18 +13,40 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.sort;
+package eu.stratosphere.pact.runtime.util;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 /**
- * The SortMerger interface representing the public interface to all specific Sort-Merge implementations.
- * 
- * @author Erik Nijkamp
+ * An empty mutable object iterator that never returns anything.
+ *
+ * @author Stephan Ewen
  */
-public interface SortMerger extends CloseableInputProvider<PactRecord>
-{
-	ReadingIterator<PactRecord> getIterator() throws InterruptedException;
+public final class EmptyMutableObjectIterator<E> implements ReadingIterator<E> {
+
+	/**
+	 * The singleton instance.
+	 */
+	private static final EmptyMutableObjectIterator<Object> INSTANCE = new EmptyMutableObjectIterator<Object>();
+	
+	/**
+	 * Gets a singleton instance of the empty iterator.
+	 *  
+	 * @param <E> The type of the objects (not) returned by the iterator.
+	 * @return An instance of the iterator.
+	 */
+	public static <E> ReadingIterator<E> get() {
+		@SuppressWarnings("unchecked")
+		ReadingIterator<E> iter = (ReadingIterator<E>) INSTANCE;
+		return iter;
+	}
+	
+	/**
+	 * Always returns null.
+	 *  
+	 * @see ReadingIterator#next(Object)
+	 */
+	@Override
+	public E next(E target) {
+		return null;
+	}
 }

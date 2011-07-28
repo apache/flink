@@ -29,6 +29,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 import eu.stratosphere.pact.runtime.util.ReadingIteratorWrapper;
 
 
@@ -61,6 +62,18 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	
 	
 	public BuildFirstHashMatchIterator(Iterator<PactRecord> firstInput, Iterator<PactRecord> secondInput,
+			int[] keyPositions, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
+			AbstractInvokable ownerTask, long totalMemory)
+	throws MemoryAllocationException
+	{		
+		this.memManager = memManager;
+		this.nextBuildSideObject = new PactRecord();
+		
+		this.hashJoin = getHashJoin(firstInput, secondInput, keyPositions, keyClasses, memManager, ioManager,
+			ownerTask, totalMemory);
+	}
+	
+	public BuildFirstHashMatchIterator(ReadingIterator<PactRecord> firstInput, ReadingIterator<PactRecord> secondInput,
 			int[] keyPositions, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
 			AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
@@ -177,6 +190,28 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{
+		return getHashJoin(new ReadingIteratorWrapper<PactRecord>(buildSideInput), 
+			new ReadingIteratorWrapper<PactRecord>(probeSideInput), 
+			keyFields, keyClasses, memManager, ioManager, ownerTask, totalMemory);
+	}
+	
+	/**
+	 * @param buildSideInput
+	 * @param probeSideInput
+	 * @param keyFields
+	 * @param keyClasses
+	 * @param memManager
+	 * @param ioManager
+	 * @param ownerTask
+	 * @param totalMemory
+	 * @return
+	 * @throws MemoryAllocationException
+	 */
+	public static HashJoin getHashJoin(ReadingIterator<PactRecord> buildSideInput, ReadingIterator<PactRecord> probeSideInput,
+			int[] keyFields, Class<? extends Key>[] keyClasses,
+			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
+	throws MemoryAllocationException
+	{
 		// adjust the memory for full page sizes
 		totalMemory &= ~(((long) HASH_JOIN_PAGE_SIZE) - 1);
 		// NOTE: This calculation is erroneous if the total memory is above 63 TiBytes. 
@@ -184,9 +219,6 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 		
 		final List<MemorySegment> memorySegments = memManager.allocateStrict(ownerTask, numPages, HASH_JOIN_PAGE_SIZE);
 		
-		return new HashJoin(
-			new ReadingIteratorWrapper<PactRecord>(buildSideInput),
-			new ReadingIteratorWrapper<PactRecord>(probeSideInput)
-			, keyFields, keyClasses, memorySegments, ioManager);
+		return new HashJoin(buildSideInput, probeSideInput, keyFields, keyClasses, memorySegments, ioManager);
 	}
 }

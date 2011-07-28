@@ -1,5 +1,6 @@
 package eu.stratosphere.pact.runtime.util;
 
+import java.io.IOException;
 
 /**
  *
@@ -8,5 +9,5 @@ package eu.stratosphere.pact.runtime.util;
  */
 public interface ReadingIterator<E>
 {
-	public E next(E target);
+	public E next(E target) throws IOException;
 }

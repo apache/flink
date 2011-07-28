@@ -18,8 +18,6 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 import eu.stratosphere.nephele.services.iomanager.MemoryIOWrapper;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
@@ -31,6 +29,7 @@ import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedExcepti
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 /**
  * Sortable buffer based on heap/stack concept where pairs are written in the heap and index into stack.
@@ -338,8 +337,6 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 	// ------------------------------------------------------------------------
 	//                               Members
 	// ------------------------------------------------------------------------
-
-	private final PactRecord record;
 	
 	private final MemoryIOWrapper memoryWrapper;
 
@@ -362,7 +359,6 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 		super();
 		
 		this.comparator = comparator;
-		this.record = new PactRecord();
 
 		// bind memory segment
 		bind(memory);
@@ -625,37 +621,26 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 		return this.pairsCount;
 	}
 
-	public final Iterator<PactRecord> getIterator() {
-
-		return new Iterator<PactRecord>() {
-
-			private final PactRecord rec = record;
+	public final ReadingIterator<PactRecord> getIterator()
+	{
+		return new ReadingIterator<PactRecord>() {
 			private final int size = size();
 			private int current = 0;
 
 			@Override
-			public boolean hasNext() {
-				return this.current < this.size;
-			}
-
-			@Override
-			public PactRecord next() {
-				if (!hasNext()) {
-					throw new NoSuchElementException();
+			public PactRecord next(PactRecord target) {
+				if (this.current < this.size) {
+					try {
+						getRecord(target, this.current++);
+						return target;
+					}
+					catch (IOException ioe) {
+						throw new RuntimeException(ioe);
+					}
 				}
-				
-				try {
-					getRecord(rec, this.current++);
-					return rec;
+				else {
+					return null;
 				}
-				catch (IOException ioe) {
-					throw new RuntimeException(ioe);
-				}
-			}
-
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
 			}
 		};
 	}

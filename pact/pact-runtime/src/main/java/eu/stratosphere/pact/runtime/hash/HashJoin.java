@@ -372,7 +372,7 @@ public class HashJoin
 			throw new NullPointerException();
 		}
 		if (memorySegments.size() < MIN_NUM_MEMORY_SEGMENTS) {
-			throw new IllegalArgumentException("Too few memory segments provided. Hash Join needs at leas " + 
+			throw new IllegalArgumentException("Too few memory segments provided. Hash Join needs at least " + 
 				MIN_NUM_MEMORY_SEGMENTS + " memory segments.");
 		}
 		if (keyPositions.length != keyClasses.length) {
@@ -388,12 +388,12 @@ public class HashJoin
 		this.keyFields = keyPositions;
 		this.keyClasses = keyClasses;
 		
-		this.keyHolders = new Key[this.keyClasses.length];
+		this.keyHolders = new Key[keyClasses.length];
 		for (int i = 0; i < keyClasses.length; i++) {
 			if (keyClasses[i] == null) {
 				throw new NullPointerException("Key type " + i + " is null.");
 			}
-			this.keyHolders[i] = InstantiationUtil.instantiate(this.keyClasses[i], Key.class);
+			this.keyHolders[i] = InstantiationUtil.instantiate(keyClasses[i], Key.class);
 		}
 		
 		this.avgRecordLen = avgRecordLen < 1 ? DEFAULT_RECORD_LEN : avgRecordLen;
@@ -465,7 +465,7 @@ public class HashJoin
 		PactRecord next;
 		while ((next = probeIter.next()) != null)
 		{
-			if (!next.getFields(this.keyFields, keyHolders)) {
+			if (!next.getFieldsInto(this.keyFields, keyHolders)) {
 				throw new NullKeyFieldException(); 
 			}
 			
@@ -1823,7 +1823,7 @@ public class HashJoin
 					// read key and also the value
 					try {
 						this.record.read(this.currentSeg);
-						this.record.getFields(this.keyPositions, this.keyHolders);
+						this.record.getFieldsInto(this.keyPositions, this.keyHolders);
 					}
 					catch (IOException e) {
 						throw new RuntimeException("Error while deserializing record from spilled buffer. " +
@@ -1999,7 +1999,7 @@ public class HashJoin
 			this.source = source;
 		}
 		
-		public PactRecord next()
+		public PactRecord next() throws IOException
 		{
 			return (this.current = this.source.next(this.instance));
 		}
@@ -2207,16 +2207,11 @@ public class HashJoin
 		 * @see java.util.Iterator#next()
 		 */
 		@Override
-		public PactRecord next(PactRecord target)
+		public PactRecord next(PactRecord target) throws IOException
 		{
 			if (this.currentSegment != null) {
 				// get the next element from the buffer
-				try {
-					target.read(this.currentSegment.inputView);
-				}
-				catch (IOException ioex) {
-					throw new RuntimeException("Deserialization error while reading record from spilled partition.", ioex);
-				}
+				target.read(this.currentSegment.inputView);
 				
 				int pos = this.currentSegment.inputView.getPosition();
 				if (pos < this.currentEndPos) {
@@ -2226,13 +2221,8 @@ public class HashJoin
 					// segment done
 					// send another request, if more blocks remain
 					if (this.numRequestsRemaining > 0) {
-						try {
-							this.reader.readBlock(this.currentSegment);
-							this.numRequestsRemaining--;
-						}
-						catch (IOException ioex) {
-							throw new RuntimeException("Error reading a block from the spilled partition.", ioex);
-						}
+						this.reader.readBlock(this.currentSegment);
+						this.numRequestsRemaining--;
 					}
 					else {
 						this.freeMemTarget.add(this.currentSegment);
@@ -2268,71 +2258,4 @@ public class HashJoin
 		}
 		
 	} // end BlockReaderIterator
-	
-//	private static final class BlockReaderUtilIterator extends BlockReaderIterator
-//		implements Iterator<PactRecord>
-//	{
-//		private PactRecord next;
-//
-//		/**
-//		 * @param reader
-//		 * @param returnQueue
-//		 * @param segments
-//		 * @param freeMemTarget
-//		 * @param numBlocks
-//		 * @throws IOException
-//		 */
-//		public BlockReaderUtilIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
-//				List<MemorySegment> segments, List<MemorySegment> freeMemTarget, int numBlocks)
-//		throws IOException
-//		{
-//			super(reader, returnQueue, segments, freeMemTarget, numBlocks);
-//		}
-//
-//		/* (non-Javadoc)
-//		 * @see java.util.Iterator#hasNext()
-//		 */
-//		@Override
-//		public boolean hasNext()
-//		{
-//			if (this.next == null) {
-//				PactRecord rec = new PactRecord();
-//				if (next(rec)) {
-//					this.next = rec;
-//					return true;
-//				}
-//				else {
-//					return false;
-//				}
-//			}
-//			else {
-//				return true;
-//			}
-//		}
-//
-//		/* (non-Javadoc)
-//		 * @see java.util.Iterator#next()
-//		 */
-//		@Override
-//		public PactRecord next()
-//		{
-//			if (this.next != null || hasNext()) {
-//				PactRecord temp = this.next;
-//				this.next = null;
-//				return temp;
-//			}
-//			else {
-//				throw new NoSuchElementException();
-//			}
-//		}
-//
-//		/* (non-Javadoc)
-//		 * @see java.util.Iterator#remove()
-//		 */
-//		@Override
-//		public void remove()
-//		{
-//			throw new UnsupportedOperationException();	
-//		}
-//	}
 }

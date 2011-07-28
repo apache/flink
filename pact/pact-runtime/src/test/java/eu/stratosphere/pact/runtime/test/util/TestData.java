@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.Random;
 
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 /**
  * Test data utilities classes.
@@ -62,6 +63,10 @@ public final class TestData {
 
 		public int getKey() {
 			return key;
+		}
+		
+		public void setKey(int key) {
+			this.key = key;
 		}
 
 		@Override
@@ -111,6 +116,10 @@ public final class TestData {
 
 		public String getValue() {
 			return value;
+		}
+		
+		public void setValue(String value) {
+			this.value = value;
 		}
 
 		@Override
@@ -295,7 +304,7 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class GeneratorIterator implements Iterator<PactRecord> {
+	public static class GeneratorIterator implements ReadingIterator<PactRecord> {
 		private final Generator generator;
 
 		private final int numberOfRecords;
@@ -310,19 +319,8 @@ public final class TestData {
 		}
 
 		@Override
-		public boolean hasNext() {
-			return counter < numberOfRecords;
-		}
-
-		@Override
-		public PactRecord next() {
-			counter++;
-			return generator.next();
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+		public PactRecord next(PactRecord target) {
+			return (counter++ < numberOfRecords) ? generator.next() : null;
 		}
 		
 		public void reset() {
@@ -330,7 +328,9 @@ public final class TestData {
 		}
 	}
 	
-	public static class ConstantValueIterator implements Iterator<PactRecord>
+	// --------------------------------------------------------------------------------------------
+	
+	public static class ConstantValueIterator implements ReadingIterator<PactRecord>
 	{
 		private final PactRecord record;
 		
@@ -352,23 +352,18 @@ public final class TestData {
 			this.valueValue = valueValue;
 			this.numPairs = numPairs;
 		}
-
-		@Override
-		public boolean hasNext() {
-			return pos < this.numPairs;
-		}
 		
 		@Override
-		public PactRecord next() {
-			this.value.value = this.valueValue + ' ' + pos;
-			this.record.setField(1, this.value);
-			pos++;
-			return this.record;
-		}
-		
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+		public PactRecord next(PactRecord target) {
+			if (pos < this.numPairs) {
+				this.value.value = this.valueValue + ' ' + pos;
+				this.record.setField(1, this.value);
+				pos++;
+				return this.record;
+			}
+			else {
+				return null;
+			}
 		}
 		
 		public void reset() {

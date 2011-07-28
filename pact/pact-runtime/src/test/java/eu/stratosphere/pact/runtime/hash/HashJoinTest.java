@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.hash;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +35,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.hash.HashJoin.HashBucketIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import eu.stratosphere.pact.runtime.util.ReadingIterator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -323,360 +323,345 @@ public class HashJoinTest
 	}
 	
 
-//	@Test
-//	public void testSpillingHashJoinWithMassiveCollisions() throws IOException
-//	{
-//		// the following two values are known to have a hash-code collision on the initial level.
-//		// we use them to make sure one partition grows over-proportionally large
-//		final int REPEATED_VALUE_1 = 40559;
-//		final int REPEATED_VALUE_2 = 92882;
-//		final int REPEATED_VALUE_COUNT = 200000; 
-//		
-//		final int NUM_KEYS = 1000000;
-//		final int BUILD_VALS_PER_KEY = 3;
-//		final int PROBE_VALS_PER_KEY = 10;
-//		
-//		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-//		Iterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-//		Iterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-//		Iterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-//		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> builds = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
-//		builds.add(build1);
-//		builds.add(build2);
-//		builds.add(build3);
-//		Iterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
-//	
-//		// create a probe input that gives 10 million pairs with 10 values sharing a key
-//		Iterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-//		Iterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-//		Iterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-//		List<Iterator<PactRecord>> probes = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
-//		probes.add(probe1);
-//		probes.add(probe2);
-//		probes.add(probe3);
-//		Iterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
-//
-//		// allocate the memory for the HashTable
-//		MemoryManager memMan; 
-//		List<MemorySegment> memSegments;
-//		
-//		try {
-//			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-//			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
-//		}
-//		catch (MemoryAllocationException maex) {
-//			fail("Memory for the Join could not be provided.");
-//			return;
-//		}
-//		
-//		// create the I/O access for spilling
-//		IOManager ioManager = new IOManager();
-//		
-//		// create the map for validating the results
-//		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
-//		
-//		// ----------------------------------------------------------------------------------------
-//		
-//		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);ager);
-//		join.open();
+	@Test
+	public void testSpillingHashJoinWithMassiveCollisions() throws IOException
+	{
+		// the following two values are known to have a hash-code collision on the initial level.
+		// we use them to make sure one partition grows over-proportionally large
+		final int REPEATED_VALUE_1 = 40559;
+		final int REPEATED_VALUE_2 = 92882;
+		final int REPEATED_VALUE_COUNT_BUILD = 200000;
+		final int REPEATED_VALUE_COUNT_PROBE = 5;
+		
+		final int NUM_KEYS = 1000000;
+		final int BUILD_VALS_PER_KEY = 3;
+		final int PROBE_VALS_PER_KEY = 10;
+		
+		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
+		ReadingIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		ReadingIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		ReadingIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<ReadingIterator<PactRecord>> builds = new ArrayList<ReadingIterator<PactRecord>>();
+		builds.add(build1);
+		builds.add(build2);
+		builds.add(build3);
+		ReadingIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
 	
-//		final PactRecord record = new PactRecord();
-//		int numKeyCalls = 0;
-//		while (join.nextKey())
-//		{
-//			numKeyCalls++;
-//			
-//			int numBuildValues = 0;
-//			int numProbeValues = 0;
-//			
-//			int key = 0;
-//			
-//			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-//			while (probeIter.hasNext()) {
-//				KeyValuePair<PactInteger, PactInteger> nextPair = probeIter.next();
-//				key = nextPair.getKey().getValue();
-//				numProbeValues++;
-//			}
-//			
-//			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-//			if (buildSide.next(pair)) {
-//				numBuildValues = 1;
-//				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue()); 
-//			}
-//			else {
-//				fail("No build side values found for a probe key.");
-//			}
-//			while (buildSide.next(pair)) {
-//				numBuildValues++;
-//				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue());
-//			}
-//			
-//			Long contained = map.get(key);
-//			if (contained == null) {
-//				contained = new Long(numBuildValues * numProbeValues);
-//			}
-//			else {
-//				contained = new Long(contained.longValue() + (numBuildValues * numProbeValues));
-//			}
-//			
-//			map.put(key, contained);
-//		}
-//		
-//		join.close();
-//		
-//		Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
-//		for (Map.Entry<Integer, Long> entry : map.entrySet()) {
-//			long val = entry.getValue();
-//			int key = entry.getKey();
-//	
-//			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
-//				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
-//					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT) : 
-//					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
-//		}
-//		
-//		
-//		// ----------------------------------------------------------------------------------------
-//		
-//		memMan.release(memSegments);
-//		
-//		// shut down I/O manager and Memory Manager and verify the correct shutdown
-//		ioManager.shutdown();
-//		if (!ioManager.isProperlyShutDown()) {
-//			fail("I/O manager was not property shut down.");
-//		}
-//		if (!memMan.verifyEmpty()) {
-//			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-//		}
-//	}
-//	
-//	/*
-//	 * This test is basically identical to the "testSpillingHashJoinWithMassiveCollisions" test, only that the number
-//	 * of repeated values (causing bucket collisions) are large enough to make sure that their target partition no longer
-//	 * fits into memory by itself and needs to be repartitioned in the recursion again.
-//	 */
-//	@Test
-//	public void testSpillingHashJoinWithTwoRecursions() throws IOException
-//	{
-//		// the following two values are known to have a hash-code collision on the first recursion level.
-//		// we use them to make sure one partition grows over-proportionally large
-//		final int REPEATED_VALUE_1 = 40559;
-//		final int REPEATED_VALUE_2 = 92882;
-//		final int REPEATED_VALUE_COUNT = 1000000; 
-//		
-//		final int NUM_KEYS = 1000000;
-//		final int BUILD_VALS_PER_KEY = 3;
-//		final int PROBE_VALS_PER_KEY = 10;
-//		
-//		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-//		Iterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-//		Iterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-//		Iterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-//		List<Iterator<PactRecord>> builds = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
-//		builds.add(build1);
-//		builds.add(build2);
-//		builds.add(build3);
-//		Iterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
-//	
-//		// create a probe input that gives 10 million pairs with 10 values sharing a key
-//		Iterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-//		Iterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-//		Iterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-//		List<Iterator<PactRecord>> probes = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
-//		probes.add(probe1);
-//		probes.add(probe2);
-//		probes.add(probe3);
-//		Iterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
-//
-//		// allocate the memory for the HashTable
-//		MemoryManager memMan; 
-//		List<MemorySegment> memSegments;
-//		
-//		try {
-//			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-//			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
-//		}
-//		catch (MemoryAllocationException maex) {
-//			fail("Memory for the Join could not be provided.");
-//			return;
-//		}
-//		
-//		// create the I/O access for spilling
-//		IOManager ioManager = new IOManager();
-//		
-//		// create the map for validating the results
-//		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
-//		
-//		// ----------------------------------------------------------------------------------------
-//		
-//		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
-//		join.open();
-//		final PactRecord record = new PactRecord();
-//		int numKeyCalls = 0;
-//		while (join.nextKey())
-//		{
-//			numKeyCalls++;
-//			
-//			int numBuildValues = 0;
-//			int numProbeValues = 0;
-//			
-//			int key = 0;
-//			
-//			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-//			while (probeIter.hasNext()) {
-//				KeyValuePair<PactInteger, PactInteger> nextPair = probeIter.next();
-//				key = nextPair.getKey().getValue();
-//				numProbeValues++;
-//			}
-//			
-//			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-//			if (buildSide.next(pair)) {
-//				numBuildValues = 1;
-//				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue()); 
-//			}
-//			else {
-//				fail("No build side values found for a probe key.");
-//			}
-//			while (buildSide.next(pair)) {
-//				numBuildValues++;
-//				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue());
-//			}
-//			
-//			Long contained = map.get(key);
-//			if (contained == null) {
-//				contained = new Long(numBuildValues * numProbeValues);
-//			}
-//			else {
-//				contained = new Long(contained.longValue() + (numBuildValues * numProbeValues));
-//			}
-//			
-//			map.put(key, contained);
-//		}
-//		
-//		join.close();
-//		
-//		Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
-//		for (Map.Entry<Integer, Long> entry : map.entrySet()) {
-//			long val = entry.getValue();
-//			int key = entry.getKey();
-//	
-//			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
-//				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
-//					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT) : 
-//					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
-//		}
-//		
-//		
-//		// ----------------------------------------------------------------------------------------
-//		
-//		memMan.release(memSegments);
-//		
-//		// shut down I/O manager and Memory Manager and verify the correct shutdown
-//		ioManager.shutdown();
-//		if (!ioManager.isProperlyShutDown()) {
-//			fail("I/O manager was not property shut down.");
-//		}
-//		if (!memMan.verifyEmpty()) {
-//			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-//		}
-//	}
-//	
-//	/*
-//	 * This test is basically identical to the "testSpillingHashJoinWithMassiveCollisions" test, only that the number
-//	 * of repeated values (causing bucket collisions) are large enough to make sure that their target partition no longer
-//	 * fits into memory by itself and needs to be repartitioned in the recursion again.
-//	 */
-//	@Test
-//	public void testFailingHashJoinTooManyRecursions() throws IOException
-//	{
-//		// the following two values are known to have a hash-code collision on the first recursion level.
-//		// we use them to make sure one partition grows over-proportionally large
-//		final int REPEATED_VALUE_1 = 40559;
-//		final int REPEATED_VALUE_2 = 92882;
-//		final int REPEATED_VALUE_COUNT = 3000000; 
-//		
-//		final int NUM_KEYS = 1000000;
-//		final int BUILD_VALS_PER_KEY = 3;
-//		final int PROBE_VALS_PER_KEY = 10;
-//		
-//		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-//		Iterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-//		Iterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-//		Iterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-//		List<Iterator<PactRecord>> builds = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
-//		builds.add(build1);
-//		builds.add(build2);
-//		builds.add(build3);
-//		Iterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
-//	
-//		// create a probe input that gives 10 million pairs with 10 values sharing a key
-//		Iterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-//		Iterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-//		Iterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-//		List<Iterator<PactRecord>> probes = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
-//		probes.add(probe1);
-//		probes.add(probe2);
-//		probes.add(probe3);
-//		Iterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
-//		
-//		// allocate the memory for the HashTable
-//		MemoryManager memMan; 
-//		List<MemorySegment> memSegments;
-//		
-//		try {
-//			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-//			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
-//		}
-//		catch (MemoryAllocationException maex) {
-//			fail("Memory for the Join could not be provided.");
-//			return;
-//		}
-//		
-//		// create the I/O access for spilling
-//		IOManager ioManager = new IOManager();
-//		
-//		// ----------------------------------------------------------------------------------------
-//		
-//		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
-//		join.open();
-//	final PactRecord record = new PactRecord();
-//		try {
-//			while (join.nextKey())
-//			{
-//				Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-//				while (probeIter.hasNext()) {
-//					probeIter.next();
-//				}
-//				
-//				HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-//				if (!buildSide.next(pair)) {
-//					fail("No build side values found for a probe key.");
-//				}
-//				while (buildSide.next(pair));;
-//			}
-//			
-//			fail("Hash Join must have failed due to too many recursions.");
-//		}
-//		catch (Exception ex) {
-//			// expected
-//		}
-//		
-//		join.close();
-//		
-//		
-//		// ----------------------------------------------------------------------------------------
-//		
-//		memMan.release(memSegments);
-//		
-//		// shut down I/O manager and Memory Manager and verify the correct shutdown
-//		ioManager.shutdown();
-//		if (!ioManager.isProperlyShutDown()) {
-//			fail("I/O manager was not property shut down.");
-//		}
-//		if (!memMan.verifyEmpty()) {
-//			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-//		}
-//	}
+		// create a probe input that gives 10 million pairs with 10 values sharing a key
+		ReadingIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		ReadingIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
+		ReadingIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
+		List<ReadingIterator<PactRecord>> probes = new ArrayList<ReadingIterator<PactRecord>>();
+		probes.add(probe1);
+		probes.add(probe2);
+		probes.add(probe3);
+		ReadingIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
+
+		// allocate the memory for the HashTable
+		MemoryManager memMan; 
+		List<MemorySegment> memSegments;
+		
+		try {
+			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
+			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+		
+		// create the I/O access for spilling
+		IOManager ioManager = new IOManager();
+		
+		// create the map for validating the results
+		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
+		
+		// ----------------------------------------------------------------------------------------
+		
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
+		join.open();
+	
+		final PactRecord record = new PactRecord();
+		
+		while (join.nextRecord())
+		{	
+			int numBuildValues = 0;
+	
+			final PactRecord probeRec = join.getCurrentProbeRecord();
+			int key = probeRec.getField(0, PactInteger.class).getValue();
+			
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			if (buildSide.next(record)) {
+				numBuildValues = 1;
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
+			}
+			else {
+				fail("No build side values found for a probe key.");
+			}
+			while (buildSide.next(record)) {
+				numBuildValues++;
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
+			}
+			
+			Long contained = map.get(key);
+			if (contained == null) {
+				contained = new Long(numBuildValues);
+			}
+			else {
+				contained = new Long(contained.longValue() + numBuildValues);
+			}
+			
+			map.put(key, contained);
+		}
+		
+		join.close();
+		
+		Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+		for (Map.Entry<Integer, Long> entry : map.entrySet()) {
+			long val = entry.getValue();
+			int key = entry.getKey();
+	
+			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
+				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
+					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
+					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
+		}
+		
+		
+		// ----------------------------------------------------------------------------------------
+		
+		memMan.release(memSegments);
+		
+		// shut down I/O manager and Memory Manager and verify the correct shutdown
+		ioManager.shutdown();
+		if (!ioManager.isProperlyShutDown()) {
+			fail("I/O manager was not property shut down.");
+		}
+		if (!memMan.verifyEmpty()) {
+			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
+		}
+	}
+	
+	/*
+	 * This test is basically identical to the "testSpillingHashJoinWithMassiveCollisions" test, only that the number
+	 * of repeated values (causing bucket collisions) are large enough to make sure that their target partition no longer
+	 * fits into memory by itself and needs to be repartitioned in the recursion again.
+	 */
+	@Test
+	public void testSpillingHashJoinWithTwoRecursions() throws IOException
+	{
+		// the following two values are known to have a hash-code collision on the first recursion level.
+		// we use them to make sure one partition grows over-proportionally large
+		final int REPEATED_VALUE_1 = 40559;
+		final int REPEATED_VALUE_2 = 92882;
+		final int REPEATED_VALUE_COUNT_BUILD = 200000;
+		final int REPEATED_VALUE_COUNT_PROBE = 5;
+		
+		final int NUM_KEYS = 1000000;
+		final int BUILD_VALS_PER_KEY = 3;
+		final int PROBE_VALS_PER_KEY = 10;
+		
+		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
+		ReadingIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		ReadingIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		ReadingIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<ReadingIterator<PactRecord>> builds = new ArrayList<ReadingIterator<PactRecord>>();
+		builds.add(build1);
+		builds.add(build2);
+		builds.add(build3);
+		ReadingIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
+	
+		// create a probe input that gives 10 million pairs with 10 values sharing a key
+		ReadingIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		ReadingIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
+		ReadingIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
+		List<ReadingIterator<PactRecord>> probes = new ArrayList<ReadingIterator<PactRecord>>();
+		probes.add(probe1);
+		probes.add(probe2);
+		probes.add(probe3);
+		ReadingIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
+
+		// allocate the memory for the HashTable
+		MemoryManager memMan; 
+		List<MemorySegment> memSegments;
+		
+		try {
+			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
+			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+		
+		// create the I/O access for spilling
+		IOManager ioManager = new IOManager();
+		
+		// create the map for validating the results
+		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
+		
+		// ----------------------------------------------------------------------------------------
+		
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
+		join.open();
+		
+		final PactRecord record = new PactRecord();
+		
+		while (join.nextRecord())
+		{	
+			int numBuildValues = 0;
+			
+			final PactRecord probeRec = join.getCurrentProbeRecord();
+			int key = probeRec.getField(0, PactInteger.class).getValue();
+			
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			if (buildSide.next(record)) {
+				numBuildValues = 1;
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
+			}
+			else {
+				fail("No build side values found for a probe key.");
+			}
+			while (buildSide.next(record)) {
+				numBuildValues++;
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
+			}
+			
+			Long contained = map.get(key);
+			if (contained == null) {
+				contained = new Long(numBuildValues);
+			}
+			else {
+				contained = new Long(contained.longValue() + numBuildValues);
+			}
+			
+			map.put(key, contained);
+		}
+		
+		join.close();
+		
+		Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+		for (Map.Entry<Integer, Long> entry : map.entrySet()) {
+			long val = entry.getValue();
+			int key = entry.getKey();
+	
+			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
+				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
+					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
+					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
+		}
+		
+		
+		// ----------------------------------------------------------------------------------------
+		
+		memMan.release(memSegments);
+		
+		// shut down I/O manager and Memory Manager and verify the correct shutdown
+		ioManager.shutdown();
+		if (!ioManager.isProperlyShutDown()) {
+			fail("I/O manager was not property shut down.");
+		}
+		if (!memMan.verifyEmpty()) {
+			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
+		}
+	}
+	
+	/*
+	 * This test is basically identical to the "testSpillingHashJoinWithMassiveCollisions" test, only that the number
+	 * of repeated values (causing bucket collisions) are large enough to make sure that their target partition no longer
+	 * fits into memory by itself and needs to be repartitioned in the recursion again.
+	 */
+	@Test
+	public void testFailingHashJoinTooManyRecursions() throws IOException
+	{
+		// the following two values are known to have a hash-code collision on the first recursion level.
+		// we use them to make sure one partition grows over-proportionally large
+		final int REPEATED_VALUE_1 = 40559;
+		final int REPEATED_VALUE_2 = 92882;
+		final int REPEATED_VALUE_COUNT = 3000000; 
+		
+		final int NUM_KEYS = 1000000;
+		final int BUILD_VALS_PER_KEY = 3;
+		final int PROBE_VALS_PER_KEY = 10;
+		
+		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
+		ReadingIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		ReadingIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		ReadingIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<ReadingIterator<PactRecord>> builds = new ArrayList<ReadingIterator<PactRecord>>();
+		builds.add(build1);
+		builds.add(build2);
+		builds.add(build3);
+		ReadingIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
+	
+		// create a probe input that gives 10 million pairs with 10 values sharing a key
+		ReadingIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		ReadingIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		ReadingIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<ReadingIterator<PactRecord>> probes = new ArrayList<ReadingIterator<PactRecord>>();
+		probes.add(probe1);
+		probes.add(probe2);
+		probes.add(probe3);
+		ReadingIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
+		
+		// allocate the memory for the HashTable
+		MemoryManager memMan; 
+		List<MemorySegment> memSegments;
+		
+		try {
+			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
+			memSegments = memMan.allocate(MEM_OWNER, 28 * 1024 * 1024, 896, 32 * 1024);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+		
+		// create the I/O access for spilling
+		IOManager ioManager = new IOManager();
+		
+		// ----------------------------------------------------------------------------------------
+		
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
+		join.open();
+		
+		final PactRecord record = new PactRecord();
+		
+		try {
+			while (join.nextRecord())
+			{	
+				HashBucketIterator buildSide = join.getBuildSideIterator();
+				if (!buildSide.next(record)) {
+					fail("No build side values found for a probe key.");
+				}
+				while (buildSide.next(record));
+			}
+			
+			fail("Hash Join must have failed due to too many recursions.");
+		}
+		catch (Exception ex) {
+			// expected
+		}
+		
+		join.close();
+		
+		
+		// ----------------------------------------------------------------------------------------
+		
+		memMan.release(memSegments);
+		
+		// shut down I/O manager and Memory Manager and verify the correct shutdown
+		ioManager.shutdown();
+		if (!ioManager.isProperlyShutDown()) {
+			fail("I/O manager was not property shut down.");
+		}
+		if (!memMan.verifyEmpty()) {
+			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
+		}
+	}
 
 
 	// ============================================================================================

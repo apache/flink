@@ -18,54 +18,45 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.StreamChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
-import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.task.ReduceTask;
-import eu.stratosphere.pact.runtime.util.EmptyIterator;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 /**
  * The {@link UnilateralSortMerger} is part of a merge-sort implementation.
- * The {@link ReduceTask} requires a grouping of the incoming key-value pairs by key. Typically grouping is achieved by
- * determining a total order for the given set of pairs (sorting). Thereafter an iteration over the ordered set is
- * performed and each time the key changes the consecutive objects are united into a new group.
+ * 
  * Conceptually, a merge sort works as follows:
- * (1) Divide the unsorted list into n sublists of about 1/n the size. (2) Sort each sublist recursively by re-applying
- * merge sort. (3) Merge the two sublists back into one sorted list.
+ * (1) Divide the unsorted list into n sublists of about 1/n the size.
+ * (2) Sort each sublist recursively by re-applying merge sort.
+ * (3) Merge the two sublists back into one sorted list.
+ * 
  * Internally, the {@link UnilateralSortMerger} logic is factored into three threads (read, sort, spill) which
  * communicate through a set of blocking queues (forming a closed loop).
- * Memory is allocated using the {@link MemoryManager} interface. Thus the component will most likely not exceed the
+ * Memory is allocated using the {@link MemoryManager} interface. Thus the component will not exceed the
  * user-provided memory limits.
  * 
- * @author Erik Nijkamp
  * @author Stephan Ewen
- * 
- * @param <K> The key class
- * @param <V> The value class
+ * @author Erik Nijkamp
  */
-public class UnilateralSortMerger<K extends Key, V extends Value> implements SortMerger<K, V>
+public class UnilateralSortMerger implements SortMerger
 {
 	// ------------------------------------------------------------------------
 	//                              Constants
@@ -134,17 +125,17 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The comparator through which an order over the keys is established.
 	 */
-	protected final Comparator<K> keyComparator;
-
+	protected final Comparator<Key>[] keyComparators;
+	
 	/**
-	 * Factory used to deserialize the keys.
+	 * The positions of the keys in the records.
 	 */
-	protected final SerializationFactory<K> keySerialization;
-
+	protected final int[] keyPositions;
+	
 	/**
-	 * Factory used to deserialize the values.
+	 * The classes of the key types.
 	 */
-	protected final SerializationFactory<V> valueSerialization;
+	protected final Class<? extends Key>[] keyClasses;
 	
 	/**
 	 * The parent task that owns this sorter.
@@ -160,7 +151,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
 	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
 	 */
-	protected Iterator<KeyValuePair<K, V>> iterator;
+	protected ReadingIterator<PactRecord> iterator;
 	
 	/**
 	 * The exception that is set, if the iterator cannot be created.
@@ -209,11 +200,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param totalMemory The total amount of memory dedicated to sorting and merging.
-	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keySerialization The serializer/deserializer for the keys.
-	 * @param valueSerialization The serializer/deserializer for the values.
-	 * @param keyComparator The comparator used to define the order among the keys.
-	 * @param reader The reader from which the input is drawn that will be sorted.
+	 * @param keyComparators The comparator used to define the order among the keys.
+	 * @param keyPositions The logical positions of the keys in the records.
+	 * @param keyClasses The types of the keys.
+	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
@@ -224,21 +214,21 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 */
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, int maxNumFileHandles,
-			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
-			Comparator<K> keyComparator,
-			Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask,
-			float startSpillingFraction)
+			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
+			ReadingIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
-		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, keySerialization,
-			valueSerialization, keyComparator, reader, parentTask, startSpillingFraction);
+		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, keyComparators, keyPositions, keyClasses, 
+			input, parentTask, startSpillingFraction);
 	}
 	
 	/**
 	 * Creates a new sorter that reads the data from a given reader and provides an iterator returning that
 	 * data in a sorted manner. The memory is divided among sort buffers, write buffers and read buffers
 	 * automatically.
+	 * <p>
+	 * WARNING: The given comparator is used simultaneously in multiple threads (the sorting thread and the merging
+	 * thread). Make sure that the given comparator is stateless and does not make use of member variables.
 	 * 
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
@@ -247,10 +237,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 *                 amount of memory (<code>totalMemory</code>).
 	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keySerialization The serializer/deserializer for the keys.
-	 * @param valueSerialization The serializer/deserializer for the values.
-	 * @param keyComparator The comparator used to define the order among the keys.
-	 * @param reader The reader from which the input is drawn that will be sorted.
+	 * @param keyComparators The comparator used to define the order among the keys.
+	 * @param keyPositions The logical positions of the keys in the records.
+	 * @param keyClasses The types of the keys.
+	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
@@ -260,11 +250,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 *                                   perform the sort.
 	 */
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
-			long totalMemory, long ioMemory,
-			int numSortBuffers, int maxNumFileHandles, SerializationFactory<K> keySerialization,
-			SerializationFactory<V> valueSerialization, Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask,
-			float startSpillingFraction)
+			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
+			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
+			ReadingIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
@@ -287,9 +275,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		this.maxNumFileHandles = maxNumFileHandles;
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
-		this.keyComparator = keyComparator;
-		this.keySerialization = keySerialization;
-		this.valueSerialization = valueSerialization;
+		this.keyComparators = keyComparators;
+		this.keyPositions = keyPositions;
+		this.keyClasses = keyClasses;
 		this.parent = parentTask;
 		
 		this.memoryToReleaseAtShutdown = new ArrayList<List<MemorySegment>>();
@@ -345,15 +333,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		// fill empty queue with buffers
 		for (int i = 0; i < sortSegments.size(); i++) {
 			MemorySegment mseg = sortSegments.get(i);
-			
-			// serialization
-			Deserializer<K> keyDeserializer = keySerialization.getDeserializer();
+
 			// comparator
-			RawComparator comparator = new DeserializerComparator<K>(keyDeserializer, keyComparator);
+			RawComparator comparator = new DeserializerComparator(keyPositions, keyClasses, keyComparators);
 
 			// sort-buffer
-			BufferSortableGuaranteed<K, V> buffer = new BufferSortableGuaranteed<K, V>(mseg, comparator, keySerialization,
-				valueSerialization);
+			BufferSortableGuaranteed buffer = new BufferSortableGuaranteed(mseg, comparator);
 
 			// add to empty queue
 			CircularElement element = new CircularElement(i, buffer);
@@ -372,7 +357,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		};
 
 		// start the thread that reads the input channels
-		this.readThread = getReadingThread(exceptionHandler, reader, circularQueues, parentTask,
+		this.readThread = getReadingThread(exceptionHandler, input, circularQueues, parentTask,
 			((long) (startSpillingFraction * sortMem)));
 
 		// start the thread that sorts the buffers
@@ -553,7 +538,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask,
+			ReadingIterator<PactRecord> reader, CircularQueues queues, AbstractTask parentTask,
 			long startSpillingBytes)
 	{
 		return new ReadingThread(exceptionHandler, reader, queues, parentTask, startSpillingBytes);
@@ -610,7 +595,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @see eu.stratosphere.pact.runtime.sort.SortMerger#getIterator()
 	 */
 	@Override
-	public Iterator<KeyValuePair<K, V>> getIterator() throws InterruptedException
+	public ReadingIterator<PactRecord> getIterator() throws InterruptedException
 	{
 		synchronized (this.iteratorLock) {
 			// wait while both the iterator and the exception are not set
@@ -634,7 +619,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * 
 	 * @param iterator The result iterator to set.
 	 */
-	protected final void setResultIterator(Iterator<KeyValuePair<K, V>> iterator) {
+	protected final void setResultIterator(ReadingIterator<PactRecord> iterator) {
 		
 		synchronized (this.iteratorLock) {
 			// set the result iterator only, if no exception has occurred
@@ -670,16 +655,18 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @param inputSegments The buffers to be used for reading. The list contains for each channel one
 	 *                      list of input segments. The size of the <code>inputSegments</code> list must be equal to
 	 *                      that of the <code>channelIDs</code> list.
-	 * @return An iterator over the merged KeyValuePairs of the input channels.
+	 * @return An iterator over the merged records of the input channels.
 	 * @throws IOException Thrown, if the readers encounter an I/O problem.
 	 */
-	protected final Iterator<KeyValuePair<K, V>> getMergingIterator(final List<Channel.ID> channelIDs,
+	protected final MergeIterator getMergingIterator(final List<Channel.ID> channelIDs,
 		final List<List<MemorySegment>> inputSegments, List<StreamChannelAccess<?, ?>> readerList)
 	throws IOException
 	{
 		// create one iterator per channel id
-		LOG.debug("Performing merge of " + channelIDs.size() + " sorted streams.");
-		final List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>(channelIDs.size());
+		if (LOG.isDebugEnabled())
+			LOG.debug("Performing merge of " + channelIDs.size() + " sorted streams.");
+		
+		final List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>(channelIDs.size());
 		
 		for (int i = 0; i < channelIDs.size(); i++) {
 			final Channel.ID id = channelIDs.get(i);
@@ -689,12 +676,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			final ChannelReader reader = ioManager.createChannelReader(id, segsForChannel, true);
 			readerList.add(reader);
 			
-			final Iterator<KeyValuePair<K, V>> iterator = new KVReaderIterator<K, V>(reader, keySerialization,
-				valueSerialization);
+			final ReadingIterator<PactRecord> iterator = new ChannelReaderIterator(reader);
 			iterators.add(iterator);
 		}
 
-		return new MergeIterator<K, V>(iterators, keyComparator);
+		return new MergeIterator(iterators, keyComparators, keyPositions, keyClasses);
 	}
 
 	/**
@@ -771,7 +757,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		registerChannelsToBeRemovedAtShudown(channelAccesses);
 
 		// the list with the target iterators
-		Iterator<KeyValuePair<K, V>> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
+		MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
 
 		// create a new channel writer
 		final Channel.ID mergedChannelID = this.ioManager.createChannel();
@@ -779,10 +765,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		channelAccesses.add(writer);
 
 		// read the merged stream and write the data back
-		while (mergeIterator.hasNext()) {
+		PactRecord rec = new PactRecord();
+		while ((rec = mergeIterator.next(rec)) != null) {
 			// read sorted pairs into memory buffer
-			KeyValuePair<K, V> pair = mergeIterator.next();
-			if (!writer.write(pair)) {
+			if (!writer.write(rec)) {
 				throw new IOException("Writing of pair during merging failed");
 			}
 		}
@@ -846,27 +832,27 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The element that is passed as marker for the end of data.
 	 */
-	protected final CircularElement SENTINEL = new CircularElement();
+	protected static final CircularElement SENTINEL = new CircularElement();
 
 	/**
 	 * The element that is passed as marker for signal beginning of spilling.
 	 */
-	protected final CircularElement SPILLING_MARKER = new CircularElement();
+	protected static final CircularElement SPILLING_MARKER = new CircularElement();
 	
 	/**
 	 * Class representing buffers that circulate between the reading, sorting and spilling thread.
 	 */
-	protected final class CircularElement {
+	protected static final class CircularElement
+	{
 		final int id;
-
-		final BufferSortableGuaranteed<K, V> buffer;
+		final BufferSortableGuaranteed buffer;
 
 		public CircularElement() {
 			this.buffer = null;
 			this.id = -1;
 		}
 
-		public CircularElement(int id, BufferSortableGuaranteed<K, V> buffer) {
+		public CircularElement(int id, BufferSortableGuaranteed buffer) {
 			this.id = id;
 			this.buffer = buffer;
 		}
@@ -875,7 +861,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * Collection of queues that are used for the communication between the threads.
 	 */
-	protected final class CircularQueues {
+	protected static final class CircularQueues
+	{
 		final BlockingQueue<CircularElement> empty;
 
 		final BlockingQueue<CircularElement> sort;
@@ -900,7 +887,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * The threads are designed to terminate themselves when the task they are set up to do is completed. Further more,
 	 * they terminate immediately when the <code>shutdown()</code> method is called.
 	 */
-	protected abstract class ThreadBase extends Thread implements Thread.UncaughtExceptionHandler {
+	protected static abstract class ThreadBase extends Thread implements Thread.UncaughtExceptionHandler {
 		/**
 		 * The queue of empty buffer that can be used for reading;
 		 */
@@ -1030,12 +1017,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The thread that consumes the input data and puts it into a buffer that will be sorted.
 	 */
-	private class ReadingThread extends ThreadBase
+	private static class ReadingThread extends ThreadBase
 	{
 		/**
 		 * The input channels to read from.
 		 */
-		private final eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader;
+		private final ReadingIterator<PactRecord> reader;
 		
 		/**
 		 * The fraction of the buffers that must be full before the spilling starts.
@@ -1053,7 +1040,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 *        The queues used to pass buffers between the threads.
 		 */
 		public ReadingThread(ExceptionHandler<IOException> exceptionHandler,
-				eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues,
+				ReadingIterator<PactRecord> reader, CircularQueues queues,
 				AbstractTask parentTask, long startSpillingBytes)
 		{
 			super(exceptionHandler, "SortMerger Reading Thread", queues, parentTask);
@@ -1069,11 +1056,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 */
 		public void go() throws IOException
 		{
-			final eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader = this.reader;
+			final ReadingIterator<PactRecord> reader = this.reader;
+			
+			PactRecord current = new PactRecord();
+			PactRecord leftoverRecord = null;
 			
 			CircularElement element = null;
-			KeyValuePair<K, V> leftoverPair = null;
-			
 			long bytesUntilSpilling = this.startSpillingBytes;
 			boolean done = false;
 			
@@ -1102,7 +1090,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				}
 				
 				// get the new buffer and check it
-				final BufferSortableGuaranteed<K, V> buffer = element.buffer;
+				final BufferSortableGuaranteed buffer = element.buffer;
 				if (!buffer.isEmpty()) {
 					throw new IOException("New buffer is not empty.");
 				}
@@ -1112,11 +1100,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				}
 				
 				// write the last leftover pair, if we have one
-				if (leftoverPair != null) {
-					if (!buffer.write(leftoverPair)) {
-						throw new IOException("Pair could not be written to empty buffer: Serialized pair exceeds buffer capacity.");
+				if (leftoverRecord != null) {
+					if (!buffer.write(leftoverRecord)) {
+						throw new IOException("Record could not be written to empty buffer: Serialized record exceeds buffer capacity.");
 					}
-					leftoverPair = null;
+					leftoverRecord = null;
 				}
 				
 				// we have two distinct code paths, depending on whether the spilling
@@ -1126,53 +1114,45 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 					boolean fullBuffer = false;
 					
 					// spilling will be triggered while this buffer is filled
-					try {
-						// loop until the buffer is full or the reader is exhausted
-						KeyValuePair<K, V> currentPair;
-						while (isRunning() && reader.hasNext())
-						{
-							currentPair = reader.next();
-							if (!buffer.write(currentPair)) {
-								leftoverPair = currentPair;
-								fullBuffer = true;
-								break;
-							}
-							if (bytesUntilSpilling - buffer.getOccupancy() <= 0) {
+					// loop until the buffer is full or the reader is exhausted
+					while (isRunning() && (current = reader.next(current)) != null)
+					{
+						if (!buffer.write(current)) {
+							leftoverRecord = current;
+							fullBuffer = true;
+							break;
+						}
+						if (bytesUntilSpilling - buffer.getOccupancy() <= 0) {
+							bytesUntilSpilling = 0;
+							
+							// send the sentinel
+							this.queues.sort.add(SPILLING_MARKER);
+							
+							// we drop out of this loop and continue with the loop that
+							// does not have the check
+							break;
+						}
+					}
+					
+					if (fullBuffer) {
+						// buffer is full. it may be that the last element would have crossed the
+						// spilling threshold, so check it
+						if (bytesUntilSpilling > 0) {
+							bytesUntilSpilling -= buffer.getCapacity();
+							if (bytesUntilSpilling <= 0) {
 								bytesUntilSpilling = 0;
-								
 								// send the sentinel
 								this.queues.sort.add(SPILLING_MARKER);
-								
-								// we drop out of this loop and continue with the loop that
-								// does not have the check
-								break;
 							}
 						}
 						
-						if (fullBuffer) {
-							// buffer is full. it may be that the last element crossed the
-							// spilling threshold, so check it
-							if (bytesUntilSpilling > 0) {
-								bytesUntilSpilling -= buffer.getCapacity();
-								if (bytesUntilSpilling <= 0) {
-									bytesUntilSpilling = 0;
-									// send the sentinel
-									this.queues.sort.add(SPILLING_MARKER);
-								}
-							}
-							
-							// send the buffer
-							if (LOG.isDebugEnabled()) {
-								LOG.debug("Emitting full buffer from reader thread: " + element.id + ".");
-							}
-							this.queues.sort.add(element);
-							element = null;
-							continue;
+						// send the buffer
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Emitting full buffer from reader thread: " + element.id + ".");
 						}
-					}
-					catch (InterruptedException iex) {
-						throw new IOException(
-							"Reader Thread was interrupted while getting record from Nephele reader.", iex);
+						this.queues.sort.add(element);
+						element = null;
+						continue;
 					}
 				}
 				else if (bytesUntilSpilling > 0) {
@@ -1187,25 +1167,16 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				}
 				
 				// no spilling will be triggered (any more) while this buffer is being processed
-				// go into this loop only, if the
-				try {
-					// loop until the buffer is full or the reader is exhausted
-					KeyValuePair<K, V> currentPair;
-					while (isRunning() && reader.hasNext()) {
-						currentPair = reader.next();
-						if (!buffer.write(currentPair)) {
-							leftoverPair = currentPair;
-							break;
-						}
+				// loop until the buffer is full or the reader is exhausted
+				while (isRunning() && (current = reader.next(current)) != null) {
+					if (!buffer.write(current)) {
+						leftoverRecord = current;
+						break;
 					}
-				}
-				catch (InterruptedException iex) {
-					throw new IOException(
-						"Reader Thread was interrupted while getting record from Nephele reader.", iex);
 				}
 				
 				// check whether the buffer is exhausted or the reader is
-				if (reader.hasNext() || leftoverPair != null) {
+				if (current != null || leftoverRecord != null) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Emitting full buffer from reader thread: " + element.id + ".");
 					}
@@ -1242,7 +1213,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The thread that sorts filled buffers.
 	 */
-	private class SortingThread extends ThreadBase {
+	private static class SortingThread extends ThreadBase {
 		/**
 		 * The sorter.
 		 */
@@ -1278,7 +1249,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				}
 				catch (InterruptedException iex) {
 					if (isRunning()) {
-						LOG.error("Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
+						if (LOG.isErrorEnabled())
+							LOG.error(
+								"Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
 								"Retrying to grab buffer...");
 						continue;
 					}
@@ -1288,15 +1261,19 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				}
 
 				if (element != SENTINEL && element != SPILLING_MARKER) {
-					LOG.debug("Sorting buffer " + element.id + ".");
+					if (LOG.isDebugEnabled())
+						LOG.debug("Sorting buffer " + element.id + ".");
+					
 					sorter.sort(element.buffer);
-					LOG.debug("Sorted buffer " + element.id + ".");
+					
+					if (LOG.isDebugEnabled())
+						LOG.debug("Sorted buffer " + element.id + ".");
 				}
 				else if (element == SENTINEL) {
-					LOG.debug("Sorting thread done.");
+					if (LOG.isDebugEnabled())
+						LOG.debug("Sorting thread done.");
 					alive = false;
 				}
-
 				queues.spill.add(element);
 			}
 		}
@@ -1353,11 +1330,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 								"Retrying to grab buffer...");
 						continue;
 					}
-					else {
+					else
 						return;
-					}
 				}
-				
 				if (element == SPILLING_MARKER) {
 					break;
 				}
@@ -1365,7 +1340,6 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 					cacheOnly = true;
 					break;
 				}
-				
 				cache.add(element);
 			}
 			
@@ -1377,9 +1351,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			// ------------------- In-Memory Merge ------------------------
 			if (cacheOnly) {
 				/* # case 1: operates on in-memory segments only # */
-				LOG.debug("Initiating merge-iterator (in-memory segments).");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Initiating merge-iterator (in-memory segments).");
 				
-				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
+				List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>();
 								
 				// iterate buffers and collect a set of iterators
 				for (CircularElement cached : cache)
@@ -1393,8 +1368,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				releaseSortBuffers();
 				
 				// set lazy iterator
-				setResultIterator(iterators.size() == 1 ? iterators.get(0) : 
-					new MergeIterator<K, V>(iterators, keyComparator));
+				setResultIterator(iterators.size() == 1 ? iterators.get(0) :
+					new MergeIterator(iterators, keyComparators, keyPositions, keyClasses));
 				return;
 			}			
 			
@@ -1450,9 +1425,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				ChannelWriter writer = this.ioManager.createChannelWriter(channel, writeBuffers);
 
 				// write sort-buffer to channel
-				LOG.debug("Spilling buffer " + element.id + ".");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Spilling buffer " + element.id + ".");
 				element.buffer.writeToChannel(writer);
-				LOG.debug("Spilled buffer " + element.id + ".");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Spilled buffer " + element.id + ".");
 
 				// make sure everything is on disk
 				// we do not need to re-collect the buffers, because we still have references to them
@@ -1464,10 +1441,12 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			}
 
 			// done with the spilling
-			LOG.debug("Spilling done.");
-
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Spilling done.");
+				LOG.debug("Releasing sort-buffer memory.");
+			}
+			
 			// release sort-buffers
-			LOG.debug("Releasing sort-buffer memory.");
 			releaseSortBuffers();
 			if (UnilateralSortMerger.this.sortSegments != null) {
 				unregisterSegmentsToBeFreedAtShutdown(UnilateralSortMerger.this.sortSegments);
@@ -1489,10 +1468,11 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				
 				// check if we have spilled some data at all
 				if (channelIDs.isEmpty()) {
-					setResultIterator(EmptyIterator.<KeyValuePair<K, V>>get());
+					setResultIterator(EmptyMutableObjectIterator.<PactRecord>get());
 				}
 				else {
-					LOG.debug("Beginning final merge.");
+					if (LOG.isDebugEnabled())
+						LOG.debug("Beginning final merge.");
 					
 					// allocate the memory for the final merging step
 					List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
@@ -1512,7 +1492,8 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			}
 
 			// done
-			LOG.debug("Spilling and merging thread done.");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Spilling and merging thread done.");
 		}
 		
 		/**
@@ -1546,90 +1527,28 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	}
 
 	/**
-	 * This class represents an iterator over a key/value stream that is obtained from a reader.
+	 * This class represents an iterator over a stream produced by a reader.
 	 */
-	protected static final class KVReaderIterator<K extends Key, V extends Value> implements
-			Iterator<KeyValuePair<K, V>>
+	protected static final class ChannelReaderIterator implements ReadingIterator<PactRecord>
 	{
 		private final ChannelReader reader; // the reader from which to get the input
-
-		private final SerializationFactory<K> keySerialization; // deserializer for keys
-
-		private final SerializationFactory<V> valueSerialization; // deserializer for values
-
-		private KeyValuePair<K, V> next; // the next pair to be returned
 
 		/**
 		 * Creates a new reader iterator.
 		 * 
-		 * @param reader
-		 *        The reader from which to read the keys and values.
-		 * @param keySerialization
-		 *        The factory to instantiate keys.
-		 * @param valueSerialization
-		 *        The factory to instantiate values.
+		 * @param reader The reader from which to read the keys and values.
 		 */
-		protected KVReaderIterator(ChannelReader reader, SerializationFactory<K> keySerialization,
-				SerializationFactory<V> valueSerialization) {
+		protected ChannelReaderIterator(ChannelReader reader) {
 			this.reader = reader;
-			this.keySerialization = keySerialization;
-			this.valueSerialization = valueSerialization;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#hasNext()
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean hasNext() {
-			if (next != null) {
-				return true;
-			}
-
-			// immutable deserialization
-			final K key = keySerialization.newInstance();
-			final V value = valueSerialization.newInstance();
-
-			this.next = new KeyValuePair<K, V>(key, value);
-
-			try {
-				if (!this.reader.read(this.next)) {
-					this.next = null;
-					this.reader.close();
-					return false;
-				} else {
-					return true;
-				}
-			}
-			catch (IOException ioex) {
-				throw new RuntimeException("Error getting key/value pair from reader.", ioex);
-			}
+		public PactRecord next(PactRecord target) throws IOException {
+			return this.reader.read(target) ? target : null;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#next()
-		 */
-		@Override
-		public KeyValuePair<K, V> next() {
-			if (!hasNext()) {
-				throw new NoSuchElementException();
-			}
-
-			KeyValuePair<K, V> p = next;
-			next = null;
-
-			return p;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#remove()
-		 */
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
 	}
-
 }

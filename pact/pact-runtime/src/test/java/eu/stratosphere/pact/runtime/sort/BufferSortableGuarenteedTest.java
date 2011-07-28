@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -42,6 +41,7 @@ import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 /**
  * @author Erik Nijkamp
@@ -297,19 +297,21 @@ public class BufferSortableGuarenteedTest {
 			buffer.swap(0, 1);
 			
 			{
-				Iterator<PactRecord> iter = buffer.getIterator();
-				Assert.assertEquals(2, iter.next().getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(1, iter.next().getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(3, iter.next().getField(0, TestData.Key.class).getKey());
+				final ReadingIterator<PactRecord> iter = buffer.getIterator();
+				final PactRecord rec = new PactRecord();
+				Assert.assertEquals(2, iter.next(rec).getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(1, iter.next(rec).getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(3, iter.next(rec).getField(0, TestData.Key.class).getKey());
 			}
 			
 			buffer.swap(1, 2);
 			
 			{
-				Iterator<PactRecord> iter = buffer.getIterator();
-				Assert.assertEquals(2, iter.next().getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(3, iter.next().getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(1, iter.next().getField(0, TestData.Key.class).getKey());
+				ReadingIterator<PactRecord> iter = buffer.getIterator();
+				final PactRecord rec = new PactRecord();
+				Assert.assertEquals(2, iter.next(rec).getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(3, iter.next(rec).getField(0, TestData.Key.class).getKey());
+				Assert.assertEquals(1, iter.next(rec).getField(0, TestData.Key.class).getKey());
 			}
 			
 			{
@@ -374,14 +376,12 @@ public class BufferSortableGuarenteedTest {
 			}
 			
 
-			Iterator<PactRecord> iter = buffer.getIterator();
+			final ReadingIterator<PactRecord> iter = buffer.getIterator();
+			final PactRecord rec = new PactRecord();
 			for(int i = 1; i < 4; i++)
 			{
-				if(!iter.hasNext())
-				{
-					throw new IllegalStateException();
-				}
-				PactRecord pair = iter.next();
+				PactRecord pair = iter.next(rec);
+				Assert.assertNotNull("Iterator returned not enough pairs.", pair);				
 				Assert.assertEquals(i, pair.getField(0, TestData.Key.class).getKey());
 			}
 			
@@ -437,10 +437,10 @@ public class BufferSortableGuarenteedTest {
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
-			Iterator<PactRecord> iter = buffer.getIterator();
-
-			while (iter.hasNext()) {
-				iter.next();
+			final ReadingIterator<PactRecord> iter = buffer.getIterator();
+			PactRecord rec = new PactRecord();
+			
+			while ((rec = iter.next(rec)) != null) {
 				readPairs++;
 			}
 			memory = buffer.unbind();
