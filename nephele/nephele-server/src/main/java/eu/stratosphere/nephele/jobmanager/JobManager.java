@@ -108,6 +108,7 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -507,7 +508,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Register job with the dynamic input split assigner
 		this.inputSplitManager.registerJob(eg);
-		
+
 		// Perform graph optimizations
 		if (this.optimizer != null) {
 			this.optimizer.optimize(eg);
@@ -1003,6 +1004,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	public void deploy(final JobID jobID, final AbstractInstance instance,
 			final List<ExecutionVertex> verticesToBeDeployed) {
 
+		if (verticesToBeDeployed.isEmpty()) {
+			LOG.error("Method 'deploy' called but list of vertices to be deployed is empty");
+			return;
+		}
+
 		// Create a new runnable and pass it the executor service
 		final Runnable deploymentRunnable = new Runnable() {
 
@@ -1019,11 +1025,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
 				}
 
-				// Check the consistency of the call
-				final Iterator<ExecutionVertex> it = verticesToBeDeployed.iterator();
-				while (it.hasNext()) {
+				final List<TaskSubmissionWrapper> submissionList = new SerializableArrayList<TaskSubmissionWrapper>();
 
-					final ExecutionVertex vertex = it.next();
+				// Check the consistency of the call
+				for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
 					// Check vertex state
 					if (vertex.getExecutionState() != ExecutionState.READY) {
@@ -1031,17 +1036,52 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 							+ vertex.getExecutionState());
 					}
 
+					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
+						.getExecutionGraph().getJobConfiguration()));
+
 					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
-					final TaskSubmissionResult submissionResult = vertex.startTask();
-					it.remove(); // Remove task from ready set
-					if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
-						// Change the execution state to failed and let the scheduler deal with the rest
-						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED,
-							submissionResult.getDescription());
+				}
+
+				// TODO: Implement lazy initialization
+				List<TaskSubmissionResult> submissionResultList = null;
+
+				try {
+					submissionResultList = instance.submitTasks(submissionList);
+				} catch (final IOException ioe) {
+					final String errorMsg = StringUtils.stringifyException(ioe);
+					for (final ExecutionVertex vertex : verticesToBeDeployed) {
+						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, errorMsg);
+					}
+				}
+
+				if (verticesToBeDeployed.size() != submissionResultList.size()) {
+					LOG.error("size of submission result list does not match size of list with vertices to be deployed");
+				}
+
+				int count = 0;
+				for (final TaskSubmissionResult tsr : submissionResultList) {
+
+					ExecutionVertex vertex = verticesToBeDeployed.get(count++);
+					if (!vertex.getID().equals(tsr.getVertexID())) {
+						LOG.error("Expected different order of objects in task result list");
+						vertex = null;
+						for (final ExecutionVertex candVertex : verticesToBeDeployed) {
+							if (tsr.getVertexID().equals(candVertex.getID())) {
+								vertex = candVertex;
+								break;
+							}
+						}
+
+						if (vertex == null) {
+							LOG.error("Cannot find execution vertex for vertex ID " + tsr.getVertexID());
+							continue;
+						}
 					}
 
-					// TODO: Implement lazy initialization
-					// TODO: Check if vertex.prepare... is still required
+					if (tsr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+						// Change the execution state to failed and let the scheduler deal with the rest
+						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, tsr.getDescription());
+					}
 				}
 			}
 		};

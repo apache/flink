@@ -29,6 +29,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
@@ -79,6 +80,10 @@ public abstract class TaskTestBase {
 
 	public TaskConfig getTaskConfig() {
 		return new TaskConfig(mockEnv.getRuntimeConfiguration());
+	}
+	
+	public Configuration getConfiguration() {
+		return mockEnv.getRuntimeConfiguration();
 	}
 
 	public void registerTask(AbstractTask task, Class<? extends Stub<PactInteger, PactInteger>> stubClass) {

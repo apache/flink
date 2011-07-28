@@ -135,7 +135,11 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public int getMemoryConsumerCount() {
-		return 0;
+		switch(this.localStrategy) {
+			case SORT:          return 1;
+			case NONE:          return 0;
+			default:	        return 0;
+		}
 	}
 
 	/*

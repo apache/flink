@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.io.compression.library.dynamic;
 
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLibrary;
@@ -22,7 +25,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 
-public class DynamicLibrary implements CompressionLibrary {
+public class DynamicLibrary extends AbstractCompressionLibrary {
 
 	private static final int NUMBER_OF_COMPRESSION_LEVELS = 4;
 
@@ -40,18 +43,6 @@ public class DynamicLibrary implements CompressionLibrary {
 		libraries[1] = CompressionLoader.getCompressionLibraryByCompressionLevel(CompressionLevel.LIGHT_COMPRESSION);
 		libraries[2] = CompressionLoader.getCompressionLibraryByCompressionLevel(CompressionLevel.MEDIUM_COMPRESSION);
 		libraries[3] = CompressionLoader.getCompressionLibraryByCompressionLevel(CompressionLevel.HEAVY_COMPRESSION);
-	}
-
-	@Override
-	public Compressor getCompressor() throws CompressionException {
-
-		return new DynamicCompressor(this.libraries);
-	}
-
-	@Override
-	public Decompressor getDecompressor() throws CompressionException {
-
-		return new DynamicDecompressor(this.libraries);
 	}
 
 	/**
@@ -84,5 +75,19 @@ public class DynamicLibrary implements CompressionLibrary {
 	@Override
 	public String getLibraryName() {
 		return "DYNAMIC";
+	}
+
+	@Override
+	protected Compressor initNewCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel)
+			throws CompressionException {
+
+		return new DynamicCompressor(this.libraries, outputChannel);
+	}
+
+	@Override
+	protected Decompressor initNewDecompressor(final AbstractByteBufferedInputChannel<?> inputChannel)
+			throws CompressionException {
+
+		return new DynamicDecompressor(this.libraries, inputChannel);
 	}
 }

@@ -85,6 +85,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedOutputChanne
 import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
 import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -618,6 +619,26 @@ public class TaskManager implements TaskOperationProtocol {
 		ee.startExecution();
 
 		return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
+
+		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
+
+		if (tasks.isEmpty()) {
+			LOG.error("Received list of submitted tasks with zero length!");
+			return submissionResultList;
+		}
+
+		for (final TaskSubmissionWrapper tsw : tasks) {
+			submissionResultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment()));
+		}
+
+		return submissionResultList;
 	}
 
 	/**

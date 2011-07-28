@@ -111,4 +111,13 @@ public final class TeraKey implements Key {
 
 		System.arraycopy(this.key, 0, buf, 0, KEY_SIZE);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String toString() {
+
+		return new String(this.key);
+	}
 }
