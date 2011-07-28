@@ -499,6 +499,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		 * }
 		 */
 
+		System.out.println("\tUnused global buffers: " + GlobalBufferPool.getInstance().getCurrentNumberOfBuffers());
+
 		this.networkConnectionManager.logBufferUtilization();
 
 		System.out.println("\tIncoming connections:");

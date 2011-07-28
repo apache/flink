@@ -125,4 +125,14 @@ public final class GlobalBufferPool {
 
 		return this.numberOfBuffers;
 	}
+	
+	/**
+	 * Returns the number of buffers which are currently available at this pool.
+	 * 
+	 * @return the number of buffers which are currently available at this pool
+	 */
+	public int getCurrentNumberOfBuffers() {
+		
+		return this.buffers.size();
+	}
 }
