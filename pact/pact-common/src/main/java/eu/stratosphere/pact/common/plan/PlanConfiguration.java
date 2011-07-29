@@ -28,7 +28,7 @@ public class PlanConfiguration extends Configuration {
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setString(String key, String value) {
+	public void setNepheleString(String key, String value) {
 		setString(NEPHELE_PREFIX+key, value);
 	}
 	
