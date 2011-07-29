@@ -209,6 +209,21 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			releasedConsumedReadBuffer();
 		}
 
+		// This code fragment makes sure the isClosed method works in case the channel input has not been fully consumed
+		synchronized (this.synchronisationObject) {
+			if (!this.brokerAggreedToCloseChannel) {
+				while (!this.brokerAggreedToCloseChannel) {
+
+					requestReadBuffersFromBroker();
+					if (this.uncompressedDataBuffer != null || this.compressedDataBuffer != null) {
+						releasedConsumedReadBuffer();
+					}
+					this.synchronisationObject.wait(500);
+				}
+				this.bufferedRecord = null;
+			}
+		}
+
 		/*
 		 * Send close event to indicate the input channel has successfully
 		 * processed all data it is interested in.
