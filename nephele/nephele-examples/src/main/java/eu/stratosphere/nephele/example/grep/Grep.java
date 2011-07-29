@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -66,7 +64,7 @@ public class Grep {
 		}
 
 		// Create jar file and attach it
-		final File jarFile = new File("/tmp/broadcastJob.jar");
+		final File jarFile = new File("/tmp/grepJob.jar");
 		final JarFileCreator jarFileCreator = new JarFileCreator(jarFile);
 		jarFileCreator.addClass(GrepTask.class);
 

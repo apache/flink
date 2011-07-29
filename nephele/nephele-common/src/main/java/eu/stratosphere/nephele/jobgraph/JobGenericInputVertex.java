@@ -26,10 +26,6 @@ import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
-
-/**
- * 
- */
 public class JobGenericInputVertex extends JobInputVertex
 {
 	/**
