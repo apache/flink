@@ -1,9 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.Evaluable;
-import eu.stratosphere.sopremo.EvaluationContext;
 
 public abstract class ContainerExpression extends EvaluationExpression implements Iterable<EvaluationExpression> {
 	/**

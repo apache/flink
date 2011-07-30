@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.cleansing;
+package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,7 +8,7 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.base.Union;
-import eu.stratosphere.sopremo.cleansing.RecordLinkage.Partitioning;
+import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage.Partitioning;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
@@ -17,6 +17,14 @@ public abstract class MultiPassPartitioning extends Partitioning {
 
 	public MultiPassPartitioning(EvaluationExpression leftPartitionKey, EvaluationExpression rightPartitionKey) {
 		this.passPartitionKeys.add(new EvaluationExpression[] { leftPartitionKey, rightPartitionKey });
+	}
+
+	public MultiPassPartitioning(EvaluationExpression[] leftPartitionKeys, EvaluationExpression[] rightPartitionKeys) {
+		if (leftPartitionKeys.length != rightPartitionKeys.length)
+			throw new IllegalArgumentException();
+		for (int index = 0; index < leftPartitionKeys.length; index++)
+			this.passPartitionKeys
+				.add(new EvaluationExpression[] { leftPartitionKeys[index], rightPartitionKeys[index] });
 	}
 
 	public MultiPassPartitioning(EvaluationExpression partitionKey) {

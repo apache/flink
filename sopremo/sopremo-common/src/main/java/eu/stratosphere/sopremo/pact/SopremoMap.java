@@ -1,8 +1,5 @@
 package eu.stratosphere.sopremo.pact;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -17,6 +14,7 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 	@Override
 	public void configure(Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		SopremoUtil.configureStub(this, parameters);
 	}
 
 	protected EvaluationContext getContext() {
@@ -25,10 +23,11 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 
 	protected abstract void map(JsonNode key, JsonNode value, JsonCollector out);
 
+	@Override
 	public void map(PactJsonObject.Key key, PactJsonObject value, Collector<PactJsonObject.Key, PactJsonObject> out) {
-		context.increaseInputCounter();
-		if (SopremoUtil.LOG.isDebugEnabled()) 
-			SopremoUtil.LOG.debug(String.format("%s %s/%s", getClass().getSimpleName(), key, value));
-		map(key.getValue(), value.getValue(), new JsonCollector(out));
+		this.context.increaseInputCounter();
+		if (SopremoUtil.LOG.isDebugEnabled())
+			SopremoUtil.LOG.debug(String.format("%s %s/%s", this.getClass().getSimpleName(), key, value));
+		this.map(key.getValue(), value.getValue(), new JsonCollector(out));
 	};
 }

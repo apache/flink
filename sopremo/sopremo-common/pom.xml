@@ -26,11 +26,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>fastutil</groupId>
-			<artifactId>fastutil</artifactId>
-			<version>5.0.9</version>
-		</dependency>
-		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.8.2</version>
@@ -65,6 +60,13 @@
 			<version>1.0.1</version>
 			<type>jar</type>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+		    <groupId>it.unimi.dsi</groupId>
+		    <artifactId>fastutil</artifactId>
+		    <version>6.3</version>
+			<type>jar</type>
+			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 

@@ -11,7 +11,6 @@ import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 
 public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
 		extends ReduceStub<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
@@ -20,6 +19,7 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 	@Override
 	public void configure(Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		SopremoUtil.configureStub(this, parameters);
 	}
 
 	protected EvaluationContext getContext() {
@@ -31,15 +31,15 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 	@Override
 	public void reduce(PactJsonObject.Key key, Iterator<PactJsonObject> values,
 			Collector<PactJsonObject.Key, PactJsonObject> out) {
-		context.increaseInputCounter();
+		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isDebugEnabled()) {
 			ArrayList<PactJsonObject> cached = new ArrayList<PactJsonObject>();
 			while (values.hasNext())
 				cached.add(values.next());
-			SopremoUtil.LOG.debug(String.format("%s %s/%s", getClass().getSimpleName(), key, cached));
+			SopremoUtil.LOG.debug(String.format("%s %s/%s", this.getClass().getSimpleName(), key, cached));
 			values = cached.iterator();
 		}
-		reduce(key.getValue(), JsonUtil.wrapWithNode(needsResettableIterator(key, values), values), new JsonCollector(
+		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values), new JsonCollector(
 			out));
 	}
 

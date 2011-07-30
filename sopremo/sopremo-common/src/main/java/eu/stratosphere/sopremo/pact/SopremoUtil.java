@@ -13,6 +13,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,6 +26,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -131,14 +134,13 @@ public class SopremoUtil {
 
 		for (PropertyDescriptor propertyDescriptor : beanInfo.getPropertyDescriptors())
 			if (Serializable.class.isAssignableFrom(propertyDescriptor.getPropertyType()) &&
-					propertyDescriptor.getReadMethod() != null && propertyDescriptor.getWriteMethod() != null) {
+					propertyDescriptor.getReadMethod() != null && propertyDescriptor.getWriteMethod() != null)
 				try {
 					values.put(propertyDescriptor.getName(), propertyDescriptor.getReadMethod().invoke(object));
 				} catch (Exception e) {
 					LOG.debug(String.format("Cannot serialize field %s of type %s: %s", propertyDescriptor.getName(),
 						object.getClass(), e.getMessage()));
 				}
-			}
 		oos.writeObject(values);
 	}
 
@@ -156,6 +158,7 @@ public class SopremoUtil {
 	}
 
 	private static final ThreadLocal<PactString> SerializationString = new ThreadLocal<PactString>() {
+		@Override
 		protected PactString initialValue() {
 			return new PactString();
 		};
@@ -190,5 +193,19 @@ public class SopremoUtil {
 			e.printStackTrace();
 		}
 		return object;
+	}
+
+	static void configureStub(Stub<?, ?> stub, Configuration parameters) {
+		for (Field stubField : stub.getClass().getDeclaredFields())
+			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0)
+				if (parameters.getString(stubField.getName(), null) != null)
+					try {
+						stubField.setAccessible(true);
+						stubField.set(stub,
+							SopremoUtil.deserialize(parameters, stubField.getName(), Serializable.class));
+					} catch (Exception e) {
+						LOG.error(String.format("Could not serialize field %s of class %s", stubField.getName(),
+							stub.getClass(), e));
+					}
 	}
 }

@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 class MockInstance extends AbstractInstance {
 	public final static HardwareDescription DESCRIPTION = HardwareDescriptionFactory
-			.construct(1, 256 << 20, 16 << 20);
+			.construct(1, 256 << 20, 128 << 20);
 
 	// private final Map<ChannelID, String> fileNames = new HashMap<ChannelID,
 	// String>();

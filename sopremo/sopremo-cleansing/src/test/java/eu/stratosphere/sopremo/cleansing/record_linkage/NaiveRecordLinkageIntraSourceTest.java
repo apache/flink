@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.cleansing;
+package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,20 +10,22 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.SopremoTestPlan;
+import eu.stratosphere.sopremo.cleansing.record_linkage.Naive;
+import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 /**
  * Tests {@link Naive} {@link RecordLinkage} with one data source.
  * 
  * @author Arvid Heise
  */
-public class NaiveRecordLinkageIntraSourceTest extends IntraSourceRecordLinkageTest<Naive> {
+public class NaiveRecordLinkageIntraSourceTest extends IntraSourceRecordLinkageTestBase<Naive> {
 	private double threshold;
 
 	private boolean useId;

@@ -24,7 +24,6 @@ import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.ConversionIterator;
@@ -156,11 +155,11 @@ public class SopremoTestPlan {
 				throw new NullPointerException("operator must not be null");
 
 			this.operator = operator;
-			setEmpty();
+			this.setEmpty();
 		}
 
 		public C add(PactJsonObject value) {
-			return add(PactJsonObject.Key.NULL, value);
+			return this.add(PactJsonObject.Key.NULL, value);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -219,7 +218,7 @@ public class SopremoTestPlan {
 
 		@Override
 		public String toString() {
-			return pairs.toString();
+			return this.pairs.toString();
 		}
 	}
 
@@ -253,10 +252,10 @@ public class SopremoTestPlan {
 		}
 
 		public void load(TestPlan testPlan) {
-			setEmpty();
-			TestPairs<Key, Value> actualOutput = testPlan.getActualOutput(getIndex());
+			this.setEmpty();
+			TestPairs<Key, Value> actualOutput = testPlan.getActualOutput(this.getIndex());
 			for (KeyValuePair<Key, Value> keyValuePair : actualOutput)
-				add((PactJsonObject) keyValuePair.getValue());
+				this.add((PactJsonObject) keyValuePair.getValue());
 			actualOutput.close();
 		}
 	}
@@ -268,7 +267,7 @@ public class SopremoTestPlan {
 	private ExpectedOutput[] expectedOutputs;
 
 	public SopremoTestPlan(int numInputs, int numOutputs) {
-		initInputsAndOutputs(numInputs, numOutputs);
+		this.initInputsAndOutputs(numInputs, numOutputs);
 	}
 
 	protected void initInputsAndOutputs(int numInputs, int numOutputs) {
@@ -289,21 +288,20 @@ public class SopremoTestPlan {
 		for (Operator operator : sinks)
 			unconnectedOutputs.addAll(operator.getOutputs());
 
-		for (Operator operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE)) {
+		for (Operator operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
 			if (operator instanceof Source)
 				unconnectedInputs.add(operator);
 			else
 				for (Operator.Output input : operator.getInputs())
 					if (input == null)
 						unconnectedInputs.add(operator);
-		}
 
 		this.inputs = new Input[unconnectedInputs.size()];
 		for (int index = 0; index < this.inputs.length; index++) {
 			this.inputs[index] = new Input(index);
 			Operator unconnectedNode = unconnectedInputs.get(index);
 			if (unconnectedNode instanceof Source)
-				setInputOperator(index, (Source) unconnectedNode);
+				this.setInputOperator(index, (Source) unconnectedNode);
 			else {
 				List<Operator.Output> missingInputs = new ArrayList<Operator.Output>(unconnectedNode.getInputs());
 				for (int missingIndex = 0; missingIndex < missingInputs.size(); missingIndex++)
@@ -360,7 +358,7 @@ public class SopremoTestPlan {
 	}
 
 	public ExpectedOutput getExpectedOutputForStream(JsonStream stream) {
-		return this.expectedOutputs[getActualOutputForStream(stream).getIndex()];
+		return this.expectedOutputs[this.getActualOutputForStream(stream).getIndex()];
 	}
 
 	public ActualOutput getActualOutput(int index) {
@@ -407,7 +405,7 @@ public class SopremoTestPlan {
 	private EvaluationContext evaluationContext = new EvaluationContext();
 
 	public EvaluationContext getEvaluationContext() {
-		return evaluationContext;
+		return this.evaluationContext;
 	}
 
 	public void run() {
@@ -432,9 +430,9 @@ public class SopremoTestPlan {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + Arrays.hashCode(inputs);
-		result = prime * result + Arrays.hashCode(actualOutputs);
-		result = prime * result + Arrays.hashCode(expectedOutputs);
+		result = prime * result + Arrays.hashCode(this.inputs);
+		result = prime * result + Arrays.hashCode(this.actualOutputs);
+		result = prime * result + Arrays.hashCode(this.expectedOutputs);
 		return result;
 	}
 
@@ -444,11 +442,11 @@ public class SopremoTestPlan {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		SopremoTestPlan other = (SopremoTestPlan) obj;
-		return Arrays.equals(inputs, other.inputs) && Arrays.equals(expectedOutputs, other.expectedOutputs)
-			&& Arrays.equals(actualOutputs, other.actualOutputs);
+		return Arrays.equals(this.inputs, other.inputs) && Arrays.equals(this.expectedOutputs, other.expectedOutputs)
+			&& Arrays.equals(this.actualOutputs, other.actualOutputs);
 	}
 
 }

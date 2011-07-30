@@ -53,18 +53,19 @@ public class Selection extends ElementaryOperator {
 		return result;
 	}
 
-	@Override
-	public PactModule asPactModule(EvaluationContext context) {
-		PactModule module = new PactModule(this.toString(), 1, 1);
-		MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> selectionMap =
-			new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
-				SelectionStub.class);
-		module.getOutput(0).setInput(selectionMap);
-		selectionMap.setInput(module.getInput(0));
-		SopremoUtil.serialize(selectionMap.getStubParameters(), "condition", this.getCondition());
-		SopremoUtil.setContext(selectionMap.getStubParameters(), context);
-		return module;
-	}
+	//
+	// @Override
+	// public PactModule asPactModule(EvaluationContext context) {
+	// PactModule module = new PactModule(this.toString(), 1, 1);
+	// MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> selectionMap =
+	// new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+	// SelectionStub.class);
+	// module.getOutput(0).setInput(selectionMap);
+	// selectionMap.setInput(module.getInput(0));
+	// SopremoUtil.serialize(selectionMap.getStubParameters(), "condition", this.getCondition());
+	// SopremoUtil.setContext(selectionMap.getStubParameters(), context);
+	// return module;
+	// }
 
 	@Override
 	public String toString() {
@@ -76,12 +77,6 @@ public class Selection extends ElementaryOperator {
 	public static class SelectionStub extends
 			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 		private BooleanExpression condition;
-
-		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
-			this.condition = SopremoUtil.deserialize(parameters, "condition", BooleanExpression.class);
-		}
 
 		@Override
 		protected void map(JsonNode key, JsonNode value, JsonCollector out) {

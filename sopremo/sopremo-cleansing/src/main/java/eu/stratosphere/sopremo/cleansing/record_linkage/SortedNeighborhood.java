@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.cleansing;
+package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import java.util.List;
 

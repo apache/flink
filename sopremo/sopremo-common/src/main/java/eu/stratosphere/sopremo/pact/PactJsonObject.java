@@ -17,11 +17,7 @@ package eu.stratosphere.sopremo.pact;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.StringWriter;
-
-import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.ObjectNode;
 import org.codehaus.jackson.node.ValueNode;
@@ -153,14 +149,14 @@ public class PactJsonObject implements Value {
 	 */
 	public static Key keyOf(JsonNode node) {
 		return new Key(node);
-//		if (node instanceof ValueNode)
-//			return new Key(node);
-//		if (node.isArray()) {
-//			if (!isValidArray(node))
-//				throw new IllegalArgumentException(node + " is not a valid key array");
-//			return new Key(node);
-//		}
-//		throw new IllegalArgumentException(node.getClass().getSimpleName());
+		// if (node instanceof ValueNode)
+		// return new Key(node);
+		// if (node.isArray()) {
+		// if (!isValidArray(node))
+		// throw new IllegalArgumentException(node + " is not a valid key array");
+		// return new Key(node);
+		// }
+		// throw new IllegalArgumentException(node.getClass().getSimpleName());
 	}
 
 	public static PactJsonObject valueOf(JsonNode value) {

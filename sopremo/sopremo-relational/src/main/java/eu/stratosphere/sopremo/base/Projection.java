@@ -38,20 +38,20 @@ public class Projection extends ElementaryOperator {
 	public Projection(EvaluationExpression valueTransformation, JsonStream input) {
 		this(EvaluationExpression.SAME_KEY, valueTransformation, input);
 	}
-
-	@Override
-	public PactModule asPactModule(EvaluationContext context) {
-		PactModule module = new PactModule(this.toString(), 1, 1);
-		MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> projectionMap =
-			new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
-				ProjectionStub.class);
-		module.getOutput(0).setInput(projectionMap);
-		projectionMap.setInput(module.getInput(0));
-		SopremoUtil.setContext(projectionMap.getStubParameters(), context);
-		SopremoUtil.serialize(projectionMap.getStubParameters(), "keyTransformation", this.getKeyTransformation());
-		SopremoUtil.serialize(projectionMap.getStubParameters(), "valueTransformation", this.getValueTransformation());
-		return module;
-	}
+//
+//	@Override
+//	public PactModule asPactModule(EvaluationContext context) {
+//		PactModule module = new PactModule(this.toString(), 1, 1);
+//		MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> projectionMap =
+//			new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+//				ProjectionStub.class);
+//		module.getOutput(0).setInput(projectionMap);
+//		projectionMap.setInput(module.getInput(0));
+//		SopremoUtil.setContext(projectionMap.getStubParameters(), context);
+//		SopremoUtil.serialize(projectionMap.getStubParameters(), "keyTransformation", this.getKeyTransformation());
+//		SopremoUtil.serialize(projectionMap.getStubParameters(), "valueTransformation", this.getValueTransformation());
+//		return module;
+//	}
 
 	@Override
 	public int hashCode() {
@@ -105,15 +105,6 @@ public class Projection extends ElementaryOperator {
 			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 
 		private EvaluationExpression keyTransformation, valueTransformation;
-
-		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
-			this.keyTransformation = SopremoUtil
-				.deserialize(parameters, "keyTransformation", EvaluationExpression.class);
-			this.valueTransformation = SopremoUtil.deserialize(parameters, "valueTransformation",
-				EvaluationExpression.class);
-		}
 
 		@Override
 		protected void map(JsonNode key, JsonNode value, JsonCollector out) {

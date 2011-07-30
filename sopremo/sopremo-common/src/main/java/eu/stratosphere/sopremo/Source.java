@@ -94,6 +94,6 @@ public class Source extends ElementaryOperator {
 	public JsonNode getAdhocValues() {
 		if (this.type != PersistenceType.ADHOC)
 			throw new IllegalStateException();
-		return getAdhocValue().evaluate(NullNode.getInstance(), new EvaluationContext());
+		return this.getAdhocValue().evaluate(NullNode.getInstance(), new EvaluationContext());
 	}
 }

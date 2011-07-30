@@ -1,7 +1,10 @@
 package eu.stratosphere.sopremo;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -41,14 +44,16 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * <li>{@link #getStubClass()} allows to choose a different Stub than the first inner class inheriting from {@link Stub}.
  * <li>{@link #getContract()} instantiates a contract matching the stub class resulting from the previous callback. This
  * callback is especially useful if a PACT stub is chosen that is not supported in Sopremo yet.
- * <li>{@link #configureContract(Configuration, EvaluationContext)} is a callback used to set parameters of the
- * {@link Configuration} of the stub.
+ * <li>{@link #configureContract(Contract, Configuration, EvaluationContext)} is a callback used to set parameters of
+ * the {@link Configuration} of the stub.
  * <li>{@link #asPactModule(EvaluationContext)} gives complete control over the creation of the {@link PactModule}.
  * </ul>
  * 
  * @author Arvid Heise
  */
 public class ElementaryOperator extends Operator {
+	private static final org.apache.commons.logging.Log LOG = LogFactory.getLog(ElementaryOperator.class);
+
 	/**
 	 * 
 	 */
@@ -79,7 +84,7 @@ public class ElementaryOperator extends Operator {
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
 		Contract contract = this.getContract();
-		this.configureContract(contract.getStubParameters(), context);
+		this.configureContract(contract, contract.getStubParameters(), context);
 		Contract[] inputs = ContractUtil.getInputs(contract);
 		PactModule module = new PactModule(this.toString(), inputs.length, 1);
 		ContractUtil.setInputs(contract, module.getInputs());
@@ -89,15 +94,32 @@ public class ElementaryOperator extends Operator {
 
 	/**
 	 * Callback to add parameters to the stub configuration.<br>
-	 * The default implementation adds the context only.
+	 * The default implementation adds the context and all non-transient, non-final, non-static fields.
 	 * 
+	 * @param contract
+	 *        the contract to configure
 	 * @param stubConfiguration
 	 *        the configuration of the stub
 	 * @param context
 	 *        the context in which the {@link PactModule} is created and evaluated
 	 */
-	protected void configureContract(Configuration stubConfiguration, EvaluationContext context) {
+	protected void configureContract(Contract contract, Configuration stubConfiguration, EvaluationContext context) {
 		SopremoUtil.setContext(stubConfiguration, context);
+
+		for (Field stubField : contract.getStubClass().getDeclaredFields())
+			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0) {
+				Field thisField;
+				try {
+					thisField = this.getClass().getDeclaredField(stubField.getName());
+					thisField.setAccessible(true);
+					SopremoUtil.serialize(stubConfiguration, stubField.getName(), thisField.get(this));
+				} catch (NoSuchFieldException e) {
+					// ignore field of stub if the field does not exist in this operator
+				} catch (Exception e) {
+					LOG.error(String.format("Could not serialize field %s of class %s: %s", stubField.getName(),
+						contract.getClass(), e));
+				}
+			}
 	}
 
 	/**

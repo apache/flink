@@ -5,9 +5,12 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class AggregationFunction implements SerializableSopremoType, Cloneable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5701471344038419637L;
 	private String name;
 
 	public AggregationFunction(String name) {
@@ -31,13 +34,13 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 	public abstract JsonNode getFinalAggregate();
 
 	public void toString(StringBuilder builder) {
-		builder.append(name);
+		builder.append(this.name);
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		toString(builder);
+		this.toString(builder);
 		return builder.toString();
 	}
 

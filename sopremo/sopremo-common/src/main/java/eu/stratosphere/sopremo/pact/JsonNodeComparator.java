@@ -107,7 +107,7 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 					return valueComparison;
 			}
 
-			return fields1.hasNext() ? -1 : (fields2.hasNext() ? 1 : 0);
+			return fields1.hasNext() ? -1 : fields2.hasNext() ? 1 : 0;
 		}
 	}
 

@@ -1,0 +1,137 @@
+package eu.stratosphere.sopremo;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
+
+import junit.framework.Assert;
+
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.BigIntegerNode;
+import org.codehaus.jackson.node.BooleanNode;
+import org.codehaus.jackson.node.DecimalNode;
+import org.codehaus.jackson.node.DoubleNode;
+import org.codehaus.jackson.node.IntNode;
+import org.codehaus.jackson.node.LongNode;
+import org.codehaus.jackson.node.NumericNode;
+import org.codehaus.jackson.node.ObjectNode;
+import org.codehaus.jackson.node.TextNode;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+
+@RunWith(Parameterized.class)
+public class TypeCoercerTest {
+	private static final Object CONVERSION_ERROR = "Error";
+
+	@Parameters
+	public static List<Object[]> combinations() {
+		return Arrays.asList(new Object[][] {
+				{ BooleanNode.TRUE, BooleanNode.class, BooleanNode.TRUE },
+				{ BooleanNode.FALSE, BooleanNode.class, BooleanNode.FALSE },
+				{ BooleanNode.TRUE, TextNode.class, TextNode.valueOf("true") },
+				{ BooleanNode.FALSE, TextNode.class, TextNode.valueOf("false") },
+				{ BooleanNode.TRUE, NumericNode.class, IntNode.valueOf(1) },
+				{ BooleanNode.FALSE, NumericNode.class, IntNode.valueOf(0) },
+				{ BooleanNode.TRUE, IntNode.class, IntNode.valueOf(1) },
+				{ BooleanNode.FALSE, IntNode.class, IntNode.valueOf(0) },
+				{ BooleanNode.TRUE, DoubleNode.class, DoubleNode.valueOf(1) },
+				{ BooleanNode.TRUE, LongNode.class, LongNode.valueOf(1) },
+				{ BooleanNode.TRUE, BigIntegerNode.class, BigIntegerNode.valueOf(BigInteger.valueOf(1)) },
+				{ BooleanNode.TRUE, DecimalNode.class, DecimalNode.valueOf(BigDecimal.valueOf(1)) },
+				{ BooleanNode.TRUE, ArrayNode.class, createArray(BooleanNode.TRUE) },
+				{ BooleanNode.TRUE, ObjectNode.class, CONVERSION_ERROR },
+
+				{ TextNode.valueOf("true"), BooleanNode.class, BooleanNode.TRUE },
+				// paradox but we do not parse the string but check if it is empty
+			{ TextNode.valueOf("false"), BooleanNode.class, BooleanNode.TRUE },
+				{ TextNode.valueOf("string"), TextNode.class, TextNode.valueOf("string") },
+				{ TextNode.valueOf("12.34"), NumericNode.class, DecimalNode.valueOf(new BigDecimal("12.34")) },
+				{ TextNode.valueOf("12"), IntNode.class, IntNode.valueOf(12) },
+				{ TextNode.valueOf("12"), LongNode.class, LongNode.valueOf(12) },
+				{ TextNode.valueOf("12.5"), DoubleNode.class, DoubleNode.valueOf(12.5) },
+				{ TextNode.valueOf("12"), BigIntegerNode.class, BigIntegerNode.valueOf(BigInteger.valueOf(12)) },
+				{ TextNode.valueOf("12.34"), DecimalNode.class, DecimalNode.valueOf(new BigDecimal("12.34")) },
+				{ TextNode.valueOf("bla"), ArrayNode.class, createArray(TextNode.valueOf("bla")) },
+				{ TextNode.valueOf("bla"), NumericNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("bla"), IntNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("bla"), DoubleNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("bla"), LongNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("bla"), BigIntegerNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("bla"), DecimalNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("bla"), ObjectNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("12.34"), IntNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("12.34"), LongNode.class, CONVERSION_ERROR },
+				{ TextNode.valueOf("12.34"), BigIntegerNode.class, CONVERSION_ERROR },
+
+				{ IntNode.valueOf(1), BooleanNode.class, BooleanNode.TRUE },
+				{ IntNode.valueOf(0), BooleanNode.class, BooleanNode.FALSE },
+				{ LongNode.valueOf(1), BooleanNode.class, BooleanNode.TRUE },
+				{ DoubleNode.valueOf(0), BooleanNode.class, BooleanNode.FALSE },
+				{ IntNode.valueOf(12), TextNode.class, TextNode.valueOf("12") },
+				{ LongNode.valueOf(Long.MAX_VALUE), TextNode.class, TextNode.valueOf(String.valueOf(Long.MAX_VALUE)) },
+				{ DoubleNode.valueOf(12.34), TextNode.class, TextNode.valueOf(String.valueOf(12.34)) },
+				{ IntNode.valueOf(12), LongNode.class, LongNode.valueOf(12) },
+				{ DoubleNode.valueOf(12.5), IntNode.class, IntNode.valueOf(12) },
+				{ IntNode.valueOf(12), ArrayNode.class, createArray(IntNode.valueOf(12)) },
+				{ IntNode.valueOf(1), ObjectNode.class, CONVERSION_ERROR },
+
+				{ createArray(), BooleanNode.class, BooleanNode.FALSE },
+				{ createArray(IntNode.valueOf(12)), BooleanNode.class, BooleanNode.TRUE },
+				{ createArray(IntNode.valueOf(12)), IntNode.class, CONVERSION_ERROR },
+				{ createArray(IntNode.valueOf(12)), TextNode.class, TextNode.valueOf("[12]") },
+				{ createArray(IntNode.valueOf(12)), ArrayNode.class, createArray(IntNode.valueOf(12)) },
+				{ createArray(IntNode.valueOf(12)), ObjectNode.class, CONVERSION_ERROR },
+		});
+	}
+
+	protected static ArrayNode createArray(JsonNode... elems) {
+		ArrayNode arrayNode = new ArrayNode(null);
+		arrayNode.addAll(Arrays.asList(elems));
+		return arrayNode;
+	}
+
+	private JsonNode value;
+
+	private Class<? extends JsonNode> targetType;
+
+	private Object expectedResult;
+
+	public TypeCoercerTest(JsonNode value, Class<? extends JsonNode> targetType, Object expectedResult) {
+		this.value = value;
+		this.targetType = targetType;
+		this.expectedResult = expectedResult;
+	}
+
+	@Test
+	public void shouldPerformTheCoercionAsExpected() {
+		try {
+			JsonNode result = TypeCoercer.INSTANCE.coerce(value, targetType);
+
+			// workaround for BigIntegerNode bug
+			if (expectedResult instanceof BigIntegerNode) {
+				Assert.assertTrue(
+					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
+					targetType.isInstance(result));
+				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
+					((BigIntegerNode) expectedResult).getBigIntegerValue(),
+					result.getBigIntegerValue());
+			} else {
+				Assert.assertTrue(
+					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
+					targetType.isInstance(result));
+				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result), expectedResult,
+					result);
+			}
+		} catch (CoercionException e) {
+			Assert.assertTrue(String.format("%s->%s=Exception", this.value, this.targetType),
+				expectedResult == CONVERSION_ERROR);
+		}
+	}
+}

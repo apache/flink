@@ -15,6 +15,7 @@ public class FunctionRegistry implements SerializableSopremoType {
 	 * 
 	 */
 	private static final long serialVersionUID = -8399369017331739066L;
+
 	private Map<String, Function> registeredFunctions = new HashMap<String, Function>();
 
 	public FunctionRegistry() {

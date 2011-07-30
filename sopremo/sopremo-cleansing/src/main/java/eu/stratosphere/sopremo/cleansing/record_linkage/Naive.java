@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.cleansing;
+package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import java.util.List;
 
@@ -7,6 +7,7 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -14,7 +15,7 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.cleansing.RecordLinkage.Partitioning;
+import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage.Partitioning;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -47,8 +48,10 @@ public class Naive extends Partitioning {
 		 */
 		private static final long serialVersionUID = 8648299921312622401L;
 
+		@SuppressWarnings("unused")
 		private ComparativeExpression similarityCondition;
 
+		@SuppressWarnings("unused")
 		private EvaluationExpression duplicateProjection, idProjection1, idProjection2;
 
 		public CartesianProduct(ComparativeExpression similarityCondition, EvaluationExpression duplicateProjection,
@@ -62,17 +65,6 @@ public class Naive extends Partitioning {
 		}
 
 		@Override
-		protected void configureContract(Configuration stubConfiguration, EvaluationContext context) {
-			super.configureContract(stubConfiguration, context);
-			SopremoUtil.serialize(stubConfiguration, "similarityCondition", this.similarityCondition);
-			SopremoUtil.serialize(stubConfiguration, "duplicateProjection", this.duplicateProjection);
-			if (this.getInput(0) == this.getInput(1)) {
-				SopremoUtil.serialize(stubConfiguration, "idProjection1", this.idProjection1);
-				SopremoUtil.serialize(stubConfiguration, "idProjection2", this.idProjection2);
-			}
-		}
-
-		@Override
 		protected Class<? extends Stub<?, ?>> getStubClass() {
 			return this.getInput(0) == this.getInput(1) ? IntraSource.class : InterSource.class;
 		}
@@ -83,15 +75,6 @@ public class Naive extends Partitioning {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression duplicateProjection;
-
-			@Override
-			public void configure(Configuration parameters) {
-				super.configure(parameters);
-				this.similarityCondition = SopremoUtil.deserialize(parameters, "similarityCondition",
-					ComparativeExpression.class);
-				this.duplicateProjection = SopremoUtil.deserialize(parameters, "duplicateProjection",
-					EvaluationExpression.class);
-			}
 
 			@Override
 			protected void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out) {
@@ -108,19 +91,6 @@ public class Naive extends Partitioning {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression duplicateProjection, idProjection1, idProjection2;
-
-			@Override
-			public void configure(Configuration parameters) {
-				super.configure(parameters);
-				this.similarityCondition = SopremoUtil.deserialize(parameters, "similarityCondition",
-					ComparativeExpression.class);
-				this.duplicateProjection = SopremoUtil.deserialize(parameters, "duplicateProjection",
-					EvaluationExpression.class);
-				this.idProjection1 = SopremoUtil.deserialize(parameters, "idProjection1",
-					EvaluationExpression.class);
-				this.idProjection2 = SopremoUtil.deserialize(parameters, "idProjection2",
-					EvaluationExpression.class);
-			}
 
 			@Override
 			protected void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out) {

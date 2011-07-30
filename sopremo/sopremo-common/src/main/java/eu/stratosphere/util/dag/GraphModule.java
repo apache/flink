@@ -127,7 +127,8 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 		for (OutputNode output : this.getAllOutputs())
 			for (Node node : this.navigator.getConnectedNodes(output))
 				if (node == null)
-					throw new IllegalStateException(String.format("%s: output %s is not fully connected", this.getName(),
+					throw new IllegalStateException(String.format("%s: output %s is not fully connected",
+						this.getName(),
 						output));
 
 		final Iterable<? extends Node> reachableNodes = this.getReachableNodes();

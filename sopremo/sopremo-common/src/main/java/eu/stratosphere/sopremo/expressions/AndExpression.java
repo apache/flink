@@ -37,7 +37,7 @@ public class AndExpression extends BooleanExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		for (BooleanExpression booleanExpression : expressions)
+		for (BooleanExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, context) == BooleanNode.FALSE)
 				return BooleanNode.FALSE;
 		return BooleanNode.TRUE;

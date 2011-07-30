@@ -1,16 +1,19 @@
 package eu.stratosphere.sopremo.aggregation;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 
 public class MaterializingAggregationFunction extends AggregationFunction {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3685213903416162250L;
 
 	protected MaterializingAggregationFunction(String name) {
 		super(name);
@@ -24,18 +27,19 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 
 	@Override
 	public void initialize() {
-		nodes = new ArrayList<JsonNode>();
+		this.nodes = new ArrayList<JsonNode>();
 	}
 
 	@Override
 	public void aggregate(JsonNode node, EvaluationContext context) {
-		nodes.add(node);
+		this.nodes.add(node);
 	}
 
 	@Override
 	public JsonNode getFinalAggregate() {
 		ArrayNode arrayNode = new ArrayNode(null);
-		arrayNode.addAll(processNodes(nodes));
+		arrayNode.addAll(this.processNodes(this.nodes));
+		this.nodes = null;
 		return arrayNode;
 	}
 

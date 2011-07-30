@@ -809,10 +809,14 @@ public class TestPlan implements Closeable {
 		} catch (final Exception e) {
 			Assert.fail("plan scheduling: " + StringUtils.stringifyException(e));
 		}
-		this.validateResults();
+
 		try {
-			this.close();
-		} catch (IOException e) {
+			this.validateResults();
+		} finally {
+			try {
+				this.close();
+			} catch (IOException e) {
+			}
 		}
 	}
 

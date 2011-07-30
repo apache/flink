@@ -14,6 +14,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4836890030948315219L;
 	private transient JsonNode aggregate, initialAggregate;
 
 	public TransitiveAggregationFunction(String name, JsonNode initialAggregate) {
@@ -23,24 +27,24 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	private void writeObject(ObjectOutputStream oos) throws IOException {
 		oos.defaultWriteObject();
-		new PactJsonObject(initialAggregate).write(oos);
+		new PactJsonObject(this.initialAggregate).write(oos);
 	}
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
 		PactJsonObject pactJsonObject = new PactJsonObject();
 		pactJsonObject.read(ois);
-		initialAggregate = pactJsonObject.getValue();
+		this.initialAggregate = pactJsonObject.getValue();
 	}
 
 	@Override
 	public void initialize() {
 		try {
 			ByteArrayOutputStream cloneBuffer = new ByteArrayOutputStream();
-			PactJsonObject cloner = new PactJsonObject(initialAggregate);
+			PactJsonObject cloner = new PactJsonObject(this.initialAggregate);
 			cloner.write(new DataOutputStream(cloneBuffer));
 			cloner.read(new DataInputStream(new ByteArrayInputStream(cloneBuffer.toByteArray())));
-			aggregate = cloner.getValue();
+			this.aggregate = cloner.getValue();
 		} catch (IOException e) {
 			throw new IllegalStateException("Cannot clone initial value");
 		}
@@ -48,13 +52,13 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	@Override
 	public void aggregate(JsonNode node, EvaluationContext context) {
-		aggregate = aggregate(aggregate, node, context);
+		this.aggregate = this.aggregate(this.aggregate, node, context);
 	}
 
 	protected abstract JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context);
 
 	@Override
 	public JsonNode getFinalAggregate() {
-		return aggregate;
+		return this.aggregate;
 	}
 }

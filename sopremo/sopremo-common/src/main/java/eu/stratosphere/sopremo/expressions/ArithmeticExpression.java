@@ -3,9 +3,7 @@ package eu.stratosphere.sopremo.expressions;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
-import java.util.Arrays;
 import java.util.EnumMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.codehaus.jackson.JsonNode;
@@ -18,6 +16,7 @@ import org.codehaus.jackson.node.LongNode;
 import org.codehaus.jackson.node.NumericNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.NumberCoercer;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for
@@ -37,7 +36,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 	private EvaluationExpression op1, op2;
 
 	/**
-	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix notation.
+	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix
+	 * notation.
 	 * 
 	 * @param op1
 	 *        the first operand

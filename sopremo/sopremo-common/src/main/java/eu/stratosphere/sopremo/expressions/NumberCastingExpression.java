@@ -6,9 +6,10 @@ import org.codehaus.jackson.node.NumericNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.NumberCoercer;
 
 @OptimizerHints(scope = Scope.NUMBER)
-public class CastingExpression extends EvaluationExpression {
+public class NumberCastingExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -16,7 +17,7 @@ public class CastingExpression extends EvaluationExpression {
 
 	private final NumberType targetType;
 
-	public CastingExpression(NumberType targetType) {
+	public NumberCastingExpression(NumberType targetType) {
 		this.targetType = targetType;
 	}
 

@@ -37,7 +37,7 @@ public class OrExpression extends BooleanExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		for (BooleanExpression booleanExpression : expressions)
+		for (BooleanExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, context) == BooleanNode.TRUE)
 				return BooleanNode.TRUE;
 		return BooleanNode.FALSE;

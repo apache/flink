@@ -26,7 +26,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	public BatchAggregationExpression(List<AggregationFunction> functions) {
 		this.partials = new ArrayList<Partial>(functions.size());
 		for (AggregationFunction function : functions)
-			partials.add(new Partial(function, EvaluationExpression.SAME_VALUE, partials.size()));
+			this.partials.add(new Partial(function, EvaluationExpression.SAME_VALUE, this.partials.size()));
 	}
 
 	public BatchAggregationExpression(AggregationFunction... functions) {
@@ -39,10 +39,10 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		if (lastInputCounter == context.getInputCounter())
-			return lastResult;
+		if (this.lastInputCounter == context.getInputCounter())
+			return this.lastResult;
 
-		lastInputCounter = context.getInputCounter();
+		this.lastInputCounter = context.getInputCounter();
 
 		for (Partial partial : this.partials)
 			partial.getFunction().initialize();
@@ -50,24 +50,28 @@ public class BatchAggregationExpression extends EvaluationExpression {
 			for (Partial partial : this.partials)
 				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, context), context);
 
-		JsonNode[] results = new JsonNode[partials.size()];
+		JsonNode[] results = new JsonNode[this.partials.size()];
 		for (int index = 0; index < results.length; index++)
-			results[index] = partials.get(index).getFunction().getFinalAggregate();
+			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
 
-		return lastResult = JsonUtil.asArray(results);
+		return this.lastResult = JsonUtil.asArray(results);
 	}
 
 	public EvaluationExpression add(AggregationFunction function) {
-		return add(function, EvaluationExpression.SAME_VALUE);
+		return this.add(function, EvaluationExpression.SAME_VALUE);
 	}
 
 	public EvaluationExpression add(AggregationFunction function, EvaluationExpression preprocessing) {
-		Partial partial = new Partial(function, preprocessing, partials.size());
-		partials.add(partial);
+		Partial partial = new Partial(function, preprocessing, this.partials.size());
+		this.partials.add(partial);
 		return partial;
 	}
 
 	private class Partial extends AggregationExpression {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7597385785040647923L;
 		private int index;
 
 		public Partial(AggregationFunction function, EvaluationExpression preprocessing, int index) {
@@ -77,7 +81,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		@Override
 		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-			return BatchAggregationExpression.this.evaluate(node, context).get(index);
+			return BatchAggregationExpression.this.evaluate(node, context).get(this.index);
 		}
 	}
 }

@@ -93,7 +93,7 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 	 *        all sinks that span the graph to wrap
 	 * @return a SopremoModule representing the given graph
 	 */
-	public static SopremoModule valueOf(String name, Collection<Operator> sinks) {
+	public static SopremoModule valueOf(String name, Collection<? extends Operator> sinks) {
 		final List<Operator> inputs = new ArrayList<Operator>();
 
 		OneTimeTraverser.INSTANCE.traverse(sinks, OperatorNavigator.INSTANCE,

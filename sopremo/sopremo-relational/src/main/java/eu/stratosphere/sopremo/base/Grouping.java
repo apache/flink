@@ -8,6 +8,7 @@ import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
@@ -97,6 +98,7 @@ public class Grouping extends MultiSourceOperator {
 		 */
 		private static final long serialVersionUID = 561729616462154707L;
 
+		@SuppressWarnings("unused")
 		private EvaluationExpression projection;
 
 		public GroupProjection(EvaluationExpression projection, JsonStream input) {
@@ -104,22 +106,9 @@ public class Grouping extends MultiSourceOperator {
 			this.projection = projection;
 		}
 
-		@Override
-		protected void configureContract(Configuration stubConfiguration, EvaluationContext context) {
-			super.configureContract(stubConfiguration, context);
-			SopremoUtil.serialize(stubConfiguration, "projection", projection);
-		}
-
 		public static class Implementation extends
 				SopremoReduce<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-
 			private EvaluationExpression projection;
-
-			@Override
-			public void configure(Configuration parameters) {
-				super.configure(parameters);
-				projection = SopremoUtil.deserialize(parameters, "projection", EvaluationExpression.class);
-			}
 
 			@Override
 			protected void reduce(JsonNode key1, StreamArrayNode values, JsonCollector out) {

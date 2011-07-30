@@ -15,6 +15,7 @@ public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends Pa
 	@Override
 	public void configure(Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		SopremoUtil.configureStub(this, parameters);
 	}
 
 	protected EvaluationContext getContext() {
@@ -24,10 +25,10 @@ public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends Pa
 	@Override
 	public void match(PactJsonObject.Key key, PactJsonObject value1, PactJsonObject value2,
 			Collector<Key, PactJsonObject> out) {
-		context.increaseInputCounter();
+		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isDebugEnabled())
-			SopremoUtil.LOG.debug(String.format("%s %s/%s/%s", getClass().getSimpleName(), key, value1, value2));
-		match(key.getValue(), value1.getValue(), value2.getValue(), new JsonCollector(out));
+			SopremoUtil.LOG.debug(String.format("%s %s/%s/%s", this.getClass().getSimpleName(), key, value1, value2));
+		this.match(key.getValue(), value1.getValue(), value2.getValue(), new JsonCollector(out));
 	}
 
 	protected abstract void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out);

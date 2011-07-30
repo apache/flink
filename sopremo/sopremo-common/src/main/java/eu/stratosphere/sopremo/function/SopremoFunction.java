@@ -10,6 +10,7 @@ public class SopremoFunction extends Function {
 	 * 
 	 */
 	private static final long serialVersionUID = -804125165962550321L;
+
 	private EvaluationExpression definition;
 
 	public SopremoFunction(String name, EvaluationExpression definition) {

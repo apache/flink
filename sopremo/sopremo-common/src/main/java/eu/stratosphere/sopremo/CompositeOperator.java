@@ -81,13 +81,11 @@ public abstract class CompositeOperator extends Operator {
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		if (LOG.isTraceEnabled()) {
+		if (LOG.isTraceEnabled())
 			LOG.trace("Transforming\n" + this);
-		}
 		SopremoModule elementaryPlan = this.asElementaryOperators();
-		if (LOG.isTraceEnabled()) {
+		if (LOG.isTraceEnabled())
 			LOG.trace(" to elementary plan\n" + elementaryPlan);
-		}
 		return elementaryPlan.asPactModule(context);
 	}
 }

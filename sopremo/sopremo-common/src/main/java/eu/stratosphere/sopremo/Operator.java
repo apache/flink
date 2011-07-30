@@ -28,7 +28,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 
 	private String name;
 
-	private Output[] outputs;
+	private Output[] outputs = new Output[0];
 
 	/**
 	 * Initializes the Operator with the given number of outputs and the given input {@link JsonStream}s. A JsonStream
@@ -61,9 +61,22 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 		for (JsonStream input : inputs)
 			this.inputs.add(input == null ? null : input.getSource());
 		this.name = this.getClass().getSimpleName();
-		this.outputs = new Output[numberOfOutputs];
-		for (int index = 0; index < numberOfOutputs; index++)
-			this.outputs[index] = new Output(index);
+		this.setNumberOfOutputs(numberOfOutputs);
+	}
+
+	/**
+	 * Sets the number of outputs of this operator retaining all old outputs if possible (increased number of outputs).
+	 * 
+	 * @param numberOfOutputs
+	 *        the number of outputs
+	 */
+	protected final void setNumberOfOutputs(int numberOfOutputs) {
+		Output[] outputs = new Output[numberOfOutputs];
+		System.arraycopy(this.outputs, 0, outputs, 0, Math.min(numberOfOutputs, this.outputs.length));
+
+		for (int index = this.outputs.length; index < numberOfOutputs; index++)
+			outputs[index] = new Output(index);
+		this.outputs = outputs;
 	}
 
 	/**

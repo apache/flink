@@ -329,37 +329,39 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 */
 	public void assertEquals(final TestPairs<K, V> expectedValues, FuzzyTestValueMatcher<V> fuzzyMatcher,
 			FuzzyTestValueSimilarity<V> fuzzySimilarity) throws ArrayComparisonFailure {
-		final Iterator<KeyValuePair<K, V>> actualIterator = this.iterator();
-		final Iterator<KeyValuePair<K, V>> expectedIterator = expectedValues.iterator();
-		K currentKey = null;
-		int itemIndex = 0;
-		List<V> expectedValuesWithCurrentKey = new ArrayList<V>();
-		List<V> actualValuesWithCurrentKey = new ArrayList<V>();
-		while (actualIterator.hasNext() && expectedIterator.hasNext()) {
+		try {
+			final Iterator<KeyValuePair<K, V>> actualIterator = this.iterator();
+			final Iterator<KeyValuePair<K, V>> expectedIterator = expectedValues.iterator();
+			K currentKey = null;
+			int itemIndex = 0;
+			List<V> expectedValuesWithCurrentKey = new ArrayList<V>();
+			List<V> actualValuesWithCurrentKey = new ArrayList<V>();
+			while (actualIterator.hasNext() && expectedIterator.hasNext()) {
 
-			final KeyValuePair<K, V> expected = expectedIterator.next();
-			if (currentKey == null)
-				currentKey = expected.getKey();
-			else if (expected.getKey().compareTo(currentKey) != 0)
+				final KeyValuePair<K, V> expected = expectedIterator.next();
+				if (currentKey == null)
+					currentKey = expected.getKey();
+				else if (expected.getKey().compareTo(currentKey) != 0)
+					matchValues(actualIterator, currentKey, itemIndex, expectedValuesWithCurrentKey,
+						actualValuesWithCurrentKey, fuzzyMatcher, fuzzySimilarity);
+				expectedValuesWithCurrentKey.add(expected.getValue());
+
+				itemIndex++;
+			}
+
+			// remaining values
+			if (!expectedValuesWithCurrentKey.isEmpty())
 				matchValues(actualIterator, currentKey, itemIndex, expectedValuesWithCurrentKey,
 					actualValuesWithCurrentKey, fuzzyMatcher, fuzzySimilarity);
-			expectedValuesWithCurrentKey.add(expected.getValue());
 
-			itemIndex++;
+			if (!expectedValuesWithCurrentKey.isEmpty() || expectedIterator.hasNext())
+				Assert.fail("More elements expected: " + expectedValuesWithCurrentKey + toString(expectedIterator));
+			if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
+				Assert.fail("Less elements expected: " + actualValuesWithCurrentKey + toString(actualIterator));
+		} finally {
+			close();
+			expectedValues.close();
 		}
-
-		// remaining values
-		if (!expectedValuesWithCurrentKey.isEmpty())
-			matchValues(actualIterator, currentKey, itemIndex, expectedValuesWithCurrentKey,
-				actualValuesWithCurrentKey, fuzzyMatcher, fuzzySimilarity);
-
-		if (!expectedValuesWithCurrentKey.isEmpty() || expectedIterator.hasNext())
-			Assert.fail("More elements expected: " + expectedValuesWithCurrentKey + toString(expectedIterator));
-		if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
-			Assert.fail("Less elements expected: " + actualValuesWithCurrentKey + toString(actualIterator));
-
-		close();
-		expectedValues.close();
 	}
 
 	private static <K extends Key, V extends Value> void matchValues(final Iterator<KeyValuePair<K, V>> actualIterator,

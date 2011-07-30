@@ -9,6 +9,7 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -274,7 +275,7 @@ public class Join extends CompositeOperator {
 		 */
 		private static final long serialVersionUID = 317168181417121979L;
 
-		private boolean leftOuter, rightOuter;
+		private transient boolean leftOuter, rightOuter;
 
 		public OuterJoinStub(JsonStream left, boolean leftOuter, JsonStream right, boolean rightOuter) {
 			super(left, right);
@@ -283,15 +284,15 @@ public class Join extends CompositeOperator {
 		}
 
 		@Override
-		protected void configureContract(Configuration configuration, EvaluationContext context) {
-			super.configureContract(configuration, context);
+		protected void configureContract(Contract contract, Configuration configuration, EvaluationContext context) {
+			super.configureContract(contract, configuration, context);
 			configuration.setBoolean("leftOuter", this.leftOuter);
 			configuration.setBoolean("rightOuter", this.rightOuter);
 		}
 
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-			private boolean leftOuter, rightOuter;
+			private transient boolean leftOuter, rightOuter;
 
 			@Override
 			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
@@ -367,8 +368,8 @@ public class Join extends CompositeOperator {
 		}
 
 		@Override
-		protected void configureContract(Configuration configuration, EvaluationContext context) {
-			super.configureContract(configuration, context);
+		protected void configureContract(Contract contract, Configuration configuration, EvaluationContext context) {
+			super.configureContract(contract, configuration, context);
 			SopremoUtil.serialize(configuration, "comparison", this.comparison);
 		}
 

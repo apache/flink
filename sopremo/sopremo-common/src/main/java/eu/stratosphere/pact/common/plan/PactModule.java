@@ -37,8 +37,8 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
  * well-defined number of inputs and outputs. It is designed to facilitate
  * modularization and thus to increase the maintainability of large
  * PactPrograms. While the interface of the module are the number of inputs and
- * outputs, the actual implementation consists of several interconnected
- * {@link Contract}s that are connected to the inputs and outputs of the
+ * outputs, the actual implementation consists of several interconnected {@link Contract}s that are connected to the
+ * inputs and outputs of the
  * PactModule.
  */
 public class PactModule extends
@@ -49,11 +49,11 @@ public class PactModule extends
 	 * number of outputs.
 	 * 
 	 * @param name
-	 *            the name of the PactModule
+	 *        the name of the PactModule
 	 * @param numberOfInputs
-	 *            the number of inputs
+	 *        the number of inputs
 	 * @param numberOfOutputs
-	 *            the number of outputs.
+	 *        the number of outputs.
 	 */
 	public PactModule(String name, int numberOfInputs, int numberOfOutputs) {
 		super(name, new DataSourceContract[numberOfInputs], new DataSinkContract[numberOfOutputs],
@@ -103,9 +103,9 @@ public class PactModule extends
 	 * PactModule.
 	 * 
 	 * @param name
-	 *            the name of the PactModule
+	 *        the name of the PactModule
 	 * @param sinks
-	 *            all sinks that span the graph to wrap
+	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
 	public static PactModule valueOf(String name, Contract... sinks) {
@@ -117,9 +117,9 @@ public class PactModule extends
 	 * PactModule.
 	 * 
 	 * @param name
-	 *            the name of the PactModule
+	 *        the name of the PactModule
 	 * @param sinks
-	 *            all sinks that span the graph to wrap
+	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
 	public static PactModule valueOf(String name, Collection<Contract> sinks) {

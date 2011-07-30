@@ -1,30 +1,27 @@
-package eu.stratosphere.sopremo.cleansing;
+package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
+import org.codehaus.jackson.node.NullNode;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
+import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
-import eu.stratosphere.sopremo.pact.SopremoCoGroup;
-import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.pact.SopremoMatch;
 
 public class DisjunctPartitioning extends MultiPassPartitioning {
 	public DisjunctPartitioning(EvaluationExpression leftPartitionKey, EvaluationExpression rightPartitionKey) {
@@ -33,6 +30,10 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 	public DisjunctPartitioning(EvaluationExpression partitionKey) {
 		super(partitionKey);
+	}
+
+	public DisjunctPartitioning(EvaluationExpression[] leftPartitionKeys, EvaluationExpression[] rightPartitionKeys) {
+		super(leftPartitionKeys, rightPartitionKeys);
 	}
 
 	@Override
@@ -46,7 +47,8 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 	protected Operator createSinglePassIntraSource(EvaluationExpression partitionKey,
 			ComparativeExpression similarityCondition, Output input,
 			List<EvaluationExpression> idProjections, EvaluationExpression duplicateProjection) {
-		return new SinglePassIntraSource(partitionKey, similarityCondition, duplicateProjection, input);
+		return new SinglePassIntraSource(partitionKey, similarityCondition, duplicateProjection, idProjections.get(0),
+			input);
 	}
 
 	public static class SinglePassIntraSource extends CompositeOperator {
@@ -57,14 +59,15 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		private ComparativeExpression similarityCondition;
 
-		private EvaluationExpression partitionKey, duplicateProjection;
+		private EvaluationExpression partitionKey, duplicateProjection, idProjection;
 
 		public SinglePassIntraSource(EvaluationExpression partitionKey, ComparativeExpression similarityCondition,
-				EvaluationExpression duplicateProjection, JsonStream stream) {
+				EvaluationExpression duplicateProjection, EvaluationExpression idProjection, JsonStream stream) {
 			super(stream);
 			this.similarityCondition = similarityCondition;
 			this.partitionKey = partitionKey;
 			this.duplicateProjection = duplicateProjection;
+			this.idProjection = idProjection;
 		}
 
 		@Override
@@ -73,8 +76,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 				this.getInput(0));
 
 			return SopremoModule.valueOf(this.getName(), new IntraSourceComparison(this.similarityCondition,
-				this.duplicateProjection,
-				keyExtractor));
+				this.duplicateProjection, this.idProjection, keyExtractor));
 		}
 	}
 
@@ -84,52 +86,34 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		 */
 		private static final long serialVersionUID = -7987102025006298382L;
 
+		@SuppressWarnings("unused")
 		private ComparativeExpression similarityCondition;
 
-		private EvaluationExpression duplicateProjection;
+		@SuppressWarnings("unused")
+		private EvaluationExpression duplicateProjection, idProjection;
 
 		public IntraSourceComparison(ComparativeExpression similarityCondition,
-				EvaluationExpression duplicateProjection, JsonStream input) {
-			super(input);
+				EvaluationExpression duplicateProjection, EvaluationExpression idProjection,
+				JsonStream stream) {
+			super(stream, stream);
 			this.similarityCondition = similarityCondition;
 			this.duplicateProjection = duplicateProjection;
+			this.idProjection = idProjection;
 		}
 
-		@Override
-		protected void configureContract(Configuration stubConfiguration, EvaluationContext context) {
-			super.configureContract(stubConfiguration, context);
-			SopremoUtil.serialize(stubConfiguration, "similarityCondition", this.similarityCondition);
-			SopremoUtil.serialize(stubConfiguration, "duplicateProjection", this.duplicateProjection);
-		}
-
-		public static class Implementation extends SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
+		public static class Implementation extends
+				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
 			private ComparativeExpression similarityCondition;
 
-			private EvaluationExpression duplicateProjection;
+			private EvaluationExpression duplicateProjection, idProjection;
 
 			@Override
-			public void configure(Configuration parameters) {
-				super.configure(parameters);
-				this.similarityCondition = SopremoUtil.deserialize(parameters, "similarityCondition",
-					ComparativeExpression.class);
-				this.duplicateProjection = SopremoUtil.deserialize(parameters, "duplicateProjection",
-					EvaluationExpression.class);
-			}
-
-			@Override
-			protected void reduce(JsonNode key, StreamArrayNode values, JsonCollector out) {
-				values = values.ensureResettable();
-
-				int size = values.size();
-				for (int index = 0; index < size; index++) {
-					JsonNode value1 = values.get(index);
-					for (int index2 = index + 1; index2 < size; index2++) {
-						JsonNode value2 = values.get(index2);
-						CompactArrayNode pair = JsonUtil.asArray(value1, value2);
-						if (this.similarityCondition.evaluate(pair, this.getContext()) == BooleanNode.TRUE)
-							out.collect(key, this.duplicateProjection.evaluate(pair, this.getContext()));
-					}
-				}
+			protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
+				if (JsonNodeComparator.INSTANCE.compare(this.idProjection.evaluate(value1, this.getContext()),
+					this.idProjection.evaluate(value2, this.getContext())) < 0
+					&& this.similarityCondition.evaluate(JsonUtil.asArray(value1, value2), this.getContext()) == BooleanNode.TRUE)
+					out.collect(NullNode.getInstance(),
+						this.duplicateProjection.evaluate(JsonUtil.asArray(value1, value2), this.getContext()));
 			}
 		}
 	}
@@ -151,38 +135,17 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 			this.duplicateProjection = duplicateProjection;
 		}
 
-		@Override
-		protected void configureContract(Configuration stubConfiguration, EvaluationContext context) {
-			super.configureContract(stubConfiguration, context);
-			SopremoUtil.serialize(stubConfiguration, "similarityCondition", this.similarityCondition);
-			SopremoUtil.serialize(stubConfiguration, "duplicateProjection", this.duplicateProjection);
-		}
-
 		public static class Implementation extends
-				SopremoCoGroup<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression duplicateProjection;
 
 			@Override
-			public void configure(Configuration parameters) {
-				super.configure(parameters);
-				this.similarityCondition = SopremoUtil.deserialize(parameters, "similarityCondition",
-					ComparativeExpression.class);
-				this.duplicateProjection = SopremoUtil.deserialize(parameters, "duplicateProjection",
-					EvaluationExpression.class);
-			}
-
-			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
-				values2 = values2.ensureResettable();
-
-				for (JsonNode value1 : values1)
-					for (JsonNode value2 : values2) {
-						CompactArrayNode pair = JsonUtil.asArray(value1, value2);
-						if (this.similarityCondition.evaluate(pair, this.getContext()) == BooleanNode.TRUE)
-							out.collect(key, this.duplicateProjection.evaluate(pair, this.getContext()));
-					}
+			protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
+				CompactArrayNode pair = JsonUtil.asArray(value1, value2);
+				if (this.similarityCondition.evaluate(pair, this.getContext()) == BooleanNode.TRUE)
+					out.collect(key, this.duplicateProjection.evaluate(pair, this.getContext()));
 			}
 		}
 	}

@@ -14,6 +14,11 @@ import eu.stratosphere.util.IdentitySet;
 
 public abstract class EvaluationExpression implements SerializableSopremoType, Evaluable {
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1226647739750484403L;
+
+	/**
 	 * Used for secondary information during plan creation only.
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
