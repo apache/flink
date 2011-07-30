@@ -10,7 +10,6 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class MultiSourceOperator extends CompositeOperator {
 

@@ -83,6 +83,27 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 			builder.append("<key>");
 		};
 	};
+	
+	public final static EvaluationExpression AS_KEY = new EvaluationExpression() {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 9192628786637605317L;
+
+		@Override
+		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+			throw new EvaluationException();
+		}
+
+		private Object readResolve() {
+			return EvaluationExpression.AS_KEY;
+		}
+
+		@Override
+		protected void toString(StringBuilder builder) {
+			builder.append("-><key>");
+		};
+	};
 
 	/**
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for

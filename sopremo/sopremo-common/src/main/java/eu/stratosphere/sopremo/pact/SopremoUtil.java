@@ -53,7 +53,7 @@ public class SopremoUtil {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T deserialize(Configuration config, String key, Class<T> objectClass) {
+	public static <T extends Serializable> T deserialize(Configuration config, String key, Class<T> objectClass) {
 		String string = config.getString(key, null);
 		if (string == null)
 			return null;
@@ -144,7 +144,7 @@ public class SopremoUtil {
 		oos.writeObject(values);
 	}
 
-	public static void serialize(Configuration config, String key, Object object) {
+	public static void serialize(Configuration config, String key, Serializable object) {
 		config.setString(key, objectToString(object));
 	}
 

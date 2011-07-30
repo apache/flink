@@ -190,6 +190,7 @@ public class CoGroupTask extends AbstractTask
 			coGroup = coGroupClass.newInstance();
 
 			// configure stub instance
+			config.getStubParameters().setInteger(TASK_ID, getEnvironment().getIndexInSubtaskGroup());
 			coGroup.configure(config.getStubParameters());
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);

@@ -525,8 +525,6 @@ public class TestPlan implements Closeable {
 		});
 	}
 
-	// public void setDoubleT
-
 	/**
 	 * Returns the first output {@link TestPairs} of the TestPlan. If multiple
 	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getActualOutput(DataSinkContract)}

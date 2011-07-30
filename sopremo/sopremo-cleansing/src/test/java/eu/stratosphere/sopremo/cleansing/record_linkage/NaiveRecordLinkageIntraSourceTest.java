@@ -10,8 +10,6 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.cleansing.record_linkage.Naive;
-import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;

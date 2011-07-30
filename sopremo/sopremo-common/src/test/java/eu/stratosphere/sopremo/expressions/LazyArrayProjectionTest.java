@@ -5,7 +5,7 @@ import junit.framework.Assert;
 import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
-public class ArrayProjectionTest extends EvaluableExpressionTest<LazyArrayProjection> {
+public class LazyArrayProjectionTest extends EvaluableExpressionTest<LazyArrayProjection> {
 	@Override
 	protected LazyArrayProjection createDefaultInstance(int index) {
 		return new LazyArrayProjection(new ObjectAccess(String.valueOf(index)));
