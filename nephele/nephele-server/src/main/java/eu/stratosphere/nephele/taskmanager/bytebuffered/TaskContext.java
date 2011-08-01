@@ -27,7 +27,7 @@ final class TaskContext implements BufferProvider {
 
 	private final String taskName;
 
-	public TaskContext(final String taskName) {
+	TaskContext(final String taskName) {
 
 		this.localBufferCache = new LocalBufferCache(1, false);
 
@@ -62,13 +62,13 @@ final class TaskContext implements BufferProvider {
 		return this.localBufferCache.getMaximumBufferSize();
 	}
 
-	public void releaseAllResources() {
+	void releaseAllResources() {
 
 		// Clear the buffer cache
 		this.localBufferCache.clear();
 	}
 
-	public void setBufferLimit(int bufferLimit) {
+	void setBufferLimit(int bufferLimit) {
 
 		this.localBufferCache.setDesignatedNumberOfBuffers(bufferLimit);
 	}
@@ -82,7 +82,7 @@ final class TaskContext implements BufferProvider {
 		return false;
 	}
 
-	public void logBufferUtilization() {
+	void logBufferUtilization() {
 
 		final int ava = this.localBufferCache.getNumberOfAvailableBuffers();
 		final int req = this.localBufferCache.getRequestedNumberOfBuffers();
@@ -90,6 +90,5 @@ final class TaskContext implements BufferProvider {
 
 		System.out.println("\t\t" + this.taskName + ": " + ava + " available, " + req + " requested, " + des
 			+ " designated");
-
 	}
 }
