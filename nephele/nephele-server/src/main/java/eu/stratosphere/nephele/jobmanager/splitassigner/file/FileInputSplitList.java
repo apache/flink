@@ -23,6 +23,9 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 
@@ -38,6 +41,11 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
  * @author warneke
  */
 public final class FileInputSplitList {
+
+	/**
+	 * The logging object which is used to report information and errors.
+	 */
+	private static final Log LOG = LogFactory.getLog(FileInputSplitList.class);
 
 	private Set<FileInputSplit> masterSet = new HashSet<FileInputSplit>();
 
@@ -63,7 +71,7 @@ public final class FileInputSplitList {
 		 */
 		@Override
 		public int compareTo(QueueElem o) {
-			
+
 			return (this.distance - o.distance);
 		}
 
@@ -86,8 +94,9 @@ public final class FileInputSplitList {
 			}
 
 			if (this.masterSet.remove(candidate.getInputSplit())) {
-				//TODO: Remove output
-				System.out.println(instance + " receives input split with distance " + candidate.distance);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(instance + " receives input split with distance " + candidate.distance);
+				}
 				return candidate.getInputSplit();
 			}
 
@@ -117,7 +126,9 @@ public final class FileInputSplitList {
 					int minDistance = Integer.MAX_VALUE;
 					for (int i = 0; i < hostNames.length; ++i) {
 						final int distance = instance.getDistance(hostNames[i]);
-						System.out.println("Distance between " + instance + " and " + hostNames[i] + " is " + distance);
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Distance between " + instance + " and " + hostNames[i] + " is " + distance);
+						}
 						if (distance < minDistance) {
 							minDistance = distance;
 						}

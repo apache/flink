@@ -171,7 +171,12 @@ public final class InputSplitManager {
 			return null;
 		}
 
-		return inputSplitAssigner.getNextInputSplit(vertex);
+		final InputSplit nextInputSplit = inputSplitAssigner.getNextInputSplit(vertex);
+		if (nextInputSplit != null) {
+			LOG.info(vertex + " receives input split " + nextInputSplit.getPartitionNumber());
+		}
+
+		return nextInputSplit;
 	}
 
 	/**
