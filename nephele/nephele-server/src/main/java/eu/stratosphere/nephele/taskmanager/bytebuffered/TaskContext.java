@@ -25,9 +25,13 @@ final class TaskContext implements BufferProvider {
 
 	private final LocalBufferCache localBufferCache;
 
-	public TaskContext() {
+	private final String taskName;
+
+	public TaskContext(final String taskName) {
 
 		this.localBufferCache = new LocalBufferCache(1, false);
+
+		this.taskName = taskName;
 	}
 
 	/**
@@ -76,5 +80,16 @@ final class TaskContext implements BufferProvider {
 	public boolean isShared() {
 
 		return false;
+	}
+
+	public void logBufferUtilization() {
+
+		final int ava = this.localBufferCache.getNumberOfAvailableBuffers();
+		final int req = this.localBufferCache.getRequestedNumberOfBuffers();
+		final int des = this.localBufferCache.getDesignatedNumberOfBuffers();
+
+		System.out.println("\t\t" + this.taskName + ": " + ava + " available, " + req + " requested, " + des
+			+ " designated");
+
 	}
 }

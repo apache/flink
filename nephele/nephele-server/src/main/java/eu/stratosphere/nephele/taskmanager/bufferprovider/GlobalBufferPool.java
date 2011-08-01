@@ -19,10 +19,15 @@ import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 
 public final class GlobalBufferPool {
 
+	private final static Log LOG = LogFactory.getLog(GlobalBufferPool.class);
+	
 	/**
 	 * The singleton instance of the global buffer pool.
 	 */
@@ -82,6 +87,9 @@ public final class GlobalBufferPool {
 			final ByteBuffer readBuffer = ByteBuffer.allocateDirect(this.bufferSizeInBytes);
 			this.buffers.add(readBuffer);
 		}
+
+		LOG.info("Initialized global buffer pool with " + this.numberOfBuffers + " buffers with a size "
+			+ this.bufferSizeInBytes + " bytes each");
 	}
 
 	/**
@@ -125,14 +133,14 @@ public final class GlobalBufferPool {
 
 		return this.numberOfBuffers;
 	}
-	
+
 	/**
 	 * Returns the number of buffers which are currently available at this pool.
 	 * 
 	 * @return the number of buffers which are currently available at this pool
 	 */
 	public int getCurrentNumberOfBuffers() {
-		
+
 		return this.buffers.size();
 	}
 }

@@ -112,7 +112,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void register(final ExecutionVertexID vertexID, final Environment environment,
 			final Set<ChannelID> activeOutputChannels) {
 
-		final TaskContext taskContext = new TaskContext();
+		final TaskContext taskContext = new TaskContext(environment.getTaskName());
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
@@ -486,17 +486,17 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		System.out.println("Buffer utilization for at " + System.currentTimeMillis());
 
-		// TODO: Fix me
-		/*
-		 * synchronized (this.emptyWriteBuffers) {
-		 * System.out.println("\tEmpty write buffers: " + this.emptyWriteBuffers.size());
-		 * }
-		 * synchronized (this.emptyReadBuffers) {
-		 * System.out.println("\tEmpty read buffers: " + this.emptyReadBuffers.size());
-		 * }
-		 */
-
 		System.out.println("\tUnused global buffers: " + GlobalBufferPool.getInstance().getCurrentNumberOfBuffers());
+
+		System.out.println("\tTask buffer pool status:");
+
+		synchronized (this.taskMap) {
+
+			final Iterator<TaskContext> it = this.taskMap.values().iterator();
+			while (it.hasNext()) {
+				it.next().logBufferUtilization();
+			}
+		}
 
 		this.networkConnectionManager.logBufferUtilization();
 

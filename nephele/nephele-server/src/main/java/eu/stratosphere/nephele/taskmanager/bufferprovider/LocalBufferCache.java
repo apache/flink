@@ -97,9 +97,10 @@ public final class LocalBufferCache implements BufferProvider {
 				this.requestedNumberOfBuffers--;
 			}
 
-			if (minimumReserve > this.requestedNumberOfBuffers) {
-				LOG.warn("Minimum reserve is larger than number of requested buffers, reducing reserve...");
-				minimumReserve = this.requestedNumberOfBuffers;
+			if (minimumReserve > this.designatedNumberOfBuffers) {
+				LOG.warn("Minimum reserve " + minimumReserve + " is larger than number of designated buffers "
+					+ this.designatedNumberOfBuffers + ", reducing reserve...");
+				minimumReserve = this.designatedNumberOfBuffers;
 			}
 
 			while (this.buffers.size() <= minimumReserve) {
@@ -189,5 +190,26 @@ public final class LocalBufferCache implements BufferProvider {
 	public boolean isShared() {
 
 		return this.isShared;
+	}
+
+	public int getNumberOfAvailableBuffers() {
+
+		synchronized (this.buffers) {
+			return this.buffers.size();
+		}
+	}
+
+	public int getDesignatedNumberOfBuffers() {
+
+		synchronized (this.buffers) {
+			return this.designatedNumberOfBuffers;
+		}
+	}
+
+	public int getRequestedNumberOfBuffers() {
+
+		synchronized (this.buffers) {
+			return this.requestedNumberOfBuffers;
+		}
 	}
 }
