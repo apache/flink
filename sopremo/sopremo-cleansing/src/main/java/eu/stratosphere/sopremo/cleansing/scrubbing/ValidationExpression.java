@@ -6,7 +6,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.cleansing.conflict_resolution.UnresolvableEvalatuationException;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public abstract class ScrubExpression extends EvaluationExpression {
+public abstract class ValidationExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -14,7 +14,20 @@ public abstract class ScrubExpression extends EvaluationExpression {
 
 	private EvaluationExpression source;
 
-	public ScrubExpression(EvaluationExpression source) {
+	private ValueCorrection valueCorrection = UnresolvableCorrection.INSTANCE;
+
+	public ValueCorrection getValueCorrection() {
+		return valueCorrection;
+	}
+
+	public void setValueCorrection(ValueCorrection valueCorrection) {
+		if (valueCorrection == null)
+			throw new NullPointerException("valueCorrection must not be null");
+
+		this.valueCorrection = valueCorrection;
+	}
+
+	public ValidationExpression(EvaluationExpression source) {
 		this.source = source;
 	}
 
@@ -29,6 +42,6 @@ public abstract class ScrubExpression extends EvaluationExpression {
 	protected abstract boolean validate(JsonNode sourceNode, JsonNode possibleResult, EvaluationContext context);
 
 	protected JsonNode fix(JsonNode sourceNode, JsonNode possibleResult, EvaluationContext context) {
-		throw new UnresolvableEvalatuationException();
+		return valueCorrection.fix(sourceNode, possibleResult, this, context);
 	}
 }

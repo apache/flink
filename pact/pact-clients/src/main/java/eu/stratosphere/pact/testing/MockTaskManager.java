@@ -57,7 +57,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author Arvid Heise
  */
 class MockTaskManager implements TaskOperationProtocol {
-	private static final int MEMORY_SIZE = 128 << 20;
+	private static final int MEMORY_SIZE = 192 << 20;
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 

@@ -4,7 +4,6 @@ import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.cleansing.conflict_resolution.FilterRecordResolution;
 import eu.stratosphere.sopremo.cleansing.conflict_resolution.UnresolvableEvalatuationException;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -12,10 +11,10 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
-public class Scrub extends ElementaryOperator {
+public class Validation extends ElementaryOperator {
 	private EvaluationExpression projection;
 
-	public Scrub(EvaluationExpression projection, JsonStream input) {
+	public Validation(EvaluationExpression projection, JsonStream input) {
 		super(input);
 		this.projection = projection;
 	}

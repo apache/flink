@@ -55,12 +55,6 @@ public class GlobalEnumeration extends ElementaryOperator {
 		super(input);
 	}
 
-	@Override
-	protected void configureContract(Configuration stubConfiguration, EvaluationContext context) {
-		super.configureContract(stubConfiguration, context);
-		SopremoUtil.serialize(stubConfiguration, "enumerationExpression", enumerationExpression);
-	}
-
 	public static class Implementation extends
 			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 		private EvaluationExpression enumerationExpression;
@@ -70,7 +64,6 @@ public class GlobalEnumeration extends ElementaryOperator {
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
-			enumerationExpression = SopremoUtil.deserialize(parameters, "enumerationExpression", EvaluationExpression.class);
 			taskBase = parameters.getString(AbstractTask.TASK_ID, "") + "_";
 			counter = 0;
 		}

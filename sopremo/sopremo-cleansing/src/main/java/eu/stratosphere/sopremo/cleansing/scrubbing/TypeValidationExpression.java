@@ -9,10 +9,10 @@ import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 
-public class TypeScrubExpression extends ScrubExpression {
+public class TypeValidationExpression extends ValidationExpression {
 	private Class<? extends JsonNode> type;
 
-	public TypeScrubExpression(EvaluationExpression source, Class<? extends JsonNode> type) {
+	public TypeValidationExpression(EvaluationExpression source, Class<? extends JsonNode> type) {
 		super(source);
 		this.type = type;
 	}

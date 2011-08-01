@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -112,7 +113,7 @@ public class ElementaryOperator extends Operator {
 				try {
 					thisField = this.getClass().getDeclaredField(stubField.getName());
 					thisField.setAccessible(true);
-					SopremoUtil.serialize(stubConfiguration, stubField.getName(), thisField.get(this));
+					SopremoUtil.serialize(stubConfiguration, stubField.getName(), (Serializable) thisField.get(this));
 				} catch (NoSuchFieldException e) {
 					// ignore field of stub if the field does not exist in this operator
 				} catch (Exception e) {
