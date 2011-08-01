@@ -41,6 +41,7 @@ import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
+import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 /**
@@ -113,11 +114,13 @@ public class BufferSortableGuarenteedTest {
 				ValueMode.FIX_LENGTH);
 			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			int writtenBytes = 0;
-			PactRecord rec = generator.next();
+			PactRecord rec = new PactRecord();
+			
+			rec = generator.next(rec);
 			while (buffer.write(rec)) {
 				writtenBytes += generator.sizeOf(rec);
 				writtenPairs++;
-				rec = generator.next();
+				rec = generator.next(rec);
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
@@ -158,12 +161,13 @@ public class BufferSortableGuarenteedTest {
 				ValueMode.RANDOM_LENGTH);
 			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			int writtenBytes = 0;
-			PactRecord rec = generator.next();
+			PactRecord rec = new PactRecord();
+			rec = generator.next(rec);
 			while (buffer.write(rec)) {
 				LOG.debug("<- " + rec);
 				writtenBytes += generator.sizeOf(rec);
 				writtenPairs++;
-				rec = generator.next();
+				rec = generator.next(rec);
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
 				+ " bytes.");
@@ -206,7 +210,8 @@ public class BufferSortableGuarenteedTest {
 		{
 			TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 				ValueMode.RANDOM_LENGTH);
-			while (unsortedBuffer.write(generator.next())) {
+			PactRecord rec = new PactRecord();
+			while (unsortedBuffer.write(generator.next(rec))) {
 				writtenPairs++;
 			}
 			LOG.debug("Written " + writtenPairs + " pairs.");
@@ -257,15 +262,23 @@ public class BufferSortableGuarenteedTest {
 			// comparable pairs
 			PactRecord rec1 = new PactRecord();
 			PactRecord rec2 = new PactRecord();
+			Key k1 = new Key();
+			Key k2 = new Key();
 
 			buffer.read(rec1);
+			rec1.getFieldInto(0, k1);
+			
 			readPairs++;
 			while (buffer.read(rec2)) {
+				rec2.getFieldInto(0, k2);
 				readPairs++;
-				Assert.assertTrue(keyComparator.compare(rec1.getField(0, TestData.Key.class), rec2.getField(0, TestData.Key.class)) <= 0);
+				
+				Assert.assertTrue(keyComparator.compare(k1, k2) <= 0);
 				
 				PactRecord tmp = rec1;
 				rec1 = rec2;
+				k1.setKey(k2.getKey());
+				
 				rec2 = tmp;
 			}
 		}
@@ -428,17 +441,18 @@ public class BufferSortableGuarenteedTest {
 				ValueMode.FIX_LENGTH);
 			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			int writtenBytes = 0;
-			PactRecord pair = generator.next();
-			while (buffer.write(pair)) {
-				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
+			
+			PactRecord rec = new PactRecord();
+			rec = generator.next(rec);
+			while (buffer.write(rec)) {
+				writtenBytes += generator.sizeOf(rec) + Integer.SIZE / 8;
 				writtenPairs++;
-				pair = generator.next();
+				rec = generator.next(rec);
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
 			final ReadingIterator<PactRecord> iter = buffer.getIterator();
-			PactRecord rec = new PactRecord();
 			
 			while ((rec = iter.next(rec)) != null) {
 				readPairs++;

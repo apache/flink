@@ -256,11 +256,8 @@ public class UnilateralSortMerger implements SortMerger
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
-		if (memoryManager == null) {
-			throw new NullPointerException("Memory manager must not be null.");
-		}
-		if (ioManager == null) {
-			throw new NullPointerException("IO-Manager must not be null.");
+		if (memoryManager == null | ioManager == null | keyComparators == null | keyPositions == null | keyClasses == null) {
+			throw new NullPointerException();
 		}
 		if (parentTask == null) {
 			throw new NullPointerException("Parent Task must not be null.");
@@ -270,6 +267,12 @@ public class UnilateralSortMerger implements SortMerger
 		}
 		if (totalMemory < maxNumFileHandles * MIN_IO_BUFFER_SIZE) {
 			throw new IOException("Too little memory for merging operations.");
+		}
+		if (keyComparators.length < 1) {
+			throw new IllegalArgumentException("There must be at least one sort column and hence one comparator.");
+		}
+		if (keyComparators.length != keyPositions.length || keyPositions.length != keyClasses.length) {
+			throw new IllegalArgumentException("The number of comparators, key columns and key types must match.");
 		}
 		
 		this.maxNumFileHandles = maxNumFileHandles;
@@ -1354,7 +1357,7 @@ public class UnilateralSortMerger implements SortMerger
 				if (LOG.isDebugEnabled())
 					LOG.debug("Initiating merge-iterator (in-memory segments).");
 				
-				List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>();
+				List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>(cache.size());
 								
 				// iterate buffers and collect a set of iterators
 				for (CircularElement cached : cache)
@@ -1364,7 +1367,8 @@ public class UnilateralSortMerger implements SortMerger
 				}
 				
 				// release the remaining sort-buffers
-				LOG.debug("Releasing unused sort-buffer memory.");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Releasing unused sort-buffer memory.");
 				releaseSortBuffers();
 				
 				// set lazy iterator

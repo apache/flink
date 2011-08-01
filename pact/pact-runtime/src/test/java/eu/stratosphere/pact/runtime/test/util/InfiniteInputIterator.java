@@ -15,26 +15,22 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.util.Iterator;
-
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
-public class InfiniteInputIterator implements Iterator<KeyValuePair<PactInteger, PactInteger>> {
-
-	@Override
-	public boolean hasNext() {
-		return true;
-	}
-
-	@Override
-	public KeyValuePair<PactInteger, PactInteger> next() {
-		return new KeyValuePair<PactInteger, PactInteger>(new PactInteger(0), new PactInteger(0));
-	}
-
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
+/**
+ * A simple iterator that returns an infinite amount of records resembling (0, 0) pairs.
+ */
+public class InfiniteInputIterator implements ReadingIterator<PactRecord>
+{
+	private final PactInteger val1 = new PactInteger(0);
+	private final PactInteger val2 = new PactInteger(0);
 	
+	@Override
+	public PactRecord next(PactRecord target) {
+		target.setField(0, val1);
+		target.setField(0, val2);
+		return target;
+	}
 }

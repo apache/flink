@@ -674,15 +674,15 @@ public class HashJoinTest
 	 */
 	private static final class ConstantsKeyValuePairsIterator implements ReadingIterator<PactRecord>
 	{
-		private final PactRecord rec;
+		private final PactInteger key;
+		private final PactInteger value;
 		
 		private int numLeft;
 		
 		public ConstantsKeyValuePairsIterator(int key, int value, int count)
 		{
-			this.rec = new PactRecord();
-			this.rec.setField(0, new PactInteger(key));
-			this.rec.setField(1, new PactInteger(value));
+			this.key = new PactInteger(key);
+			this.value = new PactInteger(value);
 			this.numLeft = count;
 		}
 
@@ -690,7 +690,10 @@ public class HashJoinTest
 		public PactRecord next(PactRecord target) {
 			if (this.numLeft > 0) {
 				this.numLeft--;
-				return this.rec;
+				target.clear();
+				target.setField(0, this.key);
+				target.setField(1, this.value);
+				return target;
 			}
 			else {
 				return null;

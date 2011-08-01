@@ -426,17 +426,6 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
 
-
-//	public void getKey(K target, int logicalPosition) throws IOException
-//	{
-//		final int physicalPosition = readOffsetPosition(logicalPosition);
-//		final int keyStart = readPairOffset(physicalPosition);
-//		this.memory.inputView.setPosition(keyStart);
-//		
-//		this.keyDeserializer.deserialize(target);
-//	}
-	
-
 	public void getRecord(PactRecord target, int logicalPosition) throws IOException
 	{
 		final int physicalPosition = readOffsetPosition(logicalPosition);

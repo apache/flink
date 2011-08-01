@@ -151,7 +151,7 @@ public final class TestData {
 	/**
 	 * Pair generator.
 	 */
-	public static class Generator {
+	public static class Generator implements ReadingIterator<PactRecord>{
 		public enum KeyMode {
 			SORTED, RANDOM
 		};
@@ -177,7 +177,6 @@ public final class TestData {
 
 		private int counter;
 
-		private PactRecord record = new PactRecord();
 		private Key key;
 		private Value value;
 
@@ -197,15 +196,14 @@ public final class TestData {
 			
 			this.key = new Key();
 			this.value = new Value();
-			this.record = new PactRecord();
 		}
 
-		public PactRecord next() {
+		public PactRecord next(PactRecord target) {
 			this.key.key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
 			this.value.value = randomString();
-			this.record.setField(0, this.key);
-			this.record.setField(1, this.value);
-			return this.record;
+			target.setField(0, this.key);
+			target.setField(1, this.value);
+			return target;
 		}
 
 		public int sizeOf(PactRecord rec) {
@@ -254,33 +252,34 @@ public final class TestData {
 		}
 
 	}
-
-	/**
-	 * Record reader mock.
-	 */
-	public static class RecordReaderMock implements eu.stratosphere.nephele.io.Reader<PactRecord> {
-		private final Generator generator;
-
-		private final int numberOfRecords;
-
-		private int counter;
-
-		public RecordReaderMock(Generator generator, int numberOfRecords) {
-			this.generator = generator;
-			this.generator.reset();
-			this.numberOfRecords = numberOfRecords;
-			this.counter = 0;
-		}
-
-		public boolean hasNext() {
-			return counter < numberOfRecords;
-		}
-
-		public PactRecord next() {
-			counter++;
-			return generator.next();
-		}
-	}
+//
+//	/**
+//	 * Record reader mock.
+//	 */
+//	public static class RecordReaderMock implements eu.stratosphere.nephele.io.Reader<PactRecord>
+//	{
+//		private final Generator generator;
+//
+//		private final int numberOfRecords;
+//
+//		private int counter;
+//
+//		public RecordReaderMock(Generator generator, int numberOfRecords) {
+//			this.generator = generator;
+//			this.generator.reset();
+//			this.numberOfRecords = numberOfRecords;
+//			this.counter = 0;
+//		}
+//
+//		public boolean hasNext() {
+//			return counter < numberOfRecords;
+//		}
+//
+//		public PactRecord next() {
+//			counter++;
+//			return generator.next();
+//		}
+//	}
 
 	/**
 	 * Record reader mock.
@@ -304,7 +303,8 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class GeneratorIterator implements ReadingIterator<PactRecord> {
+	public static class GeneratorIterator implements ReadingIterator<PactRecord>
+	{
 		private final Generator generator;
 
 		private final int numberOfRecords;
@@ -320,7 +320,13 @@ public final class TestData {
 
 		@Override
 		public PactRecord next(PactRecord target) {
-			return (counter++ < numberOfRecords) ? generator.next() : null;
+			if (counter < numberOfRecords) {
+				counter++;
+				return generator.next(target);
+			}
+			else {
+				return null;
+			}
 		}
 		
 		public void reset() {
@@ -332,8 +338,7 @@ public final class TestData {
 	
 	public static class ConstantValueIterator implements ReadingIterator<PactRecord>
 	{
-		private final PactRecord record;
-		
+		private final Key key;
 		private final Value value;
 		
 		private final String valueValue;
@@ -344,10 +349,9 @@ public final class TestData {
 		private int pos;
 		
 		
-		public ConstantValueIterator(int keyValue, String valueValue, int numPairs) {
-			this.record = new PactRecord();
-			this.record.setField(0, new Key(keyValue));
-
+		public ConstantValueIterator(int keyValue, String valueValue, int numPairs)
+		{
+			this.key = new Key(keyValue);
 			this.value = new Value();			
 			this.valueValue = valueValue;
 			this.numPairs = numPairs;
@@ -357,9 +361,10 @@ public final class TestData {
 		public PactRecord next(PactRecord target) {
 			if (pos < this.numPairs) {
 				this.value.value = this.valueValue + ' ' + pos;
-				this.record.setField(1, this.value);
+				target.setField(0, this.key);
+				target.setField(1, this.value);
 				pos++;
-				return this.record;
+				return target;
 			}
 			else {
 				return null;

@@ -23,7 +23,7 @@ import eu.stratosphere.pact.common.type.Key;
 /**
  * A generic comparator for two keys, which returns a result as defined by the keys compareTo methods.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class KeyComparator implements Comparator<Key>
 {
@@ -34,5 +34,4 @@ public class KeyComparator implements Comparator<Key>
 	public int compare(Key o1, Key o2) {
 		return o1.compareTo(o2);
 	}
-
 }

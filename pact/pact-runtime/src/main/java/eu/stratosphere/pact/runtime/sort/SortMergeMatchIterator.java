@@ -28,10 +28,11 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
@@ -43,18 +44,17 @@ import eu.stratosphere.pact.runtime.task.util.RepeatableIteratorWrapper;
 import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.NepheleReaderIterator;
+import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 
 /**
  * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.MatchTaskIterator} that realizes the
  * matching through a sort-merge join strategy.
- * 
- * @author Erik Nijkamp
+ *
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class SortMergeMatchIterator<K extends Key, V1 extends Value, V2 extends Value>
-implements MatchTaskIterator<K, V1, V2>
+public class SortMergeMatchIterator implements MatchTaskIterator
 {
 	/**
 	 * The log used by this iterator to log messages.
@@ -69,29 +69,15 @@ implements MatchTaskIterator<K, V1, V2>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	// utility classes to make deep copies by serializing and de-serializing the data types
-	private final SerializationCopier<K> keyCopier = new SerializationCopier<K>();
-	private final SerializationCopier<Value> valCopier = new SerializationCopier<Value>();
-	
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
 
-	private final Reader<KeyValuePair<K, V1>> reader1;
+	private final ReadingIterator<PactRecord> reader1;
 
-	private final Reader<KeyValuePair<K, V2>> reader2;
+	private final ReadingIterator<PactRecord> reader2;
 	
-	private final SerializationFactory<K> keySerialization;
-	
-	private final SerializationFactory<V1> value1Serialization;
-	
-	private final SerializationFactory<V2> value2Serialization;
-	
-	private final Class<K> keyClass;
-
-	private final Class<V1> value1Class;
-
-	private final Class<V2> value2Class;
+	private final Class<? extends Key>[] keyClasses;
 	
 	private final LocalStrategy localStrategy;
 	
@@ -106,9 +92,9 @@ implements MatchTaskIterator<K, V1, V2>
 	private final float spillingThreshold;
 
 	
-	private SortMerger<K, V1> sortMerger1;
+	private SortMerger sortMerger1;
 
-	private SortMerger<K, V2> sortMerger2;
+	private SortMerger sortMerger2;
 	
 	private KeyValueIterator<V1> iterator1;
 

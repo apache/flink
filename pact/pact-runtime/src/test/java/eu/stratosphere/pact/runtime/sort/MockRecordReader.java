@@ -15,38 +15,27 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.util.ReadingIterator;
 
 /**
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public class MockRecordReader<T extends Record> implements ReadingIterator<T>
+public class MockRecordReader implements ReadingIterator<PactRecord>
 {
-	private static final Record SENTINEL = new Record() {
-		@Override
-		public void write(DataOutput out) throws IOException {
-		}
+	private final PactRecord SENTINEL = new PactRecord();
 
-		@Override
-		public void read(DataInput in) throws IOException {
-		}
-	};
-
-	private final BlockingQueue<T> queue = new ArrayBlockingQueue<T>(64, false);
+	private final BlockingQueue<PactRecord> queue = new ArrayBlockingQueue<PactRecord>(32, false);
 	
 
 	@Override
-	public T next(T target)
+	public PactRecord next(PactRecord target)
 	{
-		T r = null;
+		PactRecord r = null;
 		while (r == null) {
 			try {
 				r = queue.take();
@@ -58,7 +47,7 @@ public class MockRecordReader<T extends Record> implements ReadingIterator<T>
 		if (r == SENTINEL) {
 			// put the sentinel back, to ensure that repeated calls do not block
 			try {
-				queue.put((T)r);
+				queue.put(r);
 			} catch (InterruptedException e) {
 				throw new RuntimeException("Reader was interrupted.");
 			}
@@ -68,14 +57,13 @@ public class MockRecordReader<T extends Record> implements ReadingIterator<T>
 		}
 	}
 
-	public void emit(T element) throws InterruptedException {
-		queue.put(element);
+	public void emit(PactRecord element) throws InterruptedException {
+		queue.put(element.createCopy());
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void close() {
 		try {
-			queue.put((T) SENTINEL);
+			queue.put(SENTINEL);
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}

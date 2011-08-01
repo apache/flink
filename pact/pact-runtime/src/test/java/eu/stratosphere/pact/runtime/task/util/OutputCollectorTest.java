@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
@@ -36,7 +37,7 @@ public class OutputCollectorTest {
 
 	@Test
 	public void testAddWriter() {
-		OutputCollector<Key, Value> oc = new OutputCollector<Key, Value>();
+		OutputCollector oc = new OutputCollector();
 
 		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 0);
 		oc.addWriter(null, true); // 1 -> 1
@@ -66,21 +67,21 @@ public class OutputCollectorTest {
 	@Test
 	public void testCollect() {
 
-		Class<RecordWriter<KeyValuePair<PactInteger, PactInteger>>> rwC = (Class<RecordWriter<KeyValuePair<PactInteger, PactInteger>>>) ((Class<?>) RecordWriter.class);
-		Class<KeyValuePair<PactInteger, PactInteger>> kvpC = (Class<KeyValuePair<PactInteger, PactInteger>>) ((Class<?>) KeyValuePair.class);
+		Class<RecordWriter<PactRecord>> rwC = (Class<RecordWriter<PactRecord>>) ((Class<?>) RecordWriter.class);
+		Class<PactRecord> kvpC = (Class<PactRecord>) ((Class<?>) KeyValuePair.class);
 
 		// create readers
-		RecordWriter<KeyValuePair<PactInteger, PactInteger>> rwMock1 = new RecordWriter<KeyValuePair<PactInteger, PactInteger>>(
+		RecordWriter<PactRecord> rwMock1 = new RecordWriter<PactRecord>(
 			new MockTask(), kvpC);
-		RecordWriter<KeyValuePair<PactInteger, PactInteger>> rwMock2 = new RecordWriter<KeyValuePair<PactInteger, PactInteger>>(
+		RecordWriter<PactRecord> rwMock2 = new RecordWriter<PactRecord>(
 			new MockTask(), kvpC);
-		RecordWriter<KeyValuePair<PactInteger, PactInteger>> rwMock3 = new RecordWriter<KeyValuePair<PactInteger, PactInteger>>(
+		RecordWriter<PactRecord> rwMock3 = new RecordWriter<PactRecord>(
 			new MockTask(), kvpC);
-		RecordWriter<KeyValuePair<PactInteger, PactInteger>> rwMock4 = new RecordWriter<KeyValuePair<PactInteger, PactInteger>>(
+		RecordWriter<PactRecord> rwMock4 = new RecordWriter<PactRecord>(
 			new MockTask(), kvpC);
-		RecordWriter<KeyValuePair<PactInteger, PactInteger>> rwMock5 = new RecordWriter<KeyValuePair<PactInteger, PactInteger>>(
+		RecordWriter<PactRecord> rwMock5 = new RecordWriter<PactRecord>(
 			new MockTask(), kvpC);
-		RecordWriter<KeyValuePair<PactInteger, PactInteger>> rwMock6 = new RecordWriter<KeyValuePair<PactInteger, PactInteger>>(
+		RecordWriter<PactRecord> rwMock6 = new RecordWriter<PactRecord>(
 			new MockTask(), kvpC);
 		// mock readers
 		rwMock1 = Mockito.mock(rwC);
@@ -90,14 +91,14 @@ public class OutputCollectorTest {
 		rwMock5 = Mockito.mock(rwC);
 		rwMock6 = Mockito.mock(rwC);
 
-		ArgumentCaptor<KeyValuePair<PactInteger, PactInteger>> captor1 = ArgumentCaptor.forClass(kvpC);
-		ArgumentCaptor<KeyValuePair<PactInteger, PactInteger>> captor2 = ArgumentCaptor.forClass(kvpC);
-		ArgumentCaptor<KeyValuePair<PactInteger, PactInteger>> captor3 = ArgumentCaptor.forClass(kvpC);
-		ArgumentCaptor<KeyValuePair<PactInteger, PactInteger>> captor4 = ArgumentCaptor.forClass(kvpC);
-		ArgumentCaptor<KeyValuePair<PactInteger, PactInteger>> captor5 = ArgumentCaptor.forClass(kvpC);
-		ArgumentCaptor<KeyValuePair<PactInteger, PactInteger>> captor6 = ArgumentCaptor.forClass(kvpC);
+		ArgumentCaptor<PactRecord> captor1 = ArgumentCaptor.forClass(kvpC);
+		ArgumentCaptor<PactRecord> captor2 = ArgumentCaptor.forClass(kvpC);
+		ArgumentCaptor<PactRecord> captor3 = ArgumentCaptor.forClass(kvpC);
+		ArgumentCaptor<PactRecord> captor4 = ArgumentCaptor.forClass(kvpC);
+		ArgumentCaptor<PactRecord> captor5 = ArgumentCaptor.forClass(kvpC);
+		ArgumentCaptor<PactRecord> captor6 = ArgumentCaptor.forClass(kvpC);
 
-		OutputCollector<PactInteger, PactInteger> oc = new OutputCollector<PactInteger, PactInteger>();
+		OutputCollector oc = new OutputCollector();
 
 		oc.addWriter(rwMock1, false);
 		oc.addWriter(rwMock2, true);
