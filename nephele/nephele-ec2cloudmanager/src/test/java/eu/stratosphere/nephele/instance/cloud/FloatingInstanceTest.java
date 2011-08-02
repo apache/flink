@@ -30,7 +30,7 @@ public class FloatingInstanceTest {
 	public void testHeartBeat() {
 
 		FloatingInstance fi = new FloatingInstance("i-1234ABCD", new InstanceConnectionInfo(new InetSocketAddress(
-			"localhost", 6122).getAddress(), 6122, 6121), System.currentTimeMillis());
+			"localhost", 6122).getAddress(), 6122, 6121), System.currentTimeMillis(), null, null, null);
 
 		long lastHeartBeat = fi.getLastReceivedHeartBeat();
 		try {

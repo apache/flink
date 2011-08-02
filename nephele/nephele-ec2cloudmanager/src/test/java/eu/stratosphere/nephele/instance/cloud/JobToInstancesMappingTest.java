@@ -36,12 +36,14 @@ public class JobToInstancesMappingTest {
 	public void testAssignedInstances() {
 
 		final NetworkTopology networkTopology = NetworkTopology.createEmptyTopology();
-		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(1, 2048L*1024L*1024L, 2048L*1024L*1024L);
-		
+		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(1, 2048L * 1024L * 1024L,
+			2048L * 1024L * 1024L);
+
 		JobToInstancesMapping map = new JobToInstancesMapping("1234567", "abcdefg");
-		CloudInstance ci = new CloudInstance("i-1234ABCD", InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),
+		CloudInstance ci = new CloudInstance("i-1234ABCD",
+			InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),
 			new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121), 1234567890,
-			networkTopology.getRootNode(), networkTopology, hardwareDescription);
+			networkTopology.getRootNode(), networkTopology, hardwareDescription, null, null);
 
 		assertEquals(0, map.getNumberOfAssignedInstances());
 		assertEquals(new ArrayList<CloudInstance>(), map.getAssignedInstances());
@@ -54,7 +56,7 @@ public class JobToInstancesMappingTest {
 		assertEquals(ci, map.getInstanceByConnectionInfo(new InstanceConnectionInfo(new InetSocketAddress("localhost",
 			6122).getAddress(), 6122, 6121)));
 
-		map.unassignedInstanceFromJob(ci);
+		map.unassignInstanceFromJob(ci);
 
 		assertEquals(0, map.getNumberOfAssignedInstances());
 		assertEquals(new ArrayList<CloudInstance>(), map.getAssignedInstances());

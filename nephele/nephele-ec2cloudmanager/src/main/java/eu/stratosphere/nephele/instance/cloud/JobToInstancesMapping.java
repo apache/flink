@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
  * A JobToInstancesMapping represents the relationship between a job and its possessing cloud instances. A cloud
  * instance can be assigned or unassigned to a job.
  */
-public class JobToInstancesMapping {
+final class JobToInstancesMapping {
 
 	/** The list of assigned cloud instances for the job. */
 	private final List<CloudInstance> assignedInstances = new ArrayList<CloudInstance>();
@@ -44,7 +44,7 @@ public class JobToInstancesMapping {
 	 * @param awsSecretKey
 	 *        the secret key used to generate signatures for authentication
 	 */
-	public JobToInstancesMapping(String awsAccessId, String awsSecretKey) {
+	public JobToInstancesMapping(final String awsAccessId, final String awsSecretKey) {
 
 		this.awsAccessId = awsAccessId;
 		this.awsSecretKey = awsSecretKey;
@@ -56,9 +56,7 @@ public class JobToInstancesMapping {
 	 * @param instance
 	 *        the cloud instance which will be assigned
 	 */
-	public void assignInstanceToJob(CloudInstance instance) {
-
-		System.out.println("Adding " + instance.getInstanceConnectionInfo() + " to job");
+	public void assignInstanceToJob(final CloudInstance instance) {
 
 		synchronized (this.assignedInstances) {
 			this.assignedInstances.add(instance);
@@ -72,7 +70,7 @@ public class JobToInstancesMapping {
 	 *        the cloud instance which will be unassigned
 	 * @return the unassigned cloud instance
 	 */
-	public boolean unassignedInstanceFromJob(CloudInstance instance) {
+	public boolean unassignInstanceFromJob(CloudInstance instance) {
 
 		synchronized (this.assignedInstances) {
 			return this.assignedInstances.remove(instance);
@@ -105,7 +103,7 @@ public class JobToInstancesMapping {
 	 * @return the cloud instance matching the given connection information or <code>null</code> if no matching instance
 	 *         exists
 	 */
-	public CloudInstance getInstanceByConnectionInfo(InstanceConnectionInfo instanceConnectionInfo) {
+	public CloudInstance getInstanceByConnectionInfo(final InstanceConnectionInfo instanceConnectionInfo) {
 
 		if (instanceConnectionInfo == null) {
 			return null;
@@ -126,7 +124,6 @@ public class JobToInstancesMapping {
 
 		return null;
 	}
-
 
 	/**
 	 * Returns the access ID into AWS.
