@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
@@ -11,7 +12,7 @@ import eu.stratosphere.sopremo.EvaluationException;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.OBJECT)
-public class ObjectAccess extends EvaluationExpression {
+public class ObjectAccess extends EvaluationExpression implements WritableEvaluable {
 
 	/**
 	 * 
@@ -48,6 +49,13 @@ public class ObjectAccess extends EvaluationExpression {
 		if (!node.isObject())
 			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
 		return node.get(this.field);
+	}
+
+	@Override
+	public void set(JsonNode node, JsonNode value, EvaluationContext context) {
+		if (!node.isObject())
+			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
+		((ObjectNode) node).put(this.field, value);
 	}
 
 	@Override

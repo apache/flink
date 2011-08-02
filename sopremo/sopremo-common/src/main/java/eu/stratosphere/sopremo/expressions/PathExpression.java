@@ -118,4 +118,31 @@ public class PathExpression extends ContainerExpression {
 			return (PathExpression) expression;
 		return new PathExpression(expression);
 	}
+
+	public static class Writable extends PathExpression implements WritableEvaluable {
+
+		public <T extends EvaluationExpression & WritableEvaluable> Writable(T... fragments) {
+			super(fragments);
+		}
+
+		public <T extends EvaluationExpression & WritableEvaluable> Writable(List<T> fragments) {
+			super(fragments);
+		}
+
+		@Override
+		public void add(EvaluationExpression fragment) {
+			if (!(fragment instanceof WritableEvaluable))
+				throw new IllegalArgumentException();
+			super.add(fragment);
+		}
+
+		@Override
+		public void set(JsonNode node, JsonNode value, EvaluationContext context) {
+			JsonNode fragmentNode = node;
+			List<EvaluationExpression> fragments = getFragments();
+			for (int index = 0; index < fragments.size() - 1; index++)
+				fragmentNode = fragments.get(index).evaluate(fragmentNode, context);
+			((WritableEvaluable) fragmentNode).set(node, value, context);
+		}
+	}
 }

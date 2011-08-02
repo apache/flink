@@ -6,10 +6,23 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public class DataFusion extends CompositeOperator {
+public class Fusion extends CompositeOperator {
+	public EvaluationExpression getWeightExpression() {
+		return weightExpression;
+	}
+
+	public void setWeightExpression(EvaluationExpression weightExpression) {
+		if (weightExpression == null)
+			throw new NullPointerException("weightExpression must not be null");
+
+		this.weightExpression = weightExpression;
+	}
+
 	private EvaluationExpression clusterMerger;
 
-	public DataFusion(EvaluationExpression clusterMerger, JsonStream input) {
+	private EvaluationExpression weightExpression;
+
+	public Fusion(EvaluationExpression clusterMerger, JsonStream input) {
 		super(input);
 		this.clusterMerger = clusterMerger;
 	}

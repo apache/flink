@@ -6,6 +6,6 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 
 public interface ValueCorrection extends SerializableSopremoType {
-	public JsonNode fix(JsonNode contextNode, JsonNode value, ValidationExpression voilatedExpression,
+	public JsonNode fix(JsonNode contextNode, JsonNode value, ValidationRule voilatedExpression,
 			EvaluationContext context);
 }

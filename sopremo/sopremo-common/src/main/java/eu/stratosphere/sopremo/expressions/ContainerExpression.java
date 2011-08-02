@@ -1,8 +1,10 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.Iterator;
+
 import eu.stratosphere.sopremo.Evaluable;
 
-public abstract class ContainerExpression extends EvaluationExpression implements Iterable<EvaluationExpression> {
+public abstract class ContainerExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -21,6 +23,9 @@ public abstract class ContainerExpression extends EvaluationExpression implement
 		}
 		return null;
 	}
+
+	@Override
+	public abstract Iterator<EvaluationExpression> iterator();
 
 	public void replace(EvaluationExpression toReplace, EvaluationExpression replaceFragment) {
 		for (EvaluationExpression element : this)

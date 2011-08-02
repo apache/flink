@@ -7,29 +7,30 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 
-public class TypeValidationExpression extends ValidationExpression {
+public class TypeValidationExpression extends ValidationRule {
 	private Class<? extends JsonNode> type;
 
-	public TypeValidationExpression(EvaluationExpression source, Class<? extends JsonNode> type) {
-		super(source);
+	public TypeValidationExpression(Class<? extends JsonNode> type, ObjectAccess... targetPath) {
+		super(targetPath);
 		this.type = type;
 	}
 
 	@Override
-	protected boolean validate(JsonNode sourceNode, JsonNode possibleResult, EvaluationContext context) {
+	protected boolean validate(JsonNode node, JsonNode sourceNode, EvaluationContext context) {
 		return type.isInstance(sourceNode);
 	}
 
 	@Override
-	protected JsonNode fix(JsonNode sourceNode, JsonNode possibleResult, EvaluationContext context) {
+	protected JsonNode fix(JsonNode possibleResult, JsonNode sourceNode, EvaluationContext context) {
 		try {
 			if (possibleResult.isTextual())
 				return LenientParser.INSTANCE.parse(possibleResult.getTextValue(), type, LenientParser.ELIMINATE_NOISE);
 			return TypeCoercer.INSTANCE.coerce(sourceNode, type);
 		} catch (Exception e) {
-			return super.fix(sourceNode, possibleResult, context);
+			return super.fix(possibleResult, sourceNode, context);
 		}
 	}
 }

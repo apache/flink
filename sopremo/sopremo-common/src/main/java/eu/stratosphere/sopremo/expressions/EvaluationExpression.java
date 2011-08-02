@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Set;
 
 import org.codehaus.jackson.JsonNode;
@@ -12,7 +15,7 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.IdentitySet;
 
-public abstract class EvaluationExpression implements SerializableSopremoType, Evaluable {
+public abstract class EvaluationExpression implements SerializableSopremoType, Evaluable, Iterable<EvaluationExpression> {
 	/**
 	 * 
 	 */
@@ -38,6 +41,14 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 
 	public boolean removeTag(ExpressionTag preserve) {
 		return this.tags.remove(preserve);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private final static Iterator<EvaluationExpression> EMPTY_ITERATOR = Collections.EMPTY_LIST.iterator();
+	
+	@Override
+	public Iterator<EvaluationExpression> iterator() {
+		return EMPTY_ITERATOR;
 	}
 
 	@Override

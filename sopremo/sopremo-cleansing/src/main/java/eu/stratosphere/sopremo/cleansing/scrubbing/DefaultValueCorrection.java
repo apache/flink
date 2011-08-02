@@ -1,21 +1,27 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.cleansing.conflict_resolution.UnresolvableEvalatuationException;
 
-public class UnresolvableCorrection implements ValueCorrection {
+public class DefaultValueCorrection implements ValueCorrection {
 	/**
 	 * The default, stateless instance.
 	 */
-	public final static UnresolvableCorrection INSTANCE = new UnresolvableCorrection();
+	public final static DefaultValueCorrection NULL = new DefaultValueCorrection(NullNode.getInstance());
+
+	private JsonNode defaultValue;
+
+	public DefaultValueCorrection(JsonNode defaultValue) {
+		this.defaultValue = defaultValue;
+	}
 
 	@Override
 	public JsonNode fix(JsonNode contextNode, JsonNode value, ValidationRule voilatedExpression,
 			EvaluationContext context) {
-		throw new UnresolvableEvalatuationException(String.format("Cannot fix %s voilating %s", value,
-			voilatedExpression));
+		return this.defaultValue;
 	}
-	
+
 }
