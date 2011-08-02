@@ -31,6 +31,8 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
+import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -95,49 +97,51 @@ public class HashVsSortTest {
 		}
 	}
 	
-//	@Test
-//	public void testSortBothMerge() {
-//		try {
-//			
-//			Generator generator1 = new Generator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-//			Generator generator2 = new Generator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-//
-//			Reader<KeyValuePair<TestData.Key, TestData.Value>> reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
-//			Reader<KeyValuePair<TestData.Key, TestData.Value>> reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
-//			
-//			final MatchStub matcher = new NoOpMatcher();
-//			
-//			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
-//	
-//			// reset the generators
-//			generator1.reset();
-//			generator2.reset();
-//	
-//			// compare with iterator values
-//			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-//				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
-//						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
-//						TestData.Value.class, TestData.Value.class,
-//						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
-//	
-//			long start = System.nanoTime();
-//			
-//			iterator.open();
-//			
-//			while (iterator.callWithNextKey(matcher, collector));
-//			
-//			iterator.close();
-//			
-//			long elapsed = System.nanoTime() - start;
-//			double msecs = elapsed / (1000 * 1000);
-//			
-//			System.out.println("Sort-Merge Took " + msecs + " msecs.");
-//		}
-//		catch (Exception e) {
-//			e.printStackTrace();
-//			Assert.fail("An exception occurred during the test: " + e.getMessage());
-//		}
-//	}
+	@Test
+	public void testSortBothMerge() {
+		try {
+			
+			Generator generator1 = new Generator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			Generator generator2 = new Generator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+
+			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
+			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
+			
+			final MatchStub matcher = new NoOpMatcher();
+			
+			final Collector collector = new DiscardingOutputCollector();
+	
+			// reset the generators
+			generator1.reset();
+			generator2.reset();
+			input1.reset();
+			input2.reset();
+	
+			// compare with iterator values
+			@SuppressWarnings("unchecked")
+			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
+						memoryManager, ioManager, input1, input2, 
+						new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+	
+			long start = System.nanoTime();
+			
+			iterator.open();
+			
+			while (iterator.callWithNextKey(matcher, collector));
+			
+			iterator.close();
+			
+			long elapsed = System.nanoTime() - start;
+			double msecs = elapsed / (1000 * 1000);
+			
+			System.out.println("Sort-Merge Took " + msecs + " msecs.");
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("An exception occurred during the test: " + e.getMessage());
+		}
+	}
 	
 	@Test
 	public void testBuildFirst() {

@@ -164,19 +164,19 @@ public class SortMergeCoGroupIterator implements CoGroupTaskIterator
 		switch (this.localStrategy) {
 			case SORT_BOTH_MERGE:
 				this.iterator1 = new KeyGroupedIterator(sortMerger1.getIterator(), this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(sortMerger2.getIterator(), this.firstKeyPositions, this.keyClasses);
+				this.iterator2 = new KeyGroupedIterator(sortMerger2.getIterator(), this.secondKeyPositions, this.keyClasses);
 				break;
 			case SORT_FIRST_MERGE:
 				this.iterator1 = new KeyGroupedIterator(sortMerger1.getIterator(), this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(reader2, this.firstKeyPositions, this.keyClasses);
+				this.iterator2 = new KeyGroupedIterator(reader2, this.secondKeyPositions, this.keyClasses);
 				break;
 			case SORT_SECOND_MERGE:
 				this.iterator1 = new KeyGroupedIterator(reader1, this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(sortMerger2.getIterator(), this.firstKeyPositions, this.keyClasses);
+				this.iterator2 = new KeyGroupedIterator(sortMerger2.getIterator(), this.secondKeyPositions, this.keyClasses);
 				break;
 			case MERGE:
 				this.iterator1 = new KeyGroupedIterator(reader1, this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(reader2, this.firstKeyPositions, this.keyClasses);
+				this.iterator2 = new KeyGroupedIterator(reader2, this.secondKeyPositions, this.keyClasses);
 				break;
 			default:
 				throw new RuntimeException("Unsupported Local Strategy in SortMergeCoGroupIterator: " + this.localStrategy);
