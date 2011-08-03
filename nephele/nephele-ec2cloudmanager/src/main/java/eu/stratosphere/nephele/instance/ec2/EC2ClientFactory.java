@@ -42,6 +42,14 @@ final class EC2ClientFactory {
 	 */
 	static synchronized AmazonEC2Client getEC2Client(final String awsAccessId, final String awsSecretKey) {
 
+		if(awsAccessId == null) {
+			throw new IllegalArgumentException("AWS access ID is null");
+		}
+		
+		if(awsSecretKey == null) {
+			throw new IllegalArgumentException("AWS secret key is null");
+		}
+		
 		// Check if a client-object was already generated
 		if (ec2clients.containsKey(awsAccessId)) {
 			return ec2clients.get(awsAccessId);
