@@ -594,6 +594,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Register input and output vertices separately
 		if (jobVertex instanceof JobInputVertex) {
+
 			final InputSplit[] inputSplits;
 
 			// let the task code compute the input splits
@@ -609,6 +610,13 @@ public class ExecutionGraph implements ExecutionListener {
 			} else {
 				throw new GraphConversionException(
 					"BUG: JobInputVertex contained a task class which was not an input task.");
+			}
+
+			if (inputSplits == null) {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated 0 input splits");
+			} else {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated " + inputSplits.length
+					+ " input splits");
 			}
 
 			// assign input splits
