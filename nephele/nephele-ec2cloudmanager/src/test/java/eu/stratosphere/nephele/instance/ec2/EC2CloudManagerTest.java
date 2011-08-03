@@ -94,13 +94,12 @@ public class EC2CloudManagerTest {
 
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		assertEquals(5, GlobalConfiguration.getInteger("cloudmgr.nrtypes", -1));
-		assertEquals("m1.small,1,1,2048,40,10", GlobalConfiguration.getString("cloudmgr.instancetype.1", null));
-		assertEquals("c1.medium,2,2,4096,80,20", GlobalConfiguration.getString("cloudmgr.instancetype.2", null));
-		assertEquals("m1.large,4,4,6144,160,40", GlobalConfiguration.getString("cloudmgr.instancetype.3", null));
-		assertEquals("m1.xlarge,4,4,12288,160,60", GlobalConfiguration.getString("cloudmgr.instancetype.4", null));
-		assertEquals("c1.xlarge,8,8,28672,280,80", GlobalConfiguration.getString("cloudmgr.instancetype.5", null));
-		assertEquals("m1.small", GlobalConfiguration.getString("cloudmgr.instancetype.defaultInstance", null));
+		assertEquals("m1.small,1,1,2048,40,10", GlobalConfiguration.getString("instancemanager.ec2.type.1", null));
+		assertEquals("c1.medium,2,2,4096,80,20", GlobalConfiguration.getString("instancemanager.ec2.type.2", null));
+		assertEquals("m1.large,4,4,6144,160,40", GlobalConfiguration.getString("instancemanager.ec2.type.3", null));
+		assertEquals("m1.xlarge,4,4,12288,160,60", GlobalConfiguration.getString("instancemanager.ec2.type.4", null));
+		assertEquals("c1.xlarge,8,8,28672,280,80", GlobalConfiguration.getString("instancemanager.ec2.type.5", null));
+		assertEquals(1, GlobalConfiguration.getInteger("instancemanager.ec2.defaulttype", -1));
 	}
 
 	@Test
@@ -208,7 +207,7 @@ public class EC2CloudManagerTest {
 		if (!f.exists()) {
 			System.err.println("Please create an XML file \"ec2-account.xml\" for EC2 account in the folder "
 				+ System.getProperty("user.dir") + "/correct-conf\n"
-				+ "Three keys must be included: job.cloud.username, job.cloud.awsaccessid, job.cloud.awssecretkey\n"
+				+ "Three keys must be included: , job.ec2.awsaccessid, job.ec2.awssecretkey\n"
 				+ "The format is:\n" + "<property>\n" + "	<key>...</key>\n" + "	<value>...</value>\n" + "</property>");
 			return;
 		}
@@ -237,21 +236,16 @@ public class EC2CloudManagerTest {
 			e.printStackTrace();
 		}
 
-		// check whether all three keys are included
-		if (conf.getString("job.cloud.username", null) == null) {
-			System.err.println("Please set the key job.cloud.username in " + System.getProperty("user.dir")
+		if (conf.getString(EC2CloudManager.AWS_ACCESS_ID_KEY, null) == null) {
+			System.err.println("Please set the key " + EC2CloudManager.AWS_ACCESS_ID_KEY + " in "
+				+ System.getProperty("user.dir")
 				+ "/correct-conf/ec2-account.xml");
 			return;
 		}
 
-		if (conf.getString("job.cloud.awsaccessid", null) == null) {
-			System.err.println("Please set the key job.cloud.awsaccessid in " + System.getProperty("user.dir")
-				+ "/correct-conf/ec2-account.xml");
-			return;
-		}
-
-		if (conf.getString("job.cloud.awssecretkey", null) == null) {
-			System.err.println("Please set the key job.cloud.awssecretkey in " + System.getProperty("user.dir")
+		if (conf.getString(EC2CloudManager.AWS_SECRET_KEY_KEY, null) == null) {
+			System.err.println("Please set the key " + EC2CloudManager.AWS_SECRET_KEY_KEY + " in "
+				+ System.getProperty("user.dir")
 				+ "/correct-conf/ec2-account.xml");
 			return;
 		}
@@ -324,7 +318,7 @@ public class EC2CloudManagerTest {
 			 * String.class, String.class });
 			 * m1.setAccessible(true);
 			 * Object instanceList = m1.invoke(cm, new Object[] { conf.getString("job.cloud.username", null),
-			 * conf.getString("job.cloud.awsaccessid", null), conf.getString("job.cloud.awssecretkey", null) });
+			 * conf.getString("job.ec2.awsaccessid", null), conf.getString("job.ec2.awssecretkey", null) });
 			 * assertEquals(1, ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList).size());
 			 * com.xerox.amazonws.ec2.ReservationDescription.Instance instance =
 			 * ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList)
@@ -361,7 +355,8 @@ public class EC2CloudManagerTest {
 		assertNotNull(instanceID);
 
 		try {
-			Method m2 = EC2CloudManager.class.getDeclaredMethod("destroyCloudInstance", new Class[] { Configuration.class,
+			Method m2 = EC2CloudManager.class.getDeclaredMethod("destroyCloudInstance", new Class[] {
+				Configuration.class,
 				String.class });
 			m2.setAccessible(true);
 			Object terminatedID = m2.invoke(cm, new Object[] { conf, instanceID });

@@ -52,7 +52,7 @@ final class EC2ClientFactory {
 		final BasicAWSCredentials credentials = new BasicAWSCredentials(awsAccessId, awsSecretKey);
 		final AmazonEC2Client client = new AmazonEC2Client(credentials);
 
-		final String endpoint = GlobalConfiguration.getString("ec2.webservice.endpoint", "ec2.eu-west-1.amazonaws.com");
+		final String endpoint = GlobalConfiguration.getString("instancemanager.ec2.endpoint", "ec2.eu-west-1.amazonaws.com");
 
 		client.setEndpoint(endpoint);
 

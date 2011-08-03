@@ -75,6 +75,16 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	private static final Log LOG = LogFactory.getLog(EC2CloudManager.class);
 
 	/**
+	 * The configuration key to access the AWS access ID of a job.
+	 */
+	static final String AWS_ACCESS_ID_KEY = "job.ec2.awsaccessid";
+
+	/**
+	 * The configuration key to access the AWS secret key of a job.
+	 */
+	static final String AWS_SECRET_KEY_KEY = "job.ec2.awssecretkey";
+
+	/**
 	 * The cloud manager checks the floating instances every base interval to terminate the floating instances which
 	 * expire.
 	 */
@@ -91,6 +101,11 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 	/** The array of all available instance types in the cloud. */
 	private final InstanceType[] availableInstanceTypes;
+
+	/**
+	 * The default instance type.
+	 */
+	private InstanceType defaultInstanceType = null;
 
 	/** Mapping jobs to instances. */
 	private final Map<JobID, JobToInstancesMapping> jobToInstancesAssignmentMap = new HashMap<JobID, JobToInstancesMapping>();
@@ -152,27 +167,34 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		final List<InstanceType> instanceTypes = new ArrayList<InstanceType>();
 
-		// read the number of instance types
-		final int num = GlobalConfiguration.getInteger("cloudmgr.nrtypes", -1);
-		if (num <= 0) {
-			throw new RuntimeException("Illegal configuration, cloudmgr.nrtypes is not configured");
-		}
+		int count = 1;
+		while (true) {
 
-		LOG.info("Trying to read " + num + " instance types from the configuration");
-		
-		for (int i = 0; i < num; ++i) {
-
-			final String key = "cloudmgr.instancetype." + (i + 1);
+			final String key = "instancemanager.ec2.type." + count;
 			final String type = GlobalConfiguration.getString(key, null);
 			if (type == null) {
-				throw new RuntimeException("Illegal configuration for " + key);
+				break;
 			}
 
 			final InstanceType instanceType = InstanceTypeFactory.constructFromDescription(type);
-			LOG.info("Found instance type " + i + ": " + instanceType);
-			
+			LOG.info("Found instance type " + count + ": " + instanceType);
+
 			instanceTypes.add(instanceType);
 		}
+
+		if (instanceTypes.isEmpty()) {
+			LOG.error("No instance types found in configuration");
+			return new InstanceType[0];
+		}
+
+		int defaultIndex = GlobalConfiguration.getInteger("instancemanager.ec2.defaulttype", -1);
+		if (defaultIndex < 1 || defaultIndex >= (instanceTypes.size() + 1)) {
+			LOG.warn("Invalid index to default instance " + defaultIndex + ", making " + instanceTypes.get(0)
+				+ " the new default instance");
+			defaultIndex = 1;
+		}
+
+		this.defaultInstanceType = instanceTypes.get(defaultIndex - 1);
 
 		// sort by price
 		Collections.sort(instanceTypes, new Comparator<InstanceType>() {
@@ -457,7 +479,8 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			return null;
 		}
 
-		final EC2CloudInstance cloudInstance = new EC2CloudInstance(instance.getInstanceId(), type, instanceConnectionInfo,
+		final EC2CloudInstance cloudInstance = new EC2CloudInstance(instance.getInstanceId(), type,
+			instanceConnectionInfo,
 			instance.getLaunchTime().getTime(), this.networkTopology.getRootNode(), this.networkTopology, null,
 			awsAccessKey, awsSecretKey);
 
@@ -792,12 +815,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	@Override
 	public InstanceType getDefaultInstanceType() {
 
-		final String instanceIdentifier = GlobalConfiguration.getString("cloudmgr.instancetype.defaultInstance", null);
-		if (instanceIdentifier == null) {
-			return null;
-		}
-
-		return getInstanceTypeByName(instanceIdentifier);
+		return this.defaultInstanceType;
 	}
 
 	/**
