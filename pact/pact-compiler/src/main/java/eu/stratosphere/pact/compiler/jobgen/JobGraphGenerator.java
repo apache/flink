@@ -653,7 +653,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @param dop
 	 * @return
 	 */
-	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop) {
+	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop, int instancesPerMachine) {
 		// create task vertex
 		JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
 		// set task class
@@ -668,6 +668,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// set degree of parallelism
 		tempVertex.setNumberOfSubtasks(dop);
+		tempVertex.setNumberOfSubtasksPerInstance(instancesPerMachine);
 
 		return tempVertex;
 	}
@@ -887,7 +888,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				// source pact stub contains out key and value
 				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of source pact
-				sourceDOP);
+				sourceDOP, sourceIPM);
 		
 		tempVertex.setVertexToShareInstancesWith(outputVertex);
 		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
@@ -1022,13 +1023,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			break;
 		case TEMP_SENDER_SIDE:
 			// create tempTask
-			int pd = connection.getSourcePact().getDegreeOfParallelism();
+			int degreeOfParallelism = connection.getSourcePact().getDegreeOfParallelism();
+			int instancesPerMachine = connection.getSourcePact().getInstancesPerMachine();
 
 			JobTaskVertex tempVertex = generateTempVertex(
 			// source pact stub contains out key and value
 				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of source pact
-				pd);
+				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
@@ -1047,14 +1049,15 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			break;
 		case TEMP_RECEIVER_SIDE:
-			int pdr = connection.getTargetPact().getDegreeOfParallelism();
+			degreeOfParallelism = connection.getTargetPact().getDegreeOfParallelism();
+			instancesPerMachine = connection.getTargetPact().getInstancesPerMachine();
 
 			// create tempVertex
 			tempVertex = generateTempVertex(
 			// source pact stub contains out key and value
 				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of target pact
-				pdr);
+				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, channelType, CompressionLevel.NO_COMPRESSION);
