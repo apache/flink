@@ -159,20 +159,11 @@ public final class InstanceType implements IOReadableWritable {
 	 */
 	@Override
 	public String toString() {
-		return this.identifier;
-	}
 
-	/**
-	 * Returns a String representation of this instance in the same form as it is parsed by the
-	 * {@link #getTypeFromString(java.lang.String)} method.
-	 * 
-	 * @return A String representation of this instance type.
-	 */
-	public String toStringRepresentation() {
-		
 		final StringBuilder bld = new StringBuilder(32);
 		bld.append(this.identifier);
-		bld.append(',');
+		bld.append(' ');
+		bld.append('(');
 		bld.append(this.numberOfComputeUnits);
 		bld.append(',');
 		bld.append(this.numberOfCores);
@@ -182,6 +173,7 @@ public final class InstanceType implements IOReadableWritable {
 		bld.append(this.diskCapacity);
 		bld.append(',');
 		bld.append(this.pricePerHour);
+		bld.append(')');
 
 		return bld.toString();
 	}
