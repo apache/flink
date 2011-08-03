@@ -87,6 +87,11 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	static final String AWS_SECRET_KEY_KEY = "job.ec2.awssecretkey";
 
 	/**
+	 * The configuration key to access the AMI to run the task managers on.
+	 */
+	static final String AWS_AMI_KEY = "job.ec2.ami";
+	
+	/**
 	 * The cloud manager checks the floating instances every base interval to terminate the floating instances which
 	 * expire.
 	 */
@@ -527,6 +532,10 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		if (awsSecretKey == null) {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
 		}
+		
+		if(conf.getString(AWS_AMI_KEY, null) == null) {
+			throw new InstanceException("Unable to allocate cloud instance: Cannot find AMI image ID");
+		}
 
 		// First we check, if there are any orphaned TMs that are accessible with the provided configuration
 		checkAndConvertOrphanedInstances(conf);
@@ -635,17 +644,9 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
 		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 
-		String imageID = conf.getString("job.ec2.ami", null);
+		final String imageID = conf.getString(AWS_AMI_KEY, null);
 		LOG.info("Read Amazon Machine Image from job configuration: " + imageID);
-		if (imageID == null) {
-
-			imageID = GlobalConfiguration.getString("ec2.image.id", null);
-			if (imageID == null) {
-				LOG.error("Unable to allocate instance: Image ID is unknown");
-				return null;
-			}
-		}
-
+		
 		final String jobManagerIPAddress = GlobalConfiguration.getString("jobmanager.rpc.address", null);
 		if (jobManagerIPAddress == null) {
 			LOG.error("JobManager IP address is not set (jobmanager.rpc.address)");
