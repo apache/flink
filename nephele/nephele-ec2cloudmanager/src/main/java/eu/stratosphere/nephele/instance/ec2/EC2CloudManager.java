@@ -772,7 +772,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	private LinkedList<FloatingInstance> anyFloatingInstancesAvailable(final String awsAccessId,
 			final String awsSecretKey, final InstanceType type, final int count) throws InstanceException {
 
-		LOG.info("Check for floating instance of type" + type.getIdentifier() + " requested count: " + count + ".");
+		LOG.info("Checking for up to " + count + " floating instance of type " + type.getIdentifier());
 
 		final LinkedList<FloatingInstance> foundfloatinginstances = new LinkedList<FloatingInstance>();
 
