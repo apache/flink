@@ -273,6 +273,11 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		String ordersPath    = (args.length > 1 ? args[1] : "");
 		String lineitemsPath = (args.length > 2 ? args[2] : "");
 		String output        = (args.length > 3 ? args[3] : "");
+		
+		// optional parameters to run this job on Amazon EC2
+		String awsAccessID = (args.length > 4 ? args[4] : null);
+		String awsSecretKey = (args.length > 5 ? args[5] : null);
+		String awsImageID = (args.length > 6 ? args[6] : null);
 
 		// create DataSourceContract for Orders input
 		FileDataSourceContract<PactInteger, Tuple> orders = new FileDataSourceContract<PactInteger, Tuple>(
@@ -342,8 +347,19 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		joinLiO.setSecondInput(projectLi);
 		projectLi.setInput(lineitems);
 
+		Plan plan = new Plan(result, "TPCH Q3");
+		if(awsAccessID != null) {
+			plan.getPlanConfiguration().setNepheleString("job.ec2.awsaccessid", awsAccessID);
+		}
+		if(awsSecretKey != null) {
+			plan.getPlanConfiguration().setNepheleString("job.ec2.awssecretkey", awsSecretKey);
+		}
+		if(awsImageID != null) {
+			plan.getPlanConfiguration().setNepheleString("job.ec2.ami", awsImageID);
+		}
+		
 		// return the PACT plan
-		return new Plan(result, "TPCH Q3");
+		return plan;
 	}
 
 	/**
