@@ -38,6 +38,7 @@ import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.Placement;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
@@ -135,6 +136,11 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	private final NetworkTopology networkTopology;
 
 	/**
+	 * The preferred availability for instances on EC2.
+	 */
+	private final String availabilityZone;
+
+	/**
 	 * Creates the cloud manager.
 	 */
 	public EC2CloudManager() {
@@ -151,6 +157,13 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		}
 
 		this.networkTopology = NetworkTopology.createEmptyTopology();
+
+		this.availabilityZone = GlobalConfiguration.getString("instancemanager.ec2.availabilityzone", null);
+		if (this.availabilityZone == null) {
+			LOG.info("No preferred availability zone configured");
+		} else {
+			LOG.info("Found " + this.availabilityZone + " as preferred availability zone in configuration");
+		}
 
 		this.timer.schedule(this, (long) BASEINTERVAL, (long) BASEINTERVAL);
 	}
@@ -647,6 +660,21 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		final RunInstancesRequest request = new RunInstancesRequest(imageID, mincount, maxcount);
 		request.setInstanceType(type.getIdentifier());
+
+		// Set availability zone if configured
+		String av = null;
+		if (this.availabilityZone != null) {
+			av = this.availabilityZone;
+		}
+		final String jobAV = conf.getString("job.ec2.availabilityzone", null);
+		if (jobAV != null) {
+			LOG.info("Found " + jobAV + " as job-specific preference for availability zone");
+			av = jobAV;
+		}
+
+		if (av != null) {
+			request.setPlacement(new Placement(av));
+		}
 
 		// TODO: Make this configurable!
 		final BlockDeviceMapping bdm = new BlockDeviceMapping();
