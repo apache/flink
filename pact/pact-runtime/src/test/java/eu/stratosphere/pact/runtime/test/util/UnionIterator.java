@@ -40,11 +40,10 @@ public class UnionIterator<E> implements MutableObjectIterator<E>
 	 * @see java.util.Iterator#next()
 	 */
 	@Override
-	public E next(E target) throws IOException
+	public boolean next(E target) throws IOException
 	{
-		E e = this.currentSource.next(target); 
-		if (e != null) {
-			return e;
+		if (this.currentSource.next(target)) { 
+			return true;
 		}
 		else {
 			if (this.nextSources.size() > 0) {
@@ -52,7 +51,7 @@ public class UnionIterator<E> implements MutableObjectIterator<E>
 				return next(target);
 			}
 			else {
-				return null;
+				return false;
 			}
 		}
 	}

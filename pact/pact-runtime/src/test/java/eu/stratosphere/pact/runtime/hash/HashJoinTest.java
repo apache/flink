@@ -687,16 +687,16 @@ public class HashJoinTest
 		}
 
 		@Override
-		public PactRecord next(PactRecord target) {
+		public boolean next(PactRecord target) {
 			if (this.numLeft > 0) {
 				this.numLeft--;
 				target.clear();
 				target.setField(0, this.key);
 				target.setField(1, this.value);
-				return target;
+				return true;
 			}
 			else {
-				return null;
+				return false;
 			}
 		}
 	}

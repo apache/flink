@@ -617,18 +617,18 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 			private int current = 0;
 
 			@Override
-			public PactRecord next(PactRecord target) {
+			public boolean next(PactRecord target) {
 				if (this.current < this.size) {
 					try {
 						getRecord(target, this.current++);
-						return target;
+						return true;
 					}
 					catch (IOException ioe) {
 						throw new RuntimeException(ioe);
 					}
 				}
 				else {
-					return null;
+					return false;
 				}
 			}
 		};

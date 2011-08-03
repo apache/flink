@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.util;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
@@ -42,28 +41,24 @@ public class PactRecordRepeatableIterator implements LastRepeatableIterator<Pact
 		this.copy = new PactRecord();
 	}
 	
-	public PactRecordRepeatableIterator(Iterator<PactRecord> input)
-	{
-		this.input = new MutableObjectIteratorWrapper<PactRecord>(input);
-		this.copy = new PactRecord();
-	}
-	
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public PactRecord next(PactRecord target) throws IOException
+	public boolean next(PactRecord target) throws IOException
 	{
-		PactRecord localNext = this.input.next(target);
-		if (localNext != null) {
-			localNext.copyTo(this.copy);
+		if(this.input.next(target)) {
+			target.copyTo(this.copy);
+			return true;
 		}
-		return localNext;
+		else {
+			return false;
+		}
 	}
 
 	@Override
-	public PactRecord repeatLast(PactRecord target)
+	public boolean repeatLast(PactRecord target)
 	{
 		this.copy.copyTo(target);
-		return target;
+		return true;
 	}
 }

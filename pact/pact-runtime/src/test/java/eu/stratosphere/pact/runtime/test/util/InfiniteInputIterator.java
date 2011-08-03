@@ -28,9 +28,9 @@ public class InfiniteInputIterator implements MutableObjectIterator<PactRecord>
 	private final PactInteger val2 = new PactInteger(0);
 	
 	@Override
-	public PactRecord next(PactRecord target) {
+	public boolean next(PactRecord target) {
 		target.setField(0, val1);
 		target.setField(0, val2);
-		return target;
+		return true;
 	}
 }

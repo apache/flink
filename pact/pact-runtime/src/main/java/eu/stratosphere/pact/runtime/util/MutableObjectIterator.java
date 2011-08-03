@@ -86,5 +86,5 @@ import java.io.IOException;
  */
 public interface MutableObjectIterator<E>
 {
-	public E next(E target) throws IOException;
+	public boolean next(E target) throws IOException;
 }

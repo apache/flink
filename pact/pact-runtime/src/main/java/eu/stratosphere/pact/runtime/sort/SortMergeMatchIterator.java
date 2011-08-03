@@ -296,8 +296,8 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		final MutableObjectIterator<PactRecord> values1 = this.iterator1.getValues();
 		final MutableObjectIterator<PactRecord> values2 = this.iterator2.getValues();
 		
-		final PactRecord firstV1 = values1.next();
-		final PactRecord firstV2 = values2.next();
+		final PactRecord firstV1 = values1.next(this.target1);
+		final PactRecord firstV2 = values2.next(this.target2);
 		
 		if (firstV1 == null || firstV2 == null) {
 			return false;

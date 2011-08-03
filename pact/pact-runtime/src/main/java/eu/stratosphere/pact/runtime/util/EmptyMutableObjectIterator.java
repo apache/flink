@@ -46,7 +46,7 @@ public final class EmptyMutableObjectIterator<E> implements MutableObjectIterato
 	 * @see MutableObjectIterator#next(Object)
 	 */
 	@Override
-	public E next(E target) {
-		return null;
+	public boolean next(E target) {
+		return false;
 	}
 }

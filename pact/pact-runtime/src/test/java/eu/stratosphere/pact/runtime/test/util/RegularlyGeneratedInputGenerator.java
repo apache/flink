@@ -23,7 +23,6 @@ public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<P
 
 	private final PactInteger key = new PactInteger();
 	private final PactInteger value = new PactInteger();
-	private final PactRecord record = new PactRecord();
 	
 	int numKeys;
 	int numVals;
@@ -39,10 +38,10 @@ public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<P
 	}
 
 	@Override
-	public PactRecord next(PactRecord target) {
+	public boolean next(PactRecord target) {
 		if(!repeatKey) {
 			if(valCnt >= numVals) {
-				return null;
+				return false;
 			}
 			
 			key.setValue(keyCnt++);
@@ -54,7 +53,7 @@ public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<P
 			}
 		} else {
 			if(keyCnt >= numKeys) {
-				return null;
+				return false;
 			}
 			key.setValue(keyCnt);
 			value.setValue(valCnt++);
@@ -65,8 +64,8 @@ public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<P
 			}
 		}
 		
-		this.record.setField(0, this.key);
-		this.record.setField(1, this.value);
-		return this.record;
+		target.setField(0, this.key);
+		target.setField(1, this.value);
+		return true;
 	}
 }

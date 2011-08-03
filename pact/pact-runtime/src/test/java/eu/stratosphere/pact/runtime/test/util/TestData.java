@@ -198,12 +198,12 @@ public final class TestData {
 			this.value = new Value();
 		}
 
-		public PactRecord next(PactRecord target) {
+		public boolean next(PactRecord target) {
 			this.key.key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
 			this.value.value = randomString();
 			target.setField(0, this.key);
 			target.setField(1, this.value);
-			return target;
+			return true;
 		}
 
 		public int sizeOf(PactRecord rec) {
@@ -319,13 +319,13 @@ public final class TestData {
 		}
 
 		@Override
-		public PactRecord next(PactRecord target) {
+		public boolean next(PactRecord target) {
 			if (counter < numberOfRecords) {
 				counter++;
 				return generator.next(target);
 			}
 			else {
-				return null;
+				return false;
 			}
 		}
 		
@@ -358,16 +358,16 @@ public final class TestData {
 		}
 		
 		@Override
-		public PactRecord next(PactRecord target) {
+		public boolean next(PactRecord target) {
 			if (pos < this.numPairs) {
 				this.value.value = this.valueValue + ' ' + pos;
 				target.setField(0, this.key);
 				target.setField(1, this.value);
 				pos++;
-				return target;
+				return true;
 			}
 			else {
-				return null;
+				return false;
 			}
 		}
 		

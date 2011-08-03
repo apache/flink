@@ -647,7 +647,7 @@ public class HashJoin
 		
 		// go over the complete input and insert every element into the hash table
 		PactRecord record = new PactRecord();
-		while ((record = input.next(record)) != null)
+		while (input.next(record))
 		{
 			int hashCode = 0;
 			for (int i = 0; i < positions.length; i++) {
@@ -763,8 +763,7 @@ public class HashJoin
 					p.buildSideChannel.getChannelID(), segments, this.availableMemory, p.buildSideBlockCounter);
 			
 			PactRecord rec = new PactRecord();
-			
-			while ((rec = reader.next(rec)) != null)
+			while (reader.next(rec))
 			{	
 				final int hashCode = hashBuildeSideRecord(rec, nextRecursionLevel);
 				insertIntoTable(rec, hashCode);
@@ -1981,8 +1980,9 @@ public class HashJoin
 		
 		public PactRecord next() throws IOException
 		{
-			if (this.current != null) {
-				return (this.current = this.source.next(this.current));
+			if (this.source.next(this.instance)) {
+				this.current = this.instance;
+				return this.current;
 			}
 			else {
 				return null;
@@ -2067,7 +2067,7 @@ public class HashJoin
 		 * @see java.util.Iterator#next()
 		 */
 		@Override
-		public PactRecord next(PactRecord target) throws IOException
+		public boolean next(PactRecord target) throws IOException
 		{
 			if (this.currentSegment != null) {
 				// get the next element from the buffer
@@ -2075,7 +2075,7 @@ public class HashJoin
 				
 				int pos = this.currentSegment.inputView.getPosition();
 				if (pos < this.currentEndPos) {
-					return target;
+					return true;
 				}
 				else if (pos == this.currentEndPos) {
 					// segment done
@@ -2104,7 +2104,7 @@ public class HashJoin
 						this.currentSegment = null;
 					}
 					
-					return target;
+					return true;
 				}
 				else {
 					// serialization error
@@ -2113,7 +2113,7 @@ public class HashJoin
 				}
 			}
 			else {
-				return null;
+				return false;
 			}
 		}
 		

@@ -45,7 +45,7 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 	}
 
 	@Override
-	public PactRecord next(PactRecord target) throws IOException
+	public boolean next(PactRecord target) throws IOException
 	{
 		if (this.heap.size() > 0) {
 			// get the smallest element
@@ -53,15 +53,15 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 			PactRecord head = top.getHead();
 			
 			// read an element
-			if (!top.nextHead(target)) {
+			if (!top.nextHead()) {
 				heap.poll();
 			}
 			heap.adjustTop();
-			
-			return head;
+			head.copyTo(target);
+			return true;
 		}
 		else {
-			return null;
+			return false;
 		}
 	}
 
@@ -77,7 +77,7 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 		
 		private final int[] keyPositions;
 		
-		private PactRecord head;
+		private final PactRecord head = new PactRecord();
 
 		public HeadStream(MutableObjectIterator<PactRecord> iterator, int[] keyPositions, Class<? extends Key>[] keyClasses)
 		throws IOException
@@ -94,7 +94,7 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 				this.keyHolders[i] = InstantiationUtil.instantiate(keyClasses[i], Key.class);
 			}
 			
-			if (!nextHead(new PactRecord()))
+			if (!nextHead())
 				throw new IllegalStateException();
 		}
 
@@ -102,13 +102,14 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 			return this.head;
 		}
 
-		public boolean nextHead(PactRecord toUse) throws IOException {
-			this.head = iterator.next(toUse);
-			if (this.head == null) {
+		public boolean nextHead() throws IOException {
+			if (iterator.next(this.head)) {
+				this.head.getFieldsInto(this.keyPositions, this.keyHolders);
+				return true;
+			}
+			else {
 				return false;
 			}
-			this.head.getFieldsInto(this.keyPositions, this.keyHolders);
-			return true;
 		}
 	}
 
@@ -120,13 +121,11 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 		 * The comparators providing the comparison for the different key fields.
 		 */
 		private final Comparator<Key>[] comparators;
-
 		
 		public HeadStreamComparator(Comparator<Key>[] comparators) {
 			this.comparators = comparators;
 		}
 
-		
 		@Override
 		public int compare(HeadStream o1, HeadStream o2)
 		{

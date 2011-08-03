@@ -30,5 +30,5 @@ public interface LastRepeatableIterator<E> extends MutableObjectIterator<E>
 	 * 
 	 * @return The last returned element.
 	 */
-	public E repeatLast(E target);
+	public boolean repeatLast(E target);
 }
