@@ -546,8 +546,8 @@ public class ExecutionGraph implements ExecutionListener {
 		try {
 			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
 				groupVertex);
-		} catch (Exception e) {
-			throw new GraphConversionException(StringUtils.stringifyException(e));
+		} catch (Throwable t) {
+			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
 
 		// Run the configuration check the user has provided for the vertex
