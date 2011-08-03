@@ -508,7 +508,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		if (awsAccessId == null) {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS access ID");
 		}
-		
+
 		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 		if (awsSecretKey == null) {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
@@ -545,6 +545,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			final InstanceType actualtype = e.getKey();
 			final int maxcount = e.getValue();
 			final int mincount = maxcount;
+			LOG.info("Requesting " + maxcount + " instances of type " + actualtype + " for job " + jobID);
 
 			// And this is the list of instances we will have...
 			LinkedList<FloatingInstance> actualFloatingInstances = null;
@@ -620,7 +621,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
 		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
 
-		String imageID = conf.getString("job.ec2.image.id", null);
+		String imageID = conf.getString("job.ec2.ami", null);
 		LOG.info("EC2 Image ID from job conf: " + imageID);
 		if (imageID == null) {
 
