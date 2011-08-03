@@ -891,7 +891,10 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final Map<InstanceType, InstanceTypeDescription> availableinstances = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
 		for (final InstanceType t : this.availableInstanceTypes) {
-			availableinstances.put(t, InstanceTypeDescriptionFactory.construct(t, estimateHardwareDescription(t), -1));
+			// TODO: Number of available instances is set to 1000 to improve interaction with PACT layer, must be -1
+			// actually according to API
+			availableinstances
+				.put(t, InstanceTypeDescriptionFactory.construct(t, estimateHardwareDescription(t), 1000));
 		}
 
 		return availableinstances;
