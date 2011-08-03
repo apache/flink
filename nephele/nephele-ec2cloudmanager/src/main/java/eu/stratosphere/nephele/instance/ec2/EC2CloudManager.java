@@ -623,7 +623,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 
 		String imageID = conf.getString("job.ec2.ami", null);
-		LOG.info("EC2 Image ID from job conf: " + imageID);
+		LOG.info("Read Amazon Machine Image from job configuration: " + imageID);
 		if (imageID == null) {
 
 			imageID = GlobalConfiguration.getString("ec2.image.id", null);
