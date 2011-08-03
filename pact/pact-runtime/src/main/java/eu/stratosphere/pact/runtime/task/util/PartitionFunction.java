@@ -13,11 +13,10 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.example.grep;
+package eu.stratosphere.pact.runtime.task.util;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.pact.common.type.Key;
 
-public interface Job {
-
-	public JobGraph getJobGraph();
+public interface PartitionFunction {
+	public int[] selectChannels(Key data, int numChannels);
 }

@@ -138,7 +138,7 @@ public class InputFileIteratorTest {
 		SequentialOutputFormat output = FormatUtil.createOutputFormat(SequentialOutputFormat.class,
 			testPlanFile, null);
 		for (KeyValuePair keyValuePair : pairs)
-			output.writePair(keyValuePair);
+			output.writeRecord(keyValuePair);
 		output.close();
 		SequentialInputFormat<Key, Value> inputFormat = (SequentialInputFormat<Key, Value>) FormatUtil.createInputFormat(
 			SequentialInputFormat.class, testPlanFile, null);

@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -67,9 +68,6 @@ public class TempTask extends AbstractTask
 	// output writer
 	private RecordWriter<KeyValuePair<Key, Value>> writer;
 
-	// stub implementation of preceding PACT
-	private Stub stub;
-
 	// task configuration
 	private TaskConfig config;
 	
@@ -81,6 +79,10 @@ public class TempTask extends AbstractTask
 	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+
+	private Class<Key> keyType;
+
+	private Class<Value> valueType;
 	
 	/**
 	 * {@inheritDoc}
@@ -129,7 +131,7 @@ public class TempTask extends AbstractTask
 			// obtain SpillingResettableIterator to dump pairs to disk and read again
 			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, 
 					new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader),
-				this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
+				this.availableMemory, new KeyValuePairDeserializer<Key, Value>(keyType, valueType),
 				this);
 
 			if (LOG.isDebugEnabled())
@@ -232,13 +234,23 @@ public class TempTask extends AbstractTask
 		// obtain stub implementation class
 		// this is required to obtain the data type of the keys and values.
 		// Type are required for serialization and deserialization methods.
-		ClassLoader cl;
 		try {
 			// obtain stub class
-			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends Stub> stubClass = config.getStubClass(Stub.class, cl);
-			// obtain stub instance
-			stub = stubClass.newInstance();
+			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			Class<?> userClass = config.getStubClass(Object.class, cl);
+			if(Stub.class.isAssignableFrom(userClass)) {
+				Stub stub = (Stub) userClass.newInstance();
+				keyType = stub.getOutKeyType();
+				valueType = stub.getOutValueType();
+			}
+			else if(InputFormat.class.isAssignableFrom(userClass)) {
+				InputFormat format = (InputFormat) userClass.newInstance();
+				KeyValuePair pair = format.createPair();
+				keyType = (Class<Key>) pair.getKey().getClass();
+				valueType = (Class<Value>) pair.getValue().getClass();
+			} else {
+				throw new RuntimeException("Unsupported task type " + userClass);
+			}
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -259,7 +271,7 @@ public class TempTask extends AbstractTask
 	private void initInputReader() {
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(
-				this.stub.getOutKeyType(), this.stub.getOutValueType());
+				keyType, valueType);
 
 		// determine distribution pattern from ship strategy
 		DistributionPattern dp = null;
@@ -315,7 +327,7 @@ public class TempTask extends AbstractTask
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('"');
+		bld.append(' ').append('(');
 		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
 		bld.append('/');
 		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());

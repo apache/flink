@@ -18,7 +18,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -30,11 +30,18 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Arvid Heise
  * @see SequentialInputFormat
  */
-public class SequentialOutputFormat extends OutputFormat<Key, Value> {
+public class SequentialOutputFormat extends FileOutputFormat<Key, Value>
+{
 	private DataOutputStream dataOutputStream;
 
 	private boolean typesWritten = false;
 
+	public SequentialOutputFormat() {
+		super.keyClass = Key.class;
+		super.valueClass = Value.class;
+	}
+	
+	
 	@Override
 	public void close() throws IOException {
 		this.dataOutputStream.close();
@@ -42,21 +49,18 @@ public class SequentialOutputFormat extends OutputFormat<Key, Value> {
 
 	@Override
 	public void configure(final Configuration parameters) {
+		super.configure(parameters);
 	}
 
 	@Override
-	protected void initTypes() {
-		super.ok = Key.class;
-		super.ov = Value.class;
-	}
-
-	@Override
-	public void open() {
+	public void open(int taskNumber) throws IOException {
+		super.open(taskNumber);
+		
 		this.dataOutputStream = new DataOutputStream(this.stream);
 	}
 
 	@Override
-	public void writePair(final KeyValuePair<Key, Value> pair) throws IOException {
+	public void writeRecord(final KeyValuePair<Key, Value> pair) throws IOException {
 		if (!this.typesWritten) {
 			this.dataOutputStream.writeUTF(pair.getKey().getClass().getName());
 			this.dataOutputStream.writeUTF(pair.getValue().getClass().getName());

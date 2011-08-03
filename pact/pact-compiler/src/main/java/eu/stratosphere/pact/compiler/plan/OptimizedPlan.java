@@ -17,6 +17,7 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Collection;
 
+import eu.stratosphere.pact.common.plan.PlanConfiguration;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
 
@@ -48,12 +49,17 @@ public class OptimizedPlan implements Visitable<OptimizerNode> {
 	 * Name of the PACT job
 	 */
 	private final String jobName;
+	
+	/**
+	 * Configuration of the PACT job
+	 */
+	private PlanConfiguration planConfig;
 
 	/**
 	 * The name of the instance type that is to be used.
 	 */
 	private String instanceTypeName;
-
+	
 	/**
 	 * Creates a new instance of this optimizer plan container. The plan is given and fully
 	 * described by the data sources, sinks and the collection of all nodes.
@@ -110,7 +116,25 @@ public class OptimizedPlan implements Visitable<OptimizerNode> {
 	public String getJobName() {
 		return this.jobName;
 	}
-
+	
+	/**
+	 * Returns the configuration of the PACT job.
+	 * 
+	 * @return The configuration of the PACT job.
+	 */
+	public PlanConfiguration getPlanConfiguration() {
+		return this.planConfig;
+	}
+	
+	/**
+	 * Sets the configuration of the PACT job.
+	 * 
+	 * @param planConfig The configuration of the PACT job.
+	 */
+	public void setPlanConfiguration(PlanConfiguration planConfig) {
+		this.planConfig = planConfig;
+	}
+	
 	/**
 	 * Gets the name of the instance type that should be used for this PACT job.
 	 * 

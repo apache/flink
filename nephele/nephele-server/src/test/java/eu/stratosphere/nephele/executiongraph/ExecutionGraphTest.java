@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
@@ -92,11 +93,13 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType)
-				throws InstanceException {
+		public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+				List<String> splitAffinityList) throws InstanceException {
 
 			throw new IllegalStateException("requestInstance called on TestInstanceManager");
 		}
+		
+		
 
 		/**
 		 * {@inheritDoc}
@@ -272,7 +275,8 @@ public class ExecutionGraphTest {
 
 			// test all methods of ExecutionGraph
 			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
-			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
+			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
 			assertEquals(1, requiredInstances.size());
 			assertEquals(1,
 				(int) requiredInstances.get(INSTANCE_MANAGER.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
@@ -504,7 +508,8 @@ public class ExecutionGraphTest {
 
 			// test instance types in ExecutionGraph
 			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
-			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
+			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
 			assertEquals(1, requiredInstances.size());
 			assertEquals(1, (int) requiredInstances.get(INSTANCE_MANAGER.getDefaultInstanceType()));
 
@@ -638,7 +643,8 @@ public class ExecutionGraphTest {
 
 			// test instance types in ExecutionGraph
 			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
-			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
+			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
 			assertEquals(1, requiredInstances.size());
 			assertEquals(2, (int) requiredInstances.get(INSTANCE_MANAGER.getDefaultInstanceType()));
 
@@ -892,7 +898,8 @@ public class ExecutionGraphTest {
 
 			// test instance types in ExecutionGraph
 			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
-			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			ExecutionStage executionStage = eg.getCurrentExecutionStage();
+			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
 			assertEquals(1, requiredInstances.size());
 			assertEquals(4,
 				(int) requiredInstances.get(INSTANCE_MANAGER.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
@@ -909,7 +916,8 @@ public class ExecutionGraphTest {
 				ev.setExecutionState(ExecutionState.FINISHED);
 			}
 			requiredInstances.clear();
-			eg.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
+			executionStage = eg.getCurrentExecutionStage();
+			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
 			assertEquals(1, requiredInstances.size());
 			assertEquals(8,
 				(int) requiredInstances.get(INSTANCE_MANAGER.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
@@ -1039,8 +1047,7 @@ public class ExecutionGraphTest {
 				.equals(inputGroupVertex.getGroupMember(2).getAllocatedResource()));
 			assertFalse(inputGroupVertex.getGroupMember(2).getAllocatedResource()
 				.equals(inputGroupVertex.getGroupMember(3).getAllocatedResource()));
-			
-			
+
 		} catch (GraphConversionException e) {
 			fail(e.getMessage());
 		} catch (JobGraphDefinitionException e) {

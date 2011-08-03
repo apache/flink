@@ -298,16 +298,26 @@ public class BlockResettableIterator<T extends Record> implements MemoryBlockIte
 		// them into the empty segment list
 		collectAllBuffers(this.emptySegments);
 			
-		// set one buffer to be filled and write the leftover element
+		// set one buffer to be filled and write the next element
 		this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
-		if (this.leftOverElement != null) {
-			if (!this.bufferCurrentlyFilled.write(this.leftOverElement)) {
+		
+		T next = this.leftOverElement;
+		this.leftOverElement = null;
+		if (next == null) {
+			if (this.input.hasNext()) {
+				next = this.input.next();
+			}
+			else {
+				this.noMoreBlocks = true;
+				return false;
+			}
+		}
+		
+		if (!this.bufferCurrentlyFilled.write(next)) {
 				throw new RuntimeException("BlockResettableIterator: " +
 					"Could not serialize element into fresh block buffer - element is too large.");
-			}
-			this.nextElement = this.leftOverElement;
-			this.leftOverElement = null;
 		}
+		this.nextElement = next;
 		
 		return true;
 	}

@@ -25,8 +25,8 @@ import java.util.Iterator;
 import org.apache.log4j.Logger;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -235,13 +235,13 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			setArgs(args);
 		}
 		
-		DataSourceContract<PactInteger, Tuple> orders = 
-			new DataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.ordersInputPath, "Orders");
+		FileDataSourceContract<PactInteger, Tuple> orders = 
+			new FileDataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.ordersInputPath, "Orders");
 		orders.setDegreeOfParallelism(this.degreeOfParallelism);
 		orders.setOutputContract(UniqueKey.class);
 		
-		DataSourceContract<PactInteger, Tuple> lineItems =
-			new DataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
+		FileDataSourceContract<PactInteger, Tuple> lineItems =
+			new FileDataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
 		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		MatchContract<PactInteger, Tuple, Tuple, PactString, Tuple> join = 
@@ -249,7 +249,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 				JoinLiO.class, "OrdersLineitemsJoin");
 		join.setDegreeOfParallelism(degreeOfParallelism);
 		
-		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
+		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
 				StringTupleDataOutFormat.class, this.outputPath, "Output");
 		result.setDegreeOfParallelism(degreeOfParallelism);
 		

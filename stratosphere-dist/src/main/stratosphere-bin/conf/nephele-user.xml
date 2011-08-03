@@ -102,7 +102,7 @@
 	<!-- the default instance manager for cloud execution mode -->
 	<property>
 		<key>jobmanager.instancemanager.cloud.classname</key>
-		<value>eu.stratosphere.nephele.instance.cloud.EC2CloudManager</value>
+		<value>eu.stratosphere.nephele.instance.cloud.CloudManager</value>
 	</property>
 	
 	<property>

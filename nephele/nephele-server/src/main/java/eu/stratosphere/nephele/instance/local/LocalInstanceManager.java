@@ -16,6 +16,9 @@
 package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -214,32 +217,6 @@ public class LocalInstanceManager implements InstanceManager {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType) throws InstanceException {
-
-		boolean assignmentSuccessful = false;
-		AllocatedResource allocatedResource = null;
-		synchronized (this.synchronizationObject) {
-
-			if (this.localInstance != null) { // Instance is available
-				if (this.allocatedResource == null) { // Instance is not used by another job
-					allocatedResource = new AllocatedResource(this.localInstance, instanceType, new AllocationID());
-					this.allocatedResource = allocatedResource;
-					assignmentSuccessful = true;
-				}
-			}
-		}
-
-		if (assignmentSuccessful) {
-			// Spawn a new thread to send the notification
-			new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResource).start();
-		} else {
-			throw new InstanceException("No instance of type " + instanceType + " available");
-		}
-	}
 
 	/**
 	 * {@inheritDoc}
@@ -333,5 +310,44 @@ public class LocalInstanceManager implements InstanceManager {
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		return this.instanceTypeDescriptionMap;
+	}
+
+	@Override
+	public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+			List<String> splitAffinityList) throws InstanceException {
+		//TODO: This can be implemented way simpler...
+		// Iterate over all instance types
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceMap.entrySet().iterator();
+		while (it.hasNext()) {
+
+			// Iterate over all requested instances of a specific type
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+
+			for (int i = 0; i < entry.getValue().intValue(); i++) {
+
+				boolean assignmentSuccessful = false;
+				AllocatedResource allocatedResource = null;
+				synchronized (this.synchronizationObject) {
+
+					if (this.localInstance != null) { // Instance is available
+						if (this.allocatedResource == null) { // Instance is not used by another job
+							allocatedResource = new AllocatedResource(this.localInstance, entry.getKey(), new AllocationID());
+							this.allocatedResource = allocatedResource;
+							assignmentSuccessful = true;
+						}
+					}
+				}
+
+				if (assignmentSuccessful) {
+					// Spawn a new thread to send the notification
+					new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResource).start();
+				} else {
+					throw new InstanceException("No instance of type " + entry.getKey() + " available");
+				}
+
+			}
+
+		}
+		
 	}
 }

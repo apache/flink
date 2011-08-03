@@ -96,7 +96,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 *        the timestamp in milliseconds since the beginning of "the epoch"
 	 * @return the string unified representation of the timestamp
 	 */
-	protected static String timestampToString(long timestamp) {
+	public static String timestampToString(long timestamp) {
 
 		return dateFormatter.format(new Date(timestamp));
 

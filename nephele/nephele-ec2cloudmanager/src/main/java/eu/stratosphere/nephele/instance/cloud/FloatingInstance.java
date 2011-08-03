@@ -29,14 +29,9 @@ public class FloatingInstance {
 	/** The information required to connect to the instance's task manager. */
 	private final InstanceConnectionInfo instanceConnectionInfo;
 
-	/** The time the instance was allocated. */
-	private final long allocationTime;
+	/** The time the instance was launched (in this case, the VM). */
+	private final long launchTime;
 
-	/**
-	 * The survival time for the instance. If the instance is not employed for a new job during the remaining time, it
-	 * is terminated.
-	 */
-	private final long remainingTime;
 
 	/** The last received heart beat. */
 	private long lastHeartBeat;
@@ -48,17 +43,15 @@ public class FloatingInstance {
 	 *        the instance ID assigned by the cloud management system
 	 * @param instanceConnectionInfo
 	 *        the information required to connect to the instance's task manager
-	 * @param allocationTime
+	 * @param launchTime
 	 *        the time the instance was allocated
 	 * @param remainingTime
 	 *        the survival time for the instance
 	 */
-	public FloatingInstance(String instanceID, InstanceConnectionInfo instanceConnectionInfo, long allocationTime,
-			long remainingTime) {
+	public FloatingInstance(String instanceID, InstanceConnectionInfo instanceConnectionInfo, long launchTime) {
 		this.instanceID = instanceID;
 		this.instanceConnectionInfo = instanceConnectionInfo;
-		this.allocationTime = allocationTime;
-		this.remainingTime = remainingTime;
+		this.launchTime = launchTime;
 		this.lastHeartBeat = System.currentTimeMillis();
 	}
 
@@ -97,20 +90,13 @@ public class FloatingInstance {
 	}
 
 	/**
-	 * Returns the time the instance was allocated.
+	 * Returns the time the instance was launched.
 	 * 
 	 * @return the time the instance was allocated
 	 */
-	public long getAllocationTime() {
-		return this.allocationTime;
+	public long getLaunchTime() {
+		return this.launchTime;
 	}
 
-	/**
-	 * Returns the survival time for the instance.
-	 * 
-	 * @return the survival time for the instance
-	 */
-	public long getRemainingTime() {
-		return this.remainingTime;
-	}
+
 }

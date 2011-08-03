@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -95,11 +94,11 @@ public class TaskConfig {
 		this.config = config;
 	}
 
-	public void setStubClass(Class<? extends Stub<?, ?>> stubClass) {
+	public void setStubClass(Class<?> stubClass) {
 		config.setString(STUB_CLASS, stubClass.getName());
 	}
 
-	public <T extends Stub<?, ?>> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
+	public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
 			throws ClassNotFoundException {
 		String stubClassName = config.getString(STUB_CLASS, null);
 		if (stubClassName == null) {
@@ -107,14 +106,18 @@ public class TaskConfig {
 		}
 		return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
-	public void setStubParameters(Configuration parameters) {
+	public void setStubParameters(Configuration parameters)
+	{
 		for (String key : parameters.keySet()) {
-			config.setString(STUB_PARAM_PREFIX + key, parameters.getString(key, null));
+			this.config.setString(STUB_PARAM_PREFIX + key, parameters.getString(key, null));
 		}
 	}
 
-	public Configuration getStubParameters() {
+	public Configuration getStubParameters()
+	{
 		Configuration parameters = new Configuration();
 		for (String key : config.keySet()) {
 			if (key.startsWith(STUB_PARAM_PREFIX)) {
@@ -123,6 +126,18 @@ public class TaskConfig {
 		}
 		return parameters;
 	}
+	
+	public void setStubParameter(String key, String value)
+	{
+		config.setString(STUB_PARAM_PREFIX + key, value);
+	}
+
+	public String getStubParameter(String key, String defaultValue)
+	{
+		return config.getString(STUB_PARAM_PREFIX + key, defaultValue);
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	public void addInputShipStrategy(ShipStrategy strategy) {
 		int inputCnt = config.getInteger(NUM_INPUTS, 0);
