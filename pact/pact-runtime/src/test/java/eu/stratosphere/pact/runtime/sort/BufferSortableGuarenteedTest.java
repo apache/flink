@@ -42,7 +42,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Erik Nijkamp
@@ -310,7 +310,7 @@ public class BufferSortableGuarenteedTest {
 			buffer.swap(0, 1);
 			
 			{
-				final ReadingIterator<PactRecord> iter = buffer.getIterator();
+				final MutableObjectIterator<PactRecord> iter = buffer.getIterator();
 				final PactRecord rec = new PactRecord();
 				Assert.assertEquals(2, iter.next(rec).getField(0, TestData.Key.class).getKey());
 				Assert.assertEquals(1, iter.next(rec).getField(0, TestData.Key.class).getKey());
@@ -320,7 +320,7 @@ public class BufferSortableGuarenteedTest {
 			buffer.swap(1, 2);
 			
 			{
-				ReadingIterator<PactRecord> iter = buffer.getIterator();
+				MutableObjectIterator<PactRecord> iter = buffer.getIterator();
 				final PactRecord rec = new PactRecord();
 				Assert.assertEquals(2, iter.next(rec).getField(0, TestData.Key.class).getKey());
 				Assert.assertEquals(3, iter.next(rec).getField(0, TestData.Key.class).getKey());
@@ -389,7 +389,7 @@ public class BufferSortableGuarenteedTest {
 			}
 			
 
-			final ReadingIterator<PactRecord> iter = buffer.getIterator();
+			final MutableObjectIterator<PactRecord> iter = buffer.getIterator();
 			final PactRecord rec = new PactRecord();
 			for(int i = 1; i < 4; i++)
 			{
@@ -452,7 +452,7 @@ public class BufferSortableGuarenteedTest {
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
-			final ReadingIterator<PactRecord> iter = buffer.getIterator();
+			final MutableObjectIterator<PactRecord> iter = buffer.getIterator();
 			
 			while ((rec = iter.next(rec)) != null) {
 				readPairs++;

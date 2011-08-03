@@ -15,15 +15,25 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
-public interface MemoryBlockIterator<E> extends ResettableIterator<E> {
+import java.io.IOException;
 
+/**
+ * The memory block iterator is a special form of {@link ResettableIterator}, that always buffers a block of elements
+ * in memory, and can be reset back to the first element in that block. After the iterator is moved to the next block,
+ * the elements from the previous block can no longer be accessed.
+ */
+public interface MemoryBlockIterator<E> extends ResettableIterator<E>
+{
 	/**
 	 * Move the iterator to the next memory block. The next memory block starts at the first element that was not
 	 * in the block before. A special case is when no record was in the block before, which happens when this
 	 * function is invoked two times directly in a sequence, without calling hasNext() or next in between. Then
 	 * the block moves one element.
 	 * 
-	 * @return true if a new memory block was loaded, false if there were no further records
+	 * @return True if a new memory block was loaded, false if there were no further
+	 *         records and hence no further memory block.
+	 *         
+	 * @throws IOException Thrown, when advancing to the next block failed.
 	 */
-	public boolean nextBlock();
+	public boolean nextBlock() throws IOException;
 }

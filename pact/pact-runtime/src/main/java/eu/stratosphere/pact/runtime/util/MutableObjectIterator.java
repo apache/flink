@@ -84,7 +84,7 @@ import java.io.IOException;
  *
  * @author Stephan Ewen
  */
-public interface ReadingIterator<E>
+public interface MutableObjectIterator<E>
 {
 	public E next(E target) throws IOException;
 }

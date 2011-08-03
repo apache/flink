@@ -18,19 +18,19 @@ package eu.stratosphere.pact.runtime.test.util;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
  * An iterator that returns the union of a given set of iterators.
  */
-public class UnionIterator<E> implements ReadingIterator<E>
+public class UnionIterator<E> implements MutableObjectIterator<E>
 {
-	private ReadingIterator<E> currentSource;
+	private MutableObjectIterator<E> currentSource;
 	
-	private List<ReadingIterator<E>> nextSources;
+	private List<MutableObjectIterator<E>> nextSources;
 	
-	public UnionIterator(List<ReadingIterator<E>> sources)
+	public UnionIterator(List<MutableObjectIterator<E>> sources)
 	{
 		this.currentSource = sources.remove(0);
 		this.nextSources = sources;

@@ -42,7 +42,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
@@ -68,9 +68,9 @@ public class SortMergeCoGroupIteratorITCase {
 	private Generator generator2;
 
 	// left and right input RecordReader mocks
-	private ReadingIterator<PactRecord> reader1;
+	private MutableObjectIterator<PactRecord> reader1;
 
-	private ReadingIterator<PactRecord> reader2;
+	private MutableObjectIterator<PactRecord> reader2;
 	
 	// dummy abstract task
 	private final AbstractTask parentTask = new DummyInvokable();

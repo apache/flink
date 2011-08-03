@@ -17,12 +17,12 @@ package eu.stratosphere.pact.runtime.test.util;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * A simple iterator that returns an infinite amount of records resembling (0, 0) pairs.
  */
-public class InfiniteInputIterator implements ReadingIterator<PactRecord>
+public class InfiniteInputIterator implements MutableObjectIterator<PactRecord>
 {
 	private final PactInteger val1 = new PactInteger(0);
 	private final PactInteger val2 = new PactInteger(0);

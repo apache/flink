@@ -19,13 +19,13 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public class MockRecordReader implements ReadingIterator<PactRecord>
+public class MockRecordReader implements MutableObjectIterator<PactRecord>
 {
 	private final PactRecord SENTINEL = new PactRecord();
 

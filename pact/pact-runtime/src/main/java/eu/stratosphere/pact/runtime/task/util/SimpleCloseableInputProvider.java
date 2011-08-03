@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -30,7 +30,7 @@ public class SimpleCloseableInputProvider<E> implements CloseableInputProvider<E
 	/**
 	 * The iterator returned by this class.
 	 */
-	private final ReadingIterator<E> iterator;
+	private final MutableObjectIterator<E> iterator;
 	
 	
 	/**
@@ -38,7 +38,7 @@ public class SimpleCloseableInputProvider<E> implements CloseableInputProvider<E
 	 * 
 	 * @param iterator The iterator that will be returned.
 	 */
-	public SimpleCloseableInputProvider(ReadingIterator<E> iterator) {
+	public SimpleCloseableInputProvider(MutableObjectIterator<E> iterator) {
 		this.iterator = iterator;
 	}
 	
@@ -55,7 +55,7 @@ public class SimpleCloseableInputProvider<E> implements CloseableInputProvider<E
 	 * @see eu.stratosphere.pact.runtime.task.util.CloseableInputProvider#getIterator()
 	 */
 	@Override
-	public ReadingIterator<E> getIterator() {
+	public MutableObjectIterator<E> getIterator() {
 		return this.iterator;
 	}
 

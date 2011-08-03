@@ -33,7 +33,7 @@ import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Fabian Hueske
@@ -62,9 +62,9 @@ public class SortMergeCoGroupIterator implements CoGroupTaskIterator
 
 	private final IOManager ioManager;
 
-	private final ReadingIterator<PactRecord> reader1;
+	private final MutableObjectIterator<PactRecord> reader1;
 
-	private final ReadingIterator<PactRecord> reader2;
+	private final MutableObjectIterator<PactRecord> reader2;
 
 	private final int[] firstKeyPositions;
 	
@@ -93,7 +93,7 @@ public class SortMergeCoGroupIterator implements CoGroupTaskIterator
 	// --------------------------------------------------------------------------------------------
 	
 	public SortMergeCoGroupIterator(MemoryManager memoryManager, IOManager ioManager,
-			ReadingIterator<PactRecord> reader1, ReadingIterator<PactRecord> reader2,
+			MutableObjectIterator<PactRecord> reader1, MutableObjectIterator<PactRecord> reader2,
 			int[] firstInputKeyPositions, int[] secondInputKeyPositions, Class<? extends Key>[] keyClasses,
 			long memory, int maxNumFileHandles, float spillingThreshold,
 			LocalStrategy localStrategy, AbstractTask parentTask)

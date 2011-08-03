@@ -22,24 +22,24 @@ import java.util.List;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public class MergeIterator implements ReadingIterator<PactRecord>
+public class MergeIterator implements MutableObjectIterator<PactRecord>
 {
 	private final PartialOrderPriorityQueue<HeadStream> heap;
 
 	
-	public MergeIterator(List<ReadingIterator<PactRecord>> iterators, Comparator<Key>[] comparators,
+	public MergeIterator(List<MutableObjectIterator<PactRecord>> iterators, Comparator<Key>[] comparators,
 			int[] keyPositions, Class<? extends Key>[] keyClasses)
 	throws IOException
 	{
 		this.heap = new PartialOrderPriorityQueue<HeadStream>(new HeadStreamComparator(comparators), iterators.size());
 		
-		for (ReadingIterator<PactRecord> iterator : iterators) {
+		for (MutableObjectIterator<PactRecord> iterator : iterators) {
 			heap.add(new HeadStream(iterator, keyPositions, keyClasses));
 		}
 	}
@@ -71,7 +71,7 @@ public class MergeIterator implements ReadingIterator<PactRecord>
 	
 	private static final class HeadStream
 	{
-		private final ReadingIterator<PactRecord> iterator;
+		private final MutableObjectIterator<PactRecord> iterator;
 
 		private final Key[] keyHolders;
 		
@@ -79,7 +79,7 @@ public class MergeIterator implements ReadingIterator<PactRecord>
 		
 		private PactRecord head;
 
-		public HeadStream(ReadingIterator<PactRecord> iterator, int[] keyPositions, Class<? extends Key>[] keyClasses)
+		public HeadStream(MutableObjectIterator<PactRecord> iterator, int[] keyPositions, Class<? extends Key>[] keyClasses)
 		throws IOException
 		{
 			this.iterator = iterator;

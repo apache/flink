@@ -24,7 +24,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -62,7 +62,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	public AsynchronousPartialSorter(
 			MemoryManager memoryManager, IOManager ioManager, long totalMemory,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			ReadingIterator<PactRecord> input, AbstractTask parentTask)
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, totalMemory, 
@@ -146,13 +146,13 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	 * The iterator returns the values of a given
 	 * interval.
 	 */
-	private final class BufferQueueIterator implements ReadingIterator<PactRecord>
+	private final class BufferQueueIterator implements MutableObjectIterator<PactRecord>
 	{
 		private final CircularQueues queues;
 		
 		private CircularElement currentElement;
 		
-		private ReadingIterator<PactRecord> currentIterator;
+		private MutableObjectIterator<PactRecord> currentIterator;
 		
 		private volatile boolean closed = false;
 

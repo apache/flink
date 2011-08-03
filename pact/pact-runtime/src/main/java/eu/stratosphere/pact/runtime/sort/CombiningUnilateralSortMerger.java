@@ -42,7 +42,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -117,7 +117,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	public CombiningUnilateralSortMerger(ReduceStub combineStub, MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			ReadingIterator<PactRecord> input, AbstractTask parentTask,
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask,
 			float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
@@ -156,7 +156,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			ReadingIterator<PactRecord> input, AbstractTask parentTask,
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask,
 			float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
@@ -322,7 +322,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				if (LOG.isDebugEnabled())
 					LOG.debug("Initiating merge-iterator (in-memory segments).");
 				
-				List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>();
+				List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 								
 				// iterate buffers and collect a set of iterators
 				for (CircularElement cached : cache)
@@ -337,7 +337,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				releaseSortBuffers();
 				
 				// set lazy iterator
-				ReadingIterator<PactRecord> resIter = iterators.size() == 1 ? iterators.get(0) : 
+				MutableObjectIterator<PactRecord> resIter = iterators.size() == 1 ? iterators.get(0) : 
 					new MergeIterator(iterators, keyComparators, keyPositions, keyClasses);
 				
 				if (CombiningUnilateralSortMerger.this.combineLastMerge) {
@@ -713,7 +713,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 
 	// ------------------------------------------------------------------------
 
-	private static final class CombiningIterator implements ReadingIterator<PactRecord>
+	private static final class CombiningIterator implements MutableObjectIterator<PactRecord>
 	{
 		private final ReduceStub combineStub;
 

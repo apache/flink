@@ -165,7 +165,7 @@ public class HashVsSortTest {
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			BuildFirstHashMatchIterator iterator = 
-				new BuildFirstHashMatchIterator(input1, input2, new int[] {0}, new Class[] {TestData.Key.class}, 
+				new BuildFirstHashMatchIterator(input1, input2, new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
 					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
 	
 			long start = System.nanoTime();
@@ -209,7 +209,7 @@ public class HashVsSortTest {
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			BuildSecondHashMatchIterator iterator = 
-				new BuildSecondHashMatchIterator(input1, input2, new int[] {0}, new Class[] {TestData.Key.class}, 
+				new BuildSecondHashMatchIterator(input1, input2, new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
 						this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
 	
 			long start = System.nanoTime();

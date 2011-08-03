@@ -42,7 +42,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Fabian Hueske
@@ -119,7 +119,7 @@ public class CombiningUnilateralSortMergerITCase
 		}
 		reader.close();
 		
-		ReadingIterator<PactRecord> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 
 		PactRecord target = new PactRecord();
 		while ((target = iterator.next(target)) != null) {
@@ -166,7 +166,7 @@ public class CombiningUnilateralSortMergerITCase
 		rec = null;
 
 		// check order
-		ReadingIterator<PactRecord> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
 		LOG.debug("checking results");
 		

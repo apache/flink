@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.hash;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -29,7 +28,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -52,28 +51,15 @@ private final MemoryManager memManager;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	
-	public BuildSecondHashMatchIterator(Iterator<PactRecord> firstInput, Iterator<PactRecord> secondInput,
-			int[] keyPositions, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
+	public BuildSecondHashMatchIterator(MutableObjectIterator<PactRecord> firstInput, MutableObjectIterator<PactRecord> secondInput,
+			int[] buildSideKeyFields, int[] probeSideKeyFields, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
 			AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{		
 		this.memManager = memManager;
 		this.nextBuildSideObject = new PactRecord();
 		
-		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(secondInput, firstInput, keyPositions, keyClasses, 
-			memManager, ioManager, ownerTask, totalMemory);
-	}
-	
-	public BuildSecondHashMatchIterator(ReadingIterator<PactRecord> firstInput, ReadingIterator<PactRecord> secondInput,
-			int[] keyPositions, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
-			AbstractInvokable ownerTask, long totalMemory)
-	throws MemoryAllocationException
-	{		
-		this.memManager = memManager;
-		this.nextBuildSideObject = new PactRecord();
-		
-		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(secondInput, firstInput, keyPositions, keyClasses, 
+		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(secondInput, firstInput, buildSideKeyFields, probeSideKeyFields, keyClasses, 
 			memManager, ioManager, ownerTask, totalMemory);
 	}
 	

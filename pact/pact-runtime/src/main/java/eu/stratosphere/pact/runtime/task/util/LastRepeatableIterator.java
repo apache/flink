@@ -15,20 +15,20 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
-import java.util.Iterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
- * A LastRepeatableIterator allows to repeat the last emitted object again. 
+ * A LastRepeatableIterator allows to emit the latest emitted object again. 
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * @param <E> The type of element that the iterator iterates over.
  */
-public interface LastRepeatableIterator<E> extends Iterator<E> {
-
+public interface LastRepeatableIterator<E> extends MutableObjectIterator<E>
+{
 	/**
 	 * Return the last returned element again.
 	 * 
 	 * @return The last returned element.
 	 */
-	public E repeatLast();
+	public E repeatLast(E target);
 }

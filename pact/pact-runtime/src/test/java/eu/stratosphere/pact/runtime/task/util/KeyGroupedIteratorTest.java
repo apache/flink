@@ -28,7 +28,7 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -39,7 +39,7 @@ import eu.stratosphere.pact.runtime.util.ReadingIterator;
  */
 public class KeyGroupedIteratorTest
 {
-	private ReadingIterator<PactRecord> sourceIter;		// the iterator that provides the input
+	private MutableObjectIterator<PactRecord> sourceIter;		// the iterator that provides the input
 	
 	private KeyGroupedIterator psi;						// the grouping iterator, progressing in key steps
 	
@@ -65,7 +65,7 @@ public class KeyGroupedIteratorTest
 		source.add(new IntStringPair(new PactInteger(5), new PactString("L")));
 		
 		
-		this.sourceIter = new ReadingIterator<PactRecord>() {
+		this.sourceIter = new MutableObjectIterator<PactRecord>() {
 			final Iterator<IntStringPair> it = source.iterator();
 			
 			@Override

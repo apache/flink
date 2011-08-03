@@ -19,9 +19,16 @@ import java.util.Comparator;
 
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
+/**
+ * A special raw comparator that deserializes the data into Pact Records, obtains their relevant fields, and
+ * applies comparators to them. 
+ *
+ * @author Stephan Ewen
+ */
 public final class DeserializerComparator implements RawComparator
 {
 	private final PactRecord deserializer1;
@@ -58,8 +65,11 @@ public final class DeserializerComparator implements RawComparator
 
 	public int compare(byte[] keyBytes1, byte[] keyBytes2, int startKey1, int startKey2)
 	{
-		this.deserializer1.readBinary(this.keyPositions, this.keyHolders1, keyBytes1, startKey1);
-		this.deserializer2.readBinary(this.keyPositions, this.keyHolders2, keyBytes2, startKey2);
+		if (!(this.deserializer1.readBinary(this.keyPositions, this.keyHolders1, keyBytes1, startKey1) &
+		      this.deserializer2.readBinary(this.keyPositions, this.keyHolders2, keyBytes2, startKey2) ))
+		{
+			throw new NullKeyFieldException();
+		}
 		
 		for (int i = 0; i < this.comparators.length; i++) {
 			int val = this.comparators[i].compare(this.keyHolders1[i], this.keyHolders2[i]);

@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedExcepti
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * Sortable buffer based on heap/stack concept where pairs are written in the heap and index into stack.
@@ -610,9 +610,9 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 		return this.pairsCount;
 	}
 
-	public final ReadingIterator<PactRecord> getIterator()
+	public final MutableObjectIterator<PactRecord> getIterator()
 	{
-		return new ReadingIterator<PactRecord>() {
+		return new MutableObjectIterator<PactRecord>() {
 			private final int size = size();
 			private int current = 0;
 

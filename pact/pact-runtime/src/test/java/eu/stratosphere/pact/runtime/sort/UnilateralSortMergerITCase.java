@@ -37,7 +37,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Erik Nijkamp
@@ -122,7 +122,7 @@ public class UnilateralSortMergerITCase
 		reader.close();
 
 		// check order
-		ReadingIterator<PactRecord> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
 		LOG.debug("Checking results...");
 		int pairsEmitted = 1;
@@ -179,7 +179,7 @@ public class UnilateralSortMergerITCase
 		reader.close();
 
 		// check order
-		ReadingIterator<PactRecord> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
 		LOG.debug("Checking results...");
 		int pairsEmitted = 1;
@@ -236,7 +236,7 @@ public class UnilateralSortMergerITCase
 		reader.close();
 
 		// check order
-		ReadingIterator<PactRecord> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
 		LOG.debug("Checking results...");
 		int pairsEmitted = 1;
@@ -305,7 +305,7 @@ public class UnilateralSortMergerITCase
 		System.out.println("Final merge phase starting...");
 
 		// check order
-		ReadingIterator<PactRecord> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
 		LOG.debug("Checking results...");
 		int pairsRead = 1;

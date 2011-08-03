@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.Closeable;
 
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -33,5 +33,5 @@ public interface CloseableInputProvider<E> extends Closeable
 	 * @return The iterator provided by this iterator provider.
 	 * @throws InterruptedException 
 	 */
-	public ReadingIterator<E> getIterator() throws InterruptedException;
+	public MutableObjectIterator<E> getIterator() throws InterruptedException;
 }

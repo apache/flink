@@ -28,7 +28,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 
@@ -42,9 +42,9 @@ public class MergeIteratorTest {
 	public static void afterClass() {
 	}
 
-	private ReadingIterator<PactRecord> newIterator(final int[] keys, final String[] values)
+	private MutableObjectIterator<PactRecord> newIterator(final int[] keys, final String[] values)
 	{
-		return new ReadingIterator<PactRecord>()
+		return new MutableObjectIterator<PactRecord>()
 		{
 			private Key key = new Key();
 			private Value value = new Value();
@@ -73,7 +73,7 @@ public class MergeIteratorTest {
 	public void testMergeOfTwoStreams() throws Exception
 	{
 		// iterarors
-		List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>();
+		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 		iterators.add(newIterator(new int[] { 1, 2, 4, 5, 10 }, new String[] { "1", "2", "4", "5", "10" }));
 		iterators.add(newIterator(new int[] { 3, 6, 7, 10, 12 }, new String[] { "3", "6", "7", "10", "12" }));
 		
@@ -84,7 +84,7 @@ public class MergeIteratorTest {
 
 		// merge iterator
 		@SuppressWarnings("unchecked")
-		ReadingIterator<PactRecord> iterator = new MergeIterator(iterators, 
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
 			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
 
 		// check orderexpected
@@ -115,7 +115,7 @@ public class MergeIteratorTest {
 	public void testMergeOfTenStreams() throws Exception
 	{
 		// iterarors
-		List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>();
+		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 4, 10, 11, 11, 12 }, new String[] { "A", "B", "C", "D", "E" }));
@@ -132,7 +132,7 @@ public class MergeIteratorTest {
 
 		// merge iterator
 		@SuppressWarnings("unchecked")
-		ReadingIterator<PactRecord> iterator = new MergeIterator(iterators, 
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
 			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
 
 		int elementsFound = 1;
@@ -161,7 +161,7 @@ public class MergeIteratorTest {
 	public void testInvalidMerge() throws Exception
 	{
 		// iterarors
-		List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>();
+		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 4, 10, 11, 11, 12 }, new String[] { "A", "B", "C", "D", "E" }));
@@ -178,7 +178,7 @@ public class MergeIteratorTest {
 
 		// merge iterator
 		@SuppressWarnings("unchecked")
-		ReadingIterator<PactRecord> iterator = new MergeIterator(iterators, 
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
 			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
 
 		boolean violationFound = false;

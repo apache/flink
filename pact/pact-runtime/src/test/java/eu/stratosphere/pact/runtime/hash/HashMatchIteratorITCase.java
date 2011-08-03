@@ -44,7 +44,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 public class HashMatchIteratorITCase
@@ -129,7 +129,7 @@ public class HashMatchIteratorITCase
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			BuildFirstHashMatchIterator iterator = new BuildFirstHashMatchIterator(
-				input1, input2, new int[]{0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
+				input1, input2, new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 			
 			iterator.open();
@@ -171,16 +171,16 @@ public class HashMatchIteratorITCase
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<ReadingIterator<PactRecord>> inList1 = new ArrayList<ReadingIterator<PactRecord>>();
+			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<ReadingIterator<PactRecord>> inList2 = new ArrayList<ReadingIterator<PactRecord>>();
+			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			ReadingIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
-			ReadingIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
+			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
+			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
 			
 			
 			// collect expected data
@@ -215,7 +215,7 @@ public class HashMatchIteratorITCase
 	
 			@SuppressWarnings("unchecked")
 			BuildFirstHashMatchIterator iterator = new BuildFirstHashMatchIterator(input1, input2,
-				new int[]{0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
+				new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 
 			iterator.open();
@@ -264,7 +264,7 @@ public class HashMatchIteratorITCase
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			BuildSecondHashMatchIterator iterator = new BuildSecondHashMatchIterator(input1, input2,
-				new int[]{0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
+				new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 
 			iterator.open();
@@ -306,16 +306,16 @@ public class HashMatchIteratorITCase
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<ReadingIterator<PactRecord>> inList1 = new ArrayList<ReadingIterator<PactRecord>>();
+			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<ReadingIterator<PactRecord>> inList2 = new ArrayList<ReadingIterator<PactRecord>>();
+			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			ReadingIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
-			ReadingIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
+			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
+			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
 			
 			
 			// collect expected data
@@ -350,7 +350,7 @@ public class HashMatchIteratorITCase
 	
 			@SuppressWarnings("unchecked")
 			BuildSecondHashMatchIterator iterator = new BuildSecondHashMatchIterator(input1, input2,
-				new int[]{0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
+				new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 			
 			iterator.open();
@@ -407,7 +407,7 @@ public class HashMatchIteratorITCase
 	}
 
 	
-	private Map<TestData.Key, Collection<TestData.Value>> collectData(ReadingIterator<PactRecord> iter)
+	private Map<TestData.Key, Collection<TestData.Value>> collectData(MutableObjectIterator<PactRecord> iter)
 	throws Exception
 	{
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();

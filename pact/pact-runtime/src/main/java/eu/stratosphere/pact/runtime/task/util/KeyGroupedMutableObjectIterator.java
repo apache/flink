@@ -16,8 +16,6 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -26,10 +24,11 @@ import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
+ * A sub-iterator over all values with the same key is provided.
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class KeyGroupedIterator
+public final class KeyGroupedMutableObjectIterator
 {
 	private final MutableObjectIterator<PactRecord> iterator;
 
@@ -53,7 +52,7 @@ public final class KeyGroupedIterator
 	 * @param keyPositions The positions of the keys in the records.
 	 * @param keyClasses The types of the key fields.
 	 */
-	public KeyGroupedIterator(MutableObjectIterator<PactRecord> iterator, int[] keyPositions, 
+	public KeyGroupedMutableObjectIterator(MutableObjectIterator<PactRecord> iterator, int[] keyPositions, 
 			Class<? extends Key>[] keyClasses)
 	{
 		if (keyPositions.length != keyClasses.length || keyPositions.length < 1) {
@@ -153,74 +152,53 @@ public final class KeyGroupedIterator
 	 * 
 	 * @return Iterator over all values that belong to the current key.
 	 */
-	public Iterator<PactRecord> getValues() {
+	public MutableObjectIterator<PactRecord> getValues() {
 		return valuesIterator;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	private final class ValuesIterator implements Iterator<PactRecord>
+	private final class ValuesIterator implements MutableObjectIterator<PactRecord>
 	{
-		private PactRecord bufferRec = new PactRecord();
 		private boolean nextIsUnconsumed = false;
 
 		@Override
-		public boolean hasNext()
+		public PactRecord next(PactRecord target)
 		{
-			if (KeyGroupedIterator.this.next == null || KeyGroupedIterator.this.nextIsFresh) {
-				return false;
+			if (KeyGroupedMutableObjectIterator.this.next == null || KeyGroupedMutableObjectIterator.this.nextIsFresh) {
+				return null;
 			}
 			if (this.nextIsUnconsumed) {
-				return true;
+				return KeyGroupedMutableObjectIterator.this.next;
 			}
 			
 			try {
-				PactRecord rec = KeyGroupedIterator.this.iterator.next(KeyGroupedIterator.this.next);
-				KeyGroupedIterator.this.next = rec;
+				PactRecord rec = KeyGroupedMutableObjectIterator.this.iterator.next(target);
 				if (rec != null) {
 					// check whether the keys are equal
-					for (int i = 0; i < KeyGroupedIterator.this.keyPositions.length; i++) {
+					for (int i = 0; i < KeyGroupedMutableObjectIterator.this.keyPositions.length; i++) {
 						Key k = rec.getField(keyPositions[i], keyClasses[i]);
 						if (!(currentKeys[i].equals(k))) {
 							// moved to the next key, no more values here
-							KeyGroupedIterator.this.nextIsFresh = true;
-							return false;
+							KeyGroupedMutableObjectIterator.this.next = rec;
+							KeyGroupedMutableObjectIterator.this.nextIsFresh = true;
+							return null;
 						}
 					}
 					
 					// same key, next value is in "next"
-					this.nextIsUnconsumed = true;
-					return true;
+					return rec;
 				}
 				else {
 					// backing iterator is consumed
-					KeyGroupedIterator.this.next = null;
-					return false;
+					KeyGroupedMutableObjectIterator.this.next = null;
+					return null;
 				}
 			}
 			catch (IOException ioex) {
 				throw new RuntimeException("An error occurred while reading the next record: " + 
 					ioex.getMessage(), ioex);
 			}
-		}
-
-		/**
-		 * Prior to call this method, call hasNext() once!
-		 */
-		@Override
-		public PactRecord next() {
-			if (this.nextIsUnconsumed || hasNext()) {
-				this.nextIsUnconsumed = false;
-				KeyGroupedIterator.this.next.copyTo(this.bufferRec);
-				return this.bufferRec;
-			} else {
-				throw new NoSuchElementException();
-			}
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
 		}
 	}
 }

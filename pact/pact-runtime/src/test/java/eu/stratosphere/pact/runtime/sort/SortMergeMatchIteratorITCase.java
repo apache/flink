@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -37,6 +38,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -45,7 +47,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * @author Erik Nijkamp
@@ -135,11 +137,11 @@ public class SortMergeMatchIteratorITCase
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input1, 
+						memoryManager, ioManager, input1, input2, 
 						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
-			iterator.open();
+			iterator.open();			
 			
 			while (iterator.callWithNextKey(matcher, collector));
 			
@@ -184,7 +186,7 @@ public class SortMergeMatchIteratorITCase
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input1, 
+						memoryManager, ioManager, input1, input2, 
 						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
@@ -233,7 +235,7 @@ public class SortMergeMatchIteratorITCase
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input1, 
+						memoryManager, ioManager, input1, input2, 
 						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
@@ -282,7 +284,7 @@ public class SortMergeMatchIteratorITCase
 			// compare with iterator values
 			@SuppressWarnings("unchecked")
 			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input1, 
+						memoryManager, ioManager, input1, input2, 
 						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
@@ -324,17 +326,16 @@ public class SortMergeMatchIteratorITCase
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<ReadingIterator<PactRecord>> inList1 = new ArrayList<ReadingIterator<PactRecord>>();
+			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<ReadingIterator<PactRecord>> inList2 = new ArrayList<ReadingIterator<PactRecord>>();
+			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			ReadingIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
-			ReadingIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
-			
+			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
+			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
 			
 			// collect expected data
 			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
@@ -371,7 +372,7 @@ public class SortMergeMatchIteratorITCase
 			// needs to spill for the duplicate keys
 			@SuppressWarnings("unchecked")
 			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-				memoryManager, ioManager, input1, input1, 
+				memoryManager, ioManager, input1, input2, 
 				new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, 0.00016f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
@@ -431,7 +432,7 @@ public class SortMergeMatchIteratorITCase
 	}
 
 	
-	private Map<TestData.Key, Collection<TestData.Value>> collectData(ReadingIterator<PactRecord> iter)
+	private Map<TestData.Key, Collection<TestData.Value>> collectData(MutableObjectIterator<PactRecord> iter)
 	throws Exception
 	{
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
@@ -439,6 +440,7 @@ public class SortMergeMatchIteratorITCase
 		
 		while ((pair = iter.next(pair)) != null) {
 			TestData.Key key = pair.getField(0, TestData.Key.class);
+			
 			if (!map.containsKey(key)) {
 				map.put(new TestData.Key(key.getKey()), new ArrayList<TestData.Value>());
 			}
@@ -500,9 +502,10 @@ public class SortMergeMatchIteratorITCase
 				Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
 			}
 			
-			Assert.assertTrue("Produced match was not contained: " + key + " - " + value1 + ":" + value2,
-				matches.remove(new Match(value1, value2)));
-			
+			boolean contained = matches.remove(new Match(value1, value2));
+			if (!contained) {
+				Assert.fail("Produced match was not contained: " + key + " - " + value1 + ":" + value2);
+			}
 			if (matches.isEmpty()) {
 				this.toRemoveFrom.remove(key);
 			}

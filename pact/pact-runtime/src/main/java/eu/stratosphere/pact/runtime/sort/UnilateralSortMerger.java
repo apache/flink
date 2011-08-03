@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * The {@link UnilateralSortMerger} is part of a merge-sort implementation.
@@ -151,7 +151,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
 	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
 	 */
-	protected ReadingIterator<PactRecord> iterator;
+	protected MutableObjectIterator<PactRecord> iterator;
 	
 	/**
 	 * The exception that is set, if the iterator cannot be created.
@@ -215,7 +215,7 @@ public class UnilateralSortMerger implements SortMerger
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			ReadingIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, keyComparators, keyPositions, keyClasses, 
@@ -252,7 +252,7 @@ public class UnilateralSortMerger implements SortMerger
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			ReadingIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
@@ -541,7 +541,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			ReadingIterator<PactRecord> reader, CircularQueues queues, AbstractTask parentTask,
+			MutableObjectIterator<PactRecord> reader, CircularQueues queues, AbstractTask parentTask,
 			long startSpillingBytes)
 	{
 		return new ReadingThread(exceptionHandler, reader, queues, parentTask, startSpillingBytes);
@@ -598,7 +598,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @see eu.stratosphere.pact.runtime.sort.SortMerger#getIterator()
 	 */
 	@Override
-	public ReadingIterator<PactRecord> getIterator() throws InterruptedException
+	public MutableObjectIterator<PactRecord> getIterator() throws InterruptedException
 	{
 		synchronized (this.iteratorLock) {
 			// wait while both the iterator and the exception are not set
@@ -622,7 +622,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param iterator The result iterator to set.
 	 */
-	protected final void setResultIterator(ReadingIterator<PactRecord> iterator) {
+	protected final void setResultIterator(MutableObjectIterator<PactRecord> iterator) {
 		
 		synchronized (this.iteratorLock) {
 			// set the result iterator only, if no exception has occurred
@@ -669,7 +669,7 @@ public class UnilateralSortMerger implements SortMerger
 		if (LOG.isDebugEnabled())
 			LOG.debug("Performing merge of " + channelIDs.size() + " sorted streams.");
 		
-		final List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>(channelIDs.size());
+		final List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>(channelIDs.size());
 		
 		for (int i = 0; i < channelIDs.size(); i++) {
 			final Channel.ID id = channelIDs.get(i);
@@ -679,7 +679,7 @@ public class UnilateralSortMerger implements SortMerger
 			final ChannelReader reader = ioManager.createChannelReader(id, segsForChannel, true);
 			readerList.add(reader);
 			
-			final ReadingIterator<PactRecord> iterator = new ChannelReaderIterator(reader);
+			final MutableObjectIterator<PactRecord> iterator = new ChannelReaderIterator(reader);
 			iterators.add(iterator);
 		}
 
@@ -1025,7 +1025,7 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * The input channels to read from.
 		 */
-		private final ReadingIterator<PactRecord> reader;
+		private final MutableObjectIterator<PactRecord> reader;
 		
 		/**
 		 * The fraction of the buffers that must be full before the spilling starts.
@@ -1043,7 +1043,7 @@ public class UnilateralSortMerger implements SortMerger
 		 *        The queues used to pass buffers between the threads.
 		 */
 		public ReadingThread(ExceptionHandler<IOException> exceptionHandler,
-				ReadingIterator<PactRecord> reader, CircularQueues queues,
+				MutableObjectIterator<PactRecord> reader, CircularQueues queues,
 				AbstractTask parentTask, long startSpillingBytes)
 		{
 			super(exceptionHandler, "SortMerger Reading Thread", queues, parentTask);
@@ -1059,7 +1059,7 @@ public class UnilateralSortMerger implements SortMerger
 		 */
 		public void go() throws IOException
 		{
-			final ReadingIterator<PactRecord> reader = this.reader;
+			final MutableObjectIterator<PactRecord> reader = this.reader;
 			
 			PactRecord current = new PactRecord();
 			PactRecord leftoverRecord = null;
@@ -1357,7 +1357,7 @@ public class UnilateralSortMerger implements SortMerger
 				if (LOG.isDebugEnabled())
 					LOG.debug("Initiating merge-iterator (in-memory segments).");
 				
-				List<ReadingIterator<PactRecord>> iterators = new ArrayList<ReadingIterator<PactRecord>>(cache.size());
+				List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>(cache.size());
 								
 				// iterate buffers and collect a set of iterators
 				for (CircularElement cached : cache)
@@ -1533,7 +1533,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * This class represents an iterator over a stream produced by a reader.
 	 */
-	protected static final class ChannelReaderIterator implements ReadingIterator<PactRecord>
+	protected static final class ChannelReaderIterator implements MutableObjectIterator<PactRecord>
 	{
 		private final ChannelReader reader; // the reader from which to get the input
 

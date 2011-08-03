@@ -23,7 +23,7 @@ import java.util.Iterator;
 import java.util.Random;
 
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.ReadingIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * Test data utilities classes.
@@ -151,7 +151,7 @@ public final class TestData {
 	/**
 	 * Pair generator.
 	 */
-	public static class Generator implements ReadingIterator<PactRecord>{
+	public static class Generator implements MutableObjectIterator<PactRecord>{
 		public enum KeyMode {
 			SORTED, RANDOM
 		};
@@ -303,7 +303,7 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class GeneratorIterator implements ReadingIterator<PactRecord>
+	public static class GeneratorIterator implements MutableObjectIterator<PactRecord>
 	{
 		private final Generator generator;
 
@@ -336,7 +336,7 @@ public final class TestData {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static class ConstantValueIterator implements ReadingIterator<PactRecord>
+	public static class ConstantValueIterator implements MutableObjectIterator<PactRecord>
 	{
 		private final Key key;
 		private final Value value;

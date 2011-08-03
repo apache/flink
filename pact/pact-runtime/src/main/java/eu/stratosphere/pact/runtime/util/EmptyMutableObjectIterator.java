@@ -21,7 +21,7 @@ package eu.stratosphere.pact.runtime.util;
  *
  * @author Stephan Ewen
  */
-public final class EmptyMutableObjectIterator<E> implements ReadingIterator<E> {
+public final class EmptyMutableObjectIterator<E> implements MutableObjectIterator<E> {
 
 	/**
 	 * The singleton instance.
@@ -34,16 +34,16 @@ public final class EmptyMutableObjectIterator<E> implements ReadingIterator<E> {
 	 * @param <E> The type of the objects (not) returned by the iterator.
 	 * @return An instance of the iterator.
 	 */
-	public static <E> ReadingIterator<E> get() {
+	public static <E> MutableObjectIterator<E> get() {
 		@SuppressWarnings("unchecked")
-		ReadingIterator<E> iter = (ReadingIterator<E>) INSTANCE;
+		MutableObjectIterator<E> iter = (MutableObjectIterator<E>) INSTANCE;
 		return iter;
 	}
 	
 	/**
 	 * Always returns null.
 	 *  
-	 * @see ReadingIterator#next(Object)
+	 * @see MutableObjectIterator#next(Object)
 	 */
 	@Override
 	public E next(E target) {

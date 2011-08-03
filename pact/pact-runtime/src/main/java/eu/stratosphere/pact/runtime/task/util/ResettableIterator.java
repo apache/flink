@@ -15,12 +15,18 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
-import java.util.Iterator;
 
-public interface ResettableIterator<E> extends Iterator<E> {
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+
+
+/**
+ * The resettable iterator is a specialization of the iterator, allowing to reset the iterator and re-retrieve elements.
+ * Whether the iterator is completely reset or only partially depends on the actual implementation.
+ */
+public interface ResettableIterator<E> extends MutableObjectIterator<E> {
 
 	/**
-	 * Reset the iterator
+	 * Resets the iterator.
 	 */
 	public void reset();
 	
