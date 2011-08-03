@@ -180,6 +180,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			LOG.info("Found instance type " + count + ": " + instanceType);
 
 			instanceTypes.add(instanceType);
+			++count;
 		}
 
 		if (instanceTypes.isEmpty()) {
@@ -189,12 +190,12 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		int defaultIndex = GlobalConfiguration.getInteger("instancemanager.ec2.defaulttype", -1);
 		if (defaultIndex < 1 || defaultIndex >= (instanceTypes.size() + 1)) {
-			LOG.warn("Invalid index to default instance " + defaultIndex + ", making " + instanceTypes.get(0)
-				+ " the new default instance");
+			LOG.warn("Invalid index to default instance " + defaultIndex);
 			defaultIndex = 1;
 		}
 
 		this.defaultInstanceType = instanceTypes.get(defaultIndex - 1);
+		LOG.info("Default instance type is " + this.defaultInstanceType);
 
 		// sort by price
 		Collections.sort(instanceTypes, new Comparator<InstanceType>() {
@@ -503,12 +504,12 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		// First check, if all required configuration entries are available
 
-		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
-		LOG.info("found AWS access ID from Job Conf: " + awsAccessId);
+		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
 		if (awsAccessId == null) {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS access ID");
 		}
-		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
+		
+		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 		if (awsSecretKey == null) {
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
 		}

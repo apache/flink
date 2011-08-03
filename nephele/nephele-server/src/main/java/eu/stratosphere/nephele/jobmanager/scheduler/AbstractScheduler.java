@@ -137,29 +137,10 @@ public abstract class AbstractScheduler implements InstanceListener {
 		if (requiredInstances.isEmpty()) {
 			return;
 		}
-		
-		
-		this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(), requiredInstances,null);
 
-		/*
-		 * ... stuff moved to instance manager
-		final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstances.entrySet().iterator();
-		while (it.hasNext()) {
-
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-
-			for (int i = 0; i < entry.getValue().intValue(); i++) {
-				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
-				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-					entry.getKey());
-			}
-			
-			this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-				entry.getKey(), entry.getValue().intValue());
-			
-		}*/
-		
-		
+		// Request the required instances at the resource manager
+		this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
+			requiredInstances, null);
 
 		// Switch vertex state to assigning
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph

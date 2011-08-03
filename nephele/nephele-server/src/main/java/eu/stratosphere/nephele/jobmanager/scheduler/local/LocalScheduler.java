@@ -209,8 +209,10 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 			try {
 				requestInstances(executionStage);
 			} catch (InstanceException e) {
-				// TODO: Handle this error correctly
-				LOG.error(StringUtils.stringifyException(e));
+				final String exceptionMessage = StringUtils.stringifyException(e);
+				LOG.error(exceptionMessage);
+				this.jobQueue.remove(executionGraph);
+				throw new SchedulingException(exceptionMessage);
 			}
 		}
 	}
