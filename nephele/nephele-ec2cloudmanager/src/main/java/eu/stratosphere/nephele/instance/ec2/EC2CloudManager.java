@@ -32,6 +32,7 @@ import java.util.TimerTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -141,7 +142,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		// Load the instance type this cloud can offer
 		this.availableInstanceTypes = populateInstanceTypeArray();
 
-		this.cleanUpInterval = (long) GlobalConfiguration.getInteger("cloud.ec2.cleanupinterval",
+		this.cleanUpInterval = (long) GlobalConfiguration.getInteger("instancemanager.ec2.cleanupinterval",
 			DEFAULTCLEANUPINTERVAL);
 
 		if ((this.cleanUpInterval % BASEINTERVAL) != 0) {
@@ -569,8 +570,8 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 			// Are we outer limits?
 			if (actualRequestedInstances.size() + actualFloatingInstances.size() < mincount) {
-				LOG.error("Requested: " + mincount + " to " + maxcount + " instanes of type "
-					+ actualtype.getIdentifier() + ". Could only provide "
+				LOG.error("Requested: " + mincount + " to " + maxcount + " instances of type "
+					+ actualtype.getIdentifier() + ", but could only provide "
 					+ (actualRequestedInstances.size() + actualFloatingInstances.size()) + ".");
 
 				// something went wrong.. give the floating instances back!
@@ -579,7 +580,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 						this.floatingInstances.put(i.getInstanceConnectionInfo(), i);
 					}
 				}
-				throw new InstanceException("Could not allocate enough cloud instances");
+				throw new InstanceException("Could not allocate enough cloud instances. See logs for details.");
 			} // End outer limits
 
 		} // End iterating over instance types..
@@ -618,8 +619,8 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	private LinkedList<String> allocateCloudInstance(final Configuration conf, final InstanceType type,
 			final int mincount, final int maxcount) {
 
-		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
-		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
+		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
+		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 
 		String imageID = conf.getString("job.ec2.ami", null);
 		LOG.info("EC2 Image ID from job conf: " + imageID);
@@ -637,7 +638,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			LOG.error("JobManager IP address is not set (jobmanager.rpc.address)");
 			return null;
 		}
-		final String sshKeyPair = conf.getString("job.cloud.sshkeypair", null);
+		final String sshKeyPair = conf.getString("job.ec2.sshkeypair", null);
 
 		final AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 		final LinkedList<String> instanceIDs = new LinkedList<String>();
@@ -664,10 +665,15 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		request.setUserData(EC2Utilities.createTaskManagerUserData(jobManagerIPAddress));
 
 		// Request instances!
-		final RunInstancesResult result = ec2client.runInstances(request);
+		try {
+			final RunInstancesResult result = ec2client.runInstances(request);
 
-		for (Instance i : result.getReservation().getInstances()) {
-			instanceIDs.add(i.getInstanceId());
+			for (Instance i : result.getReservation().getInstances()) {
+				instanceIDs.add(i.getInstanceId());
+			}
+		} catch (AmazonClientException e) {
+			// Only log the error here
+			LOG.error(StringUtils.stringifyException(e));
 		}
 
 		return instanceIDs;
@@ -679,20 +685,31 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 * 
 	 * @param conf
 	 *        The configuration provided upon instances request
+	 * @throws InstanceException
+	 *         thrown if an error occurs while communicating with Amazon EC2
 	 */
-	private void checkAndConvertOrphanedInstances(final Configuration conf) {
+	private void checkAndConvertOrphanedInstances(final Configuration conf) throws InstanceException {
+
 		if (this.orphanedTMs.size() == 0) {
 			return;
 		}
 
-		final String awsAccessId = conf.getString("job.cloud.awsaccessid", null);
-		final String awsSecretKey = conf.getString("job.cloud.awssecretkey", null);
+		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
+		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 
-		LOG.debug("Checking orphaned Instances... " + this.orphanedTMs.size() + " orphaned instances listed.");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Checking orphaned instances: " + this.orphanedTMs.size() + " orphaned instances listed.");
+		}
 		final AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 
-		final DescribeInstancesRequest request = new DescribeInstancesRequest();
-		final DescribeInstancesResult result = ec2client.describeInstances(request);
+		DescribeInstancesResult result = null;
+
+		try {
+			final DescribeInstancesRequest request = new DescribeInstancesRequest();
+			result = ec2client.describeInstances(request);
+		} catch (AmazonClientException e) {
+			throw new InstanceException(StringUtils.stringifyException(e));
+		}
 
 		// Iterate over all Instances
 		for (final Reservation r : result.getReservations()) {
@@ -725,7 +742,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 					if (oi.getAddress().equals(inetAddress) && type != null) {
 						LOG.info("Orphaned Instance " + oi + " converted into floating instance.");
 
-						// We have found the corresponding orphaned TM.. take the poor lamb back to its nest.
+						// We have found the corresponding orphaned TM.. convert it back to a floating instance.
 						FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t
 							.getLaunchTime().getTime(), type, awsAccessId, awsSecretKey);
 
@@ -734,7 +751,6 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 						break;
 					}
 				}
-
 			}
 		}
 	}
