@@ -15,10 +15,9 @@
 
 package eu.stratosphere.pact.runtime.util;
 
-import java.io.IOException;
+import java.util.Iterator;
 
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
 
 
 /**
@@ -29,36 +28,55 @@ import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
 */
 public class PactRecordRepeatableIterator implements LastRepeatableIterator<PactRecord>
 {
+	private final Iterator<PactRecord> input;
+	
 	private final PactRecord copy;
 	
-	private final MutableObjectIterator<PactRecord> input;
+	private PactRecord repeater;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public PactRecordRepeatableIterator(MutableObjectIterator<PactRecord> input)
+	public PactRecordRepeatableIterator(Iterator<PactRecord> input)
 	{
 		this.input = input;
 		this.copy = new PactRecord();
+		this.repeater = new PactRecord();
 	}
 	
 	// --------------------------------------------------------------------------------------------
 
+	/* (non-Javadoc)
+	 * @see java.util.Iterator#hasNext()
+	 */
 	@Override
-	public boolean next(PactRecord target) throws IOException
-	{
-		if(this.input.next(target)) {
-			target.copyTo(this.copy);
-			return true;
-		}
-		else {
-			return false;
-		}
+	public boolean hasNext() {
+		return this.input.hasNext();
 	}
 
+	/* (non-Javadoc)
+	 * @see java.util.Iterator#next()
+	 */
 	@Override
-	public boolean repeatLast(PactRecord target)
-	{
-		this.copy.copyTo(target);
-		return true;
+	public PactRecord next() {
+		PactRecord rec = this.input.next();
+		rec.copyTo(this.copy);
+		return rec;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Iterator#remove()
+	 */
+	@Override
+	public void remove() {
+		throw new UnsupportedOperationException();
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.util.LastRepeatableIterator#repeatLast()
+	 */
+	@Override
+	public PactRecord repeatLast() {
+		this.copy.copyTo(this.repeater);
+		return this.repeater;
 	}
 }

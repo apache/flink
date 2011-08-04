@@ -29,10 +29,10 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**

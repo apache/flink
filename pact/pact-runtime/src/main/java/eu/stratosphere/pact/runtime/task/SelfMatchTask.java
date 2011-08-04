@@ -46,12 +46,12 @@ import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.NepheleReaderIterator;
 
 /**

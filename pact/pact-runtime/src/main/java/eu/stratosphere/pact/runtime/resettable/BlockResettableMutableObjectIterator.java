@@ -16,8 +16,6 @@
 package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,7 +26,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.ResettableIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.util.ResettableMutableObjectIterator;
 
 /**
  * Implementation of an iterator that fetches a block of data into main memory and offers resettable
@@ -37,70 +36,51 @@ import eu.stratosphere.pact.runtime.util.ResettableIterator;
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class BlockResettableIterator extends AbstractBlockResettableIterator implements ResettableIterator<PactRecord>
+public class BlockResettableMutableObjectIterator extends AbstractBlockResettableIterator
+implements ResettableMutableObjectIterator<PactRecord>
 {
-	public static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
+	public static final Log LOG = LogFactory.getLog(BlockResettableMutableObjectIterator.class);
 	
-	public static final int MIN_BUFFER_SIZE = 8 * 1024;
-	
-	// ------------------------------------------------------------------------
-	
-	protected Iterator<PactRecord> input;
-	
-	private PactRecord nextElement;
-	
-	private final PactRecord stagingElement;
-	
-	private PactRecord leftOverElement;
+	public static final int MIN_BUFFER_SIZE = 128 * 1024;
 	
 	// ------------------------------------------------------------------------
 	
-	public BlockResettableIterator(MemoryManager memoryManager, Iterator<PactRecord> input,
-			long availableMemory, int nrOfBuffers, AbstractInvokable ownerTask)
-	throws MemoryAllocationException
-	{
-		this(memoryManager, availableMemory, nrOfBuffers, ownerTask);
-		this.input = input;
-	}
+	protected final MutableObjectIterator<PactRecord> input;
 	
-	public BlockResettableIterator(MemoryManager memoryManager,
+	private PactRecord next;
+	
+	private PactRecord leftOverRecord;
+	
+	private boolean leftOver = false;
+	
+	// ------------------------------------------------------------------------
+	
+	public BlockResettableMutableObjectIterator(MemoryManager memoryManager, MutableObjectIterator<PactRecord> input,
 			long availableMemory, int nrOfBuffers, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
 		super(memoryManager, availableMemory, nrOfBuffers, ownerTask);
-		
-		this.stagingElement = new PactRecord();
-	}
-	
-	// ------------------------------------------------------------------------
-	
-	public void reopen(Iterator<PactRecord> input) throws IOException
-	{
 		this.input = input;
-		
-		collectAllBuffers(this.emptySegments);
-		this.noMoreBlocks = false;
-		this.closed = false;
-		
-		nextBlock();
+		this.leftOverRecord = new PactRecord();
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
 	 * @see java.util.Iterator#hasNext()
 	 */
 	@Override
-	public boolean hasNext()
+	public boolean next(PactRecord target) throws IOException
 	{
-		if (this.nextElement == null)
-		{
+		// check for the left over element
+		if (this.next == null) {
 			// we need to make a case distinction whether we are currently reading through full blocks
 			// or filling blocks anew
 			if (this.bufferCurrentlyRead != null)
-			{
+			{				
 				// we are reading from a full block
-				if (this.bufferCurrentlyRead.read(this.stagingElement)) {
+				if (this.bufferCurrentlyRead.read(target)) {
 					// the current buffer had another element
-					this.nextElement = this.stagingElement;
 					return true;
 				}
 				else {
@@ -114,13 +94,11 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 					else {
 						// go to next input block
 						this.bufferCurrentlyRead = this.fullBuffers.remove(0);
-						if (this.bufferCurrentlyRead.read(this.stagingElement)) {
-							// the current buffer had another element
-							this.nextElement = this.stagingElement;
+						if (this.bufferCurrentlyRead.read(target)) {
 							return true;
 						}
 						else {
-							throw new RuntimeException("BlockResettableIterator: " +
+							throw new IOException("BlockResettableIterator: " +
 									"BUG - Could not de-serialize element newly obtaint input block buffer.");
 						}
 					}
@@ -128,12 +106,9 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 			}
 			else if (this.bufferCurrentlyFilled != null) {
 				// we are reading from the input reader and filling the block along
-				if (this.input.hasNext()) {
-					PactRecord next = this.input.next();
-
-					if (this.bufferCurrentlyFilled.write(next)) {
+				if (this.input.next(target)) {
+					if (this.bufferCurrentlyFilled.write(target)) {
 						// object fit into current buffer
-						this.nextElement = next;
 						return true;
 					}
 					else {
@@ -150,19 +125,19 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 						// get the next buffer
 						if (this.emptySegments.isEmpty()) {
 							// no more empty segments. the current element is left over
-							this.leftOverElement = next;
+							target.copyTo(this.leftOverRecord);
+							this.leftOver = true;
 							return false;
 						}
 						else {
 							// next segment available, use it.
 							this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
-							if (this.bufferCurrentlyFilled.write(next)) {
+							if (this.bufferCurrentlyFilled.write(target)) {
 								// object fit into next buffer
-								this.nextElement = next;
 								return true;
 							}
 							else {
-								throw new RuntimeException("BlockResettableIterator: " +
+								throw new IOException("BlockResettableIterator: " +
 									"Could not serialize element into fresh block buffer - element is too large.");
 							}
 						}
@@ -184,39 +159,17 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 			}
 		}
 		else {
+			this.next.copyTo(target);
+			this.next = null;
 			return true;
 		}
-	}
-	
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#next()
-	 */
-	@Override
-	public PactRecord next() {
-		if (this.nextElement == null) {
-			if (!hasNext()) {
-				throw new NoSuchElementException();
-			}
-		}
-		
-		PactRecord out = this.nextElement;
-		this.nextElement = null;
-		return out;
-	}
-	
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#remove()
-	 */
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
 	}
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator#nextBlock()
 	 */
 	@Override
-	public boolean nextBlock() {
+	public boolean nextBlock() throws IOException {
 		// check the state
 		if (this.closed) {
 			throw new IllegalStateException("Iterator has been closed.");
@@ -234,23 +187,23 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 		// set one buffer to be filled and write the next element
 		this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
 		
-		PactRecord next = this.leftOverElement;
-		this.leftOverElement = null;
-		if (next == null) {
-			if (this.input.hasNext()) {
-				next = this.input.next();
-			}
-			else {
-				this.noMoreBlocks = true;
-				return false;
-			}
+		if (this.leftOver) {
+			this.next = this.leftOverRecord;
+			this.leftOver = false;
+		}
+		else if (this.input.next(this.leftOverRecord)) {
+			this.next = this.leftOverRecord;
+		}
+		else {
+			this.noMoreBlocks = true;
+			return false;
 		}
 		
-		if (!this.bufferCurrentlyFilled.write(next)) {
-				throw new RuntimeException("BlockResettableIterator: " +
+		if (!this.bufferCurrentlyFilled.write(this.next)) {
+				throw new IOException("BlockResettableIterator: " +
 					"Could not serialize element into fresh block buffer - element is too large.");
 		}
-		this.nextElement = next;
+		
 		return true;
 	}
 }

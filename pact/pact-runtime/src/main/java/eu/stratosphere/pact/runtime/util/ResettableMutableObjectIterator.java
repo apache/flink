@@ -13,25 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.test.util;
+package eu.stratosphere.pact.runtime.util;
 
-import eu.stratosphere.pact.common.type.PactRecord;
 
-public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
-{
-	private int delay;
-	
-	public DelayingInfinitiveInputIterator(int delay) {
-		this.delay = delay;
-	}
-	
-	@Override
-	public boolean next(PactRecord target) {
-		try {
-			Thread.sleep(delay);
-		}
-		catch (InterruptedException e) { }
-		return super.next(target);
-	}
+/**
+ * The resettable iterator is a specialization of the iterator, allowing to reset the iterator and re-retrieve elements.
+ * Whether the iterator is completely reset or only partially depends on the actual implementation.
+ */
+public interface ResettableMutableObjectIterator<E> extends MutableObjectIterator<E> {
+
+	/**
+	 * Resets the iterator.
+	 */
+	public void reset();
 	
 }

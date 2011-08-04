@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -38,7 +37,6 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -313,7 +311,7 @@ public class SortMergeMatchIteratorITCase
 		final int INPUT_2_SIZE = 100;
 		
 		final int INPUT_1_DUPLICATES = 10;
-		final int INPUT_2_DUPLICATES = 2000;
+		final int INPUT_2_DUPLICATES = 4000;
 		final int DUPLICATE_KEY = 13;
 		
 		try {
@@ -438,7 +436,7 @@ public class SortMergeMatchIteratorITCase
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
 		PactRecord pair = new PactRecord();
 		
-		while ((pair = iter.next(pair)) != null) {
+		while (iter.next(pair)) {
 			TestData.Key key = pair.getField(0, TestData.Key.class);
 			
 			if (!map.containsKey(key)) {

@@ -40,8 +40,8 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 

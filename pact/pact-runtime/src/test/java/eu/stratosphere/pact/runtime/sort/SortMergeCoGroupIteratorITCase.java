@@ -502,7 +502,7 @@ public class SortMergeCoGroupIteratorITCase {
 		PactRecord pair = new PactRecord();
 		
 		for (int i = 0; i < num; i++) {
-			pair = iter.next(pair);
+			iter.next(pair);
 			TestData.Key key = pair.getField(0, TestData.Key.class);
 			
 			if (!map.containsKey(key)) {

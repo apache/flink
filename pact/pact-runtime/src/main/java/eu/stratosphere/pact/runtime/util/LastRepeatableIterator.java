@@ -13,25 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.test.util;
+package eu.stratosphere.pact.runtime.util;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import java.util.Iterator;
 
-public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
+
+/**
+ * A LastRepeatableIterator allows to emit the latest emitted object again. 
+ * 
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @param <E> The type of element that the iterator iterates over.
+ */
+public interface LastRepeatableIterator<E> extends Iterator<E>
 {
-	private int delay;
-	
-	public DelayingInfinitiveInputIterator(int delay) {
-		this.delay = delay;
-	}
-	
-	@Override
-	public boolean next(PactRecord target) {
-		try {
-			Thread.sleep(delay);
-		}
-		catch (InterruptedException e) { }
-		return super.next(target);
-	}
-	
+	/**
+	 * Return the last returned element again.
+	 * 
+	 * @return The last returned element.
+	 */
+	public E repeatLast();
 }

@@ -28,6 +28,7 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 

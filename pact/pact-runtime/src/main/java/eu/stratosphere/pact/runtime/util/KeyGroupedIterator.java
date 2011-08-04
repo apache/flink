@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.pact.runtime.util;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -22,7 +22,6 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
@@ -153,16 +152,18 @@ public final class KeyGroupedIterator
 	 * 
 	 * @return Iterator over all values that belong to the current key.
 	 */
-	public Iterator<PactRecord> getValues() {
+	public ValuesIterator getValues() {
 		return valuesIterator;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	private final class ValuesIterator implements Iterator<PactRecord>
+	public final class ValuesIterator implements Iterator<PactRecord>
 	{
 		private PactRecord bufferRec = new PactRecord();
 		private boolean nextIsUnconsumed = false;
+		
+		private ValuesIterator() {}
 
 		@Override
 		public boolean hasNext()

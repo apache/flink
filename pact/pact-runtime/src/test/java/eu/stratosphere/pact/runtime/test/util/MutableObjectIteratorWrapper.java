@@ -13,37 +13,39 @@
  *
  **********************************************************************************************************************/
 
+package eu.stratosphere.pact.runtime.test.util;
 
-package eu.stratosphere.pact.runtime.resettable;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.io.IOException;
+import java.util.Iterator;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
-public class CollectionIterator implements MutableObjectIterator<PactRecord>
+/**
+ *
+ */
+public class MutableObjectIteratorWrapper implements MutableObjectIterator<PactRecord>
 {
-	private List<PactRecord> objects;
-
-	private int position = 0;
-
-	public CollectionIterator(Collection<PactRecord> objects) {
-		this.objects = new ArrayList<PactRecord>(objects);
+	private final Iterator<PactRecord> source;
+	
+	public MutableObjectIteratorWrapper(Iterator<PactRecord> source)
+	{
+		this.source = source;
 	}
 
 	/* (non-Javadoc)
-	 * @see java.util.Iterator#next()
+	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
-	public boolean next(PactRecord target)
-	{
-		if (position < objects.size()) {
-			this.objects.get(position++).copyTo(target);
+	public boolean next(PactRecord target) throws IOException {
+		if (this.source.hasNext()) {
+			this.source.next().copyTo(target);
 			return true;
 		}
-		return false;
+		else {
+			return false;
+		}
 	}
+
 }

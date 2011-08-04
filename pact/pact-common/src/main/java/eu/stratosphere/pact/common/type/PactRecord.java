@@ -459,6 +459,11 @@ public final class PactRecord implements Value
 		throw new UnsupportedOperationException();
 	}
 	
+	public void copyToIfModified(PactRecord target)
+	{
+		copyTo(target);
+	}
+	
 	public void copyTo(PactRecord target)
 	{
 		updateBinaryRepresenation();
