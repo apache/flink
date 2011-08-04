@@ -84,8 +84,8 @@ public final class KeyGroupedIterator
 	{
 		// first element
 		if (this.next == null) {
-			this.next = this.iterator.next(new PactRecord());
-			if (this.next != null) {
+			this.next = new PactRecord();
+			if (this.iterator.next(this.next)) {
 				this.next.getFieldsInto(this.keyPositions, this.currentKeys);
 				this.nextIsFresh = false;
 				this.valuesIterator = new ValuesIterator();
@@ -112,7 +112,7 @@ public final class KeyGroupedIterator
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			if ((this.next = this.iterator.next(this.next)) != null) {
+			if (this.iterator.next(this.next)) {
 				for (int i = 0; i < this.currentKeys.length; i++) {
 					final Key k = this.next.getField(this.keyPositions[i], this.keyClasses[i]);
 					if (!this.currentKeys[i].equals(k)) {
@@ -175,12 +175,15 @@ public final class KeyGroupedIterator
 			}
 			
 			try {
-				PactRecord rec = KeyGroupedIterator.this.iterator.next(KeyGroupedIterator.this.next);
-				KeyGroupedIterator.this.next = rec;
-				if (rec != null) {
+				if (KeyGroupedIterator.this.iterator.next(this.bufferRec)) {
+					// exchange the buffer record and the next record
+					PactRecord tmp = this.bufferRec;
+					this.bufferRec = KeyGroupedIterator.this.next;
+					KeyGroupedIterator.this.next = tmp;
+					
 					// check whether the keys are equal
 					for (int i = 0; i < KeyGroupedIterator.this.keyPositions.length; i++) {
-						Key k = rec.getField(keyPositions[i], keyClasses[i]);
+						Key k = tmp.getField(keyPositions[i], keyClasses[i]);
 						if (!(currentKeys[i].equals(k))) {
 							// moved to the next key, no more values here
 							KeyGroupedIterator.this.nextIsFresh = true;
@@ -211,8 +214,7 @@ public final class KeyGroupedIterator
 		public PactRecord next() {
 			if (this.nextIsUnconsumed || hasNext()) {
 				this.nextIsUnconsumed = false;
-				KeyGroupedIterator.this.next.copyTo(this.bufferRec);
-				return this.bufferRec;
+				return KeyGroupedIterator.this.next;
 			} else {
 				throw new NoSuchElementException();
 			}

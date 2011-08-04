@@ -18,50 +18,32 @@ package eu.stratosphere.pact.runtime.resettable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
-public class CollectionIterator<T extends Record> implements Iterator<T>
+public class CollectionIterator implements MutableObjectIterator<PactRecord>
 {
-	private List<T> objects;
+	private List<PactRecord> objects;
 
 	private int position = 0;
 
-	public CollectionIterator(Collection<T> objects) {
-		this.objects = new ArrayList<T>(objects);
-	}
-
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#hasNext()
-	 */
-	@Override
-	public boolean hasNext() {
-		if (position < objects.size())
-			return true;
-		return false;
+	public CollectionIterator(Collection<PactRecord> objects) {
+		this.objects = new ArrayList<PactRecord>(objects);
 	}
 
 	/* (non-Javadoc)
 	 * @see java.util.Iterator#next()
 	 */
 	@Override
-	public T next() {
-		if (hasNext()) {
-			return this.objects.get(position++);
+	public boolean next(PactRecord target)
+	{
+		if (position < objects.size()) {
+			this.objects.get(position++).copyTo(target);
+			return true;
 		}
-		else 
-			throw new NoSuchElementException();
-	}
-
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#remove()
-	 */
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
+		return false;
 	}
 }

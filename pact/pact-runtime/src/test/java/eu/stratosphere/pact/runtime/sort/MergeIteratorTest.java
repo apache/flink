@@ -52,7 +52,7 @@ public class MergeIteratorTest {
 			private int current = 0;
 
 			@Override
-			public PactRecord next(PactRecord target)
+			public boolean next(PactRecord target)
 			{
 				if (current < keys.length) {
 					key.setKey(keys[current]);
@@ -60,10 +60,10 @@ public class MergeIteratorTest {
 					current++;
 					target.setField(0, key);
 					target.setField(1, value);
-					return target;
+					return true;
 				}
 				else {
-					return null;
+					return false;
 				}
 			}
 		};
@@ -95,10 +95,10 @@ public class MergeIteratorTest {
 		
 		int pos = 1;
 		
-		rec1 = iterator.next(rec1);
+		Assert.assertTrue(iterator.next(rec1));
 		Assert.assertEquals(expected[0], rec1.getField(0, TestData.Key.class).getKey());
 		
-		while ((rec2 = iterator.next(rec2)) != null) {
+		while (iterator.next(rec2)) {
 			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
 			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
 			
@@ -142,8 +142,8 @@ public class MergeIteratorTest {
 		final Key k1 = new Key();
 		final Key k2 = new Key();
 		
-		rec1 = iterator.next(rec1);
-		while ((rec2 = iterator.next(rec2)) != null) {
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
 			elementsFound++;
 			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
 			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
@@ -187,8 +187,8 @@ public class MergeIteratorTest {
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		
-		rec1 = iterator.next(rec1);
-		while ((rec2 = iterator.next(rec2)) != null)
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2))
 		{
 			final Key k1 = new Key();
 			final Key k2 = new Key();

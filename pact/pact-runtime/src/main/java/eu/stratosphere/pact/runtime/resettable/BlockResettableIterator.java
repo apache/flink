@@ -100,7 +100,7 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 	 * @see java.util.Iterator#hasNext()
 	 */
 	@Override
-	public PactRecord next(PactRecord target) throws IOException
+	public boolean next(PactRecord target) throws IOException
 	{
 		// check for the left over element
 		if (this.next == null) {
@@ -111,7 +111,7 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 				// we are reading from a full block
 				if (this.bufferCurrentlyRead.read(target)) {
 					// the current buffer had another element
-					return target;
+					return true;
 				}
 				else {
 					// the current buffer is exhausted
@@ -119,13 +119,13 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 					if (this.fullBuffers.isEmpty()) {
 						// no more elements in this block.
 						this.bufferCurrentlyRead = null;
-						return null;
+						return false;
 					}
 					else {
 						// go to next input block
 						this.bufferCurrentlyRead = this.fullBuffers.remove(0);
 						if (this.bufferCurrentlyRead.read(target)) {
-							return target;
+							return true;
 						}
 						else {
 							throw new IOException("BlockResettableIterator: " +
@@ -136,11 +136,10 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 			}
 			else if (this.bufferCurrentlyFilled != null) {
 				// we are reading from the input reader and filling the block along
-				target = this.input.next(target);
-				if (target != null) {
+				if (this.input.next(target)) {
 					if (this.bufferCurrentlyFilled.write(target)) {
 						// object fit into current buffer
-						return target;
+						return true;
 					}
 					else {
 						// object did not fit into current buffer
@@ -158,14 +157,14 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 							// no more empty segments. the current element is left over
 							target.copyTo(this.leftOverRecord);
 							this.leftOver = true;
-							return null;
+							return false;
 						}
 						else {
 							// next segment available, use it.
 							this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
 							if (this.bufferCurrentlyFilled.write(target)) {
 								// object fit into next buffer
-								return target;
+								return true;
 							}
 							else {
 								throw new IOException("BlockResettableIterator: " +
@@ -177,7 +176,7 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 				else {
 					// no more input from the reader
 					this.noMoreBlocks = true;
-					return null;
+					return false;
 				}
 			}
 			else {
@@ -186,13 +185,13 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 				if (this.closed) {
 					throw new IllegalStateException("Iterator was closed.");
 				}
-				return null;
+				return false;
 			}
 		}
 		else {
-			PactRecord tmp = this.next;
+			this.next.copyTo(target);
 			this.next = null;
-			return tmp;
+			return true;
 		}
 	}
 
@@ -269,10 +268,14 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 		// set one buffer to be filled and write the next element
 		this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
 		
-		this.next = this.leftOver ? this.leftOverRecord : this.input.next(this.leftOverRecord);
-		this.leftOver = false;
-		
-		if (this.next == null) {
+		if (this.leftOver) {
+			this.next = this.leftOverRecord;
+			this.leftOver = false;
+		}
+		else if (this.input.next(this.leftOverRecord)) {
+			this.next = this.leftOverRecord;
+		}
+		else {
 			this.noMoreBlocks = true;
 			return false;
 		}
@@ -376,5 +379,4 @@ public class BlockResettableIterator implements MemoryBlockIterator<PactRecord>
 			this.bufferCurrentlyFilled = null;
 		}
 	}
-
 }

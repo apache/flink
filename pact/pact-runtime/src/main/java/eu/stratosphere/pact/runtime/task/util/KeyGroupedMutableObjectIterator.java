@@ -83,8 +83,8 @@ public final class KeyGroupedMutableObjectIterator
 	{
 		// first element
 		if (this.next == null) {
-			this.next = this.iterator.next(new PactRecord());
-			if (this.next != null) {
+			this.next = new PactRecord();
+			if (this.iterator.next(this.next)) {
 				this.next.getFieldsInto(this.keyPositions, this.currentKeys);
 				this.nextIsFresh = false;
 				this.valuesIterator = new ValuesIterator();
@@ -111,7 +111,7 @@ public final class KeyGroupedMutableObjectIterator
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			if ((this.next = this.iterator.next(this.next)) != null) {
+			if (this.iterator.next(this.next)) {
 				for (int i = 0; i < this.currentKeys.length; i++) {
 					final Key k = this.next.getField(this.keyPositions[i], this.keyClasses[i]);
 					if (!this.currentKeys[i].equals(k)) {
@@ -163,36 +163,36 @@ public final class KeyGroupedMutableObjectIterator
 		private boolean nextIsUnconsumed = false;
 
 		@Override
-		public PactRecord next(PactRecord target)
+		public boolean next(PactRecord target)
 		{
 			if (KeyGroupedMutableObjectIterator.this.next == null || KeyGroupedMutableObjectIterator.this.nextIsFresh) {
-				return null;
+				return false;
 			}
 			if (this.nextIsUnconsumed) {
-				return KeyGroupedMutableObjectIterator.this.next;
+				KeyGroupedMutableObjectIterator.this.next.copyTo(target);
+				return true;
 			}
 			
 			try {
-				PactRecord rec = KeyGroupedMutableObjectIterator.this.iterator.next(target);
-				if (rec != null) {
+				if (KeyGroupedMutableObjectIterator.this.iterator.next(target)) {
 					// check whether the keys are equal
 					for (int i = 0; i < KeyGroupedMutableObjectIterator.this.keyPositions.length; i++) {
-						Key k = rec.getField(keyPositions[i], keyClasses[i]);
+						Key k = target.getField(keyPositions[i], keyClasses[i]);
 						if (!(currentKeys[i].equals(k))) {
 							// moved to the next key, no more values here
-							KeyGroupedMutableObjectIterator.this.next = rec;
+							target.copyTo(KeyGroupedMutableObjectIterator.this.next);
 							KeyGroupedMutableObjectIterator.this.nextIsFresh = true;
-							return null;
+							return false;
 						}
 					}
 					
 					// same key, next value is in "next"
-					return rec;
+					return true;
 				}
 				else {
 					// backing iterator is consumed
 					KeyGroupedMutableObjectIterator.this.next = null;
-					return null;
+					return false;
 				}
 			}
 			catch (IOException ioex) {

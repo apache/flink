@@ -413,7 +413,7 @@ public class HashMatchIteratorITCase
 		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
 		PactRecord pair = new PactRecord();
 		
-		while ((pair = iter.next(pair)) != null) {
+		while (iter.next(pair)) {
 
 			TestData.Key key = pair.getField(0, TestData.Key.class);
 			if (!map.containsKey(key)) {

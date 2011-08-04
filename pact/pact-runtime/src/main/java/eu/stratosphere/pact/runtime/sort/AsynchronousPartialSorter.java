@@ -171,11 +171,10 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 		 * @see java.util.Iterator#hasNext()
 		 */
 		@Override
-		public PactRecord next(PactRecord target) throws IOException
+		public boolean next(PactRecord target) throws IOException
 		{
-			PactRecord rec;
-			if (this.currentIterator != null && (rec = this.currentIterator.next(target)) != null) {
-				return rec;
+			if (this.currentIterator != null && this.currentIterator.next(target)) {
+				return true;
 			}
 			else if (this.closed) {
 				throw new IllegalStateException();
@@ -183,7 +182,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 			else {
 				while (true) {
 					if (this.currentElement == SENTINEL) {
-						return null;
+						return false;
 					}
 					else if (this.currentElement != null) {
 						// return the current element to the empty queue
@@ -195,7 +194,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 					try {
 						this.currentElement = queues.spill.take();
 						if (this.currentElement == SENTINEL) {
-							return null;
+							return false;
 						}
 						if (this.currentElement == SPILLING_MARKER) {
 							this.currentElement = null;
@@ -207,8 +206,8 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 					}
 					
 					this.currentIterator = this.currentElement.buffer.getIterator();
-					if ((rec = this.currentIterator.next(target)) != null) {
-						return rec;
+					if (this.currentIterator.next(target)) {
+						return true;
 					}
 					this.currentIterator = null;
 				}

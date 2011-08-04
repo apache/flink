@@ -50,14 +50,13 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 		if (this.heap.size() > 0) {
 			// get the smallest element
 			HeadStream top = heap.peek();
-			PactRecord head = top.getHead();
+			top.getHead().copyTo(target);
 			
 			// read an element
 			if (!top.nextHead()) {
 				heap.poll();
 			}
 			heap.adjustTop();
-			head.copyTo(target);
 			return true;
 		}
 		else {

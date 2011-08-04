@@ -116,11 +116,11 @@ public class BufferSortableGuarenteedTest {
 			int writtenBytes = 0;
 			PactRecord rec = new PactRecord();
 			
-			rec = generator.next(rec);
+			generator.next(rec);
 			while (buffer.write(rec)) {
 				writtenBytes += generator.sizeOf(rec);
 				writtenPairs++;
-				rec = generator.next(rec);
+				generator.next(rec);
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
@@ -162,12 +162,12 @@ public class BufferSortableGuarenteedTest {
 			BufferSortableGuaranteed buffer = newSortBuffer(memory);
 			int writtenBytes = 0;
 			PactRecord rec = new PactRecord();
-			rec = generator.next(rec);
+			generator.next(rec);
 			while (buffer.write(rec)) {
 				LOG.debug("<- " + rec);
 				writtenBytes += generator.sizeOf(rec);
 				writtenPairs++;
-				rec = generator.next(rec);
+				generator.next(rec);
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of " + 1024
 				+ " bytes.");
@@ -211,8 +211,11 @@ public class BufferSortableGuarenteedTest {
 			TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 				ValueMode.RANDOM_LENGTH);
 			PactRecord rec = new PactRecord();
-			while (unsortedBuffer.write(generator.next(rec))) {
+			generator.next(rec);
+			
+			while (unsortedBuffer.write(rec)) {
 				writtenPairs++;
+				generator.next(rec);
 			}
 			LOG.debug("Written " + writtenPairs + " pairs.");
 
@@ -312,9 +315,12 @@ public class BufferSortableGuarenteedTest {
 			{
 				final MutableObjectIterator<PactRecord> iter = buffer.getIterator();
 				final PactRecord rec = new PactRecord();
-				Assert.assertEquals(2, iter.next(rec).getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(1, iter.next(rec).getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(3, iter.next(rec).getField(0, TestData.Key.class).getKey());
+				Assert.assertTrue(iter.next(rec));
+				Assert.assertEquals(2, rec.getField(0, TestData.Key.class).getKey());
+				Assert.assertTrue(iter.next(rec));
+				Assert.assertEquals(1, rec.getField(0, TestData.Key.class).getKey());
+				Assert.assertTrue(iter.next(rec));
+				Assert.assertEquals(3, rec.getField(0, TestData.Key.class).getKey());
 			}
 			
 			buffer.swap(1, 2);
@@ -322,9 +328,12 @@ public class BufferSortableGuarenteedTest {
 			{
 				MutableObjectIterator<PactRecord> iter = buffer.getIterator();
 				final PactRecord rec = new PactRecord();
-				Assert.assertEquals(2, iter.next(rec).getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(3, iter.next(rec).getField(0, TestData.Key.class).getKey());
-				Assert.assertEquals(1, iter.next(rec).getField(0, TestData.Key.class).getKey());
+				Assert.assertTrue(iter.next(rec));
+				Assert.assertEquals(2, rec.getField(0, TestData.Key.class).getKey());
+				Assert.assertTrue(iter.next(rec));
+				Assert.assertEquals(3, rec.getField(0, TestData.Key.class).getKey());
+				Assert.assertTrue(iter.next(rec));
+				Assert.assertEquals(1, rec.getField(0, TestData.Key.class).getKey());
 			}
 			
 			{
@@ -393,9 +402,8 @@ public class BufferSortableGuarenteedTest {
 			final PactRecord rec = new PactRecord();
 			for(int i = 1; i < 4; i++)
 			{
-				PactRecord pair = iter.next(rec);
-				Assert.assertNotNull("Iterator returned not enough pairs.", pair);				
-				Assert.assertEquals(i, pair.getField(0, TestData.Key.class).getKey());
+				Assert.assertTrue("Iterator returned not enough pairs.", iter.next(rec));				
+				Assert.assertEquals(i, rec.getField(0, TestData.Key.class).getKey());
 			}
 			
 			{
@@ -443,18 +451,18 @@ public class BufferSortableGuarenteedTest {
 			int writtenBytes = 0;
 			
 			PactRecord rec = new PactRecord();
-			rec = generator.next(rec);
+			Assert.assertTrue(generator.next(rec));
 			while (buffer.write(rec)) {
 				writtenBytes += generator.sizeOf(rec) + Integer.SIZE / 8;
 				writtenPairs++;
-				rec = generator.next(rec);
+				Assert.assertTrue(generator.next(rec));
 			}
 			LOG.debug("Written " + writtenPairs + " pairs to buffer which occupied " + writtenBytes + " of "
 				+ MEMORY_SIZE + " bytes.");
 
 			final MutableObjectIterator<PactRecord> iter = buffer.getIterator();
 			
-			while ((rec = iter.next(rec)) != null) {
+			while (iter.next(rec)) {
 				readPairs++;
 			}
 			memory = buffer.unbind();

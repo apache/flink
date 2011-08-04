@@ -117,7 +117,8 @@ public class UnilateralSortMergerITCase
 		PactRecord rec = new PactRecord();
 		
 		for (int i = 0; i < NUM_PAIRS; i++) {
-			reader.emit(generator.next(rec));
+			generator.next(rec);
+			reader.emit(rec);
 		}
 		reader.close();
 
@@ -130,8 +131,8 @@ public class UnilateralSortMergerITCase
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		
-		rec1 = iterator.next(rec1);
-		while ((rec2 = iterator.next(rec2)) != null) {
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
@@ -174,7 +175,8 @@ public class UnilateralSortMergerITCase
 		PactRecord rec = new PactRecord();
 		
 		for (int i = 0; i < NUM_PAIRS; i++) {
-			reader.emit(generator.next(rec));
+			generator.next(rec);
+			reader.emit(rec);
 		}
 		reader.close();
 
@@ -187,8 +189,8 @@ public class UnilateralSortMergerITCase
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		
-		rec1 = iterator.next(rec1);
-		while ((rec2 = iterator.next(rec2)) != null) {
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
@@ -231,7 +233,8 @@ public class UnilateralSortMergerITCase
 		PactRecord rec = new PactRecord();
 		
 		for (int i = 0; i < NUM_PAIRS; i++) {
-			reader.emit(generator.next(rec));
+			generator.next(rec);
+			reader.emit(rec);
 		}
 		reader.close();
 
@@ -244,8 +247,8 @@ public class UnilateralSortMergerITCase
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		
-		rec1 = iterator.next(rec1);
-		while ((rec2 = iterator.next(rec2)) != null) {
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
@@ -293,7 +296,8 @@ public class UnilateralSortMergerITCase
 		
 		long start = System.currentTimeMillis();
 		for (int i = 0, percent = 0, nextPercent = PAIRS / 20; i < PAIRS; i++) {
-			reader.emit(generator.next(rec));
+			generator.next(rec);
+			reader.emit(rec);
 			if (i == nextPercent) {
 				percent += 5;
 				nextPercent += PAIRS / 20;
@@ -314,8 +318,8 @@ public class UnilateralSortMergerITCase
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		
-		rec1 = iterator.next(rec1);
-		while ((rec2 = iterator.next(rec2)) != null) {
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsRead++;

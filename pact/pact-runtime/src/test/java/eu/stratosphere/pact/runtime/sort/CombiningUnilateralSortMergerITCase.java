@@ -122,7 +122,7 @@ public class CombiningUnilateralSortMergerITCase
 		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 
 		PactRecord target = new PactRecord();
-		while ((target = iterator.next(target)) != null) {
+		while (iterator.next(target)) {
 			Assert.assertEquals(noKeyCnt, target.getField(1, PactInteger.class).getValue());
 		}
 	}
@@ -155,7 +155,7 @@ public class CombiningUnilateralSortMergerITCase
 		final TestData.Value value = new TestData.Value("1");
 		
 		for (int i = 0; i < NUM_PAIRS; i++) {
-			rec = generator.next(rec);
+			Assert.assertTrue(generator.next(rec));
 			final TestData.Key key = rec.getField(0, TestData.Key.class);
 			rec.setField(1, value);
 			reader.emit(rec);
@@ -173,10 +173,10 @@ public class CombiningUnilateralSortMergerITCase
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		
-		rec1 = iterator.next(rec1);
+		Assert.assertTrue(iterator.next(rec1));
 		countTable.put(new TestData.Key(rec1.getField(0, TestData.Key.class).getKey()), countTable.get(rec1.getField(0, TestData.Key.class)) - (Integer.parseInt(rec1.getField(1, TestData.Value.class).toString())));
 
-		while ((rec2 = iterator.next(rec2)) != null) {
+		while (iterator.next(rec2)) {
 			final Key k1 = rec1.getField(0, TestData.Key.class);
 			final Key k2 = rec2.getField(0, TestData.Key.class);
 			

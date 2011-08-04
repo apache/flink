@@ -33,7 +33,7 @@ public class MockRecordReader implements MutableObjectIterator<PactRecord>
 	
 
 	@Override
-	public PactRecord next(PactRecord target)
+	public boolean next(PactRecord target)
 	{
 		PactRecord r = null;
 		while (r == null) {
@@ -51,9 +51,10 @@ public class MockRecordReader implements MutableObjectIterator<PactRecord>
 			} catch (InterruptedException e) {
 				throw new RuntimeException("Reader was interrupted.");
 			}
-			return null;
+			return false;
 		} else {
-			return r;
+			r.copyTo(target);
+			return true;
 		}
 	}
 

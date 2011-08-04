@@ -769,7 +769,7 @@ public class UnilateralSortMerger implements SortMerger
 
 		// read the merged stream and write the data back
 		PactRecord rec = new PactRecord();
-		while ((rec = mergeIterator.next(rec)) != null) {
+		while (mergeIterator.next(rec)) {
 			// read sorted pairs into memory buffer
 			if (!writer.write(rec)) {
 				throw new IOException("Writing of pair during merging failed");
@@ -1118,7 +1118,7 @@ public class UnilateralSortMerger implements SortMerger
 					
 					// spilling will be triggered while this buffer is filled
 					// loop until the buffer is full or the reader is exhausted
-					while (isRunning() && (current = reader.next(current)) != null)
+					while (isRunning() && reader.next(current))
 					{
 						if (!buffer.write(current)) {
 							leftoverRecord = current;
@@ -1171,7 +1171,7 @@ public class UnilateralSortMerger implements SortMerger
 				
 				// no spilling will be triggered (any more) while this buffer is being processed
 				// loop until the buffer is full or the reader is exhausted
-				while (isRunning() && (current = reader.next(current)) != null) {
+				while (isRunning() && reader.next(current)) {
 					if (!buffer.write(current)) {
 						leftoverRecord = current;
 						break;
@@ -1179,7 +1179,7 @@ public class UnilateralSortMerger implements SortMerger
 				}
 				
 				// check whether the buffer is exhausted or the reader is
-				if (current != null || leftoverRecord != null) {
+				if (leftoverRecord != null) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Emitting full buffer from reader thread: " + element.id + ".");
 					}
@@ -1550,8 +1550,8 @@ public class UnilateralSortMerger implements SortMerger
 		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
 		 */
 		@Override
-		public PactRecord next(PactRecord target) throws IOException {
-			return this.reader.read(target) ? target : null;
+		public boolean next(PactRecord target) throws IOException {
+			return this.reader.read(target);
 		}
 
 	}

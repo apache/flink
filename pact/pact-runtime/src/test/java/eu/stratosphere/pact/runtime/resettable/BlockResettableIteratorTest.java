@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.resettable;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.junit.After;
@@ -30,6 +29,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 import junit.framework.Assert;
 
 public class BlockResettableIteratorTest
@@ -40,7 +40,7 @@ public class BlockResettableIteratorTest
 	
 	private MemoryManager memman;
 
-	private Iterator<PactRecord> reader;
+	private MutableObjectIterator<PactRecord> reader;
 
 	private List<PactRecord> objects;
 
@@ -56,7 +56,7 @@ public class BlockResettableIteratorTest
 		}
 		
 		// create the reader
-		this.reader = new CollectionIterator<PactRecord>(objects);
+		this.reader = new CollectionIterator(objects);
 	}
 	
 	@After
@@ -81,8 +81,7 @@ public class BlockResettableIteratorTest
 		// open the iterator
 		iterator.open();
 		
-		PactRecord target = new PactRecord();
-		PactRecord next;
+		final PactRecord target = new PactRecord();
 		
 		// now test walking through the iterator
 		int lower = 0;
@@ -91,16 +90,16 @@ public class BlockResettableIteratorTest
 			lower = upper;
 			upper = lower;
 			// find the upper bound
-			while ((next = iterator.next(target)) != null) {
-				int val = next.getField(0, PactInteger.class).getValue();
+			while (iterator.next(target)) {
+				int val = target.getField(0, PactInteger.class).getValue();
 				Assert.assertEquals(upper++, val);
 			}
 			// now reset the buffer a few times
 			for (int i = 0; i < 5; ++i) {
 				iterator.reset();
 				int count = 0;
-				while ((next = iterator.next(target)) != null) {
-					int val = next.getField(0, PactInteger.class).getValue();
+				while (iterator.next(target)) {
+					int val = target.getField(0, PactInteger.class).getValue();
 					Assert.assertEquals(lower + (count++), val);
 				}
 				Assert.assertEquals(upper - lower, count);
@@ -121,7 +120,6 @@ public class BlockResettableIteratorTest
 		iterator.open();
 		
 		PactRecord target = new PactRecord();
-		PactRecord next;
 		
 		// now test walking through the iterator
 		int lower = 0;
@@ -130,16 +128,16 @@ public class BlockResettableIteratorTest
 			lower = upper;
 			upper = lower;
 			// find the upper bound
-			while ((next = iterator.next(target)) != null) {
-				int val = next.getField(0, PactInteger.class).getValue();
+			while (iterator.next(target)) {
+				int val = target.getField(0, PactInteger.class).getValue();
 				Assert.assertEquals(upper++, val);
 			}
 			// now reset the buffer a few times
 			for (int i = 0; i < 5; ++i) {
 				iterator.reset();
 				int count = 0;
-				while ((next = iterator.next(target)) != null) {
-					int val = next.getField(0, PactInteger.class).getValue();
+				while (iterator.next(target)) {
+					int val = target.getField(0, PactInteger.class).getValue();
 					Assert.assertEquals(lower + (count++), val);
 				}
 				Assert.assertEquals(upper - lower, count);
@@ -161,7 +159,6 @@ public class BlockResettableIteratorTest
 		iterator.open();
 		
 		PactRecord target = new PactRecord();
-		PactRecord next;
 		
 		// now test walking through the iterator
 		int lower = 0;
@@ -170,16 +167,16 @@ public class BlockResettableIteratorTest
 			lower = upper;
 			upper = lower;
 			// find the upper bound
-			while ((next = iterator.next(target)) != null) {
-				int val = next.getField(0, PactInteger.class).getValue();
+			while (iterator.next(target)) {
+				int val = target.getField(0, PactInteger.class).getValue();
 				Assert.assertEquals(upper++, val);
 			}
 			// now reset the buffer a few times
 			for (int i = 0; i < 5; ++i) {
 				iterator.reset();
 				int count = 0;
-				while ((next = iterator.next(target)) != null) {
-					int val = next.getField(0, PactInteger.class).getValue();
+				while (iterator.next(target)) {
+					int val = target.getField(0, PactInteger.class).getValue();
 					Assert.assertEquals(lower + (count++), val);
 				}
 				Assert.assertEquals(upper - lower, count);

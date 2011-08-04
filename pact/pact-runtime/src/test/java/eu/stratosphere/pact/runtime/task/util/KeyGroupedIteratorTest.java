@@ -69,15 +69,15 @@ public class KeyGroupedIteratorTest
 			final Iterator<IntStringPair> it = source.iterator();
 			
 			@Override
-			public PactRecord next(PactRecord target) throws IOException {
+			public boolean next(PactRecord target) throws IOException {
 				if (it.hasNext()) {
 					IntStringPair pair = it.next();
 					target.setField(0, pair.getInteger());
 					target.setField(1, pair.getString());
-					return target;
+					return true;
 				}
 				else {
-					return null;
+					return false;
 				}
 			}
 		};

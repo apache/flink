@@ -735,7 +735,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
 		 */
 		@Override
-		public PactRecord next(PactRecord target) throws IOException
+		public boolean next(PactRecord target) throws IOException
 		{
 			try {
 				while (this.results.isEmpty() && this.iterator.nextKey()) {
@@ -747,10 +747,11 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			}
 			
 			if (!this.results.isEmpty()) {
-				return this.results.remove(0);
+				this.results.remove(0).copyTo(target);
+				return true;
 			}
 			else {
-				return null;
+				return false;
 			}
 		}
 	}
