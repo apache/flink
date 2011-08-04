@@ -40,20 +40,18 @@ public class EC2CloudInstance extends AbstractInstance {
 
 	/** The instance ID. */
 	private final String instanceID;
-	
+
 	/** The AWS Access Key to access this machine */
 	private String awsAccessKey;
-	
+
 	/** The AWS Secret Key to access this machine */
 	private String awsSecretKey;
-	
+
 	/** The time the instance was allocated. */
 	private final long launchTime;
 
 	/** The last received heart beat. */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
-	
-	
 
 	/**
 	 * Creates a new cloud instance.
@@ -71,13 +69,14 @@ public class EC2CloudInstance extends AbstractInstance {
 	 * @param hardwareDescription
 	 *        the hardware description reported by the instance itself
 	 * @param awsAccessKey
-	 * 		  The AWS Access Key to access this machine
+	 *        The AWS Access Key to access this machine
 	 * @param awsSecretKey
-	 * 		  The AWS Secret Key to access this machine
+	 *        The AWS Secret Key to access this machine
 	 */
-	public EC2CloudInstance(String instanceID, InstanceType type, 
+	public EC2CloudInstance(String instanceID, InstanceType type,
 			InstanceConnectionInfo instanceConnectionInfo, long launchTime, NetworkNode parentNode,
-			NetworkTopology networkTopology, HardwareDescription hardwareDescription, String awsAccessKey, String awsSecretKey) {
+			NetworkTopology networkTopology, HardwareDescription hardwareDescription, String awsAccessKey,
+			String awsSecretKey) {
 		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
 		this.allocatedResource = new AllocatedResource(this, type, new AllocationID());
@@ -85,9 +84,9 @@ public class EC2CloudInstance extends AbstractInstance {
 		this.instanceID = instanceID;
 
 		this.launchTime = launchTime;
-		
+
 		this.awsAccessKey = awsAccessKey;
-		
+
 		this.awsSecretKey = awsSecretKey;
 	}
 
@@ -131,9 +130,11 @@ public class EC2CloudInstance extends AbstractInstance {
 
 	/**
 	 * Returns this Instance as a FloatingInstance object
+	 * 
 	 * @return
 	 */
-	public FloatingInstance asFloatingInstance(){
-		return new FloatingInstance(this.instanceID, this.getInstanceConnectionInfo(), this.launchTime, this.getType(), this.awsAccessKey, this.awsSecretKey);
+	public FloatingInstance asFloatingInstance() {
+		return new FloatingInstance(this.instanceID, this.getInstanceConnectionInfo(), this.launchTime, this.getType(),
+			this.getHardwareDescription(), this.awsAccessKey, this.awsSecretKey);
 	}
 }

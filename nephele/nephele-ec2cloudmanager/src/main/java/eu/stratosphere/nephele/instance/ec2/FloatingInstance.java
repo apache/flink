@@ -20,8 +20,10 @@ import java.util.LinkedList;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.topology.NetworkNode;
 
 /**
  * A FloatingInstance is an instance in the cloud allocated for a user. It is idle and carries out no task.
@@ -29,11 +31,15 @@ import eu.stratosphere.nephele.instance.InstanceType;
  */
 class FloatingInstance {
 
-	/** The user pays fee for his instances every time unit. */
-	private static final long TIMEUNIT = 60 * 60 * 1000; // 1 hour in ms.
+	/**
+	 * The minimum period of time for which a user has to lease an instance on Amazon EC2.
+	 */
+	private static final long LEASE_PERIOD = 60 * 60 * 1000; // 1 hour in ms.
 
-	/** Timelimit to full next hour when instance is kicked. */
-	private static final long TIMETHRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
+	/**
+	 * Time limit to full next hour when instance is terminate.
+	 **/
+	private static final long TIME_THRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
 
 	/** The instance ID. */
 	private final String instanceID;
@@ -50,8 +56,13 @@ class FloatingInstance {
 	/** The AWS Secret Key to access this machine */
 	private String awsSecretKey;
 
-	/** The instance Type */
+	/** The instance type */
 	private InstanceType type;
+
+	/**
+	 * The instance's hardware description.
+	 */
+	private final HardwareDescription hardwareDescription;
 
 	/** The last received heart beat. */
 	private long lastHeartBeat;
@@ -73,7 +84,7 @@ class FloatingInstance {
 	 *        The AWS Secret Key to access this machine
 	 */
 	public FloatingInstance(String instanceID, InstanceConnectionInfo instanceConnectionInfo, long launchTime,
-			InstanceType type, String awsAccessKey, String awsSecretKey) {
+			InstanceType type, HardwareDescription hardwareDescription, String awsAccessKey, String awsSecretKey) {
 		this.instanceID = instanceID;
 		this.instanceConnectionInfo = instanceConnectionInfo;
 		this.launchTime = launchTime;
@@ -81,6 +92,7 @@ class FloatingInstance {
 		this.awsAccessKey = awsAccessKey;
 		this.awsSecretKey = awsSecretKey;
 		this.type = type;
+		this.hardwareDescription = hardwareDescription;
 	}
 
 	/**
@@ -155,21 +167,22 @@ class FloatingInstance {
 	 * 
 	 * @return
 	 */
-	public EC2CloudInstance asCloudInstance() {
-		return new EC2CloudInstance(this.instanceID, this.type, this.getInstanceConnectionInfo(), this.launchTime, null,
-			null, null, this.awsAccessKey, this.awsSecretKey);
+	public EC2CloudInstance asCloudInstance(final NetworkNode parentNode) {
+
+		return new EC2CloudInstance(this.instanceID, this.type, this.getInstanceConnectionInfo(), this.launchTime,
+			parentNode, parentNode.getNetworkTopology(), this.hardwareDescription, this.awsAccessKey, this.awsSecretKey);
 	}
 
 	/**
-	 * This method checks, if this floating instance has reached the end of its lifecycle and - if so - terminates
+	 * This method checks if this floating instance has reached the end of its life cycle and, if so, terminates
 	 * itself.
 	 */
-	public boolean checkIfLifeCycleEnded() {
+	public boolean hasLifeCycleEnded() {
 
 		final long currentTime = System.currentTimeMillis();
-		final long msremaining = TIMEUNIT - ((currentTime - this.launchTime) % TIMEUNIT);
+		final long msremaining = LEASE_PERIOD - ((currentTime - this.launchTime) % LEASE_PERIOD);
 
-		if (msremaining < TIMETHRESHOLD) {
+		if (msremaining < TIME_THRESHOLD) {
 			// Destroy this instance.
 			final AmazonEC2Client client = EC2ClientFactory.getEC2Client(this.awsAccessKey, this.awsSecretKey);
 			final TerminateInstancesRequest tr = new TerminateInstancesRequest();
@@ -183,4 +196,13 @@ class FloatingInstance {
 		}
 	}
 
+	/**
+	 * Returns the hardware description of the floating instance.
+	 * 
+	 * @return the hardware description of the floating instance
+	 */
+	public HardwareDescription getHardwareDescription() {
+
+		return this.hardwareDescription;
+	}
 }

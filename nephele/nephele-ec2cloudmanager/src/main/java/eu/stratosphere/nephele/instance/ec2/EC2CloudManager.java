@@ -58,6 +58,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -103,8 +104,10 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 */
 	private static final int DEFAULTCLEANUPINTERVAL = 2 * 60 * 1000; // 2 min
 
-	/** TMs that send HeartBeats but do not belong to any job are kept in this set. */
-	private final HashSet<InstanceConnectionInfo> orphanedTMs = new HashSet<InstanceConnectionInfo>();
+	/**
+	 * Instances that send heart beats but do not belong to any job are kept in this map.
+	 **/
+	private final Map<InstanceConnectionInfo, HardwareDescription> orphanedInstances = new HashMap<InstanceConnectionInfo, HardwareDescription>();
 
 	/** The array of all available instance types in the cloud. */
 	private final InstanceType[] availableInstanceTypes;
@@ -136,9 +139,9 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	private long cleanUpInterval = DEFAULTCLEANUPINTERVAL;
 
 	/**
-	 * The network topology inside the cloud (currently only a fake).
+	 * The network topology for each job.
 	 */
-	private final NetworkTopology networkTopology;
+	private final Map<JobID, NetworkTopology> networkTopologies = new HashMap<JobID, NetworkTopology>();
 
 	/**
 	 * The preferred availability for instances on EC2.
@@ -160,8 +163,6 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			LOG.warn("Invalid clean up interval. Reverting to " + DEFAULTCLEANUPINTERVAL);
 			this.cleanUpInterval = DEFAULTCLEANUPINTERVAL;
 		}
-
-		this.networkTopology = NetworkTopology.createEmptyTopology();
 
 		this.availabilityZone = GlobalConfiguration.getString("instancemanager.ec2.availabilityzone", null);
 		if (this.availabilityZone == null) {
@@ -294,7 +295,9 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			this.floatingInstances.put(instance.getInstanceConnectionInfo(),
 				((EC2CloudInstance) instance).asFloatingInstance());
 
-			LOG.info("Convert " + ((EC2CloudInstance) instance).getInstanceID()
+			// TODO: Clean up job to instance mapping and network topology
+
+			LOG.info("Converting " + ((EC2CloudInstance) instance).getInstanceID()
 				+ " from allocated instance to floating instance");
 
 		} else {
@@ -311,8 +314,10 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			final HardwareDescription hardwareDescription) {
 
 		// Check if this TM is orphaned
-		if (this.orphanedTMs.contains(instanceConnectionInfo)) {
-			LOG.debug("Received HeartBeat from orphaned TM " + instanceConnectionInfo);
+		if (this.orphanedInstances.containsKey(instanceConnectionInfo)) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Received heart beat from orphaned instance " + instanceConnectionInfo);
+			}
 			return;
 		}
 
@@ -333,7 +338,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		// Check if heart beat belongs to a reserved instance
 		try {
-			instance = isReservedInstance(instanceConnectionInfo);
+			instance = isReservedInstance(instanceConnectionInfo, hardwareDescription);
 		} catch (InstanceException e) {
 			LOG.error(e);
 		}
@@ -362,8 +367,9 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		}
 
 		// This TM seems to be unknown to the JobManager.. blacklist
-		LOG.info("Received HeartBeat from unknown TM. Put into orphaned TM set. Address is: " + instanceConnectionInfo);
-		this.orphanedTMs.add(instanceConnectionInfo);
+		LOG.info("Received heart beat from unknown instance " + instanceConnectionInfo
+			+ ", converting it into orphaned instance");
+		this.orphanedInstances.put(instanceConnectionInfo, hardwareDescription);
 
 	}
 
@@ -399,11 +405,14 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the {@link InstanceConnectionInfo} object identifying the instance
+	 * @param hardwareDescription
+	 *        the actual hardware description of the instance
 	 * @return a cloud instance
 	 * @throws InstanceException
 	 *         something wrong happens to the global configuration
 	 */
-	private EC2CloudInstance isReservedInstance(final InstanceConnectionInfo instanceConnectionInfo)
+	private EC2CloudInstance isReservedInstance(final InstanceConnectionInfo instanceConnectionInfo,
+			final HardwareDescription hardwareDescription)
 			throws InstanceException {
 
 		if (instanceConnectionInfo == null) {
@@ -424,18 +433,18 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 				jobsWithReservedInstances.add(id);
 			}
 
-			// Now we call the webservice for each job..
+			// Now we call the web service for each job..
 
-			for (JobID id : jobsWithReservedInstances) {
+			for (final JobID jobID : jobsWithReservedInstances) {
 
 				JobToInstancesMapping mapping = null;
 
 				synchronized (this.jobToInstancesAssignmentMap) {
-					mapping = this.jobToInstancesAssignmentMap.get(id);
+					mapping = this.jobToInstancesAssignmentMap.get(jobID);
 				}
 
 				if (mapping == null) {
-					LOG.error("Unknown mapping for job ID " + id);
+					LOG.error("Unknown mapping for job ID " + jobID);
 					continue;
 				}
 
@@ -458,8 +467,18 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 						}
 
 						if (instanceConnectionInfo.getAddress().equals(candidateAddress)) {
+
+							NetworkTopology networkTopology;
+							synchronized (this.networkTopologies) {
+								networkTopology = this.networkTopologies.get(jobID);
+							}
+
+							if (networkTopology == null) {
+								throw new InstanceException("Cannot find network topology for job " + jobID);
+							}
+
 							return convertIntoCloudInstance(t, instanceConnectionInfo, mapping.getAwsAccessId(),
-								mapping.getAwsSecretKey());
+								mapping.getAwsSecretKey(), networkTopology.getRootNode(), hardwareDescription);
 						}
 					}
 				}
@@ -480,8 +499,9 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 *        the information required to connect to the instance's task manager later on
 	 * @return a cloud instance
 	 */
-	private EC2CloudInstance convertIntoCloudInstance(final com.amazonaws.services.ec2.model.Instance instance,
-			final InstanceConnectionInfo instanceConnectionInfo, final String awsAccessKey, final String awsSecretKey) {
+	private EC2CloudInstance convertIntoCloudInstance(final Instance instance,
+			final InstanceConnectionInfo instanceConnectionInfo, final String awsAccessKey, final String awsSecretKey,
+			final NetworkNode parentNode, final HardwareDescription hardwareDescription) {
 
 		InstanceType type = null;
 
@@ -501,7 +521,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		final EC2CloudInstance cloudInstance = new EC2CloudInstance(instance.getInstanceId(), type,
 			instanceConnectionInfo,
-			instance.getLaunchTime().getTime(), this.networkTopology.getRootNode(), this.networkTopology, null,
+			instance.getLaunchTime().getTime(), parentNode, parentNode.getNetworkTopology(), hardwareDescription,
 			awsAccessKey, awsSecretKey);
 
 		// TODO: Define hardware descriptions for cloud instance types
@@ -537,7 +557,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			throw new InstanceException("Unable to allocate cloud instance: Cannot find AMI image ID");
 		}
 
-		// First we check, if there are any orphaned TMs that are accessible with the provided configuration
+		// First we check, if there are any orphaned instances that are accessible with the provided configuration
 		checkAndConvertOrphanedInstances(conf);
 
 		// Check if there already exist a mapping for this job
@@ -550,6 +570,16 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 				LOG.debug("Creating new mapping for job " + jobID);
 				jobToInstanceMapping = new JobToInstancesMapping(awsAccessId, awsSecretKey);
 				this.jobToInstancesAssignmentMap.put(jobID, jobToInstanceMapping);
+			}
+		}
+
+		// Check if there already exists a network topology for this job
+		NetworkTopology networkTopology = null;
+		synchronized (this.networkTopologies) {
+			networkTopology = this.networkTopologies.get(jobID);
+			if (networkTopology == null) {
+				networkTopology = NetworkTopology.createEmptyTopology();
+				this.networkTopologies.put(jobID, networkTopology);
 			}
 		}
 
@@ -611,7 +641,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		// Convert and allocate Floating Instances...
 		for (final FloatingInstance fi : floatingInstances) {
-			final EC2CloudInstance ci = fi.asCloudInstance();
+			final EC2CloudInstance ci = fi.asCloudInstance(networkTopology.getRootNode());
 			jobToInstanceMapping.assignInstanceToJob(ci);
 			final EC2CloudInstanceNotifier notifier = new EC2CloudInstanceNotifier(this.instanceListener, jobID,
 				ci.asAllocatedResource());
@@ -721,7 +751,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 */
 	private void checkAndConvertOrphanedInstances(final Configuration conf) throws InstanceException {
 
-		if (this.orphanedTMs.size() == 0) {
+		if (this.orphanedInstances.size() == 0) {
 			return;
 		}
 
@@ -729,7 +759,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Checking orphaned instances: " + this.orphanedTMs.size() + " orphaned instances listed.");
+			LOG.debug("Checking orphaned instances, " + this.orphanedInstances.size() + " orphaned instances listed.");
 		}
 		final AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 
@@ -766,16 +796,21 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 					continue;
 				}
 
-				final Iterator<InstanceConnectionInfo> it = this.orphanedTMs.iterator();
+				final Iterator<Map.Entry<InstanceConnectionInfo, HardwareDescription>> it = this.orphanedInstances
+					.entrySet().iterator();
 
 				while (it.hasNext()) {
-					final InstanceConnectionInfo oi = it.next();
+					final Map.Entry<InstanceConnectionInfo, HardwareDescription> entry = it.next();
+
+					final InstanceConnectionInfo oi = entry.getKey();
+					final HardwareDescription hd = entry.getValue();
+
 					if (oi.getAddress().equals(inetAddress) && type != null) {
-						LOG.info("Orphaned Instance " + oi + " converted into floating instance.");
+						LOG.info("Orphaned instance " + oi + " converted into floating instance.");
 
 						// We have found the corresponding orphaned TM.. convert it back to a floating instance.
-						FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t
-							.getLaunchTime().getTime(), type, awsAccessId, awsSecretKey);
+						final FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t
+							.getLaunchTime().getTime(), type, hd, awsAccessId, awsSecretKey);
 
 						this.floatingInstances.put(oi, floatinginstance);
 						it.remove();
@@ -845,14 +880,13 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			while (it.hasNext()) {
 				final Map.Entry<InstanceConnectionInfo, FloatingInstance> entry = it.next();
 
-				// Call lifecycle method for each floating instance. If true, remove from floatinginstances list.
-				if (entry.getValue().checkIfLifeCycleEnded()) {
+				// Call life cycle method for each floating instance. If true, remove from floating instances list.
+				if (entry.getValue().hasLifeCycleEnded()) {
 					it.remove();
-					LOG.info("Floating Instance " + entry.getValue().getInstanceID()
-						+ " ended its lifecycle. Terminated");
+					LOG.info("Lifecycle of floating instance " + entry.getValue().getInstanceID()
+						+ " has ended, terminating...");
 				}
 			}
-
 		}
 	}
 
@@ -898,17 +932,19 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	}
 
 	@Override
-	public NetworkTopology getNetworkTopology(JobID jobID) {
+	public NetworkTopology getNetworkTopology(final JobID jobID) {
 
-		// TODO: Make topology job specific
-		return this.networkTopology;
+		synchronized (this.networkTopologies) {
+
+			return this.networkTopologies.get(jobID);
+		}
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setInstanceListener(InstanceListener instanceListener) {
+	public void setInstanceListener(final InstanceListener instanceListener) {
 
 		this.instanceListener = instanceListener;
 	}
