@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler.local;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -252,13 +251,6 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		if (allocatedResource.getInstance() instanceof DummyInstance) {
 			LOG.debug("Available instance is of type DummyInstance!");
 			return;
-		}
-
-		// Check if all required libraries are available on the instance
-		try {
-			allocatedResource.getInstance().checkLibraryAvailability(jobID);
-		} catch (IOException ioe) {
-			LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
 		}
 
 		synchronized (this.jobQueue) {
