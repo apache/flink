@@ -74,8 +74,20 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public final class EC2CloudManager extends TimerTask implements InstanceManager {
 
-	/** The log for the cloud manager. */
+	/**
+	 * The log for the EC2 cloud manager.
+	 **/
 	private static final Log LOG = LogFactory.getLog(EC2CloudManager.class);
+
+	/**
+	 * The key to access the lease period from the configuration.
+	 */
+	private static String LEASE_PERIOD_KEY = "instancemanager.ec2.leaseperiod";
+
+	/**
+	 * The default lease period in milliseconds for instances on Amazon EC2.
+	 */
+	static final long DEFAULT_LEASE_PERIOD = 60 * 60 * 1000; // 1 hour in ms.
 
 	/**
 	 * The configuration key to access the AWS access ID of a job.
@@ -109,8 +121,15 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 **/
 	private final Map<InstanceConnectionInfo, HardwareDescription> orphanedInstances = new HashMap<InstanceConnectionInfo, HardwareDescription>();
 
-	/** The array of all available instance types in the cloud. */
+	/**
+	 * The array of all available instance types in the cloud.
+	 **/
 	private final InstanceType[] availableInstanceTypes;
+
+	/**
+	 * The lease period for instances on Amazon EC2 in milliseconds, potentially configured by the user.
+	 */
+	private final long leasePeriod;
 
 	/**
 	 * The default instance type.
@@ -155,6 +174,16 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		// Load the instance type this cloud can offer
 		this.availableInstanceTypes = populateInstanceTypeArray();
+
+		// Calculate lease period
+		long lp = GlobalConfiguration.getInteger(LEASE_PERIOD_KEY, -1);
+		if (lp > 0) {
+			LOG.info("Found user-defined lease period of " + lp + " minutes for instances");
+			lp = lp * 1000L * 60L; // Convert to milliseconds
+		} else {
+			lp = DEFAULT_LEASE_PERIOD;
+		}
+		this.leasePeriod = lp;
 
 		this.cleanUpInterval = (long) GlobalConfiguration.getInteger("instancemanager.ec2.cleanupinterval",
 			DEFAULTCLEANUPINTERVAL);
@@ -520,9 +549,8 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		}
 
 		final EC2CloudInstance cloudInstance = new EC2CloudInstance(instance.getInstanceId(), type,
-			instanceConnectionInfo,
-			instance.getLaunchTime().getTime(), parentNode, parentNode.getNetworkTopology(), hardwareDescription,
-			awsAccessKey, awsSecretKey);
+			instanceConnectionInfo, instance.getLaunchTime().getTime(), this.leasePeriod, parentNode,
+			parentNode.getNetworkTopology(), hardwareDescription, awsAccessKey, awsSecretKey);
 
 		// TODO: Define hardware descriptions for cloud instance types
 
@@ -810,7 +838,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 						// We have found the corresponding orphaned TM.. convert it back to a floating instance.
 						final FloatingInstance floatinginstance = new FloatingInstance(t.getInstanceId(), oi, t
-							.getLaunchTime().getTime(), type, hd, awsAccessId, awsSecretKey);
+							.getLaunchTime().getTime(), this.leasePeriod, type, hd, awsAccessId, awsSecretKey);
 
 						this.floatingInstances.put(oi, floatinginstance);
 						it.remove();
@@ -884,7 +912,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 				if (entry.getValue().hasLifeCycleEnded()) {
 					it.remove();
 					LOG.info("Lifecycle of floating instance " + entry.getValue().getInstanceID()
-						+ " has ended, terminating...");
+						+ " has ended, terminating instance...");
 				}
 			}
 		}

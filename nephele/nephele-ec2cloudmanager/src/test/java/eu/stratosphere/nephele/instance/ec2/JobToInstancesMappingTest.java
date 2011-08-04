@@ -43,7 +43,8 @@ public class JobToInstancesMappingTest {
 		EC2CloudInstance ci = new EC2CloudInstance("i-1234ABCD",
 			InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),
 			new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121), 1234567890,
-			networkTopology.getRootNode(), networkTopology, hardwareDescription, null, null);
+			EC2CloudManager.DEFAULT_LEASE_PERIOD, networkTopology.getRootNode(), networkTopology, hardwareDescription,
+			null, null);
 
 		assertEquals(0, map.getNumberOfAssignedInstances());
 		assertEquals(new ArrayList<EC2CloudInstance>(), map.getAssignedInstances());

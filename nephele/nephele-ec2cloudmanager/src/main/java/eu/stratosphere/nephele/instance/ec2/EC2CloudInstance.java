@@ -50,6 +50,11 @@ public class EC2CloudInstance extends AbstractInstance {
 	/** The time the instance was allocated. */
 	private final long launchTime;
 
+	/**
+	 * The period of time for which the instance is leased from EC2.
+	 */
+	private final long leasePeriod;
+
 	/** The last received heart beat. */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
 
@@ -62,8 +67,10 @@ public class EC2CloudInstance extends AbstractInstance {
 	 *        the instance type
 	 * @param instanceConnectionInfo
 	 *        the information required to connect to the instance's task manager
-	 * @param allocationTime
+	 * @param launchTime
 	 *        the time the instance was allocated
+	 * @param leasePeriod
+	 *        the period of time for which the instance is leased from EC2
 	 * @param parentNode
 	 *        the parent node in the network topology
 	 * @param hardwareDescription
@@ -74,7 +81,7 @@ public class EC2CloudInstance extends AbstractInstance {
 	 *        The AWS Secret Key to access this machine
 	 */
 	public EC2CloudInstance(String instanceID, InstanceType type,
-			InstanceConnectionInfo instanceConnectionInfo, long launchTime, NetworkNode parentNode,
+			InstanceConnectionInfo instanceConnectionInfo, long launchTime, long leasePeriod, NetworkNode parentNode,
 			NetworkTopology networkTopology, HardwareDescription hardwareDescription, String awsAccessKey,
 			String awsSecretKey) {
 		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
@@ -84,6 +91,8 @@ public class EC2CloudInstance extends AbstractInstance {
 		this.instanceID = instanceID;
 
 		this.launchTime = launchTime;
+
+		this.leasePeriod = leasePeriod;
 
 		this.awsAccessKey = awsAccessKey;
 
@@ -134,7 +143,7 @@ public class EC2CloudInstance extends AbstractInstance {
 	 * @return
 	 */
 	public FloatingInstance asFloatingInstance() {
-		return new FloatingInstance(this.instanceID, this.getInstanceConnectionInfo(), this.launchTime, this.getType(),
-			this.getHardwareDescription(), this.awsAccessKey, this.awsSecretKey);
+		return new FloatingInstance(this.instanceID, this.getInstanceConnectionInfo(), this.launchTime,
+			this.leasePeriod, this.getType(), this.getHardwareDescription(), this.awsAccessKey, this.awsSecretKey);
 	}
 }

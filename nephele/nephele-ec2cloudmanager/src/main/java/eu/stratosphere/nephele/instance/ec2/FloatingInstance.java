@@ -32,14 +32,14 @@ import eu.stratosphere.nephele.topology.NetworkNode;
 class FloatingInstance {
 
 	/**
-	 * The minimum period of time for which a user has to lease an instance on Amazon EC2.
-	 */
-	private static final long LEASE_PERIOD = 60 * 60 * 1000; // 1 hour in ms.
-
-	/**
 	 * Time limit to full next hour when instance is terminate.
 	 **/
 	private static final long TIME_THRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
+
+	/**
+	 * The lease period for this instance of Amazon EC2 in milliseconds.
+	 */
+	private final long leasePeriod;
 
 	/** The instance ID. */
 	private final String instanceID;
@@ -75,7 +75,9 @@ class FloatingInstance {
 	 * @param instanceConnectionInfo
 	 *        the information required to connect to the instance's task manager
 	 * @param launchTime
-	 *        the time the instance was allocated
+	 *        the time the instance was allocated in milliseconds since January 1st, 1970
+	 * @param leasePeriod
+	 *        the lease period for this floating instances in milliseconds
 	 * @param type
 	 *        The type of this instance.
 	 * @param awsAccessKey
@@ -83,16 +85,29 @@ class FloatingInstance {
 	 * @param awsSecretKey
 	 *        The AWS Secret Key to access this machine
 	 */
-	public FloatingInstance(String instanceID, InstanceConnectionInfo instanceConnectionInfo, long launchTime,
-			InstanceType type, HardwareDescription hardwareDescription, String awsAccessKey, String awsSecretKey) {
+	public FloatingInstance(final String instanceID, final InstanceConnectionInfo instanceConnectionInfo,
+			final long launchTime,
+			final long leasePeriod, final InstanceType type, final HardwareDescription hardwareDescription,
+			final String awsAccessKey, final String awsSecretKey) {
+
+		if (launchTime < 0) {
+			throw new IllegalArgumentException("Argument launchTime must be greater than 0");
+		}
+
+		if (leasePeriod <= 0) {
+			throw new IllegalArgumentException("Argument leasePeriod be greater than 0");
+		}
+
 		this.instanceID = instanceID;
 		this.instanceConnectionInfo = instanceConnectionInfo;
 		this.launchTime = launchTime;
+		this.leasePeriod = leasePeriod;
 		this.lastHeartBeat = System.currentTimeMillis();
 		this.awsAccessKey = awsAccessKey;
 		this.awsSecretKey = awsSecretKey;
 		this.type = type;
 		this.hardwareDescription = hardwareDescription;
+
 	}
 
 	/**
@@ -170,7 +185,8 @@ class FloatingInstance {
 	public EC2CloudInstance asCloudInstance(final NetworkNode parentNode) {
 
 		return new EC2CloudInstance(this.instanceID, this.type, this.getInstanceConnectionInfo(), this.launchTime,
-			parentNode, parentNode.getNetworkTopology(), this.hardwareDescription, this.awsAccessKey, this.awsSecretKey);
+			this.leasePeriod, parentNode, parentNode.getNetworkTopology(), this.hardwareDescription, this.awsAccessKey,
+			this.awsSecretKey);
 	}
 
 	/**
@@ -180,10 +196,10 @@ class FloatingInstance {
 	public boolean hasLifeCycleEnded() {
 
 		final long currentTime = System.currentTimeMillis();
-		final long msremaining = LEASE_PERIOD - ((currentTime - this.launchTime) % LEASE_PERIOD);
+		final long msremaining = this.leasePeriod - ((currentTime - this.launchTime) % this.leasePeriod);
 
 		if (msremaining < TIME_THRESHOLD) {
-			// Destroy this instance.
+			// Destroy this instance
 			final AmazonEC2Client client = EC2ClientFactory.getEC2Client(this.awsAccessKey, this.awsSecretKey);
 			final TerminateInstancesRequest tr = new TerminateInstancesRequest();
 			final LinkedList<String> instanceIDlist = new LinkedList<String>();
@@ -191,9 +207,9 @@ class FloatingInstance {
 			tr.setInstanceIds(instanceIDlist);
 			client.terminateInstances(tr);
 			return true;
-		} else {
-			return false;
 		}
+
+		return false;
 	}
 
 	/**
