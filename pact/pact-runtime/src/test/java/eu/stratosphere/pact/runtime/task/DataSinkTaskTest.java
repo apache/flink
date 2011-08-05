@@ -30,8 +30,9 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
@@ -177,10 +178,12 @@ public class DataSinkTaskTest extends TaskTestBase {
 				
 	}
 	
-	public static class MockOutputFormat extends TextOutputFormat<PactInteger, PactInteger> {
+	public static class MockOutputFormat extends DelimitedOutputFormat {
 
 		@Override
-		public byte[] writeLine(KeyValuePair<PactInteger, PactInteger> pair) {
+		public abstract int serializeRecord(PactRecord rec, byte[] target) throws Exception
+		{
+			
 			return (pair.getKey().toString()+"_"+pair.getValue().toString()+"\n").getBytes();
 		}
 		

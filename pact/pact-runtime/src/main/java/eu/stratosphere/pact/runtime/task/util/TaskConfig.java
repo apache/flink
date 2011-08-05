@@ -16,20 +16,20 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
+ * Configuration class which stores all relevant parameters required to set up the Pact tasks.
+ * 
  * @author Erik Nijkamp
  * @author Fabian Hueske
+ * @author Stephan Ewen
  */
-public class TaskConfig {
-
+public class TaskConfig
+{
 	/**
 	 * Enumeration of all available local strategies for Pact tasks. 
-	 * 
-	 * @author Stephan Ewen  (stephan.ewen@tu-berlin.de)
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 *
 	 */
 	public enum LocalStrategy {
 		// both inputs are sorted and merged
@@ -67,14 +67,22 @@ public class TaskConfig {
 		// no special local strategy is applied
 		NONE
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	private static final String STUB_CLASS = "pact.stub.class";
 
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
 
-	private static final String INPUT_SHIP_STRATEGY = "pact.input.ship.strategy.";
+	private static final String INPUT_SHIP_STRATEGY = "pact.input.ship.strategy";
 
-	private static final String OUTPUT_SHIP_STRATEGY = "pact.output.ship.strategy.";
+	private static final String OUTPUT_SHIP_STRATEGY = "pact.output.shipstrategy";
+	
+	private static final String OUTPUT_SHIP_NUM_KEYS_PREFIX = "pact.output.numkeys.";
+	
+	private static final String OUTPUT_SHIP_KEY_POS_PREFIX = "pact.output.keypos.";
+	
+	private static final String OUTPUT_SHIP_KEY_CLASS_PREFIX = "pact.output.keyclass.";
 
 	private static final String LOCAL_STRATEGY = "pact.local.strategy";
 
@@ -88,18 +96,25 @@ public class TaskConfig {
 	
 	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
 
-	protected final Configuration config;
+	// --------------------------------------------------------------------------------------------
+	
+	protected final Configuration config;			// the actual configuration holding the values
 
-	public TaskConfig(Configuration config) {
+	
+	public TaskConfig(Configuration config)
+	{
 		this.config = config;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	public void setStubClass(Class<?> stubClass) {
 		config.setString(STUB_CLASS, stubClass.getName());
 	}
 
 	public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
-			throws ClassNotFoundException {
+	throws ClassNotFoundException, ClassCastException
+	{
 		String stubClassName = config.getString(STUB_CLASS, null);
 		if (stubClassName == null) {
 			throw new IllegalStateException("stub class missing");
@@ -152,20 +167,93 @@ public class TaskConfig {
 		}
 		return ShipStrategy.valueOf(config.getString(INPUT_SHIP_STRATEGY + inputId, ""));
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                          Parameters for the output shipping
+	// --------------------------------------------------------------------------------------------
 
-	public void addOutputShipStrategy(ShipStrategy strategy) {
+	public void addOutputShipStrategy(ShipStrategy strategy)
+	{
+		int outputCnt = config.getInteger(NUM_OUTPUTS, 0);		
+		this.config.setString(OUTPUT_SHIP_STRATEGY + outputCnt, strategy.name());
+		outputCnt++;
+		this.config.setInteger(NUM_OUTPUTS, outputCnt);
+	}
+	
+	public void addOutputShipStrategy(ShipStrategy strategy, int[] keyPositions, Class<? extends Key>[] keyTypes)
+	{
 		int outputCnt = config.getInteger(NUM_OUTPUTS, 0);
-		config.setString(OUTPUT_SHIP_STRATEGY + (outputCnt++), strategy.name());
-		config.setInteger(NUM_OUTPUTS, outputCnt);
+		
+		this.config.setString(OUTPUT_SHIP_STRATEGY + outputCnt, strategy.name());		
+		this.config.setInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputCnt, keyPositions.length);
+		for (int i = 0; i < keyPositions.length; i++) {
+			this.config.setInteger(OUTPUT_SHIP_KEY_POS_PREFIX + outputCnt + '.' + i, keyPositions[i]);
+			this.config.setString(OUTPUT_SHIP_KEY_CLASS_PREFIX + outputCnt + '.' + i, keyTypes[i].getName());
+		}
+		outputCnt++;
+		this.config.setInteger(NUM_OUTPUTS, outputCnt);
 	}
 
-	public ShipStrategy getOutputShipStrategy(int outputId) {
-		int outputCnt = config.getInteger(NUM_OUTPUTS, -1);
+	public ShipStrategy getOutputShipStrategy(int outputId)
+	{
+		int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
 		if (!(outputId < outputCnt)) {
 			return null;
 		}
-		return ShipStrategy.valueOf(config.getString(OUTPUT_SHIP_STRATEGY + outputId, ""));
+		return ShipStrategy.valueOf(this.config.getString(OUTPUT_SHIP_STRATEGY + outputId, ""));
 	}
+	
+	public int[] getOutputShipKeyPositions(int outputId)
+	{
+		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
+		if (!(outputId < outputCnt)) {
+			return null;
+		}
+		
+		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputCnt, -1);
+		if (numKeys <= 0) {
+			return null;
+		}
+		
+		final int[] keyPos = new int[numKeys];
+		for (int i = 0; i < numKeys; i++) {
+			int p = this.config.getInteger(OUTPUT_SHIP_KEY_POS_PREFIX + outputCnt + '.' + i, -1);
+			if (p >= 0) {
+				keyPos[i] = p;
+			} else {
+				throw new IllegalStateException("Config is invalid - contained number of keys, but no positions for keys."); 
+			}
+		}
+		return keyPos;
+	}
+	
+	public Class<? extends Key>[] getOutputShipKeyTypes(int outputId, ClassLoader cl)
+	throws ClassNotFoundException, ClassCastException
+	{
+		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
+		if (!(outputId < outputCnt)) {
+			return null;
+		}
+		
+		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputCnt, -1);
+		if (numKeys <= 0) {
+			return null;
+		}
+		
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyTypes = (Class<? extends Key>[]) new Class[numKeys];
+		for (int i = 0; i < numKeys; i++) {
+			String name = this.config.getString(OUTPUT_SHIP_KEY_CLASS_PREFIX + outputCnt + '.' + i, null);
+			if (name != null) {
+				keyTypes[i] = Class.forName(name, true, cl).asSubclass(Key.class);
+			} else {
+				throw new IllegalStateException("Config is invalid - contained number of keys, but no types for keys."); 
+			}
+		}
+		return keyTypes;
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	public void setLocalStrategy(LocalStrategy strategy) {
 		config.setString(LOCAL_STRATEGY, strategy.name());
@@ -182,6 +270,10 @@ public class TaskConfig {
 	public int getNumInputs() {
 		return config.getInteger(NUM_INPUTS, -1);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                       Parameters to configure the memory and I/O behavior
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Sets the amount of memory dedicated to the task's input preparation (sorting / hashing).

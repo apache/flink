@@ -26,8 +26,10 @@ import eu.stratosphere.pact.common.type.PactRecord;
  */
 public abstract class DelimitedOutputFormat extends FileOutputFormat
 {
-
-	public abstract byte[] serializeRecord(PactRecord rec, byte[] target) throws Exception;
+	private byte[] targetArray = new byte[64];
+	
+	
+	public abstract int serializeRecord(PactRecord rec, byte[] target) throws Exception;
 	
 	
 	/* (non-Javadoc)
@@ -36,7 +38,17 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat
 	@Override
 	public void writeRecord(PactRecord record) throws IOException
 	{
-
+		int size;
+		try {
+			while ((size = serializeRecord(record, this.targetArray)) < 0) {
+				this.targetArray = new byte[-size];
+			}
+		}
+		catch (Exception ex) {
+			throw new IOException("Error while serializing the record to bytes: " + ex.getMessage(), ex);
+		}
+		
+		this.stream.write(this.targetArray, 0, size);
 	}
 
 }
