@@ -7,25 +7,25 @@ import org.junit.Test;
 
 public class LazyArrayProjectionTest extends EvaluableExpressionTest<LazyArrayProjection> {
 	@Override
-	protected LazyArrayProjection createDefaultInstance(int index) {
+	protected LazyArrayProjection createDefaultInstance(final int index) {
 		return new LazyArrayProjection(new ObjectAccess(String.valueOf(index)));
 	}
 
 	@Test
 	public void shouldAccessFieldOfArray() {
-		JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		final JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
-			context);
+			this.context);
 		Assert.assertEquals(createArrayNode(1, 2, 3), result);
 	}
 
 	@Test
 	public void shouldAccessFieldOfStreamArray() {
-		JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		final JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createStreamArray(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
-			context);
+			this.context);
 		Assert.assertEquals(createStreamArray(1, 2, 3), result);
 	}
 

@@ -31,7 +31,7 @@ public abstract class CompositeOperator extends Operator {
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	public CompositeOperator(int numberOfOutputs, JsonStream... inputs) {
+	public CompositeOperator(final int numberOfOutputs, final JsonStream... inputs) {
 		super(numberOfOutputs, inputs);
 	}
 
@@ -44,7 +44,7 @@ public abstract class CompositeOperator extends Operator {
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	public CompositeOperator(int numberOfOutputs, List<? extends JsonStream> inputs) {
+	public CompositeOperator(final int numberOfOutputs, final List<? extends JsonStream> inputs) {
 		super(numberOfOutputs, inputs);
 	}
 
@@ -55,7 +55,7 @@ public abstract class CompositeOperator extends Operator {
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	public CompositeOperator(JsonStream... inputs) {
+	public CompositeOperator(final JsonStream... inputs) {
 		super(inputs);
 	}
 
@@ -66,7 +66,7 @@ public abstract class CompositeOperator extends Operator {
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	public CompositeOperator(List<? extends JsonStream> inputs) {
+	public CompositeOperator(final List<? extends JsonStream> inputs) {
 		super(inputs);
 	}
 
@@ -80,10 +80,10 @@ public abstract class CompositeOperator extends Operator {
 	public abstract SopremoModule asElementaryOperators();
 
 	@Override
-	public PactModule asPactModule(EvaluationContext context) {
+	public PactModule asPactModule(final EvaluationContext context) {
 		if (LOG.isTraceEnabled())
 			LOG.trace("Transforming\n" + this);
-		SopremoModule elementaryPlan = this.asElementaryOperators();
+		final SopremoModule elementaryPlan = this.asElementaryOperators();
 		if (LOG.isTraceEnabled())
 			LOG.trace(" to elementary plan\n" + elementaryPlan);
 		return elementaryPlan.asPactModule(context);

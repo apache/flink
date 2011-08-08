@@ -474,6 +474,12 @@
 								<format>xml</format>
 								<format>html</format>
 							</formats>
+							<instrumentation>
+								<ignores>
+					              <ignore>eu\.stratosphere.*\.examples\..*</ignore>
+						          <ignore>eu\.stratosphere.*Test</ignore>
+					            </ignores>
+						    </instrumentation>
 						</configuration>
 						<executions>
 							<execution>

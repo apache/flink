@@ -1,14 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.similarity;
 
-import java.beans.BeanInfo;
-import java.beans.Introspector;
-import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.DoubleNode;
@@ -26,34 +20,34 @@ public class SimmetricFunction extends EvaluationExpression {
 
 	private transient InterfaceStringMetric metric;
 
-	private EvaluationExpression leftExpression, rightExpression;
+	private final EvaluationExpression leftExpression, rightExpression;
 
-	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		String left = getValueAsText(leftExpression.evaluate(node, context));
-		String right = getValueAsText(rightExpression.evaluate(node, context));
-		return DoubleNode.valueOf(metric.getSimilarity(left, right));
-	}
-
-	protected String getValueAsText(JsonNode node) {
-		return node.isTextual() ? node.getTextValue() : node.toString();
-	}
-
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-		metric = SopremoUtil.deserializeObject(ois, InterfaceStringMetric.class);
-	}
-
-	private void writeObject(ObjectOutputStream oos) throws IOException {
-		oos.defaultWriteObject();
-		SopremoUtil.serializeObject(oos, metric);
-	}
-
-	public SimmetricFunction(InterfaceStringMetric metric, EvaluationExpression leftExpression,
-			EvaluationExpression rightExpression) {
+	public SimmetricFunction(final InterfaceStringMetric metric, final EvaluationExpression leftExpression,
+			final EvaluationExpression rightExpression) {
 		this.metric = metric;
 		this.leftExpression = leftExpression;
 		this.rightExpression = rightExpression;
+	}
+
+	@Override
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		final String left = this.getValueAsText(this.leftExpression.evaluate(node, context));
+		final String right = this.getValueAsText(this.rightExpression.evaluate(node, context));
+		return DoubleNode.valueOf(this.metric.getSimilarity(left, right));
+	}
+
+	protected String getValueAsText(final JsonNode node) {
+		return node.isTextual() ? node.getTextValue() : node.toString();
+	}
+
+	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.metric = SopremoUtil.deserializeObject(ois, InterfaceStringMetric.class);
+	}
+
+	private void writeObject(final ObjectOutputStream oos) throws IOException {
+		oos.defaultWriteObject();
+		SopremoUtil.serializeObject(oos, this.metric);
 	}
 
 }

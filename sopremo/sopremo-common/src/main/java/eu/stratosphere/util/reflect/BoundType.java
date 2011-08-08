@@ -22,7 +22,7 @@ public class BoundType {
 	 * @param type
 	 *        the type to wrap
 	 */
-	public BoundType(Class<?> type) {
+	public BoundType(final Class<?> type) {
 		this.rawType = type;
 		this.parameters = new BoundType[0];
 	}
@@ -34,14 +34,14 @@ public class BoundType {
 	 * @param type
 	 *        the type to wrap
 	 */
-	public BoundType(ParameterizedType type) {
+	public BoundType(final ParameterizedType type) {
 		this.type = type;
 		this.rawType = (Class<?>) type.getRawType();
 		this.parameters = BoundTypeUtil.getStaticBoundTypes(type);
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -111,7 +111,7 @@ public class BoundType {
 	 *        the classes to wrap
 	 * @return an array containing a {@link BoundType} for each raw type
 	 */
-	public static BoundType[] arrayOf(Class<?>... rawTypes) {
+	public static BoundType[] arrayOf(final Class<?>... rawTypes) {
 		final BoundType[] types = new BoundType[rawTypes.length];
 		for (int index = 0; index < types.length; index++)
 			types[index] = BoundType.of(rawTypes[index]);
@@ -127,7 +127,7 @@ public class BoundType {
 	 *        the type parameters
 	 * @return a {@link BoundType} representing the raw type and its parameters
 	 */
-	public static BoundType of(Class<?> rawType, BoundType... parameters) {
+	public static BoundType of(final Class<?> rawType, final BoundType... parameters) {
 		final BoundType boundedType = new BoundType(rawType);
 		boundedType.parameters = parameters;
 		return boundedType;
@@ -144,7 +144,7 @@ public class BoundType {
 	 *        additional type parameters
 	 * @return a {@link BoundType} representing the raw type and its parameters
 	 */
-	public static BoundType of(Class<?> rawType, Class<?> subType1, Class<?>... otherTypes) {
+	public static BoundType of(final Class<?> rawType, final Class<?> subType1, final Class<?>... otherTypes) {
 		final BoundType boundedType = new BoundType(rawType);
 		boundedType.parameters = new BoundType[1 + otherTypes.length];
 		boundedType.parameters[0] = BoundType.of(subType1);
@@ -160,7 +160,7 @@ public class BoundType {
 	 *        the type to wrap
 	 * @return a recursively resolved type
 	 */
-	public static BoundType of(ParameterizedType type) {
+	public static BoundType of(final ParameterizedType type) {
 		return new BoundType(type);
 	}
 

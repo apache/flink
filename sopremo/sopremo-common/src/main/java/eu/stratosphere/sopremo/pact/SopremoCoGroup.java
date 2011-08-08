@@ -16,24 +16,15 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 		extends CoGroupStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 	private EvaluationContext context;
 
-	@Override
-	public void configure(Configuration parameters) {
-		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
-		SopremoUtil.configureStub(this, parameters);
-	}
-
-	protected EvaluationContext getContext() {
-		return this.context;
-	}
-
 	protected abstract void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out);
 
 	@Override
-	public void coGroup(PactJsonObject.Key key, Iterator<PactJsonObject> values1, Iterator<PactJsonObject> values2,
-			Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public void coGroup(final PactJsonObject.Key key, Iterator<PactJsonObject> values1,
+			Iterator<PactJsonObject> values2,
+			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isDebugEnabled()) {
-			ArrayList<PactJsonObject> cached1 = new ArrayList<PactJsonObject>(), cached2 = new ArrayList<PactJsonObject>();
+			final ArrayList<PactJsonObject> cached1 = new ArrayList<PactJsonObject>(), cached2 = new ArrayList<PactJsonObject>();
 			while (values1.hasNext())
 				cached1.add(values1.next());
 			while (values2.hasNext())
@@ -47,7 +38,18 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 			new JsonCollector(out));
 	}
 
-	protected boolean needsResettableIterator(int input, PactJsonObject.Key key, Iterator<PactJsonObject> values) {
+	@Override
+	public void configure(final Configuration parameters) {
+		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		SopremoUtil.configureStub(this, parameters);
+	}
+
+	protected EvaluationContext getContext() {
+		return this.context;
+	}
+
+	protected boolean needsResettableIterator(final int input, final PactJsonObject.Key key,
+			final Iterator<PactJsonObject> values) {
 		return false;
 	}
 }

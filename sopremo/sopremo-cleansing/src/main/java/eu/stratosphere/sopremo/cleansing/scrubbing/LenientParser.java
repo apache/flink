@@ -37,31 +37,34 @@ public class LenientParser {
 	 */
 	public final static LenientParser INSTANCE = new LenientParser();
 
-	public JsonNode parse(String value, Class<? extends JsonNode> type, int parseLevel) {
-		List<Parser> parserList = parsers.get(type);
-		if (parserList == null)
-			throw new ParseException("no parser for value type " + type);
-		for (Parser parser : parserList) {
-			if (parser.parseLevel > parseLevel)
-				break;
-			JsonNode result = parser.parse(value, parseLevel);
-			if (result != null)
-				return result;
-		}
-		throw new ParseException(String.format("cannot parse value %s to type %s with parser level %s", value, type,
-			parseLevel));
-	}
+	private final Map<Class<? extends JsonNode>, List<Parser>> parsers = new IdentityHashMap<Class<? extends JsonNode>, List<Parser>>();
 
-	private Map<Class<? extends JsonNode>, List<Parser>> parsers = new IdentityHashMap<Class<? extends JsonNode>, List<Parser>>();
+	private final static Comparator<Parser> ParserComparator = new Comparator<Parser>() {
+		@Override
+		public int compare(final Parser o1, final Parser o2) {
+			return o1.parseLevel - o2.parseLevel;
+		}
+	};
 
 	private LenientParser() {
-		addBooleanParsers();
+		this.addBooleanParsers();
+	}
+
+	public void add(final Class<? extends JsonNode> type, final Parser parser) {
+		List<Parser> parserList = this.parsers.get(type);
+		if (parserList == null)
+			this.parsers.put(type, parserList = new ArrayList<Parser>());
+		final int pos = Collections.binarySearch(parserList, parser, ParserComparator);
+		if (pos < 0)
+			parserList.add(-pos - 1, parser);
+		else
+			parserList.set(pos, parser);
 	}
 
 	protected void addBooleanParsers() {
-		add(BooleanNode.class, new Parser(STRICT) {
+		this.add(BooleanNode.class, new Parser(STRICT) {
 			@Override
-			public JsonNode parse(String textualValue, int parseLevel) {
+			public JsonNode parse(final String textualValue, final int parseLevel) {
 				if (textualValue.equalsIgnoreCase("true"))
 					return BooleanNode.TRUE;
 				if (textualValue.equalsIgnoreCase("false"))
@@ -69,49 +72,47 @@ public class LenientParser {
 				return null;
 			}
 		});
-		add(BooleanNode.class, new Parser(ELIMINATE_NOISE) {
+		this.add(BooleanNode.class, new Parser(ELIMINATE_NOISE) {
 			Pattern truePattern = Pattern.compile("(?i).*t.*r.*u*.e.*");
+
 			Pattern falsePattern = Pattern.compile("(?i).*f.*a.*l*.s*.e.*");
-			
+
 			@Override
-			public JsonNode parse(String textualValue, int parseLevel) {
-				if (truePattern.matcher(textualValue).matches())
+			public JsonNode parse(final String textualValue, final int parseLevel) {
+				if (this.truePattern.matcher(textualValue).matches())
 					return BooleanNode.TRUE;
-				if (falsePattern.matcher(textualValue).matches())
+				if (this.falsePattern.matcher(textualValue).matches())
 					return BooleanNode.FALSE;
 				return null;
 			}
 		});
-		add(BooleanNode.class, new Parser(FORCE_PARSING) {
+		this.add(BooleanNode.class, new Parser(FORCE_PARSING) {
 			@Override
-			public JsonNode parse(String textualValue, int parseLevel) {
+			public JsonNode parse(final String textualValue, final int parseLevel) {
 				return BooleanNode.FALSE;
 			}
 		});
 	}
 
-	public void add(Class<? extends JsonNode> type, Parser parser) {
-		List<Parser> parserList = parsers.get(type);
+	public JsonNode parse(final String value, final Class<? extends JsonNode> type, final int parseLevel) {
+		final List<Parser> parserList = this.parsers.get(type);
 		if (parserList == null)
-			parsers.put(type, parserList = new ArrayList<Parser>());
-		int pos = Collections.binarySearch(parserList, parser, ParserComparator);
-		if (pos < 0)
-			parserList.add(-pos - 1, parser);
-		else
-			parserList.set(pos, parser);
+			throw new ParseException("no parser for value type " + type);
+		for (final Parser parser : parserList) {
+			if (parser.parseLevel > parseLevel)
+				break;
+			final JsonNode result = parser.parse(value, parseLevel);
+			if (result != null)
+				return result;
+		}
+		throw new ParseException(String.format("cannot parse value %s to type %s with parser level %s", value, type,
+			parseLevel));
 	}
 
-	private final static Comparator<Parser> ParserComparator = new Comparator<Parser>() {
-		@Override
-		public int compare(Parser o1, Parser o2) {
-			return o1.parseLevel - o2.parseLevel;
-		}
-	};
-
 	public static abstract class Parser {
-		private int parseLevel;
+		private final int parseLevel;
 
-		public Parser(int parseLevel) {
+		public Parser(final int parseLevel) {
 			this.parseLevel = parseLevel;
 		}
 

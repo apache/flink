@@ -19,20 +19,20 @@ public class Intersection extends MultiSourceOperator {
 	 */
 	private static final long serialVersionUID = -2204883087931986053L;
 
-	public Intersection(List<? extends JsonStream> inputs) {
+	public Intersection(final JsonStream... inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
-	public Intersection(JsonStream... inputs) {
+	public Intersection(final List<? extends JsonStream> inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
 	@Override
-	protected Operator createElementaryOperations(List<Operator> inputs) {
+	protected Operator createElementaryOperations(final List<Operator> inputs) {
 		if (inputs.size() <= 1)
 			return inputs.get(0);
 
@@ -49,7 +49,7 @@ public class Intersection extends MultiSourceOperator {
 		 */
 		private static final long serialVersionUID = -7207641826328647442L;
 
-		public TwoInputIntersection(JsonStream input1, JsonStream input2) {
+		public TwoInputIntersection(final JsonStream input1, final JsonStream input2) {
 			super(input1, input2);
 		}
 
@@ -66,7 +66,8 @@ public class Intersection extends MultiSourceOperator {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			protected void coGroup(JsonNode key1, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(final JsonNode key1, final StreamArrayNode values1, final StreamArrayNode values2,
+					final JsonCollector out) {
 				if (!values1.isEmpty() && !values2.isEmpty())
 					out.collect(key1, values1.get(0));
 			}

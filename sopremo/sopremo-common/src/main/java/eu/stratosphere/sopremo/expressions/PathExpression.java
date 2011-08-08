@@ -7,7 +7,6 @@ import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
@@ -18,40 +17,40 @@ public class PathExpression extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
 
-	private List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
+	private final List<SopremoExpression<EvaluationContext>> fragments = new ArrayList<SopremoExpression<EvaluationContext>>();
 
-	public PathExpression(EvaluationExpression... fragments) {
+	public PathExpression(final EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
 	}
 
-	public PathExpression(List<? extends EvaluationExpression> fragments) {
-		for (EvaluationExpression evaluableExpression : fragments)
+	public PathExpression(final List<? extends EvaluationExpression> fragments) {
+		for (final EvaluationExpression evaluableExpression : fragments)
 			if (evaluableExpression instanceof PathExpression)
 				this.fragments.addAll(((PathExpression) evaluableExpression).fragments);
 			else
 				this.fragments.add(evaluableExpression);
 	}
 
-	public void add(EvaluationExpression fragment) {
+	public void add(final EvaluationExpression fragment) {
 		this.fragments.add(fragment);
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		PathExpression other = (PathExpression) obj;
+		final PathExpression other = (PathExpression) obj;
 		return this.fragments.equals(other.fragments);
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		JsonNode fragmentNode = node;
-		for (Evaluable fragment : this.fragments)
+		for (final SopremoExpression<EvaluationContext> fragment : this.fragments)
 			fragmentNode = fragment.evaluate(fragmentNode, context);
 		return fragmentNode;
 	}
@@ -60,11 +59,11 @@ public class PathExpression extends ContainerExpression {
 		return this.fragments.size();
 	}
 
-	public EvaluationExpression getFragment(int index) {
+	public SopremoExpression<EvaluationContext> getFragment(final int index) {
 		return this.fragments.get(index);
 	}
 
-	public List<EvaluationExpression> getFragments() {
+	public List<SopremoExpression<EvaluationContext>> getFragments() {
 		return this.fragments;
 	}
 
@@ -76,23 +75,23 @@ public class PathExpression extends ContainerExpression {
 		return result;
 	}
 
-	public boolean isPrefix(PathExpression prefix) {
+	public boolean isPrefix(final PathExpression prefix) {
 		if (this.fragments.size() < prefix.getDepth())
 			return false;
 		return this.fragments.subList(0, prefix.getDepth()).equals(prefix.fragments);
 	}
 
 	@Override
-	public Iterator<EvaluationExpression> iterator() {
+	public Iterator<SopremoExpression<EvaluationContext>> iterator() {
 		return this.fragments.iterator();
 	}
 
 	@Override
-	public void replace(EvaluationExpression toReplace, EvaluationExpression replaceFragment) {
+	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
 		super.replace(toReplace, replaceFragment);
 
-		PathExpression pathToFind = this.wrapAsPath(toReplace);
-		PathExpression replacePath = this.wrapAsPath(replaceFragment);
+		final PathExpression pathToFind = this.wrapAsPath(toReplace);
+		final PathExpression replacePath = this.wrapAsPath(replaceFragment);
 		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
 		final int findSize = pathToFind.fragments.size();
 		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
@@ -108,12 +107,12 @@ public class PathExpression extends ContainerExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
-		for (EvaluationExpression fragment : this.fragments)
+	protected void toString(final StringBuilder builder) {
+		for (final SopremoExpression<EvaluationContext> fragment : this.fragments)
 			fragment.toString(builder);
 	}
 
-	private PathExpression wrapAsPath(EvaluationExpression expression) {
+	private PathExpression wrapAsPath(final EvaluationExpression expression) {
 		if (expression instanceof PathExpression)
 			return (PathExpression) expression;
 		return new PathExpression(expression);
@@ -121,25 +120,30 @@ public class PathExpression extends ContainerExpression {
 
 	public static class Writable extends PathExpression implements WritableEvaluable {
 
-		public <T extends EvaluationExpression & WritableEvaluable> Writable(T... fragments) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2014987314121118540L;
+
+		public <T extends EvaluationExpression & WritableEvaluable> Writable(final List<T> fragments) {
 			super(fragments);
 		}
 
-		public <T extends EvaluationExpression & WritableEvaluable> Writable(List<T> fragments) {
+		public <T extends EvaluationExpression & WritableEvaluable> Writable(final T... fragments) {
 			super(fragments);
 		}
 
 		@Override
-		public void add(EvaluationExpression fragment) {
+		public void add(final EvaluationExpression fragment) {
 			if (!(fragment instanceof WritableEvaluable))
 				throw new IllegalArgumentException();
 			super.add(fragment);
 		}
 
 		@Override
-		public void set(JsonNode node, JsonNode value, EvaluationContext context) {
+		public void set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 			JsonNode fragmentNode = node;
-			List<EvaluationExpression> fragments = getFragments();
+			final List<SopremoExpression<EvaluationContext>> fragments = this.getFragments();
 			for (int index = 0; index < fragments.size() - 1; index++)
 				fragmentNode = fragments.get(index).evaluate(fragmentNode, context);
 			((WritableEvaluable) fragmentNode).set(node, value, context);

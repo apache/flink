@@ -17,7 +17,7 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 	private EvaluationContext context;
 
 	@Override
-	public void configure(Configuration parameters) {
+	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
 		SopremoUtil.configureStub(this, parameters);
 	}
@@ -26,24 +26,25 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 		return this.context;
 	}
 
+	protected boolean needsResettableIterator(final PactJsonObject.Key key, final Iterator<PactJsonObject> values) {
+		return false;
+	}
+
 	protected abstract void reduce(JsonNode key, StreamArrayNode values, JsonCollector out);
 
 	@Override
-	public void reduce(PactJsonObject.Key key, Iterator<PactJsonObject> values,
-			Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public void reduce(final PactJsonObject.Key key, Iterator<PactJsonObject> values,
+			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isDebugEnabled()) {
-			ArrayList<PactJsonObject> cached = new ArrayList<PactJsonObject>();
+			final ArrayList<PactJsonObject> cached = new ArrayList<PactJsonObject>();
 			while (values.hasNext())
 				cached.add(values.next());
 			SopremoUtil.LOG.debug(String.format("%s %s/%s", this.getClass().getSimpleName(), key, cached));
 			values = cached.iterator();
 		}
-		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values), new JsonCollector(
-			out));
-	}
-
-	protected boolean needsResettableIterator(PactJsonObject.Key key, Iterator<PactJsonObject> values) {
-		return false;
+		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
+			new JsonCollector(
+				out));
 	}
 }

@@ -18,6 +18,18 @@ public class FunctionRegistryTest {
 
 	private EvaluationContext context;
 
+	private static final JsonNode GENERIC_VARARG_NODE = JsonUtil.NODE_FACTORY.textNode("var");
+
+	private static final JsonNode GENERIC_NODE = JsonUtil.NODE_FACTORY.textNode("generic");
+
+	private static final JsonNode ARRAY_NODE = JsonUtil.NODE_FACTORY.textNode("array");
+
+	private static final JsonNode TWO_INT_NODE = JsonUtil.NODE_FACTORY.textNode("2 int");
+
+	private static final JsonNode ONE_INT_VARARG_NODE = JsonUtil.NODE_FACTORY.textNode("1 int + var");
+
+	private static final JsonNode SUM_NODE = JsonUtil.NODE_FACTORY.textNode("sum");
+
 	@Before
 	public void setup() {
 		this.context = new EvaluationContext();
@@ -29,22 +41,22 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertEquals("should have been 2 functions", 2, this.registry.getRegisteredFunctions().size());
-		for (Function function : this.registry.getRegisteredFunctions().values())
+		for (final Function function : this.registry.getRegisteredFunctions().values())
 			Assert.assertEquals("should have been a java function", JavaFunction.class, function.getClass());
 
-		Assert.assertEquals("should have been 5 count signatures", 5, ((JavaFunction) this.registry.getFunction("count"))
-			.getSignatures().size());
+		Assert.assertEquals("should have been 5 count signatures", 5,
+			((JavaFunction) this.registry.getFunction("count"))
+				.getSignatures().size());
 		Assert.assertEquals("should have been 1 sum signatures", 1, ((JavaFunction) this.registry.getFunction("sum"))
 			.getSignatures().size());
 	}
 
-	@Test
-	public void shouldInvokeExactMatchingJavaFunction() {
+	@Test(expected = EvaluationException.class)
+	public void shouldFailIfNoApproporiateMatchingJavaFunction() {
 		this.registry.register(JavaFunctions.class);
 
-		Assert.assertSame(TWO_INT_NODE,
-			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
-				JsonUtil.NODE_FACTORY.numberNode(2)), this.context));
+		this.registry.evaluate("sum", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
+			JsonUtil.NODE_FACTORY.numberNode(2), JsonUtil.NODE_FACTORY.textNode("3")), this.context);
 	}
 
 	@Test
@@ -52,33 +64,6 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(ARRAY_NODE, this.registry.evaluate("count", JsonUtil.NODE_FACTORY.arrayNode(), this.context));
-	}
-
-	@Test
-	public void shouldInvokeMostSpecificVarargJavaFunction() {
-		this.registry.register(JavaFunctions.class);
-
-		Assert.assertSame(ONE_INT_VARARG_NODE,
-			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
-				JsonUtil.NODE_FACTORY.numberNode(2), JsonUtil.NODE_FACTORY.numberNode(3)), this.context));
-		Assert.assertSame(ONE_INT_VARARG_NODE,
-			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1)), this.context));
-	}
-
-	@Test
-	public void shouldInvokeFallbackJavaFunction() {
-		this.registry.register(JavaFunctions.class);
-
-		Assert.assertSame(GENERIC_NODE, this.registry.evaluate("count", JsonUtil.NODE_FACTORY.objectNode(), this.context));
-	}
-
-	@Test
-	public void shouldInvokeGenericVarargJavaFunctionsIfNoExactMatch() {
-		this.registry.register(JavaFunctions.class);
-
-		Assert.assertSame(GENERIC_VARARG_NODE,
-			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.objectNode(),
-				JsonUtil.NODE_FACTORY.objectNode(), JsonUtil.NODE_FACTORY.objectNode()), this.context));
 	}
 
 	@Test
@@ -92,49 +77,66 @@ public class FunctionRegistryTest {
 			this.registry.evaluate("sum", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1)), this.context));
 	}
 
-	@Test(expected = EvaluationException.class)
-	public void shouldFailIfNoApproporiateMatchingJavaFunction() {
+	@Test
+	public void shouldInvokeExactMatchingJavaFunction() {
 		this.registry.register(JavaFunctions.class);
 
-		this.registry.evaluate("sum", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
-				JsonUtil.NODE_FACTORY.numberNode(2), JsonUtil.NODE_FACTORY.textNode("3")), this.context);
+		Assert.assertSame(TWO_INT_NODE,
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
+				JsonUtil.NODE_FACTORY.numberNode(2)), this.context));
 	}
 
-	private static final JsonNode GENERIC_VARARG_NODE = JsonUtil.NODE_FACTORY.textNode("var");
+	@Test
+	public void shouldInvokeFallbackJavaFunction() {
+		this.registry.register(JavaFunctions.class);
 
-	private static final JsonNode GENERIC_NODE = JsonUtil.NODE_FACTORY.textNode("generic");
+		Assert.assertSame(GENERIC_NODE,
+			this.registry.evaluate("count", JsonUtil.NODE_FACTORY.objectNode(), this.context));
+	}
 
-	private static final JsonNode ARRAY_NODE = JsonUtil.NODE_FACTORY.textNode("array");
+	@Test
+	public void shouldInvokeGenericVarargJavaFunctionsIfNoExactMatch() {
+		this.registry.register(JavaFunctions.class);
 
-	private static final JsonNode TWO_INT_NODE = JsonUtil.NODE_FACTORY.textNode("2 int");
+		Assert.assertSame(GENERIC_VARARG_NODE,
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.objectNode(),
+				JsonUtil.NODE_FACTORY.objectNode(), JsonUtil.NODE_FACTORY.objectNode()), this.context));
+	}
 
-	private static final JsonNode ONE_INT_VARARG_NODE = JsonUtil.NODE_FACTORY.textNode("1 int + var");
+	@Test
+	public void shouldInvokeMostSpecificVarargJavaFunction() {
+		this.registry.register(JavaFunctions.class);
 
-	private static final JsonNode SUM_NODE = JsonUtil.NODE_FACTORY.textNode("sum");
+		Assert.assertSame(ONE_INT_VARARG_NODE,
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1),
+				JsonUtil.NODE_FACTORY.numberNode(2), JsonUtil.NODE_FACTORY.numberNode(3)), this.context));
+		Assert.assertSame(ONE_INT_VARARG_NODE,
+			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1)), this.context));
+	}
 
 	public static class JavaFunctions {
 
-		public static JsonNode count(JsonNode node) {
-			return GENERIC_NODE;
-		}
-
-		public static JsonNode count(JsonNode... node) {
-			return GENERIC_VARARG_NODE;
-		}
-
-		public static JsonNode count(ArrayNode node) {
+		public static JsonNode count(final ArrayNode node) {
 			return ARRAY_NODE;
 		}
 
-		public static JsonNode count(IntNode node, IntNode node2) {
+		public static JsonNode count(final IntNode node, final IntNode node2) {
 			return TWO_INT_NODE;
 		}
 
-		public static JsonNode count(IntNode node, IntNode... nodes) {
+		public static JsonNode count(final IntNode node, final IntNode... nodes) {
 			return ONE_INT_VARARG_NODE;
 		}
 
-		public static JsonNode sum(NumericNode... nodes) {
+		public static JsonNode count(final JsonNode node) {
+			return GENERIC_NODE;
+		}
+
+		public static JsonNode count(final JsonNode... node) {
+			return GENERIC_VARARG_NODE;
+		}
+
+		public static JsonNode sum(final NumericNode... nodes) {
 			return SUM_NODE;
 		}
 	}

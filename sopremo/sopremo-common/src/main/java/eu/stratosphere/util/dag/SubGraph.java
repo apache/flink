@@ -26,13 +26,6 @@ public interface SubGraph<Node, InputNode extends Node, OutputNode extends Node>
 	public abstract void addInternalOutput(OutputNode output);
 
 	/**
-	 * Returns all nodes that are either (internal) output nodes or included in the reference graph.
-	 * 
-	 * @return all nodes in this module
-	 */
-	public abstract Iterable<? extends Node> getReachableNodes();
-
-	/**
 	 * Returns all (external) and internal output nodes.
 	 * 
 	 * @return all output nodes
@@ -70,6 +63,13 @@ public interface SubGraph<Node, InputNode extends Node, OutputNode extends Node>
 	 * @return all outputs
 	 */
 	public abstract OutputNode[] getOutputs();
+
+	/**
+	 * Returns all nodes that are either (internal) output nodes or included in the reference graph.
+	 * 
+	 * @return all nodes in this module
+	 */
+	public abstract Iterable<? extends Node> getReachableNodes();
 
 	/**
 	 * Checks whether all declared inputs and outputs are fully connected.

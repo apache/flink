@@ -20,14 +20,14 @@ public class VarArgSignature extends MethodSignature {
 	 * @param parameterTypes
 	 *        the parameter types
 	 */
-	public VarArgSignature(Class<?>[] parameterTypes) {
+	public VarArgSignature(final Class<?>[] parameterTypes) {
 		super(parameterTypes);
 	}
 
 	@Override
-	public int getDistance(MethodSignature actualSignature) {
-		Class<?>[] actualParamTypes = actualSignature.getParameterTypes();
-		int nonVarArgs = this.getParameterTypes().length - 1;
+	public int getDistance(final MethodSignature actualSignature) {
+		final Class<?>[] actualParamTypes = actualSignature.getParameterTypes();
+		final int nonVarArgs = this.getParameterTypes().length - 1;
 		if (nonVarArgs > actualParamTypes.length)
 			return INCOMPATIBLE;
 
@@ -39,7 +39,7 @@ public class VarArgSignature extends MethodSignature {
 		}
 
 		if (nonVarArgs < actualParamTypes.length) {
-			Class<?> varargType = this.getParameterTypes()[nonVarArgs].getComponentType();
+			final Class<?> varargType = this.getParameterTypes()[nonVarArgs].getComponentType();
 			for (int index = nonVarArgs; index < actualParamTypes.length; index++) {
 				if (!varargType.isAssignableFrom(actualParamTypes[index]))
 					return INCOMPATIBLE;

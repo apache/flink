@@ -28,6 +28,33 @@ import eu.stratosphere.pact.common.stub.Stub;
  * @author Arvid Heise
  */
 public class ContractUtil {
+	private final static Map<Class<?>, Class<?>> STUB_CONTRACTS = new HashMap<Class<?>, Class<?>>();
+
+	static {
+		STUB_CONTRACTS.put(MapStub.class, MapContract.class);
+		STUB_CONTRACTS.put(ReduceStub.class, ReduceContract.class);
+		STUB_CONTRACTS.put(CoGroupStub.class, CoGroupContract.class);
+		STUB_CONTRACTS.put(CrossStub.class, CrossContract.class);
+		STUB_CONTRACTS.put(MatchStub.class, MatchContract.class);
+		STUB_CONTRACTS.put(InputFormat.class, DataSourceContract.class);
+		STUB_CONTRACTS.put(OutputFormat.class, DataSinkContract.class);
+	}
+
+	/**
+	 * Returns the associated {@link Contract} type for the given {@link Stub} class.
+	 * 
+	 * @param stubClass
+	 *        the stub class
+	 * @return the associated Contract type
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public static Class<? extends Contract> getContractClass(final Class<? extends Stub> stubClass) {
+		final Class<?> contract = STUB_CONTRACTS.get(stubClass);
+		if (contract == null && stubClass != Stub.class)
+			return getContractClass((Class<? extends Stub<?, ?>>) stubClass.getSuperclass());
+		return (Class<? extends Contract>) contract;
+	}
+
 	/**
 	 * Returns a list of all inputs for the given {@link Contract}.<br>
 	 * Currently, the list can have 0, 1, or 2 elements.
@@ -36,7 +63,7 @@ public class ContractUtil {
 	 *        the Contract whose inputs should be returned
 	 * @return all input contracts to this contract
 	 */
-	public static Contract[] getInputs(Contract contract) {
+	public static Contract[] getInputs(final Contract contract) {
 		if (contract instanceof DataSinkContract<?, ?>)
 			return new Contract[] { ((DataSinkContract<?, ?>) contract).getInput() };
 		if (contract instanceof SingleInputContract<?, ?, ?, ?>)
@@ -56,7 +83,7 @@ public class ContractUtil {
 	 * @param inputs
 	 *        all input contracts to this contract
 	 */
-	public static void setInputs(Contract contract, Contract[] inputs) {
+	public static void setInputs(final Contract contract, final Contract[] inputs) {
 		if (contract instanceof DataSinkContract<?, ?>) {
 			if (inputs.length != 1)
 				throw new IllegalArgumentException("wrong number of inputs");
@@ -71,31 +98,5 @@ public class ContractUtil {
 			((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setFirstInput(inputs[0]);
 			((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setSecondInput(inputs[1]);
 		}
-	}
-
-	private final static Map<Class<?>, Class<?>> STUB_CONTRACTS = new HashMap<Class<?>, Class<?>>();
-	static {
-		STUB_CONTRACTS.put(MapStub.class, MapContract.class);
-		STUB_CONTRACTS.put(ReduceStub.class, ReduceContract.class);
-		STUB_CONTRACTS.put(CoGroupStub.class, CoGroupContract.class);
-		STUB_CONTRACTS.put(CrossStub.class, CrossContract.class);
-		STUB_CONTRACTS.put(MatchStub.class, MatchContract.class);
-		STUB_CONTRACTS.put(InputFormat.class, DataSourceContract.class);
-		STUB_CONTRACTS.put(OutputFormat.class, DataSinkContract.class);
-	}
-
-	/**
-	 * Returns the associated {@link Contract} type for the given {@link Stub} class.
-	 * 
-	 * @param stubClass
-	 *        the stub class
-	 * @return the associated Contract type
-	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static Class<? extends Contract> getContractClass(Class<? extends Stub> stubClass) {
-		Class<?> contract = STUB_CONTRACTS.get(stubClass);
-		if (contract == null && stubClass != Stub.class)
-			return getContractClass((Class<? extends Stub<?, ?>>) stubClass.getSuperclass());
-		return (Class<? extends Contract>) contract;
 	}
 }

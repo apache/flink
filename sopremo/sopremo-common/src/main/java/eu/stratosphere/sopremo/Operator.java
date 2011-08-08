@@ -24,7 +24,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
-	private List<Operator.Output> inputs = new ArrayList<Operator.Output>();
+	private final List<Operator.Output> inputs = new ArrayList<Operator.Output>();
 
 	private String name;
 
@@ -39,7 +39,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	Operator(int numberOfOutputs, JsonStream... inputs) {
+	Operator(final int numberOfOutputs, final JsonStream... inputs) {
 		this(1, Arrays.asList(inputs));
 	}
 
@@ -52,31 +52,16 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	Operator(int numberOfOutputs, List<? extends JsonStream> inputs) {
+	Operator(final int numberOfOutputs, final List<? extends JsonStream> inputs) {
 		if (inputs == null)
 			throw new NullPointerException();
 		if (numberOfOutputs < 0)
 			throw new IllegalArgumentException("numberOfOutputs < 0");
 
-		for (JsonStream input : inputs)
+		for (final JsonStream input : inputs)
 			this.inputs.add(input == null ? null : input.getSource());
 		this.name = this.getClass().getSimpleName();
 		this.setNumberOfOutputs(numberOfOutputs);
-	}
-
-	/**
-	 * Sets the number of outputs of this operator retaining all old outputs if possible (increased number of outputs).
-	 * 
-	 * @param numberOfOutputs
-	 *        the number of outputs
-	 */
-	protected final void setNumberOfOutputs(int numberOfOutputs) {
-		Output[] outputs = new Output[numberOfOutputs];
-		System.arraycopy(this.outputs, 0, outputs, 0, Math.min(numberOfOutputs, this.outputs.length));
-
-		for (int index = this.outputs.length; index < numberOfOutputs; index++)
-			outputs[index] = new Output(index);
-		this.outputs = outputs;
 	}
 
 	/**
@@ -86,7 +71,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	Operator(JsonStream... inputs) {
+	Operator(final JsonStream... inputs) {
 		this(1, inputs);
 	}
 
@@ -97,7 +82,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @param inputs
 	 *        the input JsonStreams produces by other operators
 	 */
-	Operator(List<? extends JsonStream> inputs) {
+	Operator(final List<? extends JsonStream> inputs) {
 		this(1, inputs);
 	}
 
@@ -114,22 +99,34 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	public Operator clone() {
 		try {
 			return (Operator) super.clone();
-		} catch (CloneNotSupportedException e) {
+		} catch (final CloneNotSupportedException e) {
 			// cannot happen
 			return null;
 		}
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Operator other = (Operator) obj;
+		final Operator other = (Operator) obj;
 		return this.name.equals(other.name);
+	}
+
+	/**
+	 * Returns the output of an operator producing the {@link JsonStream} that is the input to this operator at the
+	 * given position.
+	 * 
+	 * @param index
+	 *        the index of the output
+	 * @return the output that produces the input of this operator at the given position
+	 */
+	public Operator.Output getInput(final int index) {
+		return this.inputs.get(index);
 	}
 
 	/**
@@ -142,13 +139,13 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 		return new AbstractList<Operator>() {
 
 			@Override
-			public Operator get(int index) {
+			public Operator get(final int index) {
 				return Operator.this.inputs.get(index) == null ? null : Operator.this.inputs.get(index).getOperator();
 			}
 
 			@Override
-			public int indexOf(Object o) {
-				ListIterator<Output> e = Operator.this.inputs.listIterator();
+			public int indexOf(final Object o) {
+				final ListIterator<Output> e = Operator.this.inputs.listIterator();
 				while (e.hasNext())
 					if (o == e.next())
 						return e.previousIndex();
@@ -174,18 +171,6 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	}
 
 	/**
-	 * Returns the output of an operator producing the {@link JsonStream} that is the input to this operator at the
-	 * given position.
-	 * 
-	 * @param index
-	 *        the index of the output
-	 * @return the output that produces the input of this operator at the given position
-	 */
-	public Operator.Output getInput(int index) {
-		return this.inputs.get(index);
-	}
-
-	/**
 	 * The name of this operator, which is the class name by default.
 	 * 
 	 * @return the name of this operator.
@@ -202,7 +187,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 *        the index to lookup
 	 * @return the output at the given position
 	 */
-	public Output getOutput(int index) {
+	public Output getOutput(final int index) {
 		return this.outputs[index];
 	}
 
@@ -232,21 +217,6 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	}
 
 	/**
-	 * Replaces the current list of inputs with the given list of {@link JsonStream}s.
-	 * 
-	 * @param inputs
-	 *        the new inputs
-	 */
-	public void setInputs(JsonStream... inputs) {
-		if (inputs == null)
-			throw new NullPointerException("inputs must not be null");
-
-		this.inputs.clear();
-		for (JsonStream input : inputs)
-			this.inputs.add(input == null ? null : input.getSource());
-	}
-
-	/**
 	 * Replaces the input at the given location with the given {@link JsonStream}s.
 	 * 
 	 * @param index
@@ -254,7 +224,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @param input
 	 *        the new input
 	 */
-	public void setInput(int index, JsonStream input) {
+	public void setInput(final int index, final JsonStream input) {
 		this.inputs.set(index, input == null ? null : input.getSource());
 	}
 
@@ -264,12 +234,27 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @param inputs
 	 *        the new inputs
 	 */
-	public void setInputs(List<? extends JsonStream> inputs) {
+	public void setInputs(final JsonStream... inputs) {
 		if (inputs == null)
 			throw new NullPointerException("inputs must not be null");
 
 		this.inputs.clear();
-		for (JsonStream input : inputs)
+		for (final JsonStream input : inputs)
+			this.inputs.add(input == null ? null : input.getSource());
+	}
+
+	/**
+	 * Replaces the current list of inputs with the given list of {@link JsonStream}s.
+	 * 
+	 * @param inputs
+	 *        the new inputs
+	 */
+	public void setInputs(final List<? extends JsonStream> inputs) {
+		if (inputs == null)
+			throw new NullPointerException("inputs must not be null");
+
+		this.inputs.clear();
+		for (final JsonStream input : inputs)
 			this.inputs.add(input == null ? null : input.getSource());
 	}
 
@@ -279,11 +264,26 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @param name
 	 *        the new name of this operator
 	 */
-	public void setName(String name) {
+	public void setName(final String name) {
 		if (name == null)
 			throw new NullPointerException("name must not be null");
 
 		this.name = name;
+	}
+
+	/**
+	 * Sets the number of outputs of this operator retaining all old outputs if possible (increased number of outputs).
+	 * 
+	 * @param numberOfOutputs
+	 *        the number of outputs
+	 */
+	protected final void setNumberOfOutputs(final int numberOfOutputs) {
+		final Output[] outputs = new Output[numberOfOutputs];
+		System.arraycopy(this.outputs, 0, outputs, 0, Math.min(numberOfOutputs, this.outputs.length));
+
+		for (int index = this.outputs.length; index < numberOfOutputs; index++)
+			outputs[index] = new Output(index);
+		this.outputs = outputs;
 	}
 
 	@Override
@@ -298,21 +298,21 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @author Arvid Heise
 	 */
 	public class Output implements JsonStream {
-		private int index;
+		private final int index;
 
-		private Output(int index) {
+		private Output(final int index) {
 			this.index = index;
 		}
 
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj)
 				return true;
 			if (obj == null)
 				return false;
 			if (this.getClass() != obj.getClass())
 				return false;
-			Output other = (Output) obj;
+			final Output other = (Output) obj;
 			return this.index == other.index && this.getOperator() == other.getOperator();
 		}
 

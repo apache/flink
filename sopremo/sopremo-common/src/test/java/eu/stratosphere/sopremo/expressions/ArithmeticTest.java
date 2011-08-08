@@ -4,7 +4,8 @@ import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperat
 
 public class ArithmeticTest extends EvaluableExpressionTest<ArithmeticExpression> {
 	@Override
-	protected ArithmeticExpression createDefaultInstance(int index) {
-		return new ArithmeticExpression(new ConstantExpression(1), ArithmeticOperator.ADDITION, new ConstantExpression(index));
+	protected ArithmeticExpression createDefaultInstance(final int index) {
+		return new ArithmeticExpression(new ConstantExpression(1), ArithmeticOperator.ADDITION, new ConstantExpression(
+			index));
 	}
 }

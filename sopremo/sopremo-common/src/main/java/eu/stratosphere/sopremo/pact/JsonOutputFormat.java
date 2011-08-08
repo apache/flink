@@ -24,6 +24,7 @@ import org.codehaus.jackson.JsonProcessingException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.JsonUtil;
 
 /**

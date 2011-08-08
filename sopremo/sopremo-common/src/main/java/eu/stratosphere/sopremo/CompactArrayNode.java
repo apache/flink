@@ -23,7 +23,7 @@ import eu.stratosphere.util.AbstractIterator;
  * @author Arvid Heise
  */
 public class CompactArrayNode extends ContainerNode {
-	private JsonNode[] children;
+	private final JsonNode[] children;
 
 	/**
 	 * Initializes CompactArrayNode with the given {@link JsonNode}s as children.
@@ -31,7 +31,7 @@ public class CompactArrayNode extends ContainerNode {
 	 * @param children
 	 *        the child nodes to wrap
 	 */
-	public CompactArrayNode(JsonNode[] children) {
+	public CompactArrayNode(final JsonNode[] children) {
 		super(JsonUtil.NODE_FACTORY);
 		this.children = children;
 	}
@@ -42,49 +42,49 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		CompactArrayNode other = (CompactArrayNode) obj;
+		final CompactArrayNode other = (CompactArrayNode) obj;
 		return Arrays.equals(this.children, other.children);
 	}
 
 	@Override
-	public ObjectNode findParent(String fieldName) {
+	public ObjectNode findParent(final String fieldName) {
 		return null;
 	}
 
 	@Override
-	public List<JsonNode> findParents(String fieldName, List<JsonNode> foundSoFar) {
+	public List<JsonNode> findParents(final String fieldName, final List<JsonNode> foundSoFar) {
 		return null;
 	}
 
 	@Override
-	public JsonNode findValue(String fieldName) {
+	public JsonNode findValue(final String fieldName) {
 		return null;
 	}
 
 	@Override
-	public List<JsonNode> findValues(String fieldName, List<JsonNode> foundSoFar) {
+	public List<JsonNode> findValues(final String fieldName, final List<JsonNode> foundSoFar) {
 		return null;
 	}
 
 	@Override
-	public List<String> findValuesAsText(String fieldName, List<String> foundSoFar) {
+	public List<String> findValuesAsText(final String fieldName, final List<String> foundSoFar) {
 		return null;
 	}
 
 	@Override
-	public JsonNode get(int index) {
+	public JsonNode get(final int index) {
 		return this.children[index];
 	}
 
 	@Override
-	public JsonNode get(String fieldName) {
+	public JsonNode get(final String fieldName) {
 		return null;
 	}
 
@@ -125,12 +125,12 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public JsonNode path(int index) {
+	public JsonNode path(final int index) {
 		return this.children[index];
 	}
 
 	@Override
-	public JsonNode path(String fieldName) {
+	public JsonNode path(final String fieldName) {
 		return null;
 	}
 
@@ -140,9 +140,10 @@ public class CompactArrayNode extends ContainerNode {
 	}
 
 	@Override
-	public void serialize(JsonGenerator jg, SerializerProvider provider) throws IOException, JsonProcessingException {
+	public void serialize(final JsonGenerator jg, final SerializerProvider provider) throws IOException,
+			JsonProcessingException {
 		jg.writeStartArray();
-		for (JsonNode n : this.children)
+		for (final JsonNode n : this.children)
 			if (n == null)
 				NullNode.instance.writeTo(jg);
 			else

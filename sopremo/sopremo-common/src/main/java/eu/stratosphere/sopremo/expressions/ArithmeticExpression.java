@@ -31,9 +31,9 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -9103414139002479181L;
 
-	private ArithmeticExpression.ArithmeticOperator operator;
+	private final ArithmeticExpression.ArithmeticOperator operator;
 
-	private EvaluationExpression op1, op2;
+	private final EvaluationExpression op1, op2;
 
 	/**
 	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix
@@ -46,14 +46,15 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 * @param op2
 	 *        the second operand
 	 */
-	public ArithmeticExpression(EvaluationExpression op1, ArithmeticOperator operator, EvaluationExpression op2) {
+	public ArithmeticExpression(final EvaluationExpression op1, final ArithmeticOperator operator,
+			final EvaluationExpression op2) {
 		this.operator = operator;
 		this.op1 = op1;
 		this.op2 = op2;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return this.op1.equals(((ArithmeticExpression) obj).op1)
@@ -62,7 +63,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		return this.operator.evaluate((NumericNode) this.op1.evaluate(node, context),
 			(NumericNode) this.op2.evaluate(node, context));
 	}
@@ -73,7 +74,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append(this.op1);
 		builder.append(' ');
 		builder.append(this.operator);
@@ -92,27 +93,27 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 */
 		ADDITION("+", new IntegerEvaluator() {
 			@Override
-			protected int evaluate(int left, int right) {
+			protected int evaluate(final int left, final int right) {
 				return left + right;
 			}
 		}, new LongEvaluator() {
 			@Override
-			protected long evaluate(long left, long right) {
+			protected long evaluate(final long left, final long right) {
 				return left + right;
 			}
 		}, new DoubleEvaluator() {
 			@Override
-			protected double evaluate(double left, double right) {
+			protected double evaluate(final double left, final double right) {
 				return left + right;
 			}
 		}, new BigIntegerEvaluator() {
 			@Override
-			protected BigInteger evaluate(BigInteger left, BigInteger right) {
+			protected BigInteger evaluate(final BigInteger left, final BigInteger right) {
 				return left.add(right);
 			}
 		}, new BigDecimalEvaluator() {
 			@Override
-			protected BigDecimal evaluate(BigDecimal left, BigDecimal right) {
+			protected BigDecimal evaluate(final BigDecimal left, final BigDecimal right) {
 				return left.add(right);
 			}
 		}),
@@ -121,27 +122,27 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 */
 		SUBTRACTION("-", new IntegerEvaluator() {
 			@Override
-			protected int evaluate(int left, int right) {
+			protected int evaluate(final int left, final int right) {
 				return left - right;
 			}
 		}, new LongEvaluator() {
 			@Override
-			protected long evaluate(long left, long right) {
+			protected long evaluate(final long left, final long right) {
 				return left - right;
 			}
 		}, new DoubleEvaluator() {
 			@Override
-			protected double evaluate(double left, double right) {
+			protected double evaluate(final double left, final double right) {
 				return left - right;
 			}
 		}, new BigIntegerEvaluator() {
 			@Override
-			protected BigInteger evaluate(BigInteger left, BigInteger right) {
+			protected BigInteger evaluate(final BigInteger left, final BigInteger right) {
 				return left.subtract(right);
 			}
 		}, new BigDecimalEvaluator() {
 			@Override
-			protected BigDecimal evaluate(BigDecimal left, BigDecimal right) {
+			protected BigDecimal evaluate(final BigDecimal left, final BigDecimal right) {
 				return left.subtract(right);
 			}
 		}),
@@ -150,27 +151,27 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 */
 		MULTIPLICATION("*", new IntegerEvaluator() {
 			@Override
-			protected int evaluate(int left, int right) {
+			protected int evaluate(final int left, final int right) {
 				return left * right;
 			}
 		}, new LongEvaluator() {
 			@Override
-			protected long evaluate(long left, long right) {
+			protected long evaluate(final long left, final long right) {
 				return left * right;
 			}
 		}, new DoubleEvaluator() {
 			@Override
-			protected double evaluate(double left, double right) {
+			protected double evaluate(final double left, final double right) {
 				return left * right;
 			}
 		}, new BigIntegerEvaluator() {
 			@Override
-			protected BigInteger evaluate(BigInteger left, BigInteger right) {
+			protected BigInteger evaluate(final BigInteger left, final BigInteger right) {
 				return left.multiply(right);
 			}
 		}, new BigDecimalEvaluator() {
 			@Override
-			protected BigDecimal evaluate(BigDecimal left, BigDecimal right) {
+			protected BigDecimal evaluate(final BigDecimal left, final BigDecimal right) {
 				return left.multiply(right);
 			}
 		}),
@@ -179,19 +180,20 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 */
 		DIVISION("/", DivisionEvaluator.INSTANCE, DivisionEvaluator.INSTANCE, new DoubleEvaluator() {
 			@Override
-			protected double evaluate(double left, double right) {
+			protected double evaluate(final double left, final double right) {
 				return left / right;
 			}
 		}, DivisionEvaluator.INSTANCE, DivisionEvaluator.INSTANCE);
 
 		private final String sign;
 
-		private Map<NumberType, NumberEvaluator> typeEvaluators = new EnumMap<NumberType, NumberEvaluator>(
+		private final Map<NumberType, NumberEvaluator> typeEvaluators = new EnumMap<NumberType, NumberEvaluator>(
 			NumberType.class);
 
-		private ArithmeticOperator(String sign, NumberEvaluator integerEvaluator, NumberEvaluator longEvaluator,
-				NumberEvaluator doubleEvaluator, NumberEvaluator bigIntegerEvaluator,
-				NumberEvaluator bigDecimalEvaluator) {
+		private ArithmeticOperator(final String sign, final NumberEvaluator integerEvaluator,
+				final NumberEvaluator longEvaluator,
+				final NumberEvaluator doubleEvaluator, final NumberEvaluator bigIntegerEvaluator,
+				final NumberEvaluator bigDecimalEvaluator) {
 			this.sign = sign;
 			this.typeEvaluators.put(NumberType.INT, integerEvaluator);
 			this.typeEvaluators.put(NumberType.LONG, longEvaluator);
@@ -210,8 +212,9 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 *        the right operand
 		 * @return the result of the operation
 		 */
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
-			NumberType widerType = NumberCoercer.INSTANCE.getWiderType(left.getNumberType(), right.getNumberType());
+		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
+			final NumberType widerType = NumberCoercer.INSTANCE.getWiderType(left.getNumberType(),
+				right.getNumberType());
 			return this.typeEvaluators.get(widerType).evaluate(left, right);
 		}
 
@@ -225,7 +228,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract BigDecimal evaluate(BigDecimal left, BigDecimal right);
 
 		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
+		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
 			return DecimalNode.valueOf(this.evaluate(left.getDecimalValue(), right.getDecimalValue()));
 		}
 	}
@@ -234,7 +237,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract BigInteger evaluate(BigInteger left, BigInteger right);
 
 		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
+		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
 			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(), right.getBigIntegerValue()));
 		}
 	}
@@ -256,18 +259,18 @@ public class ArithmeticExpression extends EvaluationExpression {
 		public static final int DIVISION_MIN_SCALE = 10;
 
 		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
+		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
 			return DecimalNode.valueOf(divideImpl(left.getDecimalValue(), right.getDecimalValue()));
 		}
 
-		public static BigDecimal divideImpl(BigDecimal bigLeft, BigDecimal bigRight) {
+		public static BigDecimal divideImpl(final BigDecimal bigLeft, final BigDecimal bigRight) {
 			try {
 				return bigLeft.divide(bigRight);
-			} catch (ArithmeticException e) {
+			} catch (final ArithmeticException e) {
 				// set a DEFAULT precision if otherwise non-terminating
-				int precision = Math.max(bigLeft.precision(), bigRight.precision()) + DIVISION_EXTRA_PRECISION;
+				final int precision = Math.max(bigLeft.precision(), bigRight.precision()) + DIVISION_EXTRA_PRECISION;
 				BigDecimal result = bigLeft.divide(bigRight, new MathContext(precision));
-				int scale = Math.max(Math.max(bigLeft.scale(), bigRight.scale()), DIVISION_MIN_SCALE);
+				final int scale = Math.max(Math.max(bigLeft.scale(), bigRight.scale()), DIVISION_MIN_SCALE);
 				if (result.scale() > scale)
 					result = result.setScale(scale, BigDecimal.ROUND_HALF_UP);
 				return result;
@@ -279,7 +282,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract double evaluate(double left, double right);
 
 		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
+		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
 			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(), right.getDoubleValue()));
 		}
 	}
@@ -288,7 +291,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract int evaluate(int left, int right);
 
 		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
+		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
 			return IntNode.valueOf(this.evaluate(left.getIntValue(), right.getIntValue()));
 		}
 	}
@@ -297,7 +300,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract long evaluate(long left, long right);
 
 		@Override
-		public NumericNode evaluate(NumericNode left, NumericNode right) {
+		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
 			return LongNode.valueOf(this.evaluate(left.getLongValue(), right.getLongValue()));
 		}
 	}

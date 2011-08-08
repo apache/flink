@@ -2,19 +2,24 @@ package eu.stratosphere.sopremo;
 
 public class CoercionException extends EvaluationException {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1067147890265712537L;
+
 	public CoercionException() {
 		super();
 	}
 
-	public CoercionException(String message, Throwable cause) {
-		super(message, cause);
-	}
-
-	public CoercionException(String message) {
+	public CoercionException(final String message) {
 		super(message);
 	}
 
-	public CoercionException(Throwable cause) {
+	public CoercionException(final String message, final Throwable cause) {
+		super(message, cause);
+	}
+
+	public CoercionException(final Throwable cause) {
 		super(cause);
 	}
 

@@ -20,20 +20,20 @@ public class Difference extends MultiSourceOperator {
 	 */
 	private static final long serialVersionUID = 2805583327454416554L;
 
-	public Difference(List<? extends JsonStream> inputs) {
+	public Difference(final JsonStream... inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
-	public Difference(JsonStream... inputs) {
+	public Difference(final List<? extends JsonStream> inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
 	@Override
-	protected Operator createElementaryOperations(List<Operator> inputs) {
+	protected Operator createElementaryOperations(final List<Operator> inputs) {
 		if (inputs.size() <= 1)
 			return inputs.get(0);
 
@@ -50,7 +50,7 @@ public class Difference extends MultiSourceOperator {
 		 */
 		private static final long serialVersionUID = 2331712414222089266L;
 
-		public TwoInputDifference(JsonStream input1, JsonStream input2) {
+		public TwoInputDifference(final JsonStream input1, final JsonStream input2) {
 			super(input1, input2);
 		}
 
@@ -66,7 +66,8 @@ public class Difference extends MultiSourceOperator {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+					final JsonCollector out) {
 				if (!values1.isEmpty() && values2.isEmpty())
 					out.collect(key, values1.get(0));
 			}

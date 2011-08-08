@@ -8,21 +8,21 @@ import java.util.Set;
 import org.codehaus.jackson.JsonNode;
 
 class BinarySparseMatrix {
-	private Map<JsonNode, Set<JsonNode>> sparseMatrix = new HashMap<JsonNode, Set<JsonNode>>();
+	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new HashMap<JsonNode, Set<JsonNode>>();
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		BinarySparseMatrix other = (BinarySparseMatrix) obj;
+		final BinarySparseMatrix other = (BinarySparseMatrix) obj;
 		return this.sparseMatrix.equals(other.sparseMatrix);
 	}
 
-	public Set<JsonNode> get(JsonNode n) {
+	public Set<JsonNode> get(final JsonNode n) {
 		return this.sparseMatrix.get(n);
 	}
 
@@ -38,40 +38,37 @@ class BinarySparseMatrix {
 		return result;
 	}
 
-	public boolean isSet(JsonNode n1, JsonNode n2) {
-		Set<JsonNode> set = this.sparseMatrix.get(n1);
+	public boolean isSet(final JsonNode n1, final JsonNode n2) {
+		final Set<JsonNode> set = this.sparseMatrix.get(n1);
 		return set != null && set.contains(n2);
 	}
 
-	public void set(JsonNode n1, JsonNode n2) {
+	void makeSymmetric() {
+		final Set<JsonNode> rows = new HashSet<JsonNode>(this.getRows());
+		for (final JsonNode row : rows)
+			for (final JsonNode column : this.get(row))
+				this.set(column, row);
+	}
+
+	public void set(final JsonNode n1, final JsonNode n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)
 			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
 		set.add(n2);
 	}
 
-	public void setAll(JsonNode n1, Set<JsonNode> n2) {
+	public void setAll(final JsonNode n1, final Set<JsonNode> n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)
 			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
 		set.addAll(n2);
 	}
 
-	void makeSymmetric() {
-		Set<JsonNode> rows = new HashSet<JsonNode>(getRows());
-		for (JsonNode row : rows) {
-			for (JsonNode column : get(row)) {
-				set(column, row);
-			}
-		}
-	}
-	
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder("[\n");
-		for (JsonNode row : getRows()) {
-			builder.append("[").append(row).append(": ").append(get(row)).append("]\n");
-		}
+		final StringBuilder builder = new StringBuilder("[\n");
+		for (final JsonNode row : this.getRows())
+			builder.append("[").append(row).append(": ").append(this.get(row)).append("]\n");
 		return builder.append("]").toString();
 	}
 }

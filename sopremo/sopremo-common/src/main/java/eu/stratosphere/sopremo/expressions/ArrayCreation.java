@@ -7,7 +7,6 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
@@ -23,7 +22,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
 
-	private EvaluationExpression[] elements;
+	private final SopremoExpression<EvaluationContext>[] elements;
 
 	/**
 	 * Initializes ArrayCreation to create an array of the given expressions.
@@ -31,7 +30,7 @@ public class ArrayCreation extends ContainerExpression {
 	 * @param elements
 	 *        the expressions that evaluate to the elements in the array
 	 */
-	public ArrayCreation(EvaluationExpression... elements) {
+	public ArrayCreation(final EvaluationExpression... elements) {
 		this.elements = elements;
 	}
 
@@ -41,21 +40,21 @@ public class ArrayCreation extends ContainerExpression {
 	 * @param elements
 	 *        the expressions that evaluate to the elements in the array
 	 */
-	public ArrayCreation(List<EvaluationExpression> elements) {
+	public ArrayCreation(final List<EvaluationExpression> elements) {
 		this.elements = elements.toArray(new EvaluationExpression[elements.size()]);
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return Arrays.equals(this.elements, ((ArrayCreation) obj).elements);
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		ArrayNode arrayNode = JsonUtil.NODE_FACTORY.arrayNode();
-		for (Evaluable expression : this.elements)
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		final ArrayNode arrayNode = JsonUtil.NODE_FACTORY.arrayNode();
+		for (final SopremoExpression<EvaluationContext> expression : this.elements)
 			arrayNode.add(expression.evaluate(node, context));
 		return arrayNode;
 	}
@@ -66,12 +65,12 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<EvaluationExpression> iterator() {
+	public Iterator<SopremoExpression<EvaluationContext>> iterator() {
 		return Arrays.asList(this.elements).iterator();
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append(Arrays.toString(this.elements));
 	}
 }

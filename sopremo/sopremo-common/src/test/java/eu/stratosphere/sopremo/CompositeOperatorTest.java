@@ -22,72 +22,13 @@ import eu.stratosphere.util.dag.GraphLevelPartitioner;
 import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
 
 /**
- * The class <code>CompositeOperatorTest</code> contains tests for the class
- * <code>{@link CompositeOperator}</code>.
+ * The class <code>CompositeOperatorTest</code> contains tests for the class <code>{@link CompositeOperator}</code>.
  * 
  * @author Arvid Heise
  */
 public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.CompositeOperatorImpl> {
-	static class CompositeOperatorImpl extends CompositeOperator {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 1L;
-		private int index;
-
-		public CompositeOperatorImpl(int index, JsonStream... streams) {
-			super(1, streams);
-			this.index = index;
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = super.hashCode();
-			result = prime * result + index;
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (!super.equals(obj))
-				return false;
-			if (!(obj instanceof CompositeOperatorImpl))
-				return false;
-			CompositeOperatorImpl other = (CompositeOperatorImpl) obj;
-			if (index != other.index)
-				return false;
-			return true;
-		}
-
-		@Override
-		public SopremoModule asElementaryOperators() {
-			return SopremoModule.valueOf(getName(), new ElementaryOperatorImpl(getInput(0),
-				new ElementaryOperatorImpl(getInput(1), getInput(2))));
-		}
-
-	}
-
-	static class ElementaryOperatorImpl extends ElementaryOperator {
-		private static final long serialVersionUID = 1L;
-
-		public ElementaryOperatorImpl(JsonStream stream1, JsonStream stream2) {
-			super(stream1, stream2);
-		}
-
-		static class Implementation
-				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-			@Override
-			protected void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2,
-					JsonCollector out) {
-			}
-		}
-	}
-
-	protected CompositeOperatorImpl createDefaultInstance(int index) {
+	@Override
+	protected CompositeOperatorImpl createDefaultInstance(final int index) {
 		return new CompositeOperatorImpl(index);
 	}
 
@@ -96,16 +37,16 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 	 */
 	@Test
 	public void testAsPactModule() throws Exception {
-		Operator input1 = new Source(PersistenceType.HDFS, "1");
-		Operator input2 = new Source(PersistenceType.HDFS, "2");
-		Operator input3 = new Source(PersistenceType.HDFS, "3");
-		CompositeOperator fixture = new CompositeOperatorImpl(1, input1, input2, input3);
-		EvaluationContext context = new EvaluationContext();
+		final Operator input1 = new Source(PersistenceType.HDFS, "1");
+		final Operator input2 = new Source(PersistenceType.HDFS, "2");
+		final Operator input3 = new Source(PersistenceType.HDFS, "3");
+		final CompositeOperator fixture = new CompositeOperatorImpl(1, input1, input2, input3);
+		final EvaluationContext context = new EvaluationContext();
 
-		PactModule result = fixture.asPactModule(context);
+		final PactModule result = fixture.asPactModule(context);
 
 		assertNotNull(result);
-		List<Level<Contract>> reachableNodes = GraphLevelPartitioner.getLevels(
+		final List<Level<Contract>> reachableNodes = GraphLevelPartitioner.getLevels(
 			result.getAllOutputs(), ContractNavigator.INSTANCE);
 		assertEquals(3, reachableNodes.get(0).getLevelNodes().size());
 		assertEquals(1, reachableNodes.get(1).getLevelNodes().size());
@@ -120,5 +61,66 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		assertSame(ElementaryOperatorImpl.Implementation.class, reachableNodes.get(2)
 			.getLevelNodes().get(0).getStubClass());
 		assertTrue(DataSinkContract.class.isInstance(reachableNodes.get(3).getLevelNodes().get(0)));
+	}
+
+	static class CompositeOperatorImpl extends CompositeOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
+
+		private final int index;
+
+		public CompositeOperatorImpl(final int index, final JsonStream... streams) {
+			super(1, streams);
+			this.index = index;
+		}
+
+		@Override
+		public SopremoModule asElementaryOperators() {
+			return SopremoModule.valueOf(this.getName(), new ElementaryOperatorImpl(this.getInput(0),
+				new ElementaryOperatorImpl(this.getInput(1), this.getInput(2))));
+		}
+
+		@Override
+		public boolean equals(final Object obj) {
+			if (this == obj)
+				return true;
+			if (!super.equals(obj))
+				return false;
+			if (!(obj instanceof CompositeOperatorImpl))
+				return false;
+			final CompositeOperatorImpl other = (CompositeOperatorImpl) obj;
+			if (this.index != other.index)
+				return false;
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = super.hashCode();
+			result = prime * result + this.index;
+			return result;
+		}
+
+	}
+
+	static class ElementaryOperatorImpl extends ElementaryOperator {
+		private static final long serialVersionUID = 1L;
+
+		public ElementaryOperatorImpl(final JsonStream stream1, final JsonStream stream2) {
+			super(stream1, stream2);
+		}
+
+		static class Implementation
+				extends
+				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
+					final JsonNode value2,
+					final JsonCollector out) {
+			}
+		}
 	}
 }

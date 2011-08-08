@@ -44,7 +44,7 @@ public class ReflectUtil {
 	 *        the annotation type
 	 * @return the annotation or null
 	 */
-	public static Annotation getAnnotation(Class<?> type, Class<? extends Annotation> annotationType) {
+	public static Annotation getAnnotation(final Class<?> type, final Class<? extends Annotation> annotationType) {
 		Annotation annotation = null;
 		for (Class<?> t = type; annotation == null && t != null; t = t.getSuperclass())
 			annotation = t.getAnnotation(annotationType);
@@ -59,16 +59,17 @@ public class ReflectUtil {
 	 *        the primitive type
 	 * @return the boxing class or null if the given class is not a primitive
 	 */
-	public static Class<?> getClassForPrimtive(Class<?> primitive) {
+	public static Class<?> getClassForPrimtive(final Class<?> primitive) {
 		return BoxingClasses.get(primitive);
 	}
 
-	private static <T> Map<Constructor<?>, Integer> getCompatibleConstructors(Class<T> type, Object... params) {
-		Constructor<?>[] constructors = type.getDeclaredConstructors();
-		Map<Constructor<?>, Integer> candidateDistances = new HashMap<Constructor<?>, Integer>();
-		for (Constructor<?> constructor : constructors) {
+	private static <T> Map<Constructor<?>, Integer> getCompatibleConstructors(final Class<T> type,
+			final Object... params) {
+		final Constructor<?>[] constructors = type.getDeclaredConstructors();
+		final Map<Constructor<?>, Integer> candidateDistances = new HashMap<Constructor<?>, Integer>();
+		for (final Constructor<?> constructor : constructors) {
 			int distance = 0;
-			Class<?>[] parameterTypes = constructor.getParameterTypes();
+			final Class<?>[] parameterTypes = constructor.getParameterTypes();
 			if (params.length != parameterTypes.length)
 				continue;
 
@@ -86,15 +87,16 @@ public class ReflectUtil {
 		return candidateDistances;
 	}
 
-	private static <T> Map<Method, Integer> getCompatibleMethods(Class<T> type, String name, Object... params) {
-		Method[] methods = type.getDeclaredMethods();
-		Map<Method, Integer> candidateDistances = new HashMap<Method, Integer>();
-		for (Method method : methods) {
+	private static <T> Map<Method, Integer> getCompatibleMethods(final Class<T> type, final String name,
+			final Object... params) {
+		final Method[] methods = type.getDeclaredMethods();
+		final Map<Method, Integer> candidateDistances = new HashMap<Method, Integer>();
+		for (final Method method : methods) {
 			if (!method.getName().equals(name))
 				continue;
 
 			int distance = 0;
-			Class<?>[] parameterTypes = method.getParameterTypes();
+			final Class<?>[] parameterTypes = method.getParameterTypes();
 			if (params.length != parameterTypes.length)
 				continue;
 
@@ -131,16 +133,16 @@ public class ReflectUtil {
 	 *        the sub class of the hierarchy
 	 * @return the minimum distance
 	 */
-	public static int getDistance(Class<?> superClass, Class<?> subclass) {
+	public static int getDistance(final Class<?> superClass, final Class<?> subclass) {
 		if (superClass == subclass)
 			return 0;
 		if (!superClass.isAssignableFrom(subclass))
 			return Integer.MAX_VALUE;
 
 		if (superClass.isInterface()) {
-			Class<?>[] interfaces = subclass.getInterfaces();
+			final Class<?>[] interfaces = subclass.getInterfaces();
 			int minDistance = Integer.MAX_VALUE;
-			for (Class<?> xface : interfaces)
+			for (final Class<?> xface : interfaces)
 				if (xface == superClass) {
 					minDistance = 1;
 					break;
@@ -164,13 +166,13 @@ public class ReflectUtil {
 	 *        the name of the field
 	 * @return the value of the field
 	 */
-	public static Object getFieldValue(Object object, String fieldName) {
-		Class<? extends Object> type = object.getClass();
+	public static Object getFieldValue(final Object object, final String fieldName) {
+		final Class<? extends Object> type = object.getClass();
 		try {
-			Field field = type.getDeclaredField(fieldName);
+			final Field field = type.getDeclaredField(fieldName);
 			field.setAccessible(true);
 			return field.get(object);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalArgumentException(String.format("Could not get field value %s for type %s", fieldName,
 				type), e);
 		}
@@ -185,12 +187,12 @@ public class ReflectUtil {
 	 *        the name of the field
 	 * @return the value of the field
 	 */
-	public static Object getStaticValue(Class<?> type, String fieldName) {
+	public static Object getStaticValue(final Class<?> type, final String fieldName) {
 		try {
-			Field field = type.getDeclaredField(fieldName);
+			final Field field = type.getDeclaredField(fieldName);
 			field.setAccessible(true);
 			return field.get(null);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalArgumentException(String.format("Could not get field value %s for type %s", fieldName,
 				type), e);
 		}
@@ -207,10 +209,10 @@ public class ReflectUtil {
 	 *        the parameters of the function
 	 * @return true if such a method exists
 	 */
-	public static boolean hasFunction(Object object, String function, Object... params) {
-		Class<? extends Object> type = object.getClass();
+	public static boolean hasFunction(final Object object, final String function, final Object... params) {
+		final Class<? extends Object> type = object.getClass();
 		try {
-			Map<Method, Integer> candidateDistances = getCompatibleMethods(type, function, params);
+			final Map<Method, Integer> candidateDistances = getCompatibleMethods(type, function, params);
 
 			if (candidateDistances.isEmpty())
 				return false;
@@ -219,14 +221,15 @@ public class ReflectUtil {
 				return true;
 
 			return pickBest(candidateDistances) != null;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalArgumentException(String.format("Could not find method %s for type %s with parameters %s",
 				function, type, Arrays
 					.toString(params)), e);
 		}
 	}
 
-	private static Object invoke(Method method, Object object, Object[] params) throws IllegalArgumentException,
+	private static Object invoke(final Method method, final Object object, final Object[] params)
+			throws IllegalArgumentException,
 			IllegalAccessException, InvocationTargetException {
 		method.setAccessible(true);
 		return method.invoke(object, params);
@@ -243,26 +246,26 @@ public class ReflectUtil {
 	 *        the parameters of the function
 	 * @return the result of the invocation
 	 */
-	public static Object invoke(Object object, String function, Object... params) {
-		Class<? extends Object> type = object.getClass();
+	public static Object invoke(final Object object, final String function, final Object... params) {
+		final Class<? extends Object> type = object.getClass();
 		try {
-			Map<Method, Integer> candidateDistances = getCompatibleMethods(type, function, params);
+			final Map<Method, Integer> candidateDistances = getCompatibleMethods(type, function, params);
 
 			if (candidateDistances.isEmpty())
 				throw new IllegalArgumentException(String.format(
 					"no suitable method found in %s for name %s and parameters %s", type, function,
-						Arrays.toString(params)));
+					Arrays.toString(params)));
 
 			if (candidateDistances.size() == 1)
 				return invoke(candidateDistances.keySet().iterator().next(), object, params);
 
-			Method bestMethod = pickBest(candidateDistances);
+			final Method bestMethod = pickBest(candidateDistances);
 			if (bestMethod == null)
 				throw new IllegalArgumentException(String.format(
 					"more than one suitable method found in %s for name %s and parameters %s", type,
-						function, Arrays.toString(params)));
+					function, Arrays.toString(params)));
 			return invoke(bestMethod, object, params);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalArgumentException(String.format(
 				"Could not invoke method %s for type %s with parameters %s", function, type, Arrays
 					.toString(params)), e);
@@ -277,7 +280,7 @@ public class ReflectUtil {
 	 *        the type to check
 	 * @return true if it has an accessible default constructor.
 	 */
-	public static Boolean isInstantiable(Class<?> type) {
+	public static Boolean isInstantiable(final Class<?> type) {
 		synchronized (CACHED_DEFAULT_CONSTRUCTORS) {
 			try {
 				Constructor<?> constructor = CACHED_DEFAULT_CONSTRUCTORS.get(type);
@@ -286,7 +289,7 @@ public class ReflectUtil {
 					constructor.setAccessible(true);
 				}
 				return true;
-			} catch (NoSuchMethodException e) {
+			} catch (final NoSuchMethodException e) {
 				return false;
 			}
 		}
@@ -301,7 +304,7 @@ public class ReflectUtil {
 	 *        the second type
 	 * @return the boxing class or null if the given class is not a primitive
 	 */
-	public static boolean isSameTypeOrPrimitive(Class<?> type1, Class<?> type2) {
+	public static boolean isSameTypeOrPrimitive(final Class<?> type1, final Class<?> type2) {
 		final Class<?> t1 = type1.isPrimitive() ? getClassForPrimtive(type1) : type1;
 		final Class<?> t2 = type2.isPrimitive() ? getClassForPrimtive(type2) : type2;
 		return t1 == t2;
@@ -325,7 +328,7 @@ public class ReflectUtil {
 	 *         {@link IllegalAccessException}, * {@link InvocationTargetException}
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> T newInstance(Class<T> type) throws IllegalArgumentException {
+	public static <T> T newInstance(final Class<T> type) throws IllegalArgumentException {
 		try {
 			Constructor<T> constructor = (Constructor<T>) CACHED_DEFAULT_CONSTRUCTORS.get(type);
 			if (constructor == null) {
@@ -333,7 +336,7 @@ public class ReflectUtil {
 				constructor.setAccessible(true);
 			}
 			return constructor.newInstance();
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalArgumentException("Could not create an instance of type " + type, e);
 		}
 	}
@@ -357,9 +360,9 @@ public class ReflectUtil {
 	 *         {@link IllegalAccessException}, {@link InvocationTargetException}
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> T newInstance(Class<T> type, Object... params) throws IllegalArgumentException {
+	public static <T> T newInstance(final Class<T> type, final Object... params) throws IllegalArgumentException {
 		try {
-			Map<Constructor<?>, Integer> candidateDistances = getCompatibleConstructors(type, params);
+			final Map<Constructor<?>, Integer> candidateDistances = getCompatibleConstructors(type, params);
 
 			if (candidateDistances.isEmpty())
 				throw new IllegalArgumentException(String.format("no suitable constructor found in %s for %s", type,
@@ -368,22 +371,22 @@ public class ReflectUtil {
 			if (candidateDistances.size() == 1)
 				return (T) candidateDistances.keySet().iterator().next().newInstance(params);
 
-			Constructor<?> bestConstructor = pickBest(candidateDistances);
+			final Constructor<?> bestConstructor = pickBest(candidateDistances);
 			if (bestConstructor == null)
 				throw new IllegalArgumentException(String.format(
 					"more than one suitable constructor found in %s for %s", type, Arrays
 						.toString(params)));
 			return (T) bestConstructor.newInstance(params);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalArgumentException("Could not create an instance of type " + type, e);
 		}
 	}
 
-	private static <T> T pickBest(Map<T, Integer> candidateDistances) {
+	private static <T> T pickBest(final Map<T, Integer> candidateDistances) {
 		int minDistance = Integer.MAX_VALUE;
 		int minCount = 0;
 		T minConstructor = null;
-		for (Entry<T, Integer> entry : candidateDistances.entrySet())
+		for (final Entry<T, Integer> entry : candidateDistances.entrySet())
 			if (entry.getValue() < minDistance) {
 				minDistance = entry.getValue();
 				minConstructor = entry.getKey();

@@ -7,8 +7,6 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.NullNode;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
@@ -24,7 +22,6 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Grouping extends MultiSourceOperator {
 	/**
@@ -34,40 +31,65 @@ public class Grouping extends MultiSourceOperator {
 
 	private final static EvaluationExpression NO_GROUPING = new ConstantExpression(NullNode.getInstance());
 
-	private EvaluationExpression expression;
+	private final EvaluationExpression projection;
 
-	public Grouping(EvaluationExpression expression, JsonStream... inputs) {
+	public Grouping(final EvaluationExpression projection, final JsonStream... inputs) {
 		super(inputs);
-		this.expression = expression;
+		this.projection = projection;
 
 		this.setDefaultKeyProjection(NO_GROUPING);
 	}
 
-	public Grouping(EvaluationExpression expression, List<? extends JsonStream> inputs) {
+	public Grouping(final EvaluationExpression projection, final List<? extends JsonStream> inputs) {
 		super(inputs);
-		this.expression = expression;
+		this.projection = projection;
 
 		this.setDefaultKeyProjection(NO_GROUPING);
 	}
 
 	@Override
-	protected EvaluationExpression getDefaultValueProjection(Output source) {
-		if (getInputs().size() <= 1)
+	protected Operator createElementaryOperations(final List<Operator> inputs) {
+		if (inputs.size() <= 1)
+			return new GroupProjection(this.projection, inputs.get(0));
+
+		final UnionAll union = new UnionAll(inputs);
+		return new GroupProjection(new PathExpression(new AggregationExpression(new ArrayUnion()), this.projection),
+			union);
+	}
+
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		final Grouping other = (Grouping) obj;
+		return this.projection.equals(other.projection);
+	}
+
+	@Override
+	protected EvaluationExpression getDefaultValueProjection(final Output source) {
+		if (this.getInputs().size() <= 1)
 			return EvaluationExpression.SAME_VALUE;
-		EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];
+		final EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];
 		Arrays.fill(elements, EvaluationExpression.NULL);
-		elements[getInputs().indexOf(source)] = EvaluationExpression.SAME_VALUE;
+		elements[this.getInputs().indexOf(source)] = EvaluationExpression.SAME_VALUE;
 		return new ArrayCreation(elements);
 	}
 
 	@Override
-	protected Operator createElementaryOperations(List<Operator> inputs) {
-		if (inputs.size() <= 1)
-			return new GroupProjection(this.expression, inputs.get(0));
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + this.projection.hashCode();
+		return result;
+	}
 
-		UnionAll union = new UnionAll(inputs);
-		return new GroupProjection(new PathExpression(new AggregationExpression(new ArrayUnion()), this.expression),
-			union);
+	@Override
+	public String toString() {
+		return String.format("%s to %s", super.toString(), this.projection);
 	}
 
 	private static final class ArrayUnion extends TransitiveAggregationFunction {
@@ -81,7 +103,7 @@ public class Grouping extends MultiSourceOperator {
 		}
 
 		@Override
-		protected JsonNode aggregate(JsonNode mergedArray, JsonNode array, EvaluationContext context) {
+		protected JsonNode aggregate(final JsonNode mergedArray, final JsonNode array, final EvaluationContext context) {
 			for (int index = 0; index < array.size(); index++) {
 				if (mergedArray.size() <= index)
 					((ArrayNode) mergedArray).add(JsonUtil.NODE_FACTORY.arrayNode());
@@ -99,9 +121,9 @@ public class Grouping extends MultiSourceOperator {
 		private static final long serialVersionUID = 561729616462154707L;
 
 		@SuppressWarnings("unused")
-		private EvaluationExpression projection;
+		private final EvaluationExpression projection;
 
-		public GroupProjection(EvaluationExpression projection, JsonStream input) {
+		public GroupProjection(final EvaluationExpression projection, final JsonStream input) {
 			super(input);
 			this.projection = projection;
 		}
@@ -111,34 +133,9 @@ public class Grouping extends MultiSourceOperator {
 			private EvaluationExpression projection;
 
 			@Override
-			protected void reduce(JsonNode key1, StreamArrayNode values, JsonCollector out) {
-				out.collect(key1, projection.evaluate(values, getContext()));
+			protected void reduce(final JsonNode key1, final StreamArrayNode values, final JsonCollector out) {
+				out.collect(key1, this.projection.evaluate(values, this.getContext()));
 			}
 		}
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + this.expression.hashCode();
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (!super.equals(obj))
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		Grouping other = (Grouping) obj;
-		return this.expression.equals(other.expression);
-	}
-
-	@Override
-	public String toString() {
-		return String.format("%s to %s", super.toString(), this.expression);
 	}
 }

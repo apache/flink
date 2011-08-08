@@ -20,12 +20,12 @@ public class UnwrappingIterator extends ConversionIterator<PactJsonObject, JsonN
 	 * @param iterator
 	 *        the iterator to wrap
 	 */
-	public UnwrappingIterator(Iterator<PactJsonObject> iterator) {
+	public UnwrappingIterator(final Iterator<PactJsonObject> iterator) {
 		super(iterator);
 	}
 
 	@Override
-	protected JsonNode convert(PactJsonObject inputObject) {
+	protected JsonNode convert(final PactJsonObject inputObject) {
 		return inputObject.getValue();
 	}
 }

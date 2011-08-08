@@ -14,38 +14,19 @@ import java.util.Map;
 public abstract class AbstractGraphTraverser implements GraphTraverser {
 
 	/**
-	 * Traverses the DAG consisting of the given start nodes and all notes reachable with the navigator and calls the
-	 * specified {@link GraphTraverseListener} for each found node.
+	 * Returns all reachable nodes from the start nodes including the start nodes themselves.
 	 * 
 	 * @param startNodes
 	 *        the initial nodes of the graph
 	 * @param navigator
 	 *        successively returns all connected nodes from the initial nodes
-	 * @param listener
-	 *        the callback called for all nodes in the DAG
 	 * @param <Node>
 	 *        the class of the nodes
+	 * @return all reachable nodes
 	 */
-	public <Node> void traverse(Iterable<? extends Node> startNodes, Navigator<Node> navigator,
-			GraphTraverseListener<Node> listener) {
-		this.traverse(startNodes.iterator(), navigator, listener);
-	}
-
-	/**
-	 * Traverses the DAG consisting of the given start nodes and all notes reachable with the navigator and calls the
-	 * specified {@link GraphTraverseListener} for each found node.
-	 * 
-	 * @param startNodes
-	 *        the initial nodes of the graph
-	 * @param navigator
-	 *        successively returns all connected nodes from the initial nodes
-	 * @param listener
-	 *        the callback called for all nodes in the DAG
-	 * @param <Node>
-	 *        the class of the nodes
-	 */
-	public <Node> void traverse(Node[] startNodes, Navigator<Node> navigator, GraphTraverseListener<Node> listener) {
-		this.traverse(Arrays.asList(startNodes).iterator(), navigator, listener);
+	public <Node> Iterable<Node> getReachableNodes(final Iterable<? extends Node> startNodes,
+			final Navigator<Node> navigator) {
+		return this.getReachableNodes(startNodes.iterator(), navigator);
 	}
 
 	/**
@@ -59,12 +40,13 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 *        the class of the nodes
 	 * @return all reachable nodes
 	 */
-	public <Node> Iterable<Node> getReachableNodes(Iterator<? extends Node> startNodes, Navigator<Node> navigator) {
+	public <Node> Iterable<Node> getReachableNodes(final Iterator<? extends Node> startNodes,
+			final Navigator<Node> navigator) {
 		final Map<Node, Object> visitedNodes = new IdentityHashMap<Node, Object>();
 
 		this.traverse(startNodes, navigator, new GraphTraverseListener<Node>() {
 			@Override
-			public void nodeTraversed(Node node) {
+			public void nodeTraversed(final Node node) {
 				visitedNodes.put(node, null);
 			}
 		});
@@ -83,22 +65,43 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 *        the class of the nodes
 	 * @return all reachable nodes
 	 */
-	public <Node> Iterable<Node> getReachableNodes(Iterable<? extends Node> startNodes, Navigator<Node> navigator) {
-		return this.getReachableNodes(startNodes.iterator(), navigator);
+	public <Node> Iterable<Node> getReachableNodes(final Node[] startNodes, final Navigator<Node> navigator) {
+		return this.getReachableNodes(Arrays.asList(startNodes).iterator(), navigator);
 	}
 
 	/**
-	 * Returns all reachable nodes from the start nodes including the start nodes themselves.
+	 * Traverses the DAG consisting of the given start nodes and all notes reachable with the navigator and calls the
+	 * specified {@link GraphTraverseListener} for each found node.
 	 * 
 	 * @param startNodes
 	 *        the initial nodes of the graph
 	 * @param navigator
 	 *        successively returns all connected nodes from the initial nodes
+	 * @param listener
+	 *        the callback called for all nodes in the DAG
 	 * @param <Node>
 	 *        the class of the nodes
-	 * @return all reachable nodes
 	 */
-	public <Node> Iterable<Node> getReachableNodes(Node[] startNodes, Navigator<Node> navigator) {
-		return this.getReachableNodes(Arrays.asList(startNodes).iterator(), navigator);
+	public <Node> void traverse(final Iterable<? extends Node> startNodes, final Navigator<Node> navigator,
+			final GraphTraverseListener<Node> listener) {
+		this.traverse(startNodes.iterator(), navigator, listener);
+	}
+
+	/**
+	 * Traverses the DAG consisting of the given start nodes and all notes reachable with the navigator and calls the
+	 * specified {@link GraphTraverseListener} for each found node.
+	 * 
+	 * @param startNodes
+	 *        the initial nodes of the graph
+	 * @param navigator
+	 *        successively returns all connected nodes from the initial nodes
+	 * @param listener
+	 *        the callback called for all nodes in the DAG
+	 * @param <Node>
+	 *        the class of the nodes
+	 */
+	public <Node> void traverse(final Node[] startNodes, final Navigator<Node> navigator,
+			final GraphTraverseListener<Node> listener) {
+		this.traverse(Arrays.asList(startNodes).iterator(), navigator, listener);
 	}
 }

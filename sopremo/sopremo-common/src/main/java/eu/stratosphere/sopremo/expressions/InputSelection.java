@@ -11,21 +11,21 @@ public class InputSelection extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -3767687525625180324L;
 
-	private int index;
+	private final int index;
 
-	public InputSelection(int index) {
+	public InputSelection(final int index) {
 		this.index = index;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return this.index == ((InputSelection) obj).index;
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		return node.get(this.index);
 	}
 
@@ -55,7 +55,7 @@ public class InputSelection extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append("in").append(this.index);
 	}
 }

@@ -35,54 +35,9 @@ public class ContractUtilTest {
 	 * Test {@link ContractUtil#getContractClass(Class)}
 	 */
 	@Test
-	public void getContractClassShouldReturnNullForStub() {
-		Class<?> result = ContractUtil.getContractClass(Stub.class);
-		assertEquals(null, result);
-	}
-
-	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
-	 */
-	@Test
-	public void getContractClassShouldReturnMapForMapStub() {
-		Class<?> result = ContractUtil.getContractClass(Mapper.class);
-		assertEquals(MapContract.class, result);
-	}
-
-	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
-	 */
-	@Test
-	public void getContractClassShouldReturnReduceForReduceStub() {
-		Class<?> result = ContractUtil.getContractClass(Reducer.class);
-		assertEquals(ReduceContract.class, result);
-	}
-
-	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
-	 */
-	@Test
-	public void getContractClassShouldReturnSourceForInputFormat() {
-		Class<?> result = ContractUtil.getContractClass(TextInputFormat.class);
-		assertEquals(DataSourceContract.class, result);
-	}
-
-	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
-	 */
-	@Test
-	public void getContractClassShouldReturnSinkForOutputFormat() {
-		Class<?> result = ContractUtil.getContractClass(TextOutputFormat.class);
-		assertEquals(DataSinkContract.class, result);
-	}
-
-	/**
-	 * Test {@link ContractUtil#getContractClass(Class)}
-	 */
-	@Test
-	public void getContractClassShouldReturnMatchForMatchStub() {
-		Class<?> result = ContractUtil.getContractClass(Matcher.class);
-		assertEquals(MatchContract.class, result);
+	public void getContractClassShouldReturnCoGroupForCoGroupStub() {
+		final Class<?> result = ContractUtil.getContractClass(CoGrouper.class);
+		assertEquals(CoGroupContract.class, result);
 	}
 
 	/**
@@ -90,7 +45,7 @@ public class ContractUtilTest {
 	 */
 	@Test
 	public void getContractClassShouldReturnCrossForCrossStub() {
-		Class<?> result = ContractUtil.getContractClass(Crosser.class);
+		final Class<?> result = ContractUtil.getContractClass(Crosser.class);
 		assertEquals(CrossContract.class, result);
 	}
 
@@ -98,38 +53,85 @@ public class ContractUtilTest {
 	 * Test {@link ContractUtil#getContractClass(Class)}
 	 */
 	@Test
-	public void getContractClassShouldReturnCoGroupForCoGroupStub() {
-		Class<?> result = ContractUtil.getContractClass(CoGrouper.class);
-		assertEquals(CoGroupContract.class, result);
+	public void getContractClassShouldReturnMapForMapStub() {
+		final Class<?> result = ContractUtil.getContractClass(Mapper.class);
+		assertEquals(MapContract.class, result);
 	}
 
-	static class Mapper extends MapStub<Key, Value, Key, Value> {
-		@Override
-		public void map(Key key, Value value, Collector<Key, Value> out) {
-		}
+	/**
+	 * Test {@link ContractUtil#getContractClass(Class)}
+	 */
+	@Test
+	public void getContractClassShouldReturnMatchForMatchStub() {
+		final Class<?> result = ContractUtil.getContractClass(Matcher.class);
+		assertEquals(MatchContract.class, result);
 	}
 
-	static class Reducer extends ReduceStub<Key, Value, Key, Value> {
-		@Override
-		public void reduce(Key key, Iterator<Value> values, Collector<Key, Value> out) {
-		}
+	/**
+	 * Test {@link ContractUtil#getContractClass(Class)}
+	 */
+	@Test
+	public void getContractClassShouldReturnNullForStub() {
+		final Class<?> result = ContractUtil.getContractClass(Stub.class);
+		assertEquals(null, result);
+	}
+
+	/**
+	 * Test {@link ContractUtil#getContractClass(Class)}
+	 */
+	@Test
+	public void getContractClassShouldReturnReduceForReduceStub() {
+		final Class<?> result = ContractUtil.getContractClass(Reducer.class);
+		assertEquals(ReduceContract.class, result);
+	}
+
+	/**
+	 * Test {@link ContractUtil#getContractClass(Class)}
+	 */
+	@Test
+	public void getContractClassShouldReturnSinkForOutputFormat() {
+		final Class<?> result = ContractUtil.getContractClass(TextOutputFormat.class);
+		assertEquals(DataSinkContract.class, result);
+	}
+
+	/**
+	 * Test {@link ContractUtil#getContractClass(Class)}
+	 */
+	@Test
+	public void getContractClassShouldReturnSourceForInputFormat() {
+		final Class<?> result = ContractUtil.getContractClass(TextInputFormat.class);
+		assertEquals(DataSourceContract.class, result);
 	}
 
 	static class CoGrouper extends CoGroupStub<Key, Value, Value, Key, Value> {
 		@Override
-		public void coGroup(Key key, Iterator<Value> values1, Iterator<Value> values2, Collector<Key, Value> out) {
-		}
-	}
-
-	static class Matcher extends MatchStub<Key, Value, Value, Key, Value> {
-		@Override
-		public void match(Key key, Value value1, Value value2, Collector<Key, Value> out) {
+		public void coGroup(final Key key, final Iterator<Value> values1, final Iterator<Value> values2,
+				final Collector<Key, Value> out) {
 		}
 	}
 
 	static class Crosser extends CrossStub<Key, Value, Key, Value, Key, Value> {
 		@Override
-		public void cross(Key key1, Value value1, Key key2, Value value2, Collector<Key, Value> out) {
+		public void cross(final Key key1, final Value value1, final Key key2, final Value value2,
+				final Collector<Key, Value> out) {
+		}
+	}
+
+	static class Mapper extends MapStub<Key, Value, Key, Value> {
+		@Override
+		public void map(final Key key, final Value value, final Collector<Key, Value> out) {
+		}
+	}
+
+	static class Matcher extends MatchStub<Key, Value, Value, Key, Value> {
+		@Override
+		public void match(final Key key, final Value value1, final Value value2, final Collector<Key, Value> out) {
+		}
+	}
+
+	static class Reducer extends ReduceStub<Key, Value, Key, Value> {
+		@Override
+		public void reduce(final Key key, final Iterator<Value> values, final Collector<Key, Value> out) {
 		}
 	}
 }

@@ -44,7 +44,7 @@ public class JsonUtil {
 	 *        the nodes to wrap
 	 * @return an efficient wrapper
 	 */
-	public static CompactArrayNode asArray(JsonNode... nodes) {
+	public static CompactArrayNode asArray(final JsonNode... nodes) {
 		return new CompactArrayNode(nodes);
 	}
 
@@ -62,8 +62,8 @@ public class JsonUtil {
 	 * @see #wrapWithNode(boolean, List)
 	 */
 	@SuppressWarnings("unchecked")
-	public static JsonNode wrapWithNode(boolean resettable, Iterator<?>... objectIterators) {
-		JsonNode[] streamNodes = new JsonNode[objectIterators.length];
+	public static JsonNode wrapWithNode(final boolean resettable, final Iterator<?>... objectIterators) {
+		final JsonNode[] streamNodes = new JsonNode[objectIterators.length];
 		for (int index = 0; index < streamNodes.length; index++)
 			streamNodes[index] = wrapWithNode(resettable, (Iterator<PactJsonObject>) objectIterators[index]);
 		return new CompactArrayNode(streamNodes);
@@ -80,7 +80,7 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the stream
 	 */
-	public static StreamArrayNode wrapWithNode(boolean resettable, Iterator<PactJsonObject> objectIterator) {
+	public static StreamArrayNode wrapWithNode(final boolean resettable, final Iterator<PactJsonObject> objectIterator) {
 		return StreamArrayNode.valueOf(new UnwrappingIterator(objectIterator), resettable);
 	}
 
@@ -95,8 +95,9 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the streams
 	 */
-	public static JsonNode wrapWithNode(boolean resettable, List<? extends Iterator<PactJsonObject>> objectIterators) {
-		JsonNode[] streamNodes = new JsonNode[objectIterators.size()];
+	public static JsonNode wrapWithNode(final boolean resettable,
+			final List<? extends Iterator<PactJsonObject>> objectIterators) {
+		final JsonNode[] streamNodes = new JsonNode[objectIterators.size()];
 		for (int index = 0; index < streamNodes.length; index++)
 			streamNodes[index] = wrapWithNode(resettable, objectIterators.get(index));
 		return new CompactArrayNode(streamNodes);

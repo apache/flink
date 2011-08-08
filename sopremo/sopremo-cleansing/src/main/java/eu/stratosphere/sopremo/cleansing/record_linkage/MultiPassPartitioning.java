@@ -5,21 +5,27 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Operator.Output;
+import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage.Partitioning;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class MultiPassPartitioning extends Partitioning {
-	private List<EvaluationExpression[]> passPartitionKeys = new ArrayList<EvaluationExpression[]>();
+	private final List<EvaluationExpression[]> passPartitionKeys = new ArrayList<EvaluationExpression[]>();
 
-	public MultiPassPartitioning(EvaluationExpression leftPartitionKey, EvaluationExpression rightPartitionKey) {
+	public MultiPassPartitioning(final EvaluationExpression partitionKey) {
+		this.passPartitionKeys.add(new EvaluationExpression[] { partitionKey, partitionKey });
+	}
+
+	public MultiPassPartitioning(final EvaluationExpression leftPartitionKey,
+			final EvaluationExpression rightPartitionKey) {
 		this.passPartitionKeys.add(new EvaluationExpression[] { leftPartitionKey, rightPartitionKey });
 	}
 
-	public MultiPassPartitioning(EvaluationExpression[] leftPartitionKeys, EvaluationExpression[] rightPartitionKeys) {
+	public MultiPassPartitioning(final EvaluationExpression[] leftPartitionKeys,
+			final EvaluationExpression[] rightPartitionKeys) {
 		if (leftPartitionKeys.length != rightPartitionKeys.length)
 			throw new IllegalArgumentException();
 		for (int index = 0; index < leftPartitionKeys.length; index++)
@@ -27,35 +33,32 @@ public abstract class MultiPassPartitioning extends Partitioning {
 				.add(new EvaluationExpression[] { leftPartitionKeys[index], rightPartitionKeys[index] });
 	}
 
-	public MultiPassPartitioning(EvaluationExpression partitionKey) {
+	public MultiPassPartitioning addPass(final EvaluationExpression partitionKey) {
 		this.passPartitionKeys.add(new EvaluationExpression[] { partitionKey, partitionKey });
+		return this;
 	}
 
-	public MultiPassPartitioning addPass(EvaluationExpression leftPartitionKey, EvaluationExpression rightPartitionKey) {
+	public MultiPassPartitioning addPass(final EvaluationExpression leftPartitionKey,
+			final EvaluationExpression rightPartitionKey) {
 		this.passPartitionKeys.add(new EvaluationExpression[] { leftPartitionKey, rightPartitionKey });
 		return this;
 	}
 
-	public MultiPassPartitioning addPass(EvaluationExpression partitionKey) {
-		this.passPartitionKeys.add(new EvaluationExpression[] { partitionKey, partitionKey });
-		return this;
-	}
-
 	@Override
-	public SopremoModule asSopremoOperators(ComparativeExpression similarityCondition, List<Output> inputs,
-			List<EvaluationExpression> idProjections, EvaluationExpression duplicateProjection) {
-		List<Operator> passes = new ArrayList<Operator>();
+	public SopremoModule asSopremoOperators(final ComparativeExpression similarityCondition, final List<Output> inputs,
+			final List<EvaluationExpression> idProjections, final EvaluationExpression duplicateProjection) {
+		final List<Operator> passes = new ArrayList<Operator>();
 
 		if (inputs.size() == 1)
-			for (int index = 0; index < passPartitionKeys.size(); index++)
-				passes.add(createSinglePassIntraSource(passPartitionKeys.get(index)[0], similarityCondition,
+			for (int index = 0; index < this.passPartitionKeys.size(); index++)
+				passes.add(this.createSinglePassIntraSource(this.passPartitionKeys.get(index)[0], similarityCondition,
 					inputs.get(0), idProjections, duplicateProjection));
 		else
-			for (int index = 0; index < passPartitionKeys.size(); index++)
-				passes.add(createSinglePassInterSource(passPartitionKeys.get(index), similarityCondition,
+			for (int index = 0; index < this.passPartitionKeys.size(); index++)
+				passes.add(this.createSinglePassInterSource(this.passPartitionKeys.get(index), similarityCondition,
 					inputs.get(0), inputs.get(1), idProjections, duplicateProjection));
 
-		return SopremoModule.valueOf(toString(), new Union(passes));
+		return SopremoModule.valueOf(this.toString(), new Union(passes));
 	}
 
 	protected abstract Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,
@@ -68,7 +71,7 @@ public abstract class MultiPassPartitioning extends Partitioning {
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder(getClass().getSimpleName()).append(" on ");
+		final StringBuilder builder = new StringBuilder(this.getClass().getSimpleName()).append(" on ");
 		for (int index = 0; index < this.passPartitionKeys.size(); index++) {
 			if (index > 0)
 				builder.append(", ");

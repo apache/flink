@@ -17,22 +17,34 @@ public class LazyArrayProjection extends EvaluationExpression {
 
 	private final EvaluationExpression expression;
 
-	public LazyArrayProjection(EvaluationExpression expression) {
+	public LazyArrayProjection(final EvaluationExpression expression) {
 		this.expression = expression;
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, final EvaluationContext context) {
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		final LazyArrayProjection other = (LazyArrayProjection) obj;
+		return this.expression.equals(other.expression);
+	}
+
+	@Override
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		// lazy spread
 		if (node instanceof StreamArrayNode)
 			return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
 				@Override
-				protected JsonNode convert(JsonNode element) {
+				protected JsonNode convert(final JsonNode element) {
 					return LazyArrayProjection.this.expression.evaluate(element, context);
 				}
 			}, ((StreamArrayNode) node).isResettable());
 		// spread
-		ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
+		final ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
 		for (int index = 0, size = node.size(); index < size; index++)
 			arrayNode.add(this.expression.evaluate(node.get(index), context));
 		return arrayNode;
@@ -47,19 +59,7 @@ public class LazyArrayProjection extends EvaluationExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		LazyArrayProjection other = (LazyArrayProjection) obj;
-		return this.expression.equals(other.expression);
-	}
-
-	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append("[*]");
 		builder.append(this.expression);
 	}

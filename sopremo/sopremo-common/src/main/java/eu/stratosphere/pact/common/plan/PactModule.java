@@ -55,7 +55,7 @@ public class PactModule extends
 	 * @param numberOfOutputs
 	 *        the number of outputs.
 	 */
-	public PactModule(String name, int numberOfInputs, int numberOfOutputs) {
+	public PactModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
 		super(name, new DataSourceContract[numberOfInputs], new DataSinkContract[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
@@ -74,21 +74,21 @@ public class PactModule extends
 	 */
 	@Override
 	public void accept(final Visitor<Contract> visitor) {
-		OneTimeVisitor<Contract> oneTimeVisitor = new OneTimeVisitor<Contract>(visitor);
-		for (Contract output : this.getAllOutputs())
+		final OneTimeVisitor<Contract> oneTimeVisitor = new OneTimeVisitor<Contract>(visitor);
+		for (final Contract output : this.getAllOutputs())
 			output.accept(oneTimeVisitor);
 	}
 
 	@Override
 	public String toString() {
-		GraphPrinter<Contract> dagPrinter = new GraphPrinter<Contract>();
+		final GraphPrinter<Contract> dagPrinter = new GraphPrinter<Contract>();
 		dagPrinter.setNodePrinter(new NodePrinter<Contract>() {
 			@Override
-			public String toString(Contract node) {
-				int inputIndex = Arrays.asList(PactModule.this.inputNodes).indexOf(node);
+			public String toString(final Contract node) {
+				final int inputIndex = Arrays.asList(PactModule.this.inputNodes).indexOf(node);
 				if (inputIndex != -1)
 					return String.format("Input %d", inputIndex);
-				int outputIndex = Arrays.asList(PactModule.this.outputNodes).indexOf(node);
+				final int outputIndex = Arrays.asList(PactModule.this.outputNodes).indexOf(node);
 				if (outputIndex != -1)
 					return String.format("Output %d", outputIndex);
 				return String.format("%s [%s]", node.getClass().getSimpleName(), node.getName());
@@ -108,8 +108,46 @@ public class PactModule extends
 	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
-	public static PactModule valueOf(String name, Contract... sinks) {
-		return valueOf(name, Arrays.asList(sinks));
+	public static PactModule valueOf(final String name, final Collection<Contract> sinks) {
+		final List<Contract> inputs = new ArrayList<Contract>();
+
+		OneTimeTraverser.INSTANCE.traverse(sinks, ContractNavigator.INSTANCE,
+			new GraphTraverseListener<Contract>() {
+				@Override
+				public void nodeTraversed(final Contract node) {
+					final Contract[] contractInputs = ContractUtil.getInputs(node);
+					if (contractInputs.length == 0)
+						inputs.add(node);
+					else
+						for (final Contract input : contractInputs)
+							if (input == null)
+								inputs.add(node);
+				};
+			});
+
+		final PactModule module = new PactModule(name, inputs.size(), sinks.size());
+		int sinkIndex = 0;
+		for (final Contract sink : sinks) {
+			if (sink instanceof DataSinkContract<?, ?>)
+				module.outputNodes[sinkIndex] = (DataSinkContract<?, ?>) sink;
+			else
+				module.getOutput(sinkIndex).setInput(sink);
+			sinkIndex++;
+		}
+
+		for (int index = 0; index < inputs.size();) {
+			final Contract node = inputs.get(index);
+			final Contract[] contractInputs = ContractUtil.getInputs(node);
+			if (contractInputs.length == 0)
+				module.inputNodes[index++] = (DataSourceContract<?, ?>) node;
+			else {
+				for (int unconnectedIndex = 0; unconnectedIndex < contractInputs.length; unconnectedIndex++)
+					if (contractInputs[unconnectedIndex] == null)
+						contractInputs[unconnectedIndex] = module.getInput(index++);
+				ContractUtil.setInputs(node, contractInputs);
+			}
+		}
+		return module;
 	}
 
 	/**
@@ -122,46 +160,8 @@ public class PactModule extends
 	 *        all sinks that span the graph to wrap
 	 * @return a PactModule representing the given graph
 	 */
-	public static PactModule valueOf(String name, Collection<Contract> sinks) {
-		final List<Contract> inputs = new ArrayList<Contract>();
-
-		OneTimeTraverser.INSTANCE.traverse(sinks, ContractNavigator.INSTANCE,
-			new GraphTraverseListener<Contract>() {
-				@Override
-				public void nodeTraversed(Contract node) {
-					Contract[] contractInputs = ContractUtil.getInputs(node);
-					if (contractInputs.length == 0)
-						inputs.add(node);
-					else
-						for (Contract input : contractInputs)
-							if (input == null)
-								inputs.add(node);
-				};
-			});
-
-		PactModule module = new PactModule(name, inputs.size(), sinks.size());
-		int sinkIndex = 0;
-		for (Contract sink : sinks) {
-			if (sink instanceof DataSinkContract<?, ?>)
-				module.outputNodes[sinkIndex] = (DataSinkContract<?, ?>) sink;
-			else
-				module.getOutput(sinkIndex).setInput(sink);
-			sinkIndex++;
-		}
-
-		for (int index = 0; index < inputs.size();) {
-			Contract node = inputs.get(index);
-			Contract[] contractInputs = ContractUtil.getInputs(node);
-			if (contractInputs.length == 0)
-				module.inputNodes[index++] = (DataSourceContract<?, ?>) node;
-			else {
-				for (int unconnectedIndex = 0; unconnectedIndex < contractInputs.length; unconnectedIndex++)
-					if (contractInputs[unconnectedIndex] == null)
-						contractInputs[unconnectedIndex] = module.getInput(index++);
-				ContractUtil.setInputs(node, contractInputs);
-			}
-		}
-		return module;
+	public static PactModule valueOf(final String name, final Contract... sinks) {
+		return valueOf(name, Arrays.asList(sinks));
 	}
 
 }

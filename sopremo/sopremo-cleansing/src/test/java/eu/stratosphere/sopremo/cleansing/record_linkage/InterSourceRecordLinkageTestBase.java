@@ -10,7 +10,6 @@ import org.junit.runners.Parameterized;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.JaccardSimilarity;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
 import eu.stratosphere.sopremo.base.BuiltinFunctions;
-import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage;
 import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage.Partitioning;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
@@ -32,35 +31,6 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 @Ignore
 public class InterSourceRecordLinkageTestBase<P extends Partitioning> extends RecordLinkageTestBase {
 	/**
-	 * Returns the similarity function for the test case.
-	 * 
-	 * @return the similarity function
-	 */
-	protected static EvaluationExpression getSimilarityFunction() {
-		SimmetricFunction firstNameLev = new SimmetricFunction(new Levenshtein(),
-			createPath("0", "first name"), createPath("1", "firstName"));
-		SimmetricFunction lastNameJaccard = new SimmetricFunction(new JaccardSimilarity(),
-			createPath("0", "last name"), createPath("1", "lastName"));
-		EvaluationExpression ageDiff = new NumericDifference(createPath("0", "age"), createPath("1", "age"), 10);
-		ArrayCreation fieldSimExpr = new ArrayCreation(firstNameLev, lastNameJaccard, ageDiff);
-		EvaluationExpression simExpr = new PathExpression(fieldSimExpr, BuiltinFunctions.AVERAGE.asExpression());
-		return simExpr;
-	}
-
-	/**
-	 * Returns a duplicate projection expression that aggregates some fields to arrays.
-	 * 
-	 * @return an aggregating expression
-	 */
-	protected static EvaluationExpression getAggregativeProjection() {
-		ObjectCreation aggregating = new ObjectCreation();
-		aggregating.addMapping("names", new ArrayCreation(createPath("0", "first name"), createPath("1", "firstName")));
-		aggregating.addMapping("ids", new ArrayCreation(createPath("0", "id"), createPath("1", "id2")));
-
-		return aggregating;
-	}
-
-	/**
 	 * Creates a test plan for the record linkage operator.
 	 * 
 	 * @param recordLinkage
@@ -68,9 +38,9 @@ public class InterSourceRecordLinkageTestBase<P extends Partitioning> extends Re
 	 * @param projection
 	 * @return the generated test plan
 	 */
-	protected static SopremoTestPlan createTestPlan(RecordLinkage recordLinkage, boolean useId,
-			EvaluationExpression projection) {
-		SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(recordLinkage);
+	protected static SopremoTestPlan createTestPlan(final RecordLinkage recordLinkage, final boolean useId,
+			final EvaluationExpression projection) {
+		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(recordLinkage);
 		if (useId) {
 			recordLinkage.setIdProjection(0, new ObjectAccess("id"));
 			recordLinkage.setIdProjection(1, new ObjectAccess("id2"));
@@ -90,6 +60,35 @@ public class InterSourceRecordLinkageTestBase<P extends Partitioning> extends Re
 			add(createPactJsonObject("id2", 12, "firstName", "charles", "lastName", "age inaccurate", "age", 69)).
 			add(createPactJsonObject("id2", 14, "firstName", "elmar", "lastName", "firstNameDiffers", "age", 60));
 		return sopremoTestPlan;
+	}
+
+	/**
+	 * Returns a duplicate projection expression that aggregates some fields to arrays.
+	 * 
+	 * @return an aggregating expression
+	 */
+	protected static EvaluationExpression getAggregativeProjection() {
+		final ObjectCreation aggregating = new ObjectCreation();
+		aggregating.addMapping("names", new ArrayCreation(createPath("0", "first name"), createPath("1", "firstName")));
+		aggregating.addMapping("ids", new ArrayCreation(createPath("0", "id"), createPath("1", "id2")));
+
+		return aggregating;
+	}
+
+	/**
+	 * Returns the similarity function for the test case.
+	 * 
+	 * @return the similarity function
+	 */
+	protected static EvaluationExpression getSimilarityFunction() {
+		final SimmetricFunction firstNameLev = new SimmetricFunction(new Levenshtein(),
+			createPath("0", "first name"), createPath("1", "firstName"));
+		final SimmetricFunction lastNameJaccard = new SimmetricFunction(new JaccardSimilarity(),
+			createPath("0", "last name"), createPath("1", "lastName"));
+		final EvaluationExpression ageDiff = new NumericDifference(createPath("0", "age"), createPath("1", "age"), 10);
+		final ArrayCreation fieldSimExpr = new ArrayCreation(firstNameLev, lastNameJaccard, ageDiff);
+		final EvaluationExpression simExpr = new PathExpression(fieldSimExpr, BuiltinFunctions.AVERAGE.asExpression());
+		return simExpr;
 	}
 
 }

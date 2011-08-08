@@ -80,7 +80,8 @@ public class GraphPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(Appendable appendable, Iterable<? extends Node> startNodes, Navigator<Node> navigator)
+	public void print(final Appendable appendable, final Iterable<? extends Node> startNodes,
+			final Navigator<Node> navigator)
 			throws IOException {
 		this.print(appendable, startNodes.iterator(), navigator);
 	}
@@ -98,7 +99,8 @@ public class GraphPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(Appendable appendable, Iterator<? extends Node> startNodes, Navigator<Node> navigator)
+	public void print(final Appendable appendable, final Iterator<? extends Node> startNodes,
+			final Navigator<Node> navigator)
 			throws IOException {
 		new PrintState(appendable, GraphLevelPartitioner.getLevels(startNodes, navigator)).printDAG();
 	}
@@ -116,7 +118,8 @@ public class GraphPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(Appendable appendable, Node[] startNodes, Navigator<Node> navigator) throws IOException {
+	public void print(final Appendable appendable, final Node[] startNodes, final Navigator<Node> navigator)
+			throws IOException {
 		this.print(appendable, Arrays.asList(startNodes).iterator(), navigator);
 	}
 
@@ -126,7 +129,7 @@ public class GraphPrinter<Node> {
 	 * @param connectorProvider
 	 *        the new connector provider
 	 */
-	public void setConnectorProvider(ConnectorProvider connectorProvider) {
+	public void setConnectorProvider(final ConnectorProvider connectorProvider) {
 		if (connectorProvider == null)
 			throw new NullPointerException("connectorProvider must not be null");
 
@@ -139,7 +142,7 @@ public class GraphPrinter<Node> {
 	 * @param nodePrinter
 	 *        the node printer
 	 */
-	public void setNodePrinter(NodePrinter<Node> nodePrinter) {
+	public void setNodePrinter(final NodePrinter<Node> nodePrinter) {
 		if (nodePrinter == null)
 			throw new NullPointerException("nodePrinter must not be null");
 
@@ -151,7 +154,7 @@ public class GraphPrinter<Node> {
 	 * 
 	 * @param width
 	 */
-	public void setWidth(int width) {
+	public void setWidth(final int width) {
 		this.width = width;
 		this.widthString = "%-" + width + "s";
 	}
@@ -166,7 +169,7 @@ public class GraphPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(Iterable<? extends Node> startNodes, Navigator<Node> navigator) {
+	public String toString(final Iterable<? extends Node> startNodes, final Navigator<Node> navigator) {
 		return this.toString(startNodes.iterator(), navigator);
 	}
 
@@ -180,12 +183,12 @@ public class GraphPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(Iterator<? extends Node> startNodes, Navigator<Node> navigator) {
-		StringBuilder builder = new StringBuilder();
+	public String toString(final Iterator<? extends Node> startNodes, final Navigator<Node> navigator) {
+		final StringBuilder builder = new StringBuilder();
 
 		try {
 			this.print(builder, startNodes, navigator);
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			// cannot happen since we use a StringBuilder
 		}
 
@@ -202,7 +205,7 @@ public class GraphPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(Node[] startNodes, Navigator<Node> navigator) {
+	public String toString(final Node[] startNodes, final Navigator<Node> navigator) {
 		return this.toString(Arrays.asList(startNodes), navigator);
 	}
 
@@ -216,12 +219,12 @@ public class GraphPrinter<Node> {
 	public static class FormattedNodePrinter<Node> implements NodePrinter<Node> {
 		private final String format;
 
-		private FormattedNodePrinter(String format) {
+		private FormattedNodePrinter(final String format) {
 			this.format = format;
 		}
 
 		@Override
-		public String toString(Object node) {
+		public String toString(final Object node) {
 			return String.format(this.format, node.toString());
 		}
 	}
@@ -233,7 +236,7 @@ public class GraphPrinter<Node> {
 	 * @author Arvid Heise
 	 */
 	private static class Placeholder {
-		private List<Object> targets = new ArrayList<Object>(1);
+		private final List<Object> targets = new ArrayList<Object>(1);
 
 		/**
 		 * Initializes a spacer.
@@ -241,11 +244,11 @@ public class GraphPrinter<Node> {
 		public Placeholder() {
 		}
 
-		Placeholder(Object target) {
+		Placeholder(final Object target) {
 			this.targets.add(target);
 		}
 
-		public String toString(ConnectorProvider connectorProvider) {
+		public String toString(final ConnectorProvider connectorProvider) {
 			if (this.targets.isEmpty())
 				return "";
 			return connectorProvider.getConnectorString(ConnectorProvider.Route.TOP_DOWN);
@@ -255,22 +258,22 @@ public class GraphPrinter<Node> {
 	}
 
 	private class PrintState {
-		private Appendable appender;
+		private final Appendable appender;
 
-		private List<Level<Object>> levels;
+		private final List<Level<Object>> levels;
 
-		private IntList printDownline = new IntArrayList();
+		private final IntList printDownline = new IntArrayList();
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
-		private PrintState(Appendable builder, List<Level<Node>> levels) {
+		private PrintState(final Appendable builder, final List<Level<Node>> levels) {
 			this.appender = builder;
 			this.levels = (List) levels;
 			this.addPlaceholders(this.levels);
 		}
 
-		public Placeholder addPlaceholder(Level<Object> level, int placeholderIndex, Object to) {
+		public Placeholder addPlaceholder(final Level<Object> level, int placeholderIndex, final Object to) {
 			for (int index = level.getLevelNodes().size(); index < placeholderIndex; index++) {
-				Placeholder emptyPlaceholder = new Placeholder();
+				final Placeholder emptyPlaceholder = new Placeholder();
 				level.add(emptyPlaceholder);
 			}
 
@@ -283,7 +286,7 @@ public class GraphPrinter<Node> {
 				}
 			}
 
-			Placeholder placeholder = new Placeholder(to);
+			final Placeholder placeholder = new Placeholder(to);
 			level.add(placeholderIndex, placeholder);
 			level.updateLink(placeholder, null, to);
 			// level.getLevelNodes().add(placeholderIndex, placeholder);
@@ -291,21 +294,22 @@ public class GraphPrinter<Node> {
 			return placeholder;
 		}
 
-		private void addPlaceholders(List<Level<Object>> levels) {
+		private void addPlaceholders(final List<Level<Object>> levels) {
 			for (int levelIndex = levels.size() - 1; levelIndex >= 0; levelIndex--) {
-				Level<Object> level = levels.get(levelIndex);
-				List<Object> levelNodes = level.getLevelNodes();
+				final Level<Object> level = levels.get(levelIndex);
+				final List<Object> levelNodes = level.getLevelNodes();
 
 				int placeHolderIndex = 0;
 				for (int nodeIndex = 0; nodeIndex < levelNodes.size(); nodeIndex++) {
-					Object node = levelNodes.get(nodeIndex);
+					final Object node = levelNodes.get(nodeIndex);
 
-					List<Object> inputs = level.getLinks(node);
+					final List<Object> inputs = level.getLinks(node);
 
 					for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++, placeHolderIndex++) {
-						Object input = inputs.get(inputIndex);
+						final Object input = inputs.get(inputIndex);
 						if (levels.get(levelIndex - 1).getLevelNodes().indexOf(input) == -1) {
-							Object placeholder = this.addPlaceholder(levels.get(levelIndex - 1), placeHolderIndex,
+							final Object placeholder = this.addPlaceholder(levels.get(levelIndex - 1),
+								placeHolderIndex,
 								input);
 							level.updateLink(node, input, placeholder);
 						}
@@ -314,7 +318,8 @@ public class GraphPrinter<Node> {
 			}
 		}
 
-		private void append(int index, ConnectorProvider.Route connector, ConnectorProvider.Route padding)
+		private void append(final int index, final ConnectorProvider.Route connector,
+				final ConnectorProvider.Route padding)
 				throws IOException {
 			String connectorString = "";
 			if (index < this.printDownline.size() && this.printDownline.getInt(index) > 0) {
@@ -334,14 +339,14 @@ public class GraphPrinter<Node> {
 			this.appender.append(paddedString);
 		}
 
-		private void increaseDownline(int index, int count) {
+		private void increaseDownline(final int index, final int count) {
 			while (this.printDownline.size() < index + 1)
 				this.printDownline.add(0);
 			this.printDownline.set(index, this.printDownline.getInt(index) + count);
 		}
 
-		private void printConnection(int sourceIndex, int targetIndex) throws IOException {
-			int startIndex = Math.min(sourceIndex, targetIndex);
+		private void printConnection(final int sourceIndex, final int targetIndex) throws IOException {
+			final int startIndex = Math.min(sourceIndex, targetIndex);
 			for (int index = 0; index < startIndex; index++)
 				this.append(index, null, null);
 
@@ -360,7 +365,7 @@ public class GraphPrinter<Node> {
 						this.append(index, null, ConnectorProvider.Route.RIGHT_LEFT);
 				}
 
-			int endIndex = Math.max(sourceIndex, targetIndex);
+			final int endIndex = Math.max(sourceIndex, targetIndex);
 			if (sourceIndex < targetIndex)
 				this.append(endIndex, ConnectorProvider.Route.LEFT_DOWN, null);
 			else if (sourceIndex > targetIndex)
@@ -372,16 +377,17 @@ public class GraphPrinter<Node> {
 			this.appender.append('\n');
 		}
 
-		private void printConnections(int levelIndex, Level<Object> level) throws IOException {
+		private void printConnections(final int levelIndex, final Level<Object> level) throws IOException {
 			if (levelIndex > 0) {
 				boolean printedConnection = false;
 				for (int sourceIndex = 0; sourceIndex < level.getLevelNodes().size(); sourceIndex++) {
-					Object node = level.getLevelNodes().get(sourceIndex);
+					final Object node = level.getLevelNodes().get(sourceIndex);
 
-					List<Object> inputs = level.getLinks(node);
+					final List<Object> inputs = level.getLinks(node);
 					this.increaseDownline(sourceIndex, -1);
 					for (int index = 0; index < inputs.size(); index++) {
-						int targetIndex = this.levels.get(levelIndex - 1).getLevelNodes().indexOf(inputs.get(index));
+						final int targetIndex = this.levels.get(levelIndex - 1).getLevelNodes()
+							.indexOf(inputs.get(index));
 						this.printConnection(sourceIndex, targetIndex);
 						this.increaseDownline(targetIndex, 1);
 						printedConnection = true;
@@ -394,9 +400,9 @@ public class GraphPrinter<Node> {
 
 		private void printDAG() throws IOException {
 			for (int levelIndex = this.levels.size() - 1; levelIndex >= 0; levelIndex--) {
-				Level<Object> level = this.levels.get(levelIndex);
+				final Level<Object> level = this.levels.get(levelIndex);
 				for (int sourceIndex = 0; sourceIndex < level.getLevelNodes().size(); sourceIndex++) {
-					Object node = level.getLevelNodes().get(sourceIndex);
+					final Object node = level.getLevelNodes().get(sourceIndex);
 					if (levelIndex == this.levels.size() - 1)
 						this.increaseDownline(sourceIndex, level.getLinks(node).size());
 					this.printNode(node);
@@ -408,7 +414,7 @@ public class GraphPrinter<Node> {
 		}
 
 		@SuppressWarnings("unchecked")
-		private void printNode(Object node) throws IOException {
+		private void printNode(final Object node) throws IOException {
 			if (node instanceof Placeholder)
 				this.appender.append(String.format(GraphPrinter.this.widthString,
 					((Placeholder) node).toString(GraphPrinter.this.connectorProvider)));
@@ -431,7 +437,7 @@ public class GraphPrinter<Node> {
 	 */
 	public static class StandardPrinter<Node> implements NodePrinter<Node> {
 		@Override
-		public String toString(Object node) {
+		public String toString(final Object node) {
 			return node.toString();
 		}
 

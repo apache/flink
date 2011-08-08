@@ -10,9 +10,7 @@
 		<version>0.1</version>
 	</parent>
 
-	<groupId>eu.stratosphere</groupId>
 	<artifactId>sopremo-cleansing</artifactId>
-	<version>0.1</version>
 	<name>sopremo-cleansing</name>
 
 	<packaging>jar</packaging>

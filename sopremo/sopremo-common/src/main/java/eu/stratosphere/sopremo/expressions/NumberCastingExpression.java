@@ -17,19 +17,19 @@ public class NumberCastingExpression extends EvaluationExpression {
 
 	private final NumberType targetType;
 
-	public NumberCastingExpression(NumberType targetType) {
+	public NumberCastingExpression(final NumberType targetType) {
 		this.targetType = targetType;
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (!(node instanceof NumericNode))
 			throw new EvaluationException(String.format("The given node %s is not a number and cannot be casted", node));
 		return NumberCoercer.INSTANCE.coerce((NumericNode) node, this.targetType);
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append('(').append(this.targetType).append(')');
 	}
 }

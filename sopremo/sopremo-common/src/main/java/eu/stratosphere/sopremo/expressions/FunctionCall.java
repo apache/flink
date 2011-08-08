@@ -16,17 +16,17 @@ public class FunctionCall extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 90022725022477041L;
 
-	private String name;
+	private final String name;
 
-	private EvaluationExpression[] paramExprs;
+	private final SopremoExpression<EvaluationContext>[] paramExprs;
 
-	public FunctionCall(String name, EvaluationExpression... params) {
+	public FunctionCall(final String name, final EvaluationExpression... params) {
 		this.name = name;
 		this.paramExprs = params;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return this.name.equals(((FunctionCall) obj).name)
@@ -34,9 +34,9 @@ public class FunctionCall extends ContainerExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		// System.err.println("undefined function " + this.name);
-		JsonNode[] params = new JsonNode[this.paramExprs.length];
+		final JsonNode[] params = new JsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs[index].evaluate(node, context);
 		// if (name.equals("count"))
@@ -54,19 +54,13 @@ public class FunctionCall extends ContainerExpression {
 		return (53 + this.name.hashCode()) * 53 + Arrays.hashCode(this.paramExprs);
 	}
 
-	//
-	// @Override
-	// protected JsonNode aggregate(Iterator<JsonNode> input) {
-
-	// }
-
 	@Override
-	public Iterator<EvaluationExpression> iterator() {
+	public Iterator<SopremoExpression<EvaluationContext>> iterator() {
 		return Arrays.asList(this.paramExprs).iterator();
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append(this.name);
 		builder.append('(');
 		for (int index = 0; index < this.paramExprs.length; index++) {

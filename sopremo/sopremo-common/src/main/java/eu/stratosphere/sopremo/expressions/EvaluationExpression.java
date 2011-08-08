@@ -1,21 +1,16 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.Set;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.NullNode;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.IdentitySet;
 
-public abstract class EvaluationExpression implements SerializableSopremoType, Evaluable, Iterable<EvaluationExpression> {
+public abstract class EvaluationExpression extends SopremoExpression<EvaluationContext> {
 	/**
 	 * 
 	 */
@@ -25,48 +20,6 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 	 * Used for secondary information during plan creation only.
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
-
-	public void addTag(ExpressionTag tag) {
-		this.tags.add(tag);
-	}
-
-	public EvaluationExpression withTag(ExpressionTag tag) {
-		this.addTag(tag);
-		return this;
-	}
-
-	public boolean hasTag(ExpressionTag tag) {
-		return this.tags.contains(tag);
-	}
-
-	public boolean removeTag(ExpressionTag preserve) {
-		return this.tags.remove(preserve);
-	}
-	
-	@SuppressWarnings("unchecked")
-	private final static Iterator<EvaluationExpression> EMPTY_ITERATOR = Collections.EMPTY_LIST.iterator();
-	
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return EMPTY_ITERATOR;
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder();
-		this.toString(builder);
-		return builder.toString();
-	}
-
-	/**
-	 * Appends a string representation of this expression to the builder. The method should return the same result as
-	 * {@link #toString()} but provides a better performance when a string is composed of several child expressions.
-	 * 
-	 * @param builder
-	 *        the builder to append to
-	 */
-	protected void toString(StringBuilder builder) {
-	}
 
 	/**
 	 * Represents an unresolvable expression. The value most likely indicates a programming error and an evaluation
@@ -81,7 +34,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 		private static final long serialVersionUID = 9192628786637605317L;
 
 		@Override
-		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			throw new EvaluationException();
 		}
 
@@ -90,11 +43,11 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 		}
 
 		@Override
-		protected void toString(StringBuilder builder) {
+		protected void toString(final StringBuilder builder) {
 			builder.append("<key>");
 		};
 	};
-	
+
 	public final static EvaluationExpression AS_KEY = new EvaluationExpression() {
 		/**
 		 * 
@@ -102,7 +55,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 		private static final long serialVersionUID = 9192628786637605317L;
 
 		@Override
-		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			throw new EvaluationException();
 		}
 
@@ -111,7 +64,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 		}
 
 		@Override
-		protected void toString(StringBuilder builder) {
+		protected void toString(final StringBuilder builder) {
 			builder.append("-><key>");
 		};
 	};
@@ -131,7 +84,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 		 * Returns the node without modifications.
 		 */
 		@Override
-		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			return node;
 		};
 
@@ -140,7 +93,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 		}
 
 		@Override
-		protected void toString(StringBuilder builder) {
+		protected void toString(final StringBuilder builder) {
 			builder.append("<value>");
 		};
 	};
@@ -156,4 +109,28 @@ public abstract class EvaluationExpression implements SerializableSopremoType, E
 			return EvaluationExpression.NULL;
 		}
 	};
+
+	public void addTag(final ExpressionTag tag) {
+		this.tags.add(tag);
+	}
+
+	public boolean hasTag(final ExpressionTag tag) {
+		return this.tags.contains(tag);
+	}
+
+	public boolean removeTag(final ExpressionTag preserve) {
+		return this.tags.remove(preserve);
+	}
+
+	@Override
+	public String toString() {
+		final StringBuilder builder = new StringBuilder();
+		this.toString(builder);
+		return builder.toString();
+	}
+
+	public EvaluationExpression withTag(final ExpressionTag tag) {
+		this.addTag(tag);
+		return this;
+	}
 }

@@ -21,11 +21,11 @@ public class ArrayMerger extends EvaluationExpression {
 	private static final long serialVersionUID = -6884623565349727369L;
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		Iterator<JsonNode> arrays = node.iterator();
-		ArrayNode mergedArray = JsonUtil.NODE_FACTORY.arrayNode();
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		final Iterator<JsonNode> arrays = node.iterator();
+		final ArrayNode mergedArray = JsonUtil.NODE_FACTORY.arrayNode();
 		while (arrays.hasNext()) {
-			JsonNode array = arrays.next();
+			final JsonNode array = arrays.next();
 			for (int index = 0; index < array.size(); index++)
 				if (mergedArray.size() <= index)
 					mergedArray.add(array.get(index));
@@ -35,12 +35,12 @@ public class ArrayMerger extends EvaluationExpression {
 		return mergedArray;
 	}
 
-	private boolean isNull(JsonNode value) {
+	private boolean isNull(final JsonNode value) {
 		return value == null || value.isNull();
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append("[*]+...+[*]");
 	}
 

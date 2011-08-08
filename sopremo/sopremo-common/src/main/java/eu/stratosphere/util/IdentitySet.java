@@ -5,10 +5,10 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 
 public class IdentitySet<E> extends AbstractSet<E> {
-	private IdentityHashMap<E, Object> backing = new IdentityHashMap<E, Object>();
+	private final IdentityHashMap<E, Object> backing = new IdentityHashMap<E, Object>();
 
 	@Override
-	public boolean add(E e) {
+	public boolean add(final E e) {
 		return this.backing.put(e, null) == null;
 	}
 
@@ -18,7 +18,7 @@ public class IdentitySet<E> extends AbstractSet<E> {
 	}
 
 	@Override
-	public boolean contains(Object o) {
+	public boolean contains(final Object o) {
 		return this.backing.containsKey(o);
 	};
 
@@ -28,7 +28,7 @@ public class IdentitySet<E> extends AbstractSet<E> {
 	}
 
 	@Override
-	public boolean remove(Object o) {
+	public boolean remove(final Object o) {
 		return this.backing.keySet().remove(o);
 	}
 

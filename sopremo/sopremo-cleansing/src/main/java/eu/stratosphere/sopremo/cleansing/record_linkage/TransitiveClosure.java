@@ -39,11 +39,21 @@ import eu.stratosphere.sopremo.pact.SopremoReduce;
 public class TransitiveClosure extends CompositeOperator {
 
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3678166801854560781L;
+
+	/**
 	 * Tag variable
 	 */
 	private static final EvaluationExpression DEFAULT_PROJECTION = new EvaluationExpression() {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1075231292038294405L;
+
 		@Override
-		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			return null;
 		}
 	};
@@ -52,57 +62,57 @@ public class TransitiveClosure extends CompositeOperator {
 
 	private boolean emitClusters = true;
 
-	public TransitiveClosure(JsonStream input) {
+	public TransitiveClosure(final JsonStream input) {
 		super(input);
 	}
 
+	@Override
+	public SopremoModule asElementaryOperators() {
+		JsonStream input = this.getInput(0);
+		JsonStream backLookup;
+		if (this.idProjection == DEFAULT_PROJECTION) {
+			final JsonStream entityExtractor = new RemoveDuplicateEntities(new FlattenPairs(input));
+			final GlobalEnumeration globalEnumeration = new GlobalEnumeration(entityExtractor);
+			globalEnumeration.setIdGeneration(GlobalEnumeration.LONG_COMBINATION);
+			input = new SubstituteWithKeyValueList(input, globalEnumeration);
+			backLookup = globalEnumeration;
+		} else {
+			backLookup = new Projection(this.idProjection, EvaluationExpression.SAME_VALUE, input);
+			input = new Projection(new ArrayCreation(new PathExpression(new ArrayAccess(0), this.idProjection),
+				new PathExpression(new ArrayAccess(1), this.idProjection)), input);
+		}
+
+		final Grouping groupAll = new Grouping(EvaluationExpression.SAME_VALUE, input);
+		final UnparallelClosure pairs = new UnparallelClosure(this.emitClusters, groupAll);
+		return SopremoModule.valueOf(this.getName(), new SubstituteWithKeyValueList(pairs, backLookup));
+	}
+
 	public EvaluationExpression getIdProjection() {
-		return idProjection;
+		return this.idProjection;
 	}
 
 	public boolean isCluster() {
-		return emitClusters;
+		return this.emitClusters;
 	}
 
-	public void setCluster(boolean cluster) {
+	public void setCluster(final boolean cluster) {
 		this.emitClusters = cluster;
 	}
 
-	public void setIdProjection(EvaluationExpression idProjection) {
+	public void setIdProjection(final EvaluationExpression idProjection) {
 		if (idProjection == null)
 			throw new NullPointerException("idProjection must not be null");
 
 		this.idProjection = idProjection;
 	}
 
-	@Override
-	public SopremoModule asElementaryOperators() {
-		JsonStream input = getInput(0);
-		JsonStream backLookup;
-		if (idProjection == DEFAULT_PROJECTION) {
-			JsonStream entityExtractor = new RemoveDuplicateEntities(new FlattenPairs(input));
-			GlobalEnumeration globalEnumeration = new GlobalEnumeration(entityExtractor);
-			globalEnumeration.setIdGeneration(GlobalEnumeration.LONG_COMBINATION);
-			input = new SubstituteWithKeyValueList(input, globalEnumeration);
-			backLookup = globalEnumeration;
-		} else {
-			backLookup = new Projection(idProjection, EvaluationExpression.SAME_VALUE, input);
-			input = new Projection(new ArrayCreation(new PathExpression(new ArrayAccess(0), idProjection),
-				new PathExpression(new ArrayAccess(1), idProjection)), input);
-		}
-
-		Grouping groupAll = new Grouping(EvaluationExpression.SAME_VALUE, input);
-		UnparallelClosure pairs = new UnparallelClosure(emitClusters, groupAll);
-		return SopremoModule.valueOf(getName(), new SubstituteWithKeyValueList(pairs, backLookup));
-	}
-
-	public static void warshall(BinarySparseMatrix matrix) {
+	public static void warshall(final BinarySparseMatrix matrix) {
 		// Warshall
-		for (JsonNode row : matrix.getRows()) {
-			Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
+		for (final JsonNode row : matrix.getRows()) {
+			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
 			while (!columnsToExplore.isEmpty()) {
-				JsonNode column = columnsToExplore.pop();
-				for (JsonNode transitiveNode : matrix.get(column))
+				final JsonNode column = columnsToExplore.pop();
+				for (final JsonNode transitiveNode : matrix.get(column))
 					if (row != transitiveNode && !matrix.isSet(row, transitiveNode)) {
 						matrix.set(row, transitiveNode);
 						columnsToExplore.push(transitiveNode);
@@ -111,55 +121,19 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	}
 
-	public static class UnparallelClosure extends ElementaryOperator {
-		private boolean emitClusters;
-
-		public UnparallelClosure(boolean emitClusters, JsonStream input) {
-			super(input);
-			this.emitClusters = emitClusters;
-		}
-
-		public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
-			private boolean emitClusters;
-
-			@Override
-			protected void map(JsonNode key, JsonNode allPairs, JsonCollector out) {
-				BinarySparseMatrix matrix = new BinarySparseMatrix();
-				for (JsonNode pair : allPairs) {
-					matrix.set(pair.get(0), pair.get(1));
-					matrix.set(pair.get(1), pair.get(0));
-				}
-
-				warshall(matrix);
-
-				if (emitClusters) {
-					Set<JsonNode> remainingRows = new HashSet<JsonNode>(matrix.getRows());
-					while (!remainingRows.isEmpty()) {
-						ArrayNode cluster = new ArrayNode(null);
-						JsonNode row = remainingRows.iterator().next();
-						cluster.add(row);
-						for (JsonNode column : matrix.get(row))
-							cluster.add(column);
-						remainingRows.remove(cluster);
-					}
-				} else {
-					for (JsonNode row : matrix.getRows())
-						for (JsonNode column : matrix.get(row))
-							if (JsonNodeComparator.INSTANCE.compare(row, column) < 0)
-								out.collect(key, JsonUtil.asArray(row, column));
-				}
-			}
-		}
-	}
-
 	public static class FlattenPairs extends ElementaryOperator {
-		public FlattenPairs(JsonStream input) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3704755338323086311L;
+
+		public FlattenPairs(final JsonStream input) {
 			super(input);
 		}
 
 		public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
 			@Override
-			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
 				out.collect(value.get(0), NullNode.getInstance());
 				out.collect(value.get(1), NullNode.getInstance());
 			}
@@ -167,13 +141,18 @@ public class TransitiveClosure extends CompositeOperator {
 	}
 
 	public static class RemoveDuplicateEntities extends ElementaryOperator {
-		public RemoveDuplicateEntities(JsonStream input) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4398233623518806826L;
+
+		public RemoveDuplicateEntities(final JsonStream input) {
 			super(input);
 		}
 
 		public static class Implementation extends SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
 			@Override
-			protected void reduce(JsonNode key, StreamArrayNode values, JsonCollector out) {
+			protected void reduce(final JsonNode key, final StreamArrayNode values, final JsonCollector out) {
 				out.collect(NullNode.getInstance(), key);
 			}
 		}
@@ -181,39 +160,41 @@ public class TransitiveClosure extends CompositeOperator {
 
 	public static class SubstituteWithKeyValueList extends CompositeOperator {
 
-		public SubstituteWithKeyValueList(JsonStream input, JsonStream keyValueList) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 5213470669940261166L;
+
+		public SubstituteWithKeyValueList(final JsonStream input, final JsonStream keyValueList) {
 			super(input, keyValueList);
 		}
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			Projection left = new Projection(new ArrayAccess(0), EvaluationExpression.SAME_VALUE, getInput(0));
-			ReplaceWithRightInput replacedLeft = new ReplaceWithRightInput(0, left);
-			Projection right = new Projection(new ArrayAccess(1), EvaluationExpression.SAME_VALUE, replacedLeft);
-			ReplaceWithRightInput replacedRight = new ReplaceWithRightInput(0, right);
+			final Projection left = new Projection(new ArrayAccess(0), EvaluationExpression.SAME_VALUE,
+				this.getInput(0));
+			final ReplaceWithRightInput replacedLeft = new ReplaceWithRightInput(0, left);
+			final Projection right = new Projection(new ArrayAccess(1), EvaluationExpression.SAME_VALUE, replacedLeft);
+			final ReplaceWithRightInput replacedRight = new ReplaceWithRightInput(1, right);
 
-			return SopremoModule.valueOf(getName(), replacedRight);
-		}
-
-		public static class SwapKeyValue extends ElementaryOperator {
-			public SwapKeyValue(JsonStream input) {
-				super(input);
-			}
-
-			public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
-				@Override
-				protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-					out.collect(value, key);
-				}
-			}
+			return SopremoModule.valueOf(this.getName(), replacedRight);
 		}
 
 		public static class ReplaceWithRightInput extends ElementaryOperator {
-			private int index;
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 7334161941683036846L;
 
-			public ReplaceWithRightInput(int index, JsonStream input) {
+			private final int index;
+
+			public ReplaceWithRightInput(final int index, final JsonStream input) {
 				super(input);
 				this.index = index;
+			}
+
+			public int getIndex() {
+				return this.index;
 			}
 
 			public static class Implementation extends
@@ -221,10 +202,78 @@ public class TransitiveClosure extends CompositeOperator {
 				private int index;
 
 				@Override
-				protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
-					((ArrayNode) value1).set(index, value2);
+				protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
+						final JsonCollector out) {
+					((ArrayNode) value1).set(this.index, value2);
 					out.collect(NullNode.getInstance(), value1);
 				}
+			}
+		}
+
+		public static class SwapKeyValue extends ElementaryOperator {
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 311598721939565997L;
+
+			public SwapKeyValue(final JsonStream input) {
+				super(input);
+			}
+
+			public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+				@Override
+				protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
+					out.collect(value, key);
+				}
+			}
+		}
+	}
+
+	public static class UnparallelClosure extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2445030877785106855L;
+
+		private final boolean emitClusters;
+
+		public UnparallelClosure(final boolean emitClusters, final JsonStream input) {
+			super(input);
+			this.emitClusters = emitClusters;
+		}
+
+		public boolean isEmitClusters() {
+			return this.emitClusters;
+		}
+
+		public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+			private boolean emitClusters;
+
+			@Override
+			protected void map(final JsonNode key, final JsonNode allPairs, final JsonCollector out) {
+				final BinarySparseMatrix matrix = new BinarySparseMatrix();
+				for (final JsonNode pair : allPairs) {
+					matrix.set(pair.get(0), pair.get(1));
+					matrix.set(pair.get(1), pair.get(0));
+				}
+
+				warshall(matrix);
+
+				if (this.emitClusters) {
+					final Set<JsonNode> remainingRows = new HashSet<JsonNode>(matrix.getRows());
+					while (!remainingRows.isEmpty()) {
+						final ArrayNode cluster = new ArrayNode(null);
+						final JsonNode row = remainingRows.iterator().next();
+						cluster.add(row);
+						for (final JsonNode column : matrix.get(row))
+							cluster.add(column);
+						remainingRows.remove(cluster);
+					}
+				} else
+					for (final JsonNode row : matrix.getRows())
+						for (final JsonNode column : matrix.get(row))
+							if (JsonNodeComparator.INSTANCE.compare(row, column) < 0)
+								out.collect(key, JsonUtil.asArray(row, column));
 			}
 		}
 	}

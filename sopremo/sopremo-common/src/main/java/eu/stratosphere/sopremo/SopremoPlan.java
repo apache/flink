@@ -13,7 +13,7 @@ import eu.stratosphere.pact.common.plan.Plan;
  * @author Arvid Heise
  */
 public class SopremoPlan {
-	private SopremoModule module;
+	private final SopremoModule module;
 
 	private EvaluationContext context = new EvaluationContext();
 
@@ -23,32 +23,10 @@ public class SopremoPlan {
 	 * @param sinks
 	 *        the sinks of the Sopremo plan
 	 */
-	public SopremoPlan(Collection<Sink> sinks) {
+	public SopremoPlan(final Collection<Sink> sinks) {
 		this.module = new SopremoModule("plan", 0, 0);
-		for (Sink sink : sinks)
+		for (final Sink sink : sinks)
 			this.module.addInternalOutput(sink);
-	}
-
-	/**
-	 * Returns the evaluation context of this plan.
-	 * 
-	 * @return the evaluation context
-	 */
-	public EvaluationContext getContext() {
-		return this.context;
-	}
-
-	/**
-	 * Sets the evaluation context of this plan.
-	 * 
-	 * @param context
-	 *        the evaluation context
-	 */
-	public void setContext(EvaluationContext context) {
-		if (context == null)
-			throw new NullPointerException("context must not be null");
-
-		this.context = context;
 	}
 
 	/**
@@ -57,7 +35,7 @@ public class SopremoPlan {
 	 * @param sinks
 	 *        the sinks of the Sopremo plan
 	 */
-	public SopremoPlan(Sink... sinks) {
+	public SopremoPlan(final Sink... sinks) {
 		this(Arrays.asList(sinks));
 	}
 
@@ -88,6 +66,28 @@ public class SopremoPlan {
 	 */
 	public Iterable<? extends Operator> getContainedOperators() {
 		return this.module.getReachableNodes();
+	}
+
+	/**
+	 * Returns the evaluation context of this plan.
+	 * 
+	 * @return the evaluation context
+	 */
+	public EvaluationContext getContext() {
+		return this.context;
+	}
+
+	/**
+	 * Sets the evaluation context of this plan.
+	 * 
+	 * @param context
+	 *        the evaluation context
+	 */
+	public void setContext(final EvaluationContext context) {
+		if (context == null)
+			throw new NullPointerException("context must not be null");
+
+		this.context = context;
 	}
 
 	@Override

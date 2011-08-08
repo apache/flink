@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Map;
 
 class BoxConnectorProvider implements ConnectorProvider {
-	private Map<List<BaseDirection>, String> connectorStrings = new HashMap<List<BaseDirection>, String>();
+	private final Map<List<BaseDirection>, String> connectorStrings = new HashMap<List<BaseDirection>, String>();
 
-	private Comparator<Enum<?>> EnumComparator = new Comparator<Enum<?>>() {
+	private final Comparator<Enum<?>> EnumComparator = new Comparator<Enum<?>>() {
 		@Override
-		public int compare(Enum<?> o1, Enum<?> o2) {
+		public int compare(final Enum<?> o1, final Enum<?> o2) {
 			return o1.ordinal() - o2.ordinal();
 		}
 	};
@@ -39,10 +39,10 @@ class BoxConnectorProvider implements ConnectorProvider {
 	}
 
 	@Override
-	public String getConnectorString(Route... connectors) {
-		List<BaseDirection> directionList = new ArrayList<BaseDirection>();
+	public String getConnectorString(final Route... connectors) {
+		final List<BaseDirection> directionList = new ArrayList<BaseDirection>();
 
-		for (Route connector : connectors) {
+		for (final Route connector : connectors) {
 			directionList.add(connector.getFrom());
 			directionList.add(connector.getTo());
 		}
@@ -51,7 +51,7 @@ class BoxConnectorProvider implements ConnectorProvider {
 		return this.connectorStrings.get(directionList);
 	}
 
-	private void put(List<BaseDirection> list, String string) {
+	private void put(final List<BaseDirection> list, final String string) {
 		Collections.sort(list, this.EnumComparator);
 		this.connectorStrings.put(list, string);
 	};

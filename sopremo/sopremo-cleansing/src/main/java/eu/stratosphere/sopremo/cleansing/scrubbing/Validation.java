@@ -4,13 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.ObjectNode;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.cleansing.conflict_resolution.UnresolvableEvalatuationException;
-import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
+import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
@@ -24,63 +26,78 @@ public class Validation extends ElementaryOperator {
 
 	private List<ValidationRule> rules = new ArrayList<ValidationRule>();
 
-	public Validation(JsonStream input) {
+	public Validation(final JsonStream input) {
 		super(input);
 	}
 
-	public boolean addRule(ValidationRule e) {
-		return this.rules.add(e);
+	public void addRule(final ValidationRule e) {
+		this.rules.add(e);
 	}
 
-	public boolean removeRule(Object o) {
-		return this.rules.remove(o);
+	@Override
+	public PactModule asPactModule(final EvaluationContext context) {
+		if (this.rules.isEmpty())
+			return new PactModule(this.getName(), 1, 1);
+		return super.asPactModule(context);
 	}
 
 	public List<ValidationRule> getRules() {
 		return this.rules;
 	}
 
-	public void setRules(List<ValidationRule> rules) {
+	public boolean removeRule(final FusionRule o) {
+		return this.rules.remove(o);
+	}
+
+	public void setRules(final List<ValidationRule> rules) {
 		if (rules == null)
 			throw new NullPointerException("rules must not be null");
 
 		this.rules = rules;
 	}
 
-	@Override
-	public PactModule asPactModule(EvaluationContext context) {
-		if (rules.isEmpty())
-			return new PactModule(getName(), 1, 1);
-		return super.asPactModule(context);
-	}
+	public static class Implementation extends
+			SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+		private List<ValidationRule> rules;
 
-	public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
-		private List<ValidationRule> rules = new ArrayList<ValidationRule>();
+		private ValidationContext context;
 
 		@Override
-		protected void map(JsonNode key, JsonNode contextNode, JsonCollector out) {
+		public void configure(final Configuration parameters) {
+			super.configure(parameters);
+
+			this.context = new ValidationContext(this.getContext());
+		}
+
+		@Override
+		protected void map(final JsonNode key, JsonNode value, final JsonCollector out) {
 			try {
-				JsonNode resultingNode = contextNode;
-				EvaluationContext context = this.getContext();
-				for (ValidationRule rule : this.rules) {
-					ObjectAccess[] targetPath = rule.getTargetPath();
+				this.context.setContextNode(value);
 
-					if (targetPath.length == 0) {
-						if (!rule.validate(resultingNode, contextNode, context))
-							resultingNode = rule.fix(resultingNode, contextNode, context);
+				for (final ValidationRule rule : this.rules) {
+					final List<String> targetPath = rule.getTargetPath();
+
+					if (targetPath.isEmpty()) {
+						if (!rule.validate(value, this.context)) {
+							this.context.setViolatedRule(rule);
+							value = rule.fix(value, this.context);
+						}
 					} else {
-						JsonNode parent = resultingNode;
-						for (int index = 0; index < targetPath.length - 1; index++)
-							parent = targetPath[index].evaluate(parent, context);
+						JsonNode parent = value;
+						final int lastIndex = targetPath.size() - 1;
+						for (int index = 0; index < lastIndex; index++)
+							parent = parent.get(targetPath.get(index));
 
-						ObjectAccess lastSegment = targetPath[targetPath.length - 1];
-						JsonNode validationValue = lastSegment.evaluate(parent, context);
-						if (!rule.validate(key, validationValue, context))
-							lastSegment.set(parent, rule.fix(key, validationValue, context), context);
+						final String lastSegment = targetPath.get(lastIndex);
+						final JsonNode validationValue = parent.get(lastSegment);
+						if (!rule.validate(validationValue, this.context)) {
+							this.context.setViolatedRule(rule);
+							((ObjectNode) parent).put(lastSegment, rule.fix(validationValue, this.context));
+						}
 					}
 				}
-				out.collect(key, resultingNode);
-			} catch (UnresolvableEvalatuationException e) {
+				out.collect(key, value);
+			} catch (final UnresolvableEvaluationException e) {
 				// do not emit invalid record
 			}
 		}

@@ -33,6 +33,60 @@ import eu.stratosphere.util.ConcatenatingIterator;
 public class BuiltinFunctions {
 	private static final NumericNode ZERO = new IntNode(0), ONE = new IntNode(1);
 
+	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
+		@Override
+		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, (NumericNode) node);
+		}
+	};
+
+	public static final AggregationFunction COUNT = new TransitiveAggregationFunction("count", ZERO) {
+		@Override
+		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, ONE);
+		}
+	};
+
+	public static final AggregationFunction FIRST = new TransitiveAggregationFunction("first", NullNode.getInstance()) {
+		@Override
+		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+			return aggregate.isNull() ? node : aggregate;
+		}
+	};
+
+	public static final AggregationFunction SORT = new MaterializingAggregationFunction("sort") {
+		@Override
+		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
+			Collections.sort(nodes, JsonNodeComparator.INSTANCE);
+			return nodes;
+		}
+	};
+
+	public static final AggregationFunction AVERAGE = new AggregationFunction("avg") {
+		private transient int count;
+
+		private transient double value;
+
+		@Override
+		public void aggregate(final JsonNode node, final EvaluationContext context) {
+			this.value += node.getDoubleValue();
+			this.count++;
+		}
+
+		@Override
+		public JsonNode getFinalAggregate() {
+			if (this.count == 0)
+				return DoubleNode.valueOf(Double.NaN);
+			return DoubleNode.valueOf(this.value / this.count);
+		}
+
+		@Override
+		public void initialize() {
+			this.count = 0;
+			this.value = 0;
+		}
+	};
+
 	/**
 	 * Concatenates the textual representation of the nodes.
 	 * 
@@ -41,9 +95,9 @@ public class BuiltinFunctions {
 	 * @return a string node of the concatenated textual representations
 	 */
 	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode concat(JsonNode[] params) {
-		StringBuilder builder = new StringBuilder();
-		for (JsonNode jsonNode : params)
+	public static JsonNode concat(final JsonNode[] params) {
+		final StringBuilder builder = new StringBuilder();
+		for (final JsonNode jsonNode : params)
 			builder.append(jsonNode.isTextual() ? jsonNode.getTextValue() : jsonNode);
 		return JsonUtil.OBJECT_MAPPER.valueToTree(builder);
 	}
@@ -56,17 +110,17 @@ public class BuiltinFunctions {
 	 * @return the number of child elements
 	 */
 	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode count(JsonNode node) {
+	public static JsonNode count(final JsonNode node) {
 		return new IntNode(node.size());
 	}
 
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode sort(JsonNode node) {
-		List<JsonNode> nodes = new ArrayList<JsonNode>();
-		for (JsonNode jsonNode : node)
+	public static JsonNode sort(final JsonNode node) {
+		final List<JsonNode> nodes = new ArrayList<JsonNode>();
+		for (final JsonNode jsonNode : node)
 			nodes.add(jsonNode);
 		Collections.sort(nodes, JsonNodeComparator.INSTANCE);
-		ArrayNode arrayNode = new ArrayNode(null);
+		final ArrayNode arrayNode = new ArrayNode(null);
 		arrayNode.addAll(nodes);
 		return arrayNode;
 	}
@@ -79,13 +133,13 @@ public class BuiltinFunctions {
 	 * @return the sum of child elements
 	 */
 	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode sum(JsonNode node) {
-		Iterator<JsonNode> iterator = node.iterator();
+	public static JsonNode sum(final JsonNode node) {
+		final Iterator<JsonNode> iterator = node.iterator();
 		if (!iterator.hasNext())
 			return ZERO;
 		NumericNode sum = (NumericNode) iterator.next();
 		for (; iterator.hasNext();)
-			sum = ArithmeticExpression.ArithmeticOperator.ADDITION.evaluate((NumericNode) sum,
+			sum = ArithmeticExpression.ArithmeticOperator.ADDITION.evaluate(sum,
 				(NumericNode) iterator.next());
 		return sum;
 	}
@@ -98,10 +152,10 @@ public class BuiltinFunctions {
 	 * @return the concatenated array
 	 */
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode unionAll(JsonNode... arrays) {
+	public static JsonNode unionAll(final JsonNode... arrays) {
 		boolean hasStream = false, resettable = false;
-		for (JsonNode param : arrays) {
-			boolean stream = param instanceof StreamArrayNode;
+		for (final JsonNode param : arrays) {
+			final boolean stream = param instanceof StreamArrayNode;
 			hasStream |= stream;
 			if (stream && ((StreamArrayNode) param).isResettable()) {
 				resettable = true;
@@ -110,69 +164,16 @@ public class BuiltinFunctions {
 		}
 
 		if (hasStream) {
-			Iterator<?>[] iterators = new Iterator[arrays.length];
+			final Iterator<?>[] iterators = new Iterator[arrays.length];
 			for (int index = 0; index < iterators.length; index++)
 				iterators[index] = arrays[index].iterator();
 			return StreamArrayNode.valueOf(new ConcatenatingIterator<JsonNode>(iterators), resettable);
 		}
 
-		ArrayNode union = JsonUtil.NODE_FACTORY.arrayNode();
-		for (JsonNode param : arrays)
-			for (JsonNode child : param)
+		final ArrayNode union = JsonUtil.NODE_FACTORY.arrayNode();
+		for (final JsonNode param : arrays)
+			for (final JsonNode child : param)
 				union.add(child);
 		return union;
 	}
-
-	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
-		@Override
-		protected JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context) {
-			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, (NumericNode) node);
-		}
-	};
-
-	public static final AggregationFunction COUNT = new TransitiveAggregationFunction("count", ZERO) {
-		@Override
-		protected JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context) {
-			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, ONE);
-		}
-	};
-
-	public static final AggregationFunction FIRST = new TransitiveAggregationFunction("first", NullNode.getInstance()) {
-		@Override
-		protected JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context) {
-			return aggregate.isNull() ? node : aggregate;
-		}
-	};
-
-	public static final AggregationFunction SORT = new MaterializingAggregationFunction("sort") {
-		protected List<JsonNode> processNodes(List<JsonNode> nodes) {
-			Collections.sort(nodes, JsonNodeComparator.INSTANCE);
-			return nodes;
-		}
-	};
-
-	public static final AggregationFunction AVERAGE = new AggregationFunction("avg") {
-		private transient int count;
-
-		private transient double value;
-
-		@Override
-		public JsonNode getFinalAggregate() {
-			if (count == 0)
-				return DoubleNode.valueOf(Double.NaN);
-			return DoubleNode.valueOf(value / count);
-		}
-
-		@Override
-		public void initialize() {
-			count = 0;
-			value = 0;
-		}
-
-		@Override
-		public void aggregate(JsonNode node, EvaluationContext context) {
-			value += node.getDoubleValue();
-			count++;
-		}
-	};
 }

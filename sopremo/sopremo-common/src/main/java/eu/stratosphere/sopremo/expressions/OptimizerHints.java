@@ -12,11 +12,11 @@ public @interface OptimizerHints {
 
 	boolean iterating() default false;
 
-	boolean transitive() default false;
-
-	Scope[] scope() default { Scope.ANY };
+	int maxNodes() default UNBOUND;
 
 	int minNodes() default 1;
 
-	int maxNodes() default UNBOUND;
+	Scope[] scope() default { Scope.ANY };
+
+	boolean transitive() default false;
 }

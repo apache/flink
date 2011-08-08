@@ -17,13 +17,12 @@ package eu.stratosphere.sopremo.pact;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.ObjectNode;
-import org.codehaus.jackson.node.ValueNode;
 
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
 
@@ -33,7 +32,7 @@ import eu.stratosphere.sopremo.StreamArrayNode;
  * @author Arvid Heise
  */
 public class PactJsonObject implements Value {
-	private final PactString serializationString = new PactString();
+//	private final PactString serializationString = new PactString();
 
 	private JsonNode value;
 
@@ -50,7 +49,7 @@ public class PactJsonObject implements Value {
 	 * @param value
 	 *        the value that is wrapped
 	 */
-	public PactJsonObject(JsonNode value) {
+	public PactJsonObject(final JsonNode value) {
 		this.value = value;
 	}
 
@@ -128,15 +127,15 @@ public class PactJsonObject implements Value {
 		SopremoUtil.serializeNode(out, this.value);
 	}
 
-	private static boolean isValidArray(JsonNode node) {
-		for (int index = 0, size = node.size(); index < size; index++) {
-			if (node.get(index).isArray() && !isValidArray(node.get(index)))
-				return false;
-			if (!(node.get(index) instanceof ValueNode))
-				return false;
-		}
-		return true;
-	}
+//	private static boolean isValidArray(final JsonNode node) {
+//		for (int index = 0, size = node.size(); index < size; index++) {
+//			if (node.get(index).isArray() && !isValidArray(node.get(index)))
+//				return false;
+//			if (!(node.get(index) instanceof ValueNode))
+//				return false;
+//		}
+//		return true;
+//	}
 
 	/**
 	 * Creates a {@link Key} from a JsonNode if it is a suitable json node for a Key.
@@ -147,7 +146,7 @@ public class PactJsonObject implements Value {
 	 * @throws IllegalArgumentException
 	 *         if the node is not of a comparable type
 	 */
-	public static Key keyOf(JsonNode node) {
+	public static Key keyOf(final JsonNode node) {
 		return new Key(node);
 		// if (node instanceof ValueNode)
 		// return new Key(node);
@@ -187,12 +186,12 @@ public class PactJsonObject implements Value {
 			super();
 		}
 
-		Key(JsonNode value) {
+		Key(final JsonNode value) {
 			super(value);
 		}
 
 		@Override
-		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
+		public int compareTo(final eu.stratosphere.pact.common.type.Key o) {
 			return JsonNodeComparator.INSTANCE.compare(this.getValue(), ((Key) o).getValue());
 		}
 	}

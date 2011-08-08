@@ -25,11 +25,11 @@ import eu.stratosphere.util.IdentityList;
  */
 public class GraphLevelPartitioner {
 
-	private static <Node> void gatherNodes(List<Node> nodes, Navigator<Node> navigator, Node node) {
+	private static <Node> void gatherNodes(final List<Node> nodes, final Navigator<Node> navigator, final Node node) {
 		if (!nodes.contains(node))
 			if (node != null) {
 				nodes.add(node);
-				for (Node child : navigator.getConnectedNodes(node))
+				for (final Node child : navigator.getConnectedNodes(node))
 					gatherNodes(nodes, navigator, child);
 			}
 	}
@@ -47,7 +47,8 @@ public class GraphLevelPartitioner {
 	 * @throws IllegalStateException
 	 *         if the graph contains cycles
 	 */
-	public static <Node> List<Level<Node>> getLevels(Iterable<? extends Node> startNodes, Navigator<Node> navigator) {
+	public static <Node> List<Level<Node>> getLevels(final Iterable<? extends Node> startNodes,
+			final Navigator<Node> navigator) {
 		return getLevels(startNodes.iterator(), navigator);
 	}
 
@@ -64,19 +65,20 @@ public class GraphLevelPartitioner {
 	 * @throws IllegalStateException
 	 *         if the graph contains cycles
 	 */
-	public static <Node> List<Level<Node>> getLevels(Iterator<? extends Node> startNodes, Navigator<Node> navigator) {
+	public static <Node> List<Level<Node>> getLevels(final Iterator<? extends Node> startNodes,
+			final Navigator<Node> navigator) {
 
-		List<Node> remainingNodes = new IdentityList<Node>();
+		final List<Node> remainingNodes = new IdentityList<Node>();
 		while (startNodes.hasNext())
 			gatherNodes(remainingNodes, navigator, startNodes.next());
 
-		List<Node> usedNodes = new IdentityList<Node>();
-		List<Level<Node>> levels = new ArrayList<Level<Node>>();
+		final List<Node> usedNodes = new IdentityList<Node>();
+		final List<Level<Node>> levels = new ArrayList<Level<Node>>();
 
 		while (!remainingNodes.isEmpty()) {
-			List<Node> independentNodes = new ArrayList<Node>();
+			final List<Node> independentNodes = new ArrayList<Node>();
 
-			for (Node node : remainingNodes)
+			for (final Node node : remainingNodes)
 				if (isIndependent(node, usedNodes, navigator))
 					independentNodes.add(node);
 
@@ -104,12 +106,13 @@ public class GraphLevelPartitioner {
 	 * @throws IllegalStateException
 	 *         if the graph contains cycles
 	 */
-	public static <Node> List<Level<Node>> getLevels(Node[] startNodes, Navigator<Node> navigator) {
+	public static <Node> List<Level<Node>> getLevels(final Node[] startNodes, final Navigator<Node> navigator) {
 		return getLevels(Arrays.asList(startNodes).iterator(), navigator);
 	}
 
-	private static <Node> boolean isIndependent(Node node, Collection<Node> usedNodes, Navigator<Node> navigator) {
-		for (Object input : navigator.getConnectedNodes(node))
+	private static <Node> boolean isIndependent(final Node node, final Collection<Node> usedNodes,
+			final Navigator<Node> navigator) {
+		for (final Object input : navigator.getConnectedNodes(node))
 			if (!usedNodes.contains(input))
 				return false;
 		return true;
@@ -124,17 +127,17 @@ public class GraphLevelPartitioner {
 	 *        the type of the node
 	 */
 	public static class Level<Node> {
-		private IdentityHashMap<Object, List<Object>> outgoings = new IdentityHashMap<Object, List<Object>>();
+		private final IdentityHashMap<Object, List<Object>> outgoings = new IdentityHashMap<Object, List<Object>>();
 
-		private List<Node> levelNodes;
+		private final List<Node> levelNodes;
 
-		private Level(List<Node> nodes, Navigator<Node> navigator) {
+		private Level(final List<Node> nodes, final Navigator<Node> navigator) {
 			this.levelNodes = nodes;
 
 			// initializes all outgoing links
-			for (Node node : nodes) {
-				ArrayList<Object> links = new ArrayList<Object>();
-				for (Object connectedNode : navigator.getConnectedNodes(node))
+			for (final Node node : nodes) {
+				final ArrayList<Object> links = new ArrayList<Object>();
+				for (final Object connectedNode : navigator.getConnectedNodes(node))
 					links.add(connectedNode);
 				this.outgoings.put(node, links);
 			}
@@ -150,7 +153,7 @@ public class GraphLevelPartitioner {
 		 * @throws IndexOutOfBoundsException
 		 *         if the index is out of bounds
 		 */
-		public void add(int index, Node node) {
+		public void add(final int index, final Node node) {
 			this.levelNodes.add(index, node);
 			this.outgoings.put(node, new ArrayList<Object>());
 		}
@@ -161,7 +164,7 @@ public class GraphLevelPartitioner {
 		 * @param node
 		 *        the node to add
 		 */
-		public void add(Node node) {
+		public void add(final Node node) {
 			this.levelNodes.add(node);
 			this.outgoings.put(node, new ArrayList<Object>());
 		}
@@ -182,7 +185,7 @@ public class GraphLevelPartitioner {
 		 *        the node
 		 * @return all outgoing links
 		 */
-		public List<Object> getLinks(Node node) {
+		public List<Object> getLinks(final Node node) {
 			return this.outgoings.get(node);
 		}
 
@@ -202,7 +205,7 @@ public class GraphLevelPartitioner {
 		 * @param newTarget
 		 *        the new target of the node
 		 */
-		public void updateLink(Object fromNode, Object oldTarget, Object newTarget) {
+		public void updateLink(final Object fromNode, final Object oldTarget, final Object newTarget) {
 			if (oldTarget == null)
 				this.outgoings.get(fromNode).add(newTarget);
 			else

@@ -26,7 +26,7 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	 *        the iterators to concatenate
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public ConcatenatingIterator(Iterator<?>... iterators) {
+	public ConcatenatingIterator(final Iterator<?>... iterators) {
 		this.inputs = new LinkedList<Iterator<? extends T>>((Collection) Arrays.asList(iterators));
 	}
 
@@ -36,14 +36,14 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	 * @param iterators
 	 *        the iterators to concatenate
 	 */
-	public ConcatenatingIterator(List<? extends Iterator<? extends T>> iterators) {
+	public ConcatenatingIterator(final List<? extends Iterator<? extends T>> iterators) {
 		this.inputs = new LinkedList<Iterator<? extends T>>(iterators);
 	}
 
 	@Override
 	protected T loadNext() {
 		while (!this.inputs.isEmpty()) {
-			Iterator<? extends T> iterator = this.inputs.getFirst();
+			final Iterator<? extends T> iterator = this.inputs.getFirst();
 			if (!iterator.hasNext())
 				this.inputs.pop();
 			else

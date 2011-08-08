@@ -11,17 +11,25 @@ public class AggregationExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -1420818869290609780L;
 
-	private AggregationFunction function;
+	private final AggregationFunction function;
 
-	private EvaluationExpression preprocessing;
+	private final EvaluationExpression preprocessing;
 
-	public AggregationExpression(AggregationFunction function, EvaluationExpression preprocessing) {
+	public AggregationExpression(final AggregationFunction function) {
+		this(function, EvaluationExpression.SAME_VALUE);
+	}
+
+	public AggregationExpression(final AggregationFunction function, final EvaluationExpression preprocessing) {
 		this.function = function.clone();
 		this.preprocessing = preprocessing;
 	}
 
-	public AggregationExpression(AggregationFunction function) {
-		this(function, EvaluationExpression.SAME_VALUE);
+	@Override
+	public JsonNode evaluate(final JsonNode nodes, final EvaluationContext context) {
+		this.function.initialize();
+		for (final JsonNode node : nodes)
+			this.function.aggregate(this.preprocessing.evaluate(node, context), context);
+		return this.function.getFinalAggregate();
 	}
 
 	public AggregationFunction getFunction() {
@@ -33,15 +41,7 @@ public class AggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode nodes, EvaluationContext context) {
-		this.function.initialize();
-		for (JsonNode node : nodes)
-			this.function.aggregate(this.preprocessing.evaluate(node, context), context);
-		return this.function.getFinalAggregate();
-	}
-
-	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		super.toString(builder);
 		builder.append('.');
 		this.function.toString(builder);

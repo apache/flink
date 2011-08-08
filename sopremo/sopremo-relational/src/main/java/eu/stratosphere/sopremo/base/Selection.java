@@ -3,17 +3,12 @@ package eu.stratosphere.sopremo.base;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Selection extends ElementaryOperator {
 	/**
@@ -23,13 +18,13 @@ public class Selection extends ElementaryOperator {
 
 	private final BooleanExpression condition;
 
-	public Selection(BooleanExpression condition, JsonStream input) {
+	public Selection(final BooleanExpression condition, final JsonStream input) {
 		super(input);
 		this.condition = condition;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -67,7 +62,7 @@ public class Selection extends ElementaryOperator {
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder(this.getName());
+		final StringBuilder builder = new StringBuilder(this.getName());
 		builder.append(" on ").append(this.condition);
 		return builder.toString();
 	}
@@ -77,7 +72,7 @@ public class Selection extends ElementaryOperator {
 		private BooleanExpression condition;
 
 		@Override
-		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+		protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
 			if (this.condition.evaluate(value, this.getContext()) == BooleanNode.TRUE)
 				out.collect(key, value);
 		}

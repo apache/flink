@@ -29,7 +29,7 @@ import eu.stratosphere.pact.common.type.Value;
 @SameKey
 public class IdentityMap extends MapStub<Key, Value, Key, Value> {
 	@Override
-	public void map(Key key, Value value, Collector<Key, Value> out) {
+	public void map(final Key key, final Value value, final Collector<Key, Value> out) {
 		out.collect(key, value);
 	}
 }

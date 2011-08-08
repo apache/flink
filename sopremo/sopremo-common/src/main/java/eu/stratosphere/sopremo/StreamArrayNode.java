@@ -32,14 +32,14 @@ public abstract class StreamArrayNode extends ContainerNode {
 		return JsonToken.START_ARRAY;
 	};
 
-	@Override
-	public ObjectNode findParent(String fieldName) {
-		return null;
+	public StreamArrayNode ensureResettable() {
+		return this;
 	}
 
+	// equals and hashCode are added to avoid an EqualsVerifier bug
 	@Override
-	public List<JsonNode> findParents(String fieldName, List<JsonNode> foundSoFar) {
-		return foundSoFar;
+	public boolean equals(final Object obj) {
+		return obj == this;
 	}
 
 	/*
@@ -49,23 +49,44 @@ public abstract class StreamArrayNode extends ContainerNode {
 	 */
 
 	@Override
-	public JsonNode findValue(String fieldName) {
+	public ObjectNode findParent(final String fieldName) {
 		return null;
 	}
 
 	@Override
-	public List<JsonNode> findValues(String fieldName, List<JsonNode> foundSoFar) {
+	public List<JsonNode> findParents(final String fieldName, final List<JsonNode> foundSoFar) {
 		return foundSoFar;
 	}
 
 	@Override
-	public List<String> findValuesAsText(String fieldName, List<String> foundSoFar) {
-		return foundSoFar;
-	}
-
-	@Override
-	public JsonNode get(String fieldName) {
+	public JsonNode findValue(final String fieldName) {
 		return null;
+	}
+
+	@Override
+	public List<JsonNode> findValues(final String fieldName, final List<JsonNode> foundSoFar) {
+		return foundSoFar;
+	}
+
+	@Override
+	public List<String> findValuesAsText(final String fieldName, final List<String> foundSoFar) {
+		return foundSoFar;
+	}
+
+	@Override
+	public JsonNode get(final String fieldName) {
+		return null;
+	}
+
+	/*
+	 * /**********************************************************
+	 * /* Public API, serialization
+	 * /**********************************************************
+	 */
+
+	@Override
+	public int hashCode() {
+		return 0;
 	}
 
 	/*
@@ -78,19 +99,23 @@ public abstract class StreamArrayNode extends ContainerNode {
 		return true;
 	}
 
+	public abstract boolean isEmpty();
+
+	/**
+	 * Returns true if this StreamArrayNode is resettable. If it is not resettable, it may only be iterated once over
+	 * its elements.
+	 * 
+	 * @return true if this StreamArrayNode is resettable
+	 */
+	public abstract boolean isResettable();
+
 	@Override
-	public JsonNode path(int index) {
+	public JsonNode path(final int index) {
 		return null;
 	}
 
-	/*
-	 * /**********************************************************
-	 * /* Public API, serialization
-	 * /**********************************************************
-	 */
-
 	@Override
-	public JsonNode path(String fieldName) {
+	public JsonNode path(final String fieldName) {
 		return MissingNode.getInstance();
 	}
 
@@ -98,23 +123,14 @@ public abstract class StreamArrayNode extends ContainerNode {
 	public ArrayNode removeAll() {
 		throw new UnsupportedOperationException();
 	}
+	
+	public abstract JsonNode[] toArray();
 
-	// equals and hashCode are added to avoid an EqualsVerifier bug
-	@Override
-	public boolean equals(Object obj) {
-		return obj == this;
-	}
-
-	public abstract boolean isEmpty();
-
-	@Override
-	public int hashCode() {
-		return 0;
-	}
-
-	public StreamArrayNode ensureResettable() {
-		return this;
-	}
+	/*
+	 * /**********************************************************
+	 * /* Extended ObjectNode API, accessors
+	 * /**********************************************************
+	 */
 
 	/**
 	 * Creates a StreamArrayNode with the given {@link Iterator} of {@link JsonNode}s. The node may be either fully
@@ -127,27 +143,21 @@ public abstract class StreamArrayNode extends ContainerNode {
 	 *        true if the the array node needs to be resettable
 	 * @return the wrapping {@link StreamArrayNode}
 	 */
-	public static StreamArrayNode valueOf(Iterator<JsonNode> nodes, boolean resettable) {
+	public static StreamArrayNode valueOf(final Iterator<JsonNode> nodes, final boolean resettable) {
 		// TODO: fix with Resettable Iterator!
 		if (resettable)
 			return new Resettable(nodes);
 		return new Iterating(nodes);
 	}
 
-	/*
-	 * /**********************************************************
-	 * /* Extended ObjectNode API, accessors
-	 * /**********************************************************
-	 */
-
 	private static class Iterating extends StreamArrayNode implements Iterator<JsonNode> {
-		private Iterator<JsonNode> nodes;
+		private final Iterator<JsonNode> nodes;
 
 		private JsonNode currentNode;
 
 		private int currentIndex = -1;
 
-		public Iterating(Iterator<JsonNode> nodes) {
+		public Iterating(final Iterator<JsonNode> nodes) {
 			this.nodes = nodes;
 		}
 
@@ -157,28 +167,28 @@ public abstract class StreamArrayNode extends ContainerNode {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
+		public StreamArrayNode ensureResettable() {
+			return StreamArrayNode.valueOf(this.nodes, true);
+		}
+
+		@Override
+		public boolean equals(final Object obj) {
 			if (this == obj)
 				return true;
 			if (obj == null)
 				return false;
 			if (this.getClass() != obj.getClass())
 				return false;
-			Resettable other = (Resettable) obj;
+			final Resettable other = (Resettable) obj;
 			return this.nodes.equals(other.nodes);
 		}
 
 		@Override
-		public JsonNode get(int index) {
+		public JsonNode get(final int index) {
 			if (index < this.currentIndex)
 				throw new IllegalArgumentException("Cannot access previous entry");
 			this.skip(index - this.currentIndex);
 			return this.currentNode;
-		}
-
-		@Override
-		public boolean isEmpty() {
-			return !this.nodes.hasNext();
 		}
 
 		@Override
@@ -200,6 +210,16 @@ public abstract class StreamArrayNode extends ContainerNode {
 		}
 
 		@Override
+		public boolean isEmpty() {
+			return !this.nodes.hasNext();
+		}
+
+		@Override
+		public boolean isResettable() {
+			return false;
+		}
+
+		@Override
 		public JsonNode next() {
 			this.currentIndex++;
 			return this.nodes.next();
@@ -211,7 +231,7 @@ public abstract class StreamArrayNode extends ContainerNode {
 		}
 
 		@Override
-		public final void serialize(JsonGenerator jg, SerializerProvider provider)
+		public final void serialize(final JsonGenerator jg, final SerializerProvider provider)
 				throws IOException, JsonProcessingException {
 			this.assumeBeginning();
 			jg.writeStartArray();
@@ -225,54 +245,45 @@ public abstract class StreamArrayNode extends ContainerNode {
 			return 0;
 		}
 
-		private void skip(int count) {
+		private void skip(final int count) {
 			for (int index = 0; index < count; index++)
 				this.currentNode = this.next();
-		}
-
-		@Override
-		public boolean isResettable() {
-			return false;
 		}
 
 		@Override
 		public String toString() {
 			return "[?]";
 		}
-
+		
 		@Override
-		public StreamArrayNode ensureResettable() {
-			return StreamArrayNode.valueOf(this.nodes, true);
+		public JsonNode[] toArray() {
+			assumeBeginning();
+			return valueOf(nodes, true).toArray();
 		}
 	}
 
 	private static class Resettable extends StreamArrayNode {
-		private List<JsonNode> nodes = new ArrayList<JsonNode>();
+		private final List<JsonNode> nodes = new ArrayList<JsonNode>();
 
-		public Resettable(Iterator<JsonNode> nodes) {
+		public Resettable(final Iterator<JsonNode> nodes) {
 			while (nodes.hasNext())
 				this.nodes.add(nodes.next());
 		}
 
 		@Override
-		public boolean isEmpty() {
-			return this.nodes.isEmpty();
-		}
-
-		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj)
 				return true;
 			if (obj == null)
 				return false;
 			if (this.getClass() != obj.getClass())
 				return false;
-			Resettable other = (Resettable) obj;
+			final Resettable other = (Resettable) obj;
 			return this.nodes.equals(other.nodes);
 		}
 
 		@Override
-		public JsonNode get(int index) {
+		public JsonNode get(final int index) {
 			return this.nodes.get(index);
 		}
 
@@ -290,10 +301,20 @@ public abstract class StreamArrayNode extends ContainerNode {
 		}
 
 		@Override
-		public final void serialize(JsonGenerator jg, SerializerProvider provider)
+		public boolean isEmpty() {
+			return this.nodes.isEmpty();
+		}
+
+		@Override
+		public boolean isResettable() {
+			return true;
+		}
+
+		@Override
+		public final void serialize(final JsonGenerator jg, final SerializerProvider provider)
 				throws IOException, JsonProcessingException {
 			jg.writeStartArray();
-			for (JsonNode node : this.nodes)
+			for (final JsonNode node : this.nodes)
 				((BaseJsonNode) node).writeTo(jg);
 			jg.writeEndArray();
 		}
@@ -304,21 +325,13 @@ public abstract class StreamArrayNode extends ContainerNode {
 		}
 
 		@Override
-		public boolean isResettable() {
-			return true;
-		}
-
-		@Override
 		public String toString() {
 			return this.nodes.toString();
 		}
+		
+		@Override
+		public JsonNode[] toArray() {
+			return this.nodes.toArray(new JsonNode[nodes.size()]);
+		}
 	}
-
-	/**
-	 * Returns true if this StreamArrayNode is resettable. If it is not resettable, it may only be iterated once over
-	 * its elements.
-	 * 
-	 * @return true if this StreamArrayNode is resettable
-	 */
-	public abstract boolean isResettable();
 }

@@ -14,7 +14,7 @@ public final class OperatorNavigator implements Navigator<Operator> {
 	public final static OperatorNavigator INSTANCE = new OperatorNavigator();
 
 	@Override
-	public Iterable<Operator> getConnectedNodes(Operator node) {
+	public Iterable<Operator> getConnectedNodes(final Operator node) {
 		return node.getInputOperators();
 	}
 }

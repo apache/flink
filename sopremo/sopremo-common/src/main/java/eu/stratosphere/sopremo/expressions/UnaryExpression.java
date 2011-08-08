@@ -12,33 +12,33 @@ public class UnaryExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = -4256326224698296602L;
 
-	private EvaluationExpression expr1;
+	private final EvaluationExpression expr1;
 
 	private boolean negate = false;
 
-	public UnaryExpression(EvaluationExpression booleanExpr) {
+	public UnaryExpression(final EvaluationExpression booleanExpr) {
 		this(booleanExpr, false);
 	}
 
-	public UnaryExpression(EvaluationExpression expr1, boolean negate) {
+	public UnaryExpression(final EvaluationExpression expr1, final boolean negate) {
 		this.expr1 = expr1;
 		this.negate = negate;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		UnaryExpression other = (UnaryExpression) obj;
+		final UnaryExpression other = (UnaryExpression) obj;
 		return this.expr1.equals(other.expr1) && this.negate == other.negate;
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (this.negate)
 			return this.expr1.evaluate(node, context) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
 		return this.expr1.evaluate(node, context);
@@ -54,7 +54,7 @@ public class UnaryExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		if (this.negate)
 			builder.append("!");
 		builder.append(this.expr1);

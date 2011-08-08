@@ -15,29 +15,29 @@ public class OrExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = 1988076954287158279L;
 
-	private BooleanExpression[] expressions;
+	private final BooleanExpression[] expressions;
 
-	public OrExpression(BooleanExpression... expressions) {
+	public OrExpression(final BooleanExpression... expressions) {
 		if (expressions.length == 0)
 			throw new IllegalArgumentException();
 		this.expressions = expressions;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		OrExpression other = (OrExpression) obj;
+		final OrExpression other = (OrExpression) obj;
 		return Arrays.equals(this.expressions, other.expressions);
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		for (BooleanExpression booleanExpression : this.expressions)
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		for (final BooleanExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, context) == BooleanNode.TRUE)
 				return BooleanNode.TRUE;
 		return BooleanNode.FALSE;
@@ -56,19 +56,19 @@ public class OrExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append(this.expressions[0]);
 		for (int index = 1; index < this.expressions.length; index++)
 			builder.append(" OR ").append(this.expressions[index]);
 	}
 
-	public static OrExpression valueOf(BooleanExpression expression) {
+	public static OrExpression valueOf(final BooleanExpression expression) {
 		if (expression instanceof OrExpression)
 			return (OrExpression) expression;
 		return new OrExpression(expression);
 	}
 
-	public static OrExpression valueOf(List<BooleanExpression> childConditions) {
+	public static OrExpression valueOf(final List<BooleanExpression> childConditions) {
 		if (childConditions.size() == 1)
 			return valueOf(childConditions.get(0));
 		return new OrExpression(childConditions.toArray(new BooleanExpression[childConditions.size()]));

@@ -14,10 +14,10 @@ public abstract class EvaluableExpressionTest<T extends EvaluationExpression> ex
 
 	@Test
 	public void testToString() {
-		StringBuilder builder = new StringBuilder();
-		first.toString(builder);
+		final StringBuilder builder = new StringBuilder();
+		this.first.toString(builder);
 		Assert.assertNotSame(
-				"builder did not write anything - override this test if it is indeed the desired behavior", "", builder
-					.toString().intern());
+			"builder did not write anything - override this test if it is indeed the desired behavior", "", builder
+				.toString().intern());
 	}
 }

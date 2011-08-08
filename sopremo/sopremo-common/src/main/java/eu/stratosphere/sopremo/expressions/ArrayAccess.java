@@ -26,7 +26,7 @@ public class ArrayAccess extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -2326222517008315722L;
 
-	private int startIndex, endIndex;
+	private final int startIndex, endIndex;
 
 	/**
 	 * Initializes ArrayAccess that reproduces any input array.
@@ -42,7 +42,7 @@ public class ArrayAccess extends EvaluationExpression {
 	 * @param index
 	 *        the index of the element
 	 */
-	public ArrayAccess(int index) {
+	public ArrayAccess(final int index) {
 		this(index, index);
 	}
 
@@ -56,7 +56,7 @@ public class ArrayAccess extends EvaluationExpression {
 	 * @param endIndex
 	 *        the end index (inclusive)
 	 */
-	public ArrayAccess(int startIndex, int endIndex) {
+	public ArrayAccess(final int startIndex, final int endIndex) {
 		// if (0 <= startIndex && 0 <= endIndex && endIndex < startIndex)
 		// throw new IllegalArgumentException("startIndex < endIndex");
 		// if (startIndex < 0 && endIndex < 0 && startIndex < endIndex)
@@ -66,19 +66,19 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return this.startIndex == ((ArrayAccess) obj).startIndex && this.endIndex == ((ArrayAccess) obj).endIndex;
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (this.isSelectingAll())
 			return node;
 		final int size = node.size();
 		if (this.isSelectingRange()) {
-			ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
+			final ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
 			int index = this.resolveIndex(this.startIndex, size);
 			final int endIndex = this.resolveIndex(this.endIndex, size);
 			final int increment = index < endIndex ? 1 : -1;
@@ -90,12 +90,6 @@ public class ArrayAccess extends EvaluationExpression {
 			return arrayNode;
 		}
 		return node.get(this.resolveIndex(this.startIndex, size));
-	}
-
-	private int resolveIndex(int index, int size) {
-		if (index < 0)
-			return size + index;
-		return index;
 	}
 
 	@Override
@@ -121,8 +115,14 @@ public class ArrayAccess extends EvaluationExpression {
 		return this.startIndex != this.endIndex;
 	}
 
+	private int resolveIndex(final int index, final int size) {
+		if (index < 0)
+			return size + index;
+		return index;
+	}
+
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append('[');
 		if (this.isSelectingAll())
 			builder.append('*');

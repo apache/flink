@@ -12,7 +12,7 @@ import java.util.Iterator;
  *        the return type after the conversion
  */
 public abstract class ConversionIterator<From, To> extends AbstractIterator<To> {
-	private Iterator<From> iterator;
+	private final Iterator<From> iterator;
 
 	/**
 	 * Initializes ConversionIterator with the given iterator.
@@ -20,7 +20,7 @@ public abstract class ConversionIterator<From, To> extends AbstractIterator<To> 
 	 * @param iterator
 	 *        the original iterator to wrap
 	 */
-	public ConversionIterator(Iterator<From> iterator) {
+	public ConversionIterator(final Iterator<From> iterator) {
 		this.iterator = iterator;
 	}
 

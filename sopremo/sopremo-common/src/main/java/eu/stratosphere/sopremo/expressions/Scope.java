@@ -13,7 +13,11 @@ public enum Scope {
 		this(null);
 	}
 
-	private Scope(Scope parent) {
+	private Scope(final Scope parent) {
 		this.parent = parent;
+	}
+
+	public Scope getParent() {
+		return this.parent;
 	}
 }

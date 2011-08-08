@@ -40,9 +40,9 @@ public interface ConnectorProvider {
 		LEFT_RIGHT(BaseDirection.LEFT, BaseDirection.RIGHT),
 		RIGHT_LEFT(BaseDirection.RIGHT, BaseDirection.LEFT);
 
-		private BaseDirection from, to;
+		private final BaseDirection from, to;
 
-		private Route(BaseDirection from, BaseDirection to) {
+		private Route(final BaseDirection from, final BaseDirection to) {
 			this.from = from;
 			this.to = to;
 		}

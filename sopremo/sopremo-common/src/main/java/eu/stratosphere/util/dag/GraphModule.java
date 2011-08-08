@@ -47,9 +47,9 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	 */
 	protected final InputNode[] inputNodes;
 
-	private Navigator<Node> navigator;
+	private final Navigator<Node> navigator;
 
-	private String name;
+	private final String name;
 
 	/**
 	 * Initializes a PactModule having the given inputs, outputs, and {@link Navigator}.
@@ -61,19 +61,16 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	 * @param navigator
 	 *        the navigator used to traverse the graph of nodes
 	 */
-	protected GraphModule(String name, InputNode[] inputNodes, OutputNode[] outputNodes, Navigator<Node> navigator) {
+	protected GraphModule(final String name, final InputNode[] inputNodes, final OutputNode[] outputNodes,
+			final Navigator<Node> navigator) {
 		this.name = name;
 		this.inputNodes = inputNodes;
 		this.outputNodes = outputNodes;
 		this.navigator = navigator;
 	}
 
-	public String getName() {
-		return this.name;
-	}
-
 	@Override
-	public void addInternalOutput(OutputNode output) {
+	public void addInternalOutput(final OutputNode output) {
 		this.internalOutputNodes.add(output);
 	}
 
@@ -82,7 +79,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	public OutputNode[] getAllOutputs() {
 		if (this.internalOutputNodes.isEmpty())
 			return this.outputNodes;
-		OutputNode[] allOutputs = (OutputNode[]) Array.newInstance(this.outputNodes.getClass()
+		final OutputNode[] allOutputs = (OutputNode[]) Array.newInstance(this.outputNodes.getClass()
 			.getComponentType(), this.outputNodes.length + this.internalOutputNodes.size());
 		System.arraycopy(this.outputNodes, 0, allOutputs, 0, this.outputNodes.length);
 		for (int index = 0; index < allOutputs.length; index++)
@@ -91,12 +88,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	}
 
 	@Override
-	public Iterable<? extends Node> getReachableNodes() {
-		return OneTimeTraverser.INSTANCE.getReachableNodes(this.getAllOutputs(), this.navigator);
-	}
-
-	@Override
-	public InputNode getInput(int index) {
+	public InputNode getInput(final int index) {
 		return this.inputNodes[index];
 	}
 
@@ -105,8 +97,12 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 		return this.inputNodes;
 	}
 
+	public String getName() {
+		return this.name;
+	}
+
 	@Override
-	public OutputNode getOutput(int index) {
+	public OutputNode getOutput(final int index) {
 		return this.outputNodes[index];
 	}
 
@@ -116,24 +112,29 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	}
 
 	@Override
+	public Iterable<? extends Node> getReachableNodes() {
+		return OneTimeTraverser.INSTANCE.getReachableNodes(this.getAllOutputs(), this.navigator);
+	}
+
+	@Override
 	public String toString() {
-		GraphPrinter<Node> dagPrinter = new GraphPrinter<Node>();
+		final GraphPrinter<Node> dagPrinter = new GraphPrinter<Node>();
 		dagPrinter.setWidth(80);
 		return dagPrinter.toString(this.getAllOutputs(), this.navigator);
 	}
 
 	@Override
 	public void validate() {
-		for (OutputNode output : this.getAllOutputs())
-			for (Node node : this.navigator.getConnectedNodes(output))
+		for (final OutputNode output : this.getAllOutputs())
+			for (final Node node : this.navigator.getConnectedNodes(output))
 				if (node == null)
 					throw new IllegalStateException(String.format("%s: output %s is not fully connected",
 						this.getName(),
 						output));
 
 		final Iterable<? extends Node> reachableNodes = this.getReachableNodes();
-		List<InputNode> inputList = new LinkedList<InputNode>(Arrays.asList(this.inputNodes));
-		for (Node node : reachableNodes)
+		final List<InputNode> inputList = new LinkedList<InputNode>(Arrays.asList(this.inputNodes));
+		for (final Node node : reachableNodes)
 			inputList.remove(node);
 
 		if (!inputList.isEmpty())

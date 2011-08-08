@@ -30,13 +30,13 @@ public class BoundTypeUtil {
 	 *        the superclass of the wrapped type
 	 * @return the bound type for the {@link ParameterizedType}
 	 */
-	public static BoundType getBindingOfSuperclass(BoundType type, Class<?> superClass) {
+	public static BoundType getBindingOfSuperclass(final BoundType type, final Class<?> superClass) {
 		if (!superClass.isAssignableFrom(type.getType()))
 			throw new IllegalArgumentException(type.getType() + " does not extend or implement " + superClass);
 		if (superClass.getTypeParameters().length == 0)
 			return BoundType.of(superClass);
 
-		List<Type> hierarchy = getHierarchy(superClass, type.getType());
+		final List<Type> hierarchy = getHierarchy(superClass, type.getType());
 		return resolvePartially(type, hierarchy);
 	}
 
@@ -54,13 +54,13 @@ public class BoundTypeUtil {
 	 *        the superclass of the wrapped type
 	 * @return the bound type for the {@link ParameterizedType}
 	 */
-	public static BoundType getBindingOfSuperclass(Class<?> type, Class<?> superClass) {
+	public static BoundType getBindingOfSuperclass(final Class<?> type, final Class<?> superClass) {
 		if (!superClass.isAssignableFrom(type))
 			throw new IllegalArgumentException(type + " does not extend or implement " + superClass);
 		if (superClass.getTypeParameters().length == 0)
 			return BoundType.of(superClass);
 
-		List<Type> hierarchy = getHierarchy(superClass, type);
+		final List<Type> hierarchy = getHierarchy(superClass, type);
 		return resolvePartially(BoundType.of(type), hierarchy);
 	}
 
@@ -78,9 +78,9 @@ public class BoundTypeUtil {
 	 *        the superclass of the wrapped type
 	 * @return the bound type for the {@link ParameterizedType}
 	 */
-	public static BoundType getBindingsOfDirectSuperclass(BoundType type, ParameterizedType superclass) {
-		Type[] actualTypeArguments = superclass.getActualTypeArguments();
-		BoundType[] arguments = new BoundType[actualTypeArguments.length];
+	public static BoundType getBindingsOfDirectSuperclass(final BoundType type, final ParameterizedType superclass) {
+		final Type[] actualTypeArguments = superclass.getActualTypeArguments();
+		final BoundType[] arguments = new BoundType[actualTypeArguments.length];
 		for (int index = 0; index < actualTypeArguments.length; index++)
 			if (actualTypeArguments[index] instanceof TypeVariable<?>)
 				arguments[index] = resolveType(type, (TypeVariable<?>) actualTypeArguments[index]);
@@ -91,7 +91,7 @@ public class BoundTypeUtil {
 		return BoundType.of((Class<?>) superclass.getRawType(), arguments);
 	}
 
-	private static List<Type> getHierarchy(Class<?> superClass, Class<?> subclass) {
+	private static List<Type> getHierarchy(final Class<?> superClass, final Class<?> subclass) {
 		if (!superClass.isAssignableFrom(subclass))
 			throw new IllegalArgumentException();
 
@@ -100,11 +100,12 @@ public class BoundTypeUtil {
 			return hierarchy;
 
 		if (superClass.isInterface()) {
-			Type[] interfaces = subclass.getGenericInterfaces();
+			final Type[] interfaces = subclass.getGenericInterfaces();
 			int minDistance = Integer.MAX_VALUE;
-			for (Type xface : interfaces) {
+			for (final Type xface : interfaces) {
 
-				Class<?> type = (Class<?>) (xface instanceof Class ? xface : ((ParameterizedType) xface).getRawType());
+				final Class<?> type = (Class<?>) (xface instanceof Class ? xface : ((ParameterizedType) xface)
+					.getRawType());
 				if (type == superClass) {
 					hierarchy.clear();
 					hierarchy.add(xface);
@@ -112,7 +113,7 @@ public class BoundTypeUtil {
 				}
 
 				if (superClass.isAssignableFrom(type)) {
-					List<Type> partialHierarchy = getHierarchy(superClass, type);
+					final List<Type> partialHierarchy = getHierarchy(superClass, type);
 					if (partialHierarchy.size() + 1 < minDistance) {
 						hierarchy = partialHierarchy;
 						hierarchy.add(0, xface);
@@ -147,8 +148,8 @@ public class BoundTypeUtil {
 	 *        the type to examine
 	 * @return all static bounds
 	 */
-	public static BoundType[] getStaticBoundTypes(Class<?> klass) {
-		Type genericSuperclass = klass.getGenericSuperclass();
+	public static BoundType[] getStaticBoundTypes(final Class<?> klass) {
+		final Type genericSuperclass = klass.getGenericSuperclass();
 		if (genericSuperclass == null || !(genericSuperclass instanceof ParameterizedType))
 			return new BoundType[0];
 
@@ -165,8 +166,8 @@ public class BoundTypeUtil {
 	 *        the field to examine
 	 * @return all static bounds
 	 */
-	public static BoundType[] getStaticBoundTypes(Field field) {
-		Type genericType = field.getGenericType();
+	public static BoundType[] getStaticBoundTypes(final Field field) {
+		final Type genericType = field.getGenericType();
 		if (genericType == null || !(genericType instanceof ParameterizedType))
 			return new BoundType[0];
 
@@ -183,15 +184,15 @@ public class BoundTypeUtil {
 	 *        the type to examine
 	 * @return all static bounds
 	 */
-	public static BoundType[] getStaticBoundTypes(ParameterizedType parameterizedType) {
-		List<BoundType> boundedTypes = new ArrayList<BoundType>();
-		for (Type type : parameterizedType.getActualTypeArguments())
+	public static BoundType[] getStaticBoundTypes(final ParameterizedType parameterizedType) {
+		final List<BoundType> boundedTypes = new ArrayList<BoundType>();
+		for (final Type type : parameterizedType.getActualTypeArguments())
 			if (type instanceof Class<?>)
 				boundedTypes.add(new BoundType((Class<?>) type));
 			else if (type instanceof ParameterizedType)
 				boundedTypes.add(new BoundType((ParameterizedType) type));
 
-		Class<?> rawType = (Class<?>) parameterizedType.getRawType();
+		final Class<?> rawType = (Class<?>) parameterizedType.getRawType();
 		if (rawType.getGenericSuperclass() instanceof ParameterizedType)
 			boundedTypes.addAll(0,
 				Arrays.asList(getStaticBoundTypes((ParameterizedType) rawType.getGenericSuperclass())));
@@ -199,10 +200,10 @@ public class BoundTypeUtil {
 		return boundedTypes.toArray(new BoundType[boundedTypes.size()]);
 	}
 
-	private static BoundType resolvePartially(BoundType boundType, List<Type> hierarchy) {
+	private static BoundType resolvePartially(final BoundType boundType, final List<Type> hierarchy) {
 		if (hierarchy.isEmpty())
 			return boundType;
-		Type type = hierarchy.get(0);
+		final Type type = hierarchy.get(0);
 		if (type instanceof Class<?>)
 			return resolvePartially(BoundType.of((Class<?>) type, boundType.getParameters()),
 				hierarchy.subList(1, hierarchy.size()));
@@ -222,8 +223,8 @@ public class BoundTypeUtil {
 	 *        the placeholder type variable
 	 * @return the bound type for the {@link TypeVariable}
 	 */
-	public static BoundType resolveType(BoundType type, TypeVariable<?> typeVar) {
-		TypeVariable<?>[] typeParameters = type.getType().getTypeParameters();
+	public static BoundType resolveType(final BoundType type, final TypeVariable<?> typeVar) {
+		final TypeVariable<?>[] typeParameters = type.getType().getTypeParameters();
 		if (type.getParameters().length < typeParameters.length)
 			return null;
 		for (int index = 0; index < typeParameters.length; index++)

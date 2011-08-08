@@ -11,40 +11,41 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 	 * 
 	 */
 	private static final long serialVersionUID = 5701471344038419637L;
-	private String name;
 
-	public AggregationFunction(String name) {
+	private final String name;
+
+	public AggregationFunction(final String name) {
 		this.name = name;
+	}
+
+	public abstract void aggregate(JsonNode node, EvaluationContext context);
+
+	public AggregationExpression asExpression() {
+		return new AggregationExpression(this);
 	}
 
 	@Override
 	public AggregationFunction clone() {
 		try {
 			return (AggregationFunction) super.clone();
-		} catch (CloneNotSupportedException e) {
+		} catch (final CloneNotSupportedException e) {
 			throw new IllegalStateException("should not happen", e);
 		}
 	}
 
-	public void initialize() {
-	}
-
-	public abstract void aggregate(JsonNode node, EvaluationContext context);
-
 	public abstract JsonNode getFinalAggregate();
 
-	public void toString(StringBuilder builder) {
-		builder.append(this.name);
+	public void initialize() {
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder();
+		final StringBuilder builder = new StringBuilder();
 		this.toString(builder);
 		return builder.toString();
 	}
 
-	public AggregationExpression asExpression() {
-		return new AggregationExpression(this);
+	public void toString(final StringBuilder builder) {
+		builder.append(this.name);
 	}
 }

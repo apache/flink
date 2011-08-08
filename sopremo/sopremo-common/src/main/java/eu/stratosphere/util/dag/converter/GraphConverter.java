@@ -27,11 +27,11 @@ import eu.stratosphere.util.reflect.BoundTypeUtil;
  */
 public class GraphConverter<InputType, OutputType> implements NodeConverter<InputType, OutputType> {
 
-	private Map<Class<?>, NodeConverterInfo<InputType, OutputType>> converterInfos = new HashMap<Class<?>, NodeConverterInfo<InputType, OutputType>>();
+	private final Map<Class<?>, NodeConverterInfo<InputType, OutputType>> converterInfos = new HashMap<Class<?>, NodeConverterInfo<InputType, OutputType>>();
 
-	private List<GraphConversionListener<InputType, OutputType>> conversionListener = new ArrayList<GraphConversionListener<InputType, OutputType>>();
+	private final List<GraphConversionListener<InputType, OutputType>> conversionListener = new ArrayList<GraphConversionListener<InputType, OutputType>>();
 
-	private boolean flattenCollection = true;
+	private final boolean flattenCollection = true;
 
 	@SuppressWarnings("unchecked")
 	private List<OutputType> lastChildren = Collections.EMPTY_LIST;
@@ -42,18 +42,18 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 * @param listener
 	 *        the listener to add
 	 */
-	public void addListener(GraphConversionListener<InputType, OutputType> listener) {
+	public void addListener(final GraphConversionListener<InputType, OutputType> listener) {
 		this.conversionListener.add(listener);
 	}
 
 	@SuppressWarnings("unchecked")
-	private List<OutputType> convertChildren(Navigator<InputType> navigator, InputType root,
-			NodeConverterInfo<InputType, OutputType> converterInfo) {
-		List<OutputType> childTypes = new ArrayList<OutputType>();
+	private List<OutputType> convertChildren(final Navigator<InputType> navigator, final InputType root,
+			final NodeConverterInfo<InputType, OutputType> converterInfo) {
+		final List<OutputType> childTypes = new ArrayList<OutputType>();
 
 		if (converterInfo == null || !converterInfo.isStopRecursion())
-			for (InputType child : navigator.getConnectedNodes(root)) {
-				OutputType handledResult = this.convertGraph(child, navigator);
+			for (final InputType child : navigator.getConnectedNodes(root)) {
+				final OutputType handledResult = this.convertGraph(child, navigator);
 				if (this.flattenCollection && handledResult instanceof Collection<?>)
 					childTypes.addAll((Collection<? extends OutputType>) handledResult);
 				else if (handledResult != null)
@@ -76,7 +76,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start node
 	 */
-	public OutputType convertGraph(InputType startNode, Navigator<InputType> navigator) {
+	public OutputType convertGraph(final InputType startNode, final Navigator<InputType> navigator) {
 		return this.convertGraph(navigator, startNode, new IdentityHashMap<InputType, OutputType>());
 	}
 
@@ -93,7 +93,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(InputType[] startNodes, Navigator<InputType> navigator) {
+	public List<OutputType> convertGraph(final InputType[] startNodes, final Navigator<InputType> navigator) {
 		return this.convertGraph(Arrays.asList(startNodes).iterator(), navigator);
 	}
 
@@ -110,7 +110,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(Iterable<InputType> startNodes, Navigator<InputType> navigator) {
+	public List<OutputType> convertGraph(final Iterable<InputType> startNodes, final Navigator<InputType> navigator) {
 		return this.convertGraph(startNodes.iterator(), navigator);
 	}
 
@@ -127,29 +127,29 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(Iterator<InputType> startNodes, Navigator<InputType> navigator) {
-		List<OutputType> results = new ArrayList<OutputType>();
-		IdentityHashMap<InputType, OutputType> convertedNodes = new IdentityHashMap<InputType, OutputType>();
+	public List<OutputType> convertGraph(final Iterator<InputType> startNodes, final Navigator<InputType> navigator) {
+		final List<OutputType> results = new ArrayList<OutputType>();
+		final IdentityHashMap<InputType, OutputType> convertedNodes = new IdentityHashMap<InputType, OutputType>();
 		while (startNodes.hasNext())
 			results.add(this.convertGraph(navigator, startNodes.next(), convertedNodes));
 		return results;
 	}
 
 	@SuppressWarnings("unchecked")
-	private OutputType convertGraph(Navigator<InputType> navigator, InputType root,
-			IdentityHashMap<InputType, OutputType> convertedNodes) {
+	private OutputType convertGraph(final Navigator<InputType> navigator, final InputType root,
+			final IdentityHashMap<InputType, OutputType> convertedNodes) {
 		if (convertedNodes.containsKey(root))
 			return convertedNodes.get(root);
 
-		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(root.getClass());
-		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+		final NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(root.getClass());
+		for (final GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
 			listener.beforeSubgraphConversion(root);
-		List<OutputType> childTypes = this.convertChildren(navigator, root, converterInfo);
+		final List<OutputType> childTypes = this.convertChildren(navigator, root, converterInfo);
 
 		this.lastChildren = converterInfo != null && converterInfo.shouldAppendChildren() ? childTypes.subList(
 			converterInfo.getAppendIndex(), childTypes.size()) : Collections.EMPTY_LIST;
-		OutputType convertedType = this.convertNode(root, childTypes);
-		for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+		final OutputType convertedType = this.convertNode(root, childTypes);
+		for (final GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
 			listener.afterSubgraphConversion(root, convertedType);
 		if (convertedType == null)
 			return childTypes.isEmpty() ? null : childTypes.get(0);
@@ -157,18 +157,18 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	}
 
 	@Override
-	public OutputType convertNode(InputType in, List<OutputType> children) {
-		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(in.getClass());
+	public OutputType convertNode(final InputType in, final List<OutputType> children) {
+		final NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(in.getClass());
 		if (converterInfo == null)
 			return null;
 		try {
-			for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+			for (final GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
 				listener.beforeNodeConversion(in, children);
-			OutputType converted = converterInfo.getConverter().convertNode(in, children);
-			for (GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
+			final OutputType converted = converterInfo.getConverter().convertNode(in, children);
+			for (final GraphConversionListener<InputType, OutputType> listener : this.conversionListener)
 				listener.afterNodeConversion(in, children, converted);
 			return converted;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalStateException(e);
 		}
 	}
@@ -180,12 +180,12 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the node class
 	 * @return the registered converter for the given node class
 	 */
-	public NodeConverter<InputType, OutputType> getNodeConverter(Class<? extends InputType> clazz) {
-		NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(clazz);
+	public NodeConverter<InputType, OutputType> getNodeConverter(final Class<? extends InputType> clazz) {
+		final NodeConverterInfo<InputType, OutputType> converterInfo = this.getNodeConverterInfo(clazz);
 		return converterInfo == null ? null : converterInfo.converter;
 	}
 
-	private NodeConverterInfo<InputType, OutputType> getNodeConverterInfo(Class<?> clazz) {
+	private NodeConverterInfo<InputType, OutputType> getNodeConverterInfo(final Class<?> clazz) {
 		NodeConverterInfo<InputType, OutputType> converterInfo = this.converterInfos.get(clazz);
 		if (converterInfo == null && clazz.getSuperclass() != null) {
 			converterInfo = this.getNodeConverterInfo(clazz.getSuperclass());
@@ -207,11 +207,11 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 * @return this
 	 */
 	public <BaseInputType extends InputType> GraphConverter<InputType, OutputType> register(
-			NodeConverter<? extends BaseInputType, ? extends OutputType> converter,
-			List<Class<? extends BaseInputType>> types) {
-		NodeConverterInfo<InputType, OutputType> converterInfo = new NodeConverterInfo<InputType, OutputType>(
+			final NodeConverter<? extends BaseInputType, ? extends OutputType> converter,
+			final List<Class<? extends BaseInputType>> types) {
+		final NodeConverterInfo<InputType, OutputType> converterInfo = new NodeConverterInfo<InputType, OutputType>(
 			converter);
-		for (Class<? extends InputType> type : types)
+		for (final Class<? extends InputType> type : types)
 			this.converterInfos.put(type, converterInfo);
 		return this;
 	}
@@ -228,11 +228,11 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 */
 	@SuppressWarnings("unchecked")
 	public <BaseInputType extends InputType> GraphConverter<InputType, OutputType> register(
-			NodeConverter<BaseInputType, ? extends OutputType> converter) {
-		OneElementList<Class<? extends BaseInputType>> wrapList = new OneElementList<Class<? extends BaseInputType>>(
-				(Class<? extends BaseInputType>) BoundTypeUtil
-						.getBindingOfSuperclass(converter.getClass(),
-							NodeConverter.class).getParameters()[0].getType());
+			final NodeConverter<BaseInputType, ? extends OutputType> converter) {
+		final OneElementList<Class<? extends BaseInputType>> wrapList = new OneElementList<Class<? extends BaseInputType>>(
+			(Class<? extends BaseInputType>) BoundTypeUtil
+				.getBindingOfSuperclass(converter.getClass(),
+					NodeConverter.class).getParameters()[0].getType());
 		this.register(converter, wrapList);
 		return this;
 	}
@@ -246,8 +246,8 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 * @return this
 	 */
 	public GraphConverter<InputType, OutputType> registerAll(
-			NodeConverter<? extends InputType, ? extends OutputType>... converters) {
-		for (NodeConverter<? extends InputType, ? extends OutputType> converter : converters)
+			final NodeConverter<? extends InputType, ? extends OutputType>... converters) {
+		for (final NodeConverter<? extends InputType, ? extends OutputType> converter : converters)
 			this.register(converter);
 		return this;
 	}
@@ -258,7 +258,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 * @param listener
 	 *        the listener to remove
 	 */
-	public void removeListener(GraphConversionListener<InputType, OutputType> listener) {
+	public void removeListener(final GraphConversionListener<InputType, OutputType> listener) {
 		this.conversionListener.remove(listener);
 	}
 
@@ -268,7 +268,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 * @param type
 	 *        the type of which the associated NodeConverter is removed
 	 */
-	public void unregister(Class<? extends InputType> type) {
+	public void unregister(final Class<? extends InputType> type) {
 		this.converterInfos.remove(type);
 	}
 
@@ -278,8 +278,8 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 * @param converter
 	 *        the converter to remove
 	 */
-	public void unregister(NodeConverter<InputType, OutputType> converter) {
-		Iterator<? extends Entry<?, ?>> iterator = this.converterInfos.entrySet().iterator();
+	public void unregister(final NodeConverter<InputType, OutputType> converter) {
+		final Iterator<? extends Entry<?, ?>> iterator = this.converterInfos.entrySet().iterator();
 		for (; iterator.hasNext();)
 			if (iterator.next().getValue() == converter)
 				iterator.remove();
@@ -295,14 +295,14 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 
 		private boolean stopRecursion = false;
 
-		private NodeConverter<InputType, OutputBase> converter;
+		private final NodeConverter<InputType, OutputBase> converter;
 
 		@SuppressWarnings("unchecked")
-		public NodeConverterInfo(NodeConverter<? extends InputType, ? extends OutputBase> converter) {
+		public NodeConverterInfo(final NodeConverter<? extends InputType, ? extends OutputBase> converter) {
 			this.converter = (NodeConverter<InputType, OutputBase>) converter;
 
-			Class<?> converterClass = converter.getClass();
-			AppendChildren annotation = converterClass.getAnnotation(AppendChildren.class);
+			final Class<?> converterClass = converter.getClass();
+			final AppendChildren annotation = converterClass.getAnnotation(AppendChildren.class);
 			if (annotation != null)
 				this.appendIndex = annotation.fromIndex();
 			this.stopRecursion = converterClass.getAnnotation(Leaf.class) != null;

@@ -4,8 +4,8 @@ import java.util.EnumSet;
 
 class ASCIIConnectorProvider implements ConnectorProvider {
 	@Override
-	public String getConnectorString(Route... connectors) {
-		EnumSet<Route> connectorSet = EnumSet.of(connectors[0], connectors);
+	public String getConnectorString(final Route... connectors) {
+		final EnumSet<Route> connectorSet = EnumSet.of(connectors[0], connectors);
 
 		if (connectorSet.contains(Route.TOP_LEFT))
 			return "/";

@@ -10,32 +10,37 @@ import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public class SchemaMapping extends CompositeOperator {
-	private EvaluationExpression projection;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5817110603520085487L;
 
-	private List<ValidationRule> rules = new ArrayList<ValidationRule>();
+	private final EvaluationExpression projection;
 
-	public SchemaMapping(EvaluationExpression projection, JsonStream input) {
+	private final List<ValidationRule> rules = new ArrayList<ValidationRule>();
+
+	public SchemaMapping(final EvaluationExpression projection, final JsonStream input) {
 		super(input);
 		this.projection = projection;
 	}
 
-	public boolean addRule(ValidationRule e) {
-		return this.rules.add(e);
+	public void addRule(final ValidationRule e) {
+		this.rules.add(e);
 	}
 
-	public boolean removeRule(Object o) {
-		return this.rules.remove(o);
+	@Override
+	public SopremoModule asElementaryOperators() {
+		final Validation validation = new Validation(new Projection(this.projection, this.getInput(0)));
+		validation.setRules(this.rules);
+		return SopremoModule.valueOf(this.getName(), validation);
 	}
 
 	public List<ValidationRule> getRules() {
 		return this.rules;
 	}
 
-	@Override
-	public SopremoModule asElementaryOperators() {
-		Validation validation = new Validation(new Projection(projection, getInput(0)));
-		validation.setRules(rules);
-		return SopremoModule.valueOf(getName(), validation);
+	public boolean removeRule(final Object o) {
+		return this.rules.remove(o);
 	}
 
 }

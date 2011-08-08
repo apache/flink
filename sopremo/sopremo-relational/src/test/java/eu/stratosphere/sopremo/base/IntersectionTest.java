@@ -11,89 +11,17 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class IntersectionTest extends SopremoTest<Intersection> {
 	@Override
-	protected Intersection createDefaultInstance(int index) {
-		Intersection intersection = new Intersection(new Source(EvaluationExpression.NULL), null, null);
+	protected Intersection createDefaultInstance(final int index) {
+		final Intersection intersection = new Intersection(new Source(EvaluationExpression.NULL), null, null);
 		intersection.setKeyProjection(0, createPath(String.valueOf(index)));
 		return intersection;
 	}
 
-	/**
-	 * Checks whether intersection of one source produces the source again.
-	 */
-	@Test
-	public void shouldSupportSingleSource() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
-
-		Intersection intersection = new Intersection(sopremoPlan.getInputOperator(0));
-		sopremoPlan.getOutputOperator(0).setInputs(intersection);
-
-		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-
-		sopremoPlan.run();
-	}
-
-	/**
-	 * Checks whether intersection of more than two source produces the correct result.
-	 */
-	@Test
-	public void shouldSupportThreeSources() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
-
-		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 3));
-		sopremoPlan.getOutputOperator(0).setInputs(intersection);
-
-		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-		sopremoPlan.getInput(1).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(4));
-		sopremoPlan.getInput(2).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(5));
-		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(2));
-
-		sopremoPlan.run();
-	}
-
-	@Test
-	public void shouldSupportPrimitives() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-
-		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputs(intersection);
-
-		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-		sopremoPlan.getInput(1).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(4));
-		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2));
-
-		sopremoPlan.run();
-	}
-
 	@Test
 	public void shouldSupportArraysOfPrimitives() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
+		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
@@ -113,10 +41,10 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 
 	@Test
 	public void shouldSupportComplexObject() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
-		Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
+		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
 		intersection.setKeyProjection(0, createPath("name"));
 		intersection.setKeyProjection(1, new FunctionCall("concat", createPath("first name"),
 			new ConstantExpression(" "), createPath("last name")));
@@ -133,6 +61,78 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		sopremoPlan.getExpectedOutput(0).
 			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
 			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2));
+
+		sopremoPlan.run();
+	}
+
+	@Test
+	public void shouldSupportPrimitives() {
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+
+		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
+
+		sopremoPlan.getInput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+		sopremoPlan.getInput(1).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(4));
+		sopremoPlan.getExpectedOutput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2));
+
+		sopremoPlan.run();
+	}
+
+	/**
+	 * Checks whether intersection of one source produces the source again.
+	 */
+	@Test
+	public void shouldSupportSingleSource() {
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
+
+		final Intersection intersection = new Intersection(sopremoPlan.getInputOperator(0));
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
+
+		sopremoPlan.getInput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+		sopremoPlan.getExpectedOutput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+
+		sopremoPlan.run();
+	}
+
+	/**
+	 * Checks whether intersection of more than two source produces the correct result.
+	 */
+	@Test
+	public void shouldSupportThreeSources() {
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
+
+		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 3));
+		sopremoPlan.getOutputOperator(0).setInputs(intersection);
+
+		sopremoPlan.getInput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+		sopremoPlan.getInput(1).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(4));
+		sopremoPlan.getInput(2).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(5));
+		sopremoPlan.getExpectedOutput(0).
+			add(createPactJsonValue(2));
 
 		sopremoPlan.run();
 	}

@@ -14,18 +14,17 @@ public abstract class SopremoCross<IK1 extends PactJsonObject.Key, IV1 extends P
 	private EvaluationContext context;
 
 	@Override
-	public void configure(Configuration parameters) {
+	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
 		SopremoUtil.configureStub(this, parameters);
 	}
 
-	protected EvaluationContext getContext() {
-		return this.context;
-	}
+	protected abstract void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out);
 
 	@Override
-	public void cross(PactJsonObject.Key key1, PactJsonObject value1, PactJsonObject.Key key2, PactJsonObject value2,
-			Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public void cross(final PactJsonObject.Key key1, final PactJsonObject value1, final PactJsonObject.Key key2,
+			final PactJsonObject value2,
+			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isDebugEnabled())
 			SopremoUtil.LOG.debug(String.format("%s %s/%s %s/%s", this.getClass().getSimpleName(), key1, value1, key2,
@@ -33,5 +32,7 @@ public abstract class SopremoCross<IK1 extends PactJsonObject.Key, IV1 extends P
 		this.cross(key1.getValue(), value1.getValue(), key2.getValue(), value2.getValue(), new JsonCollector(out));
 	}
 
-	protected abstract void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out);
+	protected EvaluationContext getContext() {
+		return this.context;
+	}
 }

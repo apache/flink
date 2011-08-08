@@ -11,11 +11,11 @@ public class Sink extends ElementaryOperator {
 	 */
 	private static final long serialVersionUID = -8917574029078139433L;
 
-	private String outputName;
+	private final String outputName;
 
-	private PersistenceType type;
+	private final PersistenceType type;
 
-	public Sink(PersistenceType type, String outputName, JsonStream input) {
+	public Sink(final PersistenceType type, final String outputName, final JsonStream input) {
 		super(input);
 		// if (type == DataType.ADHOC)
 		// throw new IllegalArgumentException();
@@ -23,14 +23,10 @@ public class Sink extends ElementaryOperator {
 		this.type = type;
 	}
 
-	public PersistenceType getType() {
-		return this.type;
-	}
-
 	@Override
-	public PactModule asPactModule(EvaluationContext context) {
-		PactModule pactModule = new PactModule(this.toString(), 1, 0);
-		DataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new DataSinkContract<PactJsonObject.Key, PactJsonObject>(
+	public PactModule asPactModule(final EvaluationContext context) {
+		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
+		final DataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new DataSinkContract<PactJsonObject.Key, PactJsonObject>(
 			JsonOutputFormat.class, this.outputName, this.outputName);
 		contract.setInput(pactModule.getInput(0));
 		pactModule.addInternalOutput(contract);
@@ -39,6 +35,10 @@ public class Sink extends ElementaryOperator {
 
 	public String getOutputName() {
 		return this.outputName;
+	}
+
+	public PersistenceType getType() {
+		return this.type;
 	}
 
 	@Override

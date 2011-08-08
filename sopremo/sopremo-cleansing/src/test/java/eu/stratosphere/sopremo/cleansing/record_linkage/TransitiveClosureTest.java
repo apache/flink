@@ -9,21 +9,21 @@ import org.junit.Test;
 public class TransitiveClosureTest {
 	@Test
 	public void testWarshall() {
-		BinarySparseMatrix matrix = new BinarySparseMatrix();
-		JsonNode[] nodes = new JsonNode[6];
+		final BinarySparseMatrix matrix = new BinarySparseMatrix();
+		final JsonNode[] nodes = new JsonNode[6];
 		for (int index = 0; index < nodes.length; index++)
 			nodes[index] = IntNode.valueOf(index);
 
 		matrix.set(nodes[0], nodes[1]);
 		matrix.set(nodes[1], nodes[2]);
 		matrix.set(nodes[2], nodes[3]);
-		
+
 		matrix.set(nodes[4], nodes[5]);
 		matrix.makeSymmetric();
-		
+
 		TransitiveClosure.warshall(matrix);
-		
-		BinarySparseMatrix expected = new BinarySparseMatrix();
+
+		final BinarySparseMatrix expected = new BinarySparseMatrix();
 		expected.set(nodes[0], nodes[1]);
 		expected.set(nodes[1], nodes[2]);
 		expected.set(nodes[2], nodes[3]);
@@ -31,10 +31,10 @@ public class TransitiveClosureTest {
 		expected.set(nodes[0], nodes[2]);
 		expected.set(nodes[0], nodes[3]);
 		expected.set(nodes[1], nodes[3]);
-		
+
 		expected.set(nodes[4], nodes[5]);
 		expected.makeSymmetric();
-		
+
 		Assert.assertEquals(expected, matrix);
 	}
 }

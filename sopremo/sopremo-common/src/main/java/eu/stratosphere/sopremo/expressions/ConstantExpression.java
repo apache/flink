@@ -23,12 +23,12 @@ public class ConstantExpression extends EvaluationExpression {
 	// TODO: adjust to json model
 	private transient JsonNode constant;
 
-	public ConstantExpression(Object constant) {
-		this.constant = JsonUtil.OBJECT_MAPPER.valueToTree(constant);
+	public ConstantExpression(final JsonNode constant) {
+		this.constant = constant;
 	}
 
-	public ConstantExpression(JsonNode constant) {
-		this.constant = constant;
+	public ConstantExpression(final Object constant) {
+		this.constant = JsonUtil.OBJECT_MAPPER.valueToTree(constant);
 	}
 
 	public int asInt() {
@@ -41,31 +41,15 @@ public class ConstantExpression extends EvaluationExpression {
 		return this.constant.toString();
 	}
 
-	private void writeObject(ObjectOutputStream stream) throws IOException {
-		stream.defaultWriteObject();
-
-		JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(stream, JsonEncoding.UTF8);
-		generator.setCodec(JsonUtil.OBJECT_MAPPER);
-		generator.writeTree(this.constant);
-	}
-
-	private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
-		stream.defaultReadObject();
-
-		JsonParser parser = JsonUtil.FACTORY.createJsonParser(stream);
-		parser.setCodec(JsonUtil.OBJECT_MAPPER);
-		this.constant = parser.readValueAsTree();
-	}
-
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return this.constant.equals(((ConstantExpression) obj).constant);
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		return this.constant;
 	}
 
@@ -74,11 +58,27 @@ public class ConstantExpression extends EvaluationExpression {
 		return 41 + this.constant.hashCode();
 	}
 
+	private void readObject(final ObjectInputStream stream) throws IOException, ClassNotFoundException {
+		stream.defaultReadObject();
+
+		final JsonParser parser = JsonUtil.FACTORY.createJsonParser(stream);
+		parser.setCodec(JsonUtil.OBJECT_MAPPER);
+		this.constant = parser.readValueAsTree();
+	}
+
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		if (this.constant instanceof CharSequence)
 			builder.append("\'").append(this.constant).append("\'");
 		else
 			builder.append(this.constant);
+	}
+
+	private void writeObject(final ObjectOutputStream stream) throws IOException {
+		stream.defaultWriteObject();
+
+		final JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(stream, JsonEncoding.UTF8);
+		generator.setCodec(JsonUtil.OBJECT_MAPPER);
+		generator.writeTree(this.constant);
 	}
 }

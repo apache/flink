@@ -18,7 +18,6 @@ import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class GlobalEnumeration extends ElementaryOperator {
 	/**
@@ -27,15 +26,25 @@ public class GlobalEnumeration extends ElementaryOperator {
 	private static final long serialVersionUID = 8552367347318407324L;
 
 	public static final EvaluationExpression CONCATENATION = new EvaluationExpression() {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3340948936846733311L;
+
 		@Override
-		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			return TextNode.valueOf(String.format("%d_%d", node.get(0), node.get(1)));
 		}
 	};
 
 	public static final EvaluationExpression LONG_COMBINATION = new EvaluationExpression() {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -9084196126957908547L;
+
 		@Override
-		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			return LongNode.valueOf(node.get(0).getLongValue() << 48 + node.get(1).getLongValue());
 		}
 	};
@@ -44,43 +53,43 @@ public class GlobalEnumeration extends ElementaryOperator {
 
 	private EvaluationExpression idGeneration = CONCATENATION;
 
-	public GlobalEnumeration(JsonStream input) {
+	public GlobalEnumeration(final JsonStream input) {
 		super(input);
 	}
 
 	public EvaluationExpression getEnumerationExpression() {
-		return enumerationExpression;
+		return this.enumerationExpression;
 	}
 
 	public String getEnumerationFieldName() {
-		if (enumerationExpression instanceof ObjectCreation
-			&& ((ObjectCreation) enumerationExpression).getMappingSize() == 2)
-			return ((ObjectCreation) enumerationExpression).getMapping(1).getTarget();
+		if (this.enumerationExpression instanceof ObjectCreation
+			&& ((ObjectCreation) this.enumerationExpression).getMappingSize() == 2)
+			return ((ObjectCreation) this.enumerationExpression).getMapping(1).getTarget();
 		return null;
 	}
 
 	public EvaluationExpression getIdGeneration() {
-		return idGeneration;
+		return this.idGeneration;
 	}
 
-	public void setEnumerationExpression(EvaluationExpression enumerationExpression) {
+	public void setEnumerationExpression(final EvaluationExpression enumerationExpression) {
 		if (enumerationExpression == null)
 			throw new NullPointerException();
 
 		this.enumerationExpression = enumerationExpression;
 	}
 
-	public void setEnumerationFieldName(String field) {
+	public void setEnumerationFieldName(final String field) {
 		if (field == null)
 			throw new NullPointerException();
 
-		ObjectCreation objectMerge = new ObjectCreation();
+		final ObjectCreation objectMerge = new ObjectCreation();
 		objectMerge.addMapping(new ObjectCreation.CopyFields(new InputSelection(0)));
 		objectMerge.addMapping(field, new InputSelection(1));
 		this.enumerationExpression = objectMerge;
 	}
 
-	public void setIdGeneration(EvaluationExpression idGeneration) {
+	public void setIdGeneration(final EvaluationExpression idGeneration) {
 		if (idGeneration == null)
 			throw new NullPointerException("idGeneration must not be null");
 
@@ -96,22 +105,22 @@ public class GlobalEnumeration extends ElementaryOperator {
 		private CompactArrayNode params;
 
 		@Override
-		public void configure(Configuration parameters) {
+		public void configure(final Configuration parameters) {
 			super.configure(parameters);
-			IntNode taskId = new IntNode(parameters.getInteger(AbstractTask.TASK_ID, 0));
-			counter = 0;
-			params = JsonUtil.asArray(taskId, LongNode.valueOf(counter));
+			final IntNode taskId = new IntNode(parameters.getInteger(AbstractTask.TASK_ID, 0));
+			this.counter = 0;
+			this.params = JsonUtil.asArray(taskId, LongNode.valueOf(this.counter));
 		}
 
 		@Override
-		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-			JsonNode id = idGeneration.evaluate(params, getContext());
-			params.getChildren()[1] = LongNode.valueOf(counter++);
+		protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
+			final JsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
+			this.params.getChildren()[1] = LongNode.valueOf(this.counter++);
 
-			if (enumerationExpression == EvaluationExpression.SAME_KEY)
+			if (this.enumerationExpression == EvaluationExpression.SAME_KEY)
 				out.collect(id, value);
 			else
-				out.collect(key, enumerationExpression.evaluate(JsonUtil.asArray(value, id), getContext()));
+				out.collect(key, this.enumerationExpression.evaluate(JsonUtil.asArray(value, id), this.getContext()));
 		}
 	}
 

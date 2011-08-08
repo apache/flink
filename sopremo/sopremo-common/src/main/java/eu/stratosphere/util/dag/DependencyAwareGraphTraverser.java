@@ -18,11 +18,11 @@ public class DependencyAwareGraphTraverser extends AbstractGraphTraverser implem
 	public final static DependencyAwareGraphTraverser INSTANCE = new DependencyAwareGraphTraverser();
 
 	@Override
-	public <Node> void traverse(Iterator<? extends Node> startNodes, Navigator<Node> navigator,
-			GraphTraverseListener<Node> listener) {
-		List<Level<Node>> levels = GraphLevelPartitioner.getLevels(startNodes, navigator);
-		for (Level<Node> level : levels)
-			for (Node node : level.getLevelNodes())
+	public <Node> void traverse(final Iterator<? extends Node> startNodes, final Navigator<Node> navigator,
+			final GraphTraverseListener<Node> listener) {
+		final List<Level<Node>> levels = GraphLevelPartitioner.getLevels(startNodes, navigator);
+		for (final Level<Node> level : levels)
+			for (final Node node : level.getLevelNodes())
 				listener.nodeTraversed(node);
 	}
 }

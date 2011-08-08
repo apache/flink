@@ -24,7 +24,7 @@ public class EvaluationException extends RuntimeException {
 	 * @param message
 	 *        the detail message of this exception
 	 */
-	public EvaluationException(String message) {
+	public EvaluationException(final String message) {
 		super(message);
 	}
 
@@ -36,7 +36,7 @@ public class EvaluationException extends RuntimeException {
 	 * @param cause
 	 *        the cause for this EvaluationException or null
 	 */
-	public EvaluationException(String message, Throwable cause) {
+	public EvaluationException(final String message, final Throwable cause) {
 		super(message, cause);
 	}
 
@@ -46,7 +46,7 @@ public class EvaluationException extends RuntimeException {
 	 * @param cause
 	 *        the cause for this EvaluationException or null
 	 */
-	public EvaluationException(Throwable cause) {
+	public EvaluationException(final Throwable cause) {
 		super(cause);
 	}
 

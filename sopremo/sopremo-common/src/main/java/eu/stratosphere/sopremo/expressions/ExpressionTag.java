@@ -5,7 +5,7 @@ public class ExpressionTag {
 
 	public static final ExpressionTag PRESERVE = new ExpressionTag("Preserve");
 
-	protected ExpressionTag(String name) {
+	protected ExpressionTag(final String name) {
 		this.name = name;
 	}
 

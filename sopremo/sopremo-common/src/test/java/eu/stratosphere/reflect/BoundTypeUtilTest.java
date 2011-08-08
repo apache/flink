@@ -17,45 +17,6 @@ import eu.stratosphere.util.reflect.BoundTypeUtil;
  * @author Arvid Heise
  */
 public class BoundTypeUtilTest {
-	@SuppressWarnings("serial")
-	private static class BoundList extends ArrayList<String> {
-		// no reimplementation since only the static binding of types is tested
-	}
-
-	@SuppressWarnings("serial")
-	private static class BoundMap extends HashMap<String, Integer> {
-		// no reimplementation since only the static binding of types is tested
-	}
-
-	@SuppressWarnings("serial")
-	private static class CompletedBoundMap extends PartialBoundMap<String> {
-		// no reimplementation since only the static binding of types is tested
-	}
-
-	@SuppressWarnings("serial")
-	private static class NestedList extends ArrayList<LinkedList<ArrayList<String>>> {
-		// no reimplementation since only the static binding of types is tested
-	}
-
-	@SuppressWarnings("serial")
-	private static class NestedMap extends
-			HashMap<LinkedList<ArrayList<String>>, HashMap<ArrayList<Integer>, NestedList>> {
-		// no reimplementation since only the static binding of types is tested
-	}
-
-	@SuppressWarnings("serial")
-	private static class PartialBoundMap<T> extends HashMap<T, Integer> {
-		// no reimplementation since only the static binding of types is tested
-	}
-
-	private static <T> T[] array(T... ts) {
-		return ts;
-	}
-
-	private static BoundType[] bindToArray(Class<?> klass, BoundType... types) {
-		return new BoundType[] { BoundType.of(klass, types) };
-	}
-
 	/**
 	 * 
 	 */
@@ -126,6 +87,45 @@ public class BoundTypeUtilTest {
 	public void testSimpleBounds() {
 		final Class<?>[] klasses = { String.class };
 		assertArrayEquals(BoundType.arrayOf(klasses), BoundTypeUtil.getStaticBoundTypes(BoundList.class));
+	}
+
+	private static <T> T[] array(final T... ts) {
+		return ts;
+	}
+
+	private static BoundType[] bindToArray(final Class<?> klass, final BoundType... types) {
+		return new BoundType[] { BoundType.of(klass, types) };
+	}
+
+	@SuppressWarnings("serial")
+	private static class BoundList extends ArrayList<String> {
+		// no reimplementation since only the static binding of types is tested
+	}
+
+	@SuppressWarnings("serial")
+	private static class BoundMap extends HashMap<String, Integer> {
+		// no reimplementation since only the static binding of types is tested
+	}
+
+	@SuppressWarnings("serial")
+	private static class CompletedBoundMap extends PartialBoundMap<String> {
+		// no reimplementation since only the static binding of types is tested
+	}
+
+	@SuppressWarnings("serial")
+	private static class NestedList extends ArrayList<LinkedList<ArrayList<String>>> {
+		// no reimplementation since only the static binding of types is tested
+	}
+
+	@SuppressWarnings("serial")
+	private static class NestedMap extends
+			HashMap<LinkedList<ArrayList<String>>, HashMap<ArrayList<Integer>, NestedList>> {
+		// no reimplementation since only the static binding of types is tested
+	}
+
+	@SuppressWarnings("serial")
+	private static class PartialBoundMap<T> extends HashMap<T, Integer> {
+		// no reimplementation since only the static binding of types is tested
 	}
 
 }

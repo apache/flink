@@ -30,19 +30,19 @@ public class MethodSignature implements SerializableSopremoType {
 	 * @param parameterTypes
 	 *        the parameter types
 	 */
-	public MethodSignature(Class<?>[] parameterTypes) {
+	public MethodSignature(final Class<?>[] parameterTypes) {
 		this.parameterTypes = parameterTypes;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		MethodSignature other = (MethodSignature) obj;
+		final MethodSignature other = (MethodSignature) obj;
 		return Arrays.equals(this.parameterTypes, other.parameterTypes);
 	}
 
@@ -54,8 +54,8 @@ public class MethodSignature implements SerializableSopremoType {
 	 *        the actual signature that should have equal or more specific types than this declared signature
 	 * @return the distance or {@link #INCOMPATIBLE}
 	 */
-	public int getDistance(MethodSignature actualSignature) {
-		Class<?>[] actualParamTypes = actualSignature.parameterTypes;
+	public int getDistance(final MethodSignature actualSignature) {
+		final Class<?>[] actualParamTypes = actualSignature.parameterTypes;
 		if (this.parameterTypes.length != actualParamTypes.length)
 			return INCOMPATIBLE;
 
@@ -88,7 +88,7 @@ public class MethodSignature implements SerializableSopremoType {
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder();
+		final StringBuilder builder = new StringBuilder();
 		builder.append("(").append(Arrays.toString(this.parameterTypes)).append(")");
 		return builder.toString();
 	}

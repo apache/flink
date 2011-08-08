@@ -14,20 +14,20 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class SelectionTest extends SopremoTest<Selection> {
 	@Override
-	protected Selection createDefaultInstance(int index) {
-		AndExpression condition = new AndExpression(new UnaryExpression(
+	protected Selection createDefaultInstance(final int index) {
+		final AndExpression condition = new AndExpression(new UnaryExpression(
 			createPath(String.valueOf(index))));
 		return new Selection(condition, null);
 	}
 
 	@Test
 	public void shouldSelectSomeEntries() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		ComparativeExpression incomeComparison = new ComparativeExpression(new ObjectAccess("income"),
+		final ComparativeExpression incomeComparison = new ComparativeExpression(new ObjectAccess("income"),
 			BinaryOperator.GREATER, new ConstantExpression(30000));
-		UnaryExpression mgrFlag = new UnaryExpression(new ObjectAccess("mgr"));
-		OrExpression condition = new OrExpression(mgrFlag, incomeComparison);
+		final UnaryExpression mgrFlag = new UnaryExpression(new ObjectAccess("mgr"));
+		final OrExpression condition = new OrExpression(mgrFlag, incomeComparison);
 		sopremoPlan.getOutputOperator(0).setInputs(
 			new Selection(condition, sopremoPlan.getInputOperator(0)));
 

@@ -10,17 +10,17 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class ProjectionTest extends SopremoTest<Projection> {
 	@Override
-	protected Projection createDefaultInstance(int index) {
-		ObjectCreation transformation = new ObjectCreation();
+	protected Projection createDefaultInstance(final int index) {
+		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("field", createPath(String.valueOf(index)));
 		return new Projection(transformation, null);
 	}
 
 	@Test
 	public void shouldProjectSomeFields() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		ObjectCreation transformation = new ObjectCreation();
+		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("sum", new ArithmeticExpression(createPath("a"),
 			ArithmeticOperator.ADDITION, createPath("b")));
 		sopremoPlan.getOutputOperator(0).setInputs(

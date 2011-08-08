@@ -10,7 +10,7 @@ import java.util.AbstractList;
  *        the type of the element
  */
 public class OneElementList<E> extends AbstractList<E> {
-	private E element;
+	private final E element;
 
 	/**
 	 * Initializes OneElementList with the given element.
@@ -18,12 +18,12 @@ public class OneElementList<E> extends AbstractList<E> {
 	 * @param element
 	 *        the element to wrap
 	 */
-	public OneElementList(E element) {
+	public OneElementList(final E element) {
 		this.element = element;
 	}
 
 	@Override
-	public E get(int index) {
+	public E get(final int index) {
 		if (index != 0)
 			throw new IndexOutOfBoundsException();
 		return this.element;

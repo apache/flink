@@ -19,20 +19,20 @@ public class Union extends MultiSourceOperator {
 	 */
 	private static final long serialVersionUID = -7834959246166207667L;
 
-	public Union(List<? extends JsonStream> inputs) {
+	public Union(final JsonStream... inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
-	public Union(JsonStream... inputs) {
+	public Union(final List<? extends JsonStream> inputs) {
 		super(inputs);
 
 		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
 	}
 
 	@Override
-	protected Operator createElementaryOperations(List<Operator> inputs) {
+	protected Operator createElementaryOperations(final List<Operator> inputs) {
 		if (inputs.size() <= 1)
 			return inputs.get(0);
 
@@ -49,7 +49,7 @@ public class Union extends MultiSourceOperator {
 		 */
 		private static final long serialVersionUID = -4170491578238695354L;
 
-		public TwoInputUnion(JsonStream input1, JsonStream input2) {
+		public TwoInputUnion(final JsonStream input1, final JsonStream input2) {
 			super(input1, input2);
 		}
 
@@ -66,7 +66,8 @@ public class Union extends MultiSourceOperator {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+					final JsonCollector out) {
 				if (!values1.isEmpty())
 					out.collect(key, values1.get(0));
 				else if (!values2.isEmpty())

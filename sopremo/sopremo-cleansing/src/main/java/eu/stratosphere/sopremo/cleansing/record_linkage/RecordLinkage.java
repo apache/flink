@@ -15,7 +15,6 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class RecordLinkage extends CompositeOperator {
@@ -24,16 +23,17 @@ public class RecordLinkage extends CompositeOperator {
 	 */
 	private static final long serialVersionUID = 8586134336913358961L;
 
-	private ComparativeExpression similarityCondition;
+	private final ComparativeExpression similarityCondition;
 
-	private Partitioning algorithm;
+	private final Partitioning algorithm;
 
-	private Map<Operator.Output, EvaluationExpression> idProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>();
+	private final Map<Operator.Output, EvaluationExpression> idProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>();
 
 	private EvaluationExpression duplicateProjection;
 
-	public RecordLinkage(Partitioning algorithm, EvaluationExpression similarityExpression, double threshold,
-			JsonStream... inputs) {
+	public RecordLinkage(final Partitioning algorithm, final EvaluationExpression similarityExpression,
+			final double threshold,
+			final JsonStream... inputs) {
 		super(1, inputs);
 		if (algorithm == null)
 			throw new NullPointerException();
@@ -47,28 +47,28 @@ public class RecordLinkage extends CompositeOperator {
 		if (this.getInputs().size() > 2 || this.getInputs().isEmpty())
 			throw new UnsupportedOperationException();
 
-		List<EvaluationExpression> idProjections = new ArrayList<EvaluationExpression>();
-		for (Operator.Output input : getInputs())
-			idProjections.add(getIdProjection(input));
+		final List<EvaluationExpression> idProjections = new ArrayList<EvaluationExpression>();
+		for (final Operator.Output input : this.getInputs())
+			idProjections.add(this.getIdProjection(input));
 		EvaluationExpression duplicateProjection = this.duplicateProjection;
 		if (duplicateProjection == null)
-			duplicateProjection = new ArrayCreation(new PathExpression(new InputSelection(0), getIdProjection(0)),
-				new PathExpression(new InputSelection(1), getIdProjection(idProjections.size() > 1 ? 1 : 0)));
+			duplicateProjection = new ArrayCreation(new PathExpression(new InputSelection(0), this.getIdProjection(0)),
+				new PathExpression(new InputSelection(1), this.getIdProjection(idProjections.size() > 1 ? 1 : 0)));
 
-		SopremoModule algorithmImplementation = this.algorithm.asSopremoOperators(this.similarityCondition,
+		final SopremoModule algorithmImplementation = this.algorithm.asSopremoOperators(this.similarityCondition,
 			this.getInputs(), idProjections, duplicateProjection);
 		return algorithmImplementation;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		RecordLinkage other = (RecordLinkage) obj;
+		final RecordLinkage other = (RecordLinkage) obj;
 		return this.algorithm.equals(other.algorithm) && this.similarityCondition.equals(other.similarityCondition);
 	}
 
@@ -76,12 +76,12 @@ public class RecordLinkage extends CompositeOperator {
 		return this.duplicateProjection;
 	}
 
-	public EvaluationExpression getIdProjection(int index) {
+	public EvaluationExpression getIdProjection(final int index) {
 		return this.getIdProjection(this.getInput(index));
 	}
 
-	public EvaluationExpression getIdProjection(JsonStream input) {
-		Output source = input == null ? null : input.getSource();
+	public EvaluationExpression getIdProjection(final JsonStream input) {
+		final Output source = input == null ? null : input.getSource();
 		EvaluationExpression keyProjection = this.idProjections.get(source);
 		if (keyProjection == null)
 			keyProjection = EvaluationExpression.SAME_VALUE;
@@ -97,18 +97,18 @@ public class RecordLinkage extends CompositeOperator {
 		return result;
 	}
 
-	public void setDuplicateProjection(EvaluationExpression duplicateProjection) {
+	public void setDuplicateProjection(final EvaluationExpression duplicateProjection) {
 		if (duplicateProjection == null)
 			throw new NullPointerException("duplicateProjection must not be null");
 
 		this.duplicateProjection = duplicateProjection;
 	}
 
-	public void setIdProjection(int inputIndex, EvaluationExpression idProjection) {
+	public void setIdProjection(final int inputIndex, final EvaluationExpression idProjection) {
 		this.setIdProjection(this.getInput(inputIndex), idProjection);
 	}
 
-	public void setIdProjection(JsonStream input, EvaluationExpression idProjection) {
+	public void setIdProjection(final JsonStream input, final EvaluationExpression idProjection) {
 		if (idProjection == null)
 			throw new NullPointerException("idProjection must not be null");
 

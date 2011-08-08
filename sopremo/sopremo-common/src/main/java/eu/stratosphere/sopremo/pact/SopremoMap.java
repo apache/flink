@@ -12,7 +12,7 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 	private EvaluationContext context;
 
 	@Override
-	public void configure(Configuration parameters) {
+	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
 		SopremoUtil.configureStub(this, parameters);
 	}
@@ -24,7 +24,8 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 	protected abstract void map(JsonNode key, JsonNode value, JsonCollector out);
 
 	@Override
-	public void map(PactJsonObject.Key key, PactJsonObject value, Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public void map(final PactJsonObject.Key key, final PactJsonObject value,
+			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isDebugEnabled())
 			SopremoUtil.LOG.debug(String.format("%s %s/%s", this.getClass().getSimpleName(), key, value));

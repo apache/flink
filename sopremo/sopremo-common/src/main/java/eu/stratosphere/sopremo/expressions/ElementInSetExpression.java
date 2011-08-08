@@ -16,18 +16,19 @@ public class ElementInSetExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = -2695263646399347776L;
 
-	private EvaluationExpression elementExpr, setExpr;;
+	private final EvaluationExpression elementExpr, setExpr;;
 
-	private Quantor quantor;
+	private final Quantor quantor;
 
-	public ElementInSetExpression(EvaluationExpression elementExpr, Quantor quantor, EvaluationExpression setExpr) {
+	public ElementInSetExpression(final EvaluationExpression elementExpr, final Quantor quantor,
+			final EvaluationExpression setExpr) {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		return this.quantor.evaluate(this.elementExpr.evaluate(node, context),
 			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, context)));
 	}
@@ -63,7 +64,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append(this.elementExpr).append(this.quantor == Quantor.EXISTS_NOT_IN ? " \u2209 " : " \u2208 ")
 			.append(this.setExpr);
 	}
@@ -74,7 +75,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	// return quantor.evaluate(this.elementExpr.evaluate(nodes), this.asIterator(this.setExpr.evaluate(nodes)));
 	// }
 
-	static Iterator<JsonNode> asIterator(JsonNode evaluate) {
+	static Iterator<JsonNode> asIterator(final JsonNode evaluate) {
 		if (evaluate instanceof ArrayNode)
 			return ((ArrayNode) evaluate).iterator();
 		return Arrays.asList(evaluate).iterator();
@@ -83,12 +84,12 @@ public class ElementInSetExpression extends BooleanExpression {
 	public static enum Quantor {
 		EXISTS_IN, EXISTS_NOT_IN {
 			@Override
-			protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
+			protected BooleanNode evaluate(final JsonNode element, final Iterator<JsonNode> set) {
 				return super.evaluate(element, set) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
 			}
 		};
 
-		protected BooleanNode evaluate(JsonNode element, Iterator<JsonNode> set) {
+		protected BooleanNode evaluate(final JsonNode element, final Iterator<JsonNode> set) {
 			while (set.hasNext())
 				if (asIterator(element).equals(set.next()))
 					return BooleanNode.TRUE;

@@ -22,12 +22,12 @@ public class OneTimeVisitor<T extends Visitable<T>> implements Visitor<T> {
 	 * @param visitor
 	 *        the wrapped visitor
 	 */
-	public OneTimeVisitor(Visitor<T> visitor) {
+	public OneTimeVisitor(final Visitor<T> visitor) {
 		this.visitor = visitor;
 	}
 
 	@Override
-	public void postVisit(T visitable) {
+	public void postVisit(final T visitable) {
 		if (this.visitedNodes.get(visitable) == Boolean.TRUE)
 			return;
 		this.visitedNodes.put(visitable, Boolean.TRUE);
@@ -35,7 +35,7 @@ public class OneTimeVisitor<T extends Visitable<T>> implements Visitor<T> {
 	}
 
 	@Override
-	public boolean preVisit(T visitable) {
+	public boolean preVisit(final T visitable) {
 		if (this.visitedNodes.containsKey(visitable))
 			return false;
 		this.visitedNodes.put(visitable, Boolean.FALSE);

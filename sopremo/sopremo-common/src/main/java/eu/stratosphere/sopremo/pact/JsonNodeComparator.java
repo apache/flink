@@ -31,10 +31,10 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 	public final static JsonNodeComparator INSTANCE = new JsonNodeComparator();
 
 	@SuppressWarnings("rawtypes")
-	private Map<Class<?>, Comparator> nodeComparators = new IdentityHashMap<Class<?>, Comparator>();
+	private final Map<Class<?>, Comparator> nodeComparators = new IdentityHashMap<Class<?>, Comparator>();
 
 	public JsonNodeComparator() {
-		for (Class<?> subComparator : this.getClass().getDeclaredClasses())
+		for (final Class<?> subComparator : this.getClass().getDeclaredClasses())
 			this.nodeComparators.put(BoundTypeUtil.getBindingOfSuperclass(subComparator, Comparator.class)
 				.getParameters()[0].getType(),
 				(Comparator<?>) ReflectUtil.getStaticValue(subComparator, "INSTANCE"));
@@ -43,9 +43,9 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		this.nodeComparators.put(CompactArrayNode.class, ArrayNodeComparator.INSTANCE);
 		this.nodeComparators.put(StreamArrayNode.class, ArrayNodeComparator.INSTANCE);
 
-		Comparator<ObjectNode> cannotCompare = new Comparator<ObjectNode>() {
+		final Comparator<ObjectNode> cannotCompare = new Comparator<ObjectNode>() {
 			@Override
-			public int compare(ObjectNode o1, ObjectNode o2) {
+			public int compare(final ObjectNode o1, final ObjectNode o2) {
 				throw new EvaluationException("Cannot compare two objects");
 			}
 		};
@@ -56,16 +56,41 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public int compare(JsonNode value1, JsonNode value2) {
+	public int compare(final JsonNode value1, final JsonNode value2) {
 		return this.nodeComparators.get(value1.getClass()).compare(value1, value2);
+	}
+
+	public final static class ArrayNodeComparator implements Comparator<JsonNode> {
+		public final static JsonNodeComparator.ArrayNodeComparator INSTANCE = new ArrayNodeComparator();
+
+		@Override
+		public int compare(final JsonNode value1, final JsonNode value2) {
+			if (value1.size() != value2.size())
+				return value1.size() - value2.size();
+			for (int index = 0, size = value1.size(); index < size; index++) {
+				final int comparisonResult = JsonNodeComparator.INSTANCE.compare(value1.get(index), value2.get(index));
+				if (comparisonResult != 0)
+					return comparisonResult;
+			}
+			return 0;
+		}
 	}
 
 	public final static class BigIntegerNodeComparator implements Comparator<BigIntegerNode> {
 		public final static JsonNodeComparator.BigIntegerNodeComparator INSTANCE = new BigIntegerNodeComparator();
 
 		@Override
-		public int compare(BigIntegerNode value1, BigIntegerNode value2) {
+		public int compare(final BigIntegerNode value1, final BigIntegerNode value2) {
 			return value1.getBigIntegerValue().compareTo(value2.getBigIntegerValue());
+		}
+	}
+
+	public final static class BooleanNodeComparator implements Comparator<BooleanNode> {
+		public final static JsonNodeComparator.BooleanNodeComparator INSTANCE = new BooleanNodeComparator();
+
+		@Override
+		public int compare(final BooleanNode value1, final BooleanNode value2) {
+			return value1.getBooleanValue() == value2.getBooleanValue() ? 0 : value1.getBooleanValue() ? 1 : -1;
 		}
 	}
 
@@ -73,7 +98,7 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		public final static JsonNodeComparator.DecimalNodeComparator INSTANCE = new DecimalNodeComparator();
 
 		@Override
-		public int compare(DecimalNode value1, DecimalNode value2) {
+		public int compare(final DecimalNode value1, final DecimalNode value2) {
 			return value1.getDecimalValue().compareTo(value2.getDecimalValue());
 		}
 	}
@@ -82,8 +107,35 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		public final static JsonNodeComparator.DoubleNodeComparator INSTANCE = new DoubleNodeComparator();
 
 		@Override
-		public int compare(DoubleNode value1, DoubleNode value2) {
+		public int compare(final DoubleNode value1, final DoubleNode value2) {
 			return Double.compare(value1.getDoubleValue(), value2.getDoubleValue());
+		}
+	}
+
+	public final static class IntNodeComparator implements Comparator<IntNode> {
+		public final static JsonNodeComparator.IntNodeComparator INSTANCE = new IntNodeComparator();
+
+		@Override
+		public int compare(final IntNode value1, final IntNode value2) {
+			return value1.getIntValue() - value2.getIntValue();
+		}
+	}
+
+	public final static class LongNodeComparator implements Comparator<LongNode> {
+		public final static JsonNodeComparator.LongNodeComparator INSTANCE = new LongNodeComparator();
+
+		@Override
+		public int compare(final LongNode value1, final LongNode value2) {
+			return Long.signum(value1.getLongValue() - value2.getLongValue());
+		}
+	}
+
+	public final static class NullNodeComparator implements Comparator<NullNode> {
+		public final static JsonNodeComparator.NullNodeComparator INSTANCE = new NullNodeComparator();
+
+		@Override
+		public int compare(final NullNode value1, final NullNode value2) {
+			return 0;
 		}
 	}
 
@@ -91,18 +143,18 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		public final static JsonNodeComparator.ObjectNodeComparator INSTANCE = new ObjectNodeComparator();
 
 		@Override
-		public int compare(ObjectNode value1, ObjectNode value2) {
-			Iterator<Entry<String, JsonNode>> fields1 = value1.getFields();
-			Iterator<Entry<String, JsonNode>> fields2 = value2.getFields();
+		public int compare(final ObjectNode value1, final ObjectNode value2) {
+			final Iterator<Entry<String, JsonNode>> fields1 = value1.getFields();
+			final Iterator<Entry<String, JsonNode>> fields2 = value2.getFields();
 
 			while (fields1.hasNext() && fields2.hasNext()) {
-				Entry<String, JsonNode> field1 = fields1.next();
-				Entry<String, JsonNode> field2 = fields2.next();
+				final Entry<String, JsonNode> field1 = fields1.next();
+				final Entry<String, JsonNode> field2 = fields2.next();
 
-				int keyComparison = field1.getKey().compareTo(field2.getKey());
+				final int keyComparison = field1.getKey().compareTo(field2.getKey());
 				if (keyComparison != 0)
 					return keyComparison;
-				int valueComparison = JsonNodeComparator.INSTANCE.compare(field1.getValue(), field2.getValue());
+				final int valueComparison = JsonNodeComparator.INSTANCE.compare(field1.getValue(), field2.getValue());
 				if (valueComparison != 0)
 					return valueComparison;
 			}
@@ -111,64 +163,12 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		}
 	}
 
-	public final static class LongNodeComparator implements Comparator<LongNode> {
-		public final static JsonNodeComparator.LongNodeComparator INSTANCE = new LongNodeComparator();
-
-		@Override
-		public int compare(LongNode value1, LongNode value2) {
-			return Long.signum(value1.getLongValue() - value2.getLongValue());
-		}
-	}
-
-	public final static class IntNodeComparator implements Comparator<IntNode> {
-		public final static JsonNodeComparator.IntNodeComparator INSTANCE = new IntNodeComparator();
-
-		@Override
-		public int compare(IntNode value1, IntNode value2) {
-			return value1.getIntValue() - value2.getIntValue();
-		}
-	}
-
-	public final static class NullNodeComparator implements Comparator<NullNode> {
-		public final static JsonNodeComparator.NullNodeComparator INSTANCE = new NullNodeComparator();
-
-		@Override
-		public int compare(NullNode value1, NullNode value2) {
-			return 0;
-		}
-	}
-
-	public final static class BooleanNodeComparator implements Comparator<BooleanNode> {
-		public final static JsonNodeComparator.BooleanNodeComparator INSTANCE = new BooleanNodeComparator();
-
-		@Override
-		public int compare(BooleanNode value1, BooleanNode value2) {
-			return value1.getBooleanValue() == value2.getBooleanValue() ? 0 : value1.getBooleanValue() ? 1 : -1;
-		}
-	}
-
 	public final static class TextNodeComparator implements Comparator<TextNode> {
 		public final static JsonNodeComparator.TextNodeComparator INSTANCE = new TextNodeComparator();
 
 		@Override
-		public int compare(TextNode value1, TextNode value2) {
+		public int compare(final TextNode value1, final TextNode value2) {
 			return value1.getTextValue().compareTo(value2.getTextValue());
-		}
-	}
-
-	public final static class ArrayNodeComparator implements Comparator<JsonNode> {
-		public final static JsonNodeComparator.ArrayNodeComparator INSTANCE = new ArrayNodeComparator();
-
-		@Override
-		public int compare(JsonNode value1, JsonNode value2) {
-			if (value1.size() != value2.size())
-				return value1.size() - value2.size();
-			for (int index = 0, size = value1.size(); index < size; index++) {
-				int comparisonResult = JsonNodeComparator.INSTANCE.compare(value1.get(index), value2.get(index));
-				if (comparisonResult != 0)
-					return comparisonResult;
-			}
-			return 0;
 		}
 	}
 }

@@ -11,95 +11,17 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class UnionTest extends SopremoTest<Union> {
 	@Override
-	protected Union createDefaultInstance(int index) {
-		Union union = new Union(new Source(EvaluationExpression.NULL), null, null);
+	protected Union createDefaultInstance(final int index) {
+		final Union union = new Union(new Source(EvaluationExpression.NULL), null, null);
 		union.setKeyProjection(0, createPath(String.valueOf(index)));
 		return union;
 	}
 
-	/**
-	 * Checks whether union of one source produces the source again.
-	 */
-	@Test
-	public void shouldSupportSingleSource() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
-
-		Union union = new Union(sopremoPlan.getInputOperator(0));
-		sopremoPlan.getOutputOperator(0).setInputs(union);
-
-		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-
-		sopremoPlan.run();
-	}
-
-	/**
-	 * Checks whether union of more than two source produces the correct result.
-	 */
-	@Test
-	public void shouldSupportThreeSources() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
-
-		Union union = new Union(sopremoPlan.getInputOperators(0, 3));
-		sopremoPlan.getOutputOperator(0).setInputs(union);
-
-		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-		sopremoPlan.getInput(1).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(4));
-		sopremoPlan.getInput(2).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(5));
-		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(4)).
-			add(createPactJsonValue(5));
-
-		sopremoPlan.run();
-	}
-
-	@Test
-	public void shouldSupportPrimitives() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-
-		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
-		sopremoPlan.getOutputOperator(0).setInputs(union);
-
-		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
-		sopremoPlan.getInput(1).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(4));
-		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(4));
-
-		sopremoPlan.run();
-	}
-
 	@Test
 	public void shouldSupportArraysOfPrimitives() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
+		final Union union = new Union(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
@@ -121,10 +43,10 @@ public class UnionTest extends SopremoTest<Union> {
 
 	@Test
 	public void shouldSupportComplexObject() {
-		SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
-		Union union = new Union(sopremoPlan.getInputOperators(0, 2));
+		final Union union = new Union(sopremoPlan.getInputOperators(0, 2));
 		union.setKeyProjection(0, createPath("name"));
 		union.setKeyProjection(1, new FunctionCall("concat", createPath("first name"), new ConstantExpression(" "),
 			createPath("last name")));
@@ -143,6 +65,84 @@ public class UnionTest extends SopremoTest<Union> {
 			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
 			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3)).
 			add(createPactJsonObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4));
+
+		sopremoPlan.run();
+	}
+
+	@Test
+	public void shouldSupportPrimitives() {
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
+
+		final Union union = new Union(sopremoPlan.getInputOperators(0, 2));
+		sopremoPlan.getOutputOperator(0).setInputs(union);
+
+		sopremoPlan.getInput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+		sopremoPlan.getInput(1).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(4));
+		sopremoPlan.getExpectedOutput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(4));
+
+		sopremoPlan.run();
+	}
+
+	/**
+	 * Checks whether union of one source produces the source again.
+	 */
+	@Test
+	public void shouldSupportSingleSource() {
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
+
+		final Union union = new Union(sopremoPlan.getInputOperator(0));
+		sopremoPlan.getOutputOperator(0).setInputs(union);
+
+		sopremoPlan.getInput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+		sopremoPlan.getExpectedOutput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+
+		sopremoPlan.run();
+	}
+
+	/**
+	 * Checks whether union of more than two source produces the correct result.
+	 */
+	@Test
+	public void shouldSupportThreeSources() {
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
+
+		final Union union = new Union(sopremoPlan.getInputOperators(0, 3));
+		sopremoPlan.getOutputOperator(0).setInputs(union);
+
+		sopremoPlan.getInput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3));
+		sopremoPlan.getInput(1).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(4));
+		sopremoPlan.getInput(2).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(5));
+		sopremoPlan.getExpectedOutput(0).
+			add(createPactJsonValue(1)).
+			add(createPactJsonValue(2)).
+			add(createPactJsonValue(3)).
+			add(createPactJsonValue(4)).
+			add(createPactJsonValue(5));
 
 		sopremoPlan.run();
 	}

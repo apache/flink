@@ -29,13 +29,13 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 		IntraSourceRecordLinkageTestBase<DisjunctPartitioning> {
 
-	private double threshold;
+	private final double threshold;
 
-	private EvaluationExpression projection;
+	private final EvaluationExpression projection;
 
-	private boolean useId;
+	private final boolean useId;
 
-	private EvaluationExpression[] leftBlockingKeys, rightBlockingKeys;
+	private final EvaluationExpression[] leftBlockingKeys, rightBlockingKeys;
 
 	/**
 	 * Initializes NaiveRecordLinkageInterSourceTest with the given parameter
@@ -45,8 +45,9 @@ public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 	 * @param useId
 	 * @param blockingKeys
 	 */
-	public DisjunctPratitioningRecordLinkageIntraSourceTest(double threshold, EvaluationExpression projection,
-			boolean useId, String[][] blockingKeys) {
+	public DisjunctPratitioningRecordLinkageIntraSourceTest(final double threshold,
+			final EvaluationExpression projection,
+			final boolean useId, final String[][] blockingKeys) {
 		this.threshold = threshold;
 		this.projection = projection;
 		this.useId = useId;
@@ -60,36 +61,15 @@ public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 	}
 
 	/**
-	 * Returns the parameter combination under test.
-	 * 
-	 * @return the parameter combination
-	 */
-	@Parameters
-	public static Collection<Object[]> getParameters() {
-		EvaluationExpression[] projections = { null, getAggregativeProjection() };
-		double[] thresholds = { 0.0, 0.5, 1.0 };
-		boolean[] useIds = { false, true };
-
-		ArrayList<Object[]> parameters = new ArrayList<Object[]>();
-		for (EvaluationExpression projection : projections)
-			for (double threshold : thresholds)
-				for (String[][] combinedBlockingKeys : CombinedBlockingKeys)
-					for (boolean useId : useIds)
-						parameters.add(new Object[] { threshold, projection, useId, combinedBlockingKeys });
-
-		return parameters;
-	}
-
-	/**
 	 * Performs the naive record linkage in place and compares with the Pact code.
 	 */
 	@Test
 	public void pactCodeShouldPerformLikeStandardImplementation() {
-		EvaluationExpression similarityFunction = this.getSimilarityFunction();
-		RecordLinkage recordLinkage = new RecordLinkage(
+		final EvaluationExpression similarityFunction = this.getSimilarityFunction();
+		final RecordLinkage recordLinkage = new RecordLinkage(
 			new DisjunctPartitioning(this.leftBlockingKeys, this.leftBlockingKeys),
 			similarityFunction, this.threshold, (JsonStream) null);
-		SopremoTestPlan sopremoTestPlan = this.createTestPlan(recordLinkage, this.useId, this.projection);
+		final SopremoTestPlan sopremoTestPlan = this.createTestPlan(recordLinkage, this.useId, this.projection);
 
 		EvaluationExpression duplicateProjection = this.projection;
 		if (duplicateProjection == null)
@@ -97,10 +77,10 @@ public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 				recordLinkage.getIdProjection(0)), new PathExpression(new InputSelection(1),
 				recordLinkage.getIdProjection(0)));
 
-		EvaluationContext context = sopremoTestPlan.getEvaluationContext();
-		for (KeyValuePair<Key, PactJsonObject> left : sopremoTestPlan.getInput(0)) {
+		final EvaluationContext context = sopremoTestPlan.getEvaluationContext();
+		for (final KeyValuePair<Key, PactJsonObject> left : sopremoTestPlan.getInput(0)) {
 			boolean skipPairs = true;
-			for (KeyValuePair<Key, PactJsonObject> right : sopremoTestPlan.getInput(0)) {
+			for (final KeyValuePair<Key, PactJsonObject> right : sopremoTestPlan.getInput(0)) {
 				if (left == right) {
 					skipPairs = false;
 					continue;
@@ -115,7 +95,7 @@ public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 				if (!inSameBlockingBin)
 					continue;
 
-				CompactArrayNode pair = JsonUtil.asArray(left.getValue().getValue(), right.getValue().getValue());
+				final CompactArrayNode pair = JsonUtil.asArray(left.getValue().getValue(), right.getValue().getValue());
 				if (similarityFunction.evaluate(pair, context).getDoubleValue() > this.threshold)
 					sopremoTestPlan.getExpectedOutput(0).add(
 						new PactJsonObject(duplicateProjection.evaluate(pair, context)));
@@ -124,7 +104,7 @@ public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 
 		try {
 			sopremoTestPlan.run();
-		} catch (AssertionError error) {
+		} catch (final AssertionError error) {
 			throw new AssertionError(String.format("For test %s: %s", this, error.getMessage()));
 		}
 	}
@@ -132,8 +112,29 @@ public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 	@Override
 	public String toString() {
 		return String.format("[threshold=%s, useId=%s, projection=%s, leftBlockingKeys=%s, rightBlockingKeys=%s]",
-				this.threshold, this.useId, this.projection, Arrays.toString(this.leftBlockingKeys),
+			this.threshold, this.useId, this.projection, Arrays.toString(this.leftBlockingKeys),
 			Arrays.toString(this.rightBlockingKeys));
+	}
+
+	/**
+	 * Returns the parameter combination under test.
+	 * 
+	 * @return the parameter combination
+	 */
+	@Parameters
+	public static Collection<Object[]> getParameters() {
+		final EvaluationExpression[] projections = { null, getAggregativeProjection() };
+		final double[] thresholds = { 0.0, 0.5, 1.0 };
+		final boolean[] useIds = { false, true };
+
+		final ArrayList<Object[]> parameters = new ArrayList<Object[]>();
+		for (final EvaluationExpression projection : projections)
+			for (final double threshold : thresholds)
+				for (final String[][] combinedBlockingKeys : CombinedBlockingKeys)
+					for (final boolean useId : useIds)
+						parameters.add(new Object[] { threshold, projection, useId, combinedBlockingKeys });
+
+		return parameters;
 	}
 
 }

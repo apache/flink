@@ -22,24 +22,24 @@ public class UnionAll extends ElementaryOperator {
 	 */
 	private static final long serialVersionUID = 8160253166221264064L;
 
-	public UnionAll(List<Operator> inputs) {
+	public UnionAll(final List<Operator> inputs) {
 		super(inputs);
 	}
 
-	public UnionAll(Operator... inputs) {
+	public UnionAll(final Operator... inputs) {
 		super(inputs);
 	}
 
 	@Override
-	public PactModule asPactModule(EvaluationContext context) {
-		int numInputs = this.getInputOperators().size();
-		PactModule module = new PactModule(this.toString(), numInputs, 1);
+	public PactModule asPactModule(final EvaluationContext context) {
+		final int numInputs = this.getInputOperators().size();
+		final PactModule module = new PactModule(this.toString(), numInputs, 1);
 
 		Contract leftInput = module.getInput(0);
 		for (int index = 1; index < numInputs; index++) {
 
-			Contract rightInput = module.getInput(index);
-			CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> union =
+			final Contract rightInput = module.getInput(index);
+			final CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> union =
 				new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
 					TwoInputUnion.class);
 			union.setFirstInput(leftInput);
@@ -58,10 +58,11 @@ public class UnionAll extends ElementaryOperator {
 	public static class TwoInputUnion extends
 			SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 		@Override
-		protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
-			for (JsonNode value : values1)
+		protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+				final JsonCollector out) {
+			for (final JsonNode value : values1)
 				out.collect(key, value);
-			for (JsonNode value : values2)
+			for (final JsonNode value : values2)
 				out.collect(key, value);
 		}
 	}

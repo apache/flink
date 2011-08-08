@@ -18,25 +18,25 @@ import java.util.ListIterator;
  * @see IdentityHashMap
  */
 public class IdentityList<E> extends AbstractList<E> {
-	private List<E> backing = new ArrayList<E>();
+	private final List<E> backing = new ArrayList<E>();
 
 	@Override
-	public boolean add(E e) {
+	public boolean add(final E e) {
 		return this.backing.add(e);
 	}
 
 	@Override
-	public void add(int index, E element) {
+	public void add(final int index, final E element) {
 		this.backing.add(index, element);
 	}
 
 	@Override
-	public boolean addAll(Collection<? extends E> c) {
+	public boolean addAll(final Collection<? extends E> c) {
 		return this.backing.addAll(c);
 	}
 
 	@Override
-	public boolean addAll(int index, Collection<? extends E> c) {
+	public boolean addAll(final int index, final Collection<? extends E> c) {
 		return this.backing.addAll(index, c);
 	}
 
@@ -46,8 +46,8 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public boolean contains(Object o) {
-		Iterator<E> e = this.iterator();
+	public boolean contains(final Object o) {
+		final Iterator<E> e = this.iterator();
 		while (e.hasNext())
 			if (e.next() == o)
 				return true;
@@ -55,8 +55,8 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public boolean containsAll(Collection<?> c) {
-		Iterator<?> e = c.iterator();
+	public boolean containsAll(final Collection<?> c) {
+		final Iterator<?> e = c.iterator();
 		while (e.hasNext())
 			if (!this.contains(e.next()))
 				return false;
@@ -64,18 +64,18 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public boolean equals(Object o) {
+	public boolean equals(final Object o) {
 		if (o == this)
 			return true;
 		if (!(o instanceof IdentityList<?>))
 			return false;
 
-		ListIterator<E> e1 = this.listIterator();
+		final ListIterator<E> e1 = this.listIterator();
 		@SuppressWarnings("rawtypes")
-		ListIterator e2 = ((List) o).listIterator();
+		final ListIterator e2 = ((List) o).listIterator();
 		while (e1.hasNext() && e2.hasNext()) {
-			E o1 = e1.next();
-			Object o2 = e2.next();
+			final E o1 = e1.next();
+			final Object o2 = e2.next();
 			if (o1 != o2)
 				return false;
 		}
@@ -83,13 +83,13 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public E get(int index) {
+	public E get(final int index) {
 		return this.backing.get(index);
 	}
 
 	@Override
-	public int indexOf(Object o) {
-		ListIterator<E> e = this.listIterator();
+	public int indexOf(final Object o) {
+		final ListIterator<E> e = this.listIterator();
 		while (e.hasNext())
 			if (e.next() == o)
 				return e.previousIndex();
@@ -107,8 +107,8 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public int lastIndexOf(Object o) {
-		ListIterator<E> e = this.listIterator(this.size());
+	public int lastIndexOf(final Object o) {
+		final ListIterator<E> e = this.listIterator(this.size());
 		while (e.hasPrevious())
 			if (e.previous() == o)
 				return e.nextIndex();
@@ -121,18 +121,18 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public ListIterator<E> listIterator(int index) {
+	public ListIterator<E> listIterator(final int index) {
 		return this.backing.listIterator(index);
 	}
 
 	@Override
-	public E remove(int index) {
+	public E remove(final int index) {
 		return this.backing.remove(index);
 	}
 
 	@Override
-	public boolean remove(Object o) {
-		ListIterator<E> e = this.listIterator();
+	public boolean remove(final Object o) {
+		final ListIterator<E> e = this.listIterator();
 		while (e.hasNext())
 			if (e.next() == o) {
 				e.remove();
@@ -142,20 +142,20 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public boolean removeAll(Collection<?> c) {
+	public boolean removeAll(final Collection<?> c) {
 		boolean modified = false;
-		for (Object object : c)
+		for (final Object object : c)
 			modified |= this.remove(object);
 		return modified;
 	}
 
 	@Override
-	public boolean retainAll(Collection<?> c) {
+	public boolean retainAll(final Collection<?> c) {
 		boolean modified = false;
-		Iterator<E> e = this.iterator();
+		final Iterator<E> e = this.iterator();
 		findUnmatchedElement: while (e.hasNext()) {
-			E element = e.next();
-			Iterator<?> otherIterator = c.iterator();
+			final E element = e.next();
+			final Iterator<?> otherIterator = c.iterator();
 			while (otherIterator.hasNext())
 				if (element == otherIterator.next())
 					continue findUnmatchedElement;
@@ -166,7 +166,7 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public E set(int index, E element) {
+	public E set(final int index, final E element) {
 		return this.backing.set(index, element);
 	}
 
@@ -176,7 +176,7 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public List<E> subList(int fromIndex, int toIndex) {
+	public List<E> subList(final int fromIndex, final int toIndex) {
 		return this.backing.subList(fromIndex, toIndex);
 	}
 
@@ -186,7 +186,7 @@ public class IdentityList<E> extends AbstractList<E> {
 	}
 
 	@Override
-	public <T> T[] toArray(T[] a) {
+	public <T> T[] toArray(final T[] a) {
 		return this.backing.toArray(a);
 	}
 

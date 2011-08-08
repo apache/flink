@@ -12,21 +12,21 @@ public class IdentifierAccess extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 4981486971746131857L;
 
-	private String identifier;
+	private final String identifier;
 
-	public IdentifierAccess(String identifier) {
+	public IdentifierAccess(final String identifier) {
 		this.identifier = identifier;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return this.identifier.equals(((IdentifierAccess) obj).identifier);
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		throw new EvaluationException(String.format("identifier %s cannot be resolved", this.identifier));
 	}
 
@@ -36,7 +36,7 @@ public class IdentifierAccess extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append(this.identifier);
 	}
 

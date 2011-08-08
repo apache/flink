@@ -12,17 +12,12 @@ import org.junit.Ignore;
 @Ignore
 public class CompactArrayNodeTest extends SopremoTest<CompactArrayNode> {
 	@Override
-	protected CompactArrayNode createDefaultInstance(int index) {
+	protected CompactArrayNode createDefaultInstance(final int index) {
 		return createCompactArray(index);
 	}
 
 	@Override
-	public void shouldComplyEqualsContract() {
-		super.shouldComplyEqualsContract();
-	}
-
-	@Override
-	protected void initVerifier(EqualsVerifier<CompactArrayNode> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<CompactArrayNode> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier
 			.withPrefabValues(List.class, Arrays.asList(createPactJsonValue("red")),
@@ -30,5 +25,10 @@ public class CompactArrayNodeTest extends SopremoTest<CompactArrayNode> {
 			.withPrefabValues(CompactArrayNode.class, createCompactArray("red"), createCompactArray("black"))
 			.withPrefabValues(ContainerNode.class, createArrayNode("red"), createArrayNode("black"))
 			.withPrefabValues(JsonNode.class, createValueNode("red"), createValueNode("black"));
+	}
+
+	@Override
+	public void shouldComplyEqualsContract() {
+		super.shouldComplyEqualsContract();
 	}
 }

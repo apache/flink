@@ -16,9 +16,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
-import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -32,11 +32,12 @@ public abstract class SopremoTest<T> {
 
 	protected Class<T> type;
 
-	@SuppressWarnings("unchecked")
-	@Before
-	public void initInstances() {
-		this.type = (Class<T>) BoundTypeUtil.getBindingOfSuperclass(this.getClass(), SopremoTest.class).getType();
-		this.createInstances();
+	protected T createDefaultInstance(final int index) {
+		try {
+			return this.type.newInstance();
+		} catch (final Exception e) {
+			return null;
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -44,18 +45,27 @@ public abstract class SopremoTest<T> {
 		this.initInstances(this.createDefaultInstance(0), this.createDefaultInstance(1), this.createDefaultInstance(2));
 	}
 
-	protected void initInstances(T first, T second, T... more) {
+	@SuppressWarnings("unchecked")
+	@Before
+	public void initInstances() {
+		this.type = (Class<T>) BoundTypeUtil.getBindingOfSuperclass(this.getClass(), SopremoTest.class).getType();
+		this.createInstances();
+	}
+
+	protected void initInstances(final T first, final T second, final T... more) {
 		this.first = first;
 		this.second = second;
 		this.more = more;
 	}
 
-	protected T createDefaultInstance(int index) {
-		try {
-			return this.type.newInstance();
-		} catch (Exception e) {
-			return null;
-		}
+	protected void initVerifier(final EqualsVerifier<T> equalVerifier) {
+		final BitSet blackBitSet = new BitSet();
+		blackBitSet.set(1);
+
+		equalVerifier.suppress(Warning.NULL_FIELDS)
+			.suppress(Warning.NONFINAL_FIELDS)
+			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
+			.usingGetClass();
 	}
 
 	/**
@@ -104,31 +114,49 @@ public abstract class SopremoTest<T> {
 	 *        another and to {@code first} and {@code second}. May also
 	 *        contain instances of subclasses of T
 	 */
-	public void shouldComplyEqualsContract(T first, T second, T... more) {
-		EqualsVerifier<T> equalVerifier = EqualsVerifier.forExamples(first, second, more);
+	public void shouldComplyEqualsContract(final T first, final T second, final T... more) {
+		final EqualsVerifier<T> equalVerifier = EqualsVerifier.forExamples(first, second, more);
 		this.initVerifier(equalVerifier);
 		equalVerifier.verify();
 	}
 
-	protected void initVerifier(EqualsVerifier<T> equalVerifier) {
-		BitSet blackBitSet = new BitSet();
-		blackBitSet.set(1);
-
-		equalVerifier.suppress(Warning.NULL_FIELDS)
-			.suppress(Warning.NONFINAL_FIELDS)
-			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
-			.usingGetClass();
+	public static ArrayNode createArrayNode(final Object... constants) {
+		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
 	}
 
-	public static PathExpression createPath(String... parts) {
-		return createPath(Arrays.asList(parts));
+	public static CompactArrayNode createCompactArray(final Object... constants) {
+		final JsonNode[] nodes = new JsonNode[constants.length];
+		for (int index = 0; index < nodes.length; index++)
+			nodes[index] = createValueNode(constants[index]);
+		return JsonUtil.asArray(nodes);
 	}
 
-	public static PathExpression createPath(List<String> parts) {
-		List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
+	public static ObjectNode createObjectNode(final Object... fields) {
+		if (fields.length % 2 != 0)
+			throw new IllegalArgumentException("must have an even number of params");
+		final ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
+		for (int index = 0; index < fields.length; index += 2)
+			objectNode.put(fields[index].toString(), JsonUtil.OBJECT_MAPPER.valueToTree(fields[index + 1]));
+		return objectNode;
+	}
+
+	public static PactJsonObject createPactJsonArray(final Object... constants) {
+		return new PactJsonObject(createArrayNode(constants));
+	}
+
+	public static PactJsonObject createPactJsonObject(final Object... fields) {
+		return new PactJsonObject(createObjectNode(fields));
+	}
+
+	public static PactJsonObject createPactJsonValue(final Object value) {
+		return new PactJsonObject(createValueNode(value));
+	}
+
+	public static PathExpression createPath(final List<String> parts) {
+		final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 		for (int index = 0; index < parts.size(); index++) {
 			EvaluationExpression segment;
-			String part = parts.get(index);
+			final String part = parts.get(index);
 			if (part.equals("$"))
 				segment = new InputSelection(0);
 			else if (part.matches("[0-9]+"))
@@ -138,7 +166,7 @@ public abstract class SopremoTest<T> {
 					segment = new LazyArrayProjection(createPath(parts.subList(index + 1, parts.size())));
 					index = parts.size();
 				} else if (part.contains(":")) {
-					int delim = part.indexOf(":");
+					final int delim = part.indexOf(":");
 					segment = new ArrayAccess(Integer.parseInt(part.substring(1, delim)),
 						Integer.parseInt(part.substring(delim + 1, part.length() - 1)));
 				} else
@@ -150,43 +178,15 @@ public abstract class SopremoTest<T> {
 		return new PathExpression(fragments);
 	}
 
-	public static PactJsonObject createPactJsonObject(Object... fields) {
-		return new PactJsonObject(createObjectNode(fields));
+	public static PathExpression createPath(final String... parts) {
+		return createPath(Arrays.asList(parts));
 	}
 
-	public static ObjectNode createObjectNode(Object... fields) {
-		if (fields.length % 2 != 0)
-			throw new IllegalArgumentException("must have an even number of params");
-		ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
-		for (int index = 0; index < fields.length; index += 2)
-			objectNode.put(fields[index].toString(), JsonUtil.OBJECT_MAPPER.valueToTree(fields[index + 1]));
-		return objectNode;
-	}
-
-	public static StreamArrayNode createStreamArray(Object... constants) {
+	public static StreamArrayNode createStreamArray(final Object... constants) {
 		return StreamArrayNode.valueOf(createArrayNode(constants).getElements(), true);
 	}
 
-	public static PactJsonObject createPactJsonArray(Object... constants) {
-		return new PactJsonObject(createArrayNode(constants));
-	}
-
-	public static ArrayNode createArrayNode(Object... constants) {
-		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
-	}
-
-	public static PactJsonObject createPactJsonValue(Object value) {
-		return new PactJsonObject(createValueNode(value));
-	}
-
-	public static JsonNode createValueNode(Object value) {
+	public static JsonNode createValueNode(final Object value) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
-	}
-
-	public static CompactArrayNode createCompactArray(Object... constants) {
-		JsonNode[] nodes = new JsonNode[constants.length];
-		for (int index = 0; index < nodes.length; index++)
-			nodes[index] = createValueNode(constants[index]);
-		return JsonUtil.asArray(nodes);
 	}
 }

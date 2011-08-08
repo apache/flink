@@ -27,12 +27,12 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	 * @param field
 	 *        the name of the field
 	 */
-	public ObjectAccess(String field) {
+	public ObjectAccess(final String field) {
 		this.field = field;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
 		return this.field.equals(((ObjectAccess) obj).field);
@@ -45,17 +45,10 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	 * such value exists.
 	 */
 	@Override
-	public JsonNode evaluate(final JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (!node.isObject())
 			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
 		return node.get(this.field);
-	}
-
-	@Override
-	public void set(JsonNode node, JsonNode value, EvaluationContext context) {
-		if (!node.isObject())
-			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
-		((ObjectNode) node).put(this.field, value);
 	}
 
 	@Override
@@ -64,7 +57,14 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	public void set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+		if (!node.isObject())
+			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
+		((ObjectNode) node).put(this.field, value);
+	}
+
+	@Override
+	protected void toString(final StringBuilder builder) {
 		builder.append('.').append(this.field);
 	}
 }

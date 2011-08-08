@@ -18,7 +18,7 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 	 */
 	private static final long serialVersionUID = -4054964985762240025L;
 
-	private Map<Operator.Output, EvaluationExpression>
+	private final Map<Operator.Output, EvaluationExpression>
 			keyProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>(),
 			valueProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>();
 
@@ -26,25 +26,25 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 
 	private EvaluationExpression defaultValueProjection = EvaluationExpression.SAME_VALUE;
 
-	public MultiSourceOperator(JsonStream... inputs) {
+	public MultiSourceOperator(final JsonStream... inputs) {
 		super(inputs);
 	}
 
-	public MultiSourceOperator(List<? extends JsonStream> inputs) {
+	public MultiSourceOperator(final List<? extends JsonStream> inputs) {
 		super(inputs);
 	}
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		int numInputs = this.getInputOperators().size();
-		SopremoModule module = new SopremoModule(this.getName(), numInputs, 1);
+		final int numInputs = this.getInputOperators().size();
+		final SopremoModule module = new SopremoModule(this.getName(), numInputs, 1);
 
-		List<Operator> inputs = new ArrayList<Operator>();
+		final List<Operator> inputs = new ArrayList<Operator>();
 		for (int index = 0; index < numInputs; index++)
 			inputs.add(new Projection(this.getKeyProjection(index), this.getValueProjection(index), module
 				.getInput(index)));
 
-		Operator lastOperator = this.createElementaryOperations(inputs);
+		final Operator lastOperator = this.createElementaryOperations(inputs);
 
 		module.getOutput(0).setInput(0,
 			new Projection(EvaluationExpression.NULL, EvaluationExpression.SAME_VALUE, lastOperator));
@@ -55,43 +55,43 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 	protected abstract Operator createElementaryOperations(List<Operator> inputs);
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		MultiSourceOperator other = (MultiSourceOperator) obj;
+		final MultiSourceOperator other = (MultiSourceOperator) obj;
 		return this.keyProjections.equals(other.keyProjections) && this.valueProjections.equals(other.valueProjections);
 	}
 
-	protected EvaluationExpression getDefaultKeyProjection(Output source) {
+	protected EvaluationExpression getDefaultKeyProjection(final Output source) {
 		return this.defaultKeyProjection;
 	}
 
-	protected EvaluationExpression getDefaultValueProjection(Output source) {
+	protected EvaluationExpression getDefaultValueProjection(final Output source) {
 		return this.defaultValueProjection;
 	}
 
-	public EvaluationExpression getKeyProjection(int index) {
+	public EvaluationExpression getKeyProjection(final int index) {
 		return this.getKeyProjection(this.getInput(index));
 	}
 
-	public EvaluationExpression getKeyProjection(JsonStream input) {
-		Output source = input == null ? null : input.getSource();
+	public EvaluationExpression getKeyProjection(final JsonStream input) {
+		final Output source = input == null ? null : input.getSource();
 		EvaluationExpression keyProjection = this.keyProjections.get(source);
 		if (keyProjection == null)
 			keyProjection = this.getDefaultKeyProjection(source);
 		return keyProjection;
 	}
 
-	public EvaluationExpression getValueProjection(int index) {
+	public EvaluationExpression getValueProjection(final int index) {
 		return this.getValueProjection(this.getInput(index));
 	}
 
-	public EvaluationExpression getValueProjection(JsonStream input) {
-		Output source = input == null ? null : input.getSource();
+	public EvaluationExpression getValueProjection(final JsonStream input) {
+		final Output source = input == null ? null : input.getSource();
 		EvaluationExpression valueProjection = this.valueProjections.get(source);
 		if (valueProjection == null)
 			valueProjection = this.getDefaultValueProjection(source);
@@ -107,30 +107,30 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 		return result;
 	}
 
-	protected void setDefaultKeyProjection(EvaluationExpression defaultKeyProjection) {
+	protected void setDefaultKeyProjection(final EvaluationExpression defaultKeyProjection) {
 		this.defaultKeyProjection = defaultKeyProjection;
 	}
 
-	protected void setDefaultValueProjection(EvaluationExpression defaultValueProjection) {
+	protected void setDefaultValueProjection(final EvaluationExpression defaultValueProjection) {
 		this.defaultValueProjection = defaultValueProjection;
 	}
 
-	public void setKeyProjection(int inputIndex, EvaluationExpression keyProjection) {
+	public void setKeyProjection(final int inputIndex, final EvaluationExpression keyProjection) {
 		this.setKeyProjection(this.getInput(inputIndex), keyProjection);
 	}
 
-	public void setKeyProjection(JsonStream input, EvaluationExpression keyProjection) {
+	public void setKeyProjection(final JsonStream input, final EvaluationExpression keyProjection) {
 		if (keyProjection == null)
 			throw new NullPointerException("keyProjection must not be null");
 
 		this.keyProjections.put(input.getSource(), keyProjection);
 	}
 
-	public void setValueProjection(int inputIndex, EvaluationExpression valueProjection) {
+	public void setValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
 		this.setValueProjection(this.getInput(inputIndex), valueProjection);
 	}
 
-	public void setValueProjection(JsonStream input, EvaluationExpression valueProjection) {
+	public void setValueProjection(final JsonStream input, final EvaluationExpression valueProjection) {
 		if (valueProjection == null)
 			throw new NullPointerException("valueProjection must not be null");
 

@@ -1,6 +1,9 @@
 package eu.stratosphere.sopremo.function;
 
+import org.codehaus.jackson.JsonNode;
+
 import eu.stratosphere.sopremo.Evaluable;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 
 /**
@@ -22,7 +25,7 @@ public abstract class Function implements Evaluable, SerializableSopremoType {
 	 * @param name
 	 *        the name of this function
 	 */
-	protected Function(String name) {
+	protected Function(final String name) {
 		this.name = name;
 	}
 
@@ -39,4 +42,6 @@ public abstract class Function implements Evaluable, SerializableSopremoType {
 	public String toString() {
 		return this.name + "()";
 	}
+	
+	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
 }

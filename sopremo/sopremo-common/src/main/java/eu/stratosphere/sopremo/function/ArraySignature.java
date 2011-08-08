@@ -19,7 +19,7 @@ public class ArraySignature extends MethodSignature {
 	 * @param arrayType
 	 *        the array parameter type
 	 */
-	public ArraySignature(Class<?> arrayType) {
+	public ArraySignature(final Class<?> arrayType) {
 		super(new Class<?>[] { arrayType });
 		if (!arrayType.isArray())
 			throw new IllegalArgumentException();
@@ -32,12 +32,12 @@ public class ArraySignature extends MethodSignature {
 	 * @return the distance or {@link MethodSignature#INCOMPATIBLE}
 	 */
 	@Override
-	public int getDistance(MethodSignature actualSignature) {
-		Class<?>[] actualParamTypes = actualSignature.getParameterTypes();
+	public int getDistance(final MethodSignature actualSignature) {
+		final Class<?>[] actualParamTypes = actualSignature.getParameterTypes();
 		if (actualParamTypes.length == 0)
 			return 1;
 
-		Class<?> componentType = this.getParameterTypes()[0].getComponentType();
+		final Class<?> componentType = this.getParameterTypes()[0].getComponentType();
 		if (actualParamTypes.length == 1 && actualParamTypes[0].isArray()
 			&& this.getParameterTypes()[0].isAssignableFrom(actualParamTypes[0]))
 			return ReflectUtil.getDistance(componentType, actualParamTypes[0].getComponentType()) + 1;

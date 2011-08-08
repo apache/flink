@@ -50,7 +50,6 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 /**
  * Tests {@link SopremoTestPlan}.
@@ -58,13 +57,104 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
  * @author Arvid Heise
  */
 public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
-	@Override
-	protected SopremoTestPlan createDefaultInstance(int index) {
-		return new SopremoTestPlan(index, 1);
+	/**
+	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.
+	 */
+	@Test
+	public void adhocInputAndOutputShouldTransparentlyWork() {
+		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
+		testPlan.getInput(0).
+			add(createPactJsonValue("test1")).
+			add(createPactJsonValue("test2"));
+		testPlan.run();
+
+		assertEquals("input and output should be equal in identity map", testPlan.getInput(0), testPlan
+			.getActualOutput(0));
+
+		// explicitly check output
+		final Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> outputIterator = testPlan.getActualOutput(0)
+			.iterator();
+		final Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> inputIterator = testPlan.getInput(0)
+			.iterator();
+		for (int index = 0; index < 2; index++) {
+			assertTrue("too few actual output values", outputIterator.hasNext());
+			assertTrue("too few input values", outputIterator.hasNext());
+			try {
+				assertEquals(inputIterator.next(), outputIterator.next());
+			} catch (final AssertionFailedError e) {
+				throw new ArrayComparisonFailure("Could not verify output values", e, index);
+			}
+		}
+		assertFalse("too few actual output values", outputIterator.hasNext());
+		assertFalse("too few input values", outputIterator.hasNext());
+	}
+
+	/**
+	 * Tests if a {@link SopremoTestPlan} can be executed.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void completeTestPasses() throws IOException {
+		final Source source = new Source(PersistenceType.HDFS, this.getResourcePath("SopremoTestPlan/test.json"));
+
+		final Identity projection = new Identity(source);
+
+		final Sink sink = new Sink(PersistenceType.HDFS, File.createTempFile(
+			"output", null).toURI().toString(), projection);
+
+		final SopremoTestPlan testPlan = new SopremoTestPlan(sink);
+		testPlan.run();
+		assertEquals("input and output should be equal in identity projection", testPlan.getInput(0), testPlan
+			.getActualOutput(0));
+	}
+
+	/**
+	 * Tests if a {@link SopremoTestPlan} can be executed.
+	 */
+	@Test
+	public void completeTestPassesWithExpectedValues() {
+		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(new Source(PersistenceType.HDFS,
+			this.getResourcePath("SopremoTestPlan/test.json"))));
+
+		testPlan.getExpectedOutput(0).setOperator(new Source(PersistenceType.HDFS,
+			this.getResourcePath("SopremoTestPlan/test.json")));
+		testPlan.run();
 	}
 
 	@Override
-	protected void initVerifier(EqualsVerifier<SopremoTestPlan> equalVerifier) {
+	protected SopremoTestPlan createDefaultInstance(final int index) {
+		return new SopremoTestPlan(index, 1);
+	}
+
+	/**
+	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.
+	 */
+	@Test
+	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
+		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
+		testPlan.getInput(0).
+			add(createPactJsonValue("test1")).
+			add(createPactJsonValue("test2"));
+		testPlan.getExpectedOutput(0).
+			add(createPactJsonValue("test1")).
+			add(createPactJsonValue("test2"));
+		testPlan.run();
+	}
+
+	private String getResourcePath(final String resource) {
+		try {
+			final Enumeration<URL> resources = SopremoTestPlan.class.getClassLoader().getResources(resource);
+			if (resources.hasMoreElements())
+				return resources.nextElement().toString();
+		} catch (final IOException e) {
+			throw new IllegalStateException(e);
+		}
+		throw new IllegalArgumentException("no resources found");
+	}
+
+	@Override
+	protected void initVerifier(final EqualsVerifier<SopremoTestPlan> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier
 			.withPrefabValues(TestPairs.class,
@@ -81,133 +171,13 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 				new SopremoTestPlan.Input(1).add(createPactJsonValue(1)));
 	}
 
-	public static class Identity extends ElementaryOperator {
-		public Identity(JsonStream input) {
-			super(input);
-		}
-
-		public static class Implementation
-				extends
-				SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-			@Override
-			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-				out.collect(key, value);
-			}
-		}
-	}
-
-	public static class CartesianProduct extends ElementaryOperator {
-		public CartesianProduct(JsonStream input1, JsonStream input2) {
-			super(input1, input2);
-		}
-
-		public static class Implementation
-				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
-			@Override
-			protected void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out) {
-				out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
-			}
-		}
-	}
-
-	/**
-	 * Tests if a {@link SopremoTestPlan} can be executed.
-	 * 
-	 * @throws IOException
-	 */
-	@Test
-	public void completeTestPasses() throws IOException {
-		final Source source = new Source(PersistenceType.HDFS, getResourcePath("SopremoTestPlan/test.json"));
-
-		final Identity projection = new Identity(source);
-
-		final Sink sink = new Sink(PersistenceType.HDFS, File.createTempFile(
-			"output", null).toURI().toString(), projection);
-
-		SopremoTestPlan testPlan = new SopremoTestPlan(sink);
-		testPlan.run();
-		assertEquals("input and output should be equal in identity projection", testPlan.getInput(0), testPlan
-			.getActualOutput(0));
-	}
-
-	private String getResourcePath(String resource) {
-		try {
-			Enumeration<URL> resources = SopremoTestPlan.class.getClassLoader().getResources(resource);
-			if (resources.hasMoreElements())
-				return resources.nextElement().toString();
-		} catch (IOException e) {
-			throw new IllegalStateException(e);
-		}
-		throw new IllegalArgumentException("no resources found");
-	}
-
-	/**
-	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.
-	 */
-	@Test
-	public void adhocInputAndOutputShouldTransparentlyWork() {
-		SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
-		testPlan.getInput(0).
-			add(createPactJsonValue("test1")).
-			add(createPactJsonValue("test2"));
-		testPlan.run();
-
-		assertEquals("input and output should be equal in identity map", testPlan.getInput(0), testPlan
-			.getActualOutput(0));
-
-		// explicitly check output
-		Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> outputIterator = testPlan.getActualOutput(0)
-			.iterator();
-		Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> inputIterator = testPlan.getInput(0).iterator();
-		for (int index = 0; index < 2; index++) {
-			assertTrue("too few actual output values", outputIterator.hasNext());
-			assertTrue("too few input values", outputIterator.hasNext());
-			try {
-				assertEquals(inputIterator.next(), outputIterator.next());
-			} catch (AssertionFailedError e) {
-				throw new ArrayComparisonFailure("Could not verify output values", e, index);
-			}
-		}
-		assertFalse("too few actual output values", outputIterator.hasNext());
-		assertFalse("too few input values", outputIterator.hasNext());
-	}
-
-	/**
-	 * Tests if a {@link SopremoTestPlan} can be executed.
-	 */
-	@Test
-	public void completeTestPassesWithExpectedValues() {
-		SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(new Source(PersistenceType.HDFS,
-				getResourcePath("SopremoTestPlan/test.json"))));
-
-		testPlan.getExpectedOutput(0).setOperator(new Source(PersistenceType.HDFS,
-				getResourcePath("SopremoTestPlan/test.json")));
-		testPlan.run();
-	}
-
-	/**
-	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.
-	 */
-	@Test
-	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
-		SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
-		testPlan.getInput(0).
-			add(createPactJsonValue("test1")).
-			add(createPactJsonValue("test2"));
-		testPlan.getExpectedOutput(0).
-			add(createPactJsonValue("test1")).
-			add(createPactJsonValue("test2"));
-		testPlan.run();
-	}
-
 	/**
 	 * Tests a {@link SopremoTestPlan} with a {@link CrossContract}.
 	 */
 	@Test
 	public void settingValuesShouldWorkWithSourceContracts() {
-		CartesianProduct cartesianProduct = new CartesianProduct(null, null);
-		SopremoTestPlan testPlan = new SopremoTestPlan(cartesianProduct);
+		final CartesianProduct cartesianProduct = new CartesianProduct(null, null);
+		final SopremoTestPlan testPlan = new SopremoTestPlan(cartesianProduct);
 		testPlan.getInputForStream(cartesianProduct.getInput(0)).
 			add(createPactJsonValue("test1")).
 			add(createPactJsonValue("test2"));
@@ -220,6 +190,47 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			add(createPactJsonArray(null, null), createPactJsonArray("test2", "test3")).
 			add(createPactJsonArray(null, null), createPactJsonArray("test2", "test4"));
 		testPlan.run();
+	}
+
+	public static class CartesianProduct extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4747731771822553359L;
+
+		public CartesianProduct(final JsonStream input1, final JsonStream input2) {
+			super(input1, input2);
+		}
+
+		public static class Implementation
+				extends
+				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
+					final JsonNode value2, final JsonCollector out) {
+				out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
+			}
+		}
+	}
+
+	public static class Identity extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6764940997115103382L;
+
+		public Identity(final JsonStream input) {
+			super(input);
+		}
+
+		public static class Implementation
+				extends
+				SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			@Override
+			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
+				out.collect(key, value);
+			}
+		}
 	}
 
 	// /**

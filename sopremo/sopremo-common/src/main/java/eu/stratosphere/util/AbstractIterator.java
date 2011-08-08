@@ -53,7 +53,7 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 			this.initialized = true;
 		}
 
-		T value = this.currentValue;
+		final T value = this.currentValue;
 		this.currentValue = this.loadNext();
 		return value;
 	}

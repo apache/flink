@@ -5,6 +5,7 @@ import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 
@@ -16,28 +17,28 @@ public class Source extends ElementaryOperator {
 
 	private String inputName;
 
-	private PersistenceType type;
+	private final PersistenceType type;
 
-	private Evaluable adhocValue;
+	private EvaluationExpression adhocValue;
 
-	public Source(PersistenceType type, String inputName) {
-		super();
-		this.inputName = inputName;
-		this.type = type;
-	}
-
-	public Source(Evaluable adhocValue) {
+	public Source(final EvaluationExpression adhocValue) {
 		super();
 		this.adhocValue = adhocValue;
 		this.type = PersistenceType.ADHOC;
 	}
 
+	public Source(final PersistenceType type, final String inputName) {
+		super();
+		this.inputName = inputName;
+		this.type = type;
+	}
+
 	@Override
-	public PactModule asPactModule(EvaluationContext context) {
+	public PactModule asPactModule(final EvaluationContext context) {
 		if (this.type == PersistenceType.ADHOC)
 			throw new UnsupportedOperationException();
-		PactModule pactModule = new PactModule(this.toString(), 0, 1);
-		DataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
+		final DataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			JsonInputFormat.class, this.inputName, this.inputName);
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
@@ -45,21 +46,27 @@ public class Source extends ElementaryOperator {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Source other = (Source) obj;
+		final Source other = (Source) obj;
 		return this.type == other.type
 			&& (this.inputName == other.inputName || this.inputName.equals(other.inputName))
 			&& (this.adhocValue == other.adhocValue || this.adhocValue.equals(other.adhocValue));
 	}
 
-	public Evaluable getAdhocValue() {
+	public EvaluationExpression getAdhocValue() {
 		return this.adhocValue;
+	}
+
+	public JsonNode getAdhocValues() {
+		if (this.type != PersistenceType.ADHOC)
+			throw new IllegalStateException();
+		return this.getAdhocValue().evaluate(NullNode.getInstance(), new EvaluationContext());
 	}
 
 	public String getInputName() {
@@ -89,11 +96,5 @@ public class Source extends ElementaryOperator {
 		default:
 			return "Source [" + this.inputName + "]";
 		}
-	}
-
-	public JsonNode getAdhocValues() {
-		if (this.type != PersistenceType.ADHOC)
-			throw new IllegalStateException();
-		return this.getAdhocValue().evaluate(NullNode.getInstance(), new EvaluationContext());
 	}
 }

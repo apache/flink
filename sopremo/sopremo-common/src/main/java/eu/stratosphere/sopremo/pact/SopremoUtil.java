@@ -37,43 +37,51 @@ import eu.stratosphere.sopremo.expressions.InputSelection;
 public class SopremoUtil {
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
 
-	public static int getInputIndex(ContainerExpression expr) {
-		InputSelection fragment = expr.find(InputSelection.class);
-		if (fragment == null)
-			return 0;
-		return fragment.getIndex();
-	}
+	private static final ThreadLocal<PactString> SerializationString = new ThreadLocal<PactString>() {
+		@Override
+		protected PactString initialValue() {
+			return new PactString();
+		};
+	};
 
-	public static int getInputIndex(EvaluationExpression expr) {
-		if (expr instanceof ContainerExpression)
-			return getInputIndex((ContainerExpression) expr);
-		else if (expr instanceof InputSelection)
-			return ((InputSelection) expr).getIndex();
-		return 0;
+	static void configureStub(final Stub<?, ?> stub, final Configuration parameters) {
+		for (final Field stubField : stub.getClass().getDeclaredFields())
+			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0)
+				if (parameters.getString(stubField.getName(), null) != null)
+					try {
+						stubField.setAccessible(true);
+						stubField.set(stub,
+							SopremoUtil.deserialize(parameters, stubField.getName(), Serializable.class));
+					} catch (final Exception e) {
+						LOG.error(String.format("Could not serialize field %s of class %s", stubField.getName(),
+							stub.getClass(), e));
+					}
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> T deserialize(Configuration config, String key, Class<T> objectClass) {
-		String string = config.getString(key, null);
+	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
+			final Class<T> objectClass) {
+		final String string = config.getString(key, null);
 		if (string == null)
 			return null;
 		return (T) stringToObject(string);
 	}
 
-	public static String objectToString(Object transformation) {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		try {
-			ObjectOutputStream out = new ObjectOutputStream(bos);
-			out.writeObject(transformation);
-			out.close();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		}
-		String string = new String(Base64.encodeBase64(bos.toByteArray()));
-		return string;
+	public static JsonNode deserializeNode(final DataInput in) throws IOException {
+		SerializationString.get().read(in);
+		final JsonParser parser = JsonUtil.FACTORY.createJsonParser(SerializationString.get().getValue());
+		parser.setCodec(JsonUtil.OBJECT_MAPPER);
+		return parser.readValueAsTree();
 	}
 
-	public static <T> T deserializeObject(ObjectInputStream ois, Class<T> clazz) throws IOException,
+	@SuppressWarnings("unchecked")
+	public static <T extends JsonNode> T deserializeNode(final DataInput in, final Class<T> expectedClass)
+			throws IOException {
+		return (T) deserializeNode(in);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(final ObjectInputStream ois, final Class<T> clazz) throws IOException,
 			ClassNotFoundException {
 		if (ois.readBoolean())
 			return (T) ois.readObject();
@@ -81,29 +89,29 @@ public class SopremoUtil {
 		T object;
 		try {
 			object = (T) Class.forName(ois.readUTF()).newInstance();
-		} catch (InstantiationException e) {
+		} catch (final InstantiationException e) {
 			throw new IOException(e);
-		} catch (IllegalAccessException e) {
+		} catch (final IllegalAccessException e) {
 			throw new IOException(e);
 		}
 
-		Map<String, Object> values = (Map<String, Object>) ois.readObject();
+		final Map<String, Object> values = (Map<String, Object>) ois.readObject();
 		BeanInfo beanInfo;
 		try {
 			beanInfo = Introspector.getBeanInfo(object.getClass());
-		} catch (IntrospectionException e) {
+		} catch (final IntrospectionException e) {
 			LOG.info(String.format("Cannot retrieve bean info for type %s: %s",
 				object.getClass(), e.getMessage()));
 			ois.readObject();
 			return object;
 		}
 
-		for (PropertyDescriptor propertyDescriptor : beanInfo.getPropertyDescriptors()) {
-			String name = propertyDescriptor.getName();
+		for (final PropertyDescriptor propertyDescriptor : beanInfo.getPropertyDescriptors()) {
+			final String name = propertyDescriptor.getName();
 			if (values.containsKey(name))
 				try {
 					propertyDescriptor.getWriteMethod().invoke(object, values.get(name));
-				} catch (Exception e) {
+				} catch (final Exception e) {
 					LOG.debug(String.format("Cannot deserialize field %s of type %s: %s", propertyDescriptor.getName(),
 						object.getClass(), e.getMessage()));
 				}
@@ -112,7 +120,48 @@ public class SopremoUtil {
 		return object;
 	}
 
-	public static void serializeObject(ObjectOutputStream oos, Object object) throws IOException {
+	public static int getInputIndex(final ContainerExpression expr) {
+		final InputSelection fragment = expr.find(InputSelection.class);
+		if (fragment == null)
+			return 0;
+		return fragment.getIndex();
+	}
+
+	public static int getInputIndex(final EvaluationExpression expr) {
+		if (expr instanceof ContainerExpression)
+			return getInputIndex((ContainerExpression) expr);
+		else if (expr instanceof InputSelection)
+			return ((InputSelection) expr).getIndex();
+		return 0;
+	}
+
+	public static String objectToString(final Object transformation) {
+		final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try {
+			final ObjectOutputStream out = new ObjectOutputStream(bos);
+			out.writeObject(transformation);
+			out.close();
+		} catch (final IOException ex) {
+			ex.printStackTrace();
+		}
+		final String string = new String(Base64.encodeBase64(bos.toByteArray()));
+		return string;
+	}
+
+	public static void serialize(final Configuration config, final String key, final Serializable object) {
+		config.setString(key, objectToString(object));
+	}
+
+	public static void serializeNode(final DataOutput out, final JsonNode value) throws IOException {
+		final StringWriter writer = new StringWriter();
+		final JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
+		generator.setCodec(JsonUtil.OBJECT_MAPPER);
+		generator.writeTree(value);
+		SerializationString.get().setValue(writer.toString());
+		SerializationString.get().write(out);
+	}
+
+	public static void serializeObject(final ObjectOutputStream oos, final Object object) throws IOException {
 		if (object instanceof Serializable) {
 			oos.writeBoolean(true);
 			oos.writeObject(object);
@@ -121,91 +170,45 @@ public class SopremoUtil {
 
 		oos.writeBoolean(false);
 		oos.writeUTF(object.getClass().getName());
-		Map<String, Object> values = new HashMap<String, Object>();
+		final Map<String, Object> values = new HashMap<String, Object>();
 		BeanInfo beanInfo;
 		try {
 			beanInfo = Introspector.getBeanInfo(object.getClass());
-		} catch (IntrospectionException e) {
+		} catch (final IntrospectionException e) {
 			LOG.info(String.format("Cannot retrieve bean info for type %s: %s",
 				object.getClass(), e.getMessage()));
 			oos.writeObject(values);
 			return;
 		}
 
-		for (PropertyDescriptor propertyDescriptor : beanInfo.getPropertyDescriptors())
+		for (final PropertyDescriptor propertyDescriptor : beanInfo.getPropertyDescriptors())
 			if (Serializable.class.isAssignableFrom(propertyDescriptor.getPropertyType()) &&
-					propertyDescriptor.getReadMethod() != null && propertyDescriptor.getWriteMethod() != null)
+				propertyDescriptor.getReadMethod() != null && propertyDescriptor.getWriteMethod() != null)
 				try {
 					values.put(propertyDescriptor.getName(), propertyDescriptor.getReadMethod().invoke(object));
-				} catch (Exception e) {
+				} catch (final Exception e) {
 					LOG.debug(String.format("Cannot serialize field %s of type %s: %s", propertyDescriptor.getName(),
 						object.getClass(), e.getMessage()));
 				}
 		oos.writeObject(values);
 	}
 
-	public static void serialize(Configuration config, String key, Serializable object) {
-		config.setString(key, objectToString(object));
-	}
-
-	public static void serializeNode(final DataOutput out, JsonNode value) throws IOException {
-		final StringWriter writer = new StringWriter();
-		JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
-		generator.setCodec(JsonUtil.OBJECT_MAPPER);
-		generator.writeTree(value);
-		SerializationString.get().setValue(writer.toString());
-		SerializationString.get().write(out);
-	}
-
-	private static final ThreadLocal<PactString> SerializationString = new ThreadLocal<PactString>() {
-		@Override
-		protected PactString initialValue() {
-			return new PactString();
-		};
-	};
-
-	@SuppressWarnings("unchecked")
-	public static <T extends JsonNode> T deserializeNode(final DataInput in, Class<T> expectedClass) throws IOException {
-		return (T) deserializeNode(in);
-	}
-
-	public static JsonNode deserializeNode(final DataInput in) throws IOException {
-		SerializationString.get().read(in);
-		JsonParser parser = JsonUtil.FACTORY.createJsonParser(SerializationString.get().getValue());
-		parser.setCodec(JsonUtil.OBJECT_MAPPER);
-		return parser.readValueAsTree();
-	}
-
-	public static void setContext(Configuration config, EvaluationContext context) {
+	public static void setContext(final Configuration config, final EvaluationContext context) {
 		serialize(config, "context", context);
 	}
 
-	public static Object stringToObject(String string) {
+	public static Object stringToObject(final String string) {
 		Object object = null;
 		try {
-			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(Base64.decodeBase64(string
+			final ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(Base64.decodeBase64(string
 				.getBytes())));
 			object = in.readObject();
 			in.close();
-		} catch (IOException ex) {
+		} catch (final IOException ex) {
 			ex.printStackTrace();
-		} catch (ClassNotFoundException e) {
+		} catch (final ClassNotFoundException e) {
 			e.printStackTrace();
 		}
 		return object;
-	}
-
-	static void configureStub(Stub<?, ?> stub, Configuration parameters) {
-		for (Field stubField : stub.getClass().getDeclaredFields())
-			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0)
-				if (parameters.getString(stubField.getName(), null) != null)
-					try {
-						stubField.setAccessible(true);
-						stubField.set(stub,
-							SopremoUtil.deserialize(parameters, stubField.getName(), Serializable.class));
-					} catch (Exception e) {
-						LOG.error(String.format("Could not serialize field %s of class %s", stubField.getName(),
-							stub.getClass(), e));
-					}
 	}
 }
