@@ -75,6 +75,12 @@ public class TaskConfig
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
 
 	private static final String INPUT_SHIP_STRATEGY = "pact.input.ship.strategy";
+	
+	private static final String INPUT_SHIP_NUM_KEYS_PREFIX = "pact.input.numkeys.";
+	
+	private static final String INPUT_SHIP_KEY_POS_PREFIX = "pact.input.keypos.";
+	
+	private static final String INPUT_SHIP_KEY_CLASS_PREFIX = "pact.input.keyclass.";
 
 	private static final String OUTPUT_SHIP_STRATEGY = "pact.output.shipstrategy";
 	
@@ -107,6 +113,8 @@ public class TaskConfig
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	//                                User code class Access
+	// --------------------------------------------------------------------------------------------
 
 	public void setStubClass(Class<?> stubClass) {
 		config.setString(STUB_CLASS, stubClass.getName());
@@ -122,6 +130,8 @@ public class TaskConfig
 		return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//                                User Code Parameters
 	// --------------------------------------------------------------------------------------------
 
 	public void setStubParameters(Configuration parameters)
@@ -153,11 +163,17 @@ public class TaskConfig
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	//                                   Input Shipping
+	// --------------------------------------------------------------------------------------------
 
 	public void addInputShipStrategy(ShipStrategy strategy) {
 		int inputCnt = config.getInteger(NUM_INPUTS, 0);
 		config.setString(INPUT_SHIP_STRATEGY + (inputCnt++), strategy.name());
 		config.setInteger(NUM_INPUTS, inputCnt);
+	}
+	
+	public int getNumInputs() {
+		return config.getInteger(NUM_INPUTS, -1);
 	}
 
 	public ShipStrategy getInputShipStrategy(int inputId) {
@@ -166,6 +182,67 @@ public class TaskConfig
 			return null;
 		}
 		return ShipStrategy.valueOf(config.getString(INPUT_SHIP_STRATEGY + inputId, ""));
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                 Local Strategies
+	// --------------------------------------------------------------------------------------------
+
+	public void setLocalStrategy(LocalStrategy strategy) {
+		config.setString(LOCAL_STRATEGY, strategy.name());
+	}
+
+	public LocalStrategy getLocalStrategy() {
+		return LocalStrategy.valueOf(config.getString(LOCAL_STRATEGY, ""));
+	}
+	
+	public void setLocalStrategyKeyParameters(int inputNum, int[] keyPositions, Class<? extends Key>[] keyTypes)
+	{			
+		this.config.setInteger(INPUT_SHIP_NUM_KEYS_PREFIX + inputNum, keyPositions.length);
+		for (int i = 0; i < keyPositions.length; i++) {
+			this.config.setInteger(INPUT_SHIP_KEY_POS_PREFIX + inputNum + '.' + i, keyPositions[i]);
+			this.config.setString(INPUT_SHIP_KEY_CLASS_PREFIX + inputNum + '.' + i, keyTypes[i].getName());
+		}
+	}
+	
+	public int[] getLocalStrategyKeyPositions(int inputNum)
+	{		
+		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS_PREFIX + inputNum, -1);
+		if (numKeys <= 0) {
+			return null;
+		}
+		
+		final int[] keyPos = new int[numKeys];
+		for (int i = 0; i < numKeys; i++) {
+			int p = this.config.getInteger(INPUT_SHIP_KEY_POS_PREFIX + inputNum + '.' + i, -1);
+			if (p >= 0) {
+				keyPos[i] = p;
+			} else {
+				throw new IllegalStateException("Config is invalid - contained number of keys, but no positions for keys."); 
+			}
+		}
+		return keyPos;
+	}
+	
+	public Class<? extends Key>[] getLocalStrategyKeyClasses(int inputNum, ClassLoader cl)
+	throws ClassNotFoundException, ClassCastException
+	{
+		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS_PREFIX + inputNum, -1);
+		if (numKeys <= 0) {
+			return null;
+		}
+		
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyTypes = (Class<? extends Key>[]) new Class[numKeys];
+		for (int i = 0; i < numKeys; i++) {
+			String name = this.config.getString(INPUT_SHIP_KEY_CLASS_PREFIX + inputNum + '.' + i, null);
+			if (name != null) {
+				keyTypes[i] = Class.forName(name, true, cl).asSubclass(Key.class);
+			} else {
+				throw new IllegalStateException("Config is invalid - contained number of keys, but no types for keys."); 
+			}
+		}
+		return keyTypes;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -192,6 +269,10 @@ public class TaskConfig
 		}
 		outputCnt++;
 		this.config.setInteger(NUM_OUTPUTS, outputCnt);
+	}
+	
+	public int getNumOutputs() {
+		return config.getInteger(NUM_OUTPUTS, -1);
 	}
 
 	public ShipStrategy getOutputShipStrategy(int outputId)
@@ -251,24 +332,6 @@ public class TaskConfig
 			}
 		}
 		return keyTypes;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-
-	public void setLocalStrategy(LocalStrategy strategy) {
-		config.setString(LOCAL_STRATEGY, strategy.name());
-	}
-
-	public LocalStrategy getLocalStrategy() {
-		return LocalStrategy.valueOf(config.getString(LOCAL_STRATEGY, ""));
-	}
-
-	public int getNumOutputs() {
-		return config.getInteger(NUM_OUTPUTS, -1);
-	}
-
-	public int getNumInputs() {
-		return config.getInteger(NUM_INPUTS, -1);
 	}
 	
 	// --------------------------------------------------------------------------------------------

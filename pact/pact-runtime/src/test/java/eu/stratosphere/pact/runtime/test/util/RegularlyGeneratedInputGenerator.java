@@ -66,6 +66,7 @@ public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<P
 		
 		target.setField(0, this.key);
 		target.setField(1, this.value);
+		target.updateBinaryRepresenation();
 		return true;
 	}
 }

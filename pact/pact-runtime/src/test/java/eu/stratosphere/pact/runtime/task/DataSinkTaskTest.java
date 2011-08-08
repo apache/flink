@@ -31,7 +31,6 @@ import org.junit.After;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
@@ -178,29 +177,45 @@ public class DataSinkTaskTest extends TaskTestBase {
 				
 	}
 	
-	public static class MockOutputFormat extends DelimitedOutputFormat {
-
+	public static class MockOutputFormat extends DelimitedOutputFormat
+	{
+		final StringBuilder bld = new StringBuilder();
+		
 		@Override
-		public abstract int serializeRecord(PactRecord rec, byte[] target) throws Exception
+		public int serializeRecord(PactRecord rec, byte[] target) throws Exception
 		{
+			PactInteger key = rec.getField(0, PactInteger.class);
+			PactInteger value = rec.getField(1, PactInteger.class);
+		
+			bld.setLength(0);
+			bld.append(key.getValue());
+			bld.append('_');
+			bld.append(value.getValue());
 			
-			return (pair.getKey().toString()+"_"+pair.getValue().toString()+"\n").getBytes();
+			byte[] bytes = bld.toString().getBytes();
+			if (bytes.length <= target.length) {
+				System.arraycopy(bytes, 0, target, 0, bytes.length);
+				return bytes.length;
+			}
+			else {
+				return -bytes.length;
+			}
 		}
 		
 	}
 	
-	public static class MockFailingOutputFormat extends TextOutputFormat<PactInteger, PactInteger> {
+	public static class MockFailingOutputFormat extends MockOutputFormat {
 
 		int cnt = 0;
 		
 		@Override
-		public byte[] writeLine(KeyValuePair<PactInteger, PactInteger> pair) {
-			if(++cnt>=10) {
+		public int serializeRecord(PactRecord rec, byte[] target) throws Exception
+		{
+			if (++cnt >= 10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			return (pair.getKey().toString()+"_"+pair.getValue().toString()+"\n").getBytes();
+			return super.serializeRecord(rec, target);
 		}
-		
 	}
-	
 }
+
