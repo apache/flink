@@ -21,6 +21,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.Queue;
@@ -31,10 +32,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.CheckpointOutgoingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeSerializer;
-import eu.stratosphere.nephele.util.StringUtils;
 
 public class ChannelCheckpoint {
 
@@ -61,6 +61,10 @@ public class ChannelCheckpoint {
 
 	private TransferEnvelopeSerializer transferEnvelopeSerializer = null;
 
+	private boolean finishCheckpoint;
+
+	private FileChannel fileInputChannel;
+
 	ChannelCheckpoint(ExecutionVertexID executionVertexID, ChannelID sourceChannelID, String tmpDir) {
 		this.executionVertexID = executionVertexID;
 		this.sourceChannelID = sourceChannelID;
@@ -84,8 +88,11 @@ public class ChannelCheckpoint {
 		if (this.isPersistent) {
 			this.writeEnvelopeToDisk(transferEnvelope);
 		} else {
+			if(!this.queuedEnvelopes.contains(transferEnvelope)){
+			//System.out.println("add transferenvelop " + transferEnvelope.getSequenceNumber());
 			// Queue the buffer until there is a checkpointing decision
 			this.queuedEnvelopes.add(transferEnvelope);
+			}
 		}
 	}
 
@@ -112,9 +119,15 @@ public class ChannelCheckpoint {
 		}
 
 		this.transferEnvelopeSerializer.setTransferEnvelope(duplicatTransferEnvelope);
-
+//		System.out.println("writing envelope " + duplicatTransferEnvelope.getSequenceNumber()); 
+		FileLock lock = this.fileChannel.lock();
 		while (this.transferEnvelopeSerializer.write(this.fileChannel));
+		lock.release();
 		transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+		if(this.finishCheckpoint){
+			transferEnvelope.getProcessingLog().setSentViaNetwork();
+		}
+		
 	}
 
 	public synchronized void makePersistent() throws IOException {
@@ -181,6 +194,7 @@ public class ChannelCheckpoint {
 		try {
 			fis = new FileInputStream(filename);
 		} catch (IOException ioe) {
+			LOG.info("IO in new FileInputstream");
 			LOG.error(ioe);
 			return;
 		}
@@ -194,28 +208,46 @@ public class ChannelCheckpoint {
 			LOG.error(ioe);
 		}
 
-		this.fileChannel = fis.getChannel();
+		this.fileInputChannel = fis.getChannel();
+		if(this.fileInputChannel == null ){
+			LOG.error("FileChannel is null");
+		}
 
 		// Start recovering
-
-		final IncomingConnection incomingConnection = new IncomingConnection(byteBufferedChannelManager,
-			this.fileChannel);
-
+		System.out.println("Recovering from " + filename);
+		//final CheckpointConnection incomingConnection = new CheckpointConnection(byteBufferedChannelManager,
+		//	this.fileInputChannel);
+		final CheckpointOutgoingConnection outgoingConnection = byteBufferedChannelManager.createOutgoingCheckpointConnection(byteBufferedChannelManager,
+			this.fileInputChannel, this.sourceChannelID);
 		try {
 			while (true) {
-				incomingConnection.read();
+				outgoingConnection.write();
 			}
 		} catch (EOFException e) {
 			// EOF Exception is expected here
 		} catch (IOException e) {
-			incomingConnection.reportTransmissionProblem(null, e);
+			e.printStackTrace();
+			outgoingConnection.reportTransmissionProblem(e);
 			// TODO: Unregister external data source
 			return;
-		} catch (InterruptedException e) {
-			LOG.info("Caught interrupted exception: " + StringUtils.stringifyException(e));
 		}
 
 		// TODO: Unregister external data source
-		incomingConnection.closeConnection(null);
+		try {
+			outgoingConnection.closeConnection();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public void finishCheckpoint() {
+		this.finishCheckpoint = true;
+	}
+	
+	public ChannelID getSourceChannelID(){
+		return this.sourceChannelID;
 	}
 }

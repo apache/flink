@@ -1,5 +1,6 @@
 /***********************************************************************************************************************
  *
+
  * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
@@ -75,5 +76,13 @@ public enum ExecutionState {
 	/**
 	 * The task has been aborted due to a failure during execution.
 	 */
-	FAILED
+	FAILED,
+	/**
+	 * The task has been failed and will be restarted.
+	 */
+	RECOVERING, 
+	/**
+	 * Recovery is finished the job is running normal again.
+	 */
+	RERUNNING;
 }

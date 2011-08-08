@@ -195,12 +195,12 @@ public class InputSplitAssigner {
 			}
 			LOG.info(topElem.getNoAssignedSplits() + ": "
 				+ topElem.getVertex().getAllocatedResource().getInstance().getInstanceConnectionInfo().getHostName());
-			for (InputSplit is : topElem.getVertex().getEnvironment().getInputSplits()) {
-				LOG.info("\t" + ((FileInputSplit) is).getPath());
-				for (String hn : is.getHostNames()) {
-					LOG.info("\t\t" + hn);
-				}
-			}
+//			for (InputSplit is : topElem.getVertex().getEnvironment().getInputSplits()) {
+//				LOG.info("\t" + ((FileInputSplit) is).getPath());
+//				for (String hn : is.getHostNames()) {
+//					LOG.info("\t\t" + hn);
+//				}
+//			}
 
 		}
 	}

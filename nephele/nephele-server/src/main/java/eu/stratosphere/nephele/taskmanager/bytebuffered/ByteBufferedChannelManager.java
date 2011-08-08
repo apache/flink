@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -385,7 +386,7 @@ public class ByteBufferedChannelManager {
 			LOG.fatal("Cannot resolve channel ID to a connection address: " + transferEnvelope.getSource());
 			return;
 		}
-
+		//LOG.info("Resolved channel ID to connection address: " + connectionAddress.getHostName());
 		// Check if there is already an existing connection to that address
 		OutgoingConnection outgoingConnection = null;
 		synchronized (this.outgoingConnections) {
@@ -567,9 +568,38 @@ public class ByteBufferedChannelManager {
 			LOG.error("Cannot find network output channel with ID " + sourceChannelID);
 			return;
 		}
+		//TODO (marrus) info to jobmanager
+		if(ioe instanceof java.net.ConnectException  ){
+			//maybe we are recovering and the adress changed
+			try {
+				InstanceConnectionInfo response = this.channelLookupService.lookupConnectionInfo(channelWrapper.getJobID(), sourceChannelID).getInstanceConnectionInfo();				
+				InetSocketAddress connectionAddress = new InetSocketAddress(response.getAddress(), response.getDataPort());
+				
+				if(this.connectionAddresses.get(sourceChannelID) != null && 
+						!response.getAddress().equals(this.connectionAddresses.get(sourceChannelID).getAddress())){
+					//out new address in the list
+					LOG.info("Adress changed from "+ this.connectionAddresses.get(sourceChannelID).getHostName()+ "to " + connectionAddress.getHostName());
+					this.connectionAddresses.put(sourceChannelID, connectionAddress);
+					return;
+				}
+				//LOG.info("Adress did NOT change "+ this.connectionAddresses.get(sourceChannelID).getHostName()+ " still " + connectionAddress.getHostName());
+				
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 
+		InetSocketAddress address = this.connectionAddresses.remove(sourceChannelID);
+		this.outgoingConnections.remove(address);
+		if(!channelWrapper.isInputChannel()){
+			ByteBufferedOutputChannelWrapper outputChannelWrapper = (ByteBufferedOutputChannelWrapper) channelWrapper;
+			ByteBufferedOutputChannelGroup channelGroup = outputChannelWrapper.getChannelGroup();
+			
+			if(channelGroup.isCheckpoint()){
+				channelGroup.finishCheckpoint();
+			}
+		}
 		if (channelWrapper.isInputChannel())
-
 			channelWrapper.reportIOException(ioe);
 	}
 
@@ -656,5 +686,30 @@ public class ByteBufferedChannelManager {
 	 */
 	public FileBufferManager getFileBufferManager() {
 		return this.fileBufferManager;
+	}
+
+	/**
+	 * @param byteBufferedChannelManager
+	 * @param fileInputChannel
+	 * @param sourceChannelID 
+	 * @return
+	 */
+	public CheckpointOutgoingConnection createOutgoingCheckpointConnection(
+			ByteBufferedChannelManager byteBufferedChannelManager, FileChannel fileInputChannel, ChannelID sourceChannelID) {
+		
+		try {
+			// Check to which host the transfer envelope shall be sent
+			final InetSocketAddress connectionAddress = getPeerConnectionAddress(sourceChannelID);
+			OutgoingConnectionThread connectionThread = new OutgoingConnectionThread();
+			
+			CheckpointOutgoingConnection outgoingConnection = new CheckpointOutgoingConnection(this, connectionAddress, connectionThread, 10, fileInputChannel);
+			this.outgoingConnections.put(connectionAddress, outgoingConnection);
+			return outgoingConnection;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 }

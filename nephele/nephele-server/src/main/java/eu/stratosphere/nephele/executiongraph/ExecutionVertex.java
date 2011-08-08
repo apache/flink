@@ -96,6 +96,13 @@ public class ExecutionVertex {
 	 * A list of {@link VertexAssignmentListener} objects to be notified about changes in the instance assignment.
 	 */
 	private List<VertexAssignmentListener> vertexAssignmentListeners = new ArrayList<VertexAssignmentListener>();
+	
+	/**
+	 * Number of Retries the Vertex has left to be executed
+	 */
+	private int retries = 3;
+
+	private boolean isCheckpoint;
 
 	/**
 	 * Create a new execution vertex and instantiates its environment.
@@ -511,7 +518,10 @@ public class ExecutionVertex {
 	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
 	 */
 	public boolean hasRetriesLeft() {
-		// TODO: Implement me
+		if(this.retries > 0){
+			this.retries--;
+			return true;
+		}
 		return false;
 	}
 
@@ -539,5 +549,26 @@ public class ExecutionVertex {
 	public void unregisterVertexAssignmentListener(VertexAssignmentListener vertexAssignmentListener) {
 
 		this.vertexAssignmentListeners.remove(vertexAssignmentListener);
+	}
+
+	/**
+	 * Mark vertex as Checkpoint
+	 */
+	public void setCheckpoint() {
+		this.isCheckpoint = true;
+	}
+	
+	/**
+	 * @return 
+	 */
+	public boolean isCheckpoint(){
+		return this.isCheckpoint;
+	}
+
+	/**
+	 * 
+	 */
+	public void discardCheckpoint() {
+		this.isCheckpoint = false;
 	}
 }

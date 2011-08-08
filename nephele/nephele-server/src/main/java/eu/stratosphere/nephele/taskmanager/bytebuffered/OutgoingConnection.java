@@ -225,10 +225,10 @@ public class OutgoingConnection {
 			if (this.currentEnvelope != null) {
 				this.byteBufferedChannelManager
 					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
-				if (this.currentEnvelope.getBuffer() != null) {
-					this.currentEnvelope.getBuffer().recycleBuffer();
-					this.currentEnvelope = null;
-				}
+//				if (this.currentEnvelope.getBuffer() != null) {
+//					this.currentEnvelope.getBuffer().recycleBuffer();
+//					this.currentEnvelope = null;
+//				}
 			}
 
 			// Notify all other tasks which are waiting for data to be transmitted
@@ -238,12 +238,12 @@ public class OutgoingConnection {
 				iter.remove();
 				this.byteBufferedChannelManager.reportIOExceptionForOutputChannel(envelope.getSource(), ioe);
 				// Recycle the buffer inside the envelope
-				if (envelope.getBuffer() != null) {
-					envelope.getBuffer().recycleBuffer();
-				}
+//				if (envelope.getBuffer() != null) {
+//					envelope.getBuffer().recycleBuffer();
+//				}
 			}
 
-			this.queuedEnvelopes.clear();
+//			this.queuedEnvelopes.clear();
 		}
 	}
 
@@ -321,7 +321,7 @@ public class OutgoingConnection {
 		if (currentTime - this.timstampOfLastRetry >= RETRYINTERVAL) {
 			this.retriesLeft--;
 			this.timstampOfLastRetry = currentTime;
-			if (this.retriesLeft == 0) {
+			if (this.retriesLeft <= 0) {
 				return false;
 			}
 		}

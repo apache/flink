@@ -21,6 +21,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -32,6 +33,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
@@ -305,9 +307,17 @@ public class FileBufferManager {
 				+ inputGate.getIndex());
 		}
 	}
-
+	public void registerChannelToOutGateMapping(final ChannelID sourceChannelID,
+			final OutputGate<? extends Record> outputGate) {
+		LOG.info("Register Mapping " + sourceChannelID);
+		final Object previousGate = this.channelGroupMap.put(sourceChannelID, outputGate);
+		if (previousGate != null) {
+			LOG.error("Source channel ID has been previously registered to input gate " + outputGate.getJobID() + ", "
+				+ outputGate.getIndex());
+		}
+	}
 	public void unregisterChannelToGateMapping(final ChannelID sourceChannelID) {
-
+		LOG.info("Unregister Mapping " + sourceChannelID);
 		final Object groupObject = this.channelGroupMap.remove(sourceChannelID);
 		if (groupObject == null) {
 			LOG.error("Source channel ID has not been registered with any input gate");

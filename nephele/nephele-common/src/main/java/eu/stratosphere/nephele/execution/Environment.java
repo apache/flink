@@ -150,6 +150,8 @@ public class Environment implements Runnable, IOReadableWritable {
 	 */
 	private volatile boolean isCanceled = false;
 
+	private boolean restarting = false;
+
 	/**
 	 * Creates a new environment object which contains the runtime information for the encapsulated Nephele task.
 	 * 
@@ -534,6 +536,28 @@ public class Environment implements Runnable, IOReadableWritable {
 				break;
 			}
 		}
+	}
+	public void restartExecution() {
+		this.restarting  = true;
+		if (this.executingThread == null) {
+			LOG.error("cancelExecution called without having created an execution thread before");
+			//return;
+		}else{
+
+		// Request user code to shut down
+		try {
+			this.invokable.cancel();
+		} catch (Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
+		}
+		try {
+			instantiateInvokable();
+			LOG.info("instantiatinvokable");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
 	}
 
 	// TODO: See if type safety can be improved here
@@ -965,8 +989,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	public void changeExecutionState(ExecutionState newExecutionState, String optionalMessage) {
 
 		// Ignore state changes in final states
-		if (this.executionState == ExecutionState.CANCELED || this.executionState == ExecutionState.FINISHED
-				|| this.executionState == ExecutionState.FAILED) {
+		if (this.executionState == ExecutionState.CANCELED || this.executionState == ExecutionState.FINISHED) {
 			return;
 		}
 
@@ -1067,9 +1090,12 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (unexpectedStateChange) {
 			LOG.error("Unexpected state change: " + this.executionState + " -> " + newExecutionState);
 		}
-
-		this.executionState = newExecutionState;
-
+		if(this.restarting && this.executionState == ExecutionState.RUNNING){
+			this.executionState = ExecutionState.RERUNNING;
+			this.restarting = false;
+		}else{
+			this.executionState = newExecutionState;
+		}
 		// Notify all the observers
 		synchronized (this.executionListeners) {
 			final Iterator<ExecutionListener> it = this.executionListeners.iterator();

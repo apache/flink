@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -34,10 +35,10 @@ public class CheckpointManager {
 
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
-	private final Map<ExecutionVertexID, EphemeralCheckpoint> checkpoints = new HashMap<ExecutionVertexID, EphemeralCheckpoint>();
-
+	private final Map<ExecutionVertexID, EphemeralCheckpoint> finishedCheckpoints = new HashMap<ExecutionVertexID, EphemeralCheckpoint>();
+	private final Map<ExecutionVertexID, EphemeralCheckpoint> ephemeralCheckpoints = new HashMap<ExecutionVertexID, EphemeralCheckpoint>();
 	private final Map<ChannelID, ExecutionVertexID> channelIDToVertexIDMap = new HashMap<ChannelID, ExecutionVertexID>();
-
+	private final Map<ChannelID, ExecutionVertexID> channelIDToVertexIDMapUnfinished = new HashMap<ChannelID, ExecutionVertexID>();
 	private final String tmpDir;
 
 	private TaskManager taskManager;
@@ -56,15 +57,15 @@ public class CheckpointManager {
 
 		final ExecutionVertexID vertexID = checkpoint.getExecutionVertexID();
 
-		synchronized (this.checkpoints) {
+		synchronized (this.finishedCheckpoints) {
 
-			if (this.checkpoints.containsKey(vertexID)) {
+			if (this.finishedCheckpoints.containsKey(vertexID)) {
 				LOG.error("Checkpoint for execution vertex ID " + vertexID + " is already registered");
 				return;
 			}
 
 			LOG.info("Registering finished checkpoint for vertex " + vertexID);
-			this.checkpoints.put(vertexID, checkpoint);
+			this.finishedCheckpoints.put(vertexID, checkpoint);
 		}
 
 		synchronized (this.channelIDToVertexIDMap) {
@@ -87,9 +88,9 @@ public class CheckpointManager {
 		EphemeralCheckpoint checkpoint = null;
 		
 		// Remove checkpoint from list of available checkpoints
-		synchronized(this.checkpoints) {
+		synchronized(this.finishedCheckpoints) {
 			
-			checkpoint = this.checkpoints.remove(vertexID);
+			checkpoint = this.finishedCheckpoints.remove(vertexID);
 		}
 		
 		if(checkpoint == null) {
@@ -141,8 +142,8 @@ public class CheckpointManager {
 		}
 
 		EphemeralCheckpoint checkpoint = null;
-		synchronized (this.checkpoints) {
-			checkpoint = this.checkpoints.get(executionVertexID);
+		synchronized (this.finishedCheckpoints) {
+			checkpoint = this.finishedCheckpoints.get(executionVertexID);
 		}
 
 		if (checkpoint == null) {
@@ -165,8 +166,46 @@ public class CheckpointManager {
 	
 	public void registerEphermalCheckpoint(EphemeralCheckpoint checkpoint){
 		this.byteBufferedChannelManager.registerOutOfWriterBuffersListener(checkpoint);
+		this.ephemeralCheckpoints.put(checkpoint.getExecutionVertexID(), checkpoint);
 	}
 	public void unregisterEphermalCheckpoint(EphemeralCheckpoint checkpoint){
 		this.byteBufferedChannelManager.unregisterOutOfWriterBuffersLister(checkpoint);
+		this.ephemeralCheckpoints.remove(checkpoint.getExecutionVertexID());
+	}
+	/**
+	 * @param executionVertexID
+	 */
+	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID,ChannelID sourceChannelID) {
+		this.taskManager.reportPersistenCheckpoint(executionVertexID);
+		this.channelIDToVertexIDMap.put(sourceChannelID,executionVertexID);
+		
+		
+	}
+	/**
+	 * @param sourceChannelID
+	 */
+	public void recoverAllChannelCheckpoints(ChannelID sourceChannelID) {
+		ExecutionVertexID executionVertexID = null;
+		synchronized (this.channelIDToVertexIDMap) {
+			executionVertexID = this.channelIDToVertexIDMap.get(sourceChannelID);
+		}
+
+		if (executionVertexID == null) {
+			LOG.error("Cannot find execution vertex ID for output channel with ID " + sourceChannelID);
+			return;
+		}
+
+		EphemeralCheckpoint checkpoint = null;
+		synchronized (this.ephemeralCheckpoints) {
+			checkpoint = this.ephemeralCheckpoints.get(executionVertexID);
+		}
+
+		if (checkpoint == null) {
+			LOG.error("Cannot find checkpoint for vertex " + executionVertexID);
+			return;
+		}
+
+		LOG.info("Recovering all checkpoints for vertex " + executionVertexID);
+		checkpoint.recoverAllChannels(this.byteBufferedChannelManager);
 	}
 }

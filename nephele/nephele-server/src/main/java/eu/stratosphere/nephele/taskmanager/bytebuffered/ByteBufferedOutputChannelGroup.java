@@ -61,6 +61,10 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 	 * Stores those channels which current hold at least one write buffer
 	 */
 	private final Set<ByteBufferedOutputChannelWrapper> channelsWithWriteBuffers = new HashSet<ByteBufferedOutputChannelWrapper>();
+	/**
+	 * Indicates whether we want to finish the Checkpoint without sending via Network, after a connection error.
+	 */
+	private boolean finishCheckpoint = false;
 
 	/**
 	 * Constructs a new byte buffered output channel group object.
@@ -143,8 +147,15 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 		}
 
 		// Check if the provided envelope must be sent via the network
-		if (processingLog.mustBeSentViaNetwork()) {
-			this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(outgoingTransferEnvelope);
+		if (processingLog.mustBeSentViaNetwork() && !processingLog.isSentViaNetwork()) {
+			//If we just want to finish the checkpoint mark the envelope as send.
+//			if(this.finishCheckpoint){
+//				System.out.println("FINSIHING CHECKPOINT");
+//				outgoingTransferEnvelope.getProcessingLog().isSentViaNetwork();
+//				
+//			}else{
+				this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(outgoingTransferEnvelope);
+//			}
 		}
 
 		if (outgoingTransferEnvelope.getBuffer() != null) {
@@ -251,5 +262,22 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 				minWrapper.reportIOException(ioe);
 			}
 		}
+	}
+	/**
+	 * returns whether the ChannelGroup is a Checkpoint
+	 * @return boolean indicating whether the checkpoint is persistent
+	 */
+	public boolean isCheckpoint(){
+		return this.ephemeralCheckpoint.isPersistent();
+	}
+
+	/**
+	 * this method is called if a connection error occurred,
+	 *  to finish the Checkpoint without sending Envelopes to over the Network.
+	 *  
+	 */
+	public void finishCheckpoint() {
+		this.finishCheckpoint  = true;
+		ephemeralCheckpoint.finishCheckpoint();
 	}
 }

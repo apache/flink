@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
@@ -256,5 +257,23 @@ public abstract class AbstractInstance extends NetworkNode {
 	public void logBufferUtilization() throws IOException {
 
 		getTaskManager().logBufferUtilization();
+	}
+
+	/**
+	 * 
+	 */
+	public void recover(ChannelID sourceChannelID) {
+		try {
+			getTaskManager().recover(sourceChannelID);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	public void recoverAll(ChannelID channelID) {
+		try {
+			getTaskManager().recoverAll(channelID);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

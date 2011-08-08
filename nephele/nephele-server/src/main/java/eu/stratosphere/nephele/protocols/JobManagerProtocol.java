@@ -17,8 +17,11 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 
@@ -69,4 +72,12 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 *        the profiling recorder to be submitted.
 	 */
 	// void sendTaskProfilingRecorder(TaskRecorder recorder);
+	
+	void reconnectChannel(ExecutionVertex failed, ExecutionVertex predecessor);
+
+	/**
+	 * @param executionVertexID
+	 * @param jobID 
+	 */
+	void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID);
 }

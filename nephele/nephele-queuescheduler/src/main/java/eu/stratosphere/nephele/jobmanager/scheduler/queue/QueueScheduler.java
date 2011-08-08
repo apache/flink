@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -411,8 +412,46 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 */
 	@Override
 	public void allocatedResourceDied(final JobID jobID, final AllocatedResource allocatedResource) {
-		// TODO Auto-generated method stub
-
+			LOG.info("Resource on " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
+		// TODO (marrus) 
+				
+			
+			ExecutionGraph job = this.jobQueue.getFirst();
+			Iterator<ExecutionGraph> iterator = this.jobQueue.descendingIterator();
+			while(job.getJobID() != jobID){
+				if(iterator.hasNext()){
+					job = iterator.next();
+				}else{
+					LOG.error("No Job with ID " + jobID + " in Queue");
+					return;
+				}
+			}
+			List<ExecutionVertex> vertices = job.getVerticesAssignedToResource(allocatedResource);
+			Iterator<ExecutionVertex> vertexIter = vertices.iterator();
+			while (vertexIter.hasNext()) {
+				ExecutionVertex vertex = vertexIter.next();
+				vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, 
+														"The Resource " + allocatedResource.getInstance().getName()+ " the Vertex " + vertex.getEnvironment().getTaskName() +  " was assigned to, died");
+				if(vertex.getExecutionState() == ExecutionState.FAILED){
+					job.executionStateChanged(vertex.getEnvironment(), ExecutionState.FAILED,"The Resource " + allocatedResource.getInstance().getName()+ " the Vertex " + vertex.getEnvironment().getTaskName() +  " was assigned to, died" );
+					return;
+				}
+				
+				vertex.setAllocatedResource(new AllocatedResource(DummyInstance.createDummyInstance(allocatedResource.getInstanceType()), allocatedResource.getInstanceType(),
+						null));
+				vertex.getEnvironment().changeExecutionState(ExecutionState.ASSIGNING, null);
+				
+			}
+			
+			
+			try {
+				LOG.info("Trying to allocate instance of type " + allocatedResource.getInstanceType().getIdentifier());
+				this.instanceManager.requestInstance(jobID, job.getJobConfiguration(),allocatedResource.getInstanceType());
+			} catch (InstanceException e) {
+				e.printStackTrace();
+			}
+			job.executionStateChanged(vertices.get(0).getEnvironment(), ExecutionState.RECOVERING, null);
+			
 	}
 
 	/**
@@ -446,5 +485,14 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 			|| newJobStatus == InternalJobStatus.CANCELED) {
 			removeJobFromSchedule(executionGraph);
 		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.jobmanager.scheduler.Scheduler#reportPersistenCheckpoint(eu.stratosphere.nephele.executiongraph.ExecutionVertexID, eu.stratosphere.nephele.jobgraph.JobID)
+	 */
+	@Override
+	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
+		getExecutionGraphByID(jobID).getVertexByID(executionVertexID).setCheckpoint();
+		
 	}
 }

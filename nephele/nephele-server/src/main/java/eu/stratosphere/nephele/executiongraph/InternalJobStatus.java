@@ -53,7 +53,12 @@ public enum InternalJobStatus {
 	/**
 	 * All of the job's tasks have successfully finished.
 	 */
-	FINISHED;
+	FINISHED,
+	
+	/**
+	 *  At least one task of the job has failed. The recovery-process is in progress.
+	 */
+	RECOVERING;
 
 	/**
 	 * Converts an internal job status in a {@link JobStatus} state.

@@ -19,6 +19,7 @@ import java.util.Set;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -75,4 +76,10 @@ public interface Scheduler extends InstanceListener {
 	 * Shuts the scheduler down. After shut down no jobs can be added to the scheduler.
 	 */
 	void shutdown();
+
+	/**
+	 * @param executionVertexID
+	 * @param jobID
+	 */
+	void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID);
 }

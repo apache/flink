@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
@@ -408,5 +409,13 @@ public class LocalScheduler implements Scheduler {
 			this.jobQueue.clear();
 		}
 
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.jobmanager.scheduler.Scheduler#reportPersistenCheckpoint(eu.stratosphere.nephele.executiongraph.ExecutionVertexID, eu.stratosphere.nephele.jobgraph.JobID)
+	 */
+	@Override
+	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
+		getExecutionGraphByID(jobID).getVertexByID(executionVertexID).setCheckpoint();
 	}
 }

@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -105,4 +106,14 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         throws if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization() throws IOException;
+
+	/**
+	 * 
+	 */
+	void recover(ChannelID sourceChannelID);
+
+	/**
+	 * 
+	 */
+	void recoverAll(ChannelID sourceChannelID);
 }

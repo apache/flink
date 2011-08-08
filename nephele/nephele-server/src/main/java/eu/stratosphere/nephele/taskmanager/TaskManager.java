@@ -54,6 +54,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
@@ -409,16 +410,18 @@ public class TaskManager implements TaskOperationProtocol {
 	// This method is called by the RPC server thread
 	private void registerOutputChannels(OutputGate<? extends Record> eog, ByteBufferedOutputChannelGroup channelGroup)
 			throws ChannelSetupException {
-
+		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
 		for (int i = 0; i < eog.getNumberOfOutputChannels(); i++) {
 
 			AbstractOutputChannel<? extends Record> eoc = eog.getOutputChannel(i);
 			if (eoc instanceof NetworkOutputChannel<?>) {
 				this.byteBufferedChannelManager.registerByteBufferedOutputChannel(
 					(AbstractByteBufferedOutputChannel<? extends Record>) eoc, channelGroup);
+				fileBufferManager.registerChannelToOutGateMapping(eoc.getID(), eog);
 			} else if (eoc instanceof FileOutputChannel<?>) {
 				this.byteBufferedChannelManager.registerByteBufferedOutputChannel(
 					(AbstractByteBufferedOutputChannel<? extends Record>) eoc, channelGroup);
+				fileBufferManager.registerChannelToOutGateMapping(eoc.getID(), eog);
 			} else if (eoc instanceof InMemoryOutputChannel<?>) {
 				this.directChannelManager
 					.registerDirectOutputChannel((AbstractDirectOutputChannel<? extends Record>) eoc);
@@ -948,5 +951,24 @@ public class TaskManager implements TaskOperationProtocol {
 			return this.profiler.getCheckpointProfilingData();
 		}
 		return null;
+	}
+
+	/**
+	 * @param executionVertexID
+	 */
+	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID) {
+		
+		this.jobManager.reportPersistenCheckpoint(executionVertexID, this.runningTasks.get(executionVertexID).getJobID());
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#recover()
+	 */
+	@Override
+	public void recover(ChannelID sourceChannelID) {
+		this.checkpointManager.recoverChannelCheckpoint(sourceChannelID);
+	}
+	public void recoverAll(ChannelID sourceChannelID) {
+		this.checkpointManager.recoverAllChannelCheckpoints(sourceChannelID);
 	}
 }

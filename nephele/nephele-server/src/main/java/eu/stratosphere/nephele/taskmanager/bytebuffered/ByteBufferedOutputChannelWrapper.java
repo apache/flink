@@ -316,4 +316,8 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 
 		return -1;
 	}
+	
+	public  ByteBufferedOutputChannelGroup getChannelGroup(){
+		return this.byteBufferedOutputChannelGroup;
+	}
 }

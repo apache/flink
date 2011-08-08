@@ -73,6 +73,7 @@ public final class QueueExecutionListener implements ExecutionListener {
 		// In case of an error, check if vertex can be rescheduled
 		if (newExecutionState == ExecutionState.FAILED) {
 			if (this.executionVertex.hasRetriesLeft()) {
+				System.out.println("Rescheduling Job");
 				// Reschedule vertex
 				this.executionVertex.setExecutionState(ExecutionState.SCHEDULED);
 			}

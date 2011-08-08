@@ -55,7 +55,28 @@ public class CheckpointFileBuffer implements InternalBuffer {
 	@Override
 	public int read(WritableByteChannel writableByteChannel) throws IOException {
 
-		throw new IllegalStateException("Read called with WritableByteChannel");
+		//throw new IllegalStateException("Read called with WritableByteChannel");
+		if (this.fileChannel == null) {
+			try {
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.sourceChannelID);
+			} catch (InterruptedException e) {
+				return -1;
+			}
+			if (this.fileChannel.position() != this.offset) {
+				System.out.println("Expected offset " + this.offset + ", but channel position is "
+					+ this.fileChannel.position());
+				this.fileChannel.position(this.offset);
+			}
+		}
+		if (this.totalBytesRead >= this.bufferSize) {
+			return -1;
+		}
+
+		final long bytesRead = this.fileChannel.transferTo(this.offset + this.totalBytesRead, this.bufferSize
+			- this.totalBytesRead, writableByteChannel);
+		this.totalBytesRead += bytesRead;
+
+		return (int) bytesRead;
 	}
 
 	@Override

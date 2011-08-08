@@ -19,11 +19,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Random;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutOfByteBuffersListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
-import eu.stratosphere.nephele.execution.Environment;
 
 /**
  * An ephemeral checkpoint is a checkpoint that can be used to recover from
@@ -81,7 +80,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 */
 	private final Map<ChannelID, ChannelCheckpoint> channelCheckpoints = new HashMap<ChannelID, ChannelCheckpoint>();
 
-	private boolean decided = false;
+	private boolean finishCheckpoint = false;
 	
 	/**
 	 * Constructs a new ephemeral checkpoint.
@@ -251,14 +250,12 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 				discardCheckpoint();
 			}else{
 				//just for testing random checkpointing
-				Random random = new Random(System.currentTimeMillis());
-				boolean checkp = random.nextBoolean();
+				//Random random = new Random(System.currentTimeMillis());
+				//boolean checkp = random.nextBoolean();
 				
-				if(checkp){
+				
 					makeCheckpointPersistent();
-				}else{
-					discardCheckpoint();
-				}
+				
 			}
 		}else{
 			LOG.info("Discarding Checkpoint no profiling data");
@@ -349,7 +346,28 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 
 		thread.start();
 	}
+	/**
+	 * Recovers all output channels which has been previously been included this checkpoint.
+	 * 
+	 * @param byteBufferedChannelManager
+	 *        the byte buffered channel manager
+	 *
+	 */
+	public synchronized void recoverAllChannels(ByteBufferedChannelManager byteBufferedChannelManager) {
 
+		
+
+		Iterator<ChannelID> channelIDIterator = this.channelCheckpoints.keySet().iterator();
+		while(channelIDIterator.hasNext()){
+			
+			ChannelID channelID = channelIDIterator.next();
+			LOG.info("Recovering " +channelID);
+		final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
+			this.channelCheckpoints.get(channelID), channelID);
+
+		thread.start();
+		}
+	}
 	/**
 	 * Discards the checkpoint. All data which is either kept in main memory or written to disk
 	 * is removed.
@@ -389,8 +407,12 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 
 		try {
 			final Iterator<ChannelCheckpoint> it = this.channelCheckpoints.values().iterator();
+			
 			while (it.hasNext()) {
-				it.next().makePersistent();
+				ChannelCheckpoint next = it.next();
+				LOG.info("Creating permanent channel " + next.getSourceChannelID());
+				this.checkpointManager.reportPersistenCheckpoint(this.executionVertexID,next.getSourceChannelID() );
+				next.makePersistent();
 			}
 			LOG.info("All Checkpoints persistent");
 		} catch (IOException ioe) {
@@ -402,11 +424,22 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			return;
 		}
 
-		//TODO: Uncomment this when feature is full implemented
+		
 		this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 	}
 
 	public boolean isDecided(){
 		return this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED;
+	}
+
+	/**
+	 * 
+	 */
+	public void finishCheckpoint() {
+		this.finishCheckpoint  = true;
+		Iterator<ChannelCheckpoint> channelCheckpointIterator = this.channelCheckpoints.values().iterator();
+		while(channelCheckpointIterator.hasNext()){
+			channelCheckpointIterator.next().finishCheckpoint();
+		}
 	}
 }

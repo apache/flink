@@ -126,6 +126,8 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private List<JobStatusListener> jobStatusListeners = new ArrayList<JobStatusListener>();
 
+	private List<ExecutionVertex> recovering = new ArrayList<ExecutionVertex>();
+
 	/**
 	 * Private constructor used for duplicating execution vertices.
 	 * 
@@ -1057,28 +1059,33 @@ public class ExecutionGraph implements ExecutionListener {
 		}
 
 		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
-
+		
 		for (int i = 0; i < nextStage.getNumberOfStageMembers(); i++) {
 			final ExecutionGroupVertex groupVertex = nextStage.getStageMember(i);
 
 			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
 				// Get the instance type from the execution vertex if it
 				final ExecutionVertex vertex = groupVertex.getGroupMember(j);
+				
 				if (vertex.getExecutionState() == executionState) {
+					LOG.info("stage " + nextStage.getStageNumber() + " members " + nextStage.getNumberOfStageMembers());
+					LOG.info("Found " + groupVertex.getName());
 					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
 					if (collectedInstances.contains(instance)) {
+						
 						continue;
 					} else {
 						collectedInstances.add(instance);
 					}
-
+					
 					if (instance instanceof DummyInstance) {
+						LOG.info("Dummy Instace");
 						Integer num = instanceTypeMap.get(instance.getType());
 						num = (num == null) ? Integer.valueOf(1) : Integer.valueOf(num.intValue() + 1);
 						instanceTypeMap.put(instance.getType(), num);
 					} else {
-						LOG.debug("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
+						LOG.info("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
 							+ ") is already assigned to non-dummy instance, skipping...");
 					}
 				}
@@ -1368,8 +1375,19 @@ public class ExecutionGraph implements ExecutionListener {
 					}
 				}
 			}
+			if (latestStateChange == ExecutionState.RECOVERING) {
+				
+				this.jobStatus = InternalJobStatus.RECOVERING;
+				return;
+			}
 			if (jobHasFinishedStatus()) {
 				this.jobStatus = InternalJobStatus.FINISHED;
+			}
+			break;
+		case RECOVERING:
+			if(latestStateChange == ExecutionState.RERUNNING){
+				this.recovering.clear();
+				this.jobStatus = InternalJobStatus.RUNNING;
 			}
 			break;
 		case FAILING:
@@ -1412,9 +1430,12 @@ public class ExecutionGraph implements ExecutionListener {
 			String optionalMessage) {
 
 		final InternalJobStatus oldStatus = this.jobStatus;
-
+		LOG.info(newExecutionState);
+		if(newExecutionState == ExecutionState.RERUNNING){
+			this.recovering.remove(getVertexByEnvironment(ee));
+		}
 		checkAndUpdateJobStatus(newExecutionState);
-
+		
 		if (newExecutionState == ExecutionState.FINISHED) {
 			// It is worth checking if the current stage has complete
 			if (this.isCurrentStageCompleted()) {
@@ -1422,7 +1443,11 @@ public class ExecutionGraph implements ExecutionListener {
 				++this.indexToCurrentExecutionStage;
 			}
 		}
-
+		if (this.jobStatus == InternalJobStatus.RECOVERING){
+			 LOG.info("RECOVERING");
+			//FIXME (marrus) see if we even need that
+			this.recovering.add(this.getVertexByEnvironment(ee));
+		}
 		if (this.jobStatus != oldStatus) {
 
 			// The task caused the entire job to fail, save the error description
@@ -1434,7 +1459,7 @@ public class ExecutionGraph implements ExecutionListener {
 			if (this.jobStatus == InternalJobStatus.FAILED) {
 				optionalMessage = this.errorDescription;
 			}
-
+			
 			final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
 			while (it.hasNext()) {
 				it.next().jobStatusHasChanged(this, this.jobStatus, optionalMessage);
@@ -1499,7 +1524,6 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
 	public void userThreadStarted(Environment ee, Thread userThread) {
 		// Nothing to do here
 	}
@@ -1513,24 +1537,38 @@ public class ExecutionGraph implements ExecutionListener {
 
 		final List<ExecutionVertex> list = new ArrayList<ExecutionVertex>();
 		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
-
+		//FIXME (marrus)
 		// In the current implementation we just look for vertices which have outgoing file channels
 		while (it.hasNext()) {
 
 			final ExecutionGroupVertex groupVertex = it.next();
+			for(int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++){
+				if(groupVertex.getGroupMember(j).isCheckpoint()){
+
+					list.add(groupVertex.getGroupMember(j));
+					LOG.info("add Checkpoint " + groupVertex.getName());
+				}
+			}
 			for (int i = 0; i < groupVertex.getNumberOfForwardLinks(); i++) {
 
 				if (groupVertex.getForwardEdge(i).getChannelType() == ChannelType.FILE) {
 
 					for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
-						list.add(groupVertex.getGroupMember(j));
+						if(!list.contains(groupVertex.getGroupMember(j))){
+							list.add(groupVertex.getGroupMember(j));
+						}
 					}
 
 					break;
 				}
+
+				
 			}
 		}
 
 		return list;
+	}
+	public List<ExecutionVertex> getFailedVertices(){
+		return this.recovering;
 	}
 }

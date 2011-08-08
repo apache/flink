@@ -199,13 +199,14 @@ public class ClusterManager implements InstanceManager {
 			synchronized (ClusterManager.this) {
 
 				final List<Map.Entry<InstanceConnectionInfo, ClusterInstance>> hostsToRemove = new ArrayList<Map.Entry<InstanceConnectionInfo, ClusterInstance>>();
-
+				final List<ClusterInstance> hosts = new ArrayList<ClusterInstance>();
+				hosts.addAll(registeredHosts.values());
 				// check all hosts whether they did not send heat-beat messages.
-				for (Map.Entry<InstanceConnectionInfo, ClusterInstance> entry : registeredHosts.entrySet()) {
+				for (ClusterInstance host: hosts) {
 
-					final ClusterInstance host = entry.getValue();
+					
 					if (!host.isStillAlive(cleanUpInterval)) {
-
+						LOG.error("Lost Heartbeat for " + host.getInstanceConnectionInfo().getAddress());
 						// this host has not sent the heat-beat messages
 						// -> we terminate all instances running on this host and notify the jobs
 						final List<AllocatedSlice> removedSlices = host.removeAllAllocatedSlices();
@@ -219,7 +220,8 @@ public class ClusterManager implements InstanceManager {
 							}
 
 							slicesOfJob.remove(removedSlice);
-
+							registeredHosts.remove(host.getInstanceConnectionInfo());
+							LOG.info("New number of registered hosts is " + registeredHosts.size());
 							// Clean up
 							if (slicesOfJob.isEmpty()) {
 								slicesOfJobs.remove(jobID);
@@ -231,15 +233,18 @@ public class ClusterManager implements InstanceManager {
 									new AllocatedResource(
 										removedSlice.getHostingInstance(), removedSlice.getType(), removedSlice
 											.getAllocationID()));
+								
 							}
 						}
-
-						hostsToRemove.add(entry);
+						
+						//hostsToRemove.add(entry);
 					}
 				}
 
-				registeredHosts.entrySet().removeAll(hostsToRemove);
-
+				//registeredHosts.entrySet().removeAll(hostsToRemove);
+				//if(!hostsToRemove.isEmpty()){
+				//	LOG.info("New number of registered hosts is " + registeredHosts.size());
+				//}
 				updateInstaceTypeDescriptionMap();
 			}
 		}
@@ -719,6 +724,7 @@ public class ClusterManager implements InstanceManager {
 						this.instanceListener, slice);
 					clusterInstanceNotifier.start();
 				}
+				LOG.info("Created Slice on " + host.getName());
 				return;
 			}
 		}

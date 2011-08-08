@@ -72,6 +72,7 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
@@ -82,6 +83,7 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
@@ -124,7 +126,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol,
-		JobStatusListener {
+		JobStatusListener{
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -763,6 +765,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		final ChannelID targetChannelID = sourceChannel.getConnectedChannelID();
 		
 		final ExecutionVertex vertex = eg.getVertexByChannelID(targetChannelID);
+		
 		if (vertex == null) {
 			LOG.error("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
@@ -776,7 +779,7 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 		// TODO: Start vertex if in lazy mode
 
 		final AbstractInstance assignedInstance = vertex.getAllocatedResource().getInstance();
-
+		System.out.println("-- " + assignedInstance.getName() + " found");
 		if (assignedInstance == null) {
 			LOG.debug("Cannot resolve lookup: vertex found for channel ID " + targetChannelID
 				+ " but no instance assigned");
@@ -984,6 +987,14 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 			// Unregister job for Nephele's monitoring and optimization components
 			unregisterJob(executionGraph);
 		}
+		if(newJobStatus == InternalJobStatus.RECOVERING){
+			try {
+				RecoveryThread recoverythread = new RecoveryThread(executionGraph, this);
+				recoverythread.run();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/**
@@ -1037,5 +1048,23 @@ public class JobManager implements ExtendedManagementProtocol, JobManagerProtoco
 
 		// Hand over to the executor service
 		this.executorService.execute(requestRunnable);
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.JobManagerProtocol#reconnectChannel(eu.stratosphere.nephele.executiongraph.ExecutionVertex, eu.stratosphere.nephele.executiongraph.ExecutionVertex)
+	 */
+	@Override
+	public void reconnectChannel(ExecutionVertex failed, ExecutionVertex predecessor) {
+		
+		
+		
+	 //TODO (marrus)
+	}
+
+
+	@Override
+	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
+		this.scheduler.reportPersistenCheckpoint(executionVertexID,jobID);
+
 	}
 }

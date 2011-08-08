@@ -105,14 +105,15 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 				return null;
 			}
 
-			this.recordLength = byteArrayToInt(lengthBuf.array());
+			this.recordLength = byteArrayToInt(this.lengthBuf.array());
+			System.out.println("INCOMING record length " + this.recordLength);
 
 			if (this.tempBuffer == null) {
-				tempBuffer = ByteBuffer.allocate(recordLength);
+				this.tempBuffer = ByteBuffer.allocate(this.recordLength);
 			}
 
-			if (this.tempBuffer.capacity() < recordLength) {
-				tempBuffer = ByteBuffer.allocate(recordLength);
+			if (this.tempBuffer.capacity() < this.recordLength) {
+				this.tempBuffer = ByteBuffer.allocate(this.recordLength);
 			}
 
 			// Important: limit the number of bytes that can be read into the buffer
