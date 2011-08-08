@@ -37,16 +37,16 @@ import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
+import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
-import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.util.LastRepeatableIterator;
+import eu.stratosphere.pact.runtime.util.NepheleReaderIterator;
 
 /**
  * Cross task which is executed by a Nephele task manager. The task has two
@@ -85,7 +85,7 @@ public class CrossTask extends AbstractTask
 
 	// spilling resettable iterator for inner input
 	private SpillingResettableIterator<KeyValuePair<Key, Value>> spillingResetIt = null;
-	private BlockResettableIterator<KeyValuePair<Key, Value>> blockResetIt = null;
+	private BlockResettableMutableObjectIterator<KeyValuePair<Key, Value>> blockResetIt = null;
 	
 	// the memory dedicated to the sorter
 	private long availableMemory;
@@ -348,7 +348,7 @@ public class CrossTask extends AbstractTask
 	 * read using a SpillingResettableIterator.
 	 * 
 	 * @see eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator
-	 * @see eu.stratosphere.pact.runtime.resettable.BlockResettableIterator
+	 * @see eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator
 	 * @param memoryManager
 	 *        The task manager's memory manager.
 	 * @param ioManager
@@ -368,7 +368,7 @@ public class CrossTask extends AbstractTask
 		// spilling iterator for inner side
 		SpillingResettableIterator<KeyValuePair<Key, Value>> innerInput = null;
 		// blocked iterator for outer side
-		BlockResettableIterator<KeyValuePair<Key, Value>> outerInput = null;
+		BlockResettableMutableObjectIterator<KeyValuePair<Key, Value>> outerInput = null;
 
 		try {
 			final boolean firstInputIsOuter;
@@ -387,7 +387,7 @@ public class CrossTask extends AbstractTask
 				}
 				// obtain blocked iterator (outer side) for second input
 				try {
-					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager,
+					outerInput = new BlockResettableMutableObjectIterator<KeyValuePair<Key, Value>>(memoryManager,
 							outerReader,
 							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), 
 								stub.getSecondInValueType()), this);
@@ -410,7 +410,7 @@ public class CrossTask extends AbstractTask
 				}
 				// obtain blocked iterator (outer side) for second input
 				try {
-					outerInput = new BlockResettableIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
+					outerInput = new BlockResettableMutableObjectIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
 							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
 							.getFirstInValueType()), this);
 					this.blockResetIt = outerInput;

@@ -17,18 +17,14 @@ package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
 import java.util.Comparator;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -38,13 +34,9 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @author Fabian Hueske
  * @author Stephan Ewen
- * 
- * @param <K> The key class
- * @param <V> The value class
  */
-public class AsynchronousPartialSorter<K extends Key, V extends Value> extends UnilateralSortMerger<K, V>
+public class AsynchronousPartialSorter extends UnilateralSortMerger
 {
-	
 	private BufferQueueIterator bufferIterator;
 	
 	// ------------------------------------------------------------------------
@@ -57,32 +49,26 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
-	 * @param ioMemory The amount of memory to be dedicated to writing sorted runs. Will be subtracted from the total
-	 *                 amount of memory (<code>totalMemory</code>).
-	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
-	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keySerialization The serializer/deserializer for the keys.
-	 * @param valueSerialization The serializer/deserializer for the values.
-	 * @param keyComparator The comparator used to define the order among the keys.
-	 * @param reader The reader from which the input is drawn that will be sorted.
+	 * @param keyComparators The comparator used to define the order among the keys.
+	 * @param keyPositions The logical positions of the keys in the records.
+	 * @param keyClasses The types of the keys.
+	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public AsynchronousPartialSorter(MemoryManager memoryManager, IOManager ioManager,
-			long totalMemory,
-			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
-			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask)
+	public AsynchronousPartialSorter(
+			MemoryManager memoryManager, IOManager ioManager, long totalMemory,
+			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, totalMemory, 
 			0,
 			totalMemory < 2 * MIN_SORT_BUFFER_SIZE ? 1 : Math.max((int) Math.ceil(totalMemory / (64.0 * 1024 * 1024)), 2),
-			2,
-			keySerialization, valueSerialization, keyComparator, reader, parentTask, 0.0f);
+			2, keyComparators, keyPositions, keyClasses, input, parentTask, 0.0f);
 	}
 
 	// ------------------------------------------------------------------------
@@ -107,7 +93,6 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 		setResultIterator(this.bufferIterator);
 		
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
-			this.keySerialization, this.valueSerialization,
 			writeMemSize, readMemSize,
 			parentTask);
 	}
@@ -140,7 +125,6 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 	{
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
-				SerializationFactory<K> keySerializer, SerializationFactory<V> valSerializer,
 				long writeMemSize, long readMemSize,
 				AbstractTask parentTask)
 		{
@@ -162,13 +146,13 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 	 * The iterator returns the values of a given
 	 * interval.
 	 */
-	private final class BufferQueueIterator implements Iterator<KeyValuePair<K, V>>
+	private final class BufferQueueIterator implements MutableObjectIterator<PactRecord>
 	{
 		private final CircularQueues queues;
 		
 		private CircularElement currentElement;
 		
-		private Iterator<KeyValuePair<K, V>> currentIterator;
+		private MutableObjectIterator<PactRecord> currentIterator;
 		
 		private volatile boolean closed = false;
 
@@ -187,8 +171,9 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 		 * @see java.util.Iterator#hasNext()
 		 */
 		@Override
-		public boolean hasNext() {
-			if (this.currentIterator != null &&  this.currentIterator.hasNext()) {
+		public boolean next(PactRecord target) throws IOException
+		{
+			if (this.currentIterator != null && this.currentIterator.next(target)) {
 				return true;
 			}
 			else if (this.closed) {
@@ -221,36 +206,12 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 					}
 					
 					this.currentIterator = this.currentElement.buffer.getIterator();
-					if (this.currentIterator.hasNext()) {
+					if (this.currentIterator.next(target)) {
 						return true;
 					}
 					this.currentIterator = null;
 				}
 			}
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#next()
-		 */
-		@Override
-		public KeyValuePair<K, V> next()
-		{
-			if (hasNext()) {
-				return this.currentIterator.next();
-			}
-			else {
-				throw new NoSuchElementException();
-			}
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#remove()
-		 */
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
 		}
 		
 		public void close() {

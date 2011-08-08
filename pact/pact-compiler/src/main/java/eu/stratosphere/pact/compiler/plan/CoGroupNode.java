@@ -51,7 +51,7 @@ public class CoGroupNode extends TwoInputNode {
 	 * @param pactContract
 	 *        The CoGroup contract object.
 	 */
-	public CoGroupNode(CoGroupContract<?, ?, ?, ?, ?> pactContract) {
+	public CoGroupNode(CoGroupContract pactContract) {
 		super(pactContract);
 		
 		// see if an internal hint dictates the strategy to use
@@ -107,8 +107,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * 
 	 * @return The contract.
 	 */
-	public CoGroupContract<?, ?, ?, ?, ?> getPactContract() {
-		return (CoGroupContract<?, ?, ?, ?, ?>) super.getPactContract();
+	public CoGroupContract getPactContract() {
+		return (CoGroupContract) super.getPactContract();
 	}
 
 	/*

@@ -15,13 +15,15 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.util.Iterator;
-
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
-public class RegularlyGeneratedInputGenerator implements Iterator<KeyValuePair<PactInteger, PactInteger>> {
+public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<PactRecord> {
 
+	private final PactInteger key = new PactInteger();
+	private final PactInteger value = new PactInteger();
+	
 	int numKeys;
 	int numVals;
 	
@@ -34,53 +36,37 @@ public class RegularlyGeneratedInputGenerator implements Iterator<KeyValuePair<P
 		this.numVals = numVals;
 		this.repeatKey = repeatKey;
 	}
-	
-	@Override
-	public boolean hasNext() {
-		if(!repeatKey) {
-			if(valCnt < numVals) {
-				return true;
-			} else {
-				return false;
-			}
-		} else {
-			if(keyCnt < numKeys) {
-				return true;
-			} else {
-				return false;
-			}
-		}
-	}
 
 	@Override
-	public KeyValuePair<PactInteger, PactInteger> next() {
+	public boolean next(PactRecord target) {
 		if(!repeatKey) {
-			PactInteger key = new PactInteger(keyCnt++);
-			PactInteger val = new PactInteger(valCnt);
+			if(valCnt >= numVals) {
+				return false;
+			}
+			
+			key.setValue(keyCnt++);
+			value.setValue(valCnt);
 			
 			if(keyCnt == numKeys) {
 				keyCnt = 0;
 				valCnt++;
 			}
-		
-			return new KeyValuePair<PactInteger, PactInteger>(key,val);
-			
 		} else {
-			PactInteger key = new PactInteger(keyCnt);
-			PactInteger val = new PactInteger(valCnt++);
+			if(keyCnt >= numKeys) {
+				return false;
+			}
+			key.setValue(keyCnt);
+			value.setValue(valCnt++);
 			
 			if(valCnt == numVals) {
 				valCnt = 0;
 				keyCnt++;
 			}
-		
-			return new KeyValuePair<PactInteger, PactInteger>(key,val);
 		}
+		
+		target.setField(0, this.key);
+		target.setField(1, this.value);
+		target.updateBinaryRepresenation();
+		return true;
 	}
-
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
-
 }

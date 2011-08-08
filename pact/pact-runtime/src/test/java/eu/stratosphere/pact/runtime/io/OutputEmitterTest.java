@@ -19,7 +19,8 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
@@ -30,14 +31,16 @@ public class OutputEmitterTest extends TestCase {
 	@Test
 	public static void testPartitioning() {
 
-		OutputEmitter<PactInteger, PactInteger> oe = new OutputEmitter<PactInteger, PactInteger>(ShipStrategy.PARTITION_HASH);
+		@SuppressWarnings("unchecked")
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
 
 		int[] hit = new int[100];
 
 		for (int i = 0; i < 1000000; i++) {
 			PactInteger k = new PactInteger(i);
-
-			hit[oe.selectChannels(new KeyValuePair<PactInteger, PactInteger>(k, k), hit.length)[0]]++;
+			PactRecord rec = new PactRecord(k);
+			
+			hit[oe1.selectChannels(rec, hit.length)[0]]++;
 
 		}
 
@@ -45,21 +48,21 @@ public class OutputEmitterTest extends TestCase {
 			assertTrue(hit[i] > 0);
 		}
 
-		OutputEmitter<PactString, PactString> oes = new OutputEmitter<PactString, PactString>(ShipStrategy.PARTITION_HASH);
+		@SuppressWarnings("unchecked")
+		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
 
 		hit = new int[10];
 
 		for (int i = 0; i < 1000; i++) {
 			PactString k = new PactString(i + "");
-
-			hit[oes.selectChannels(new KeyValuePair<PactString, PactString>(k, k), hit.length)[0]]++;
+			PactRecord rec = new PactRecord(k);
+				
+			hit[oe2.selectChannels(rec, hit.length)[0]]++;
 
 		}
 
 		for (int i = 0; i < hit.length; i++) {
 			assertTrue(hit[i] > 0);
 		}
-
 	}
-
 }

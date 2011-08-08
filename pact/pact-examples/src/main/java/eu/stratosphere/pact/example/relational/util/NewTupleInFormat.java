@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.example.relational.util;
 
-import eu.stratosphere.pact.common.recordio.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 public class NewTupleInFormat extends DelimitedInputFormat

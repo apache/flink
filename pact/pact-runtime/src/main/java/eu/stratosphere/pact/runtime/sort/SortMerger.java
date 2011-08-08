@@ -15,23 +15,16 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
-import java.util.Iterator;
-
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * The SortMerger interface representing the public interface to all specific Sort-Merge implementations.
  * 
  * @author Erik Nijkamp
- * @param <K>
- *        Key class
- * @param <V>
- *        value class
  */
-public interface SortMerger<K extends Key, V extends Value> extends CloseableInputProvider<KeyValuePair<K, V>>
+public interface SortMerger extends CloseableInputProvider<PactRecord>
 {
-	Iterator<KeyValuePair<K, V>> getIterator() throws InterruptedException;
+	MutableObjectIterator<PactRecord> getIterator() throws InterruptedException;
 }

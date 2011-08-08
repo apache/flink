@@ -20,9 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Describes the base interface that is used describe an input that produces records that are processed
@@ -56,12 +54,10 @@ import eu.stratosphere.pact.common.type.Value;
  * @see BaseStatistics
  * 
  * @param <T> The type of input split.
- * @param <K> The type of the key.
- * @param <V> The type of the value.
  * 
  * @author Stephan Ewen
  */
-public interface InputFormat<T extends InputSplit, K extends Key, V extends Value>
+public interface InputFormat<T extends InputSplit>
 {
 	/**
 	 * The key by which the identifier to retrieve cached statistics can be obtained. 
@@ -147,7 +143,7 @@ public interface InputFormat<T extends InputSplit, K extends Key, V extends Valu
 	 *         
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */
-	public boolean nextRecord(KeyValuePair<K, V> record) throws IOException;
+	public boolean nextRecord(PactRecord record) throws IOException;
 	
 	/**
 	 * Method that marks the end of the life-cycle of an input split. Should be used to close channels and streams
@@ -159,7 +155,4 @@ public interface InputFormat<T extends InputSplit, K extends Key, V extends Valu
 	 */
 	public void close() throws IOException;
 	
-	
-	
-	public KeyValuePair<K, V> createPair();
 }

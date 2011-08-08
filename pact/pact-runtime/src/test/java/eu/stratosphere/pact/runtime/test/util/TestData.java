@@ -22,7 +22,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Random;
 
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * Test data utilities classes.
@@ -62,6 +63,10 @@ public final class TestData {
 
 		public int getKey() {
 			return key;
+		}
+		
+		public void setKey(int key) {
+			this.key = key;
 		}
 
 		@Override
@@ -112,6 +117,10 @@ public final class TestData {
 		public String getValue() {
 			return value;
 		}
+		
+		public void setValue(String value) {
+			this.value = value;
+		}
 
 		@Override
 		public void read(DataInput in) throws IOException {
@@ -142,7 +151,7 @@ public final class TestData {
 	/**
 	 * Pair generator.
 	 */
-	public static class Generator {
+	public static class Generator implements MutableObjectIterator<PactRecord>{
 		public enum KeyMode {
 			SORTED, RANDOM
 		};
@@ -150,10 +159,6 @@ public final class TestData {
 		public enum ValueMode {
 			FIX_LENGTH, RANDOM_LENGTH
 		};
-
-		public enum CreationMode {
-			MUTABLE, IMMUTABLE
-		}
 
 		private static char[] alpha = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'a', 'b', 'c',
 			'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm' };
@@ -168,61 +173,45 @@ public final class TestData {
 
 		private final ValueMode valueMode;
 
-		private final CreationMode creationMode;
-
 		private Random random;
 
 		private int counter;
 
-		private KeyValuePair<Key, Value> pair;
+		private Key key;
+		private Value value;
 
 		public Generator(long seed, int keyMax, int valueLength) {
 			this(seed, keyMax, valueLength, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		}
 
 		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode) {
-			this(seed, keyMax, valueLength, keyMode, valueMode, CreationMode.IMMUTABLE);
-		}
-
-		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode,
-				CreationMode creationMode) {
 			this.seed = seed;
 			this.keyMax = keyMax;
 			this.valueLength = valueLength;
 			this.keyMode = keyMode;
 			this.valueMode = valueMode;
-			this.creationMode = creationMode;
 
 			this.random = new Random(seed);
 			this.counter = 0;
+			
+			this.key = new Key();
+			this.value = new Value();
 		}
 
-		public KeyValuePair<Key, Value> next() {
-			if (creationMode == CreationMode.IMMUTABLE) {
-				Key key = new Key(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-				Value value = new Value(randomString());
-
-				return new KeyValuePair<Key, Value>(key, value);
-			} else {
-				if (pair == null) {
-					Key key = new Key(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-					Value value = new Value(randomString());
-
-					pair = new KeyValuePair<Key, Value>(key, value);
-				} else {
-					pair.getKey().key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
-					pair.getValue().value = randomString();
-				}
-				return pair;
-			}
+		public boolean next(PactRecord target) {
+			this.key.key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
+			this.value.value = randomString();
+			target.setField(0, this.key);
+			target.setField(1, this.value);
+			return true;
 		}
 
-		public int sizeOf(KeyValuePair<Key, Value> pair) {
+		public int sizeOf(PactRecord rec) {
 			// key
 			int valueLength = Integer.SIZE / 8;
 
 			// value
-			String text = pair.getValue().value;
+			String text = rec.getField(1, Value.class).value;
 			int strlen = text.length();
 			int utflen = 0;
 			int c;
@@ -263,41 +252,42 @@ public final class TestData {
 		}
 
 	}
+//
+//	/**
+//	 * Record reader mock.
+//	 */
+//	public static class RecordReaderMock implements eu.stratosphere.nephele.io.Reader<PactRecord>
+//	{
+//		private final Generator generator;
+//
+//		private final int numberOfRecords;
+//
+//		private int counter;
+//
+//		public RecordReaderMock(Generator generator, int numberOfRecords) {
+//			this.generator = generator;
+//			this.generator.reset();
+//			this.numberOfRecords = numberOfRecords;
+//			this.counter = 0;
+//		}
+//
+//		public boolean hasNext() {
+//			return counter < numberOfRecords;
+//		}
+//
+//		public PactRecord next() {
+//			counter++;
+//			return generator.next();
+//		}
+//	}
 
 	/**
 	 * Record reader mock.
 	 */
-	public static class RecordReaderMock implements eu.stratosphere.nephele.io.Reader<KeyValuePair<Key, Value>> {
-		private final Generator generator;
+	public static class RecordReaderIterMock implements eu.stratosphere.nephele.io.Reader<PactRecord> {
+		private final Iterator<PactRecord> iterator;
 
-		private final int numberOfRecords;
-
-		private int counter;
-
-		public RecordReaderMock(Generator generator, int numberOfRecords) {
-			this.generator = generator;
-			this.generator.reset();
-			this.numberOfRecords = numberOfRecords;
-			this.counter = 0;
-		}
-
-		public boolean hasNext() {
-			return counter < numberOfRecords;
-		}
-
-		public KeyValuePair<Key, Value> next() {
-			counter++;
-			return generator.next();
-		}
-	}
-
-	/**
-	 * Record reader mock.
-	 */
-	public static class RecordReaderIterMock implements eu.stratosphere.nephele.io.Reader<KeyValuePair<Key, Value>> {
-		private final Iterator<KeyValuePair<Key, Value>> iterator;
-
-		public RecordReaderIterMock(Iterator<KeyValuePair<Key, Value>> iterator) {
+		public RecordReaderIterMock(Iterator<PactRecord> iterator) {
 			this.iterator = iterator;
 		}
 
@@ -305,7 +295,7 @@ public final class TestData {
 			return iterator.hasNext();
 		}
 
-		public KeyValuePair<Key, Value> next() {
+		public PactRecord next() {
 			return iterator.next();
 		}
 	}
@@ -313,7 +303,8 @@ public final class TestData {
 	/**
 	 * Record reader mock.
 	 */
-	public static class GeneratorIterator implements Iterator<KeyValuePair<Key, Value>> {
+	public static class GeneratorIterator implements MutableObjectIterator<PactRecord>
+	{
 		private final Generator generator;
 
 		private final int numberOfRecords;
@@ -328,19 +319,14 @@ public final class TestData {
 		}
 
 		@Override
-		public boolean hasNext() {
-			return counter < numberOfRecords;
-		}
-
-		@Override
-		public KeyValuePair<Key, Value> next() {
-			counter++;
-			return generator.next();
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+		public boolean next(PactRecord target) {
+			if (counter < numberOfRecords) {
+				counter++;
+				return generator.next(target);
+			}
+			else {
+				return false;
+			}
 		}
 		
 		public void reset() {
@@ -348,38 +334,41 @@ public final class TestData {
 		}
 	}
 	
-	public static class ConstantValueIterator implements Iterator<KeyValuePair<Key, Value>>
+	// --------------------------------------------------------------------------------------------
+	
+	public static class ConstantValueIterator implements MutableObjectIterator<PactRecord>
 	{
+		private final Key key;
+		private final Value value;
+		
 		private final String valueValue;
 		
-		private final int keyValue;
 		
 		private final int numPairs;
 		
 		private int pos;
 		
 		
-		public ConstantValueIterator(int keyValue, String valueValue, int numPairs) {
-			this.keyValue = keyValue;
+		public ConstantValueIterator(int keyValue, String valueValue, int numPairs)
+		{
+			this.key = new Key(keyValue);
+			this.value = new Value();			
 			this.valueValue = valueValue;
 			this.numPairs = numPairs;
 		}
-
-		@Override
-		public boolean hasNext() {
-			return pos < this.numPairs;
-		}
 		
 		@Override
-		public KeyValuePair<Key, Value> next() {
-			KeyValuePair<Key, Value> pair = new KeyValuePair<Key, Value>(new Key(this.keyValue), new Value(this.valueValue + ' ' + pos));
-			pos++;
-			return pair;
-		}
-		
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+		public boolean next(PactRecord target) {
+			if (pos < this.numPairs) {
+				this.value.value = this.valueValue + ' ' + pos;
+				target.setField(0, this.key);
+				target.setField(1, this.value);
+				pos++;
+				return true;
+			}
+			else {
+				return false;
+			}
 		}
 		
 		public void reset() {

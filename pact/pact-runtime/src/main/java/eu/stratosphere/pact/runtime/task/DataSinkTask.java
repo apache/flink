@@ -28,16 +28,15 @@ import eu.stratosphere.nephele.fs.Path;
 
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * DataSinkTask which is executed by a Nephele task manager.
@@ -47,7 +46,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * 
  * @author Fabian Hueske
  */
-@SuppressWarnings( { "unchecked", "rawtypes" })
 public class DataSinkTask extends AbstractOutputTask
 {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
@@ -55,8 +53,10 @@ public class DataSinkTask extends AbstractOutputTask
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
 
+	// --------------------------------------------------------------------------------------------
+	
 	// input reader
-	private RecordReader<KeyValuePair<Key, Value>> reader;
+	private MutableObjectIterator<PactRecord> reader;
 
 	// OutputFormat instance
 	private OutputFormat format;
@@ -94,8 +94,9 @@ public class DataSinkTask extends AbstractOutputTask
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
 
-		final RecordReader<KeyValuePair<Key, Value>> reader = this.reader;
+		final MutableObjectIterator<PactRecord> reader = this.reader;
 		final OutputFormat format = this.format;
+		final PactRecord record = new PactRecord();
 		
 		try {
 			// check if task has been canceled
@@ -110,10 +111,9 @@ public class DataSinkTask extends AbstractOutputTask
 			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
 
 			// work
-			while (!this.taskCanceled && reader.hasNext())
+			while (!this.taskCanceled && reader.next(record))
 			{
-				KeyValuePair pair = reader.next();
-				format.writeRecord(pair);
+				format.writeRecord(record);
 			}
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
@@ -182,12 +182,12 @@ public class DataSinkTask extends AbstractOutputTask
 		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
-		ClassLoader cl;
 		try {
-			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			Class<? extends OutputFormat> formatClass = this.config.getStubClass(OutputFormat.class, cl);
+			
 			// obtain instance of stub implementation
-			this.format = formatClass.newInstance();
+			this.format = InstantiationUtil.instantiate(formatClass, OutputFormat.class);
 		}
 		catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
@@ -195,11 +195,8 @@ public class DataSinkTask extends AbstractOutputTask
 		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("OutputFormat implementation class was not found.", cnfe);
 		}
-		catch (InstantiationException ie) {
-			throw new RuntimeException("OutputFormat implementation could not be instanciated.", ie);
-		}
-		catch (IllegalAccessException iae) {
-			throw new RuntimeException("OutputFormat implementations nullary constructor is not accessible.", iae);
+		catch (ClassCastException ccex) {
+			throw new RuntimeException("Format format class is not a proper subclass of " + OutputFormat.class.getName(), ccex); 
 		}
 		
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
@@ -207,7 +204,8 @@ public class DataSinkTask extends AbstractOutputTask
 			this.format.configure(this.config.getStubParameters());
 		}
 		catch (Throwable t) {
-			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
+			throw new RuntimeException("The user defined 'configure()' method in the Output Format caused an error: " 
+				+ t.getMessage(), t);
 		}
 	}
 
@@ -219,13 +217,9 @@ public class DataSinkTask extends AbstractOutputTask
 	 */
 	private void initInputReader()
 	{
-		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(
-			this.format.getKeyType(), format.getValueType());
-
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (this.config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
@@ -235,9 +229,7 @@ public class DataSinkTask extends AbstractOutputTask
 		}
 
 		// create reader
-		// map has only one input, so we create one reader (id=0).
-		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
-
+		this.reader = new NepheleReaderIterator(new RecordReader<PactRecord>(this, PactRecord.class, dp));
 	}
 	
 	// ------------------------------------------------------------------------

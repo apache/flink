@@ -51,7 +51,7 @@ public class MatchNode extends TwoInputNode {
 	 * @param pactContract
 	 *        The match contract object.
 	 */
-	public MatchNode(MatchContract<?, ?, ?, ?, ?> pactContract) {
+	public MatchNode(MatchContract pactContract) {
 		super(pactContract);
 
 		// see if an internal hint dictates the strategy to use
@@ -119,8 +119,8 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @return The contract.
 	 */
-	public MatchContract<?, ?, ?, ?, ?> getPactContract() {
-		return (MatchContract<?, ?, ?, ?, ?>) super.getPactContract();
+	public MatchContract getPactContract() {
+		return (MatchContract) super.getPactContract();
 	}
 
 	/*

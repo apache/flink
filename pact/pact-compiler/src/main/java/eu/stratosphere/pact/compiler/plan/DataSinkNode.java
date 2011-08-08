@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -39,7 +39,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class DataSinkNode extends OptimizerNode {
+public class DataSinkNode extends OptimizerNode
+{
 	protected PactConnection input; // The input edge
 
 	/**
@@ -48,7 +49,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The data sink contract object.
 	 */
-	public DataSinkNode(FileDataSinkContract<?, ?> pactContract) {
+	public DataSinkNode(GenericDataSink pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
@@ -84,15 +85,6 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	/**
-	 * Gets the fully qualified path to the output file.
-	 * 
-	 * @return The path to the output file.
-	 */
-	public String getFilePath() {
-		return getPactContract().getFilePath();
-	}
-
-	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
 	 * @return The input connection.
@@ -116,8 +108,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * 
 	 * @return The contract.
 	 */
-	public FileDataSinkContract<?, ?> getPactContract() {
-		return (FileDataSinkContract<?, ?>) super.getPactContract();
+	public GenericDataSink getPactContract() {
+		return (GenericDataSink) super.getPactContract();
 	}
 
 	/*
@@ -153,7 +145,7 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		Contract child = ((FileDataSinkContract<?, ?>) getPactContract()).getInput();
+		Contract child = ((GenericDataSink) getPactContract()).getInput();
 
 		OptimizerNode pred = contractToNode.get(child);
 

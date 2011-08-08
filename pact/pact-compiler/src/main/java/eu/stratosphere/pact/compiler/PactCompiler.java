@@ -39,8 +39,8 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -774,24 +774,24 @@ public class PactCompiler {
 			OptimizerNode n = null;
 
 			// create a node for the pact (or sink or source) if we have not been here before
-			if (c instanceof FileDataSinkContract<?, ?>) {
-				DataSinkNode dsn = new DataSinkNode((FileDataSinkContract<?, ?>) c);
+			if (c instanceof GenericDataSink) {
+				DataSinkNode dsn = new DataSinkNode((GenericDataSink) c);
 				sinks.add(dsn);
 				n = dsn;
-			} else if (c instanceof FileDataSourceContract<?, ?>) {
-				DataSourceNode dsn = new DataSourceNode((FileDataSourceContract<?, ?>) c);
+			} else if (c instanceof GenericDataSource) {
+				DataSourceNode dsn = new DataSourceNode((GenericDataSource<?>) c);
 				sources.add(dsn);
 				n = dsn;
-			} else if (c instanceof MapContract<?, ?, ?, ?>) {
-				n = new MapNode((MapContract<?, ?, ?, ?>) c);
-			} else if (c instanceof ReduceContract<?, ?, ?, ?>) {
-				n = new ReduceNode((ReduceContract<?, ?, ?, ?>) c);
-			} else if (c instanceof MatchContract<?, ?, ?, ?, ?>) {
-				n = new MatchNode((MatchContract<?, ?, ?, ?, ?>) c);
-			} else if (c instanceof CoGroupContract<?, ?, ?, ?, ?>) {
-				n = new CoGroupNode((CoGroupContract<?, ?, ?, ?, ?>) c);
-			} else if (c instanceof CrossContract<?, ?, ?, ?, ?, ?>) {
-				n = new CrossNode((CrossContract<?, ?, ?, ?, ?, ?>) c);
+			} else if (c instanceof MapContract) {
+				n = new MapNode((MapContract) c);
+			} else if (c instanceof ReduceContract) {
+				n = new ReduceNode((ReduceContract) c);
+			} else if (c instanceof MatchContract) {
+				n = new MatchNode((MatchContract) c);
+			} else if (c instanceof CoGroupContract) {
+				n = new CoGroupNode((CoGroupContract) c);
+			} else if (c instanceof CrossContract) {
+				n = new CrossNode((CrossContract) c);
 			} else {
 				throw new IllegalArgumentException("Unknown contract type.");
 			}
@@ -1460,7 +1460,7 @@ public class PactCompiler {
 				// instead of temping connection duplicate DataSourceNode
 				
 				// duplicate DataSourceNode
-				DataSourceNode duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
+				DataSourceNode duplicateDataSource = new DataSourceNode((GenericDataSource<?>)sourcePact.getPactContract());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				

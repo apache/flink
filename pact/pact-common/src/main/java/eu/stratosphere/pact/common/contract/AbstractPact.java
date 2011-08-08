@@ -15,11 +15,7 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.lang.annotation.Annotation;
-
-import eu.stratosphere.pact.common.stub.Stub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.Stub;
 
 
 /**
@@ -27,18 +23,12 @@ import eu.stratosphere.pact.common.type.Value;
  *
  * @author Stephan Ewen
  */
-public abstract class AbstractPact<OK extends Key, OV extends Value, T extends Stub<OK, OV>> extends Contract
-implements OutputContractConfigurable
+public abstract class AbstractPact<T extends Stub> extends Contract
 {
 	/**
 	 * The class containing the user function for this Pact.
 	 */
 	protected Class<? extends T> stubClass;
-	
-	/**
-	 * This contract's output contract.
-	 */
-	protected Class<? extends Annotation> outputContract;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -55,7 +45,7 @@ implements OutputContractConfigurable
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the stub that is wrapped by this contract. The stub is the actual implementation of the
 	 * user code.
@@ -69,24 +59,20 @@ implements OutputContractConfigurable
 	{
 		return this.stubClass;
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * {@inheritDoc}
+	 * Generic utility function that wraps a single class object into an array of that class type.
+	 * 
+	 * @param <T> The type of the classes.
+	 * @param clazz The class object to be wrapped.
+	 * @return An array wrapping the class object.
 	 */
-	@Override
-	public void setOutputContract(Class<? extends Annotation> oc) {
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
-			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
-		}
-
-		this.outputContract = oc;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<? extends Annotation> getOutputContract() {
-		return this.outputContract;
+	protected static final <T> Class<? extends T>[] asArray(Class<? extends T> clazz)
+	{
+		@SuppressWarnings("unchecked")
+		Class<? extends T>[] array = (Class<? extends T>[]) new Class[] { clazz };
+		return array;
 	}
 }

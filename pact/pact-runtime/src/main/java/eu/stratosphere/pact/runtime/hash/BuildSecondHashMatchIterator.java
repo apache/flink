@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.hash;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -24,13 +23,12 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -39,43 +37,30 @@ import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class BuildSecondHashMatchIterator<K extends Key, V1 extends Value, V2 extends Value> implements MatchTaskIterator<K, V1, V2>
+public final class BuildSecondHashMatchIterator implements MatchTaskIterator
 {
-	private final MemoryManager memManager;
+private final MemoryManager memManager;
 	
-	private final HashJoin<K, V2, V1> hashJoin;
+	private final HashJoin hashJoin;
 	
-	private final SerializationCopier<V1> probeSideCopier;
+	private PactRecord nextBuildSideObject; 
 	
-	private final Class<K> keyClass;
-	
-	private final Class<V2> buildValueClass;
-	
-	private final Class<V1> probeValueClass;
-	
-	private KeyValuePair<K, V2> nextBuildSideObject; 
+	private PactRecord probeCopy = new PactRecord();
 	
 	private volatile boolean running = true;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	
-	public BuildSecondHashMatchIterator(Iterator<KeyValuePair<K, V1>> firstInput, Iterator<KeyValuePair<K, V2>> secondInput,
-			Class<K> keyClass, Class<V1> firstValueClass, Class<V2> secondValueClass,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, 
-			long totalMemory)
+	public BuildSecondHashMatchIterator(MutableObjectIterator<PactRecord> firstInput, MutableObjectIterator<PactRecord> secondInput,
+			int[] buildSideKeyFields, int[] probeSideKeyFields, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
+			AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{		
 		this.memManager = memManager;
-		this.keyClass = keyClass;
-		this.buildValueClass = secondValueClass;
-		this.probeValueClass =  firstValueClass;
-		this.probeSideCopier = new SerializationCopier<V1>();
+		this.nextBuildSideObject = new PactRecord();
 		
-		this.nextBuildSideObject = newBuildSidePair();
-		
-		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(secondInput, firstInput, keyClass, secondValueClass, 
-			firstValueClass, memManager, ioManager, ownerTask, totalMemory);
+		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(secondInput, firstInput, buildSideKeyFields, probeSideKeyFields, keyClasses, 
+			memManager, ioManager, ownerTask, totalMemory);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -103,62 +88,49 @@ public final class BuildSecondHashMatchIterator<K extends Key, V1 extends Value,
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey(eu.stratosphere.pact.common.stub.MatchStub, eu.stratosphere.pact.common.stub.Collector)
 	 */
 	@Override
-	public <OK extends Key, OV extends Value> boolean callWithNextKey(MatchStub<K, V1, V2, OK, OV> matchFunction,
-			Collector<OK, OV> collector)
-	throws IOException
+	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
+	throws Exception
 	{
-		if (this.hashJoin.nextKey())
+		if (this.hashJoin.nextRecord())
 		{
-			// we have a next key, get the iterators to the probe and build side values
-			final HashJoin.HashBucketIterator<K, V2> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			final HashJoin.ProbeSideIterator<K, V1> probeIterator = this.hashJoin.getProbeSideIterator();
-			boolean notFirst = false;
+			// we have a next record, get the iterators to the probe and build side values
+			final HashJoin.HashBucketIterator buildSideIterator = this.hashJoin.getBuildSideIterator();
+			PactRecord probeRecord = this.hashJoin.getCurrentProbeRecord();
+			PactRecord nextBuildSidePair = this.nextBuildSideObject;
 			
-			while (probeIterator.hasNext()) {
-				V1 probeValue = probeIterator.nextValue();
+			// get the first build side value
+			if (buildSideIterator.next(nextBuildSidePair)) {
+				PactRecord tmpPair = new PactRecord();
 				
-				if (notFirst) {
-					buildSideIterator.reset();
-				}
-				notFirst = true;
-				
-				KeyValuePair<K, V2> nextBuildSidePair = this.nextBuildSideObject;
-				
-				// get the first build side value
-				if (buildSideIterator.next(nextBuildSidePair)) {
-					KeyValuePair<K, V2> tmpPair = newBuildSidePair();
+				// check if there is another build-side value
+				if (buildSideIterator.next(tmpPair)) {
+					// more than one build-side value --> copy the probe side
+					probeRecord.copyTo(this.probeCopy);
 					
-					// check if there is another build-side value
-					if (buildSideIterator.next(tmpPair)) {
-						// more than one build-side value --> copy the probe side
-						this.probeSideCopier.setCopy(probeValue);
-						
-						// call match on the first pair
-						matchFunction.match(nextBuildSidePair.getKey(), probeValue, nextBuildSidePair.getValue(), collector);
-						
-						// call match on the second pair
-						probeValue = newProbeValue();
-						this.probeSideCopier.getCopy(probeValue);
-						matchFunction.match(tmpPair.getKey(), probeValue, tmpPair.getValue(), collector);
-						
-						tmpPair = newBuildSidePair();
-						while (this.running && buildSideIterator.next(tmpPair)) {
-							// call match on the next pair
-							probeValue = newProbeValue();
-							this.probeSideCopier.getCopy(probeValue);
-							matchFunction.match(tmpPair.getKey(), probeValue, tmpPair.getValue(), collector);
-							tmpPair = newBuildSidePair();
-						}
-						this.nextBuildSideObject = tmpPair;
+					// call match on the first pair
+					matchFunction.match(probeRecord, nextBuildSidePair, collector);
+					
+					// call match on the second pair
+					probeRecord = new PactRecord();
+					this.probeCopy.copyTo(probeRecord);
+					matchFunction.match(probeRecord, tmpPair, collector);
+					
+					tmpPair = new PactRecord();
+					while (this.running && buildSideIterator.next(tmpPair)) {
+						// call match on the next pair
+						probeRecord = new PactRecord();
+						this.probeCopy.copyTo(probeRecord);
+						matchFunction.match(probeRecord, tmpPair, collector);
+						tmpPair = new PactRecord();
 					}
-					else {
-						// only single pair matches
-						this.nextBuildSideObject = tmpPair;
-						matchFunction.match(nextBuildSidePair.getKey(), probeValue, nextBuildSidePair.getValue(), collector);
-					}
+					this.nextBuildSideObject = tmpPair;
+				}
+				else {
+					// only single pair matches
+					this.nextBuildSideObject = tmpPair;
+					matchFunction.match(probeRecord, nextBuildSidePair, collector);
 				}
 			}
-			
 			return true;
 		}
 		else {
@@ -175,43 +147,5 @@ public final class BuildSecondHashMatchIterator<K extends Key, V1 extends Value,
 		this.running = false;
 		List<MemorySegment> segments = this.hashJoin.close();
 		this.memManager.release(segments);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Utility function to instantiate a new empty key/value pair, typed for the build side.
-	 * 
-	 * @return A new empty key/value pair, typed for the build side.
-	 */
-	private final KeyValuePair<K, V2> newBuildSidePair()
-	{
-		try {
-			return new KeyValuePair<K, V2>(
-					this.keyClass.newInstance(), this.buildValueClass.newInstance());
-		}
-		catch (IllegalAccessException ex) {
-			throw new RuntimeException("Cannot create instance of data type. Class or nullary constructor not public.");
-		}
-		catch (InstantiationException iex) {
-			throw new RuntimeException("Cannot create instance of data type. No public nullary constructor.");
-		}
-	}
-	
-	/**
-	 * Utility function to instantiate a new empty value, typed for the probe side.
-	 * 
-	 * @return A new empty value, typed for the probe side.
-	 */
-	private final V1 newProbeValue() {
-		try {
-			return this.probeValueClass.newInstance();
-		}
-		catch (IllegalAccessException ex) {
-			throw new RuntimeException("Cannot create instance of data type. Class or nullary constructor not public.");
-		}
-		catch (InstantiationException iex) {
-			throw new RuntimeException("Cannot create instance of data type. No public nullary constructor.");
-		}
 	}
 }

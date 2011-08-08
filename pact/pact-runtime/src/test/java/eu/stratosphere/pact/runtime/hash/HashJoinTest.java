@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.hash;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -31,12 +30,13 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.hash.HashJoin.HashBucketIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -107,10 +107,10 @@ public class HashJoinTest
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -126,39 +126,24 @@ public class HashJoinTest
 		}
 		
 		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
-		
-		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
+		final IOManager ioManager = new IOManager();
 		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(buildInput, probeInput, 
-				PactInteger.class, PactInteger.class, PactInteger.class, memSegments, ioManager);
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
 		
-		int numKeys = 0;
+		final PactRecord record = new PactRecord();
+		int numRecordsInJoinResult = 0;
 		
-		while (join.nextKey()) {
-			numKeys++;
-			int numBuildValues = 0;
-			int numProbeValues = 0;
-			
-			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-			while (probeIter.hasNext()) {
-				numProbeValues++;
-				probeIter.next();
+		while (join.nextRecord()) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			while (buildSide.next(record)) {
+				numRecordsInJoinResult++;
 			}
-			Assert.assertEquals("Wrong number of values from probe-side for a key", PROBE_VALS_PER_KEY, numProbeValues);
-			
-			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(pair)) {
-				numBuildValues++;
-			}
-			
-			Assert.assertEquals("Wrong number of values from build-side for a key", BUILD_VALS_PER_KEY, numBuildValues);
-			
 		}
-		Assert.assertEquals("Wrong number of keys", NUM_KEYS, numKeys);
+		Assert.assertEquals("Wrong number of records in join result.", NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY, numRecordsInJoinResult);
 		
 		join.close();
 		
@@ -185,10 +170,10 @@ public class HashJoinTest
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -206,31 +191,24 @@ public class HashJoinTest
 		// create the I/O access for spilling
 		IOManager ioManager = new IOManager();
 		
-		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
-		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(buildInput, probeInput, 
-				PactInteger.class, PactInteger.class, PactInteger.class, memSegments, ioManager);
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
 		
-		int numKeys = 0;
+		final PactRecord record = new PactRecord();
+		int numRecordsInJoinResult = 0;
 		
-		while (join.nextKey()) {
-			
-			numKeys++;
-			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-			while (probeIter.hasNext()) {
-				probeIter.next();
+		while (join.nextRecord()) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			while (buildSide.next(record)) {
+				numRecordsInJoinResult++;
 			}
-			
-			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(pair));	
 		}
+		Assert.assertEquals("Wrong number of records in join result.", NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY, numRecordsInJoinResult);
 		
 		join.close();
-		
-		Assert.assertEquals("Wrong number of keys", NUM_KEYS, numKeys);
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -254,10 +232,10 @@ public class HashJoinTest
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -275,53 +253,44 @@ public class HashJoinTest
 		// create the I/O access for spilling
 		IOManager ioManager = new IOManager();
 		
-		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
-		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
 		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(buildInput, probeInput, 
-				PactInteger.class, PactInteger.class, PactInteger.class, memSegments, ioManager);
-		
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
-
-		int numKeyCalls = 0;
-		while (join.nextKey())
+	
+		final PactRecord record = new PactRecord();
+		
+		while (join.nextRecord())
 		{
-			numKeyCalls++;
-			
 			int numBuildValues = 0;
-			int numProbeValues = 0;
 			
 			int key = 0;
 			
-			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(pair)) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			if (buildSide.next(record)) {
 				numBuildValues = 1;
-				key = pair.getKey().getValue();
+				key = record.getField(0, PactInteger.class).getValue();
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(pair)) {
+			while (buildSide.next(record)) {
 				numBuildValues++;
 			}
 			
-			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-			while (probeIter.hasNext()) {
-				KeyValuePair<PactInteger, PactInteger> nextPair = probeIter.next();
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, nextPair.getKey().getValue()); 
-				numProbeValues++;
-			}
+			PactRecord pr = join.getCurrentProbeRecord();
+			Assert.assertEquals("Probe-side key was different than build-side key.", key, pr.getField(0, PactInteger.class).getValue()); 
 			
 			Long contained = map.get(key);
 			if (contained == null) {
-				contained = new Long(numBuildValues * numProbeValues);
+				contained = new Long(numBuildValues);
 			}
 			else {
-				contained = new Long(contained.longValue() + (numBuildValues * numProbeValues));
+				contained = new Long(contained.longValue() + (numBuildValues));
 			}
 			
 			map.put(key, contained);
@@ -361,31 +330,32 @@ public class HashJoinTest
 		// we use them to make sure one partition grows over-proportionally large
 		final int REPEATED_VALUE_1 = 40559;
 		final int REPEATED_VALUE_2 = 92882;
-		final int REPEATED_VALUE_COUNT = 200000; 
+		final int REPEATED_VALUE_COUNT_BUILD = 200000;
+		final int REPEATED_VALUE_COUNT_PROBE = 5;
 		
 		final int NUM_KEYS = 1000000;
 		final int BUILD_VALS_PER_KEY = 3;
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> builds = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		MutableObjectIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(builds);
+		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> probes = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		MutableObjectIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
+		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
+		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(probes);
+		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -403,54 +373,43 @@ public class HashJoinTest
 		// create the I/O access for spilling
 		IOManager ioManager = new IOManager();
 		
-		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
-		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
 		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(buildInput, probeInput, 
-				PactInteger.class, PactInteger.class, PactInteger.class, memSegments, ioManager);
-		
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
 	
-		int numKeyCalls = 0;
-		while (join.nextKey())
-		{
-			numKeyCalls++;
-			
+		final PactRecord record = new PactRecord();
+		
+		while (join.nextRecord())
+		{	
 			int numBuildValues = 0;
-			int numProbeValues = 0;
+	
+			final PactRecord probeRec = join.getCurrentProbeRecord();
+			int key = probeRec.getField(0, PactInteger.class).getValue();
 			
-			int key = 0;
-			
-			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-			while (probeIter.hasNext()) {
-				KeyValuePair<PactInteger, PactInteger> nextPair = probeIter.next();
-				key = nextPair.getKey().getValue();
-				numProbeValues++;
-			}
-			
-			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(pair)) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			if (buildSide.next(record)) {
 				numBuildValues = 1;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue()); 
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(pair)) {
+			while (buildSide.next(record)) {
 				numBuildValues++;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue());
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
 			}
 			
 			Long contained = map.get(key);
 			if (contained == null) {
-				contained = new Long(numBuildValues * numProbeValues);
+				contained = new Long(numBuildValues);
 			}
 			else {
-				contained = new Long(contained.longValue() + (numBuildValues * numProbeValues));
+				contained = new Long(contained.longValue() + numBuildValues);
 			}
 			
 			map.put(key, contained);
@@ -465,7 +424,7 @@ public class HashJoinTest
 	
 			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
 				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
-					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT) : 
+					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
 					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
@@ -496,31 +455,32 @@ public class HashJoinTest
 		// we use them to make sure one partition grows over-proportionally large
 		final int REPEATED_VALUE_1 = 40559;
 		final int REPEATED_VALUE_2 = 92882;
-		final int REPEATED_VALUE_COUNT = 1000000; 
+		final int REPEATED_VALUE_COUNT_BUILD = 200000;
+		final int REPEATED_VALUE_COUNT_PROBE = 5;
 		
 		final int NUM_KEYS = 1000000;
 		final int BUILD_VALS_PER_KEY = 3;
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> builds = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		MutableObjectIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(builds);
+		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> probes = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		MutableObjectIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
+		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
+		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(probes);
+		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -538,54 +498,43 @@ public class HashJoinTest
 		// create the I/O access for spilling
 		IOManager ioManager = new IOManager();
 		
-		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
-		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
 		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(buildInput, probeInput, 
-				PactInteger.class, PactInteger.class, PactInteger.class, memSegments, ioManager);
-		
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
-	
-		int numKeyCalls = 0;
-		while (join.nextKey())
-		{
-			numKeyCalls++;
-			
+		
+		final PactRecord record = new PactRecord();
+		
+		while (join.nextRecord())
+		{	
 			int numBuildValues = 0;
-			int numProbeValues = 0;
 			
-			int key = 0;
+			final PactRecord probeRec = join.getCurrentProbeRecord();
+			int key = probeRec.getField(0, PactInteger.class).getValue();
 			
-			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-			while (probeIter.hasNext()) {
-				KeyValuePair<PactInteger, PactInteger> nextPair = probeIter.next();
-				key = nextPair.getKey().getValue();
-				numProbeValues++;
-			}
-			
-			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-			if (buildSide.next(pair)) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			if (buildSide.next(record)) {
 				numBuildValues = 1;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue()); 
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue()); 
 			}
 			else {
 				fail("No build side values found for a probe key.");
 			}
-			while (buildSide.next(pair)) {
+			while (buildSide.next(record)) {
 				numBuildValues++;
-				Assert.assertEquals("Probe-side key was different than build-side key.", key, pair.getKey().getValue());
+				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, PactInteger.class).getValue());
 			}
 			
 			Long contained = map.get(key);
 			if (contained == null) {
-				contained = new Long(numBuildValues * numProbeValues);
+				contained = new Long(numBuildValues);
 			}
 			else {
-				contained = new Long(contained.longValue() + (numBuildValues * numProbeValues));
+				contained = new Long(contained.longValue() + numBuildValues);
 			}
 			
 			map.put(key, contained);
@@ -600,7 +549,7 @@ public class HashJoinTest
 	
 			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
 				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
-					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT) : 
+					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
 					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
@@ -638,24 +587,24 @@ public class HashJoinTest
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> builds = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		MutableObjectIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(builds);
+		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
-		List<Iterator<KeyValuePair<PactInteger, PactInteger>>> probes = new ArrayList<Iterator<KeyValuePair<PactInteger,PactInteger>>>();
+		MutableObjectIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
+		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
+		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		Iterator<KeyValuePair<PactInteger, PactInteger>> probeInput = new UnionIterator<KeyValuePair<PactInteger, PactInteger>>(probes);
+		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
 		
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -673,28 +622,22 @@ public class HashJoinTest
 		// create the I/O access for spilling
 		IOManager ioManager = new IOManager();
 		
-		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
-		
 		// ----------------------------------------------------------------------------------------
 		
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(buildInput, probeInput, 
-				PactInteger.class, PactInteger.class, PactInteger.class, memSegments, ioManager);
-		
+		@SuppressWarnings("unchecked")
+		final HashJoin join = new HashJoin(buildInput, probeInput, new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
-	
+		
+		final PactRecord record = new PactRecord();
+		
 		try {
-			while (join.nextKey())
-			{
-				Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-				while (probeIter.hasNext()) {
-					probeIter.next();
-				}
-				
-				HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-				if (!buildSide.next(pair)) {
+			while (join.nextRecord())
+			{	
+				HashBucketIterator buildSide = join.getBuildSideIterator();
+				if (!buildSide.next(record)) {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(pair));;
+				while (buildSide.next(record));
 			}
 			
 			fail("Hash Join must have failed due to too many recursions.");
@@ -729,41 +672,32 @@ public class HashJoinTest
 	/**
 	 * An iterator that returns the Key/Value pairs with identical value a given number of times.
 	 */
-	private static final class ConstantsKeyValuePairsIterator implements Iterator<KeyValuePair<PactInteger, PactInteger>>
+	private static final class ConstantsKeyValuePairsIterator implements MutableObjectIterator<PactRecord>
 	{
-		private final int key;
-		
-		private final int value;
+		private final PactInteger key;
+		private final PactInteger value;
 		
 		private int numLeft;
 		
 		public ConstantsKeyValuePairsIterator(int key, int value, int count)
 		{
-			this.key = key;
-			this.value = value;
+			this.key = new PactInteger(key);
+			this.value = new PactInteger(value);
 			this.numLeft = count;
 		}
 
 		@Override
-		public boolean hasNext() {
-			return this.numLeft > 0;
-		}
-
-		@Override
-		public KeyValuePair<PactInteger, PactInteger> next() {
+		public boolean next(PactRecord target) {
 			if (this.numLeft > 0) {
 				this.numLeft--;
-				return new KeyValuePair<PactInteger, PactInteger>(new PactInteger(this.key), new PactInteger(this.value));
+				target.clear();
+				target.setField(0, this.key);
+				target.setField(1, this.value);
+				return true;
 			}
 			else {
-				throw new UnsupportedOperationException();
+				return false;
 			}
-		}
-
-		@Override
-		public void remove()
-		{
-			throw new UnsupportedOperationException();
 		}
 	}
 }

@@ -20,31 +20,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.serialization.KeyValuePairSerializationFactory;
-import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * The OutputCollector collects {@link Key} and {@link Value}, creates a {@link KeyValuePair}, and 
- * emits the pair to a set of Nephele {@link RecordWriter}.
+ * The OutputCollector collects {@link PactRecord}s, and emits the pair to a set of Nephele {@link RecordWriter}s.
  * The OutputCollector tracks to which writers a deep-copy must be given and which not.
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
- * @param <K> The type of the key.
- * @param <V> The type of the value.
  */
-public class OutputCollector<K extends Key, V extends Value> implements Collector<K, V> {
-	
-	// serialization copier to create deep-copies
-	private final SerializationCopier<KeyValuePair<K, V>> kvpCopier;
-	// serialization factories
-	private KeyValuePairSerializationFactory<K,V> kvpSerialization;
+public class OutputCollector implements Collector
+{	
 	// list of writers
-	protected final List<RecordWriter<KeyValuePair<K, V>>> writers;
+	protected final List<RecordWriter<PactRecord>> writers; 
+	
 	// bit mask for copy flags
 	protected int fwdCopyFlags;
 
@@ -52,9 +41,8 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	 * Initializes the output collector with no writers.
 	 */
 	public OutputCollector() {
-		this.writers = new ArrayList<RecordWriter<KeyValuePair<K, V>>>();
+		this.writers = new ArrayList<RecordWriter<PactRecord>>();
 		this.fwdCopyFlags = 0;
-		this.kvpCopier = new SerializationCopier<KeyValuePair<K, V>>();
 	}
 	
 	/**
@@ -65,11 +53,10 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	 * @param writers List of all writers.
 	 * @param fwdCopyFlags Bit mask that specifies which writer is fed with deep-copies.
 	 */
-	public OutputCollector(List<RecordWriter<KeyValuePair<K, V>>> writers, int fwdCopyFlags) {
+	public OutputCollector(List<RecordWriter<PactRecord>> writers, int fwdCopyFlags) {
 		
 		this.writers = writers;
-		this.fwdCopyFlags = fwdCopyFlags;
-		this.kvpCopier = new SerializationCopier<KeyValuePair<K, V>>();		
+		this.fwdCopyFlags = fwdCopyFlags;		
 	}
 	
 	/**
@@ -78,7 +65,7 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	 * @param writer The writer to add.
 	 * @param fwdCopy Set true if writer requires a deep-copy. Set to false otherwise.
 	 */
-	public void addWriter(RecordWriter<KeyValuePair<K,V>> writer, boolean fwdCopy) {
+	public void addWriter(RecordWriter<PactRecord> writer, boolean fwdCopy) {
 		this.writers.add(writer);
 		if (fwdCopy) {
 			this.fwdCopyFlags |= 0x1 << (this.writers.size() - 1);
@@ -86,44 +73,33 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	}
 
 	/**
-	 * Collects a {@link Key} and {@link Value}, wraps them in a KeyValuePair, and emit them to all writers.
-	 * Writers which require a deep-copy are fed with a copy obtained through de/serialization.
+	 * Collects a {@link PactRecord}, and emits it to all writers.
+	 * Writers which require a deep-copy are fed with a copy.
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	public void collect(K key, V value) {
+	public void collect(PactRecord record)
+	{
 		try {
-			
-			KeyValuePair<K,V> emitPair = new KeyValuePair<K, V>(key,value);
-			
 			if (fwdCopyFlags == 0) {
 				for (int i = 0; i < writers.size(); i++) {
-					writers.get(i).emit(emitPair);
+					writers.get(i).emit(record);
 				}
 			}
 			else {
-				if(kvpSerialization == null) {
-					// TODO: can we do this nicer?
-					this.kvpSerialization = new KeyValuePairSerializationFactory<K, V>(
-							new WritableSerializationFactory<K>((Class<K>)key.getClass()),
-							new WritableSerializationFactory<V>((Class<V>)value.getClass())); 
-				}
-				
-				kvpCopier.setCopy(emitPair);
-				
 				for (int i = 0; i < writers.size(); i++) {
 					if (((fwdCopyFlags >> i) & 0x1) != 0) {
-						emitPair = kvpSerialization.newInstance();
-						kvpCopier.getCopy(emitPair);
+						PactRecord copy = record.createCopy();
+						writers.get(i).emit(copy);
 					}
-					writers.get(i).emit(emitPair);
+					writers.get(i).emit(record);
 				}
 			}
-				
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Emitting the record caused an I/O exception: " + e.getMessage(), e);
+		}
+		catch (InterruptedException e) {
+			throw new RuntimeException("Emitting the record was interrupted: " + e.getMessage(), e);
 		}
 	}
 

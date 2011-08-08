@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.hash;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -34,10 +33,9 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -46,6 +44,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 public class HashMatchIteratorITCase
@@ -113,14 +112,13 @@ public class HashMatchIteratorITCase
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
 				collectData(input1),
 				collectData(input2));
 			
-			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
-				new MatchRemovingMatcher(expectedMatchesMap);
+			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
+			final Collector collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -129,9 +127,9 @@ public class HashMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			BuildFirstHashMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new BuildFirstHashMatchIterator<TestData.Key, TestData.Value, TestData.Value>(input1, input2,
-						TestData.Key.class, TestData.Value.class, TestData.Value.class, this.memoryManager, ioManager,
+			@SuppressWarnings("unchecked")
+			BuildFirstHashMatchIterator iterator = new BuildFirstHashMatchIterator(
+				input1, input2, new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 			
 			iterator.open();
@@ -141,7 +139,7 @@ public class HashMatchIteratorITCase
 			iterator.close();;
 	
 			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
 				if (!entry.getValue().isEmpty())
 					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 			}
@@ -173,20 +171,20 @@ public class HashMatchIteratorITCase
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<Iterator<KeyValuePair<TestData.Key, TestData.Value>>> inList1 = new ArrayList<Iterator<KeyValuePair<TestData.Key, TestData.Value>>>();
+			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<Iterator<KeyValuePair<TestData.Key, TestData.Value>>> inList2 = new ArrayList<Iterator<KeyValuePair<TestData.Key, TestData.Value>>>();
+			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			Iterator<KeyValuePair<TestData.Key, TestData.Value>> input1 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList1);
-			Iterator<KeyValuePair<TestData.Key, TestData.Value>> input2 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList2);
+			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
+			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
 			
 			
 			// collect expected data
-			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
 				collectData(input1),
 				collectData(input2));
 			
@@ -208,17 +206,16 @@ public class HashMatchIteratorITCase
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 	
-			input1 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList1);
-			input2 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList2);
+			input1 = new UnionIterator<PactRecord>(inList1);
+			input2 = new UnionIterator<PactRecord>(inList2);
 			
-			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
-				new MatchRemovingMatcher(expectedMatchesMap);
+			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
+			final Collector collector = new DiscardingOutputCollector();
 	
-			BuildFirstHashMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new BuildFirstHashMatchIterator<TestData.Key, TestData.Value, TestData.Value>(input1, input2,
-						TestData.Key.class, TestData.Value.class, TestData.Value.class, this.memoryManager, ioManager,
+			@SuppressWarnings("unchecked")
+			BuildFirstHashMatchIterator iterator = new BuildFirstHashMatchIterator(input1, input2,
+				new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 
 			iterator.open();
@@ -228,7 +225,7 @@ public class HashMatchIteratorITCase
 			iterator.close();
 	
 			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
 				if (!entry.getValue().isEmpty()) {
 					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 				}
@@ -250,14 +247,13 @@ public class HashMatchIteratorITCase
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
 				collectData(input1),
 				collectData(input2));
 			
-			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
-				new MatchRemovingMatcher(expectedMatchesMap);
+			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
+			final Collector collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -266,9 +262,9 @@ public class HashMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			BuildSecondHashMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new BuildSecondHashMatchIterator<TestData.Key, TestData.Value, TestData.Value>(input1, input2,
-						TestData.Key.class, TestData.Value.class, TestData.Value.class, this.memoryManager, ioManager,
+			@SuppressWarnings("unchecked")
+			BuildSecondHashMatchIterator iterator = new BuildSecondHashMatchIterator(input1, input2,
+				new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 
 			iterator.open();
@@ -278,7 +274,7 @@ public class HashMatchIteratorITCase
 			iterator.close();
 	
 			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
 				if (!entry.getValue().isEmpty())
 					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 			}
@@ -310,20 +306,20 @@ public class HashMatchIteratorITCase
 			final TestData.ConstantValueIterator const1Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", INPUT_1_DUPLICATES);
 			final TestData.ConstantValueIterator const2Iter = new TestData.ConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", INPUT_2_DUPLICATES);
 			
-			final List<Iterator<KeyValuePair<TestData.Key, TestData.Value>>> inList1 = new ArrayList<Iterator<KeyValuePair<TestData.Key, TestData.Value>>>();
+			final List<MutableObjectIterator<PactRecord>> inList1 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 			
-			final List<Iterator<KeyValuePair<TestData.Key, TestData.Value>>> inList2 = new ArrayList<Iterator<KeyValuePair<TestData.Key, TestData.Value>>>();
+			final List<MutableObjectIterator<PactRecord>> inList2 = new ArrayList<MutableObjectIterator<PactRecord>>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			Iterator<KeyValuePair<TestData.Key, TestData.Value>> input1 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList1);
-			Iterator<KeyValuePair<TestData.Key, TestData.Value>> input2 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList2);
+			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
+			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
 			
 			
 			// collect expected data
-			final Map<Key, Collection<Match>> expectedMatchesMap = matchValues(
+			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
 				collectData(input1),
 				collectData(input2));
 			
@@ -345,17 +341,16 @@ public class HashMatchIteratorITCase
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 	
-			input1 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList1);
-			input2 = new UnionIterator<KeyValuePair<TestData.Key,TestData.Value>>(inList2);
+			input1 = new UnionIterator<PactRecord>(inList1);
+			input2 = new UnionIterator<PactRecord>(inList2);
 			
-			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
-				new MatchRemovingMatcher(expectedMatchesMap);
+			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
+			final Collector collector = new DiscardingOutputCollector();
 	
-			BuildSecondHashMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new BuildSecondHashMatchIterator<TestData.Key, TestData.Value, TestData.Value>(input1, input2,
-						TestData.Key.class, TestData.Value.class, TestData.Value.class, this.memoryManager, ioManager,
+			@SuppressWarnings("unchecked")
+			BuildSecondHashMatchIterator iterator = new BuildSecondHashMatchIterator(input1, input2,
+				new int[]{0}, new int[] {0}, new Class[]{TestData.Key.class}, this.memoryManager, ioManager,
 						this.parentTask, MEMORY_SIZE);
 			
 			iterator.open();
@@ -365,7 +360,7 @@ public class HashMatchIteratorITCase
 			iterator.close();
 	
 			// assert that each expected match was seen
-			for (Entry<Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
+			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
 				if (!entry.getValue().isEmpty()) {
 					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 				}
@@ -381,13 +376,15 @@ public class HashMatchIteratorITCase
 	//                                    Utilities
 	// --------------------------------------------------------------------------------------------
 
-	private Map<Key, Collection<Match>> matchValues(Map<Key, Collection<Value>> leftMap,
-			Map<Key, Collection<Value>> rightMap) {
-		Map<Key, Collection<Match>> map = new HashMap<Key, Collection<Match>>();
+	private Map<TestData.Key, Collection<Match>> matchValues(
+			Map<TestData.Key, Collection<TestData.Value>> leftMap,
+			Map<TestData.Key, Collection<TestData.Value>> rightMap)
+	{
+		Map<TestData.Key, Collection<Match>> map = new HashMap<TestData.Key, Collection<Match>>();
 
-		for (Key key : leftMap.keySet()) {
-			Collection<Value> leftValues = leftMap.get(key);
-			Collection<Value> rightValues = rightMap.get(key);
+		for (TestData.Key key : leftMap.keySet()) {
+			Collection<TestData.Value> leftValues = leftMap.get(key);
+			Collection<TestData.Value> rightValues = rightMap.get(key);
 
 			if (rightValues == null) {
 				continue;
@@ -399,8 +396,8 @@ public class HashMatchIteratorITCase
 
 			Collection<Match> matchedValues = map.get(key);
 
-			for (Value leftValue : leftValues) {
-				for (Value rightValue : rightValues) {
+			for (TestData.Value leftValue : leftValues) {
+				for (TestData.Value rightValue : rightValues) {
 					matchedValues.add(new Match(leftValue, rightValue));
 				}
 			}
@@ -410,18 +407,21 @@ public class HashMatchIteratorITCase
 	}
 
 	
-	private Map<Key, Collection<Value>> collectData(Iterator<KeyValuePair<TestData.Key, TestData.Value>> iter) {
-		Map<Key, Collection<Value>> map = new HashMap<Key, Collection<Value>>();
+	private Map<TestData.Key, Collection<TestData.Value>> collectData(MutableObjectIterator<PactRecord> iter)
+	throws Exception
+	{
+		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
+		PactRecord pair = new PactRecord();
+		
+		while (iter.next(pair)) {
 
-		while(iter.hasNext()) {
-			KeyValuePair<TestData.Key, TestData.Value> pair = iter.next();
-
-			if (!map.containsKey(pair.getKey())) {
-				map.put(pair.getKey(), new ArrayList<Value>());
+			TestData.Key key = pair.getField(0, TestData.Key.class);
+			if (!map.containsKey(key)) {
+				map.put(new TestData.Key(key.getKey()), new ArrayList<TestData.Value>());
 			}
 
-			Collection<Value> values = map.get(pair.getKey());
-			values.add(pair.getValue());
+			Collection<TestData.Value> values = map.get(key);
+			values.add(new TestData.Value(pair.getField(1, TestData.Value.class).getValue()));
 		}
 
 		return map;
@@ -457,17 +457,21 @@ public class HashMatchIteratorITCase
 		}
 	}
 	
-	private static final class MatchRemovingMatcher extends MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value>
+	private static final class MatchRemovingMatcher extends MatchStub
 	{
-		private final Map<Key, Collection<Match>> toRemoveFrom;
+		private final Map<TestData.Key, Collection<Match>> toRemoveFrom;
 		
-		protected MatchRemovingMatcher(Map<Key, Collection<Match>> map) {
+		protected MatchRemovingMatcher(Map<TestData.Key, Collection<Match>> map) {
 			this.toRemoveFrom = map;
 		}
 		
 		@Override
-		public void match(TestData.Key key, TestData.Value value1, TestData.Value value2, Collector<TestData.Key, TestData.Value> out)
+		public void match(PactRecord rec1, PactRecord rec2, Collector out)
 		{
+			TestData.Key key = rec1.getField(0, TestData.Key.class);
+			TestData.Value value1 = rec1.getField(1, TestData.Value.class);
+			TestData.Value value2 = rec2.getField(1, TestData.Value.class);
+			
 			Collection<Match> matches = this.toRemoveFrom.get(key);
 			if (matches == null) {
 				Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");

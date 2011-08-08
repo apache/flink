@@ -34,12 +34,14 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.CombinerNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
+import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -269,7 +271,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateMapVertex(OptimizerNode mapNode) throws CompilerException {
+	private JobTaskVertex generateMapVertex(OptimizerNode mapNode) throws CompilerException
+	{
+		MapContract mc = ((MapNode) mapNode).getPactContract();
+		
 		// create task vertex
 		JobTaskVertex mapVertex = new JobTaskVertex(mapNode.getPactContract().getName(), this.jobGraph);
 		// set task class
@@ -278,7 +283,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// get task configuration object
 		TaskConfig mapConfig = new TaskConfig(mapVertex.getConfiguration());
 		// set user code class
-		mapConfig.setStubClass(mapNode.getPactContract().getUserCodeClass());
+		mapConfig.setStubClass(mc.getUserCodeClass());
 
 		// set local strategy
 		switch (mapNode.getLocalStrategy()) {
@@ -546,7 +551,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private JobInputVertex generateDataSourceVertex(OptimizerNode sourceNode) throws CompilerException
 	{
 		DataSourceNode dsn = (DataSourceNode) sourceNode;
-		GenericDataSource<?, ?> contract = dsn.getPactContract();
+		GenericDataSource<?> contract = dsn.getPactContract();
 
 		// create task vertex
 		JobGenericInputVertex sourceVertex = new JobGenericInputVertex(contract.getName(), this.jobGraph);
@@ -581,7 +586,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private JobOutputVertex generateDataSinkVertex(OptimizerNode sinkNode) throws CompilerException
 	{
 		DataSinkNode sNode = (DataSinkNode) sinkNode;
-		GenericDataSink<?, ?> sinkContract = sNode.getPactContract();
+		GenericDataSink sinkContract = sNode.getPactContract();
 		
 		// create task vertex
 		JobGenericOutputVertex sinkVertex = new JobGenericOutputVertex(sinkNode.getPactContract().getName(), this.jobGraph);

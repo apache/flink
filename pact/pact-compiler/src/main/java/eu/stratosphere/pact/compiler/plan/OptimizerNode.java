@@ -25,8 +25,8 @@ import java.util.Map;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.OutputContractConfigurable;
@@ -62,8 +62,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public enum PactType {
 		Cogroup(CoGroupContract.class),
 		Cross(CrossContract.class),
-		DataSource(FileDataSourceContract.class),
-		DataSink(FileDataSinkContract.class),
+		DataSource(GenericDataSource.class),
+		DataSink(GenericDataSink.class),
 		Map(MapContract.class),
 		Match(MatchContract.class),
 		Reduce(ReduceContract.class);
@@ -99,7 +99,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		public static PactType getType(Class<? extends Contract> pactClass) {
 			PactType[] values = PactType.values();
 			for (int i = 0; i < values.length; i++) {
-				if (pactClass == values[i].clazz) {
+				if (values[i].clazz.isAssignableFrom(pactClass)) {
 					return values[i];
 				}
 			}

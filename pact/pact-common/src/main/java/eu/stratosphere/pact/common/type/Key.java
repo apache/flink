@@ -18,7 +18,8 @@ package eu.stratosphere.pact.common.type;
 /**
  * This interface has to be implemented by all data types that act as key. Keys are used to establish
  * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
- * the same type.
+ * the same type. In addition, keys must implement a correct {@link java.lang.Object#hashCode()} method
+ * and {@link java.lang.Object#equals(Object)} method to ensure that grouping on keys works properly.
  * <p>
  * This interface extends {@link eu.stratosphere.pact.common.type.Value} and requires to implement
  * the serialization of its value.
@@ -27,5 +28,9 @@ package eu.stratosphere.pact.common.type;
  * @see eu.stratosphere.nephele.io.IOReadableWritable
  * @see java.lang.Comparable
  */
-public interface Key extends Value, Comparable<Key> {
+public interface Key extends Value, Comparable<Key>
+{
+	public int hashCode();
+	
+	public boolean equals(Object other);
 }

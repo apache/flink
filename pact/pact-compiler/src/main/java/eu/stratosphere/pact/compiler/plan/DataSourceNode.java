@@ -50,7 +50,7 @@ public class DataSourceNode extends OptimizerNode
 	 * @param pactContract
 	 *        The data source contract object.
 	 */
-	public DataSourceNode(GenericDataSource<?, ?> pactContract) {
+	public DataSourceNode(GenericDataSource<?> pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
@@ -74,8 +74,8 @@ public class DataSourceNode extends OptimizerNode
 	 * 
 	 * @return The contract.
 	 */
-	public GenericDataSource<?, ?> getPactContract() {
-		return (GenericDataSource<?, ?>) super.getPactContract();
+	public GenericDataSource<?> getPactContract() {
+		return (GenericDataSource<?>) super.getPactContract();
 	}
 
 	/*
@@ -138,11 +138,11 @@ public class DataSourceNode extends OptimizerNode
 		if (statistics != null)
 		{
 			// instantiate the input format, as this is needed by the statistics 
-			InputFormat<?, ?, ?> format = null;
+			InputFormat<?> format = null;
 			String inFormatDescription = "<unknown>";
 			
 			try {
-				Class<? extends InputFormat<?, ?, ?>> formatClass = getPactContract().getFormatClass();
+				Class<? extends InputFormat<?>> formatClass = getPactContract().getFormatClass();
 				format = formatClass.newInstance();
 				format.configure(getPactContract().getParameters());
 			}

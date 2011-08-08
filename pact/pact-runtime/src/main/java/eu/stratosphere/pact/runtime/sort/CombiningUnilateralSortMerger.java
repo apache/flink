@@ -26,25 +26,23 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.StreamChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
-import eu.stratosphere.pact.runtime.task.util.EmptyIterator;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
+import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
+import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 /**
@@ -66,12 +64,9 @@ import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
  * 
  * @author Fabian Hueske
  * @author Stephan Ewen
- * 
- * @param <K> The key class
- * @param <V> The value class
  */
-public class CombiningUnilateralSortMerger<K extends Key, V extends Value> extends UnilateralSortMerger<K, V> {
-	
+public class CombiningUnilateralSortMerger extends UnilateralSortMerger
+{
 	// ------------------------------------------------------------------------
 	// Constants & Fields
 	// ------------------------------------------------------------------------
@@ -84,7 +79,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	/**
 	 * The stub called for the combiner.
 	 */
-	private final ReduceStub<K, V, ?, ?> combineStub;
+	private final ReduceStub combineStub;
 
 	/**
 	 * A flag indicating whether the last merge also combines the values.
@@ -106,10 +101,10 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param totalMemory The total amount of memory dedicated to sorting and merging.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keySerialization The serializer/deserializer for the keys.
-	 * @param valueSerialization The serializer/deserializer for the values.
-	 * @param keyComparator The comparator used to define the order among the keys.
-	 * @param reader The reader from which the input is drawn that will be sorted.
+	 * @param keyComparators The comparator used to define the order among the keys.
+	 * @param keyPositions The logical positions of the keys in the records.
+	 * @param keyClasses The types of the keys.
+	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
@@ -119,16 +114,15 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(ReduceStub<K, V, ?, ?> combineStub,
-			MemoryManager memoryManager, IOManager ioManager,
+	public CombiningUnilateralSortMerger(ReduceStub combineStub, MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, int maxNumFileHandles,
-			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
-			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask, float startSpillingFraction, boolean combineLastMerge)
+			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask,
+			float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		this (combineStub, memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles,
-			keySerialization, valueSerialization, keyComparator, reader, parentTask,
+			keyComparators, keyPositions, keyClasses, input, parentTask,
 			startSpillingFraction, combineLastMerge);
 	}
 	
@@ -145,10 +139,10 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 *                 amount of memory (<code>totalMemory</code>).
 	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keySerialization The serializer/deserializer for the keys.
-	 * @param valueSerialization The serializer/deserializer for the values.
-	 * @param keyComparator The comparator used to define the order among the keys.
-	 * @param reader The reader from which the input is drawn that will be sorted.
+	 * @param keyComparators The comparator used to define the order among the keys.
+	 * @param keyPositions The logical positions of the keys in the records.
+	 * @param keyClasses The types of the keys.
+	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
@@ -158,16 +152,16 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(ReduceStub<K, V, ?, ?> combineStub,
+	public CombiningUnilateralSortMerger(ReduceStub combineStub,
 			MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
-			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
-			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractTask parentTask, float startSpillingFraction, boolean combineLastMerge)
+			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
+			MutableObjectIterator<PactRecord> input, AbstractTask parentTask,
+			float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, totalMemory, ioMemory, numSortBuffers, maxNumFileHandles,
-			keySerialization, valueSerialization, keyComparator, reader, parentTask, startSpillingFraction);
+			keyComparators, keyPositions, keyClasses, input, parentTask, startSpillingFraction);
 
 		this.combineStub = combineStub;
 		this.combineLastMerge = combineLastMerge;
@@ -192,7 +186,6 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			AbstractTask parentTask)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
-			this.keySerialization, this.valueSerialization,
 			writeMemSize, readMemSize,
 			parentTask);
 	}
@@ -221,20 +214,26 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		registerChannelsToBeRemovedAtShudown(channelAccesses);
 
 		// the list with the target iterators
-		final Iterator<KeyValuePair<K, V>> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
-		final KeyGroupedIterator<K, V> groupedIter = new KeyGroupedIterator<K, V>(mergeIterator);
+		final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
+		final KeyGroupedIterator groupedIter = new KeyGroupedIterator(mergeIterator, this.keyPositions, this.keyClasses);
 		
 		// create a new channel writer and a collector that uses the writer to dump its data to disk
 		final Channel.ID mergedChannelID = this.ioManager.createChannel();
 		final ChannelWriter writer = this.ioManager.createChannelWriter(mergedChannelID, writeBuffers);
 		channelAccesses.add(writer);
 		
-		final WriterCollector<K, V> collector = new WriterCollector<K, V>(writer);
-		final ReduceStub<K, V, ?, ?> combineStub = this.combineStub;
+		final WriterCollector collector = new WriterCollector(writer);
+		final ReduceStub combineStub = this.combineStub;
 		
-		while (groupedIter.nextKey()) {
-			combineStub.combine(groupedIter.getKey(), groupedIter.getValues(), collector);
+		try {
+			while (groupedIter.nextKey()) {
+				combineStub.combine(groupedIter.getValues(), collector);
+			}
 		}
+		catch (Exception e) {
+			throw new IOException("An error occurred in the combiner user code.");
+		}
+		
 		writer.close();
 
 		// all readers have finished, so they have closed themselves and deleted themselves
@@ -247,15 +246,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	// Threads
 	// ------------------------------------------------------------------------
 
-	/**
-	 * This thread
-	 */
 	private class SpillingThread extends ThreadBase
 	{
-		private final SerializationFactory<K> keySerializer;
-		
-		private final SerializationFactory<V> valSerializer;
-		
 		private final MemoryManager memoryManager;		// memory manager for memory allocation and release
 
 		private final IOManager ioManager;				// I/O manager to create channels
@@ -267,15 +259,12 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
-				SerializationFactory<K> keySerializer, SerializationFactory<V> valSerializer,
 				long writeMemSize, long readMemSize,
 				AbstractTask parentTask)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 
 			// members
-			this.keySerializer = keySerializer;
-			this.valSerializer = valSerializer;
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
 			this.writeMemSize = writeMemSize;
@@ -330,9 +319,10 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			// ------------------- In-Memory Merge ------------------------
 			if (cacheOnly) {
 				/* # case 1: operates on in-memory segments only # */
-				LOG.debug("Initiating merge-iterator (in-memory segments).");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Initiating merge-iterator (in-memory segments).");
 				
-				List<Iterator<KeyValuePair<K, V>>> iterators = new ArrayList<Iterator<KeyValuePair<K, V>>>();
+				List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 								
 				// iterate buffers and collect a set of iterators
 				for (CircularElement cached : cache)
@@ -342,16 +332,17 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				}
 				
 				// release the remaining sort-buffers
-				LOG.debug("Releasing unused sort-buffer memory.");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Releasing unused sort-buffer memory.");
 				releaseSortBuffers();
 				
 				// set lazy iterator
-				Iterator<KeyValuePair<K, V>> resIter = iterators.size() == 1 ? iterators.get(0) : 
-					new MergeIterator<K, V>(iterators, keyComparator);
+				MutableObjectIterator<PactRecord> resIter = iterators.size() == 1 ? iterators.get(0) : 
+					new MergeIterator(iterators, keyComparators, keyPositions, keyClasses);
 				
 				if (CombiningUnilateralSortMerger.this.combineLastMerge) {
-					KeyGroupedIterator<K, V> iter = new KeyGroupedIterator<K, V>(resIter);
-					setResultIterator(new CombiningIterator<K, V>(combineStub, iter));
+					KeyGroupedIterator iter = new KeyGroupedIterator(resIter, keyPositions, keyClasses);
+					setResultIterator(new CombiningIterator(combineStub, iter));
 				} else {
 					setResultIterator(resIter);
 				}
@@ -406,40 +397,43 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				channelIDs.add(channel);
 
 				// create writer
-				LOG.debug("Creating temp file " + channel.toString() + '.');
+				if (LOG.isDebugEnabled())
+					LOG.debug("Creating temp file " + channel.toString() + '.');
+				
 				final ChannelWriter writer = ioManager.createChannelWriter(channel, writeBuffers);
 
-				LOG.debug("Combining buffer " + element.id + '.');
+				if (LOG.isDebugEnabled())
+					LOG.debug("Combining buffer " + element.id + '.');
 
 				// set up the combining helpers
-				final BufferSortableGuaranteed<K, V> buffer = element.buffer;
-				final CombineValueIterator<K, V> iter = new CombineValueIterator<K, V>(buffer,
-						this.valSerializer, keySerialization.newInstance());
-				final Collector<K, V> collector = new WriterCollector<K, V>(writer);
+				final BufferSortableGuaranteed buffer = element.buffer;
+				final CombineValueIterator iter = new CombineValueIterator(buffer);
+				final WriterCollector collector = new WriterCollector(writer);
 
 				int i = 0;
 				int stop = buffer.size() - 1;
 
-				while (i < stop) {
-					int seqStart = i;
-					while (i < stop && 0 == buffer.compare(i, i + 1)) {
+				try {
+					while (i < stop) {
+						int seqStart = i;
+						while (i < stop && 0 == buffer.compare(i, i + 1)) {
+							i++;
+						}
+	
+						if (i == seqStart) {
+							// no duplicate key, no need to combine. simply copy
+							buffer.writeToChannel(writer, seqStart, 1);
+						} else {
+							// get the iterator over the values
+							iter.set(seqStart, i);
+							// call the combiner to combine
+							combineStub.combine(iter, collector);
+						}
 						i++;
 					}
-
-					if (i == seqStart) {
-						// no duplicate key, no need to combine. simply copy
-						buffer.writeToChannel(writer, seqStart, 1);
-					} else {
-						// get the key and an iterator over the values
-						K key = this.keySerializer.newInstance();
-						buffer.getKey(key, seqStart);
-						
-						iter.set(seqStart, i);
-
-						// call the combiner to combine
-						combineStub.combine(key, iter, collector);
-					}
-					i++;
+				}
+				catch (Exception ex) {
+					throw new IOException("An error occurred in the combiner user code.", ex);
 				}
 
 				// write the last pair, if it has not yet been included in the last iteration
@@ -448,7 +442,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				}
 
 				// done combining and writing out
-				LOG.debug("Combined and spilled buffer " + element.id + ".");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Combined and spilled buffer " + element.id + ".");
 
 				writer.close();
 
@@ -458,11 +453,13 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 			}
 
 			// if sentinel then set lazy iterator
-			LOG.debug("Spilling done.");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Spilling done.");
 
 
 			// release sort-buffers
-			LOG.debug("Releasing sort-buffer memory.");
+			if (LOG.isDebugEnabled())
+					LOG.debug("Releasing sort-buffer memory.");
 			releaseSortBuffers();
 			if (CombiningUnilateralSortMerger.this.sortSegments != null) {
 				unregisterSegmentsToBeFreedAtShutdown(CombiningUnilateralSortMerger.this.sortSegments);
@@ -482,7 +479,7 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 
 				// check if we have spilled some data at all
 				if (channelIDs.isEmpty()) {
-					setResultIterator(EmptyIterator.<KeyValuePair<K, V>>get());
+					setResultIterator(EmptyMutableObjectIterator.<PactRecord>get());
 				}
 				else {
 					// allocate the memory for the final merging step
@@ -494,14 +491,14 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 					final List<StreamChannelAccess<?, ?>> readers = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
 					registerChannelsToBeRemovedAtShudown(readers);
 					
-					final Iterator<KeyValuePair<K, V>> mergeIterator = getMergingIterator(channelIDs, readBuffers, readers);
+					final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, readers);
 					
 					// set the target for the user iterator
 					// if the final merge combines, create a combining iterator around the merge iterator,
 					// otherwise not
 					if (CombiningUnilateralSortMerger.this.combineLastMerge) {
-						KeyGroupedIterator<K, V> iter = new KeyGroupedIterator<K, V>(mergeIterator);
-						setResultIterator(new CombiningIterator<K, V>(combineStub, iter));
+						KeyGroupedIterator iter = new KeyGroupedIterator(mergeIterator, keyPositions, keyClasses);
+						setResultIterator(new CombiningIterator(combineStub, iter));
 					} else {
 						setResultIterator(mergeIterator);
 					}
@@ -511,7 +508,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 				throw new IOException("Merging of sorted runs failed, because the memory for the I/O channels could not be allocated.", maex);
 			}
 
-			LOG.debug("Spilling thread done.");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Spilling thread done.");
 		}
 		
 		/**
@@ -552,13 +550,11 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	 * The iterator returns the values of a given
 	 * interval.
 	 */
-	private static final class CombineValueIterator<K extends Key, V extends Value> implements Iterator<V>
+	private static final class CombineValueIterator implements Iterator<PactRecord>
 	{
-		private final BufferSortableGuaranteed<K, V> buffer; // the buffer from which values are returned
+		private final BufferSortableGuaranteed buffer; // the buffer from which values are returned
 		
-		private final SerializationFactory<V> valueSerialization;
-		
-		private final KeyValuePair<K, V> deserializerPair;
+		private final PactRecord record;
 
 		private int last; // the position of the last value to be returned
 
@@ -570,12 +566,10 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(BufferSortableGuaranteed<K, V> buffer,
-				SerializationFactory<V> valSerialization, K k)
+		public CombineValueIterator(BufferSortableGuaranteed buffer)
 		{
 			this.buffer = buffer;
-			this.valueSerialization = valSerialization;
-			this.deserializerPair = new KeyValuePair<K, V>(k, valSerialization.newInstance());
+			this.record = new PactRecord();
 		}
 
 		/**
@@ -605,23 +599,21 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 * @see java.util.Iterator#next()
 		 */
 		@Override
-		public V next() {
-			if (this.position > this.last) {
+		public PactRecord next()
+		{
+			if (this.position <= this.last) {
+				try {
+					this.buffer.getRecord(this.record, this.position);					
+					this.position++;
+					return this.record;
+				}
+				catch (IOException ioex) {
+					LOG.error("Error retrieving a value from a buffer.", ioex);
+					throw new RuntimeException("Could not load the next value: " + ioex.getMessage(), ioex);
+				}
+			}
+			else {
 				throw new NoSuchElementException();
-			}
-
-			try {
-				this.buffer.getKeyValuePair(this.deserializerPair, this.position);
-				
-				V value = this.deserializerPair.getValue();
-				this.deserializerPair.setValue(this.valueSerialization.newInstance());
-				
-				position++;
-				return value;
-			}
-			catch (IOException ioex) {
-				LOG.error("Error retrieving a value from a buffer.", ioex);
-				throw new RuntimeException("Could not load the next value: " + ioex.getMessage(), ioex);
 			}
 		}
 
@@ -641,11 +633,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	/**
 	 * A simple collector that collects Key and Value and writes them into a given <code>Writer</code>.
 	 */
-	private static final class WriterCollector<K extends Key, V extends Value> implements Collector<K, V> {
-		
+	private static final class WriterCollector implements Collector
+	{	
 		private final Writer writer; // the writer to write to
-
-		private KeyValuePair<K, V> pair; // the reusable key/value pair
 
 		/**
 		 * Creates a new writer collector that writes to the given writer.
@@ -655,7 +645,6 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 */
 		private WriterCollector(Writer writer) {
 			this.writer = writer;
-			this.pair = new KeyValuePair<K, V>();
 		}
 
 		/*
@@ -665,12 +654,9 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 * eu.stratosphere.pact.common.type.Value)
 		 */
 		@Override
-		public void collect(K key, V value) {
-			pair.setKey(key);
-			pair.setValue(value);
-			
+		public void collect(PactRecord record) {
 			try {
-				writer.write(pair);
+				writer.write(record);
 			}
 			catch (IOException ioex) {
 				throw new RuntimeException("An error occurred forwarding the key/value pair to the writer.", ioex);
@@ -692,16 +678,16 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 	/**
 	 * A simple collector that collects Key and Value and puts them into an <tt>ArrayList</tt>.
 	 */
-	private static final class ListCollector<K extends Key, V extends Value> implements Collector<K, V> {
-		private ArrayList<KeyValuePair<K, V>> list; // the list to collect pairs in
+	private static final class ListCollector implements Collector
+	{
+		private ArrayList<PactRecord> list; // the list to collect pairs in
 
 		/**
 		 * Creates a new collector that collects output in the given list.
 		 * 
-		 * @param list
-		 *        The list to collect output in.
+		 * @param list The list to collect output in.
 		 */
-		private ListCollector(ArrayList<KeyValuePair<K, V>> list) {
+		private ListCollector(ArrayList<PactRecord> list) {
 			this.list = list;
 		}
 
@@ -710,8 +696,8 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		 * @see eu.stratosphere.pact.common.stub.Collector#collect(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value)
 		 */
 		@Override
-		public void collect(K key, V value) {
-			list.add(new KeyValuePair<K, V>(key, value));
+		public void collect(PactRecord record) {
+			this.list.add(record.createCopy());
 
 		}
 
@@ -723,62 +709,50 @@ public class CombiningUnilateralSortMerger<K extends Key, V extends Value> exten
 		public void close() {
 			// does nothing
 		}
-
 	}
 
 	// ------------------------------------------------------------------------
 
-	private static final class CombiningIterator<K extends Key, V extends Value> implements
-			Iterator<KeyValuePair<K, V>> {
-		private final ReduceStub<K, V, ?, ?> combineStub;
+	private static final class CombiningIterator implements MutableObjectIterator<PactRecord>
+	{
+		private final ReduceStub combineStub;
 
-		private final KeyGroupedIterator<K, V> iterator;
+		private final KeyGroupedIterator iterator;
 
-		private final ArrayList<KeyValuePair<K, V>> results;
+		private final ArrayList<PactRecord> results;
 
-		private final ListCollector<K, V> collector;
+		private final ListCollector collector;
 
-		private CombiningIterator(ReduceStub<K, V, ?, ?> combineStub, KeyGroupedIterator<K, V> iterator) {
+		private CombiningIterator(ReduceStub combineStub, KeyGroupedIterator iterator) {
 			this.combineStub = combineStub;
 			this.iterator = iterator;
 
-			this.results = new ArrayList<KeyValuePair<K, V>>();
-			this.collector = new ListCollector<K, V>(this.results);
+			this.results = new ArrayList<PactRecord>();
+			this.collector = new ListCollector(this.results);
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#hasNext()
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean hasNext() {
-			while (results.isEmpty() && iterator.nextKey()) {
-				combineStub.combine(iterator.getKey(), iterator.getValues(), collector);
+		public boolean next(PactRecord target) throws IOException
+		{
+			try {
+				while (this.results.isEmpty() && this.iterator.nextKey()) {
+					this.combineStub.combine(this.iterator.getValues(), this.collector);
+				}
 			}
-
-			return results.size() > 0;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#next()
-		 */
-		@Override
-		public KeyValuePair<K, V> next() {
-			if (!results.isEmpty() || hasNext()) {
-				return results.remove(0);
+			catch (Exception ex) {
+				throw new RuntimeException("An exception occurred in the combiner user code: " + ex.getMessage(), ex);
 			}
-
-			throw new NoSuchElementException();
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see java.util.Iterator#remove()
-		 */
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+			
+			if (!this.results.isEmpty()) {
+				this.results.remove(0).copyTo(target);
+				return true;
+			}
+			else {
+				return false;
+			}
 		}
 	}
 }

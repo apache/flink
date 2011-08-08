@@ -30,8 +30,6 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
 
 /**
@@ -69,11 +67,8 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @author Moritz Kaufmann
  * @author Stephan Ewen
- * 
- * @param <K> The type of the key in the produced key/value pair.
- * @param <V> The type of the value in the produced key/value pair.
  */
-public abstract class FileInputFormat<K extends Key, V extends Value> implements InputFormat<FileInputSplit, K, V>
+public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 {
 	/**
 	 * The config parameter which defines the input file path.
@@ -122,7 +117,7 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 	/**
 	 * Configures the file input format by reading the file path from the configuration.
 	 * 
-	 * @see eu.stratosphere.pact.common.recordio.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
 	public void configure(Configuration parameters)
