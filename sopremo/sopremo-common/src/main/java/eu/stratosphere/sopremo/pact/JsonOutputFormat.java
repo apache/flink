@@ -18,14 +18,14 @@ package eu.stratosphere.sopremo.pact;
 import java.io.IOException;
 
 import org.codehaus.jackson.JsonEncoding;
+import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.JsonProcessingException;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.sopremo.JsonUtil;
 
 /**
  * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link PactJsonObject}
@@ -33,43 +33,46 @@ import eu.stratosphere.sopremo.JsonUtil;
  * 
  * @author Arvid Heise
  */
-public class JsonOutputFormat extends OutputFormat<PactJsonObject.Key, PactJsonObject> {
+public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJsonObject> {
 
-	private JsonEncoding encoding = JsonEncoding.UTF8;
+	private JsonEncoding encoding;
 
 	private JsonGenerator generator;
 
 	private static final String PARAMETER_ENCODING = "Encoding";
 
+	public JsonOutputFormat() {
+		this.keyClass = PactJsonObject.Key.class;
+		this.valueClass = PactJsonObject.class;
+	}
+
 	@Override
 	public void close() throws IOException {
 		this.generator.writeEndArray();
 		this.generator.close();
+		super.close();
 	}
 
 	@Override
 	public void configure(final Configuration parameters) {
+		super.configure(parameters);
+
 		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
 		if (encoding != null)
 			this.encoding = JsonEncoding.valueOf(encoding);
+		else this.encoding = JsonEncoding.UTF8;
 	}
 
-	@Override
-	protected void initTypes() {
-		this.ok = PactJsonObject.Key.class;
-		this.ov = PactJsonObject.class;
-	}
+	public void open(int taskNumber) throws IOException {
+		super.open(taskNumber);
 
-	@Override
-	public void open() throws IOException {
-		this.generator = JsonUtil.FACTORY.createJsonGenerator(this.stream, this.encoding);
-		this.generator.setCodec(JsonUtil.OBJECT_MAPPER);
+		this.generator = new JsonFactory().createJsonGenerator(this.stream, this.encoding);
+		this.generator.setCodec(new ObjectMapper());
 		this.generator.writeStartArray();
 	}
 
 	@Override
-	public void writePair(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws JsonProcessingException,
-			IOException {
+	public void writeRecord(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws IOException {
 		this.generator.writeTree(pair.getValue().getValue());
 	}
 

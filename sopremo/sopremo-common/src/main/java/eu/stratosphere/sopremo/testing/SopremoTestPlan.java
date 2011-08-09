@@ -7,8 +7,8 @@ import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -368,7 +368,7 @@ public class SopremoTestPlan {
 		@Override
 		public PactModule asPactModule(final EvaluationContext context) {
 			final PactModule pactModule = new PactModule(this.toString(), 1, 0);
-			final DataSinkContract<?, ?> contract = TestPlan.createDefaultSink(this.getOutputName());
+			final FileDataSinkContract<?, ?> contract = TestPlan.createDefaultSink(this.getOutputName());
 			contract.setInput(pactModule.getInput(0));
 			pactModule.addInternalOutput(contract);
 			return pactModule;
@@ -417,7 +417,7 @@ public class SopremoTestPlan {
 		@Override
 		public PactModule asPactModule(final EvaluationContext context) {
 			final PactModule pactModule = new PactModule(this.toString(), 0, 1);
-			final DataSourceContract<?, ?> contract = TestPlan.createDefaultSource(this.getInputName());
+			final FileDataSourceContract<?, ?> contract = TestPlan.createDefaultSource(this.getInputName());
 			pactModule.getOutput(0).setInput(contract);
 			// pactModule.setInput(0, contract);
 			return pactModule;

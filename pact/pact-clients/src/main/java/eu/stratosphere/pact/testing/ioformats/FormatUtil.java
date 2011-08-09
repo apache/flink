@@ -25,12 +25,13 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
+import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.fs.hdfs.DistributedDataInputStream;
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.Key;
@@ -96,17 +97,21 @@ public class FormatUtil {
 	 * @return the created {@link InputFormat}
 	 * @throws IOException if an I/O error occurred while accessing the file or initializing the InputFormat.
 	 */
-	public static <T extends InputFormat<? extends Key, ? extends Value>> T createInputFormat(
-			Class<T> inputFormatClass, String path, Configuration configuration) throws IOException {
+	public static <T extends FileInputFormat<? extends Key, ? extends Value>> T createInputFormat(
+			Class<T> inputFormatClass, String path, Configuration configuration) throws IOException
+	{
+		configuration = configuration == null ? new Configuration() : configuration;
+		
 		org.apache.hadoop.fs.Path hadoopPath = normalizePath(new org.apache.hadoop.fs.Path(path));
 		final T inputFormat = ReflectionUtil.newInstance(inputFormatClass);
-		inputFormat.configure(configuration == null ? new Configuration() : configuration);
+		
+		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, path);
+		inputFormat.configure(configuration);
+			
 		final org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.get(hadoopPath.toUri(),
 			new org.apache.hadoop.conf.Configuration());
-		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(hadoopPath);
-		inputFormat.setInput(new DistributedDataInputStream(fdis), 0, fs.getFileStatus(hadoopPath).getLen(),
-			1024 * 1024);
-		inputFormat.open();
+
+		inputFormat.open(new FileInputSplit(0, new Path(path), 0, fs.getFileStatus(hadoopPath).getLen(), new String[] {"localhost"}));
 		return inputFormat;
 	}
 
@@ -121,15 +126,15 @@ public class FormatUtil {
 	 * @throws IOException if an I/O error occurred while accessing the files or initializing the InputFormat.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends InputFormat<? extends Key, ? extends Value>> T[] createInputFormats(
+	public static <T extends FileInputFormat<? extends Key, ? extends Value>> T[] createInputFormats(
 			Class<T> inputFormatClass, String path, Configuration configuration) throws IOException {
 		Path nephelePath = new Path(path);
 		FileSystem fs = nephelePath.getFileSystem();
 		FileStatus fileStatus = fs.getFileStatus(nephelePath);
 		if (!fileStatus.isDir())
-			return (T[]) new InputFormat[] { createInputFormat(inputFormatClass, path, configuration) };
+			return (T[]) new FileInputFormat[] { createInputFormat(inputFormatClass, path, configuration) };
 		FileStatus[] list = fs.listStatus(nephelePath);
-		T[] formats = (T[]) new InputFormat[list.length];
+		T[] formats = (T[]) new FileInputFormat[list.length];
 		for (int index = 0; index < formats.length; index++)
 			formats[index] = createInputFormat(inputFormatClass, list[index].getPath().toString(), configuration);
 		return formats;
@@ -145,31 +150,18 @@ public class FormatUtil {
 	 * @return the created {@link OutputFormat}
 	 * @throws IOException if an I/O error occurred while accessing the file or initializing the OutputFormat.
 	 */
-	public static <T extends OutputFormat<? extends Key, ? extends Value>> T createOutputFormat(
-			Class<T> outputFormatClass, String path, Configuration configuration) throws IOException {
-		org.apache.hadoop.fs.Path hadoopPath = normalizePath(new org.apache.hadoop.fs.Path(path));
-
+	public static <T extends FileOutputFormat<? extends Key, ? extends Value>> T createOutputFormat(
+			Class<T> outputFormatClass, String path, Configuration configuration) throws IOException
+	{
 		final T outputFormat = ReflectionUtil.newInstance(outputFormatClass);
+		
+		configuration = configuration == null ? new Configuration() : configuration;
+		
+		configuration.setString(FileOutputFormat.FILE_PARAMETER_KEY, path);
 		outputFormat.configure(configuration);
-		outputFormat.setOutput(openOutputStream(new Path(hadoopPath.toString())));
-		outputFormat.open();
+		outputFormat.open(1);
 
 		return outputFormat;
-	}
-
-	private static FSDataOutputStream openOutputStream(Path path) throws IOException {
-		return openOutputStream(path, -1);
-	}
-
-	private static FSDataOutputStream openOutputStream(Path path, int subtask) throws IOException {
-		FileSystem fs = path.getFileSystem();
-
-		if (fs.exists(path) && fs.getFileStatus(path).isDir() && subtask >= 0) {
-			// write output in directory
-			path = path.suffix("/" + (subtask + 1));
-		}
-
-		return fs.create(path, true);
 	}
 
 	/**

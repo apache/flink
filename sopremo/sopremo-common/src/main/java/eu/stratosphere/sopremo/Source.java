@@ -3,7 +3,7 @@ package eu.stratosphere.sopremo;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.NullNode;
 
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
@@ -38,7 +38,7 @@ public class Source extends ElementaryOperator {
 		if (this.type == PersistenceType.ADHOC)
 			throw new UnsupportedOperationException();
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
-		final DataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			JsonInputFormat.class, this.inputName, this.inputName);
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);

@@ -85,7 +85,7 @@ public class ElementaryOperator extends Operator {
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		final Contract contract = this.getContract();
-		this.configureContract(contract, contract.getStubParameters(), context);
+		this.configureContract(contract, contract.getParameters(), context);
 		final Contract[] inputs = ContractUtil.getInputs(contract);
 		final PactModule module = new PactModule(this.toString(), inputs.length, 1);
 		ContractUtil.setInputs(contract, module.getInputs());
@@ -108,7 +108,7 @@ public class ElementaryOperator extends Operator {
 			final EvaluationContext context) {
 		SopremoUtil.setContext(stubConfiguration, context);
 
-		for (final Field stubField : contract.getStubClass().getDeclaredFields())
+		for (final Field stubField : contract.getUserCodeClass().getDeclaredFields())
 			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0) {
 				Field thisField;
 				try {

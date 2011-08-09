@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>sopremo</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.1</version>
+        <version>0.1.1</version>
 	</parent>
 
 	<artifactId>sopremo-common</artifactId>
@@ -20,7 +20,7 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-common</artifactId>
-			<version>${version}</version>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -33,7 +33,7 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-clients</artifactId>
-			<version>0.1</version>
+			<version>${project.version}</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
@@ -67,13 +67,6 @@
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
-
-	<repositories>
-		<repository>
-			<id>equalsverifier-repository</id>
-			<url>http://equalsverifier.googlecode.com/svn/maven/</url>
-		</repository>
-	</repositories>
 
 	<reporting>
 		<plugins>

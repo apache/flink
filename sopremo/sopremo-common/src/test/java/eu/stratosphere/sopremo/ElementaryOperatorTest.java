@@ -64,14 +64,14 @@ public class ElementaryOperatorTest {
 		final Contract contract = new OperatorWithTwoStubs().getContract();
 		assertEquals(ReduceContract.class, contract.getClass());
 		assertTrue(Arrays.asList(OperatorWithTwoStubs.Implementation1.class,
-			OperatorWithTwoStubs.Implementation2.class).contains(contract.getStubClass()));
+			OperatorWithTwoStubs.Implementation2.class).contains(contract.getUserCodeClass()));
 	}
 
 	@Test
 	public void getContractShouldReturnTheMatchingContractToTheOnlyStub() {
 		final Contract contract = new OperatorWithOneStub().getContract();
 		assertEquals(MapContract.class, contract.getClass());
-		assertEquals(OperatorWithOneStub.Implementation.class, contract.getStubClass());
+		assertEquals(OperatorWithOneStub.Implementation.class, contract.getUserCodeClass());
 	}
 
 	public ElementaryOperator getDefault() {

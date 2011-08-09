@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.util.StringUtils;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -55,7 +55,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * <ol>
  * <li>From a file: with {@link #fromFile(Class, String)} and {@link #fromFile(Class, String, Configuration)} the
  * location, format, and configuration of the data can be specified. The file is lazily loaded and thus can be
- * comparable large.
+ * comparable large.¤
  * <li>Ad-hoc: key/value pairs can be added with {@link #add(Key, Value)}, {@link #add(KeyValuePair...)}, and
  * {@link #add(Iterable)}. Please note that the actual amount of pairs is quite for a test case as the TestPlan already
  * involves a certain degree of overhead.<br>
@@ -78,10 +78,10 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			implements Reader<KeyValuePair<K, V>> {
 		KeyValuePair<K, V> currentPair;
 
-		private final SplitInputIterator<K, V> inputFileIterator;
+		private final InputFileIterator<K, V> inputFileIterator;
 
 		private TestPairsReader(
-				final SplitInputIterator<K, V> inputFileIterator,
+				final InputFileIterator<K, V> inputFileIterator,
 				final KeyValuePair<K, V> actualPair) {
 			this.inputFileIterator = inputFileIterator;
 			this.currentPair = actualPair;
@@ -111,7 +111,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 
 	private Configuration configuration;
 
-	private Class<InputFormat<K, V>> inputFormatClass;
+	private Class<? extends FileInputFormat<K, V>> inputFormatClass;
 
 	private final List<KeyValuePair<K, V>> pairs = new ArrayList<KeyValuePair<K, V>>();
 
@@ -226,11 +226,11 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 */
 	@SuppressWarnings("unchecked")
 	private Iterator<KeyValuePair<K, V>> createSortedIterator(
-			final SplitInputIterator<K, V> inputFileIterator) {
+			final InputFileIterator<K, V> inputFileIterator) {
 		final KeyValuePair<K, V> actualPair = inputFileIterator.next();
 
 		final TaskConfig config = new TaskConfig(
-				GlobalConfiguration.getConfiguration());
+			GlobalConfiguration.getConfiguration());
 		this.assignMemory(config, 10);
 
 		// set up memory and io parameters
@@ -248,10 +248,10 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		try {
 			// obtain key serializer
 			final SerializationFactory<K> keySerialization = new WritableSerializationFactory<K>(
-					(Class<K>) actualPair.getKey().getClass());
+				(Class<K>) actualPair.getKey().getClass());
 			// obtain value serializer
 			final SerializationFactory<V> valSerialization = new WritableSerializationFactory<V>(
-					(Class<V>) actualPair.getValue().getClass());
+				(Class<V>) actualPair.getValue().getClass());
 
 			final StringBuilder testName = new StringBuilder();
 			StackTraceElement[] stackTrace = new Throwable().getStackTrace();
@@ -268,11 +268,11 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			};
 			@SuppressWarnings("rawtypes")
 			final UnilateralSortMerger<K, V> sortMerger = new UnilateralSortMerger<K, V>(
-					MockTaskManager.INSTANCE.getMemoryManager(),
-					MockTaskManager.INSTANCE.getIoManager(), totalMemory, numFileHandles,
-					keySerialization, valSerialization, keyComparator,
-					new TestPairsReader(inputFileIterator, actualPair),
-					parentTask, 0.7f);
+				MockTaskManager.INSTANCE.getMemoryManager(),
+				MockTaskManager.INSTANCE.getIoManager(), totalMemory, numFileHandles,
+				keySerialization, valSerialization, keyComparator,
+				new TestPairsReader(inputFileIterator, actualPair),
+				parentTask, 0.7f);
 
 			this.closableManager.add(sortMerger);
 
@@ -280,16 +280,16 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			return sortMerger.getIterator();
 		} catch (final MemoryAllocationException mae) {
 			throw new RuntimeException(
-					"MemoryManager is not able to provide the required amount of memory for ReduceTask",
-					mae);
+				"MemoryManager is not able to provide the required amount of memory for ReduceTask",
+				mae);
 		} catch (final IOException ioe) {
 			throw new RuntimeException(
-					"IOException caught when obtaining SortMerger for ReduceTask",
-					ioe);
+				"IOException caught when obtaining SortMerger for ReduceTask",
+				ioe);
 		} catch (final InterruptedException iex) {
 			throw new RuntimeException(
-					"InterruptedException caught when obtaining iterator over sorted data.",
-					iex);
+				"InterruptedException caught when obtaining iterator over sorted data.",
+				iex);
 		}
 	}
 
@@ -435,14 +435,14 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 * Initializes this {@link TestPairs} from the given file.
 	 * 
 	 * @param inputFormatClass
-	 *        the class of the {@link InputFormat}
+	 *        the class of the {@link FileInputFormat}
 	 * @param file
 	 *        the path to the file, can be relative
 	 * @return this
 	 */
 	@SuppressWarnings("rawtypes")
 	public TestPairs<K, V> fromFile(
-			final Class<? extends InputFormat> inputFormatClass,
+			final Class<? extends FileInputFormat> inputFormatClass,
 			final String file) {
 		this.fromFile(inputFormatClass, file, new Configuration());
 		return this;
@@ -452,19 +452,19 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 * Initializes this {@link TestPairs} from the given file.
 	 * 
 	 * @param inputFormatClass
-	 *        the class of the {@link InputFormat}
+	 *        the class of the {@link FileInputFormat}
 	 * @param file
 	 *        the path to the file, can be relative
 	 * @param configuration
-	 *        the configuration for the {@link InputFormat}.
+	 *        the configuration for the {@link FileInputFormat}.
 	 * @return this
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public TestPairs<K, V> fromFile(
-			final Class<? extends InputFormat> inputFormatClass,
+			final Class<? extends FileInputFormat> inputFormatClass,
 			final String file, final Configuration configuration) {
 		this.path = file;
-		this.inputFormatClass = (Class<InputFormat<K, V>>) inputFormatClass;
+		this.inputFormatClass = (Class<? extends FileInputFormat<K, V>>) inputFormatClass;
 		this.configuration = configuration;
 		setEmpty(false);
 		return this;
@@ -510,12 +510,13 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 
 		if (!this.isAdhoc() && this.inputFormatClass != null) {
 
-			final SplitInputIterator<K, V> inputFileIterator;
+			final InputFileIterator<K, V> inputFileIterator;
 			try {
-				inputFileIterator = new SplitInputIterator<K, V>(FormatUtil.createInputFormats(
-								this.inputFormatClass, this.path, this.configuration));
+				inputFileIterator = new InputFileIterator<K, V>(
+					!this.needsSorting(), FormatUtil.createInputFormats(
+						this.inputFormatClass, this.path, this.configuration));
 			} catch (final IOException e) {
-				Assert.fail("reading expected values: " + StringUtils.stringifyException(e));
+				Assert.fail("reading values from " + path + ": " + StringUtils.stringifyException(e));
 				return null;
 			} catch (final Exception e) {
 				Assert.fail("creating input format " + StringUtils.stringifyException(e));
@@ -551,11 +552,11 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	@SuppressWarnings("unchecked")
 	public void saveToFile(final String path) throws IOException {
 		final SequentialOutputFormat outputFormat = FormatUtil
-				.createOutputFormat(SequentialOutputFormat.class, path, null);
+			.createOutputFormat(SequentialOutputFormat.class, path, null);
 
 		final Iterator<KeyValuePair<K, V>> iterator = this.iterator();
 		while (iterator.hasNext())
-			outputFormat.writePair((KeyValuePair<Key, Value>) iterator.next());
+			outputFormat.writeRecord((KeyValuePair<Key, Value>) iterator.next());
 	}
 
 	@Override

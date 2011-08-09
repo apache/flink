@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>sopremo</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.1</version>
+        <version>0.1.1</version>
 	</parent>
 
 	<artifactId>sopremo-cleansing</artifactId>
@@ -27,13 +27,13 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>sopremo-relational</artifactId>
-			<version>${version}</version>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>sopremo-common</artifactId>
-			<version>${version}</version>
+			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -46,23 +46,8 @@
 			<systemPath>${project.basedir}/lib/simmetrics_jar_v1_6_2_d07_02_07.jar</systemPath>
 		</dependency>
 
-		<dependency>
-			<groupId>nl.jqno.equalsverifier</groupId>
-			<artifactId>equalsverifier</artifactId>
-			<version>1.0.1</version>
-			<type>jar</type>
-			<scope>test</scope>
-		</dependency>
-
 
 	</dependencies>
-
-	<repositories>
-		<repository>
-			<id>equalsverifier-repository</id>
-			<url>http://equalsverifier.googlecode.com/svn/maven/</url>
-		</repository>
-	</repositories>
 
 	<reporting>
 		<plugins>

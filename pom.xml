@@ -7,7 +7,7 @@
 
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>stratosphere</artifactId>
-	<version>0.1</version>
+	<version>0.1.1</version>
 
 	<name>stratosphere</name>
 	<packaging>pom</packaging>
@@ -389,7 +389,7 @@
 					<dependency>
 						<groupId>eu.stratosphere</groupId>
 						<artifactId>build-tools</artifactId>
-						<version>0.1</version>
+						<version>0.1.1</version>
 					</dependency>
 				</dependencies>
 			</plugin>
@@ -475,10 +475,15 @@
 								<format>html</format>
 							</formats>
 							<instrumentation>
-								<ignores>
+								<excludes>
+						            <exclude>eu/stratosphere/**/example/**/*.class</exclude>
+							        <exclude>eu/stratosphere/**/examples/**/*.class</exclude>
+							        <exclude>eu/stratosphere/**/*Test.class</exclude>
+					            </excludes>
+								<!--<ignores>
 					              <ignore>eu\.stratosphere.*\.examples\..*</ignore>
 						          <ignore>eu\.stratosphere.*Test</ignore>
-					            </ignores>
+					            </ignores>-->
 						    </instrumentation>
 						</configuration>
 						<executions>

@@ -28,24 +28,24 @@ import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import junit.framework.Assert;
 import junit.framework.AssertionFailedError;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
@@ -63,6 +63,7 @@ import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
+
 
 /**
  * Tests {@link TestPlan}.
@@ -217,7 +218,7 @@ public class TestPlanTest {
 	public static class IntegerOutFormat extends TextOutputFormat<PactNull, PactInteger> {
 		@Override
 		public byte[] writeLine(KeyValuePair<PactNull, PactInteger> pair) {
-			return String.valueOf(pair.getValue().getValue()).getBytes();
+			return String.format("%d\n", pair.getValue().getValue()).getBytes();
 		}
 
 	}
@@ -227,14 +228,14 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void completeTestPasses() {
-		final DataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
+		final FileDataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
 			"TestPlan/test.txt");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
 		map.setInput(read);
 
-		DataSinkContract<Key, Value> output = createOutput(map, SequentialOutputFormat.class);
+		FileDataSinkContract<Key, Value> output = createOutput(map, SequentialOutputFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.run();
@@ -279,14 +280,14 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		final DataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
+		final FileDataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
 			"TestPlan/test.txt");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
-		DataSinkContract<PactNull, PactInteger> output = createOutput(map, IntegerOutFormat.class);
+		FileDataSinkContract<PactNull, PactInteger> output = createOutput(map, IntegerOutFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.getExpectedOutput(output).fromFile(IntegerInFormat.class, getResourcePath("TestPlan/test.txt"));
@@ -426,10 +427,10 @@ public class TestPlanTest {
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		// first and second input are added in TestPlan
-		testPlan.getInput((DataSourceContract<PactInteger, PactString>) crossContract.getFirstInput()).
+		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getFirstInput()).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getInput((DataSourceContract<PactInteger, PactString>) crossContract.getSecondInput()).
+		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getSecondInput()).
 			add(new PactInteger(3), new PactString("test3")).
 			add(new PactInteger(4), new PactString("test4"));
 
@@ -469,13 +470,14 @@ public class TestPlanTest {
 	 *        the input from which the values are read
 	 * @param outputFormatClass
 	 *        the output format
-	 * @return the {@link DataSinkContract} for the temporary file
+	 * @return the {@link FileDataSinkContract} for the temporary file
 	 */
-	private <K extends Key, V extends Value> DataSinkContract<K, V> createOutput(final Contract input,
-			final Class<? extends OutputFormat<K, V>> outputFormatClass) {
+	private <K extends Key, V extends Value> FileDataSinkContract<K, V> createOutput(final Contract input,
+			final Class<? extends FileOutputFormat<K, V>> outputFormatClass) {
 		try {
-			final DataSinkContract<K, V> out = new DataSinkContract<K, V>(outputFormatClass, File.createTempFile(
-				"output", null).toURI().toString(), "Output");
+			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File
+				.createTempFile(
+					"output", null).toURI().toString(), "Output");
 			out.setInput(input);
 			return out;
 		} catch (IOException e) {
@@ -485,17 +487,18 @@ public class TestPlanTest {
 	}
 
 	/**
-	 * Creates an {@link DataSourceContract} contract for the specified resource file in the temporary folder for
+	 * Creates an {@link FileDataSourceContract} contract for the specified resource file in the temporary folder for
 	 * arbitrary key/value pairs coming from the given input
 	 * contract.
 	 * 
 	 * @param input
 	 *        the input from which the values are read
-	 * @return the {@link DataSinkContract} for the temporary file
+	 * @return the {@link FileDataSinkContract} for the temporary file
 	 */
-	private <K extends Key, V extends Value> DataSourceContract<K, V> createInput(
-			Class<? extends InputFormat<K, V>> inputFormat, String resource) {
-		final DataSourceContract<K, V> read = new DataSourceContract<K, V>(inputFormat, getResourcePath(resource),
+	private <K extends Key, V extends Value> FileDataSourceContract<K, V> createInput(
+			Class<? extends FileInputFormat<K, V>> inputFormat, String resource) {
+		final FileDataSourceContract<K, V> read = new FileDataSourceContract<K, V>(inputFormat,
+			getResourcePath(resource),
 			"Input");
 		return read;
 	}

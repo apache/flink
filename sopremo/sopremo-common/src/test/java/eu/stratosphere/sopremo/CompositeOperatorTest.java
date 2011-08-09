@@ -11,8 +11,8 @@ import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.ContractNavigator;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -54,13 +54,13 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		assertEquals(1, reachableNodes.get(3).getLevelNodes().size());
 
 		for (int index = 0; index < 3; index++)
-			assertTrue(DataSourceContract.class.isInstance(reachableNodes.get(0).getLevelNodes()
+			assertTrue(FileDataSourceContract.class.isInstance(reachableNodes.get(0).getLevelNodes()
 				.get(index)));
 		assertSame(ElementaryOperatorImpl.Implementation.class, reachableNodes.get(1)
-			.getLevelNodes().get(0).getStubClass());
+			.getLevelNodes().get(0).getUserCodeClass());
 		assertSame(ElementaryOperatorImpl.Implementation.class, reachableNodes.get(2)
-			.getLevelNodes().get(0).getStubClass());
-		assertTrue(DataSinkContract.class.isInstance(reachableNodes.get(3).getLevelNodes().get(0)));
+			.getLevelNodes().get(0).getUserCodeClass());
+		assertTrue(FileDataSinkContract.class.isInstance(reachableNodes.get(3).getLevelNodes().get(0)));
 	}
 
 	static class CompositeOperatorImpl extends CompositeOperator {

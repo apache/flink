@@ -45,7 +45,7 @@ public class UnionAll extends ElementaryOperator {
 			union.setFirstInput(leftInput);
 			union.setSecondInput(rightInput);
 
-			SopremoUtil.setContext(union.getStubParameters(), context);
+			SopremoUtil.setContext(union.getParameters(), context);
 			leftInput = union;
 		}
 

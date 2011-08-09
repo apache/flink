@@ -6,15 +6,15 @@ import java.util.Map;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.stub.MapStub;
@@ -36,8 +36,8 @@ public class ContractUtil {
 		STUB_CONTRACTS.put(CoGroupStub.class, CoGroupContract.class);
 		STUB_CONTRACTS.put(CrossStub.class, CrossContract.class);
 		STUB_CONTRACTS.put(MatchStub.class, MatchContract.class);
-		STUB_CONTRACTS.put(InputFormat.class, DataSourceContract.class);
-		STUB_CONTRACTS.put(OutputFormat.class, DataSinkContract.class);
+		STUB_CONTRACTS.put(FileInputFormat.class, FileDataSourceContract.class);
+		STUB_CONTRACTS.put(FileOutputFormat.class, FileDataSinkContract.class);
 	}
 
 	/**
@@ -47,11 +47,11 @@ public class ContractUtil {
 	 *        the stub class
 	 * @return the associated Contract type
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static Class<? extends Contract> getContractClass(final Class<? extends Stub> stubClass) {
+	@SuppressWarnings({ "unchecked" })
+	public static Class<? extends Contract> getContractClass(final Class<?> stubClass) {
 		final Class<?> contract = STUB_CONTRACTS.get(stubClass);
-		if (contract == null && stubClass != Stub.class)
-			return getContractClass((Class<? extends Stub<?, ?>>) stubClass.getSuperclass());
+		if (contract == null && stubClass != null)
+			return getContractClass(stubClass.getSuperclass());
 		return (Class<? extends Contract>) contract;
 	}
 
@@ -64,8 +64,8 @@ public class ContractUtil {
 	 * @return all input contracts to this contract
 	 */
 	public static Contract[] getInputs(final Contract contract) {
-		if (contract instanceof DataSinkContract<?, ?>)
-			return new Contract[] { ((DataSinkContract<?, ?>) contract).getInput() };
+		if (contract instanceof FileDataSinkContract<?, ?>)
+			return new Contract[] { ((FileDataSinkContract<?, ?>) contract).getInput() };
 		if (contract instanceof SingleInputContract<?, ?, ?, ?>)
 			return new Contract[] { ((SingleInputContract<?, ?, ?, ?>) contract).getInput() };
 		if (contract instanceof DualInputContract<?, ?, ?, ?, ?, ?>)
@@ -84,10 +84,10 @@ public class ContractUtil {
 	 *        all input contracts to this contract
 	 */
 	public static void setInputs(final Contract contract, final Contract[] inputs) {
-		if (contract instanceof DataSinkContract<?, ?>) {
+		if (contract instanceof FileDataSinkContract<?, ?>) {
 			if (inputs.length != 1)
 				throw new IllegalArgumentException("wrong number of inputs");
-			((DataSinkContract<?, ?>) contract).setInput(inputs[0]);
+			((FileDataSinkContract<?, ?>) contract).setInput(inputs[0]);
 		} else if (contract instanceof SingleInputContract<?, ?, ?, ?>) {
 			if (inputs.length != 1)
 				throw new IllegalArgumentException("wrong number of inputs");

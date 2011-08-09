@@ -22,7 +22,9 @@ import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.JsonToken;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -33,14 +35,14 @@ import eu.stratosphere.sopremo.JsonUtil;
  * 
  * @author Arvid Heise
  */
-public class JsonInputFormat extends InputFormat<PactJsonObject.Key, PactJsonObject> {
+public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJsonObject> {
 
 	private boolean array;
 
 	private boolean end;
 
-	private JsonParser parser;
-
+	private JsonParser parser;	
+	
 	private void checkEnd() throws IOException, JsonParseException {
 		if (this.array && this.parser.nextToken() == JsonToken.END_ARRAY || !this.array
 			&& this.parser.nextToken() == null)
@@ -49,11 +51,13 @@ public class JsonInputFormat extends InputFormat<PactJsonObject.Key, PactJsonObj
 
 	@Override
 	public void close() throws IOException {
+		super.close();
 		this.parser.close();
 	}
 
 	@Override
 	public void configure(final Configuration parameters) {
+		super.configure(parameters);
 	}
 
 	@Override
@@ -63,16 +67,7 @@ public class JsonInputFormat extends InputFormat<PactJsonObject.Key, PactJsonObj
 	}
 
 	@Override
-	protected void initTypes() {
-		this.ok = PactJsonObject.Key.class;
-		this.ov = PactJsonObject.class;
-	}
-
-	@Override
-	public boolean nextPair(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair)
-			throws JsonProcessingException,
-			IOException {
-
+	public boolean nextRecord(KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws IOException {
 		if (!this.end) {
 			pair.getValue().setValue(this.parser.readValueAsTree());
 			this.checkEnd();
@@ -83,7 +78,9 @@ public class JsonInputFormat extends InputFormat<PactJsonObject.Key, PactJsonObj
 	}
 
 	@Override
-	public void open() throws JsonParseException, IOException {
+	public void open(FileInputSplit split) throws JsonParseException, IOException {
+		super.open(split);
+		
 		this.end = false;
 		this.parser = JsonUtil.FACTORY.createJsonParser(this.stream);
 		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
@@ -95,6 +92,14 @@ public class JsonInputFormat extends InputFormat<PactJsonObject.Key, PactJsonObj
 	@Override
 	public boolean reachedEnd() {
 		return this.end;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
+	 */
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		return null;
 	}
 
 }

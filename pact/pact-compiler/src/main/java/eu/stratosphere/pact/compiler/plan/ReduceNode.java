@@ -57,7 +57,7 @@ public class ReduceNode extends SingleInputNode {
 		super(pactContract);
 		
 		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getStubParameters();
+		Configuration conf = getPactContract().getParameters();
 		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
 
 		if (localStrategy != null) {
@@ -164,105 +164,6 @@ public class ReduceNode extends SingleInputNode {
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		super.setInputs(contractToNode);
-	}
-
-	/**
-	 * This method computes the estimated outputs for the user function represented by this node.
-	 * 
-	 * @param statistics
-	 *        The statistics wrapper to be used to obtain additional knowledge. Currently ignored.
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
-	 */
-	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
-		CompilerHints hints = getPactContract().getCompilerHints();
-
-		if (pred != null) {
-
-			// the key cardinality is computed as follows:
-			// 1) If a hint specifies it directly, that value is taken
-			// 2) If a same-key output contract is used, we assume the key cardinality
-			// remains the same
-			if (hints.getKeyCardinality() > 0) {
-				this.estimatedKeyCardinality = hints.getKeyCardinality();
-			} else if (getOutputContract() == OutputContract.SameKey) {
-				// take the predecessors key cardinality. If it is unknown (-1), this one's key cardinality will be
-				// unknown as well
-				this.estimatedKeyCardinality = pred.estimatedKeyCardinality;
-			}
-
-			// estimate the number of rows
-			// it works the following way:
-			// 1) If the key cardinality is set and the values/key is set, use that information to compute the
-			// cardinality
-			// 2) If the incoming number of records is known and the selectivity is given, use that
-			// 3) If the incoming key cardinality is known, assume a reduction to one record per key (aggregation-type
-			// reduce)
-
-			this.estimatedNumRecords = -1;
-			if (hints.getKeyCardinality() > 0 && hints.getAvgNumValuesPerKey() >= 1.0f) {
-				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-			} else if (pred.estimatedKeyCardinality >= 0) {
-				// estimate number of stub calls
-				long estNumStubCalls = pred.estimatedKeyCardinality;
-				
-				// estimate number of records
-				this.estimatedNumRecords = (long) (estNumStubCalls * hints.getAvgRecordsEmittedPerStubCall()) + 1;
-
-			}
-
-			// if the key cardinality is missing and the number of rows and the values/key hint is known
-			// estimate the key cardinality from that
-			if (this.estimatedKeyCardinality == -1 && this.estimatedNumRecords != -1) {
-				if (hints.getAvgNumValuesPerKey() >= 1.0f) {
-					this.estimatedKeyCardinality = (long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) + 1;
-				} else {
-					this.estimatedKeyCardinality = this.estimatedNumRecords;
-				}
-			}
-
-			// estimate the output size
-			this.estimatedOutputSize = -1;
-			if (this.estimatedNumRecords != -1) {
-				if (hints.getAvgBytesPerRecord() > 0.0f) {
-					this.estimatedOutputSize = (long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) + 1;
-				} else if (pred.estimatedOutputSize > 0 && pred.estimatedNumRecords > 0) {
-					// infer the number of bytes per record from the predecessor and use the same value
-					// this implies that we assume the value remains of the same size
-
-					float avgBytes = pred.estimatedOutputSize / ((float) pred.estimatedNumRecords);
-					this.estimatedOutputSize = (long) (this.estimatedNumRecords * avgBytes) + 1;
-				}
-			} else {
-				// nothing to assume, except that in a reducer, the data volume typically does not grow
-				this.estimatedOutputSize = pred.estimatedOutputSize;
-			}
-
-			// check that the key-card is maximally as large as the number of rows
-			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
-				this.estimatedKeyCardinality = this.estimatedNumRecords;
-			}
-
-			// ----------------------------------------------------------------
-
-			if (isCombineable() && pred.estimatedNumRecords >= 1 && pred.estimatedKeyCardinality >= 1
-				&& pred.estimatedOutputSize >= -1) {
-				int parallelism = pred.getDegreeOfParallelism();
-				parallelism = parallelism >= 1 ? parallelism : 32; // @parallelism
-
-				float inValsPerKey = ((float) pred.estimatedNumRecords) / pred.estimatedKeyCardinality;
-				float valsPerNode = inValsPerKey / parallelism;
-				valsPerNode = valsPerNode >= 1.0f ? valsPerNode : 1.0f;
-
-				this.combinerReducingFactor = 1.0f / valsPerNode;
-			}
-		} else {
-			// we don't know anything
-			this.estimatedKeyCardinality = hints.getKeyCardinality();
-			this.estimatedNumRecords = -1;
-			this.estimatedOutputSize = -1;
-		}
 	}
 
 	/*
@@ -449,6 +350,221 @@ public class ReduceNode extends SingleInputNode {
 		}
 
 		return outputPlans;
+	}
+	
+	/**
+	 * Computes the number of keys that are processed by the PACT.
+	 * 
+	 * @return the number of keys processed by the PACT.
+	 */
+	private long computeNumberOfProcessedKeys() {
+		OptimizerNode pred = input == null ? null : input.getSourcePact();
+
+		if(pred != null) {
+			// Each key is processed by Reduce
+			return pred.getEstimatedKeyCardinality();
+		} else {
+			return -1;
+		}
+	}
+	
+	/**
+	 * Computes the number of stub calls for one processed key. 
+	 * 
+	 * @return the number of stub calls for one processed key.
+	 */
+	private double computeStubCallsPerProcessedKey() {
+		
+		// the stub is called once for each key.
+		return 1;
+	}
+	
+	/**
+	 * Computes the number of stub calls.
+	 * 
+	 * @return the number of stub calls.
+	 */
+	private long computeNumberOfStubCalls() {
+		
+		// the stub is called once per key
+		return this.computeNumberOfProcessedKeys();
+	}
+	
+	/**
+	 * Computes the width of output records
+	 * 
+	 * @return width of output records
+	 */
+	private double computeAverageRecordWidth() {
+		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		if(hints.getAvgBytesPerRecord() != -1) {
+			// use hint if available
+			return hints.getAvgBytesPerRecord();
+		
+		} else if (pred != null) {
+			// use record width of previous node
+			
+			if(pred.estimatedOutputSize != -1 && pred.estimatedNumRecords != -1) {
+				return (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) >= 1 ? 
+						(long) (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) : 1;
+			} else {
+				return -1.0;
+			}
+			
+		} else {
+			// we have no estimate for the width... 
+			return -1.0;
+		}
+	}
+	
+	private void computeCombinerReducingFactor() {
+		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		
+		if (isCombineable() && pred.estimatedNumRecords >= 1 && pred.estimatedKeyCardinality >= 1
+			&& pred.estimatedOutputSize >= -1) {
+			int parallelism = pred.getDegreeOfParallelism();
+			parallelism = parallelism >= 1 ? parallelism : 32; // @parallelism
+
+			float inValsPerKey = ((float) pred.estimatedNumRecords) / pred.estimatedKeyCardinality;
+			float valsPerNode = inValsPerKey / parallelism;
+			valsPerNode = valsPerNode >= 1.0f ? valsPerNode : 1.0f;
+
+			this.combinerReducingFactor = 1.0f / valsPerNode;
+		}
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
+	 */
+	@Override
+	public void computeOutputEstimates(DataStatistics statistics) {
+		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		// special hint handling for Reduce:
+		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
+		// since the stub is called once per key
+		if(this.getOutputContract().equals(OutputContract.SameKey)) {
+			if(hints.getAvgNumValuesPerKey() != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerKey());
+			}
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerKey() == -1) {
+				hints.setAvgNumValuesPerKey(hints.getAvgRecordsEmittedPerStubCall());
+			}
+		}
+
+		// check if preceding node is available
+		if (pred == null) {
+			// Preceding node is not available, we take hints as given
+			this.estimatedKeyCardinality = hints.getKeyCardinality();
+			
+			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) >= 1 ? 
+						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+			}
+			
+			if(this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
+				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
+						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+			}
+			
+		} else {
+			// We have a preceding node
+		
+			// ############# set default estimates
+			
+			// default output cardinality is equal to number of stub calls
+			this.estimatedNumRecords = this.computeNumberOfStubCalls();
+			// default key cardinality is -1
+			this.estimatedKeyCardinality = -1;
+			// default output size is equal to output size of previous node
+			this.estimatedOutputSize = pred.estimatedOutputSize;
+			
+			
+			// ############# output cardinality estimation ##############
+			
+			boolean outputCardEstimated = true;
+				
+			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+				// we have precise hints
+				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey() >= 1) ?
+						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+			} else if(hints.getAvgRecordsEmittedPerStubCall() != 1.0) {
+				// we know how many records are in average emitted per stub call
+				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
+						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
+			} else {
+				outputCardEstimated = false;
+			}
+						
+			// ############# output key cardinality estimation ##########
+
+			if(hints.getKeyCardinality() != -1) {
+				// number of keys is explicitly given by user hint
+				this.estimatedKeyCardinality = hints.getKeyCardinality();
+				
+			} else if(!this.getOutputContract().equals(OutputContract.None)) {
+				// we have an output contract which might help to estimate the number of output keys
+				
+				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
+					// each output key is unique. Every record has a unique key.
+					this.estimatedKeyCardinality = this.estimatedNumRecords;
+					
+				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
+						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
+						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
+					// we have a samekey output contract
+					
+					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+						// in average less than one record is emitted per stub call
+						
+						// compute the probability that at least one stub call emits a record for a given key 
+						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+
+						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+					} else {
+						// in average more than one record is emitted per stub call. We assume all keys are kept.
+						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+					}
+				}
+			} else if(hints.getAvgNumValuesPerKey() != -1 && this.estimatedNumRecords != -1) {
+				// we have a hint for the average number of records per key
+				this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey() >= 1) ? 
+						(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
+			}
+			 
+			// try to reversely estimate output cardinality from key cardinality
+			if(this.estimatedKeyCardinality != -1 && !outputCardEstimated) {
+				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
+				if(hints.getAvgNumValuesPerKey() != -1) {
+					// we have a hint for average values per key
+					this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey() >= 1) ?
+							(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
+				}
+			}
+				
+			// ############# output size estimation #####################
+
+			double estAvgRecordWidth = this.computeAverageRecordWidth();
+			
+			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
+				// we have a cardinality estimate and width estimate
+
+				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
+						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
+			}
+			
+			// check that the key-card is maximally as large as the number of rows
+			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
+				this.estimatedKeyCardinality = this.estimatedNumRecords;
+			}
+			
+			this.computeCombinerReducingFactor();
+		}
 	}
 
 }

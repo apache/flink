@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.testing;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -52,16 +53,17 @@ class MockInstanceManager implements InstanceManager {
 	};
 
 	private static final NetworkTopology NETWORK_TOPOLOGY = NetworkTopology
-			.createEmptyTopology();
+		.createEmptyTopology();
 
 	public final static MockInstanceManager INSTANCE = new MockInstanceManager();
-//
-//	public static MockInstanceManager getInstance() {
-//		return INSTANCE;
-//	}
+
+	//
+	// public static MockInstanceManager getInstance() {
+	// return INSTANCE;
+	// }
 
 	private final AllocatedResource allocatedResource = new AllocatedResource(
-			new MockInstance(DEFAULT_INSTANCE_TYPE, NETWORK_TOPOLOGY), DEFAULT_INSTANCE_TYPE, new AllocationID());
+		new MockInstance(DEFAULT_INSTANCE_TYPE, NETWORK_TOPOLOGY), DEFAULT_INSTANCE_TYPE, new AllocationID());
 
 	private InstanceListener instanceListener;
 
@@ -99,9 +101,14 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public void requestInstance(final JobID jobID, final Configuration conf,
-			final InstanceType instanceType) throws InstanceException {
-		this.instanceListener.resourceAllocated(jobID, this.allocatedResource);
+	public void requestInstance(final JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+			List<String> splitAffinityList) throws InstanceException {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				instanceListener.resourceAllocated(jobID, allocatedResource);
+			}
+		}).start();
 	}
 
 	@Override

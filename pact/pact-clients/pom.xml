@@ -7,12 +7,12 @@
   <parent>
     <artifactId>pact</artifactId>
     <groupId>eu.stratosphere</groupId>
-    <version>0.1</version>
+    <version>0.1.1</version>
   </parent>
 
   <groupId>eu.stratosphere</groupId>
   <artifactId>pact-clients</artifactId>
-  <version>0.1</version>
+  <version>0.1.1</version>
   <name>pact-clients</name>
 
   <packaging>jar</packaging>
@@ -123,6 +123,15 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>**/TestPlanTest.java</exclude>
+          </excludes>
+        </configuration>
+       </plugin>
     </plugins>
   </build>
   

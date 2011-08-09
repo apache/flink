@@ -151,6 +151,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 		if (this.entryVertices.size() > 0) {
 			final TraversalEntry te = new TraversalEntry(this.entryVertices.get(0), 0);
 			this.traversalStack.push(te);
+			this.alreadyVisited.add(te.getGroupVertex());
 		}
 	}
 
@@ -167,7 +168,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 
 			final ManagementGroupVertex groupVertex = stage.getGroupVertex(i);
 
-			if (forward) {
+			if (this.forward) {
 				if ((groupVertex.getNumberOfBackwardEdges() == 0)
 					|| ((this.stage >= 0) && allConnectionsFromOtherStage(groupVertex, true))) {
 					this.entryVertices.add(groupVertex);
@@ -240,6 +241,7 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 
 			final TraversalEntry newentry = new TraversalEntry(this.entryVertices.get(this.numVisitedEntryVertices), 0);
 			this.traversalStack.push(newentry);
+			this.alreadyVisited.add(newentry.getGroupVertex());
 		}
 
 		final ManagementGroupVertex returnVertex = this.traversalStack.peek().getGroupVertex();
@@ -257,14 +259,12 @@ public final class ManagementGroupVertexIterator implements Iterator<ManagementG
 			} else {
 				// Create new entry and put it on the stack
 				final TraversalEntry newte = new TraversalEntry(candidateVertex, 0);
-				this.traversalStack.add(newte);
+				this.traversalStack.push(newte);
+				this.alreadyVisited.add(newte.getGroupVertex());
 				break;
 			}
 
 		} while (!this.traversalStack.isEmpty());
-
-		// Mark vertex as already visited
-		this.alreadyVisited.add(returnVertex);
 
 		return returnVertex;
 

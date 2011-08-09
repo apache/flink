@@ -21,8 +21,8 @@ import java.util.List;
 
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -42,7 +42,7 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
  * PactModule.
  */
 public class PactModule extends
-		GraphModule<Contract, DataSourceContract<?, ?>, DataSinkContract<?, ?>> implements
+		GraphModule<Contract, FileDataSourceContract<?, ?>, FileDataSinkContract<?, ?>> implements
 		Visitable<Contract> {
 	/**
 	 * Initializes a PactModule having the given name, number of inputs, and
@@ -56,13 +56,13 @@ public class PactModule extends
 	 *        the number of outputs.
 	 */
 	public PactModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
-		super(name, new DataSourceContract[numberOfInputs], new DataSinkContract[numberOfOutputs],
+		super(name, new FileDataSourceContract[numberOfInputs], new FileDataSinkContract[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
+			this.inputNodes[index] = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
 				JsonInputFormat.class, String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new DataSinkContract<PactJsonObject.Key, PactJsonObject>(
+			this.outputNodes[index] = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
 				JsonOutputFormat.class, String.format("%s %d", name, index));
 	}
 
@@ -128,8 +128,8 @@ public class PactModule extends
 		final PactModule module = new PactModule(name, inputs.size(), sinks.size());
 		int sinkIndex = 0;
 		for (final Contract sink : sinks) {
-			if (sink instanceof DataSinkContract<?, ?>)
-				module.outputNodes[sinkIndex] = (DataSinkContract<?, ?>) sink;
+			if (sink instanceof FileDataSinkContract<?, ?>)
+				module.outputNodes[sinkIndex] = (FileDataSinkContract<?, ?>) sink;
 			else
 				module.getOutput(sinkIndex).setInput(sink);
 			sinkIndex++;
@@ -139,7 +139,7 @@ public class PactModule extends
 			final Contract node = inputs.get(index);
 			final Contract[] contractInputs = ContractUtil.getInputs(node);
 			if (contractInputs.length == 0)
-				module.inputNodes[index++] = (DataSourceContract<?, ?>) node;
+				module.inputNodes[index++] = (FileDataSourceContract<?, ?>) node;
 			else {
 				for (int unconnectedIndex = 0; unconnectedIndex < contractInputs.length; unconnectedIndex++)
 					if (contractInputs[unconnectedIndex] == null)

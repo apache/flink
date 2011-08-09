@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo;
 
-import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -26,7 +26,7 @@ public class Sink extends ElementaryOperator {
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
-		final DataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new DataSinkContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
 			JsonOutputFormat.class, this.outputName, this.outputName);
 		contract.setInput(pactModule.getInput(0));
 		pactModule.addInternalOutput(contract);

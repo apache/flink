@@ -476,7 +476,7 @@ public class ReduceTask extends AbstractTask {
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('"');
+		bld.append(' ').append('(');
 		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
 		bld.append('/');
 		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());

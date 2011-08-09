@@ -6,12 +6,12 @@
   <parent>
     <artifactId>nephele</artifactId>
     <groupId>eu.stratosphere</groupId>
-    <version>0.1</version>
+    <version>0.1.1</version>
   </parent>
 
   <groupId>eu.stratosphere</groupId>
   <artifactId>nephele-common</artifactId>
-  <version>0.1</version>
+  <version>0.1.1</version>
   <name>nephele-common</name>
 
   <packaging>jar</packaging>

@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.plan.Plan;
 
 /**
@@ -51,7 +51,7 @@ public class SopremoPlan {
 
 	/**
 	 * Assembles the Pacts of the contained Sopremo operators and returns a list of all Pact sinks. These sinks may
-	 * either be directly a {@link DataSinkContract} or an unconnected {@link Contract}.
+	 * either be directly a {@link FileDataSinkContract} or an unconnected {@link Contract}.
 	 * 
 	 * @return a list of Pact sinks
 	 */

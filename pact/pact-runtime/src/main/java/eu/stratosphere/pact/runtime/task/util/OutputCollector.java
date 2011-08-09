@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.RecordWriter;
@@ -133,5 +134,13 @@ public class OutputCollector<K extends Key, V extends Value> implements Collecto
 	 */
 	@Override
 	public void close() {
+	}
+
+	/**
+	 * List of writers that are associated with this output collector
+	 * @return list of writers
+	 */
+	public List<RecordWriter<KeyValuePair<K, V>>> getWriters() {
+		return Collections.unmodifiableList(writers);
 	}
 }

@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -94,8 +94,6 @@ implements MatchTaskIterator<K, V1, V2>
 	private final Class<V2> value2Class;
 	
 	private final LocalStrategy localStrategy;
-	
-	private final AbstractTask parentTask;
 
 	private final long memoryPerChannel;
 	
@@ -110,6 +108,7 @@ implements MatchTaskIterator<K, V1, V2>
 
 	private SortMerger<K, V2> sortMerger2;
 	
+	private final AbstractInvokable parentTask;
 	private KeyValueIterator<V1> iterator1;
 
 	private KeyValueIterator<V2> iterator2;
@@ -121,7 +120,7 @@ implements MatchTaskIterator<K, V1, V2>
 			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
 			Class<K> keyClass, Class<V1> value1Class, Class<V2> value2Class,
 			long memory, int maxNumFileHandles, float spillingThreshold,
-			LocalStrategy localStrategy, AbstractTask parentTask)
+			LocalStrategy localStrategy, AbstractInvokable parentTask)
 	{
 		this(memoryManager, ioManager, reader1, reader2, keyClass, value1Class, value2Class, memory, maxNumFileHandles,
 			spillingThreshold, DEFAULT_MEMORY_SHARE_RATIO, localStrategy, parentTask);
@@ -131,7 +130,7 @@ implements MatchTaskIterator<K, V1, V2>
 			Reader<KeyValuePair<K, V1>> reader1, Reader<KeyValuePair<K, V2>> reader2,
 			Class<K> keyClass, Class<V1> value1Class, Class<V2> value2Class,
 			long memory, int maxNumFileHandles, float spillingThreshold, float memPercentageForBlockNL,
-			LocalStrategy localStrategy, AbstractTask parentTask)
+			LocalStrategy localStrategy, AbstractInvokable parentTask)
 	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;

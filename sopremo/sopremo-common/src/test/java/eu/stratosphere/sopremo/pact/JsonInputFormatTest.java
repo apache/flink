@@ -12,9 +12,10 @@ import org.junit.Test;
 
 import eu.stratosphere.pact.common.IdentityMap;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -36,14 +37,14 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPasses() throws IOException {
-		final DataSourceContract<PactJsonObject.Key, PactJsonObject> read = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
 		map.setInput(read);
 
-		final DataSinkContract<Key, Value> output = this.createOutput(map, SequentialOutputFormat.class);
+		final FileDataSinkContract<Key, Value> output = this.createOutput(map, SequentialOutputFormat.class);
 
 		final TestPlan testPlan = new TestPlan(output);
 		testPlan.run();
@@ -58,14 +59,14 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
-		final DataSourceContract<PactJsonObject.Key, PactJsonObject> read = new DataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
-		final DataSinkContract<PactJsonObject.Key, PactJsonObject> output = this.createOutput(map,
+		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> output = this.createOutput(map,
 			JsonOutputFormat.class);
 
 		final TestPlan testPlan = new TestPlan(output);
@@ -82,12 +83,12 @@ public class JsonInputFormatTest {
 	 *        the input from which the values are read
 	 * @param outputFormatClass
 	 *        the output format
-	 * @return the {@link DataSinkContract} for the temporary file
+	 * @return the {@link FileDataSinkContract} for the temporary file
 	 */
-	private <K extends Key, V extends Value> DataSinkContract<K, V> createOutput(final Contract input,
-			final Class<? extends OutputFormat<K, V>> outputFormatClass) {
+	private <K extends Key, V extends Value> FileDataSinkContract<K, V> createOutput(final Contract input,
+			final Class<? extends FileOutputFormat<K, V>> outputFormatClass) {
 		try {
-			final DataSinkContract<K, V> out = new DataSinkContract<K, V>(outputFormatClass, File.createTempFile(
+			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File.createTempFile(
 				"output", null).toURI().toString(), "Output");
 			out.setInput(input);
 			return out;
@@ -118,13 +119,13 @@ public class JsonInputFormatTest {
 		final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair = inputFormat.createPair();
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
-			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextPair(pair));
+			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(pair));
 			Assert
 				.assertEquals("other order expected", index, pair.getValue().getValue().get("id").getIntValue());
 		}
 
 		if (!inputFormat.reachedEnd()) {
-			Assert.assertTrue("no more pairs but reachedEnd did not return false", inputFormat.nextPair(pair));
+			Assert.assertTrue("no more pairs but reachedEnd did not return false", inputFormat.nextRecord(pair));
 			Assert.fail("pair unexpected: " + pair);
 		}
 	}
@@ -145,11 +146,11 @@ public class JsonInputFormatTest {
 		final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair = inputFormat.createPair();
 
 		if (!inputFormat.reachedEnd())
-			if (!inputFormat.nextPair(pair))
+			if (!inputFormat.nextRecord(pair))
 				Assert.fail("one value expected expected: " + pair);
 
 		if (!inputFormat.reachedEnd()) {
-			Assert.assertTrue("no more values but reachedEnd did not return false", inputFormat.nextPair(pair));
+			Assert.assertTrue("no more values but reachedEnd did not return false", inputFormat.nextRecord(pair));
 			Assert.fail("value unexpected: " + pair);
 		}
 

@@ -6,15 +6,15 @@
     <parent>
         <artifactId>stratosphere</artifactId>
         <groupId>eu.stratosphere</groupId>
-        <version>0.1</version>
+        <version>0.1.1</version>
     </parent>
 
     <groupId>eu.stratosphere</groupId>
     <artifactId>sopremo</artifactId>
 
     <packaging>pom</packaging>
-
-    <version>0.1</version>
+	
+    <version>0.1.1</version>
     <name>sopremo</name>
 
     <inceptionYear>2011</inceptionYear>
@@ -51,8 +51,22 @@
         </dependencies>
     </dependencyManagement>
 
-    <dependencies>
+    <dependencies>	
+		<dependency>
+			<groupId>nl.jqno.equalsverifier</groupId>
+			<artifactId>equalsverifier</artifactId>
+			<version>1.0.1</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
     </dependencies>
+
+	<repositories>
+		<repository>
+			<id>equalsverifier-repository</id>
+			<url>http://equalsverifier.googlecode.com/svn/maven/</url>
+		</repository>
+	</repositories>
     
     <build>
 		<plugins>
