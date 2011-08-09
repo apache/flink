@@ -124,7 +124,7 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 
 		// get the key positions and types
 		this.keyPositions = this.config.getLocalStrategyKeyPositions(0);
-		this.keyClasses = this.config.getLocalStrategyKeyClasses(0, this.userCodeClassLoader);
+		this.keyClasses = this.config.getLocalStrategyKeyClasses(this.userCodeClassLoader);
 		if (this.keyPositions == null || this.keyClasses == null) {
 			throw new Exception("The key positions and types are not specified for the ReduceTask.");
 		}

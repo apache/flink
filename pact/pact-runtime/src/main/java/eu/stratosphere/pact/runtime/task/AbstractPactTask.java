@@ -49,8 +49,7 @@ import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
  */
 public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 {
-	protected final Log LOG = LogFactory.getLog(AbstractPactTask.class);
-	
+	protected static final Log LOG = LogFactory.getLog(AbstractPactTask.class);
 	
 	protected TaskConfig config;
 	
@@ -137,32 +136,46 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code."));
 		
-		// run the data preparation
-		prepare();
-
-		// open stub implementation
+		boolean stubOpen = false;
 		try {
-			this.stub.open(this.config.getStubParameters());
-		}
-		catch (Throwable t) {
-			throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
-		}
-		
-		// run the user code
-		try {
+			// run the data preparation
+			try {
+				prepare();
+			}
+			catch (Throwable t) {
+				// if the preparation caused an error, clean up
+				// errors during clean-up are swallowed, because we have already a root exception
+				try { cleanup(); } catch (Throwable t2) {}
+				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() + 
+					"' , caused an error: " + t.getMessage(), t);
+			}
+			
+			// open stub implementation
+			try {
+				this.stub.open(this.config.getStubParameters());
+				stubOpen = true;
+			}
+			catch (Throwable t) {
+				throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
+			}
+			
+			// run the user code
 			run();
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running) {
 				this.stub.close();
+				stubOpen = false;
 			}
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
-			try {
-				this.stub.close();
+			if (stubOpen) {
+				try {
+					this.stub.close();
+				}
+				catch (Throwable t) {}
 			}
-			catch (Throwable t) {}
 			
 			// drop exception, if task was canceled, because we already have a root exception.
 			if (this.running) {
