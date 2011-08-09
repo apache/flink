@@ -76,7 +76,7 @@ public class TaskConfig
 
 	private static final String INPUT_SHIP_STRATEGY = "pact.input.ship.strategy";
 	
-	private static final String INPUT_SHIP_NUM_KEYS_PREFIX = "pact.input.numkeys.";
+	private static final String INPUT_SHIP_NUM_KEYS = "pact.input.numkeys";
 	
 	private static final String INPUT_SHIP_KEY_POS_PREFIX = "pact.input.keypos.";
 	
@@ -196,18 +196,39 @@ public class TaskConfig
 		return LocalStrategy.valueOf(config.getString(LOCAL_STRATEGY, ""));
 	}
 	
-	public void setLocalStrategyKeyParameters(int inputNum, int[] keyPositions, Class<? extends Key>[] keyTypes)
+	public void setLocalStrategyKeyTypes(Class<? extends Key>[] keyTypes)
+	{
+		int numKeysYet = this.config.getInteger(INPUT_SHIP_NUM_KEYS, -1);
+		if (numKeysYet == -1) {
+			this.config.setInteger(INPUT_SHIP_NUM_KEYS, keyTypes.length);
+		}
+		else if (keyTypes.length != numKeysYet) {
+			throw new IllegalArgumentException("The number of key classes does not match the number of keys set by a previous parameter.");
+		}
+
+		for (int i = 0; i < keyTypes.length; i++) {
+			this.config.setString(INPUT_SHIP_KEY_CLASS_PREFIX + i, keyTypes[i].getName());
+		}
+	}
+	
+	public void setLocalStrategyKeyTypes(int inputNum, int[] keyPositions)
 	{			
-		this.config.setInteger(INPUT_SHIP_NUM_KEYS_PREFIX + inputNum, keyPositions.length);
+		int numKeysYet = this.config.getInteger(INPUT_SHIP_NUM_KEYS, -1);
+		if (numKeysYet == -1) {
+			this.config.setInteger(INPUT_SHIP_NUM_KEYS, keyPositions.length);
+		}
+		else if (keyPositions.length != numKeysYet) {
+			throw new IllegalArgumentException("The number of positions does not match the number of keys set by a previous parameter.");
+		}
+		
 		for (int i = 0; i < keyPositions.length; i++) {
 			this.config.setInteger(INPUT_SHIP_KEY_POS_PREFIX + inputNum + '.' + i, keyPositions[i]);
-			this.config.setString(INPUT_SHIP_KEY_CLASS_PREFIX + inputNum + '.' + i, keyTypes[i].getName());
 		}
 	}
 	
 	public int[] getLocalStrategyKeyPositions(int inputNum)
 	{		
-		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS_PREFIX + inputNum, -1);
+		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS + inputNum, -1);
 		if (numKeys <= 0) {
 			return null;
 		}
@@ -224,10 +245,10 @@ public class TaskConfig
 		return keyPos;
 	}
 	
-	public Class<? extends Key>[] getLocalStrategyKeyClasses(int inputNum, ClassLoader cl)
+	public Class<? extends Key>[] getLocalStrategyKeyClasses(ClassLoader cl)
 	throws ClassNotFoundException, ClassCastException
 	{
-		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS_PREFIX + inputNum, -1);
+		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS, -1);
 		if (numKeys <= 0) {
 			return null;
 		}
@@ -235,7 +256,7 @@ public class TaskConfig
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyTypes = (Class<? extends Key>[]) new Class[numKeys];
 		for (int i = 0; i < numKeys; i++) {
-			String name = this.config.getString(INPUT_SHIP_KEY_CLASS_PREFIX + inputNum + '.' + i, null);
+			String name = this.config.getString(INPUT_SHIP_KEY_CLASS_PREFIX + i, null);
 			if (name != null) {
 				keyTypes[i] = Class.forName(name, true, cl).asSubclass(Key.class);
 			} else {
