@@ -55,7 +55,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * <ol>
  * <li>From a file: with {@link #fromFile(Class, String)} and {@link #fromFile(Class, String, Configuration)} the
  * location, format, and configuration of the data can be specified. The file is lazily loaded and thus can be
- * comparable large.¤
+ * comparable large.
  * <li>Ad-hoc: key/value pairs can be added with {@link #add(Key, Value)}, {@link #add(KeyValuePair...)}, and
  * {@link #add(Iterable)}. Please note that the actual amount of pairs is quite for a test case as the TestPlan already
  * involves a certain degree of overhead.<br>
