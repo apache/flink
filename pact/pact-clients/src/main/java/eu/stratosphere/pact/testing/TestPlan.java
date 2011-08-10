@@ -61,7 +61,6 @@ import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
@@ -860,18 +859,6 @@ public class TestPlan implements Closeable, DeploymentManager {
 					throw assertionError;
 				}
 			}
-	}
-
-	private Object toString(Iterator<KeyValuePair<Key, Value>> iterator) {
-		StringBuilder builder = new StringBuilder();
-		for (int index = 0; index < 10 && iterator.hasNext(); index++) {
-			builder.append(iterator.next());
-			if (iterator.hasNext())
-				builder.append(", ");
-		}
-		if (iterator.hasNext())
-			builder.append("...");
-		return builder.toString();
 	}
 
 	/**

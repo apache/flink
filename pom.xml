@@ -480,10 +480,13 @@
 							        <exclude>eu/stratosphere/**/examples/**/*.class</exclude>
 							        <exclude>eu/stratosphere/**/*Test.class</exclude>
 					            </excludes>
-								<!--<ignores>
-					              <ignore>eu\.stratosphere.*\.examples\..*</ignore>
-						          <ignore>eu\.stratosphere.*Test</ignore>
-					            </ignores>-->
+								<ignores>
+								  <ignore>org.apache.log4j.*</ignore>
+								  <ignore>org.apache.commons.logging.*</ignore>
+					              <ignore>eu.stratosphere.*examples.*</ignore>
+					              <ignore>eu.stratosphere.*example.*</ignore>
+						          <ignore>eu.stratosphere.*Test</ignore>
+					            </ignores>
 						    </instrumentation>
 						</configuration>
 						<executions>
