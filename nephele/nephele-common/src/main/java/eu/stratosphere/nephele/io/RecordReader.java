@@ -357,4 +357,15 @@ public class RecordReader<T extends Record> implements Reader<T> {
 		// Delegate call to input gate
 		this.inputGate.publishEvent(event);
 	}
+
+	/**
+	 * Exposes the input gate which is used by this record reader. This method should have
+	 * package visibility only.
+	 * 
+	 * @return the input gate used by this record reader
+	 */
+	InputGate<T> getInputGate() {
+
+		return this.inputGate;
+	}
 }
