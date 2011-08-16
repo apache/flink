@@ -91,7 +91,9 @@ public class OutputCollector implements Collector
 						PactRecord copy = record.createCopy();
 						writers.get(i).emit(copy);
 					}
-					writers.get(i).emit(record);
+					else {
+						writers.get(i).emit(record);	
+					}
 				}
 			}
 		}

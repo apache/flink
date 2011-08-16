@@ -25,19 +25,20 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.CrossStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("unchecked")
 public class CrossTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(CrossTaskExternalITCase.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testExternalBlockCrossTask() {
@@ -57,6 +58,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -93,6 +97,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -111,15 +118,14 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		
 	}
 	
-	public static class MockCrossStub extends CrossStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockCrossStub extends CrossStub {
 
 		HashSet<Integer> hashSet = new HashSet<Integer>(1000);
 		
 		@Override
-		public void cross(PactInteger key1, PactInteger value1, PactInteger key2, PactInteger value2,
-				Collector<PactInteger, PactInteger> out) {
+		public void cross(PactRecord record1, PactRecord record2, Collector out) {
 			
-			Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key1)));
+			/*Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key1)));
 			Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key2)));
 			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value1)));
 			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value2)));
@@ -127,9 +133,10 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 			hashSet.add(System.identityHashCode(key1));
 			hashSet.add(System.identityHashCode(key2));
 			hashSet.add(System.identityHashCode(value1));
-			hashSet.add(System.identityHashCode(value2));
+			hashSet.add(System.identityHashCode(value2));*/
 			
-			out.collect(key1, value1);
+			out.collect(record1);
+			
 		}
 	}
 	

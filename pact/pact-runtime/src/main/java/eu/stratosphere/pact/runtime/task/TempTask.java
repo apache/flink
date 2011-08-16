@@ -16,6 +16,8 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -31,15 +33,25 @@ import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Stub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.util.KeyComparator;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.NepheleReaderIterator;
 
 /**
@@ -51,275 +63,98 @@ import eu.stratosphere.pact.runtime.util.NepheleReaderIterator;
  * in Nepheles dataflow.
  * 
  * @author Fabian Hueske
+ * @author Matthias Ringwald
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class TempTask extends AbstractTask
+public class TempTask extends AbstractPactTask
 {
-	// obtain TempTask logger
-	private static final Log LOG = LogFactory.getLog(TempTask.class);
-	
 	// the minimal amount of memory required for the temp to work
 	private static final long MIN_REQUIRED_MEMORY = 512 * 1024;
 
-	// input reader
-	private RecordReader<KeyValuePair<Key, Value>> reader;
-
-	// output writer
-	private RecordWriter<KeyValuePair<Key, Value>> writer;
-
-	// stub implementation of preceding PACT
-	private Stub stub;
-
-	// task configuration
-	private TaskConfig config;
-	
 	// spilling thread
-	private SpillingResettableIterator<KeyValuePair<Key, Value>> tempIterator;
-
-	// the memory dedicated to the sorter
-	private long availableMemory;
+	private SpillingResettableIterator<PactRecord> tempIterator;
 	
-	// cancel flag
-	private volatile boolean taskCanceled = false;
-	
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputOutput()
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start registering input and output"));
 
-		// init stub of preceding PACT
-		initPrecedingStub();
+	// ------------------------------------------------------------------------
 
-		// init input reader
-		initInputReader();
 
-		// init output writer
-		initOutputWriter();
-
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Finished registering input and output"));
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void invoke() throws Exception
-	{
-		// TODO: Replace SpillingResetableIterator by a strategy with a reading
-		// and a sending thread.
-		// --> A viable solution would be to have the spilling resettable iterator changed to receive and buffer records on the fly.
-		// Sending should start while records are read and buffered
-		// Order preserving and destroying strategies possible.
-
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
-
-		// obtain task manager's memory manager
-		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
-		// obtain task manager's io manager
-		final IOManager ioManager = getEnvironment().getIOManager();
-
-		tempIterator = null;
-		try {
-			// obtain SpillingResettableIterator to dump pairs to disk and read again
-			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, 
-					new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader),
-				this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
-				this);
-
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Start temping records"));
-
-			// open SpillingResettableIterator
-			// all input pairs are consumed and written to disk.
-			tempIterator.open();
-			
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Finished temping records"));
-				LOG.debug(getLogString("Start serving records"));
-			}
-
-			// all read pairs from SpillingResettableIterator (from disk)
-			while (!this.taskCanceled && tempIterator.hasNext()) {
-				// read next pair
-				KeyValuePair<Key, Value> pair = tempIterator.next();
-				// forward pair to output writer
-				writer.emit(pair);
-			}
-
-			if (!this.taskCanceled) {
-				if (LOG.isDebugEnabled())
-					LOG.debug(getLogString("Finished serving records"));
-			}
-
-		}
-		catch (MemoryAllocationException mae) {
-			throw new RuntimeException("Unable to obtain SpillingResettableIterator for TempTask", mae);
-		}
-		catch (ServiceException se) {
-			throw new RuntimeException(se);
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException(ioe);
-		}
-		catch (Exception ie) {
-			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-				throw ie;
-			}
-		}
-		finally {
-			if (tempIterator != null) {
-				// close SpillingResettableIterator
-				tempIterator.close();
-			}
-		}
-
-		if (!this.taskCanceled) {
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
-		}
-		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("Finished PACT code"));
-		}
-	}
-	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
 	 */
 	@Override
-	public void cancel() throws Exception
-	{
-		// activate cancel flag
-		this.taskCanceled = true;
-		// abort temp iterator
-		if(tempIterator != null) {
-			tempIterator.abort();
-		}
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+	public int getNumberOfInputs() {
+		return 1;
 	}
 
-	/**
-	 * Initializes the stub implementation of the preceding PACT.
-	 * The stub is required to obtain the types of its output key and value.
-	 * The types are necessary for serialization and deserialization of key-value pairs.
-	 * 
-	 * @throws RuntimeException
-	 *         Thrown if instance of stub implementation can not be
-	 *         obtained.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
-	private void initPrecedingStub() throws RuntimeException {
+	@Override
+	public Class<ReduceStub> getStubType() {
+		return ReduceStub.class;
+	}
 
-		// obtain task configuration
-		this.config = new TaskConfig(getRuntimeConfiguration());
-
-		// configure io buffer size using task config
-		this.availableMemory = this.config.getMemorySize();
-		if (this.availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new RuntimeException("The temp task was initialized with too little memory: " + this.availableMemory +
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
+	 */
+	@Override
+	public void prepare() throws Exception
+	{
+		// set up memory and I/O parameters
+		final long availableMemory = this.config.getMemorySize();
+		final int maxFileHandles = this.config.getNumFilehandles();
+		final float spillThreshold = this.config.getSortSpillingTreshold();
+		
+		availableMemory = this.config.getMemorySize();
+		if (availableMemory < MIN_REQUIRED_MEMORY) {
+			throw new RuntimeException("The temp task was initialized with too little memory: " + availableMemory +
 				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
 		}
 
-		// obtain stub implementation class
-		// this is required to obtain the data type of the keys and values.
-		// Type are required for serialization and deserialization methods.
-		ClassLoader cl;
-		try {
-			// obtain stub class
-			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends Stub> stubClass = config.getStubClass(Stub.class, cl);
-			// obtain stub instance
-			stub = stubClass.newInstance();
-		} catch (IOException ioe) {
-			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		} catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("Stub implementation class was not found.", cnfe);
-		} catch (InstantiationException ie) {
-			throw new RuntimeException("Stub implementation could not be instanciated.", ie);
-		} catch (IllegalAccessException iae) {
-			throw new RuntimeException("Stub implementations nullary constructor is not accessible.", iae);
-		}
+		// obtain the TaskManager's MemoryManager
+		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+		// obtain the TaskManager's IOManager
+		final IOManager ioManager = getEnvironment().getIOManager();
+		
+		tempIterator = new SpillingResettableIterator<PactRecord>(memoryManager, ioManager, 
+				inputs[0], new PactRecord(), availableMemory, this);
+		
+		tempIterator.open();
+		
 	}
 
-	/**
-	 * Initializes the input reader of the TempTask.
-	 * 
-	 * @throws RuntimeException
-	 *         Thrown if an invalid input ship strategy was provided.
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
 	 */
-	private void initInputReader() {
-		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(
-				this.stub.getOutKeyType(), this.stub.getOutValueType());
-
-		// determine distribution pattern from ship strategy
-		DistributionPattern dp = null;
-		switch (config.getInputShipStrategy(0)) {
-		case FORWARD:
-			// forward requires Pointwise DP
-			dp = new PointwiseDistributionPattern();
-			break;
-		case PARTITION_HASH:
-			// partition requires Bipartite DP
-			dp = new BipartiteDistributionPattern();
-			break;
-		case BROADCAST:
-			// broadcast requires Bipartite DP
-			dp = new BipartiteDistributionPattern();
-			break;
-		case SFR:
-			// SFR requires Bipartite DP
-			dp = new BipartiteDistributionPattern();
-			break;
-		default:
-			throw new RuntimeException("Unsupported ship strategy in TempTask.");
-		}
-
-		// create reader
-		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
-	}
-
-	/**
-	 * Creates the TempTask's output writer
-	 */
-	private void initOutputWriter() {
-		// obtain output emitter
-		OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(0));
-
-		// create Writer
-		this.writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
-			(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-	}
-	
-	// ============================================================================================
-	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
-	 */
-	private String getLogString(String message)
+	@Override
+	public void run() throws Exception
 	{
-		StringBuilder bld = new StringBuilder(128);	
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('"');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
+
+		// cache references on the stack
+		final SpillingResettableIterator<PactRecord> iter = this.tempIterator;
+		final OutputCollector output = this.output;
+		
+		// run stub implementation
+		while (this.running && iter.hasNext())
+		{
+			PactRecord record = iter.next();
+			// forward pair to output writer
+			output.collect(record);
+		}
+			
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
+	 */
+	@Override
+	public void cleanup() throws Exception {
+		if (this.tempIterator != null) {
+			this.tempIterator.close();
+			this.tempIterator = null;
+		}
 	}
 }

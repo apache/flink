@@ -137,6 +137,8 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			LOG.info(getLogString("Start PACT code."));
 		
 		boolean stubOpen = false;
+		this.running = true;
+		
 		try {
 			// run the data preparation
 			try {
@@ -274,6 +276,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			case PARTITION_HASH:
 			case PARTITION_RANGE:
 			case BROADCAST:
+			case SFR:
 				dp = new BipartiteDistributionPattern();
 				break;
 			default:

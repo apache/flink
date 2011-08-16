@@ -159,6 +159,7 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 			this.input = new CombiningUnilateralSortMerger(this.stub, memoryManager,
 					ioManager, availableMemory, maxFileHandles, comparators,
 					keyPositions, keyClasses, this.inputs[0], this, spillThreshold, false);
+			break;
 		default:
 			throw new Exception("Invalid local strategy provided for ReduceTask: " + ls.name());
 		}

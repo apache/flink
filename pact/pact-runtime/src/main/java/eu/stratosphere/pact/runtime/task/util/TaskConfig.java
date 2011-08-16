@@ -228,7 +228,7 @@ public class TaskConfig
 	
 	public int[] getLocalStrategyKeyPositions(int inputNum)
 	{		
-		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS + inputNum, -1);
+		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS , -1);
 		if (numKeys <= 0) {
 			return null;
 		}
