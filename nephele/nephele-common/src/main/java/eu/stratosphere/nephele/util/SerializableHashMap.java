@@ -50,14 +50,14 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		
+	public void write(final DataOutput out) throws IOException {
+
 		out.writeInt(size());
-		
+
 		final Iterator<Map.Entry<K, V>> it = entrySet().iterator();
-		
-		while(it.hasNext()) {
-			
+
+		while (it.hasNext()) {
+
 			final Map.Entry<K, V> entry = it.next();
 			final K key = entry.getKey();
 			final V value = entry.getValue();
@@ -74,12 +74,12 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 	@SuppressWarnings("unchecked")
 	// TODO: See if type safety can be improved here
 	@Override
-	public void read(DataInput in) throws IOException {
-		
+	public void read(final DataInput in) throws IOException {
+
 		final int numberOfMapEntries = in.readInt();
-		
-		for(int i = 0; i < numberOfMapEntries; i++) {
-			
+
+		for (int i = 0; i < numberOfMapEntries; i++) {
+
 			final String keyType = StringRecord.readString(in);
 			Class<K> keyClass = null;
 			try {
@@ -94,9 +94,9 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 			} catch (Exception e) {
 				throw new IOException(StringUtils.stringifyException(e));
 			}
-			
+
 			key.read(in);
-			
+
 			final String valueType = StringRecord.readString(in);
 			Class<V> valueClass = null;
 			try {
@@ -112,10 +112,9 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 				throw new IOException(StringUtils.stringifyException(e));
 			}
 			value.read(in);
-			
+
 			put(key, value);
 		}
-		
-	}
 
+	}
 }
