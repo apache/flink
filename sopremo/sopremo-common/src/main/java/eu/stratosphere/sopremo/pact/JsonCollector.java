@@ -13,8 +13,8 @@ public class JsonCollector {
 	}
 
 	public void collect(final JsonNode key, final JsonNode value) {
-		if (SopremoUtil.LOG.isDebugEnabled())
-			SopremoUtil.LOG.debug(String.format(" to %s/%s", key, value));
+		if (SopremoUtil.LOG.isTraceEnabled())
+			SopremoUtil.LOG.trace(String.format(" to %s/%s", key, value));
 		this.collector.collect(PactJsonObject.keyOf(key), PactJsonObject.valueOf(value));
 	}
 }

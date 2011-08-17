@@ -14,11 +14,13 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.base.GlobalEnumeration;
 import eu.stratosphere.sopremo.base.Grouping;
 import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.cleansing.scrubbing.Lookup;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -28,7 +30,6 @@ import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
 /**
@@ -69,22 +70,40 @@ public class TransitiveClosure extends CompositeOperator {
 	@Override
 	public SopremoModule asElementaryOperators() {
 		JsonStream input = this.getInput(0);
-		JsonStream backLookup;
+		Operator backLookup1, backLookup2;
 		if (this.idProjection == DEFAULT_PROJECTION) {
 			final JsonStream entityExtractor = new RemoveDuplicateEntities(new FlattenPairs(input));
 			final GlobalEnumeration globalEnumeration = new GlobalEnumeration(entityExtractor);
 			globalEnumeration.setIdGeneration(GlobalEnumeration.LONG_COMBINATION);
-			input = new SubstituteWithKeyValueList(input, globalEnumeration);
-			backLookup = globalEnumeration;
+			input = new Lookup(input, globalEnumeration).withInputKeyExtractor(new ArrayAccess(0));
+			input = new Lookup(input, globalEnumeration).withInputKeyExtractor(new ArrayAccess(1));
+			backLookup1 = backLookup2 = globalEnumeration;
 		} else {
-			backLookup = new Projection(this.idProjection, EvaluationExpression.SAME_VALUE, input);
+			if (this.emitClusters) {
+				backLookup1 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
+					.withKeyProjection(new PathExpression(new ArrayAccess(0), this.idProjection))
+					.withValueProjection(new ArrayAccess(0));
+				backLookup2 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
+					.withKeyProjection(new PathExpression(new ArrayAccess(1), this.idProjection))
+					.withValueProjection(new ArrayAccess(1));
+			} else {
+				final ValueSplitter valueSplitter = new ValueSplitter(input).addProjection(new ArrayAccess(0),
+					new ArrayAccess(1));
+				final Projection idExtraction = new Projection(this.idProjection, EvaluationExpression.SAME_VALUE,
+					valueSplitter);
+				backLookup1= backLookup2 = new Grouping(new ArrayAccess(0), idExtraction).withKeyProjection(EvaluationExpression.SAME_KEY).withResetKey(false);
+			}
 			input = new Projection(new ArrayCreation(new PathExpression(new ArrayAccess(0), this.idProjection),
 				new PathExpression(new ArrayAccess(1), this.idProjection)), input);
 		}
 
 		final Grouping groupAll = new Grouping(EvaluationExpression.SAME_VALUE, input);
 		final UnparallelClosure pairs = new UnparallelClosure(this.emitClusters, groupAll);
-		return SopremoModule.valueOf(this.getName(), new SubstituteWithKeyValueList(pairs, backLookup));
+		final Lookup lookupLeft = new Lookup(pairs, backLookup1).withInputKeyExtractor(new ArrayAccess(0))
+			.withDictionaryKeyExtraction(EvaluationExpression.SAME_KEY);
+		final Lookup lookupRight = new Lookup(lookupLeft, backLookup2).withInputKeyExtractor(new ArrayAccess(1))
+			.withDictionaryKeyExtraction(EvaluationExpression.SAME_KEY);
+		return SopremoModule.valueOf(this.getName(), lookupRight);
 	}
 
 	public EvaluationExpression getIdProjection() {
@@ -104,6 +123,32 @@ public class TransitiveClosure extends CompositeOperator {
 			throw new NullPointerException("idProjection must not be null");
 
 		this.idProjection = idProjection;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + (this.emitClusters ? 1231 : 1237);
+		result = prime * result + this.idProjection.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		TransitiveClosure other = (TransitiveClosure) obj;
+		return this.emitClusters == other.emitClusters && this.idProjection.equals(other.idProjection);
+	}
+
+	@Override
+	public String toString() {
+		return "TransitiveClosure [emitClusters=" + this.emitClusters + ", idProjection=" + this.idProjection + "]";
 	}
 
 	public static void warshall(final BinarySparseMatrix matrix) {
@@ -158,76 +203,77 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	}
 
-	public static class SubstituteWithKeyValueList extends CompositeOperator {
-
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 5213470669940261166L;
-
-		public SubstituteWithKeyValueList(final JsonStream input, final JsonStream keyValueList) {
-			super(input, keyValueList);
-		}
-
-		@Override
-		public SopremoModule asElementaryOperators() {
-			final Projection left = new Projection(new ArrayAccess(0), EvaluationExpression.SAME_VALUE,
-				this.getInput(0));
-			final ReplaceWithRightInput replacedLeft = new ReplaceWithRightInput(0, left);
-			final Projection right = new Projection(new ArrayAccess(1), EvaluationExpression.SAME_VALUE, replacedLeft);
-			final ReplaceWithRightInput replacedRight = new ReplaceWithRightInput(1, right);
-
-			return SopremoModule.valueOf(this.getName(), replacedRight);
-		}
-
-		public static class ReplaceWithRightInput extends ElementaryOperator {
-			/**
-			 * 
-			 */
-			private static final long serialVersionUID = 7334161941683036846L;
-
-			private final int index;
-
-			public ReplaceWithRightInput(final int index, final JsonStream input) {
-				super(input);
-				this.index = index;
-			}
-
-			public int getIndex() {
-				return this.index;
-			}
-
-			public static class Implementation extends
-					SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
-				private int index;
-
-				@Override
-				protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
-						final JsonCollector out) {
-					((ArrayNode) value1).set(this.index, value2);
-					out.collect(NullNode.getInstance(), value1);
-				}
-			}
-		}
-
-		public static class SwapKeyValue extends ElementaryOperator {
-			/**
-			 * 
-			 */
-			private static final long serialVersionUID = 311598721939565997L;
-
-			public SwapKeyValue(final JsonStream input) {
-				super(input);
-			}
-
-			public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
-				@Override
-				protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-					out.collect(value, key);
-				}
-			}
-		}
-	}
+	//
+	// public static class SubstituteWithKeyValueList extends CompositeOperator {
+	//
+	// /**
+	// *
+	// */
+	// private static final long serialVersionUID = 5213470669940261166L;
+	//
+	// public SubstituteWithKeyValueList(final JsonStream input, final JsonStream keyValueList) {
+	// super(input, keyValueList);
+	// }
+	//
+	// @Override
+	// public SopremoModule asElementaryOperators() {
+	// final Projection left = new Projection(new ArrayAccess(0), EvaluationExpression.SAME_VALUE,
+	// this.getInput(0));
+	// final ReplaceWithRightInput replacedLeft = new ReplaceWithRightInput(0, left);
+	// final Projection right = new Projection(new ArrayAccess(1), EvaluationExpression.SAME_VALUE, replacedLeft);
+	// final ReplaceWithRightInput replacedRight = new ReplaceWithRightInput(1, right);
+	//
+	// return SopremoModule.valueOf(this.getName(), replacedRight);
+	// }
+	//
+	// public static class ReplaceWithRightInput extends ElementaryOperator {
+	// /**
+	// *
+	// */
+	// private static final long serialVersionUID = 7334161941683036846L;
+	//
+	// private final int index;
+	//
+	// public ReplaceWithRightInput(final int index, final JsonStream input) {
+	// super(input);
+	// this.index = index;
+	// }
+	//
+	// public int getIndex() {
+	// return this.index;
+	// }
+	//
+	// public static class Implementation extends
+	// SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+	// private int index;
+	//
+	// @Override
+	// protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
+	// final JsonCollector out) {
+	// ((ArrayNode) value1).set(this.index, value2);
+	// out.collect(NullNode.getInstance(), value1);
+	// }
+	// }
+	// }
+	//
+	// public static class SwapKeyValue extends ElementaryOperator {
+	// /**
+	// *
+	// */
+	// private static final long serialVersionUID = 311598721939565997L;
+	//
+	// public SwapKeyValue(final JsonStream input) {
+	// super(input);
+	// }
+	//
+	// public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+	// @Override
+	// protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
+	// out.collect(value, key);
+	// }
+	// }
+	// }
+	// }
 
 	public static class UnparallelClosure extends ElementaryOperator {
 		/**

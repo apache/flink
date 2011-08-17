@@ -57,8 +57,13 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public int compare(final JsonNode value1, final JsonNode value2) {
-		return this.nodeComparators.get(value1.getClass()).compare(value1, value2);
+		final Class<? extends JsonNode> class1 = value1.getClass();
+		final Class<? extends JsonNode> class2 = value2.getClass();
+		if(class1 != class2)
+			return class1.getSimpleName().compareTo(class2.getSimpleName());
+		return this.nodeComparators.get(class1).compare(value1, value2);
 	}
+	
 
 	public final static class ArrayNodeComparator implements Comparator<JsonNode> {
 		public final static JsonNodeComparator.ArrayNodeComparator INSTANCE = new ArrayNodeComparator();

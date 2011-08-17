@@ -265,24 +265,15 @@ public class JoinTest extends SopremoTest<Join> {
 			add(createPactJsonObject("userid", 2, "url", "www.cnn.com")).
 			add(createPactJsonObject("userid", 4, "url", "www.nbc.com")).
 			add(createPactJsonObject("userid", 1, "url", "java.sun.com/javase/6/docs/api/"));
-		sopremoPlan
-			.getExpectedOutput(0)
-			.
-			add(
-				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 2, "url",
-					"www.cnn.com"))
-			.
-			add(
-				createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 4, "url",
-					"www.nbc.com"))
-			.
-			add(
-				createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 4, "url",
-					"www.nbc.com"))
-			.
-			add(
-				createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3, "userid", 4, "url",
-					"www.nbc.com"));
+		sopremoPlan.getExpectedOutput(0).
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 2, "url",
+				"www.cnn.com")).
+			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1, "userid", 4, "url",
+				"www.nbc.com")).
+			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 4, "url",
+				"www.nbc.com")).
+			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3, "userid", 4, "url",
+				"www.nbc.com"));
 
 		sopremoPlan.run();
 	}

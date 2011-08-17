@@ -372,6 +372,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		KeyValuePair<K, V> actualPair = null;
 		while (actualIterator.hasNext()) {
 			actualPair = actualIterator.next();
+			
 			int keyComparison = actualPair.getKey().compareTo(currentKey);
 			if (keyComparison < 0)
 				throw new ArrayComparisonFailure("Unexpected values for key " + currentKey + ": ",
@@ -390,7 +391,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
 			throw new ArrayComparisonFailure("Unexpected values for key " + currentKey + ": ",
 				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey,
-					actualValuesWithCurrentKey)), itemIndex + expectedValuesWithCurrentKey.size() - 1);
+					actualValuesWithCurrentKey)), itemIndex - expectedValuesWithCurrentKey.size());
 
 		if (actualPair != null)
 			actualValuesWithCurrentKey.add(actualPair.getValue());

@@ -6,7 +6,18 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
 
-public class TransitiveClosureTest {
+import eu.stratosphere.sopremo.SopremoTest;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
+
+public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
+	@Override
+	protected TransitiveClosure createDefaultInstance(int index) {
+		final TransitiveClosure transitiveClosure = new TransitiveClosure(null);
+		transitiveClosure.setIdProjection(new ObjectAccess(String.valueOf(index)));
+		return transitiveClosure;
+	}
+
 	@Test
 	public void testWarshall() {
 		final BinarySparseMatrix matrix = new BinarySparseMatrix();
@@ -36,5 +47,28 @@ public class TransitiveClosureTest {
 		expected.makeSymmetric();
 
 		Assert.assertEquals(expected, matrix);
+	}
+
+	@Test
+	public void testTransitiveClosureWithIdAndPairMode() {
+		final TransitiveClosure transitiveClosure = new TransitiveClosure(null);
+		transitiveClosure.setCluster(false);
+		transitiveClosure.setIdProjection(new ObjectAccess("id"));
+		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
+
+		sopremoTestPlan.getInput(0).
+			add(createPactJsonArray(createObjectNode("id", 11, "name", "a"), createObjectNode("id", 22, "name", "b"))).
+			add(createPactJsonArray(createObjectNode("id", 11, "name", "a"), createObjectNode("id", 23, "name", "c"))).
+			add(createPactJsonArray(createObjectNode("id", 14, "name", "e"), createObjectNode("id", 25, "name", "d"))).
+			add(createPactJsonArray(createObjectNode("id", 16, "name", "a"), createObjectNode("id", 25, "name", "d")));
+
+		sopremoTestPlan.getExpectedOutput(0).
+			add(createPactJsonArray(createObjectNode("id", 11, "name", "a"), createObjectNode("id", 22, "name", "b"))).
+			add(createPactJsonArray(createObjectNode("id", 11, "name", "a"), createObjectNode("id", 23, "name", "c"))).
+			add(createPactJsonArray(createObjectNode("id", 22, "name", "b"), createObjectNode("id", 23, "name", "c"))).
+			add(createPactJsonArray(createObjectNode("id", 14, "name", "e"), createObjectNode("id", 25, "name", "d"))).
+			add(createPactJsonArray(createObjectNode("id", 16, "name", "a"), createObjectNode("id", 25, "name", "d"))).
+			add(createPactJsonArray(createObjectNode("id", 14, "name", "e"), createObjectNode("id", 16, "name", "a")));
+		sopremoTestPlan.run();
 	}
 }

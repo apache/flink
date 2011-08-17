@@ -15,6 +15,7 @@ import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
@@ -36,8 +37,11 @@ public class Validation extends ElementaryOperator {
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		if (this.rules.isEmpty())
-			return new PactModule(this.getName(), 1, 1);
+		if (this.rules.isEmpty()) {
+			final PactModule pactModule = new PactModule(this.getName(), 1, 1);
+			pactModule.getOutput(0).setInput(pactModule.getInput(0));
+			return pactModule;
+		}
 		return super.asPactModule(context);
 	}
 
@@ -60,7 +64,7 @@ public class Validation extends ElementaryOperator {
 			SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
 		private List<ValidationRule> rules;
 
-		private ValidationContext context;
+		private transient ValidationContext context;
 
 		@Override
 		public void configure(final Configuration parameters) {
@@ -99,6 +103,8 @@ public class Validation extends ElementaryOperator {
 				out.collect(key, value);
 			} catch (final UnresolvableEvaluationException e) {
 				// do not emit invalid record
+				if (SopremoUtil.LOG.isTraceEnabled())
+					SopremoUtil.LOG.trace(String.format("Cannot fix validation rule for tuple %s: %s", value, e.getMessage()));
 			}
 		}
 	}

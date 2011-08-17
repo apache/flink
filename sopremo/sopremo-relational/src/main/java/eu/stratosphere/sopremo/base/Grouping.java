@@ -23,7 +23,7 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
-public class Grouping extends MultiSourceOperator {
+public class Grouping extends MultiSourceOperator<Grouping> {
 	/**
 	 * 
 	 */
@@ -71,6 +71,8 @@ public class Grouping extends MultiSourceOperator {
 
 	@Override
 	protected EvaluationExpression getDefaultValueProjection(final Output source) {
+		if(super.getDefaultValueProjection(source) != EvaluationExpression.SAME_VALUE)
+			return super.getDefaultValueProjection(source);
 		if (this.getInputs().size() <= 1)
 			return EvaluationExpression.SAME_VALUE;
 		final EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];

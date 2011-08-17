@@ -10,9 +10,9 @@ public class ValidationContext extends EvaluationContext {
 	 */
 	private static final long serialVersionUID = -3830001019910981066L;
 
-	private ValidationRule violatedRule;
+	private transient ValidationRule violatedRule;
 
-	private JsonNode contextNode;
+	private transient JsonNode contextNode;
 
 	public ValidationContext(final EvaluationContext context) {
 		super(context);

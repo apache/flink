@@ -86,6 +86,9 @@ public abstract class CompositeOperator extends Operator {
 		final SopremoModule elementaryPlan = this.asElementaryOperators();
 		if (LOG.isTraceEnabled())
 			LOG.trace(" to elementary plan\n" + elementaryPlan);
-		return elementaryPlan.asPactModule(context);
+		context.pushOperator(getName());
+		final PactModule pactModule = elementaryPlan.asPactModule(context);
+		context.popOperator();
+		return pactModule;
 	}
 }

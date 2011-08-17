@@ -41,4 +41,25 @@ public abstract class ValidationRule extends CleansingRule<ValidationContext> {
 	protected boolean validate(final JsonNode value, final ValidationContext context) {
 		return false;
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.valueCorrection.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ValidationRule other = (ValidationRule) obj;
+		return this.valueCorrection.equals(other.valueCorrection);
+	}
+
 }

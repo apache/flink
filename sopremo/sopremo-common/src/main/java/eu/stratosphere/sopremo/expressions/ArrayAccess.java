@@ -19,7 +19,7 @@ import eu.stratosphere.sopremo.JsonUtil;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
-public class ArrayAccess extends EvaluationExpression {
+public class ArrayAccess extends EvaluationExpression implements WritableEvaluable {
 
 	/**
 	 * 
@@ -90,6 +90,32 @@ public class ArrayAccess extends EvaluationExpression {
 			return arrayNode;
 		}
 		return node.get(this.resolveIndex(this.startIndex, size));
+	}
+
+	@Override
+	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+		if (this.isSelectingAll())
+			return value;
+		final int size = node.size();
+		if (this.isSelectingRange()) {
+			final ArrayNode arrayNode = (ArrayNode) node;
+			int index = this.resolveIndex(this.startIndex, size), replaceIndex = 0;
+			final int endIndex = this.resolveIndex(this.endIndex, size);
+
+			final int increment = index < endIndex ? 1 : -1;
+
+			for (boolean moreElements = true; moreElements; index += increment, replaceIndex++) {
+				arrayNode.set(index, value.get(replaceIndex));
+				moreElements = index != endIndex;
+			}
+		} else
+			((ArrayNode) node).set(this.resolveIndex(this.startIndex, size), value);
+		return node;
+	}
+	
+	@Override
+	public EvaluationExpression asExpression() {
+		return this;
 	}
 
 	@Override

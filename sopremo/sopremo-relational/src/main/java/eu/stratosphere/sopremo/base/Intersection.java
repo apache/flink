@@ -13,7 +13,7 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
-public class Intersection extends MultiSourceOperator {
+public class Intersection extends MultiSourceOperator<Intersection> {
 	/**
 	 * 
 	 */

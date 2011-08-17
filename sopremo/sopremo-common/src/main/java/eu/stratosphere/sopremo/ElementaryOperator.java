@@ -106,7 +106,9 @@ public class ElementaryOperator extends Operator {
 	 */
 	protected void configureContract(final Contract contract, final Configuration stubConfiguration,
 			final EvaluationContext context) {
+		context.pushOperator(getName());
 		SopremoUtil.setContext(stubConfiguration, context);
+		context.popOperator();
 
 		for (final Field stubField : contract.getUserCodeClass().getDeclaredFields())
 			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0) {

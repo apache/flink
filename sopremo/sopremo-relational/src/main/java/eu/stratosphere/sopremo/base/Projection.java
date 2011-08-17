@@ -2,7 +2,9 @@ package eu.stratosphere.sopremo.base;
 
 import org.codehaus.jackson.JsonNode;
 
+import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -30,6 +32,10 @@ public class Projection extends ElementaryOperator {
 		this(EvaluationExpression.SAME_KEY, valueTransformation, input);
 	}
 
+	@Override
+	public PactModule asPactModule(EvaluationContext context) {
+		return super.asPactModule(context);
+	}
 	//
 	// @Override
 	// public PactModule asPactModule(EvaluationContext context) {
@@ -102,7 +108,7 @@ public class Projection extends ElementaryOperator {
 		protected void map(JsonNode key, JsonNode value, final JsonCollector out) {
 			if (this.keyTransformation != EvaluationExpression.SAME_KEY)
 				key = this.keyTransformation.evaluate(value, this.getContext());
-			if (this.keyTransformation != EvaluationExpression.SAME_VALUE)
+			if (this.valueTransformation != EvaluationExpression.SAME_VALUE)
 				value = this.valueTransformation.evaluate(value, this.getContext());
 			out.collect(key, value);
 		}

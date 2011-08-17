@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo;
 
+import java.util.LinkedList;
+import java.util.List;
+
 import eu.stratosphere.sopremo.function.FunctionRegistry;
 
 /**
@@ -13,6 +16,22 @@ public class EvaluationContext implements SerializableSopremoType {
 	private final FunctionRegistry functionRegistry;
 
 	private int inputCounter = 0;
+	
+	private LinkedList< String> operatorStack = new LinkedList<String>();
+
+
+
+	public List<String> getOperatorStack() {
+		return operatorStack;
+	}
+
+	public void pushOperator(String e) {
+		this.operatorStack.push(e);
+	}
+
+	public String popOperator() {
+		return this.operatorStack.pop();
+	}
 
 	public EvaluationContext() {
 		this.functionRegistry = new FunctionRegistry();

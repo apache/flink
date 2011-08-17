@@ -27,8 +27,8 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 	public void map(final PactJsonObject.Key key, final PactJsonObject value,
 			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
-		if (SopremoUtil.LOG.isDebugEnabled())
-			SopremoUtil.LOG.debug(String.format("%s %s/%s", this.getClass().getSimpleName(), key, value));
+		if (SopremoUtil.LOG.isTraceEnabled())
+			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getClass().getSimpleName(), key, value));
 		this.map(key.getValue(), value.getValue(), new JsonCollector(out));
 	};
 }

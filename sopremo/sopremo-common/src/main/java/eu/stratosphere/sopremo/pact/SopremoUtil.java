@@ -53,7 +53,7 @@ public class SopremoUtil {
 						stubField.set(stub,
 							SopremoUtil.deserialize(parameters, stubField.getName(), Serializable.class));
 					} catch (final Exception e) {
-						LOG.error(String.format("Could not serialize field %s of class %s", stubField.getName(),
+						LOG.error(String.format("Could not set field %s of class %s: %s", stubField.getName(),
 							stub.getClass(), e));
 					}
 	}

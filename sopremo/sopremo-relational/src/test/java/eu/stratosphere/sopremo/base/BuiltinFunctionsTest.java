@@ -91,13 +91,13 @@ public class BuiltinFunctionsTest {
 			BuiltinFunctions.count(SopremoTest.createArrayNode()));
 	}
 
-	/**
-	 * 
-	 */
-	@Test(expected = ClassCastException.class)
-	public void shouldFailIfIncompatible() {
-		BuiltinFunctions.sort(SopremoTest.createArrayNode(3.14, 4, 1.2, 2));
-	}
+//	/**
+//	 * 
+//	 */
+//	@Test(expected = ClassCastException.class)
+//	public void shouldFailIfIncompatible() {
+//		BuiltinFunctions.sort(SopremoTest.createArrayNode(3.14, 4, 1.2, 2));
+//	}
 
 	/**
 	 * 

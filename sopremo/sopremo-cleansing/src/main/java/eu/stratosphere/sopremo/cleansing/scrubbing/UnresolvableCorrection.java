@@ -15,6 +15,10 @@ public class UnresolvableCorrection extends ValueCorrection {
 	 */
 	public final static UnresolvableCorrection INSTANCE = new UnresolvableCorrection();
 
+	private Object readResolve() {
+		return INSTANCE;
+	}
+
 	@Override
 	public JsonNode fix(final JsonNode value, final ValidationContext context) {
 		throw new UnresolvableEvaluationException(String.format("Cannot fix %s voilating %s", value,

@@ -2,8 +2,10 @@ package eu.stratosphere.sopremo;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -24,12 +26,11 @@ public class TypeCoercer {
 	private static final Class<? extends JsonNode>[] ARRAY_TYPES =
 		(Class<? extends JsonNode>[]) new Class<?>[] { ArrayNode.class, CompactArrayNode.class, StreamArrayNode.class };
 
-	/**
-	 * The default instance.
-	 */
-	public static final TypeCoercer INSTANCE = new TypeCoercer();
-
 	private final Map<Class<? extends JsonNode>, Map<Class<? extends JsonNode>, Coercer>> coercers = new IdentityHashMap<Class<? extends JsonNode>, Map<Class<? extends JsonNode>, Coercer>>();
+
+	@SuppressWarnings("unchecked")
+	public static final List<Class<? extends NumericNode>> NUMERIC_TYPES = Arrays.asList(
+		IntNode.class, DoubleNode.class, LongNode.class, DecimalNode.class, BigIntegerNode.class);
 
 	private static final Coercer NULL_COERCER = new Coercer() {
 		@Override
@@ -37,6 +38,11 @@ public class TypeCoercer {
 			return null;
 		}
 	};
+
+	/**
+	 * The default instance.
+	 */
+	public static final TypeCoercer INSTANCE = new TypeCoercer();
 
 	public TypeCoercer() {
 		this.coercers.put(BooleanNode.class, this.getToBooleanCoercers());
@@ -50,9 +56,6 @@ public class TypeCoercer {
 	private void addNumericCoercers(
 			final Map<Class<? extends JsonNode>, Map<Class<? extends JsonNode>, Coercer>> coercers) {
 		coercers.put(NumericNode.class, new IdentityHashMap<Class<? extends JsonNode>, TypeCoercer.Coercer>());
-		final Class<? extends NumericNode>[] NUMERIC_TYPES = (Class<? extends NumericNode>[]) new Class<?>[] {
-			IntNode.class,
-			DoubleNode.class, LongNode.class, DecimalNode.class, BigIntegerNode.class };
 
 		// init number to number
 		for (final Class<? extends NumericNode> numericType : NUMERIC_TYPES) {

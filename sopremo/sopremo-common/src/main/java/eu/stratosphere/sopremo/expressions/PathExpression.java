@@ -141,12 +141,18 @@ public class PathExpression extends ContainerExpression {
 		}
 
 		@Override
-		public void set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+		public EvaluationExpression asExpression() {
+			return this;
+		}
+
+		@Override
+		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 			JsonNode fragmentNode = node;
 			final List<SopremoExpression<EvaluationContext>> fragments = this.getFragments();
 			for (int index = 0; index < fragments.size() - 1; index++)
 				fragmentNode = fragments.get(index).evaluate(fragmentNode, context);
 			((WritableEvaluable) fragmentNode).set(node, value, context);
+			return node;
 		}
 	}
 }

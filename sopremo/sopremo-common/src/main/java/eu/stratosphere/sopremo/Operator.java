@@ -24,11 +24,11 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
-	private final List<Operator.Output> inputs = new ArrayList<Operator.Output>();
+	private transient final List<Operator.Output> inputs = new ArrayList<Operator.Output>();
 
 	private String name;
 
-	private Output[] outputs = new Output[0];
+	private transient Output[] outputs = new Output[0];
 
 	/**
 	 * Initializes the Operator with the given number of outputs and the given input {@link JsonStream}s. A JsonStream

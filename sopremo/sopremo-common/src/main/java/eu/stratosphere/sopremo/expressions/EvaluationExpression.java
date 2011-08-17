@@ -11,6 +11,40 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.util.IdentitySet;
 
 public abstract class EvaluationExpression extends SopremoExpression<EvaluationContext> {
+	private static final class SameValueExpression extends EvaluationExpression implements WritableEvaluable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -6957283445639387461L;
+
+		/**
+		 * Returns the node without modifications.
+		 */
+		@Override
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+			return node;
+		}
+
+		private Object readResolve() {
+			return EvaluationExpression.SAME_VALUE;
+		}
+
+		@Override
+		public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+			return value;
+		}
+
+		@Override
+		public EvaluationExpression asExpression() {
+			return this;
+		}
+
+		@Override
+		protected void toString(final StringBuilder builder) {
+			builder.append("<value>");
+		}
+	}
+
 	/**
 	 * 
 	 */
@@ -73,30 +107,7 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
 	 * {@link Operator}s that do not perform any transformation to the input, such as a filter operator.
 	 */
-	public static final EvaluationExpression SAME_VALUE = new EvaluationExpression() {
-
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -6957283445639387461L;
-
-		/**
-		 * Returns the node without modifications.
-		 */
-		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return node;
-		};
-
-		private Object readResolve() {
-			return EvaluationExpression.SAME_VALUE;
-		}
-
-		@Override
-		protected void toString(final StringBuilder builder) {
-			builder.append("<value>");
-		};
-	};
+	public static final SameValueExpression SAME_VALUE = new SameValueExpression();
 
 	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
 

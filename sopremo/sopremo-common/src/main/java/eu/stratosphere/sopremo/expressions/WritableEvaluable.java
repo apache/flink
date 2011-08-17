@@ -5,5 +5,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 
 public interface WritableEvaluable {
-	public void set(JsonNode node, JsonNode value, EvaluationContext context);
+	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context);
+	
+	public EvaluationExpression asExpression();
 }

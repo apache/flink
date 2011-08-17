@@ -32,6 +32,11 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	}
 
 	@Override
+	public EvaluationExpression asExpression() {
+		return this;
+	}
+
+	@Override
 	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
@@ -57,10 +62,11 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	}
 
 	@Override
-	public void set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 		if (!node.isObject())
 			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
 		((ObjectNode) node).put(this.field, value);
+		return node;
 	}
 
 	@Override

@@ -11,7 +11,7 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public abstract class MultiSourceOperator extends CompositeOperator {
+public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> extends CompositeOperator {
 
 	/**
 	 * 
@@ -25,6 +25,8 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 	private EvaluationExpression defaultKeyProjection = EvaluationExpression.NULL;
 
 	private EvaluationExpression defaultValueProjection = EvaluationExpression.SAME_VALUE;
+
+	private boolean resetKey = true;
 
 	public MultiSourceOperator(final JsonStream... inputs) {
 		super(inputs);
@@ -44,12 +46,27 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 			inputs.add(new Projection(this.getKeyProjection(index), this.getValueProjection(index), module
 				.getInput(index)));
 
-		final Operator lastOperator = this.createElementaryOperations(inputs);
+		Operator lastOperator = this.createElementaryOperations(inputs);
 
-		module.getOutput(0).setInput(0,
-			new Projection(EvaluationExpression.NULL, EvaluationExpression.SAME_VALUE, lastOperator));
+		if (resetKey)
+			lastOperator = new Projection(EvaluationExpression.NULL, EvaluationExpression.SAME_VALUE, lastOperator);
+		module.getOutput(0).setInput(0, lastOperator);
 
 		return module;
+	}
+
+	public boolean isResetKey() {
+		return this.resetKey;
+	}
+
+	public void setResetKey(boolean resetKey) {
+		this.resetKey = resetKey;
+	}
+
+	@SuppressWarnings("unchecked")
+	public Op withResetKey(boolean resetKey) {
+		setResetKey(resetKey);
+		return (Op) this;
 	}
 
 	protected abstract Operator createElementaryOperations(List<Operator> inputs);
@@ -62,7 +79,7 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final MultiSourceOperator other = (MultiSourceOperator) obj;
+		final MultiSourceOperator<?> other = (MultiSourceOperator<?>) obj;
 		return this.keyProjections.equals(other.keyProjections) && this.valueProjections.equals(other.valueProjections);
 	}
 
@@ -137,6 +154,29 @@ public abstract class MultiSourceOperator extends CompositeOperator {
 		this.valueProjections.put(input.getSource(), valueProjection);
 	}
 
+	@SuppressWarnings("unchecked")
+	public Op withValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
+		setValueProjection(inputIndex, valueProjection);
+		return (Op) this;
+	}
+
+	@SuppressWarnings("unchecked")
+	public Op withKeyProjection(final int inputIndex, final EvaluationExpression valueProjection) {
+		setKeyProjection(inputIndex, valueProjection);
+		return (Op) this;
+	}
+
+	@SuppressWarnings("unchecked")
+	public Op withValueProjection(final EvaluationExpression valueProjection) {
+		setDefaultValueProjection(valueProjection);
+		return (Op) this;
+	}
+
+	@SuppressWarnings("unchecked")
+	public Op withKeyProjection(final EvaluationExpression valueProjection) {
+		setDefaultKeyProjection(valueProjection);
+		return (Op) this;
+	}
 	// @Override
 	// public String toString() {
 	// StringBuilder builder = new StringBuilder(this.getName()).append(" on ");

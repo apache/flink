@@ -12,6 +12,7 @@ import org.codehaus.jackson.node.NumericNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 @OptimizerHints(scope = Scope.ANY)
 public class ConstantExpression extends EvaluationExpression {
@@ -61,9 +62,7 @@ public class ConstantExpression extends EvaluationExpression {
 	private void readObject(final ObjectInputStream stream) throws IOException, ClassNotFoundException {
 		stream.defaultReadObject();
 
-		final JsonParser parser = JsonUtil.FACTORY.createJsonParser(stream);
-		parser.setCodec(JsonUtil.OBJECT_MAPPER);
-		this.constant = parser.readValueAsTree();
+		this.constant = SopremoUtil.deserializeNode(stream);
 	}
 
 	@Override
@@ -77,8 +76,6 @@ public class ConstantExpression extends EvaluationExpression {
 	private void writeObject(final ObjectOutputStream stream) throws IOException {
 		stream.defaultWriteObject();
 
-		final JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(stream, JsonEncoding.UTF8);
-		generator.setCodec(JsonUtil.OBJECT_MAPPER);
-		generator.writeTree(this.constant);
+		SopremoUtil.serializeNode(stream, this.constant);
 	}
 }
