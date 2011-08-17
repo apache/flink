@@ -27,7 +27,8 @@ public class BipartiteDistributionPattern implements DistributionPattern {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean createWire(int nodeLowerStage, int nodeUpperStage, int sizeSetLowerStage, int sizeSetUpperStage) {
+	public boolean createWire(final int nodeLowerStage, final int nodeUpperStage, final int sizeSetLowerStage,
+			final int sizeSetUpperStage) {
 
 		return true;
 	}

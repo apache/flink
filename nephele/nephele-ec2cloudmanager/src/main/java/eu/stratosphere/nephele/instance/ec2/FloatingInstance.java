@@ -13,15 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.instance.ec2;
 
 import java.util.LinkedList;
 
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
+import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.topology.NetworkNode;
 
 /**
  * A FloatingInstance is an instance in the cloud allocated for a user. It is idle and carries out no task.
@@ -29,11 +31,15 @@ import eu.stratosphere.nephele.instance.InstanceType;
  */
 class FloatingInstance {
 
-	/** The user pays fee for his instances every time unit. */
-	private static final long TIMEUNIT = 60 * 60 * 1000; // 1 hour in ms.
+	/**
+	 * Time limit to full next hour when instance is terminate.
+	 **/
+	private static final long TIME_THRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
 
-	/** Timelimit to full next hour when instance is kicked. */
-	private static final long TIMETHRESHOLD = 2 * 60 * 1000; // 2 mins in ms.
+	/**
+	 * The lease period for this instance of Amazon EC2 in milliseconds.
+	 */
+	private final long leasePeriod;
 
 	/** The instance ID. */
 	private final String instanceID;
@@ -50,8 +56,13 @@ class FloatingInstance {
 	/** The AWS Secret Key to access this machine */
 	private String awsSecretKey;
 
-	/** The instance Type */
+	/** The instance type */
 	private InstanceType type;
+
+	/**
+	 * The instance's hardware description.
+	 */
+	private final HardwareDescription hardwareDescription;
 
 	/** The last received heart beat. */
 	private long lastHeartBeat;
@@ -64,7 +75,9 @@ class FloatingInstance {
 	 * @param instanceConnectionInfo
 	 *        the information required to connect to the instance's task manager
 	 * @param launchTime
-	 *        the time the instance was allocated
+	 *        the time the instance was allocated in milliseconds since January 1st, 1970
+	 * @param leasePeriod
+	 *        the lease period for this floating instances in milliseconds
 	 * @param type
 	 *        The type of this instance.
 	 * @param awsAccessKey
@@ -72,15 +85,29 @@ class FloatingInstance {
 	 * @param awsSecretKey
 	 *        The AWS Secret Key to access this machine
 	 */
-	public FloatingInstance(String instanceID, InstanceConnectionInfo instanceConnectionInfo, long launchTime,
-			InstanceType type, String awsAccessKey, String awsSecretKey) {
+	public FloatingInstance(final String instanceID, final InstanceConnectionInfo instanceConnectionInfo,
+			final long launchTime,
+			final long leasePeriod, final InstanceType type, final HardwareDescription hardwareDescription,
+			final String awsAccessKey, final String awsSecretKey) {
+
+		if (launchTime < 0) {
+			throw new IllegalArgumentException("Argument launchTime must be greater than 0");
+		}
+
+		if (leasePeriod <= 0) {
+			throw new IllegalArgumentException("Argument leasePeriod be greater than 0");
+		}
+
 		this.instanceID = instanceID;
 		this.instanceConnectionInfo = instanceConnectionInfo;
 		this.launchTime = launchTime;
+		this.leasePeriod = leasePeriod;
 		this.lastHeartBeat = System.currentTimeMillis();
 		this.awsAccessKey = awsAccessKey;
 		this.awsSecretKey = awsSecretKey;
 		this.type = type;
+		this.hardwareDescription = hardwareDescription;
+
 	}
 
 	/**
@@ -155,22 +182,24 @@ class FloatingInstance {
 	 * 
 	 * @return
 	 */
-	public CloudInstance asCloudInstance() {
-		return new CloudInstance(this.instanceID, this.type, this.getInstanceConnectionInfo(), this.launchTime, null,
-			null, null, this.awsAccessKey, this.awsSecretKey);
+	public EC2CloudInstance asCloudInstance(final NetworkNode parentNode) {
+
+		return new EC2CloudInstance(this.instanceID, this.type, this.getInstanceConnectionInfo(), this.launchTime,
+			this.leasePeriod, parentNode, parentNode.getNetworkTopology(), this.hardwareDescription, this.awsAccessKey,
+			this.awsSecretKey);
 	}
 
 	/**
-	 * This method checks, if this floating instance has reached the end of its lifecycle and - if so - terminates
+	 * This method checks if this floating instance has reached the end of its life cycle and, if so, terminates
 	 * itself.
 	 */
-	public boolean checkIfLifeCycleEnded() {
+	public boolean hasLifeCycleEnded() {
 
 		final long currentTime = System.currentTimeMillis();
-		final long msremaining = TIMEUNIT - ((currentTime - this.launchTime) % TIMEUNIT);
+		final long msremaining = this.leasePeriod - ((currentTime - this.launchTime) % this.leasePeriod);
 
-		if (msremaining < TIMETHRESHOLD) {
-			// Destroy this instance.
+		if (msremaining < TIME_THRESHOLD) {
+			// Destroy this instance
 			final AmazonEC2Client client = EC2ClientFactory.getEC2Client(this.awsAccessKey, this.awsSecretKey);
 			final TerminateInstancesRequest tr = new TerminateInstancesRequest();
 			final LinkedList<String> instanceIDlist = new LinkedList<String>();
@@ -178,9 +207,18 @@ class FloatingInstance {
 			tr.setInstanceIds(instanceIDlist);
 			client.terminateInstances(tr);
 			return true;
-		} else {
-			return false;
 		}
+
+		return false;
 	}
 
+	/**
+	 * Returns the hardware description of the floating instance.
+	 * 
+	 * @return the hardware description of the floating instance
+	 */
+	public HardwareDescription getHardwareDescription() {
+
+		return this.hardwareDescription;
+	}
 }

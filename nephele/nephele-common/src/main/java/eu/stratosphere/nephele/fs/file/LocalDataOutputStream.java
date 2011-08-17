@@ -47,8 +47,7 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	 * @throws IOException
 	 *         thrown if the data output stream cannot be created
 	 */
-	public LocalDataOutputStream(File file)
-											throws IOException {
+	public LocalDataOutputStream(final File file) throws IOException {
 
 		this.fos = new FileOutputStream(file);
 		this.position = 0;
@@ -58,7 +57,7 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(int b) throws IOException {
+	public void write(final int b) throws IOException {
 		fos.write(b);
 		position++;
 	}
@@ -67,7 +66,7 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(byte b[], int off, int len) throws IOException {
+	public void write(final byte[] b, final int off, final int len) throws IOException {
 		fos.write(b, off, len);
 		position += len; // update position
 	}

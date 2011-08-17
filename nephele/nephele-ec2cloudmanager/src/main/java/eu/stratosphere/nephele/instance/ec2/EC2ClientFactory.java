@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.instance.ec2;
 
 import java.util.Hashtable;
 
@@ -42,6 +42,14 @@ final class EC2ClientFactory {
 	 */
 	static synchronized AmazonEC2Client getEC2Client(final String awsAccessId, final String awsSecretKey) {
 
+		if(awsAccessId == null) {
+			throw new IllegalArgumentException("AWS access ID is null");
+		}
+		
+		if(awsSecretKey == null) {
+			throw new IllegalArgumentException("AWS secret key is null");
+		}
+		
 		// Check if a client-object was already generated
 		if (ec2clients.containsKey(awsAccessId)) {
 			return ec2clients.get(awsAccessId);
@@ -52,7 +60,7 @@ final class EC2ClientFactory {
 		final BasicAWSCredentials credentials = new BasicAWSCredentials(awsAccessId, awsSecretKey);
 		final AmazonEC2Client client = new AmazonEC2Client(credentials);
 
-		final String endpoint = GlobalConfiguration.getString("ec2.webservice.endpoint", "ec2.eu-west-1.amazonaws.com");
+		final String endpoint = GlobalConfiguration.getString("instancemanager.ec2.endpoint", "ec2.eu-west-1.amazonaws.com");
 
 		client.setEndpoint(endpoint);
 

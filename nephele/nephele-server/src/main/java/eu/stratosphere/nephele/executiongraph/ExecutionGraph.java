@@ -41,12 +41,12 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.AbstractJobInputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobEdge;
 import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
@@ -546,8 +546,8 @@ public class ExecutionGraph implements ExecutionListener {
 		try {
 			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
 				groupVertex);
-		} catch (Exception e) {
-			throw new GraphConversionException(StringUtils.stringifyException(e));
+		} catch (Throwable t) {
+			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
 
 		// Run the configuration check the user has provided for the vertex
@@ -593,7 +593,8 @@ public class ExecutionGraph implements ExecutionListener {
 			null));
 
 		// Register input and output vertices separately
-		if (jobVertex instanceof JobInputVertex) {
+		if (jobVertex instanceof AbstractJobInputVertex) {
+
 			final InputSplit[] inputSplits;
 
 			// let the task code compute the input splits
@@ -609,6 +610,13 @@ public class ExecutionGraph implements ExecutionListener {
 			} else {
 				throw new GraphConversionException(
 					"BUG: JobInputVertex contained a task class which was not an input task.");
+			}
+
+			if (inputSplits == null) {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated 0 input splits");
+			} else {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated " + inputSplits.length
+					+ " input splits");
 			}
 
 			// assign input splits

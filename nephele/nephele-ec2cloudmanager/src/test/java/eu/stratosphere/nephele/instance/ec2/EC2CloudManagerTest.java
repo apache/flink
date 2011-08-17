@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.instance.ec2;
 
 import static org.junit.Assert.*;
 
@@ -49,13 +49,13 @@ import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
-import eu.stratosphere.nephele.instance.cloud.CloudInstance;
-import eu.stratosphere.nephele.instance.cloud.CloudManager;
-import eu.stratosphere.nephele.instance.cloud.FloatingInstance;
-import eu.stratosphere.nephele.instance.cloud.JobToInstancesMapping;
+import eu.stratosphere.nephele.instance.ec2.EC2CloudInstance;
+import eu.stratosphere.nephele.instance.ec2.EC2CloudManager;
+import eu.stratosphere.nephele.instance.ec2.FloatingInstance;
+import eu.stratosphere.nephele.instance.ec2.JobToInstancesMapping;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
-public class CloudManagerTest {
+public class EC2CloudManagerTest {
 
 	private static final class MyInstanceListener implements InstanceListener {
 
@@ -68,12 +68,8 @@ public class CloudManagerTest {
 
 			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
 			assertTrue(resourcesOfJob != null);
-
-			for (final AllocatedResource allocatedResource : allocatedResources) {
-				assertTrue(resourcesOfJob.contains(allocatedResource));
-				resourcesOfJob.remove(allocatedResource);
-			}
-
+			assertTrue(resourcesOfJob.contains(allocatedResource));
+			resourcesOfJob.remove(allocatedResource);
 			if (resourcesOfJob.isEmpty()) {
 				this.resourcesOfJobs.remove(jobID);
 			}
@@ -102,13 +98,12 @@ public class CloudManagerTest {
 
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
-		assertEquals(5, GlobalConfiguration.getInteger("cloudmgr.nrtypes", -1));
-		assertEquals("m1.small,1,1,2048,40,10", GlobalConfiguration.getString("cloudmgr.instancetype.1", null));
-		assertEquals("c1.medium,2,2,4096,80,20", GlobalConfiguration.getString("cloudmgr.instancetype.2", null));
-		assertEquals("m1.large,4,4,6144,160,40", GlobalConfiguration.getString("cloudmgr.instancetype.3", null));
-		assertEquals("m1.xlarge,4,4,12288,160,60", GlobalConfiguration.getString("cloudmgr.instancetype.4", null));
-		assertEquals("c1.xlarge,8,8,28672,280,80", GlobalConfiguration.getString("cloudmgr.instancetype.5", null));
-		assertEquals("m1.small", GlobalConfiguration.getString("cloudmgr.instancetype.defaultInstance", null));
+		assertEquals("m1.small,1,1,2048,40,10", GlobalConfiguration.getString("instancemanager.ec2.type.1", null));
+		assertEquals("c1.medium,2,2,4096,80,20", GlobalConfiguration.getString("instancemanager.ec2.type.2", null));
+		assertEquals("m1.large,4,4,6144,160,40", GlobalConfiguration.getString("instancemanager.ec2.type.3", null));
+		assertEquals("m1.xlarge,4,4,12288,160,60", GlobalConfiguration.getString("instancemanager.ec2.type.4", null));
+		assertEquals("c1.xlarge,8,8,28672,280,80", GlobalConfiguration.getString("instancemanager.ec2.type.5", null));
+		assertEquals(1, GlobalConfiguration.getInteger("instancemanager.ec2.defaulttype", -1));
 	}
 
 	@Test
@@ -133,7 +128,7 @@ public class CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		CloudManager cm = new CloudManager();
+		EC2CloudManager cm = new EC2CloudManager();
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType defaultIT = cm.getDefaultInstanceType();
@@ -153,7 +148,7 @@ public class CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		CloudManager cm = new CloudManager();
+		EC2CloudManager cm = new EC2CloudManager();
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type1 = cm.getSuitableInstanceType(16, 16, 2048, 40, 80);
@@ -185,7 +180,7 @@ public class CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		CloudManager cm = new CloudManager();
+		EC2CloudManager cm = new EC2CloudManager();
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type = cm.getInstanceTypeByName("m1.small");
@@ -205,7 +200,7 @@ public class CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		CloudManager cm = new CloudManager();
+		EC2CloudManager cm = new EC2CloudManager();
 		cm.setInstanceListener(myInstanceListener);
 
 		JobID jobID = new JobID();
@@ -216,7 +211,7 @@ public class CloudManagerTest {
 		if (!f.exists()) {
 			System.err.println("Please create an XML file \"ec2-account.xml\" for EC2 account in the folder "
 				+ System.getProperty("user.dir") + "/correct-conf\n"
-				+ "Three keys must be included: job.cloud.username, job.cloud.awsaccessid, job.cloud.awssecretkey\n"
+				+ "Three keys must be included: , job.ec2.awsaccessid, job.ec2.awssecretkey\n"
 				+ "The format is:\n" + "<property>\n" + "	<key>...</key>\n" + "	<value>...</value>\n" + "</property>");
 			return;
 		}
@@ -245,21 +240,16 @@ public class CloudManagerTest {
 			e.printStackTrace();
 		}
 
-		// check whether all three keys are included
-		if (conf.getString("job.cloud.username", null) == null) {
-			System.err.println("Please set the key job.cloud.username in " + System.getProperty("user.dir")
+		if (conf.getString(EC2CloudManager.AWS_ACCESS_ID_KEY, null) == null) {
+			System.err.println("Please set the key " + EC2CloudManager.AWS_ACCESS_ID_KEY + " in "
+				+ System.getProperty("user.dir")
 				+ "/correct-conf/ec2-account.xml");
 			return;
 		}
 
-		if (conf.getString("job.cloud.awsaccessid", null) == null) {
-			System.err.println("Please set the key job.cloud.awsaccessid in " + System.getProperty("user.dir")
-				+ "/correct-conf/ec2-account.xml");
-			return;
-		}
-
-		if (conf.getString("job.cloud.awssecretkey", null) == null) {
-			System.err.println("Please set the key job.cloud.awssecretkey in " + System.getProperty("user.dir")
+		if (conf.getString(EC2CloudManager.AWS_SECRET_KEY_KEY, null) == null) {
+			System.err.println("Please set the key " + EC2CloudManager.AWS_SECRET_KEY_KEY + " in "
+				+ System.getProperty("user.dir")
 				+ "/correct-conf/ec2-account.xml");
 			return;
 		}
@@ -271,23 +261,23 @@ public class CloudManagerTest {
 		Object jobToInstancesMap = new Object();
 
 		try {
-			Field f1 = CloudManager.class.getDeclaredField("reservedInstances");
+			Field f1 = EC2CloudManager.class.getDeclaredField("reservedInstances");
 			f1.setAccessible(true);
 			reservedInstances = f1.get(cm);
 
-			Field f2 = CloudManager.class.getDeclaredField("cloudInstances");
+			Field f2 = EC2CloudManager.class.getDeclaredField("cloudInstances");
 			f2.setAccessible(true);
 			cloudInstances = f2.get(cm);
 
-			Field f3 = CloudManager.class.getDeclaredField("floatingInstances");
+			Field f3 = EC2CloudManager.class.getDeclaredField("floatingInstances");
 			f3.setAccessible(true);
 			floatingInstances = f3.get(cm);
 
-			Field f4 = CloudManager.class.getDeclaredField("floatingInstanceIDs");
+			Field f4 = EC2CloudManager.class.getDeclaredField("floatingInstanceIDs");
 			f4.setAccessible(true);
 			floatingInstanceIDs = f4.get(cm);
 
-			Field f5 = CloudManager.class.getDeclaredField("jobToInstancesMap");
+			Field f5 = EC2CloudManager.class.getDeclaredField("jobToInstancesMap");
 			f5.setAccessible(true);
 			jobToInstancesMap = f5.get(cm);
 
@@ -302,7 +292,7 @@ public class CloudManagerTest {
 		}
 
 		assertEquals(0, ((Map<String, JobID>) reservedInstances).size());
-		assertEquals(0, ((List<CloudInstance>) cloudInstances).size());
+		assertEquals(0, ((List<EC2CloudInstance>) cloudInstances).size());
 		assertEquals(0, ((Map<InstanceConnectionInfo, FloatingInstance>) floatingInstances).size());
 		assertEquals(0, ((Map<String, Configuration>) floatingInstanceIDs).size());
 		assertEquals(0, ((Map<JobID, JobToInstancesMapping>) jobToInstancesMap).size());
@@ -319,7 +309,7 @@ public class CloudManagerTest {
 		}
 
 		assertEquals(1, ((Map<String, JobID>) reservedInstances).size());
-		assertEquals(0, ((List<CloudInstance>) cloudInstances).size());
+		assertEquals(0, ((List<EC2CloudInstance>) cloudInstances).size());
 		assertEquals(0, ((Map<InstanceConnectionInfo, FloatingInstance>) floatingInstances).size());
 		assertEquals(0, ((Map<String, Configuration>) floatingInstanceIDs).size());
 		assertEquals(1, ((Map<JobID, JobToInstancesMapping>) jobToInstancesMap).size());
@@ -334,7 +324,7 @@ public class CloudManagerTest {
 			 * String.class, String.class });
 			 * m1.setAccessible(true);
 			 * Object instanceList = m1.invoke(cm, new Object[] { conf.getString("job.cloud.username", null),
-			 * conf.getString("job.cloud.awsaccessid", null), conf.getString("job.cloud.awssecretkey", null) });
+			 * conf.getString("job.ec2.awsaccessid", null), conf.getString("job.ec2.awssecretkey", null) });
 			 * assertEquals(1, ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList).size());
 			 * com.xerox.amazonws.ec2.ReservationDescription.Instance instance =
 			 * ((List<com.xerox.amazonws.ec2.ReservationDescription.Instance>) instanceList)
@@ -352,17 +342,17 @@ public class CloudManagerTest {
 		}
 
 		assertEquals(0, ((Map<String, JobID>) reservedInstances).size());
-		assertEquals(1, ((List<CloudInstance>) cloudInstances).size());
+		assertEquals(1, ((List<EC2CloudInstance>) cloudInstances).size());
 		assertEquals(0, ((Map<InstanceConnectionInfo, FloatingInstance>) floatingInstances).size());
 		assertEquals(0, ((Map<String, Configuration>) floatingInstanceIDs).size());
 		assertEquals(1, ((Map<JobID, JobToInstancesMapping>) jobToInstancesMap).size());
 
 		// release instance
-		CloudInstance ci = ((List<CloudInstance>) cloudInstances).get(0);
+		EC2CloudInstance ci = ((List<EC2CloudInstance>) cloudInstances).get(0);
 		cm.releaseAllocatedResource(jobID, conf, ci.asAllocatedResource());
 
 		assertEquals(0, ((Map<String, JobID>) reservedInstances).size());
-		assertEquals(0, ((List<CloudInstance>) cloudInstances).size());
+		assertEquals(0, ((List<EC2CloudInstance>) cloudInstances).size());
 		assertEquals(1, ((Map<InstanceConnectionInfo, FloatingInstance>) floatingInstances).size());
 		assertEquals(1, ((Map<String, Configuration>) floatingInstanceIDs).size());
 		assertEquals(1, ((Map<JobID, JobToInstancesMapping>) jobToInstancesMap).size());
@@ -371,7 +361,8 @@ public class CloudManagerTest {
 		assertNotNull(instanceID);
 
 		try {
-			Method m2 = CloudManager.class.getDeclaredMethod("destroyCloudInstance", new Class[] { Configuration.class,
+			Method m2 = EC2CloudManager.class.getDeclaredMethod("destroyCloudInstance", new Class[] {
+				Configuration.class,
 				String.class });
 			m2.setAccessible(true);
 			Object terminatedID = m2.invoke(cm, new Object[] { conf, instanceID });

@@ -51,7 +51,7 @@ public class LibraryCacheProfileRequest implements IOReadableWritable {
 	 * @param requiredLibraries
 	 *        the names of libraries whose cache status is to be retrieved
 	 */
-	public void setRequiredLibraries(String[] requiredLibraries) {
+	public void setRequiredLibraries(final String[] requiredLibraries) {
 		this.requiredLibraries = requiredLibraries;
 	}
 
@@ -59,7 +59,7 @@ public class LibraryCacheProfileRequest implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read required jar files
 		this.requiredLibraries = new String[in.readInt()];
@@ -73,7 +73,7 @@ public class LibraryCacheProfileRequest implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		if (this.requiredLibraries == null) {
 			throw new IOException("requiredLibraries is null");

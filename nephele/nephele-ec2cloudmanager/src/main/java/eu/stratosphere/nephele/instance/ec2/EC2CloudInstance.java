@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.instance.ec2;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * 
  * @author warneke
  */
-public class CloudInstance extends AbstractInstance {
+public class EC2CloudInstance extends AbstractInstance {
 
 	/**
 	 * The cached allocated resource object.
@@ -40,15 +40,20 @@ public class CloudInstance extends AbstractInstance {
 
 	/** The instance ID. */
 	private final String instanceID;
-	
+
 	/** The AWS Access Key to access this machine */
 	private String awsAccessKey;
-	
+
 	/** The AWS Secret Key to access this machine */
 	private String awsSecretKey;
-	
+
 	/** The time the instance was allocated. */
 	private final long launchTime;
+
+	/**
+	 * The period of time for which the instance is leased from EC2.
+	 */
+	private final long leasePeriod;
 
 	/** The last received heart beat. */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
@@ -64,20 +69,23 @@ public class CloudInstance extends AbstractInstance {
 	 *        the instance type
 	 * @param instanceConnectionInfo
 	 *        the information required to connect to the instance's task manager
-	 * @param allocationTime
+	 * @param launchTime
 	 *        the time the instance was allocated
+	 * @param leasePeriod
+	 *        the period of time for which the instance is leased from EC2
 	 * @param parentNode
 	 *        the parent node in the network topology
 	 * @param hardwareDescription
 	 *        the hardware description reported by the instance itself
 	 * @param awsAccessKey
-	 * 		  The AWS Access Key to access this machine
+	 *        The AWS Access Key to access this machine
 	 * @param awsSecretKey
-	 * 		  The AWS Secret Key to access this machine
+	 *        The AWS Secret Key to access this machine
 	 */
-	public CloudInstance(String instanceID, InstanceType type, 
-			InstanceConnectionInfo instanceConnectionInfo, long launchTime, NetworkNode parentNode,
-			NetworkTopology networkTopology, HardwareDescription hardwareDescription, String awsAccessKey, String awsSecretKey) {
+	public EC2CloudInstance(String instanceID, InstanceType type,
+			InstanceConnectionInfo instanceConnectionInfo, long launchTime, long leasePeriod, NetworkNode parentNode,
+			NetworkTopology networkTopology, HardwareDescription hardwareDescription, String awsAccessKey,
+			String awsSecretKey) {
 		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
 		this.allocatedResource = new AllocatedResource(this, type, new AllocationID());
@@ -85,9 +93,11 @@ public class CloudInstance extends AbstractInstance {
 		this.instanceID = instanceID;
 
 		this.launchTime = launchTime;
-		
+
+		this.leasePeriod = leasePeriod;
+
 		this.awsAccessKey = awsAccessKey;
-		
+
 		this.awsSecretKey = awsSecretKey;
 	}
 
@@ -131,9 +141,11 @@ public class CloudInstance extends AbstractInstance {
 
 	/**
 	 * Returns this Instance as a FloatingInstance object
+	 * 
 	 * @return
 	 */
-	public FloatingInstance asFloatingInstance(){
-		return new FloatingInstance(this.instanceID, this.getInstanceConnectionInfo(), this.launchTime, this.getType(), this.awsAccessKey, this.awsSecretKey);
+	public FloatingInstance asFloatingInstance() {
+		return new FloatingInstance(this.instanceID, this.getInstanceConnectionInfo(), this.launchTime,
+			this.leasePeriod, this.getType(), this.getHardwareDescription(), this.awsAccessKey, this.awsSecretKey);
 	}
 }

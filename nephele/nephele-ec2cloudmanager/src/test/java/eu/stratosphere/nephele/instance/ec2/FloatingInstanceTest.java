@@ -13,31 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.template;
+package eu.stratosphere.nephele.instance.ec2;
 
-/**
- * An input task that processes generic input splits (partitions).
- */
-public abstract class GenericInputTask extends AbstractInputTask<GenericInputSplit> {
+import static org.junit.Assert.*;
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public GenericInputSplit[] computeInputSplits(final int requestedMinNumber) throws Exception {
-		GenericInputSplit[] splits = new GenericInputSplit[requestedMinNumber];
-		for (int i = 0; i < requestedMinNumber; i++) {
-			splits[i] = new GenericInputSplit(i);
+import java.net.InetSocketAddress;
+
+import org.junit.Test;
+
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.instance.ec2.FloatingInstance;
+
+public class FloatingInstanceTest {
+
+	@Test
+	public void testHeartBeat() {
+
+		FloatingInstance fi = new FloatingInstance("i-1234ABCD", new InstanceConnectionInfo(new InetSocketAddress(
+			"localhost", 6122).getAddress(), 6122, 6121), System.currentTimeMillis(),
+			EC2CloudManager.DEFAULT_LEASE_PERIOD, null, null, null, null);
+
+		long lastHeartBeat = fi.getLastReceivedHeartBeat();
+		try {
+			Thread.sleep(1);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
-		return splits;
-	}
+		fi.updateLastReceivedHeartBeat();
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<GenericInputSplit> getInputSplitType() {
-
-		return GenericInputSplit.class;
+		assertTrue(fi.getLastReceivedHeartBeat() - lastHeartBeat > 0);
 	}
 }

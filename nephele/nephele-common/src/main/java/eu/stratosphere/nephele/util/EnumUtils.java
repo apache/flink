@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.types.StringRecord;
  * 
  * @author warneke
  */
-public class EnumUtils {
+public final class EnumUtils {
 
 	/**
 	 * Private constructor to overwrite public one.
@@ -47,7 +47,7 @@ public class EnumUtils {
 	 * @throws IOException
 	 *         thrown if any error occurred while reading data from the stream
 	 */
-	public static <T extends Enum<T>> T readEnum(DataInput in, Class<T> enumType) throws IOException {
+	public static <T extends Enum<T>> T readEnum(final DataInput in, final Class<T> enumType) throws IOException {
 
 		if (!in.readBoolean()) {
 			return null;
@@ -66,7 +66,7 @@ public class EnumUtils {
 	 * @throws IOException
 	 *         thrown if any error occurred while writing data to the stream
 	 */
-	public static void writeEnum(DataOutput out, Enum<?> enumVal) throws IOException {
+	public static void writeEnum(final DataOutput out, final Enum<?> enumVal) throws IOException {
 
 		if (enumVal == null) {
 			out.writeBoolean(false);

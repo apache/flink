@@ -178,7 +178,7 @@ public class QueueSchedulerTest {
 		final DeploymentManager deploymentManager = new TestDeploymentManager();
 
 		final QueueScheduler toTest = spy(new QueueScheduler(deploymentManager, this.instanceManager));
-		final JobID jobid = mock(JobID.class);
+		final JobID jobid = new JobID();
 		final AllocatedResource resource = mock(AllocatedResource.class);
 		final List<AllocatedResource> resources = new ArrayList<AllocatedResource>();
 		resources.add(resource);
