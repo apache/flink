@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.jobgraph;
 
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.template.IllegalConfigurationException;
 
 /**
  * A JobTaskVertex is the vertex type for regular tasks (with both input and output) in Nephele.
@@ -37,7 +36,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobTaskVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public JobTaskVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
 		super(name, id, jobGraph);
 
 		jobGraph.addVertex(this);
@@ -51,7 +50,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobTaskVertex(String name, JobGraph jobGraph) {
+	public JobTaskVertex(final String name, final JobGraph jobGraph) {
 		super(name, null, jobGraph);
 
 		jobGraph.addVertex(this);
@@ -63,7 +62,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobTaskVertex(JobGraph jobGraph) {
+	public JobTaskVertex(final JobGraph jobGraph) {
 		super(null, null, jobGraph);
 
 		jobGraph.addVertex(this);
@@ -93,17 +92,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
-
-		// Delegate check to invokable
-		invokable.checkConfiguration();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable) {
+	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
 
 		// Delegate call to invokable
 		return invokable.getMaximumNumberOfSubtasks();
@@ -113,7 +102,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable) {
+	public int getMinimumNumberOfSubtasks(final AbstractInvokable invokable) {
 
 		// Delegate call to invokable
 		return invokable.getMinimumNumberOfSubtasks();

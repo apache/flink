@@ -83,7 +83,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 	 * @param path
 	 *        the path of the file the job file input vertex's task should write to
 	 */
-	public void setFilePath(Path path) {
+	public void setFilePath(final Path path) {
 		this.path = path;
 	}
 
@@ -153,7 +153,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
+	public void checkConfiguration(final AbstractInvokable invokable) throws IllegalConfigurationException {
 
 		// Check if the user has specified a path
 		if (this.path == null) {
@@ -167,7 +167,8 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable) {
+	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
+
 		if (this.path == null) {
 			return 0;
 		}

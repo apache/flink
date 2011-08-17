@@ -589,7 +589,7 @@ public final class LibraryCacheManager {
 		}
 
 		// Map the entire jar file to memory
-		final byte buf[] = new byte[(int) size];
+		final byte[] buf = new byte[(int) size];
 		in.readFully(buf);
 
 		// Reset and calculate message digest from jar file

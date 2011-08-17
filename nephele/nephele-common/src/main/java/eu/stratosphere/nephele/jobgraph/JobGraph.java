@@ -107,7 +107,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param jobName
 	 *        the name for this job graph
 	 */
-	public JobGraph(String jobName) {
+	public JobGraph(final String jobName) {
 		this();
 		this.jobName = jobName;
 	}
@@ -174,7 +174,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param outputVertex
 	 *        the new output vertex to be added
 	 */
-	public void addVertex(AbstractJobOutputVertex outputVertex) {
+	public void addVertex(final AbstractJobOutputVertex outputVertex) {
 
 		if (!outputVertices.containsKey(outputVertex.getID())) {
 			outputVertices.put(outputVertex.getID(), outputVertex);
@@ -341,18 +341,18 @@ public class JobGraph implements IOReadableWritable {
 	 *        the ID of the vertex to search for
 	 * @return the vertex with the matching ID or <code>null</code> if no vertex with such ID could be found
 	 */
-	public AbstractJobVertex findVertexByID(JobVertexID id) {
+	public AbstractJobVertex findVertexByID(final JobVertexID id) {
 
-		if (inputVertices.containsKey(id)) {
-			return inputVertices.get(id);
+		if (this.inputVertices.containsKey(id)) {
+			return this.inputVertices.get(id);
 		}
 
-		if (outputVertices.containsKey(id)) {
-			return outputVertices.get(id);
+		if (this.outputVertices.containsKey(id)) {
+			return this.outputVertices.get(id);
 		}
 
-		if (taskVertices.containsKey(id)) {
-			return taskVertices.get(id);
+		if (this.taskVertices.containsKey(id)) {
+			return this.taskVertices.get(id);
 		}
 
 		return null;
@@ -366,17 +366,17 @@ public class JobGraph implements IOReadableWritable {
 	 * @return <code>true</code> if a vertex with the given ID is registered with the job graph, <code>false</code>
 	 *         otherwise.
 	 */
-	private boolean includedInJobGraph(JobVertexID id) {
+	private boolean includedInJobGraph(final JobVertexID id) {
 
-		if (inputVertices.containsKey(id)) {
+		if (this.inputVertices.containsKey(id)) {
 			return true;
 		}
 
-		if (outputVertices.containsKey(id)) {
+		if (this.outputVertices.containsKey(id)) {
 			return true;
 		}
 
-		if (taskVertices.containsKey(id)) {
+		if (this.taskVertices.containsKey(id)) {
 			return true;
 		}
 
@@ -449,8 +449,9 @@ public class JobGraph implements IOReadableWritable {
 	 * Auxiliary method implementing Tarjan's algorithm for strongly-connected components to determine whether the job
 	 * graph is acyclic.
 	 */
-	private boolean tarjan(AbstractJobVertex jv, Integer index, HashMap<AbstractJobVertex, Integer> indexMap,
-			HashMap<AbstractJobVertex, Integer> lowLinkMap, Stack<AbstractJobVertex> stack) {
+	private boolean tarjan(final AbstractJobVertex jv, Integer index,
+			final HashMap<AbstractJobVertex, Integer> indexMap, final HashMap<AbstractJobVertex, Integer> lowLinkMap,
+			final Stack<AbstractJobVertex> stack) {
 
 		indexMap.put(jv, Integer.valueOf(index));
 		lowLinkMap.put(jv, Integer.valueOf(index));
@@ -540,7 +541,7 @@ public class JobGraph implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read job id
 		this.jobID.read(in);
@@ -625,7 +626,7 @@ public class JobGraph implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write job ID
 		this.jobID.write(out);
@@ -671,7 +672,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while writing to the stream
 	 */
-	private void writeRequiredJarFiles(DataOutput out, AbstractJobVertex[] jobVertices) throws IOException {
+	private void writeRequiredJarFiles(final DataOutput out, final AbstractJobVertex[] jobVertices) throws IOException {
 
 		// Now check if all the collected jar files really exist
 		final FileSystem fs = FileSystem.getLocalFileSystem();
@@ -716,7 +717,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while reading the stream
 	 */
-	private void readRequiredJarFiles(DataInput in) throws IOException {
+	private void readRequiredJarFiles(final DataInput in) throws IOException {
 
 		// Do jar files follow;
 		final int numJars = in.readInt();
@@ -748,7 +749,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param jar
 	 *        path of the JAR file required to run the job on a task manager
 	 */
-	public void addJar(Path jar) {
+	public void addJar(final Path jar) {
 
 		if (jar == null) {
 			return;

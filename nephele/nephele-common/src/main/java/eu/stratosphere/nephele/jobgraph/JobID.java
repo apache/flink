@@ -33,6 +33,9 @@ public final class JobID extends ID {
 
 	/**
 	 * Constructs a new ID with a specific bytes value.
+	 * 
+	 * @param bytes
+	 *        the ID in byte representation
 	 */
 	public JobID(final byte[] bytes) {
 		super(bytes);

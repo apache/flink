@@ -125,7 +125,7 @@ public final class JobFileInputVertex extends AbstractJobInputVertex {
 		super.read(in);
 
 		// Read path of the input file
-		boolean isNotNull = in.readBoolean();
+		final boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.path = new Path();
 			this.path.read(in);
@@ -153,7 +153,7 @@ public final class JobFileInputVertex extends AbstractJobInputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
+	public void checkConfiguration(final AbstractInvokable invokable) throws IllegalConfigurationException {
 
 		// Check if the user has specified a path
 		if (this.path == null) {

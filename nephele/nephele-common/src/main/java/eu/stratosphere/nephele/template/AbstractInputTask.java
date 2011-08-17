@@ -75,10 +75,12 @@ public abstract class AbstractInputTask<T extends InputSplit> extends AbstractIn
 						final T tSplit = (T) split;
 						this.nextSplit = tSplit;
 						return true;
-					} else
+					} else {
 						return false;
-				} else
+					}
+				} else {
 					return true;
+				}
 			}
 
 			@Override
