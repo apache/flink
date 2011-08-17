@@ -43,8 +43,8 @@ public abstract class AbstractID implements IOReadableWritable {
 	 * Constructs a new ID with a specific bytes value.
 	 */
 	public AbstractID(final byte[] bytes) {
-		
-		if(bytes.length == SIZE) {
+
+		if (bytes.length == SIZE) {
 			System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
 		}
 	}
@@ -53,7 +53,7 @@ public abstract class AbstractID implements IOReadableWritable {
 	 * Constructs a new random ID from a uniform distribution.
 	 */
 	public AbstractID() {
-		
+
 		for (int i = 0; i < SIZE; i++) {
 			this.bytes[i] = (byte) ((Math.random() * 256.0) + Byte.MIN_VALUE);
 		}
