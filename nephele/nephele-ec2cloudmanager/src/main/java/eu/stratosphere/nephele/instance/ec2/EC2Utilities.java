@@ -13,33 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.instance.ec2;
 
-import static org.junit.Assert.*;
+/**
+ * This class provides auxiliary methods needed to set up the custom EC2-image.
+ * 
+ * @author casp
+ */
+final class EC2Utilities {
 
-import java.net.InetSocketAddress;
+	static synchronized String createTaskManagerUserData(final String JobManagerIpAddress) {
 
-import org.junit.Test;
+		/*
+		 * When the type is set to TASKMANAGER (in /tmp/STRATOSPHERE_TYPE
+		 * then the AMI assumes that another file called /tmp/JOBMANAGER_ADDRESS
+		 * exists containing the (internal) IP address of the jobmanager instance.
+		 */
 
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.cloud.FloatingInstance;
+		final String taskManagerUserData = "#!/bin/bash \n echo TASKMANAGER >> /tmp/STRATOSPHERE_TYPE \n echo "
+			+ JobManagerIpAddress + " >> /tmp/JOBMANAGER_ADDRESS";
 
-public class FloatingInstanceTest {
+		return new String(org.apache.commons.codec.binary.Base64.encodeBase64(taskManagerUserData.getBytes()));
 
-	@Test
-	public void testHeartBeat() {
-
-		FloatingInstance fi = new FloatingInstance("i-1234ABCD", new InstanceConnectionInfo(new InetSocketAddress(
-			"localhost", 6122).getAddress(), 6122, 6121), System.currentTimeMillis(), 100000);
-
-		long lastHeartBeat = fi.getLastReceivedHeartBeat();
-		try {
-			Thread.sleep(1);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		fi.updateLastReceivedHeartBeat();
-
-		assertTrue(fi.getLastReceivedHeartBeat() - lastHeartBeat > 0);
 	}
 }

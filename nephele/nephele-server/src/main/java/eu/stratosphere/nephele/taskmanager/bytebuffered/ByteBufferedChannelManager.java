@@ -122,7 +122,7 @@ public class ByteBufferedChannelManager {
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
 		this.isSpillingAllowed = configuration.getBoolean("channel.network.allowSpilling", DEFAULT_ALLOW_SPILLING);
 
-		LOG.info("Starting NetworkChannelManager with Spilling "
+		LOG.info("Starting ByteBufferedChannelManager with Spilling "
 			+ (this.isSpillingAllowed ? "activated" : "deactivated"));
 
 		// Initialize buffers
@@ -511,12 +511,11 @@ public class ByteBufferedChannelManager {
 	}
 
 	/**
-	 * Shuts down the network channel manager and
-	 * stops all its internal processes.
+	 * Shuts down the byte buffered channel manager and stops all its internal processes.
 	 */
 	public void shutdown() {
 
-		LOG.info("Shutting down network channel manager");
+		LOG.info("Shutting down ByteBufferedChannelManager");
 
 		// Interrupt the threads we started
 		this.incomingConnectionThread.interrupt();

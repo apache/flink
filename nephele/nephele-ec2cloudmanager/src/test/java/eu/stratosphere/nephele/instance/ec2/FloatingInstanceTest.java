@@ -13,11 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.example.grep;
+package eu.stratosphere.nephele.instance.ec2;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
+import static org.junit.Assert.*;
 
-public interface Job {
+import java.net.InetSocketAddress;
 
-	public JobGraph getJobGraph();
+import org.junit.Test;
+
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.instance.ec2.FloatingInstance;
+
+public class FloatingInstanceTest {
+
+	@Test
+	public void testHeartBeat() {
+
+		FloatingInstance fi = new FloatingInstance("i-1234ABCD", new InstanceConnectionInfo(new InetSocketAddress(
+			"localhost", 6122).getAddress(), 6122, 6121), System.currentTimeMillis(),
+			EC2CloudManager.DEFAULT_LEASE_PERIOD, null, null, null, null);
+
+		long lastHeartBeat = fi.getLastReceivedHeartBeat();
+		try {
+			Thread.sleep(1);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		fi.updateLastReceivedHeartBeat();
+
+		assertTrue(fi.getLastReceivedHeartBeat() - lastHeartBeat > 0);
+	}
 }

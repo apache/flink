@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.instance.ec2;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -25,13 +25,10 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
  * A JobToInstancesMapping represents the relationship between a job and its possessing cloud instances. A cloud
  * instance can be assigned or unassigned to a job.
  */
-public class JobToInstancesMapping {
+final class JobToInstancesMapping {
 
 	/** The list of assigned cloud instances for the job. */
-	private final List<CloudInstance> assignedInstances = new ArrayList<CloudInstance>();
-
-	/** The owner of the job. */
-	private final String owner;
+	private final List<EC2CloudInstance> assignedInstances = new ArrayList<EC2CloudInstance>();
 
 	/** The access ID into Amazon Web Services. */
 	private final String awsAccessId;
@@ -42,15 +39,13 @@ public class JobToInstancesMapping {
 	/**
 	 * Creates a new mapping for job to instances.
 	 * 
-	 * @param owner
-	 *        the owner of the job
 	 * @param awsAccessId
 	 *        the access ID into AWS
 	 * @param awsSecretKey
 	 *        the secret key used to generate signatures for authentication
 	 */
-	public JobToInstancesMapping(String owner, String awsAccessId, String awsSecretKey) {
-		this.owner = owner;
+	public JobToInstancesMapping(final String awsAccessId, final String awsSecretKey) {
+
 		this.awsAccessId = awsAccessId;
 		this.awsSecretKey = awsSecretKey;
 	}
@@ -61,9 +56,7 @@ public class JobToInstancesMapping {
 	 * @param instance
 	 *        the cloud instance which will be assigned
 	 */
-	public void assignInstanceToJob(CloudInstance instance) {
-
-		System.out.println("Adding " + instance.getInstanceConnectionInfo() + " to job");
+	public void assignInstanceToJob(final EC2CloudInstance instance) {
 
 		synchronized (this.assignedInstances) {
 			this.assignedInstances.add(instance);
@@ -77,7 +70,7 @@ public class JobToInstancesMapping {
 	 *        the cloud instance which will be unassigned
 	 * @return the unassigned cloud instance
 	 */
-	public boolean unassignedInstanceFromJob(CloudInstance instance) {
+	public boolean unassignInstanceFromJob(EC2CloudInstance instance) {
 
 		synchronized (this.assignedInstances) {
 			return this.assignedInstances.remove(instance);
@@ -98,7 +91,7 @@ public class JobToInstancesMapping {
 	 * 
 	 * @return the list of assigned cloud instances for the job
 	 */
-	public List<CloudInstance> getAssignedInstances() {
+	public List<EC2CloudInstance> getAssignedInstances() {
 		return this.assignedInstances;
 	}
 
@@ -110,7 +103,7 @@ public class JobToInstancesMapping {
 	 * @return the cloud instance matching the given connection information or <code>null</code> if no matching instance
 	 *         exists
 	 */
-	public CloudInstance getInstanceByConnectionInfo(InstanceConnectionInfo instanceConnectionInfo) {
+	public EC2CloudInstance getInstanceByConnectionInfo(final InstanceConnectionInfo instanceConnectionInfo) {
 
 		if (instanceConnectionInfo == null) {
 			return null;
@@ -118,11 +111,11 @@ public class JobToInstancesMapping {
 
 		synchronized (this.assignedInstances) {
 
-			final Iterator<CloudInstance> it = this.assignedInstances.iterator();
+			final Iterator<EC2CloudInstance> it = this.assignedInstances.iterator();
 
 			while (it.hasNext()) {
 
-				final CloudInstance ci = it.next();
+				final EC2CloudInstance ci = it.next();
 				if (instanceConnectionInfo.equals(ci.getInstanceConnectionInfo())) {
 					return ci;
 				}
@@ -130,15 +123,6 @@ public class JobToInstancesMapping {
 		}
 
 		return null;
-	}
-
-	/**
-	 * Returns the owner of the job.
-	 * 
-	 * @return the owner of the job
-	 */
-	public String getOwner() {
-		return this.owner;
 	}
 
 	/**

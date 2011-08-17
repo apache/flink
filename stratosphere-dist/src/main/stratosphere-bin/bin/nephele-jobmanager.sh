@@ -61,11 +61,11 @@ constructJobManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-clustermanager' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'nephele-ec2cloudmanager' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'commons-httpclient' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'typica' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-common' ]]; then
 			add=1

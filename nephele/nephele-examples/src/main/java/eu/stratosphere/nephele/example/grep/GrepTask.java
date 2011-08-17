@@ -35,6 +35,7 @@ public class GrepTask extends AbstractTask {
 
 			StringRecord s = input.next();
 			this.output.emit(s);
+			i++;
 		}
 
 		System.out.println("GREP: Emmited all " + i + " records");
