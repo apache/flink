@@ -45,7 +45,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class LibraryCacheManager {
+public final class LibraryCacheManager {
 
 	/**
 	 * The instance of the library cache manager accessible through a singleton pattern.
@@ -100,7 +100,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if access to the file system can not be obtained or the requested hashing algorithm does not exist
 	 */
-	private synchronized static LibraryCacheManager get() throws IOException {
+	private static synchronized LibraryCacheManager get() throws IOException {
 
 		// Lazy initialization
 		if (libraryManager == null) {
@@ -116,8 +116,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if access to the file system can not be obtained or the requested hashing algorithm does not exist
 	 */
-	private LibraryCacheManager()
-									throws IOException {
+	private LibraryCacheManager() throws IOException {
 
 		// Check if the library cache directory exists, otherwise create it
 		final String tmp = System.getProperty("java.io.tmpdir");
@@ -157,43 +156,6 @@ public class LibraryCacheManager {
 	}
 
 	/**
-	 * Creates a mapping between a job vertex ID and the corresponding graph ID. The mapping is required to
-	 * unambiguously translate
-	 * the client path of a library to its internal cache name.
-	 * 
-	 * @param vertexID
-	 *        the job vertex ID for the mapping
-	 * @param graphID
-	 *        the graph ID for the mapping
-	 * @throws IOException
-	 *         thrown if the library cache manager could not be instantiated
-	 */
-	/*
-	 * public static void createMapping(JobVertexID vertexID, JobGraphID graphID) throws IOException {
-	 * LibraryCacheManager lib = get();
-	 * lib.createMappingInternal(vertexID, graphID);
-	 * }
-	 */
-
-	/**
-	 * Creates a mapping between a job vertex ID and the corresponding graph ID. The mapping is required to
-	 * unambiguously translate
-	 * the client path of a library to its internal cache name.
-	 * 
-	 * @param vertexID
-	 *        the job vertex ID for the mapping
-	 * @param graphID
-	 *        the graph ID for the mapping
-	 */
-	/*
-	 * private void createMappingInternal(JobVertexID vertexID, JobGraphID graphID) {
-	 * synchronized(this.vertexIDToGraphIDMap) {
-	 * this.vertexIDToGraphIDMap.put(vertexID, graphID);
-	 * }
-	 * }
-	 */
-
-	/**
 	 * Registers a job ID with a set of library paths that are required to run the job. The library paths are given in
 	 * terms
 	 * of client paths, so the method first translates the client paths into the corresponding internal cache names. For
@@ -208,7 +170,7 @@ public class LibraryCacheManager {
 	 *         thrown if the library cache manager could not be instantiated, no mapping between the job ID and a job ID
 	 *         exists or the requested library is not in the cache.
 	 */
-	public static void register(JobID id, Path[] clientPaths) throws IOException {
+	public static void register(final JobID id, final Path[] clientPaths) throws IOException {
 
 		final LibraryCacheManager lib = get();
 		lib.registerInternal(id, clientPaths);
@@ -228,7 +190,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if no mapping between the job ID and a job ID exists or the requested library is not in the cache.
 	 */
-	private void registerInternal(JobID id, Path[] clientPaths) throws IOException {
+	private void registerInternal(final JobID id, final Path[] clientPaths) throws IOException {
 
 		final String[] cacheNames = new String[clientPaths.length];
 		synchronized (this.clientPathToCacheName) {
@@ -258,7 +220,7 @@ public class LibraryCacheManager {
 	 *         thrown if the library cache manager could not be instantiated or one of the requested libraries is not in
 	 *         the cache
 	 */
-	public static void register(JobID id, String[] requiredJarFiles) throws IOException {
+	public static void register(final JobID id, final String[] requiredJarFiles) throws IOException {
 
 		final LibraryCacheManager lib = get();
 		lib.registerInternal(id, requiredJarFiles);
@@ -276,7 +238,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if one of the requested libraries is not in the cache
 	 */
-	private void registerInternal(JobID id, String[] requiredJarFiles) throws IOException {
+	private void registerInternal(final JobID id, final String[] requiredJarFiles) throws IOException {
 
 		// Check if library manager entry for this id already exists
 		synchronized (this.libraryManagerEntries) {
@@ -293,8 +255,9 @@ public class LibraryCacheManager {
 
 			for (int i = 0; i < requiredJarFiles.length; i++) {
 				final Path p = contains(requiredJarFiles[i]);
-				if (p == null)
+				if (p == null) {
 					throw new IOException(requiredJarFiles[i] + " does not exist in the library cache");
+				}
 
 				// Add file to the URL array
 				try {
@@ -319,7 +282,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if the library cache manager could not be instantiated
 	 */
-	public static void unregister(JobID id) throws IOException {
+	public static void unregister(final JobID id) throws IOException {
 
 		final LibraryCacheManager lib = get();
 		lib.unregisterInternal(id);
@@ -331,7 +294,7 @@ public class LibraryCacheManager {
 	 * @param id
 	 *        the job ID to unregister
 	 */
-	private void unregisterInternal(JobID id) {
+	private void unregisterInternal(final JobID id) {
 
 		// TODO: the library cache manager (LCM) was designed to be a singleton object
 		// Running Nephele is local mode confuses the LCM and it deallocates libraries
@@ -357,7 +320,7 @@ public class LibraryCacheManager {
 	 *         thrown if the library cache manager could not be instantiated or no access to the file system could be
 	 *         obtained
 	 */
-	public static Path contains(String cacheName) throws IOException {
+	public static Path contains(final String cacheName) throws IOException {
 
 		final LibraryCacheManager lib = get();
 		return lib.containsInternal(cacheName);
@@ -372,7 +335,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if no access to the file system could be obtained
 	 */
-	private Path containsInternal(String cacheName) throws IOException {
+	private Path containsInternal(final String cacheName) throws IOException {
 
 		// Create a path object from the external name string
 		final Path p = new Path(this.libraryCachePath + "/" + cacheName);
@@ -396,7 +359,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if the library cache manager could not be instantiated
 	 */
-	public static ClassLoader getClassLoader(JobID id) throws IOException {
+	public static ClassLoader getClassLoader(final JobID id) throws IOException {
 
 		if (id == null) {
 			return null;
@@ -416,7 +379,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if the library cache manager could not be instantiated
 	 */
-	private ClassLoader getClassLoaderInternal(JobID id) {
+	private ClassLoader getClassLoaderInternal(final JobID id) {
 		synchronized (this.libraryManagerEntries) {
 
 			if (!this.libraryManagerEntries.containsKey(id)) {
@@ -436,7 +399,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if the library cache manager could not be instantiated
 	 */
-	public static String[] getRequiredJarFiles(JobID id) throws IOException {
+	public static String[] getRequiredJarFiles(final JobID id) throws IOException {
 
 		if (id == null) {
 			return new String[0];
@@ -454,7 +417,7 @@ public class LibraryCacheManager {
 	 *        the ID of the job to return the names of required libraries for.
 	 * @return the names of the required libraries or <code>null</code> if the specified job ID is unknown
 	 */
-	private String[] getRequiredJarFilesInternal(JobID id) {
+	private String[] getRequiredJarFilesInternal(final JobID id) {
 
 		LibraryManagerEntry entry = null;
 
@@ -479,7 +442,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if an error occurs while writing the data
 	 */
-	public static void writeLibraryToStream(String libraryFileName, DataOutput out) throws IOException {
+	public static void writeLibraryToStream(final String libraryFileName, final DataOutput out) throws IOException {
 
 		final LibraryCacheManager lib = get();
 		lib.writeLibraryToStreamInternal(libraryFileName, out);
@@ -496,7 +459,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if an error occurs while writing the data
 	 */
-	private void writeLibraryToStreamInternal(String libraryFileName, DataOutput out) throws IOException {
+	private void writeLibraryToStreamInternal(final String libraryFileName, final DataOutput out) throws IOException {
 
 		if (libraryFileName == null) {
 			throw new IOException("libraryName is null!");
@@ -535,7 +498,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         throws if an error occurs while reading from the stream
 	 */
-	public static void readLibraryFromStream(DataInput in) throws IOException {
+	public static void readLibraryFromStream(final DataInput in) throws IOException {
 
 		final LibraryCacheManager lib = get();
 		lib.readLibraryFromStreamInternal(in);
@@ -550,7 +513,7 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         throws if an error occurs while reading from the stream
 	 */
-	private void readLibraryFromStreamInternal(DataInput in) throws IOException {
+	private void readLibraryFromStreamInternal(final DataInput in) throws IOException {
 
 		final String libraryFileName = StringRecord.readString(in);
 
@@ -564,7 +527,7 @@ public class LibraryCacheManager {
 			throw new IOException("Submitted jar file " + libraryFileName + " is too large");
 		}
 
-		final byte buf[] = new byte[(int) length];
+		final byte[] buf = new byte[(int) length];
 		in.readFully(buf);
 
 		final Path storePath = new Path(this.libraryCachePath + "/" + libraryFileName);
@@ -596,7 +559,8 @@ public class LibraryCacheManager {
 	 *         thrown if the library cache manager could not be instantiated or an error occurred while reading the
 	 *         library data from the input stream
 	 */
-	public static void addLibrary(JobID jobID, Path name, long size, DataInput in) throws IOException {
+	public static void addLibrary(final JobID jobID, final Path name, final long size, final DataInput in)
+			throws IOException {
 
 		final LibraryCacheManager lib = get();
 		lib.addLibraryInternal(jobID, name, size, in);
@@ -617,7 +581,8 @@ public class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if an error occurred while reading the library data from the input stream
 	 */
-	private void addLibraryInternal(JobID jobID, Path name, long size, DataInput in) throws IOException {
+	private void addLibraryInternal(final JobID jobID, final Path name, final long size, final DataInput in)
+			throws IOException {
 
 		if (size > (long) Integer.MAX_VALUE) {
 			throw new IOException("Submitted jar file " + name + " is too large");
@@ -685,7 +650,7 @@ public class LibraryCacheManager {
 		 *        an array with the names of required libraries by the corresponding job (URL objects required by the
 		 *        class loader)
 		 */
-		public LibraryManagerEntry(JobID id, String[] requiredJarFiles, URL[] urls) {
+		public LibraryManagerEntry(final JobID id, final String[] requiredJarFiles, URL[] urls) {
 
 			String[] temp = requiredJarFiles;
 			if (temp == null) {
@@ -749,7 +714,7 @@ public class LibraryCacheManager {
 		 * @param clientPath
 		 *        the client path
 		 */
-		public LibraryTranslationKey(JobID jobID, Path clientPath) {
+		public LibraryTranslationKey(final JobID jobID, final Path clientPath) {
 
 			this.jobID = jobID;
 			this.clientPath = clientPath;
@@ -770,7 +735,7 @@ public class LibraryCacheManager {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 
 			if (obj == null) {
 				return false;
