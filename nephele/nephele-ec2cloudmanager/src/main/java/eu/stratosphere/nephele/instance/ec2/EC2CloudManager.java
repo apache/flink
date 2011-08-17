@@ -53,6 +53,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
@@ -390,7 +391,9 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			mapping.assignInstanceToJob(instance);
 
 			// Trigger notification that instance is available (outside synchronized section)
-			this.instanceListener.resourceAllocated(jobID, instance.asAllocatedResource());
+			final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+			allocatedResources.add(instance.asAllocatedResource());
+			this.instanceListener.resourcesAllocated(jobID, allocatedResources);
 
 			return;
 		}
@@ -561,8 +564,8 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestInstance(final JobID jobID, Configuration conf,
-			final Map<InstanceType, Integer> instanceRequestMap, final List<String> splitAffinityList)
+	public void requestInstance(final JobID jobID, Configuration conf, final InstanceRequestMap instanceRequestMap,
+			final List<String> splitAffinityList)
 			throws InstanceException {
 
 		if (conf == null) {
@@ -616,7 +619,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final LinkedList<String> requestedInstances = new LinkedList<String>();
 
 		// We iterate over the maximum of requested Instances...
-		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.entrySet().iterator();
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
 
 		while (it.hasNext()) {
 
@@ -668,15 +671,20 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		} // End iterating over instance types..
 
 		// Convert and allocate Floating Instances...
+		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+
 		for (final FloatingInstance fi : floatingInstances) {
 			final EC2CloudInstance ci = fi.asCloudInstance(networkTopology.getRootNode());
 			jobToInstanceMapping.assignInstanceToJob(ci);
-			final EC2CloudInstanceNotifier notifier = new EC2CloudInstanceNotifier(this.instanceListener, jobID,
-				ci.asAllocatedResource());
-			notifier.start();
+			allocatedResources.add(ci.asAllocatedResource());
 		}
 
 		// Finally, inform the scheduler about the instances which have been floating before
+		if (!allocatedResources.isEmpty()) {
+			final EC2CloudInstanceNotifier notifier = new EC2CloudInstanceNotifier(this.instanceListener, jobID,
+				allocatedResources);
+			notifier.start();
+		}
 
 		// Add reserved Instances to Job Mapping...
 		for (final String i : requestedInstances) {

@@ -292,13 +292,8 @@ public class TransferEnvelopeSerializerTest {
 		byte[] id = new byte[sizeOfID];
 		fileInputStream.read(id);
 
-<<<<<<< HEAD
 		final AbstractID channelID = new SerializationTestID(id);
 		assertEquals(expectedID, channelID);
-=======
-		final AbstractID channelID = new SerializationTestChannelID(channelid);
-		assertEquals(expectedChannelID, channelID);
->>>>>>> master
 	}
 
 	/**

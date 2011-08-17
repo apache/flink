@@ -102,8 +102,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	@Override
 	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
 
-		// First, check if there are enough resources to run this job
-
 		// Get Map of all available Instance types
 		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
 			.getMapOfAvailableInstanceTypes();

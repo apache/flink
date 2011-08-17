@@ -68,8 +68,11 @@ public class EC2CloudManagerTest {
 
 			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
 			assertTrue(resourcesOfJob != null);
-			assertTrue(resourcesOfJob.contains(allocatedResource));
-			resourcesOfJob.remove(allocatedResource);
+
+			for (final AllocatedResource allocatedResource : allocatedResources) {
+				assertTrue(resourcesOfJob.contains(allocatedResource));
+			}
+
 			if (resourcesOfJob.isEmpty()) {
 				this.resourcesOfJobs.remove(jobID);
 			}

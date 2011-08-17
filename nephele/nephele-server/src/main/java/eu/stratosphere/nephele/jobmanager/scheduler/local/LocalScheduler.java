@@ -85,15 +85,13 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		}
 	}
 
-	
-
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void schedulJob(ExecutionGraph executionGraph) throws SchedulingException {
 
-		// First, check if there are enough resources to run this job
+		// Get Map of all available Instance types
 		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
 			.getMapOfAvailableInstanceTypes();
 
@@ -103,4 +101,128 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 			final ExecutionStage stage = executionGraph.getStage(i);
 			stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
-			final Iterator<Map.Entry<Ins
+			// Iterator over required Instances
+			final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
+			while (it.hasNext()) {
+
+				final Map.Entry<InstanceType, Integer> entry = it.next();
+
+				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
+				if (descr == null) {
+					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
+						+ " available");
+				}
+
+				if (descr.getMaximumNumberOfAvailableInstances() != -1
+					&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
+					throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
+						+ " instances of type " + entry.getKey() + " required, but only "
+						+ descr.getMaximumNumberOfAvailableInstances() + " are available");
+				}
+			}
+		}
+
+		// Subscribe to job status notifications
+		executionGraph.registerJobStatusListener(this);
+
+		// Set state of each vertex for scheduled
+		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
+		while (it2.hasNext()) {
+
+			final ExecutionVertex vertex = it2.next();
+			vertex.getEnvironment().registerExecutionListener(new LocalExecutionListener(this, vertex));
+		}
+
+		// Register the scheduler as an execution stage listener
+		executionGraph.registerExecutionStageListener(this);
+
+		// Add job to the job queue (important to add job to queue before requesting instances)
+		synchronized (this.jobQueue) {
+			this.jobQueue.add(executionGraph);
+
+			// Request resources for the first stage of the job
+			final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
+			try {
+				requestInstances(executionStage);
+			} catch (InstanceException e) {
+				final String exceptionMessage = StringUtils.stringifyException(e);
+				LOG.error(exceptionMessage);
+				this.jobQueue.remove(executionGraph);
+				throw new SchedulingException(exceptionMessage);
+			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public ExecutionGraph getExecutionGraphByID(JobID jobID) {
+
+		synchronized (this.jobQueue) {
+
+			final Iterator<ExecutionGraph> it = this.jobQueue.iterator();
+			while (it.hasNext()) {
+
+				final ExecutionGraph executionGraph = it.next();
+				if (executionGraph.getJobID().equals(jobID)) {
+					return executionGraph;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void shutdown() {
+
+		synchronized (this.jobQueue) {
+			this.jobQueue.clear();
+		}
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
+			final String optionalMessage) {
+
+		if (newJobStatus == InternalJobStatus.FAILED || newJobStatus == InternalJobStatus.FINISHED
+			|| newJobStatus == InternalJobStatus.CANCELED) {
+			removeJobFromSchedule(executionGraph);
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
+
+		// Request new instances if necessary
+		try {
+			requestInstances(executionStage);
+		} catch (InstanceException e) {
+			// TODO: Handle this error correctly
+			LOG.error(StringUtils.stringifyException(e));
+		}
+
+		// Deploy the assigned vertices
+		deployAssignedVertices(executionStage.getExecutionGraph());
+	}
+}
