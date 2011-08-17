@@ -20,7 +20,7 @@ package eu.stratosphere.nephele.util;
  * 
  * @author warneke
  */
-public class FileUtils {
+public final class FileUtils {
 
 	/**
 	 * The alphabet to construct the random part of the filename from.
@@ -32,6 +32,12 @@ public class FileUtils {
 	 * The length of the random part of the filename.
 	 */
 	private static final int LENGTH = 12;
+
+	/**
+	 * Empty private constructor to avoid instantiation.
+	 */
+	private FileUtils() {
+	}
 
 	/**
 	 * Constructs a random filename with the given prefix and

@@ -58,15 +58,10 @@ public final class NativeCodeLoader {
 	 *        the directory in which the library is supposed to be located
 	 * @param filename
 	 *        filename of the library to be loaded
-	 * @throws SecurityException
-	 *         thrown if a security exception occurs.
-	 * @throws UnsatisfiedLinkError
-	 *         thrown if the library contains unsatisfied links
 	 * @throws IOException
 	 *         thrown if an internal native library cannot be extracted
 	 */
-	public static void loadLibraryFromFile(final String directory, final String filename) throws SecurityException,
-			UnsatisfiedLinkError, IOException {
+	public static void loadLibraryFromFile(final String directory, final String filename) throws IOException {
 
 		final String libraryPath = directory + File.separator + filename;
 

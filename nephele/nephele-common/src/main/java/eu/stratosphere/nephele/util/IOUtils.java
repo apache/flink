@@ -28,7 +28,7 @@ import org.apache.commons.logging.Log;
  * 
  * @author warneke
  */
-public class IOUtils {
+public final class IOUtils {
 
 	/**
 	 * The block size for byte operations in byte.
@@ -60,7 +60,7 @@ public class IOUtils {
 			throws IOException {
 
 		final PrintStream ps = out instanceof PrintStream ? (PrintStream) out : null;
-		final byte buf[] = new byte[buffSize];
+		final byte[] buf = new byte[buffSize];
 		try {
 			int bytesRead = in.read(buf);
 			while (bytesRead >= 0) {
@@ -147,7 +147,7 @@ public class IOUtils {
 	 * @throws IOException
 	 *         if it could not skip requested number of bytes for any reason (including EOF)
 	 */
-	public static void skipFully(InputStream in, long len) throws IOException {
+	public static void skipFully(final InputStream in, long len) throws IOException {
 		while (len > 0) {
 			final long ret = in.skip(len);
 			if (ret < 0) {
