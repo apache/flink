@@ -52,7 +52,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 	/**
 	 * Buffer to reconstruct the length field.
 	 */
-	ByteBuffer lengthBuf = ByteBuffer.allocate(SIZEOFINT);
+	private ByteBuffer lengthBuf = ByteBuffer.allocate(SIZEOFINT);
 
 	/**
 	 * Size of the record to be deserialized in bytes.
@@ -64,7 +64,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 	/**
 	 * Temporary buffer.
 	 */
-	ByteBuffer tempBuffer = null;
+	private ByteBuffer tempBuffer = null;
 
 	/**
 	 * Constructs a new deserialization buffer with the specified type.
@@ -72,10 +72,10 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 	 * @param type
 	 *        the type of the record the deserialization buffer can be used for
 	 * @param propagateEndOfStream
-	 *        <code>true> if end of stream notifications during the
+	 *        <code>true</code> if end of stream notifications during the
 	 * deserialization process shall be propagated to the caller, <code>false</code> otherwise
 	 */
-	public DeserializationBuffer(RecordDeserializer<T> deserializer, boolean propagateEndOfStream) {
+	public DeserializationBuffer(final RecordDeserializer<T> deserializer, final boolean propagateEndOfStream) {
 		this.deserializer = deserializer;
 		this.propagateEndOfStream = propagateEndOfStream;
 	}
@@ -89,7 +89,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 	 * @throws IOException
 	 *         thrown if an error occurs while reading the data or deserializing the object
 	 */
-	public T readData(ReadableByteChannel readableByteChannel) throws IOException {
+	public T readData(final ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (this.recordLength < 0) {
 			if (readableByteChannel.read(this.lengthBuf) == -1 && this.propagateEndOfStream) {
@@ -129,8 +129,8 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 			return null;
 		}
 
-		deserializationBuffer.reset(tempBuffer.array(), this.recordLength);
-		final T record = deserializer.deserialize(deserializationBuffer);
+		this.deserializationBuffer.reset(this.tempBuffer.array(), this.recordLength);
+		final T record = deserializer.deserialize(this.deserializationBuffer);
 
 		this.recordLength = -1;
 		this.lengthBuf.clear();
@@ -145,7 +145,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 	 *        the array of bytes used as input.
 	 * @return the resulting integer
 	 */
-	private int byteArrayToInt(byte[] arr) {
+	private int byteArrayToInt(final byte[] arr) {
 
 		int number = 0;
 		for (int i = 0; i < SIZEOFINT; ++i) {
