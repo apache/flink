@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -87,6 +88,11 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	private final Configuration configuration = new Configuration();
 
+	/**
+	 * The class of the invokable
+	 */
+	protected Class<? extends AbstractInvokable> invokableClass = null;
+	
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
 	 * 
@@ -361,6 +367,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	/**
 	 * {@inheritDoc}
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public void read(DataInput in) throws IOException {
 
@@ -418,6 +425,29 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 				this.forwardEdges.add(null);
 			}
 		}
+		
+		//Read the invokable class
+		final boolean isNotNull = in.readBoolean();
+		if (!isNotNull) {
+			return;
+		}
+
+		// Read the name of the class and try to instantiate the class object
+
+		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
+		if (cl == null) {
+			throw new IOException("Cannot find class loader for vertex " + getID());
+		}
+
+		// Read the name of the expected class
+		final String className = StringRecord.readString(in);
+
+		try {
+			this.invokableClass = (Class<? extends AbstractInvokable>) Class.forName(className, true, cl);
+		} catch (ClassNotFoundException cnfe) {
+			throw new IOException("Class " + className + " not found in one of the supplied jar files: "
+				+ StringUtils.stringifyException(cnfe));
+		}
 	}
 
 	/**
@@ -463,6 +493,17 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 				out.writeInt(edge.getIndexOfInputGate());
 			}
 		}
+		
+		//Write the invokable class
+		if (this.invokableClass == null) {
+			out.writeBoolean(false);
+			return;
+		}
+
+		out.writeBoolean(true);
+
+		// Write out the name of the class
+		StringRecord.writeString(out, this.invokableClass.getName());
 	}
 
 	/**
@@ -569,7 +610,23 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 * @throws IllegalConfigurationException
 	 *         thrown if the respective tasks is not configured properly
 	 */
-	public abstract void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException;
+	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
+
+		if (invokable == null) {
+			throw new IllegalArgumentException("Argument invokable is null");
+		}
+
+		// see if the task itself has a valid configuration
+		// because this is user code running on the master, we embed it in a catch-all block
+		try {
+			invokable.checkConfiguration();
+		} catch (IllegalConfigurationException icex) {
+			throw icex; // simply forward
+		} catch (Throwable t) {
+			throw new IllegalConfigurationException("Checking the invokable's configuration caused an error: "
+				+ StringUtils.stringifyException(t));
+		}
+	}
 
 	/**
 	 * Returns the minimum number of subtasks the respective task
@@ -579,7 +636,14 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        an instance of the task this vertex represents
 	 * @return the minimum number of subtasks the respective task must be split into at runtime
 	 */
-	public abstract int getMinimumNumberOfSubtasks(AbstractInvokable invokable);
+	public int getMinimumNumberOfSubtasks(final AbstractInvokable invokable) {
+		
+		if(invokable == null) {
+			throw new IllegalArgumentException("Argument invokable is null");
+		}
+		
+		return invokable.getMinimumNumberOfSubtasks();
+	}
 
 	/**
 	 * Returns the maximum number of subtasks the respective task
@@ -590,12 +654,22 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 * @return the maximum number of subtasks the respective task can be split into at runtime, <code>-1</code> for
 	 *         infinity
 	 */
-	public abstract int getMaximumNumberOfSubtasks(AbstractInvokable invokable);
+	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
+		
+		if(invokable == null) {
+			throw new IllegalArgumentException("Argument invokable is null");
+		}
+		
+		return invokable.getMaximumNumberOfSubtasks();
+	}
 
 	/**
 	 * Returns the invokable class which represents the task of this vertex
 	 * 
 	 * @return the invokable class, <code>null</code> if it is not set
 	 */
-	public abstract Class<? extends AbstractInvokable> getInvokableClass();
+	public Class<? extends AbstractInvokable> getInvokableClass() {
+		
+		return this.invokableClass;
+	}
 }

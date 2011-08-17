@@ -15,16 +15,9 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * A JobTaskVertex is the vertex type for regular tasks (with both input and output) in Nephele.
@@ -33,11 +26,6 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobTaskVertex extends AbstractJobVertex {
-
-	/**
-	 * The task attached to this vertex.
-	 */
-	private Class<? extends AbstractTask> taskClass = null;
 
 	/**
 	 * Creates a new job task vertex with the specified name.
@@ -87,8 +75,8 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * @param taskClass
 	 *        the class of the vertex's task
 	 */
-	public void setTaskClass(Class<? extends AbstractTask> taskClass) {
-		this.taskClass = taskClass;
+	public void setTaskClass(final Class<? extends AbstractTask> taskClass) {
+		this.invokableClass = taskClass;
 	}
 
 	/**
@@ -96,58 +84,9 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * 
 	 * @return the class of the vertex's task or <code>null</code> if the class has not yet been set
 	 */
-	public Class<? extends AbstractTask> getTaskClass() {
-		return this.taskClass;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
 	@SuppressWarnings("unchecked")
-	@Override
-	public void read(DataInput in) throws IOException {
-		super.read(in);
-
-		final boolean isNotNull = in.readBoolean();
-		if (!isNotNull) {
-			return;
-		}
-
-		// Read the name of the class and try to instantiate the class object
-
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-		if (cl == null) {
-			throw new IOException("Cannot find class loader for vertex " + getID());
-		}
-
-		// Read the name of the expected class
-		final String className = StringRecord.readString(in);
-
-		try {
-			this.taskClass = (Class<? extends AbstractTask>) Class.forName(className, true, cl);
-		} catch (ClassNotFoundException cnfe) {
-			throw new IOException("Class " + className + " not found in one of the supplied jar files: "
-				+ StringUtils.stringifyException(cnfe));
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		super.write(out);
-
-		if (this.taskClass == null) {
-			out.writeBoolean(false);
-			return;
-		}
-
-		out.writeBoolean(true);
-
-		// Write out the name of the class
-		StringRecord.writeString(out, this.taskClass.getName());
-
+	public Class<? extends AbstractTask> getTaskClass() {
+		return (Class<? extends AbstractTask>) this.invokableClass;
 	}
 
 	/**
@@ -178,14 +117,5 @@ public class JobTaskVertex extends AbstractJobVertex {
 
 		// Delegate call to invokable
 		return invokable.getMinimumNumberOfSubtasks();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<? extends AbstractInvokable> getInvokableClass() {
-
-		return this.taskClass;
 	}
 }

@@ -52,12 +52,12 @@ public class JobGraph implements IOReadableWritable {
 	/**
 	 * List of input vertices included in this job graph.
 	 */
-	private Map<JobVertexID, JobInputVertex> inputVertices = new HashMap<JobVertexID, JobInputVertex>();
+	private Map<JobVertexID, AbstractJobInputVertex> inputVertices = new HashMap<JobVertexID, AbstractJobInputVertex>();
 
 	/**
 	 * List of output vertices included in this job graph.
 	 */
-	private Map<JobVertexID, JobOutputVertex> outputVertices = new HashMap<JobVertexID, JobOutputVertex>();
+	private Map<JobVertexID, AbstractJobOutputVertex> outputVertices = new HashMap<JobVertexID, AbstractJobOutputVertex>();
 
 	/**
 	 * List of task vertices included in this job graph.
@@ -148,7 +148,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param inputVertex
 	 *        the new input vertex to be added
 	 */
-	public void addVertex(JobInputVertex inputVertex) {
+	public void addVertex(final AbstractJobInputVertex inputVertex) {
 
 		if (!inputVertices.containsKey(inputVertex.getID())) {
 			inputVertices.put(inputVertex.getID(), inputVertex);
@@ -161,7 +161,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param taskVertex
 	 *        the new task vertex to be added
 	 */
-	public void addVertex(JobTaskVertex taskVertex) {
+	public void addVertex(final JobTaskVertex taskVertex) {
 
 		if (!taskVertices.containsKey(taskVertex.getID())) {
 			taskVertices.put(taskVertex.getID(), taskVertex);
@@ -174,7 +174,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param outputVertex
 	 *        the new output vertex to be added
 	 */
-	public void addVertex(JobOutputVertex outputVertex) {
+	public void addVertex(AbstractJobOutputVertex outputVertex) {
 
 		if (!outputVertices.containsKey(outputVertex.getID())) {
 			outputVertices.put(outputVertex.getID(), outputVertex);
@@ -213,9 +213,9 @@ public class JobGraph implements IOReadableWritable {
 	 * 
 	 * @return an iterator to iterate all input vertices registered with the job graph
 	 */
-	public Iterator<JobInputVertex> getInputVertices() {
+	public Iterator<AbstractJobInputVertex> getInputVertices() {
 
-		final Collection<JobInputVertex> coll = this.inputVertices.values();
+		final Collection<AbstractJobInputVertex> coll = this.inputVertices.values();
 
 		return coll.iterator();
 	}
@@ -225,9 +225,9 @@ public class JobGraph implements IOReadableWritable {
 	 * 
 	 * @return an iterator to iterate all output vertices registered with the job graph
 	 */
-	public Iterator<JobOutputVertex> getOutputVertices() {
+	public Iterator<AbstractJobOutputVertex> getOutputVertices() {
 
-		final Collection<JobOutputVertex> coll = this.outputVertices.values();
+		final Collection<AbstractJobOutputVertex> coll = this.outputVertices.values();
 
 		return coll.iterator();
 	}
@@ -278,12 +278,12 @@ public class JobGraph implements IOReadableWritable {
 		final AbstractJobVertex[] vertices = new AbstractJobVertex[inputVertices.size() + outputVertices.size()
 			+ taskVertices.size()];
 
-		final Iterator<JobInputVertex> iv = getInputVertices();
+		final Iterator<AbstractJobInputVertex> iv = getInputVertices();
 		while (iv.hasNext()) {
 			vertices[i++] = iv.next();
 		}
 
-		final Iterator<JobOutputVertex> ov = getOutputVertices();
+		final Iterator<AbstractJobOutputVertex> ov = getOutputVertices();
 		while (ov.hasNext()) {
 			vertices[i++] = ov.next();
 		}
@@ -304,10 +304,10 @@ public class JobGraph implements IOReadableWritable {
 	 * @param collector
 	 *        a temporary list to store the vertices that have already been visisted
 	 */
-	private void collectVertices(AbstractJobVertex jv, List<AbstractJobVertex> collector) {
+	private void collectVertices(final AbstractJobVertex jv, final List<AbstractJobVertex> collector) {
 
 		if (jv == null) {
-			final Iterator<JobInputVertex> iter = getInputVertices();
+			final Iterator<AbstractJobInputVertex> iter = getInputVertices();
 			while (iter.hasNext()) {
 				collectVertices(iter.next(), collector);
 			}
@@ -501,7 +501,7 @@ public class JobGraph implements IOReadableWritable {
 	public AbstractJobVertex areVertexDegreesCorrect() {
 
 		// Check input vertices
-		final Iterator<JobInputVertex> iter = getInputVertices();
+		final Iterator<AbstractJobInputVertex> iter = getInputVertices();
 		while (iter.hasNext()) {
 
 			final AbstractJobVertex jv = iter.next();
@@ -523,7 +523,7 @@ public class JobGraph implements IOReadableWritable {
 		}
 
 		// Check output vertices
-		final Iterator<JobOutputVertex> iter3 = getOutputVertices();
+		final Iterator<AbstractJobOutputVertex> iter3 = getOutputVertices();
 		while (iter3.hasNext()) {
 
 			final AbstractJobVertex jv = iter3.next();

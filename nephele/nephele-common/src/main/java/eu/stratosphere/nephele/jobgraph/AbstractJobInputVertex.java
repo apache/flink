@@ -15,26 +15,26 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import eu.stratosphere.nephele.io.ID;
-
 /**
- * A <code>JobID</code> is a statistically unique identification number that unambiguously
- * identifies a job configuration.
+ * An abstract base class for input vertices in Nephele.
  * 
  * @author warneke
  */
-public final class JobID extends ID {
-	/**
-	 * Constructs a new random ID from a uniform distribution.
-	 */
-	public JobID() {
-		super();
-	}
+public abstract class AbstractJobInputVertex extends AbstractJobVertex {
 
 	/**
-	 * Constructs a new ID with a specific bytes value.
+	 * Constructs a new job input vertex with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job input vertex
+	 * @param id
+	 *        the ID of this vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
 	 */
-	public JobID(final byte[] bytes) {
-		super(bytes);
+	protected AbstractJobInputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+		super(name, id, jobGraph);
+
+		jobGraph.addVertex(this);
 	}
 }
