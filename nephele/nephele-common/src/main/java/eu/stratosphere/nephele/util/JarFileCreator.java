@@ -38,7 +38,7 @@ public class JarFileCreator {
 	/**
 	 * The file extension of java classes.
 	 */
-	private final static String CLASS_EXTENSION = ".class";
+	private static final String CLASS_EXTENSION = ".class";
 
 	/**
 	 * A set of classes which shall be included in the final jar file.

@@ -29,7 +29,7 @@ import java.io.StringWriter;
  * 
  * @author warneke
  */
-public class StringUtils {
+public final class StringUtils {
 
 	/**
 	 * Empty private constructor to overwrite public one.
@@ -83,7 +83,7 @@ public class StringUtils {
 	 *        the bytes to convert in a hex string
 	 * @return hex string representation of the byte array
 	 */
-	public static String byteToHexString(final byte bytes[]) {
+	public static String byteToHexString(final byte[] bytes) {
 		return byteToHexString(bytes, 0, bytes.length);
 	}
 

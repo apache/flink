@@ -64,7 +64,6 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 	 * {@inheritDoc}
 	 */
 	@SuppressWarnings("unchecked")
-	// TODO: See if type safety can be improved here
 	@Override
 	public void read(final DataInput in) throws IOException {
 

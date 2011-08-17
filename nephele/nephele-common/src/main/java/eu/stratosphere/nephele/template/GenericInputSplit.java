@@ -70,7 +70,7 @@ public class GenericInputSplit implements InputSplit
 	 * @see eu.stratosphere.nephele.template.InputSplit#getPartitionNumber()
 	 */
 	@Override
-	public int getPartitionNumber()
+	public int getSplitNumber()
 	{
 		return this.partitionNumber;
 	}

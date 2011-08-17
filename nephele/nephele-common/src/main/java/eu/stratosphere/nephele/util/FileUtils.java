@@ -25,13 +25,13 @@ public class FileUtils {
 	/**
 	 * The alphabet to construct the random part of the filename from.
 	 */
-	private static char[] ALPHABET = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e',
-		'f' };
+	private static final char[] ALPHABET = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd',
+		'e', 'f' };
 
 	/**
-	 * The length of the random part of the filename
+	 * The length of the random part of the filename.
 	 */
-	private static int LENGTH = 12;
+	private static final int LENGTH = 12;
 
 	/**
 	 * Constructs a random filename with the given prefix and
@@ -41,12 +41,12 @@ public class FileUtils {
 	 *        the prefix to the filename to be constructed
 	 * @return the generated random filename with the given prefix
 	 */
-	public static String getRandomFilename(String prefix) {
+	public static String getRandomFilename(final String prefix) {
 
 		final StringBuilder stringBuilder = new StringBuilder(prefix);
 
 		for (int i = 0; i < LENGTH; i++) {
-			stringBuilder.append(ALPHABET[(int) Math.floor(Math.random() * (double)ALPHABET.length)]);
+			stringBuilder.append(ALPHABET[(int) Math.floor(Math.random() * (double) ALPHABET.length)]);
 		}
 
 		return stringBuilder.toString();

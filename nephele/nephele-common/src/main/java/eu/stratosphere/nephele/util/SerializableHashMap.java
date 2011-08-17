@@ -72,7 +72,6 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 	 * {@inheritDoc}
 	 */
 	@SuppressWarnings("unchecked")
-	// TODO: See if type safety can be improved here
 	@Override
 	public void read(final DataInput in) throws IOException {
 

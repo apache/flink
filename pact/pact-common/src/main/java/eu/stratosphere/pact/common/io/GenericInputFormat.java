@@ -112,7 +112,7 @@ public abstract class GenericInputFormat<K extends Key, V extends Value> impleme
 	@Override
 	public void open(GenericInputSplit split) throws IOException
 	{
-		this.partitionNumber = split.getPartitionNumber();		
+		this.partitionNumber = split.getSplitNumber();		
 	}
 
 	/* (non-Javadoc)
