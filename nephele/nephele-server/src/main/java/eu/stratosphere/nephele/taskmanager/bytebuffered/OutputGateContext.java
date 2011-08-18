@@ -41,13 +41,16 @@ final class OutputGateContext {
 
 	private final Set<OutputChannelContext> channelWithMemoryBuffers;
 
+	private final boolean allowSenderSideSpilling;
+
 	/**
 	 * The dispatcher for received transfer envelopes.
 	 */
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
 	OutputGateContext(final TaskContext taskContext, final OutputGate<?> outputGate,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final FileBufferManager fileBufferManager) {
+			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final FileBufferManager fileBufferManager,
+			final boolean allowSenderSideSpilling) {
 
 		this.taskContext = taskContext;
 		this.outputGate = outputGate;
@@ -59,23 +62,48 @@ final class OutputGateContext {
 			(outputGate.getChannelType() == ChannelType.FILE) ? false : true, this.fileBufferManager);
 
 		this.channelWithMemoryBuffers = new HashSet<OutputChannelContext>();
+
+		this.allowSenderSideSpilling = allowSenderSideSpilling;
 	}
 
 	Buffer requestEmptyBufferBlocking(final OutputChannelContext caller, final int minimumSizeOfBuffer)
 			throws IOException, InterruptedException {
 
-		Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, 0);
-		if (buffer == null) {
+		Buffer buffer;
 
-			// We are out of byte buffers
-			if (!this.ephemeralCheckpoint.isDecided()) {
-				this.ephemeralCheckpoint.destroy();
-				// this.ephemeralCheckpoint.write();
+		final ChannelType channelType = this.outputGate.getChannelType();
+
+		if (channelType == ChannelType.FILE) {
+
+			// File channels always receive file based buffers
+			buffer = getFileBuffer(minimumSizeOfBuffer);
+
+		} else {
+
+			// For network and in-memory channels, try to get a memory-based buffer first
+			buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, 0);
+
+			// No memory-based buffer available
+			if (buffer == null) {
+
+				// If sender-side spilling is allowed, network channels can also get a file-based buffer
+				if (channelType == ChannelType.NETWORK && this.allowSenderSideSpilling) {
+					buffer = getFileBuffer(minimumSizeOfBuffer);
+				} else {
+
+					// We are out of byte buffers
+					if (!this.ephemeralCheckpoint.isDecided()) {
+						this.ephemeralCheckpoint.destroy();
+						// this.ephemeralCheckpoint.write();
+					}
+
+					// Flush the fullest buffer
+					flushFullestBuffer();
+
+					// Wait until a memory-based buffer is available
+					buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, 0);
+				}
 			}
-
-			flushFullestBuffer();
-
-			buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, 0);
 		}
 
 		if (buffer.isBackedByMemory()) {

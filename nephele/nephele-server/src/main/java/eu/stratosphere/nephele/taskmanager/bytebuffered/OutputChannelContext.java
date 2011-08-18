@@ -149,13 +149,16 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 		if (!this.isReceiverRunning) {
 
-			final Buffer memBuffer = this.outgoingTransferEnvelope.getBuffer();
-			final Buffer fileBuffer = this.outputGateContext.getFileBuffer(memBuffer.size());
-			memBuffer.copyToBuffer(fileBuffer);
-			this.outgoingTransferEnvelope.setBuffer(fileBuffer);
+			final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
+			if (buffer.isBackedByMemory()) {
+				//TODO: Channel is still in set of channels with memory buffers, fix this 
+				final Buffer fileBuffer = this.outputGateContext.getFileBuffer(buffer.size());
+				buffer.copyToBuffer(fileBuffer);
+				this.outgoingTransferEnvelope.setBuffer(fileBuffer);
+				buffer.recycleBuffer();
+			}
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 			this.outgoingTransferEnvelope = null;
-			memBuffer.recycleBuffer();
 
 			return;
 		}

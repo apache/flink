@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -57,6 +58,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	private static final Log LOG = LogFactory.getLog(ByteBufferedChannelManager.class);
 
+	private static final boolean DEFAULT_ALLOW_SENDER_SIDE_SPILLING = false;
+
 	private final Map<ChannelID, ChannelContext> registeredChannels = new ConcurrentHashMap<ChannelID, ChannelContext>();
 
 	private final NetworkConnectionManager networkConnectionManager;
@@ -71,6 +74,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final Map<ExecutionVertexID, TaskContext> taskMap = new HashMap<ExecutionVertexID, TaskContext>();
 
+	private final boolean allowSenderSideSpilling;
+
 	private final boolean multicastEnabled = true;
 
 	/**
@@ -78,8 +83,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, TransferEnvelopeReceiverList>();
 
-	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService,
-			InstanceConnectionInfo localInstanceConnectionInfo)
+	public ByteBufferedChannelManager(final ChannelLookupProtocol channelLookupService,
+			final InstanceConnectionInfo localInstanceConnectionInfo)
 												throws IOException {
 
 		this.channelLookupService = channelLookupService;
@@ -97,6 +102,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.networkConnectionManager = new NetworkConnectionManager(this,
 			localInstanceConnectionInfo.getAddress(),
 			localInstanceConnectionInfo.getDataPort());
+
+		this.allowSenderSideSpilling = GlobalConfiguration.getBoolean("channel.network.allowSenderSideSpilling",
+			DEFAULT_ALLOW_SENDER_SIDE_SPILLING);
+
+		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
+			+ (this.allowSenderSideSpilling ? "enabled" : "disabled"));
 	}
 
 	/**
@@ -117,7 +128,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
 			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate, this,
-					this.fileBufferManager);
+					this.fileBufferManager, this.allowSenderSideSpilling);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
 				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
