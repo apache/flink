@@ -7,7 +7,7 @@ import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
 
-public class OrExpressionTest extends EvaluableExpressionTest<OrExpression> {
+public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
 	@Override
 	protected OrExpression createDefaultInstance(int index) {
 		switch (index) {
@@ -21,9 +21,7 @@ public class OrExpressionTest extends EvaluableExpressionTest<OrExpression> {
 		return super.createDefaultInstance(index);
 	}
 
-	private static final UnaryExpression TRUE = new UnaryExpression(new ConstantExpression(BooleanNode.TRUE));
-
-	private static final UnaryExpression FALSE = new UnaryExpression(new ConstantExpression(BooleanNode.FALSE));
+	
 
 	@Test
 	public void ShouldReturnTrueIfOneExprIsTrue() {
