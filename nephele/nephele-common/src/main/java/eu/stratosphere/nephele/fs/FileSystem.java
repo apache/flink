@@ -136,12 +136,12 @@ public abstract class FileSystem {
 	/**
 	 * Data structure mapping file system keys (scheme + authority) to cached file system objects.
 	 */
-	private final static Map<FSKey, FileSystem> CACHE = new HashMap<FSKey, FileSystem>();
+	private static final Map<FSKey, FileSystem> CACHE = new HashMap<FSKey, FileSystem>();
 
 	/**
 	 * Data structure mapping file system schemes to the corresponding implementations
 	 */
-	private final static Map<String, String> FSDIRECTORY = new HashMap<String, String>();
+	private static final Map<String, String> FSDIRECTORY = new HashMap<String, String>();
 
 	static {
 		// TODO: Use configuration to retrieve this mapping
@@ -379,7 +379,7 @@ public abstract class FileSystem {
 
 	/**
 	 * Returns the number of blocks this file/directory consists of
-	 * assuming the file system's standard block size
+	 * assuming the file system's standard block size.
 	 * 
 	 * @param file
 	 *        the file
