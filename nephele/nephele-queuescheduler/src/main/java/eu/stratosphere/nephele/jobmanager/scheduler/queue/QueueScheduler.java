@@ -119,13 +119,13 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			return;
 		}
 
-		synchronized (this.jobQueue) {
+		final List<ExecutionVertex> assignedVertices = executionGraph
+			.getVerticesAssignedToResource(allocatedResource);
+		if (assignedVertices.isEmpty()) {
+			return;
+		}
 
-			final List<ExecutionVertex> assignedVertices = executionGraph
-				.getVerticesAssignedToResource(allocatedResource);
-			if (assignedVertices.isEmpty()) {
-				return;
-			}
+		synchronized (this.jobQueue) {
 
 			boolean instanceCanBeReleased = true;
 			final Iterator<ExecutionVertex> it = assignedVertices.iterator();
