@@ -16,9 +16,6 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
 
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
@@ -39,8 +36,6 @@ final class OutputGateContext {
 
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
-	private final Set<OutputChannelContext> channelWithMemoryBuffers;
-
 	private final boolean allowSenderSideSpilling;
 
 	/**
@@ -60,8 +55,6 @@ final class OutputGateContext {
 
 		this.ephemeralCheckpoint = new EphemeralCheckpoint(this.outputGate.getGateID(),
 			(outputGate.getChannelType() == ChannelType.FILE) ? false : true, this.fileBufferManager);
-
-		this.channelWithMemoryBuffers = new HashSet<OutputChannelContext>();
 
 		this.allowSenderSideSpilling = allowSenderSideSpilling;
 	}
@@ -97,56 +90,13 @@ final class OutputGateContext {
 						// this.ephemeralCheckpoint.write();
 					}
 
-					// Flush the fullest buffer
-					flushFullestBuffer();
-
 					// Wait until a memory-based buffer is available
 					buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, 0);
 				}
 			}
 		}
 
-		if (buffer.isBackedByMemory()) {
-			this.channelWithMemoryBuffers.add(caller);
-		}
-
 		return buffer;
-	}
-
-	private void flushFullestBuffer() throws InterruptedException {
-
-		// Iterator through list of channels with buffers
-		final Iterator<OutputChannelContext> it = this.channelWithMemoryBuffers.iterator();
-		int minRemaining = -1;
-		OutputChannelContext minContext = null;
-
-		while (it.hasNext()) {
-
-			final OutputChannelContext context = it.next();
-
-			final int remaining = context.getRemainingBytesOfWorkingBuffer();
-
-			if (remaining > 0) {
-
-				if (minContext == null) {
-					minContext = context;
-					minRemaining = remaining;
-				} else {
-					if (remaining < minRemaining) {
-						minRemaining = remaining;
-						minContext = context;
-					}
-				}
-			}
-		}
-
-		if (minContext != null) {
-			try {
-				minContext.flush();
-			} catch (IOException ioe) {
-				minContext.reportIOException(ioe);
-			}
-		}
 	}
 
 	int getMaximumBufferSize() {
@@ -176,11 +126,6 @@ final class OutputGateContext {
 		 * this.ephemeralCheckpoint.addTransferEnvelope(dup);
 		 * }
 		 */
-
-		final Buffer buffer = outgoingTransferEnvelope.getBuffer();
-		if (buffer != null) {
-			this.channelWithMemoryBuffers.remove(caller);
-		}
 
 		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
 	}
