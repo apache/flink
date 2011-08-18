@@ -55,7 +55,7 @@ public class RangeRule extends ValidationRule {
 	private void writeObject(final ObjectOutputStream stream) throws IOException {
 		stream.defaultWriteObject();
 
-		SopremoUtil.serializeNode(stream, JsonUtil.asArray(min, max));
+		SopremoUtil.serializeNode(stream, JsonUtil.asArray(this.min, this.max));
 	}
 
 	@Override

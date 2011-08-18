@@ -36,8 +36,8 @@ public class ValueSplitter extends ElementaryOperator {
 
 		@Override
 		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-			for (EvaluationExpression projection : projections)
-				out.collect(key, projection.evaluate(value, getContext()));
+			for (EvaluationExpression projection : this.projections)
+				out.collect(key, projection.evaluate(value, this.getContext()));
 		}
 	}
 }

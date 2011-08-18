@@ -26,8 +26,8 @@ public class Lookup extends CompositeOperator {
 	private WritableEvaluable inputKeyExtractor = EvaluationExpression.SAME_VALUE;
 
 	private EvaluationExpression dictionaryKeyExtraction = new ArrayAccess(0);
-	
-//	private boolean lookupAll = false;
+
+	// private boolean lookupAll = false;
 
 	public Lookup(final JsonStream input, final JsonStream dictionary) {
 		super(input, dictionary);
@@ -56,25 +56,26 @@ public class Lookup extends CompositeOperator {
 	}
 
 	public Lookup withInputKeyExtractor(WritableEvaluable inputKeyExtract) {
-		setInputKeyExtractor(inputKeyExtract);
+		this.setInputKeyExtractor(inputKeyExtract);
 		return this;
 	}
-	public Lookup withDictionaryKeyExtraction(EvaluationExpression dictionaryKeyExtraction)  {
-		setDictionaryKeyExtraction(dictionaryKeyExtraction);
+
+	public Lookup withDictionaryKeyExtraction(EvaluationExpression dictionaryKeyExtraction) {
+		this.setDictionaryKeyExtraction(dictionaryKeyExtraction);
 		return this;
 	}
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final SopremoModule sopremoModule = new SopremoModule(getName(), 2, 1);
-		final Projection left = new Projection(inputKeyExtractor.asExpression(), EvaluationExpression.SAME_VALUE,
+		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
+		final Projection left = new Projection(this.inputKeyExtractor.asExpression(), EvaluationExpression.SAME_VALUE,
 			sopremoModule.getInput(0));
 		left.setName("InputKeyExtractor");
-		final Projection right = new Projection(dictionaryKeyExtraction, EvaluationExpression.SAME_VALUE,
+		final Projection right = new Projection(this.dictionaryKeyExtraction, EvaluationExpression.SAME_VALUE,
 			sopremoModule.getInput(1));
 		right.setName("DictionaryKeyExtraction");
 
-		sopremoModule.getOutput(0).setInput(0, new ReplaceWithRightInput(inputKeyExtractor, left, right));
+		sopremoModule.getOutput(0).setInput(0, new ReplaceWithRightInput(this.inputKeyExtractor, left, right));
 		return sopremoModule;
 	}
 
@@ -103,7 +104,7 @@ public class Lookup extends CompositeOperator {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
-				out.collect(NullNode.getInstance(), inputKeyExtractor.set(value1, value2, getContext()));
+				out.collect(NullNode.getInstance(), this.inputKeyExtractor.set(value1, value2, this.getContext()));
 			}
 		}
 	}

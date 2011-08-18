@@ -5,6 +5,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.codehaus.jackson.JsonStreamContext;
+
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
@@ -25,15 +27,14 @@ public class RecordLinkage extends CompositeOperator {
 
 	private final ComparativeExpression similarityCondition;
 
-	private final Partitioning algorithm;
+	private final RecordLinkageAlgorithm algorithm;
 
-	private final Map<Operator.Output, EvaluationExpression> idProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>();
+	private final Map<Operator.Output, RecordLinkageInput> recordLinkageInputs = new IdentityHashMap<Operator.Output, RecordLinkageInput>();
 
-	private EvaluationExpression duplicateProjection;
+	private boolean transitive, retainNonDuplicates;
 
-	public RecordLinkage(final Partitioning algorithm, final EvaluationExpression similarityExpression,
-			final double threshold,
-			final JsonStream... inputs) {
+	public RecordLinkage(final RecordLinkageAlgorithm algorithm, final EvaluationExpression similarityExpression,
+			final double threshold, final JsonStream... inputs) {
 		super(1, inputs);
 		if (algorithm == null)
 			throw new NullPointerException();
@@ -44,20 +45,93 @@ public class RecordLinkage extends CompositeOperator {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		if (this.getInputs().size() > 2 || this.getInputs().isEmpty())
-			throw new UnsupportedOperationException();
 
-		final List<EvaluationExpression> idProjections = new ArrayList<EvaluationExpression>();
-		for (final Operator.Output input : this.getInputs())
-			idProjections.add(this.getIdProjection(input));
-		EvaluationExpression duplicateProjection = this.duplicateProjection;
-		if (duplicateProjection == null)
-			duplicateProjection = new ArrayCreation(new PathExpression(new InputSelection(0), this.getIdProjection(0)),
-				new PathExpression(new InputSelection(1), this.getIdProjection(idProjections.size() > 1 ? 1 : 0)));
+		final List<RecordLinkageInput> inputs = new ArrayList<RecordLinkageInput>();
+		for (int index = 0, size = this.getInputs().size(); index < size; index++)
+			inputs.add(this.getRecordLinkageInput(index));
 
-		final SopremoModule algorithmImplementation = this.algorithm.asSopremoOperators(this.similarityCondition,
-			this.getInputs(), idProjections, duplicateProjection);
-		return algorithmImplementation;
+		boolean substituteWithId = retainNonDuplicates || transitive;
+		if (substituteWithId) {
+
+		}
+		Operator duplicatePairs = this.algorithm.getDuplicatePairStream(this.similarityCondition, inputs);
+
+		return SopremoModule.valueOf(getName(), duplicatePairs);
+	}
+
+	public class RecordLinkageInput implements JsonStream {
+		private final int index;
+
+		private EvaluationExpression idProjection = EvaluationExpression.SAME_VALUE;
+
+		private EvaluationExpression resultProjection = EvaluationExpression.SAME_VALUE;
+
+		private RecordLinkageInput(int index) {
+			this.index = index;
+		}
+
+		@Override
+		public Output getSource() {
+			return getInput(index);
+		}
+
+		public EvaluationExpression getIdProjection() {
+			return idProjection;
+		}
+
+		public void setIdProjection(EvaluationExpression idProjection) {
+			if (idProjection == null)
+				throw new NullPointerException("idProjection must not be null");
+
+			this.idProjection = idProjection;
+		}
+
+		public EvaluationExpression getResultProjection() {
+			return resultProjection;
+		}
+
+		public void setResultProjection(EvaluationExpression resultProjection) {
+			if (resultProjection == null)
+				throw new NullPointerException("resultProjection must not be null");
+
+			this.resultProjection = resultProjection;
+		}
+
+		@Override
+		public String toString() {
+			return String.format("RecordLinkageInput [index=%s, idProjection=%s, resultProjection=%s]", index,
+				idProjection, resultProjection);
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + getOuterType().hashCode();
+			result = prime * result + idProjection.hashCode();
+			result = prime * result + index;
+			result = prime * result + resultProjection.hashCode();
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+
+			RecordLinkageInput other = (RecordLinkageInput) obj;
+			return index == other.index && idProjection.equals(other.idProjection)
+				&& resultProjection.equals(other.resultProjection);
+		}
+
+		private RecordLinkage getOuterType() {
+			return RecordLinkage.this;
+		}
+
 	}
 
 	@Override
@@ -69,54 +143,29 @@ public class RecordLinkage extends CompositeOperator {
 		if (this.getClass() != obj.getClass())
 			return false;
 		final RecordLinkage other = (RecordLinkage) obj;
-		return this.algorithm.equals(other.algorithm) && this.similarityCondition.equals(other.similarityCondition);
+
+		return this.retainNonDuplicates == other.retainNonDuplicates && this.transitive == other.transitive &&
+			this.algorithm.equals(other.algorithm) && this.similarityCondition.equals(other.similarityCondition)
+			&& this.recordLinkageInputs.equals(other.recordLinkageInputs);
 	}
 
-	public EvaluationExpression getDuplicateProjection() {
-		return this.duplicateProjection;
-	}
-
-	public EvaluationExpression getIdProjection(final int index) {
-		return this.getIdProjection(this.getInput(index));
-	}
-
-	public EvaluationExpression getIdProjection(final JsonStream input) {
-		final Output source = input == null ? null : input.getSource();
-		EvaluationExpression keyProjection = this.idProjections.get(source);
-		if (keyProjection == null)
-			keyProjection = EvaluationExpression.SAME_VALUE;
-		return keyProjection;
+	public RecordLinkageInput getRecordLinkageInput(final int index) {
+		RecordLinkageInput recordLinkageInput = this.recordLinkageInputs.get(getInput(index));
+		if (recordLinkageInput == null)
+			this.recordLinkageInputs.put(getInput(index), recordLinkageInput = new RecordLinkageInput(index));
+		return recordLinkageInput;
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
+		result = prime * result + (this.retainNonDuplicates ? 1337 : 1237);
+		result = prime * result + (this.transitive ? 1337 : 1237);
 		result = prime * result + this.algorithm.hashCode();
 		result = prime * result + this.similarityCondition.hashCode();
+		result = prime * result + this.recordLinkageInputs.hashCode();
 		return result;
 	}
 
-	public void setDuplicateProjection(final EvaluationExpression duplicateProjection) {
-		if (duplicateProjection == null)
-			throw new NullPointerException("duplicateProjection must not be null");
-
-		this.duplicateProjection = duplicateProjection;
-	}
-
-	public void setIdProjection(final int inputIndex, final EvaluationExpression idProjection) {
-		this.setIdProjection(this.getInput(inputIndex), idProjection);
-	}
-
-	public void setIdProjection(final JsonStream input, final EvaluationExpression idProjection) {
-		if (idProjection == null)
-			throw new NullPointerException("idProjection must not be null");
-
-		this.idProjections.put(input.getSource(), idProjection);
-	}
-
-	public abstract static class Partitioning {
-		public abstract SopremoModule asSopremoOperators(ComparativeExpression similarityCondition,
-				List<Output> inputs, List<EvaluationExpression> idProjections, EvaluationExpression duplicateProjection);
-	}
 }

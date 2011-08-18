@@ -6,7 +6,7 @@ import org.junit.Ignore;
  * @author Arvid Heise
  */
 @Ignore
-public class RecordLinkageTestBase {
+public class RecordLinkageAlgorithmTestBase {
 
 	/**
 	 * 

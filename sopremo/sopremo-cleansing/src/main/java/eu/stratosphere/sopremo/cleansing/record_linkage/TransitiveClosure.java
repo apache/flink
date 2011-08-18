@@ -91,7 +91,8 @@ public class TransitiveClosure extends CompositeOperator {
 					new ArrayAccess(1));
 				final Projection idExtraction = new Projection(this.idProjection, EvaluationExpression.SAME_VALUE,
 					valueSplitter);
-				backLookup1= backLookup2 = new Grouping(new ArrayAccess(0), idExtraction).withKeyProjection(EvaluationExpression.SAME_KEY).withResetKey(false);
+				backLookup1 = backLookup2 = new Grouping(new ArrayAccess(0), idExtraction).withKeyProjection(
+					EvaluationExpression.SAME_KEY).withResetKey(false);
 			}
 			input = new Projection(new ArrayCreation(new PathExpression(new ArrayAccess(0), this.idProjection),
 				new PathExpression(new ArrayAccess(1), this.idProjection)), input);
@@ -140,7 +141,7 @@ public class TransitiveClosure extends CompositeOperator {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		TransitiveClosure other = (TransitiveClosure) obj;
 		return this.emitClusters == other.emitClusters && this.idProjection.equals(other.idProjection);

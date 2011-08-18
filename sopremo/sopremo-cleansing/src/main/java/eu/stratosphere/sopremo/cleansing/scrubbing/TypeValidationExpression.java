@@ -55,11 +55,10 @@ public class TypeValidationExpression extends ValidationRule {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		TypeValidationExpression other = (TypeValidationExpression) obj;
 		return this.type.equals(other.type);
 	}
-	
-	
+
 }

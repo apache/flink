@@ -37,7 +37,7 @@ public abstract class CleansingRule<ContextType extends EvaluationContext> exten
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		CleansingRule<?> other = (CleansingRule<?>) obj;
 		return this.targetPath.equals(other.targetPath);

@@ -16,7 +16,7 @@ public class NonNullRule extends ValidationRule {
 
 	public NonNullRule(JsonNode defaultValue, String... targetPath) {
 		super(targetPath);
-		setValueCorrection(new DefaultValueCorrection(defaultValue));
+		this.setValueCorrection(new DefaultValueCorrection(defaultValue));
 	}
 
 	@Override
