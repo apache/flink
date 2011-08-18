@@ -7,20 +7,20 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.IntNode;
 
-public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
+public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Override
-	protected OrExpression createDefaultInstance(int index) {
+	protected AndExpression createDefaultInstance(int index) {
 
 		switch (index) {
 		case 0: {
-			return new OrExpression(TRUE);
+			return new AndExpression(TRUE);
 		}
 		case 1: {
-			return new OrExpression(TRUE, TRUE);
+			return new AndExpression(TRUE, TRUE);
 		}
 		case 2: {
-			return new OrExpression(TRUE, TRUE, TRUE);
+			return new AndExpression(TRUE, TRUE, TRUE);
 		}
 		}
 
@@ -28,22 +28,21 @@ public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
 	}
 
 	@Test
-	public void shouldBeTrueIfOneExprIsTrue() {
-		final JsonNode result = new OrExpression(FALSE, TRUE, FALSE).evaluate(IntNode.valueOf(42), this.context);
+	public void shouldBeTrueIfAllExprAreTrue() {
+		final JsonNode result = new AndExpression(TRUE, TRUE, TRUE).evaluate(IntNode.valueOf(42), this.context);
 
 		Assert.assertEquals(BooleanNode.TRUE, result);
 	}
 
 	@Test
-	public void shouldBeFalseIfNoExprIsTrue() {
-		final JsonNode result = new OrExpression(FALSE, FALSE, FALSE).evaluate(IntNode.valueOf(42), this.context);
+	public void shouldBeFalseIfOneExprIsFalse() {
+		final JsonNode result = new AndExpression(TRUE, FALSE, TRUE).evaluate(IntNode.valueOf(42), this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void shouldThrowExceptionIfExpressionsAreEmpty() {
-		new OrExpression();
+		new AndExpression();
 	}
-
 }
