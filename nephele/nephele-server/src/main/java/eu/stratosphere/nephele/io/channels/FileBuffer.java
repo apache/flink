@@ -171,7 +171,18 @@ public class FileBuffer implements InternalBuffer {
 			return 0;
 		}
 
-		final long bytesWritten = this.fileChannel.write(src);
+		// Make sure we do not exceed the buffer limit
+		long bytesWritten;
+		final int rem = (int) (this.bufferSize - this.totalBytesWritten);
+		if (src.remaining() > rem) {
+			final int excess = src.remaining() - rem;
+			src.limit(src.limit() - excess);
+			bytesWritten = this.fileChannel.write(src);
+			src.limit(src.limit() + excess);
+		} else {
+			bytesWritten = this.fileChannel.write(src);
+		}
+
 		this.totalBytesWritten += bytesWritten;
 
 		return (int) bytesWritten;
