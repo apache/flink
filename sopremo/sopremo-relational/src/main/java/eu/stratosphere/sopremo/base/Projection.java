@@ -34,8 +34,12 @@ public class Projection extends ElementaryOperator {
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
+		if (this.keyTransformation == EvaluationExpression.SAME_KEY
+			&& this.valueTransformation == EvaluationExpression.SAME_VALUE)
+			return createShortCircuitModule();
 		return super.asPactModule(context);
 	}
+
 	//
 	// @Override
 	// public PactModule asPactModule(EvaluationContext context) {

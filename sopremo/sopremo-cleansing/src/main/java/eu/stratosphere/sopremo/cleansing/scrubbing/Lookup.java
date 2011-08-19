@@ -25,7 +25,8 @@ public class Lookup extends CompositeOperator {
 
 	private WritableEvaluable inputKeyExtractor = EvaluationExpression.SAME_VALUE;
 
-	private EvaluationExpression dictionaryKeyExtraction = new ArrayAccess(0);
+	private EvaluationExpression dictionaryKeyExtraction = EvaluationExpression.SAME_KEY,
+			dictionaryValueExtraction = EvaluationExpression.SAME_VALUE;
 
 	// private boolean lookupAll = false;
 
@@ -65,15 +66,29 @@ public class Lookup extends CompositeOperator {
 		return this;
 	}
 
+	public EvaluationExpression getDictionaryValueExtraction() {
+		return dictionaryValueExtraction;
+	}
+
+	public void setDictionaryValueExtraction(EvaluationExpression dictionaryValueExtraction) {
+		if (dictionaryValueExtraction == null)
+			throw new NullPointerException("dictionaryValueExtraction must not be null");
+
+		this.dictionaryValueExtraction = dictionaryValueExtraction;
+	}
+
+	public Lookup withDictionaryValueExtraction(EvaluationExpression dictionaryValueExtraction) {
+		this.setDictionaryValueExtraction(dictionaryValueExtraction);
+		return this;
+	}
+
 	@Override
 	public SopremoModule asElementaryOperators() {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
 		final Projection left = new Projection(this.inputKeyExtractor.asExpression(), EvaluationExpression.SAME_VALUE,
 			sopremoModule.getInput(0));
-		left.setName("InputKeyExtractor");
-		final Projection right = new Projection(this.dictionaryKeyExtraction, EvaluationExpression.SAME_VALUE,
+		final Projection right = new Projection(this.dictionaryKeyExtraction, this.dictionaryValueExtraction,
 			sopremoModule.getInput(1));
-		right.setName("DictionaryKeyExtraction");
 
 		sopremoModule.getOutput(0).setInput(0, new ReplaceWithRightInput(this.inputKeyExtractor, left, right));
 		return sopremoModule;
