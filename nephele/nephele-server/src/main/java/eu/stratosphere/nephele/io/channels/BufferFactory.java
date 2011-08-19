@@ -18,16 +18,16 @@ package eu.stratosphere.nephele.io.channels;
 import java.nio.ByteBuffer;
 import java.util.Queue;
 
-import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
 public abstract class BufferFactory {
 
-	public static Buffer createFromFile(final int bufferSize, final GateID gateID,
+	public static Buffer createFromFile(final int bufferSize, final AbstractID ownerID,
 			final FileBufferManager fileBufferManager) {
 
-		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, gateID, fileBufferManager);
+		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, ownerID, fileBufferManager);
 		return new Buffer(internalBuffer);
 	}
 

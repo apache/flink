@@ -26,7 +26,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.util.FileUtils;
@@ -53,9 +53,9 @@ public class FileBufferManager {
 	 */
 	private final String tmpDir;
 
-	private final Map<GateID, WritableSpillingFile> writableSpillingFileMap = new HashMap<GateID, WritableSpillingFile>();
+	private final Map<AbstractID, WritableSpillingFile> writableSpillingFileMap = new HashMap<AbstractID, WritableSpillingFile>();
 
-	private final Map<GateID, Map<FileID, ReadableSpillingFile>> readableSpillingFileMap = new HashMap<GateID, Map<FileID, ReadableSpillingFile>>();
+	private final Map<AbstractID, Map<FileID, ReadableSpillingFile>> readableSpillingFileMap = new HashMap<AbstractID, Map<FileID, ReadableSpillingFile>>();
 
 	public FileBufferManager() {
 
@@ -63,11 +63,11 @@ public class FileBufferManager {
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
 	}
 
-	private ReadableSpillingFile getReadableSpillingFile(final GateID gateID, final FileID fileID) throws IOException,
-			InterruptedException {
+	private ReadableSpillingFile getReadableSpillingFile(final AbstractID ownerID, final FileID fileID)
+			throws IOException, InterruptedException {
 
-		if (gateID == null) {
-			throw new IllegalStateException("gateID is null");
+		if (ownerID == null) {
+			throw new IllegalStateException("ownerID is null");
 		}
 
 		if (fileID == null) {
@@ -76,10 +76,10 @@ public class FileBufferManager {
 
 		Map<FileID, ReadableSpillingFile> map = null;
 		synchronized (this.readableSpillingFileMap) {
-			map = this.readableSpillingFileMap.get(gateID);
+			map = this.readableSpillingFileMap.get(ownerID);
 			if (map == null) {
 				map = new HashMap<FileID, ReadableSpillingFile>();
-				this.readableSpillingFileMap.put(gateID, map);
+				this.readableSpillingFileMap.put(ownerID, map);
 			}
 		}
 
@@ -88,13 +88,13 @@ public class FileBufferManager {
 			while (!map.containsKey(fileID)) {
 
 				synchronized (this.writableSpillingFileMap) {
-					WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(gateID);
+					WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
 					if (writableSpillingFile != null) {
 						writableSpillingFile.requestReadAccess();
 
 						if (writableSpillingFile.isSafeToClose()) {
 							writableSpillingFile.close();
-							this.writableSpillingFileMap.remove(gateID);
+							this.writableSpillingFileMap.remove(ownerID);
 							map.put(
 								writableSpillingFile.getFileID(),
 								writableSpillingFile.toReadableSpillingFile());
@@ -111,39 +111,39 @@ public class FileBufferManager {
 		}
 	}
 
-	public FileChannel getFileChannelForReading(final GateID gateID, final FileID fileID) throws IOException,
+	public FileChannel getFileChannelForReading(final AbstractID ownerID, final FileID fileID) throws IOException,
 			InterruptedException {
 
-		return getReadableSpillingFile(gateID, fileID).lockReadableFileChannel();
+		return getReadableSpillingFile(ownerID, fileID).lockReadableFileChannel();
 	}
 
-	public void increaseBufferCounter(final GateID gateID, final FileID fileID) throws IOException,
+	public void increaseBufferCounter(final AbstractID ownerID, final FileID fileID) throws IOException,
 			InterruptedException {
 
-		getReadableSpillingFile(gateID, fileID).increaseNumberOfBuffers();
+		getReadableSpillingFile(ownerID, fileID).increaseNumberOfBuffers();
 	}
 
-	public void decreaseBufferCounter(final GateID gateID, final FileID fileID) {
+	public void decreaseBufferCounter(final AbstractID ownerID, final FileID fileID) {
 
 		try {
 			Map<FileID, ReadableSpillingFile> map = null;
 			synchronized (this.readableSpillingFileMap) {
-				map = this.readableSpillingFileMap.get(gateID);
+				map = this.readableSpillingFileMap.get(ownerID);
 				if (map == null) {
-					throw new IOException("Cannot find readable spilling file queue for gate ID " + gateID);
+					throw new IOException("Cannot find readable spilling file queue for owner ID " + ownerID);
 				}
 
 				ReadableSpillingFile readableSpillingFile = null;
 				synchronized (map) {
 					readableSpillingFile = map.get(fileID);
 					if (readableSpillingFile == null) {
-						throw new IOException("Cannot find readable spilling file for gate ID " + gateID);
+						throw new IOException("Cannot find readable spilling file for owner ID " + ownerID);
 					}
 
 					if (readableSpillingFile.checkForEndOfFile()) {
 						map.remove(fileID);
 						if (map.isEmpty()) {
-							this.readableSpillingFileMap.remove(gateID);
+							this.readableSpillingFileMap.remove(ownerID);
 						}
 					}
 				}
@@ -153,10 +153,10 @@ public class FileBufferManager {
 		}
 	}
 
-	public void releaseFileChannelForReading(final GateID gateID, final FileID fileID) {
+	public void releaseFileChannelForReading(final AbstractID ownerID, final FileID fileID) {
 
 		try {
-			getReadableSpillingFile(gateID, fileID).unlockReadableFileChannel();
+			getReadableSpillingFile(ownerID, fileID).unlockReadableFileChannel();
 		} catch (Exception e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}
@@ -165,22 +165,22 @@ public class FileBufferManager {
 	/**
 	 * Locks and returns a file channel from a {@link WritableSpillingFile}.
 	 * 
-	 * @param gateID
-	 *        the ID of the gate the file channel shall be locked for
+	 * @param ownerID
+	 *        the ID of the owner the file channel shall be locked for
 	 * @return the file channel object if the lock could be acquired or <code>null</code> if the locking operation
 	 *         failed
 	 * @throws IOException
 	 *         thrown if no spilling for the given channel ID could be allocated
 	 */
-	public FileChannel getFileChannelForWriting(final GateID gateID) throws IOException {
+	public FileChannel getFileChannelForWriting(final AbstractID ownerID) throws IOException {
 
 		synchronized (this.writableSpillingFileMap) {
 
-			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(gateID);
+			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
 			if (writableSpillingFile == null) {
 				final String filename = this.tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
 				writableSpillingFile = new WritableSpillingFile(new FileID(), new File(filename));
-				this.writableSpillingFileMap.put(gateID, writableSpillingFile);
+				this.writableSpillingFileMap.put(ownerID, writableSpillingFile);
 			}
 
 			return writableSpillingFile.lockWritableFileChannel();
@@ -190,28 +190,28 @@ public class FileBufferManager {
 	/**
 	 * Returns the lock for a file channel of a {@link WritableSpillingFile}.
 	 * 
-	 * @param gateID
-	 *        the ID of the gate the lock has been acquired for
+	 * @param ownerID
+	 *        the ID of the owner the lock has been acquired for
 	 * @param currentFileSize
 	 *        the size of the file after the last write operation using the locked file channel
 	 * @throws IOException
 	 *         thrown if the lock could not be released
 	 */
-	public FileID reportEndOfWritePhase(final GateID gateID, final long currentFileSize) throws IOException {
+	public FileID reportEndOfWritePhase(final AbstractID ownerID, final long currentFileSize) throws IOException {
 
 		WritableSpillingFile writableSpillingFile = null;
 		boolean removed = false;
 		synchronized (this.writableSpillingFileMap) {
 
-			writableSpillingFile = this.writableSpillingFileMap.get(gateID);
+			writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
 			if (writableSpillingFile == null) {
-				throw new IOException("Cannot find writable spilling file for gate ID " + gateID);
+				throw new IOException("Cannot find writable spilling file for owner ID " + ownerID);
 			}
 
 			writableSpillingFile.unlockWritableFileChannel(currentFileSize);
 
 			if (writableSpillingFile.isReadRequested() && writableSpillingFile.isSafeToClose()) {
-				this.writableSpillingFileMap.remove(gateID);
+				this.writableSpillingFileMap.remove(ownerID);
 				removed = true;
 			}
 		}
@@ -220,10 +220,10 @@ public class FileBufferManager {
 			writableSpillingFile.close();
 			Map<FileID, ReadableSpillingFile> map = null;
 			synchronized (this.readableSpillingFileMap) {
-				map = this.readableSpillingFileMap.get(gateID);
+				map = this.readableSpillingFileMap.get(ownerID);
 				if (map == null) {
 					map = new HashMap<FileID, ReadableSpillingFile>();
-					this.readableSpillingFileMap.put(gateID, map);
+					this.readableSpillingFileMap.put(ownerID, map);
 				}
 			}
 

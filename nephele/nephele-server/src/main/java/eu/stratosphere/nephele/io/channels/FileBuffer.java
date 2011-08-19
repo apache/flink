@@ -21,7 +21,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
 public class FileBuffer implements InternalBuffer {
@@ -30,7 +30,7 @@ public class FileBuffer implements InternalBuffer {
 
 	private final FileBufferManager fileBufferManager;
 
-	private final GateID gateID;
+	private final AbstractID ownerID;
 
 	private FileID fileID = null;
 
@@ -44,9 +44,9 @@ public class FileBuffer implements InternalBuffer {
 
 	private long offset = 0;
 
-	FileBuffer(int bufferSize, GateID gateID, FileBufferManager fileBufferManager) {
+	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
 		this.bufferSize = bufferSize;
-		this.gateID = gateID;
+		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
 	}
 
@@ -59,7 +59,7 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.ownerID, this.fileID);
 				if (this.fileChannel == null) {
 					return 0;
 				}
@@ -91,7 +91,7 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.gateID, this.fileID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.ownerID, this.fileID);
 				if (this.fileChannel == null) {
 					return 0;
 				}
@@ -135,7 +135,7 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
+			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.ownerID);
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -161,7 +161,7 @@ public class FileBuffer implements InternalBuffer {
 		}
 
 		if (this.fileChannel == null) {
-			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.gateID);
+			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.ownerID);
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -210,14 +210,14 @@ public class FileBuffer implements InternalBuffer {
 
 		try {
 			if (this.fileChannel != null) {
-				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
+				this.fileBufferManager.releaseFileChannelForReading(this.ownerID, this.fileID);
 				this.fileChannel = null;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
-		this.fileBufferManager.decreaseBufferCounter(this.gateID, this.fileID);
+		this.fileBufferManager.decreaseBufferCounter(this.ownerID, this.fileID);
 	}
 
 	@Override
@@ -235,7 +235,7 @@ public class FileBuffer implements InternalBuffer {
 			// System.out.println("Buffer size: " + this.bufferSize);
 			// TODO: Check synchronization
 			this.writeMode = false;
-			this.fileID = this.fileBufferManager.reportEndOfWritePhase(this.gateID, currentFileSize);
+			this.fileID = this.fileBufferManager.reportEndOfWritePhase(this.ownerID, currentFileSize);
 		}
 
 	}
@@ -249,9 +249,9 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public InternalBuffer duplicate() throws IOException, InterruptedException {
 
-		this.fileBufferManager.increaseBufferCounter(this.gateID, this.fileID);
+		this.fileBufferManager.increaseBufferCounter(this.ownerID, this.fileID);
 
-		final FileBuffer dup = new FileBuffer((int) this.bufferSize, this.gateID, this.fileBufferManager);
+		final FileBuffer dup = new FileBuffer((int) this.bufferSize, this.ownerID, this.fileBufferManager);
 		dup.writeMode = this.writeMode;
 		dup.fileID = this.fileID;
 		dup.offset = this.offset;
@@ -266,7 +266,7 @@ public class FileBuffer implements InternalBuffer {
 
 			final long tbr = this.totalBytesRead;
 			if (this.fileChannel != null) {
-				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
+				this.fileBufferManager.releaseFileChannelForReading(this.ownerID, this.fileID);
 			}
 			this.totalBytesRead = 0;
 			while (remaining() > 0) {
@@ -274,7 +274,7 @@ public class FileBuffer implements InternalBuffer {
 			}
 			destinationBuffer.finishWritePhase();
 			if (this.fileChannel != null) {
-				this.fileBufferManager.releaseFileChannelForReading(this.gateID, this.fileID);
+				this.fileBufferManager.releaseFileChannelForReading(this.ownerID, this.fileID);
 			}
 			this.fileChannel = null;
 			this.totalBytesRead = tbr;
