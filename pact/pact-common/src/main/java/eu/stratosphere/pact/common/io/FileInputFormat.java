@@ -44,8 +44,6 @@ import eu.stratosphere.pact.common.type.Value;
  * While reading the runtime checks whether the end was reached using reachedEnd()
  * and if not the next pair is read using the nextPair() method.
  * 
- * Describes the base interface that is used describe an input that produces records that are processed
- * by stratosphere.
  * <p>
  * The input format handles the following:
  * <ul>
