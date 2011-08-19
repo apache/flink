@@ -1,8 +1,11 @@
 package eu.stratosphere.sopremo;
 
+import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Enumeration;
 import java.util.List;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -22,6 +25,7 @@ import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
 @Ignore
@@ -188,5 +192,16 @@ public abstract class SopremoTest<T> {
 
 	public static JsonNode createValueNode(final Object value) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
+	}
+
+	public static String getResourcePath(final String resource) {
+		try {
+			final Enumeration<URL> resources = SopremoTestPlan.class.getClassLoader().getResources(resource);
+			if (resources.hasMoreElements())
+				return resources.nextElement().toString();
+		} catch (final IOException e) {
+			throw new IllegalStateException(e);
+		}
+		throw new IllegalArgumentException("no resources found");
 	}
 }
