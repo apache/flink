@@ -91,7 +91,7 @@ public class ElementInSetExpression extends BooleanExpression {
 
 		protected BooleanNode evaluate(final JsonNode element, final Iterator<JsonNode> set) {
 			while (set.hasNext())
-				if (asIterator(element).equals(set.next()))
+				if (element.equals(set.next()))
 					return BooleanNode.TRUE;
 			return BooleanNode.FALSE;
 		}
