@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser.NumberType;
 import org.codehaus.jackson.node.BooleanNode;
+import org.codehaus.jackson.node.TextNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
@@ -27,7 +27,11 @@ public class NumberCastingExpressionTest extends EvaluableExpressionTest<NumberC
 
 	@Test(expected = EvaluationException.class)
 	public void shouldThrowExceptionWhenCastingNoNumeric() {
-		final JsonNode result = new NumberCastingExpression(NumberType.INT).evaluate(BooleanNode.TRUE, this.context);
+		new NumberCastingExpression(NumberType.INT).evaluate(BooleanNode.TRUE, this.context);
 	}
 
+	@Test(expected = EvaluationException.class)
+	public void shouldThrowExceptionWhenCastingStringRepresentation(){
+		new NumberCastingExpression(NumberType.DOUBLE).evaluate(TextNode.valueOf("42"), this.context);
+	}
 }
