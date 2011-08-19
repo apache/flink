@@ -32,4 +32,29 @@ public class NumberCastingExpression extends EvaluationExpression {
 	protected void toString(final StringBuilder builder) {
 		builder.append('(').append(this.targetType).append(')');
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((targetType == null) ? 0 : targetType.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+
+		NumberCastingExpression other = (NumberCastingExpression) obj;
+		if (targetType != other.targetType)
+			return false;
+
+		return true;
+	}
+
 }

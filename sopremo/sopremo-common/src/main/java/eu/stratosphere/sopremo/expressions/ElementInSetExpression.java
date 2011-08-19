@@ -96,4 +96,41 @@ public class ElementInSetExpression extends BooleanExpression {
 			return BooleanNode.FALSE;
 		}
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((elementExpr == null) ? 0 : elementExpr.hashCode());
+		result = prime * result + ((quantor == null) ? 0 : quantor.hashCode());
+		result = prime * result + ((setExpr == null) ? 0 : setExpr.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+
+		ElementInSetExpression other = (ElementInSetExpression) obj;
+		if (elementExpr == null) {
+			if (other.elementExpr != null)
+				return false;
+		} else if (!elementExpr.equals(other.elementExpr))
+			return false;
+		if (quantor != other.quantor)
+			return false;
+		if (setExpr == null) {
+			if (other.setExpr != null)
+				return false;
+		} else if (!setExpr.equals(other.setExpr))
+			return false;
+
+		return true;
+	}
+
 }

@@ -11,11 +11,13 @@ import eu.stratosphere.sopremo.SopremoTest;
 
 @Ignore
 public abstract class BooleanExpressionTest<T extends BooleanExpression> extends SopremoTest<T> {
-	protected EvaluationContext context = new EvaluationContext();
 
 	protected UnaryExpression TRUE = new UnaryExpression(new ConstantExpression(BooleanNode.TRUE));
 
 	protected UnaryExpression FALSE = new UnaryExpression(new ConstantExpression(BooleanNode.FALSE));
+
+	protected EvaluationContext context = new EvaluationContext();
+
 	@Test
 	public void testToString() {
 		final StringBuilder builder = new StringBuilder();
@@ -25,4 +27,3 @@ public abstract class BooleanExpressionTest<T extends BooleanExpression> extends
 				.toString().intern());
 	}
 }
-
