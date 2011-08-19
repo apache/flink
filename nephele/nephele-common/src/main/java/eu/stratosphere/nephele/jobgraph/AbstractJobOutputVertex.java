@@ -13,27 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.jobgraph;
 
 /**
- * This class provides auxiliary methods needed to set up the custom EC2-image.
- * @author casp
- *
+ * An abstract base class for output vertices in Nephele.
+ * 
+ * @author warneke
  */
-public class EC2Utilities {
+public abstract class AbstractJobOutputVertex extends AbstractJobVertex {
 
-	
-    public static synchronized String createTaskManagerUserData(String JobManagerIpAddress) {
+	/**
+	 * Constructs a new job output vertex with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job output vertex
+	 * @param id
+	 *        the ID of this vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	protected AbstractJobOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+		super(name, id, jobGraph);
 
-        /*
-         * When the type is set to TASKMANAGER (in /tmp/STRATOSPHERE_TYPE
-         * then the AMI assumes that another file called /tmp/JOBMANAGER_ADDRESS
-         * exists containing the (internal) IP address of the jobmanager instance.
-         */
-
-        final String taskManagerUserData = "#!/bin/bash \n echo TASKMANAGER >> /tmp/STRATOSPHERE_TYPE \n echo " + JobManagerIpAddress + " >> /tmp/JOBMANAGER_ADDRESS";
-
-        return new String(org.apache.commons.codec.binary.Base64.encodeBase64(taskManagerUserData.getBytes()));
-
-    }
+		jobGraph.addVertex(this);
+	}
 }

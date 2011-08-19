@@ -32,9 +32,9 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 public abstract class AbstractEvent implements IOReadableWritable {
 
 	/**
-	 * Auxiliary object which helps to convert a {@link Date} object to the given string representation
+	 * Auxiliary object which helps to convert a {@link Date} object to the given string representation.
 	 */
-	private static final SimpleDateFormat dateFormatter = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+	private static final SimpleDateFormat DATA_FORMATTER = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
 
 	/**
 	 * The timestamp of the event.
@@ -47,7 +47,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 * @param timestamp
 	 *        the timestamp of the event.
 	 */
-	public AbstractEvent(long timestamp) {
+	public AbstractEvent(final long timestamp) {
 		this.timestamp = timestamp;
 	}
 
@@ -63,7 +63,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read the timestamp
 		this.timestamp = in.readLong();
@@ -73,7 +73,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write the timestamp
 		out.writeLong(this.timestamp);
@@ -96,9 +96,9 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 *        the timestamp in milliseconds since the beginning of "the epoch"
 	 * @return the string unified representation of the timestamp
 	 */
-	public static String timestampToString(long timestamp) {
+	public static String timestampToString(final long timestamp) {
 
-		return dateFormatter.format(new Date(timestamp));
+		return DATA_FORMATTER.format(new Date(timestamp));
 
 	}
 
@@ -106,7 +106,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (obj instanceof AbstractEvent) {
 

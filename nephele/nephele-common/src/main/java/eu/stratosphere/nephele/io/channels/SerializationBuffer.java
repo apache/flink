@@ -47,10 +47,10 @@ public class SerializationBuffer<T extends IOReadableWritable> {
 	 * @param arr
 	 *        The byte buffer to store the data of the integer
 	 */
-	private void integerToByteBuffer(int val, ByteBuffer byteBuffer) {
+	private void integerToByteBuffer(final int val, final ByteBuffer byteBuffer) {
 
 		for (int i = 0; i < SIZEOFINT; ++i) {
-			int shift = i << (SIZEOFINT - 1); // i * 8
+			final int shift = i << (SIZEOFINT - 1); // i * 8
 			byteBuffer.put(SIZEOFINT - 1 - i, (byte) ((val & (0xff << shift)) >>> shift));
 		}
 
@@ -68,8 +68,9 @@ public class SerializationBuffer<T extends IOReadableWritable> {
 	 */
 	public boolean dataLeftFromPreviousSerialization() {
 
-		if (leftInSerializationBuffer() > 0)
+		if (leftInSerializationBuffer() > 0) {
 			return true;
+		}
 
 		return false;
 	}
@@ -84,7 +85,7 @@ public class SerializationBuffer<T extends IOReadableWritable> {
 	 * @throws IOException
 	 *         thrown if an error occurs while writing to serialized data to the channel
 	 */
-	public int read(WritableByteChannel writableByteChannel) throws IOException {
+	public int read(final WritableByteChannel writableByteChannel) throws IOException {
 
 		int bytesReadFromLengthBuf = 0;
 
@@ -126,17 +127,18 @@ public class SerializationBuffer<T extends IOReadableWritable> {
 	 *         Thrown if data from a previous serialization process is still in the internal buffer and has not yet been
 	 *         transfered to a byte buffer
 	 */
-	public void serialize(T record) throws IOException {
+	public void serialize(final T record) throws IOException {
 
 		// Check if there is data left in the buffer
-		if (dataLeftFromPreviousSerialization())
+		if (dataLeftFromPreviousSerialization()) {
 			throw new IOException("Cannot write new data, " + leftInSerializationBuffer()
 				+ " bytes still left from previous call");
+		}
 
 		record.write(this.serializationBuffer); // serializationBuffer grows dynamically
 
 		// Now record is completely in serializationBuffer;
-		integerToByteBuffer(serializationBuffer.getLength(), this.lengthBuf);
+		integerToByteBuffer(this.serializationBuffer.getLength(), this.lengthBuf);
 	}
 
 	public void clear() {

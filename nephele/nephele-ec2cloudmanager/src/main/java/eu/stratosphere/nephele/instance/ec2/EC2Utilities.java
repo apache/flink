@@ -13,61 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.fs.file;
-
-import java.io.IOException;
-
-import eu.stratosphere.nephele.fs.BlockLocation;
+package eu.stratosphere.nephele.instance.ec2;
 
 /**
- * Implementation of the {@link BlockLocation} interface for a
- * local file system.
+ * This class provides auxiliary methods needed to set up the custom EC2-image.
  * 
- * @author warneke
+ * @author casp
  */
-public class LocalBlockLocation implements BlockLocation {
+final class EC2Utilities {
 
-	private final long length;
+	static synchronized String createTaskManagerUserData(final String JobManagerIpAddress) {
 
-	private final String[] hosts;
+		/*
+		 * When the type is set to TASKMANAGER (in /tmp/STRATOSPHERE_TYPE
+		 * then the AMI assumes that another file called /tmp/JOBMANAGER_ADDRESS
+		 * exists containing the (internal) IP address of the jobmanager instance.
+		 */
 
-	public LocalBlockLocation(final String host, final long length) {
-		this.hosts = new String[] { host };
-		this.length = length;
+		final String taskManagerUserData = "#!/bin/bash \n echo TASKMANAGER >> /tmp/STRATOSPHERE_TYPE \n echo "
+			+ JobManagerIpAddress + " >> /tmp/JOBMANAGER_ADDRESS";
+
+		return new String(org.apache.commons.codec.binary.Base64.encodeBase64(taskManagerUserData.getBytes()));
+
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String[] getHosts() throws IOException {
-
-		return this.hosts;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public long getLength() {
-
-		return this.length;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public long getOffset() {
-		return 0;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int compareTo(final BlockLocation o) {
-		return 0;
-	}
-
 }

@@ -84,9 +84,10 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
+	public BlockLocation[] getFileBlockLocations(final FileStatus file, final long start, final long len)
+			throws IOException {
 
-		BlockLocation[] blockLocations = new BlockLocation[1];
+		final BlockLocation[] blockLocations = new BlockLocation[1];
 		blockLocations[0] = new LocalBlockLocation(this.hostName, file.getLen());
 
 		return blockLocations;
@@ -129,7 +130,7 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void initialize(URI name) throws IOException {
+	public void initialize(final URI name) throws IOException {
 		// TODO Auto-generated method stub
 
 	}
@@ -138,7 +139,7 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -147,7 +148,7 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FSDataInputStream open(Path f) throws IOException {
+	public FSDataInputStream open(final Path f) throws IOException {
 
 		final File file = pathToFile(f);
 
@@ -169,7 +170,7 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileStatus[] listStatus(Path f) throws IOException {
+	public FileStatus[] listStatus(final Path f) throws IOException {
 
 		final File localf = pathToFile(f);
 		FileStatus[] results;
@@ -197,7 +198,7 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean delete(Path f, boolean recursive) throws IOException {
+	public boolean delete(final Path f, final boolean recursive) throws IOException {
 
 		final File file = pathToFile(f);
 		if (file.isFile()) {
@@ -218,13 +219,13 @@ public class LocalFileSystem extends FileSystem {
 	 * @throws IOException
 	 *         thrown if an error occurred while deleting the files/directories
 	 */
-	private boolean delete(File f) throws IOException {
+	private boolean delete(final File f) throws IOException {
 
 		if (f.isDirectory()) {
 
 			final File[] files = f.listFiles();
 			for (int i = 0; i < files.length; i++) {
-				boolean del = delete(files[i]);
+				final boolean del = delete(files[i]);
 				if (del == false) {
 					return false;
 				}
@@ -246,7 +247,7 @@ public class LocalFileSystem extends FileSystem {
 	 * @throws IOException
 	 *         thrown if an error occurred while creating the directory/directories
 	 */
-	public boolean mkdirs(Path f) throws IOException {
+	public boolean mkdirs(final Path f) throws IOException {
 
 		final Path parent = f.getParent();
 		final File p2f = pathToFile(f);
@@ -257,8 +258,8 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize)
-			throws IOException {
+	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
+			final short replication, final long blockSize) throws IOException {
 
 		if (exists(f) && !overwrite) {
 			throw new IOException("File already exists:" + f);
@@ -277,9 +278,8 @@ public class LocalFileSystem extends FileSystem {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
+	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
 
 		return create(f, overwrite, 0, (short) 0, 0);
 	}
-
 }

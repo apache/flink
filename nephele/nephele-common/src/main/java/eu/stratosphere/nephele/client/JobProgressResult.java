@@ -46,7 +46,9 @@ public class JobProgressResult extends AbstractJobResult {
 	 * @param events
 	 *        the job events to be transported within this object
 	 */
-	public JobProgressResult(ReturnCode returnCode, String description, SerializableArrayList<AbstractEvent> events) {
+	public JobProgressResult(final ReturnCode returnCode, final String description,
+			final SerializableArrayList<AbstractEvent> events) {
+
 		super(returnCode, description);
 
 		this.events = events;
@@ -65,7 +67,7 @@ public class JobProgressResult extends AbstractJobResult {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 
 		this.events.read(in);
@@ -75,7 +77,7 @@ public class JobProgressResult extends AbstractJobResult {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		this.events.write(out);
@@ -90,36 +92,36 @@ public class JobProgressResult extends AbstractJobResult {
 
 		return this.events.iterator();
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
-		
-		if(!super.equals(obj)) {
+	public boolean equals(final Object obj) {
+
+		if (!super.equals(obj)) {
 			return false;
 		}
-		
-		if(!(obj instanceof JobProgressResult)) {
+
+		if (!(obj instanceof JobProgressResult)) {
 			return false;
 		}
-		
+
 		final JobProgressResult jpr = (JobProgressResult) obj;
-		
-		if(!this.events.equals(jpr.events)) {
+
+		if (!this.events.equals(jpr.events)) {
 			return false;
 		}
-		
+
 		return true;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public int hashCode() {
-		
+
 		return super.hashCode();
 	}
 }

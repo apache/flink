@@ -39,7 +39,7 @@ public class LibraryCacheUpdate implements IOReadableWritable {
 	 * @param libraryFileName
 	 *        the name of the library that should be transported within this object.
 	 */
-	public LibraryCacheUpdate(String libraryFileName) {
+	public LibraryCacheUpdate(final String libraryFileName) {
 		this.libraryFileName = libraryFileName;
 	}
 
@@ -53,7 +53,7 @@ public class LibraryCacheUpdate implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		LibraryCacheManager.readLibraryFromStream(in);
 	}
@@ -62,7 +62,7 @@ public class LibraryCacheUpdate implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		if (this.libraryFileName == null) {
 			throw new IOException("libraryFileName is null");

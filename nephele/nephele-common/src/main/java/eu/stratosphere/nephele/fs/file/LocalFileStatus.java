@@ -47,7 +47,7 @@ public class LocalFileStatus implements FileStatus {
 	 * @param fs
 	 *        the file system the corresponding file has been read from
 	 */
-	public LocalFileStatus(File f, FileSystem fs) {
+	public LocalFileStatus(final File f, final FileSystem fs) {
 		this.file = f;
 		this.path = new Path(fs.getUri().getScheme() + ":" + f.getAbsolutePath());
 	}

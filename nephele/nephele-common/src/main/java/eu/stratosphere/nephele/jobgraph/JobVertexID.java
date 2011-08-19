@@ -15,13 +15,13 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 
 /**
  * A class for statistically unique job vertex IDs.
  * 
  * @author warneke
  */
-public class JobVertexID extends ID {
+public class JobVertexID extends AbstractID {
 
 }

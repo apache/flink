@@ -55,7 +55,7 @@ public class RecordBuffer<T> {
 	 *        the maximum size of the buffer
 	 */
 	@SuppressWarnings("unchecked")
-	public RecordBuffer(Class<T> type, int maxSize) {
+	public RecordBuffer(final Class<T> type, final int maxSize) {
 
 		this.buffer = (T[]) Array.newInstance(type, maxSize);
 	}
@@ -66,7 +66,7 @@ public class RecordBuffer<T> {
 	 * @param record
 	 *        the record to be added to the buffer.
 	 */
-	public void put(T record) {
+	public void put(final T record) {
 
 		if (record == null) {
 			return;

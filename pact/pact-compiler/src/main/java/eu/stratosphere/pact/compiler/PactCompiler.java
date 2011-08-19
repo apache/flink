@@ -1485,6 +1485,8 @@ public class PactCompiler {
 				
 				// duplicate DataSourceNode
 				DataSourceNode duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
+				duplicateDataSource.setDegreeOfParallelism(sourcePact.getDegreeOfParallelism());
+				duplicateDataSource.setInstancesPerMachine(sourcePact.getInstancesPerMachine());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				

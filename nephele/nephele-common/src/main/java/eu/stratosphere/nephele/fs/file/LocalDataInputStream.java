@@ -47,8 +47,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	 * @throws IOException
 	 *         thrown if the data input stream cannot be created
 	 */
-	public LocalDataInputStream(File file)
-											throws IOException {
+	public LocalDataInputStream(final File file) throws IOException {
 
 		this.fis = new FileInputStream(file);
 		this.position = 0;
@@ -58,7 +57,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void seek(long desired) throws IOException {
+	public void seek(final long desired) throws IOException {
 
 		this.fis.getChannel().position(desired);
 		this.position = desired;
@@ -82,7 +81,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int read(byte[] buffer, int offset, int length) throws IOException {
+	public int read(final byte[] buffer, final int offset, final int length) throws IOException {
 
 		final int value = this.fis.read(buffer, offset, length);
 		if (value > 0) {
@@ -113,7 +112,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public long skip(long n) throws IOException {
+	public long skip(final long n) throws IOException {
 		return this.fis.skip(n);
 	}
 

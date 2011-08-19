@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 
 /**
  * A <code>JobID</code> is a statistically unique identification number that unambiguously
@@ -23,7 +23,7 @@ import eu.stratosphere.nephele.io.ID;
  * 
  * @author warneke
  */
-public class JobID extends ID {
+public final class JobID extends AbstractID {
 	/**
 	 * Constructs a new random ID from a uniform distribution.
 	 */
@@ -33,8 +33,11 @@ public class JobID extends ID {
 
 	/**
 	 * Constructs a new ID with a specific bytes value.
+	 * 
+	 * @param bytes
+	 *        the ID in byte representation
 	 */
-	public JobID(byte[] bytes) {
+	public JobID(final byte[] bytes) {
 		super(bytes);
 	}
 }

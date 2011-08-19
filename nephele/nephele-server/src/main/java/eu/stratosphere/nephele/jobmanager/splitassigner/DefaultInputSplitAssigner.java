@@ -99,7 +99,7 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 		InputSplit nextSplit = queue.poll();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Assigning split " + nextSplit.getPartitionNumber() + " to " + vertex);
+			LOG.debug("Assigning split " + nextSplit.getSplitNumber() + " to " + vertex);
 		}
 
 		return nextSplit;
