@@ -31,12 +31,12 @@ public final class TransferEnvelope {
 
 	private final int sequenceNumber;
 
-	private final EventList eventList;
+	private EventList eventList;
 
 	private Buffer buffer = null;
 
 	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source) {
-		this(sequenceNumber, jobID, source, new EventList());
+		this(sequenceNumber, jobID, source, null);
 	}
 
 	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source, EventList eventList) {
@@ -56,6 +56,10 @@ public final class TransferEnvelope {
 	}
 
 	public void addEvent(AbstractEvent event) {
+
+		if (this.eventList == null) {
+			this.eventList = new EventList();
+		}
 
 		this.eventList.add(event);
 	}
