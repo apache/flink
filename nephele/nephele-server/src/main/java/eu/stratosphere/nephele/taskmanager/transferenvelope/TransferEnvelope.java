@@ -100,4 +100,64 @@ public final class TransferEnvelope {
 
 		return duplicatedTransferEnvelope;
 	}
+
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof TransferEnvelope)) {
+			return false;
+		}
+
+		final TransferEnvelope te = (TransferEnvelope) obj;
+
+		if (!this.jobID.equals(te.jobID)) {
+			return false;
+		}
+
+		if (!this.source.equals(te.source)) {
+			return false;
+		}
+
+		if (this.sequenceNumber != te.sequenceNumber) {
+			return false;
+		}
+
+		if (this.buffer == null) {
+			if (te.buffer != null) {
+				return false;
+			}
+			// Both are null
+		} else {
+			if (te.buffer == null) {
+				return false;
+			}
+			// Both are non-null
+			if (!this.buffer.equals(te.buffer)) {
+				return false;
+			}
+		}
+
+		if (this.eventList == null) {
+			if (te.eventList != null) {
+				return false;
+			}
+			// Both are null
+		} else {
+			if (te.eventList == null) {
+				return false;
+			}
+			// Both are non-null
+			if (!this.eventList.equals(te.eventList)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+
+		return (31 * this.sequenceNumber * this.jobID.hashCode());
+	}
 }
