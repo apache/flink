@@ -45,7 +45,7 @@ public class GlobalEnumeration extends ElementaryOperator {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return LongNode.valueOf(node.get(0).getLongValue() << 48 + node.get(1).getLongValue());
+			return LongNode.valueOf((node.get(0).getLongValue() << 48) + node.get(1).getLongValue());
 		}
 	};
 
@@ -114,10 +114,10 @@ public class GlobalEnumeration extends ElementaryOperator {
 
 		@Override
 		protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-			final JsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
 			this.params.getChildren()[1] = LongNode.valueOf(this.counter++);
+			final JsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
 
-			if (this.enumerationExpression == EvaluationExpression.SAME_KEY)
+			if (this.enumerationExpression == EvaluationExpression.AS_KEY)
 				out.collect(id, value);
 			else
 				out.collect(key, this.enumerationExpression.evaluate(JsonUtil.asArray(value, id), this.getContext()));

@@ -23,13 +23,13 @@ public class Difference extends MultiSourceOperator<Difference> {
 	public Difference(final JsonStream... inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
 	}
 
 	public Difference(final List<? extends JsonStream> inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
 	}
 
 	@Override

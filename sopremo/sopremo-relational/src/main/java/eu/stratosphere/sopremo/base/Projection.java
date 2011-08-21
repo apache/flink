@@ -29,13 +29,13 @@ public class Projection extends ElementaryOperator {
 	}
 
 	public Projection(final EvaluationExpression valueTransformation, final JsonStream input) {
-		this(EvaluationExpression.SAME_KEY, valueTransformation, input);
+		this(EvaluationExpression.KEY, valueTransformation, input);
 	}
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		if (this.keyTransformation == EvaluationExpression.SAME_KEY
-			&& this.valueTransformation == EvaluationExpression.SAME_VALUE)
+		if (this.keyTransformation == EvaluationExpression.KEY
+			&& this.valueTransformation == EvaluationExpression.VALUE)
 			return createShortCircuitModule();
 		return super.asPactModule(context);
 	}
@@ -110,11 +110,14 @@ public class Projection extends ElementaryOperator {
 
 		@Override
 		protected void map(JsonNode key, JsonNode value, final JsonCollector out) {
-			if (this.keyTransformation != EvaluationExpression.SAME_KEY)
-				key = this.keyTransformation.evaluate(value, this.getContext());
-			if (this.valueTransformation != EvaluationExpression.SAME_VALUE)
-				value = this.valueTransformation.evaluate(value, this.getContext());
-			out.collect(key, value);
+			JsonNode outKey = key, outValue = value;
+			if (this.keyTransformation != EvaluationExpression.KEY)
+				outKey = this.keyTransformation.evaluate(value, this.getContext());
+			if (this.valueTransformation == EvaluationExpression.KEY)
+				outValue = key;
+			else if (this.valueTransformation != EvaluationExpression.VALUE)
+				outValue = this.valueTransformation.evaluate(value, this.getContext());
+			out.collect(outKey, outValue);
 		}
 	}
 

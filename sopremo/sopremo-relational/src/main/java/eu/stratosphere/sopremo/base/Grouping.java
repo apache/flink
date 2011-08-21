@@ -71,13 +71,13 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 
 	@Override
 	protected EvaluationExpression getDefaultValueProjection(final Output source) {
-		if(super.getDefaultValueProjection(source) != EvaluationExpression.SAME_VALUE)
+		if(super.getDefaultValueProjection(source) != EvaluationExpression.VALUE)
 			return super.getDefaultValueProjection(source);
 		if (this.getInputs().size() <= 1)
-			return EvaluationExpression.SAME_VALUE;
+			return EvaluationExpression.VALUE;
 		final EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];
 		Arrays.fill(elements, EvaluationExpression.NULL);
-		elements[this.getInputs().indexOf(source)] = EvaluationExpression.SAME_VALUE;
+		elements[this.getInputs().indexOf(source)] = EvaluationExpression.VALUE;
 		return new ArrayCreation(elements);
 	}
 

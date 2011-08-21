@@ -22,13 +22,13 @@ public class Union extends MultiSourceOperator<Union> {
 	public Union(final JsonStream... inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
 	}
 
 	public Union(final List<? extends JsonStream> inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
 	}
 
 	@Override

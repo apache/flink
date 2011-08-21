@@ -15,7 +15,6 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage.RecordLinkageInput;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -166,7 +165,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 			final Projection[] keyExtractors = new Projection[2];
 			for (int index = 0; index < 2; index++)
 				keyExtractors[index] = new Projection(this.partitionKeys[index],
-					EvaluationExpression.SAME_VALUE, this.getInput(index));
+					EvaluationExpression.VALUE, this.getInput(index));
 
 			return SopremoModule.valueOf(this.getName(), new InterSourceComparison(this.similarityCondition,
 					keyExtractors[0], resultProjection1, keyExtractors[1], resultProjection2));
@@ -197,7 +196,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			final Projection keyExtractor = new Projection(this.partitionKey, EvaluationExpression.SAME_VALUE,
+			final Projection keyExtractor = new Projection(this.partitionKey, EvaluationExpression.VALUE,
 				this.getInput(0));
 
 			return SopremoModule.valueOf(this.getName(), new IntraSourceComparison(this.similarityCondition,

@@ -26,8 +26,8 @@ public abstract class SopremoCross<IK1 extends PactJsonObject.Key, IV1 extends P
 			final PactJsonObject value2,
 			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
-		if (SopremoUtil.LOG.isDebugEnabled())
-			SopremoUtil.LOG.debug(String.format("%s %s/%s %s/%s", this.getClass().getSimpleName(), key1, value1, key2,
+		if (SopremoUtil.LOG.isTraceEnabled())
+			SopremoUtil.LOG.trace(String.format("%s %s/%s %s/%s", getContext().operatorTrace(), key1, value1, key2,
 				value2));
 		this.cross(key1.getValue(), value1.getValue(), key2.getValue(), value2.getValue(), new JsonCollector(out));
 	}

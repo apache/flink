@@ -1,6 +1,12 @@
 package eu.stratosphere.sopremo;
 
+import java.io.File;
+import java.io.IOException;
+
+import org.codehaus.jackson.JsonEncoding;
+import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
@@ -35,14 +41,31 @@ public class Source extends ElementaryOperator {
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		if (this.type == PersistenceType.ADHOC)
-			throw new UnsupportedOperationException();
+		String inputName = this.inputName, name = this.inputName;
+		if (this.type == PersistenceType.ADHOC) {
+			try {
+				final File tempFile = File.createTempFile("Adhoc", "source");
+				tempFile.deleteOnExit();
+				inputName = tempFile.toURI().toString();
+				name = "Adhoc";
+				writeValues(tempFile);
+			} catch (IOException e) {
+				throw new IllegalStateException("Cannot create adhoc source", e);
+			}
+		}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			JsonInputFormat.class, this.inputName, this.inputName);
+			JsonInputFormat.class, inputName, name);
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
 		return pactModule;
+	}
+
+	private void writeValues(final File tempFile) throws IOException, JsonProcessingException {
+		JsonGenerator writer = JsonUtil.FACTORY.createJsonGenerator(tempFile, JsonEncoding.UTF8);
+		writer.setCodec(JsonUtil.OBJECT_MAPPER);
+		writer.writeTree(getAdhocValues());
+		writer.close();
 	}
 
 	@Override

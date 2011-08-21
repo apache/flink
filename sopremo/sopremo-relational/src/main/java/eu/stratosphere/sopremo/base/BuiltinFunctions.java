@@ -11,6 +11,7 @@ import org.codehaus.jackson.node.DoubleNode;
 import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.NumericNode;
+import org.codehaus.jackson.node.TextNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -86,6 +87,15 @@ public class BuiltinFunctions {
 			this.value = 0;
 		}
 	};
+
+	public static JsonNode format(TextNode format, JsonNode... params) {
+		Object[] paramsAsStrings = new String[params.length];
+		for (int index = 0; index < paramsAsStrings.length; index++)
+			paramsAsStrings[index] = params[index].isTextual() ? params[index].getTextValue() : params[index]
+				.toString();
+
+		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsStrings));
+	}
 
 	/**
 	 * Concatenates the textual representation of the nodes.

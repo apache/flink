@@ -8,6 +8,7 @@ import java.util.Map;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 
 public class FunctionRegistry implements SerializableSopremoType {
@@ -22,7 +23,10 @@ public class FunctionRegistry implements SerializableSopremoType {
 	}
 
 	public JsonNode evaluate(final String functionName, final JsonNode node, final EvaluationContext context) {
-		return this.getFunction(functionName).evaluate(node, context);
+		final Function function = this.getFunction(functionName);
+		if(function == null)
+			 throw new EvaluationException(String.format("Unknown function %s", functionName));
+		return function.evaluate(node, context);
 	}
 
 	public Function getFunction(final String functionName) {

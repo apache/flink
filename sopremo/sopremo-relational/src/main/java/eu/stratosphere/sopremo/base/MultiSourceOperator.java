@@ -24,7 +24,7 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 
 	private EvaluationExpression defaultKeyProjection = EvaluationExpression.NULL;
 
-	private EvaluationExpression defaultValueProjection = EvaluationExpression.SAME_VALUE;
+	private EvaluationExpression defaultValueProjection = EvaluationExpression.VALUE;
 
 	private boolean resetKey = true;
 
@@ -49,7 +49,7 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 		Operator lastOperator = this.createElementaryOperations(inputs);
 
 		if (resetKey)
-			lastOperator = new Projection(EvaluationExpression.NULL, EvaluationExpression.SAME_VALUE, lastOperator);
+			lastOperator = new Projection(EvaluationExpression.NULL, EvaluationExpression.VALUE, lastOperator);
 		module.getOutput(0).setInput(0, lastOperator);
 
 		return module;

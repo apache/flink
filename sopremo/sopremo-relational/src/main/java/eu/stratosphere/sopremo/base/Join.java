@@ -74,7 +74,7 @@ public class Join extends CompositeOperator {
 		for (int index = 0; index < numInputs; index++) {
 			final EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];
 			Arrays.fill(elements, EvaluationExpression.NULL);
-			elements[index] = EvaluationExpression.SAME_VALUE;
+			elements[index] = EvaluationExpression.VALUE;
 			inputs.add(new Projection(new ArrayCreation(elements), module.getInput(index)));
 		}
 
@@ -421,9 +421,9 @@ public class Join extends CompositeOperator {
 		public SopremoModule asElementaryOperators() {
 			final SopremoModule sopremoModule = new SopremoModule(this.toString(), 2, 1);
 
-			final Projection leftProjection = new Projection(this.leftJoinKey, EvaluationExpression.SAME_VALUE,
+			final Projection leftProjection = new Projection(this.leftJoinKey, EvaluationExpression.VALUE,
 				sopremoModule.getInput(0));
-			final Projection rightProjection = new Projection(this.rightJoinKey, EvaluationExpression.SAME_VALUE,
+			final Projection rightProjection = new Projection(this.rightJoinKey, EvaluationExpression.VALUE,
 				sopremoModule.getInput(1));
 			final Operator joinAlgorithm = this.createJoinContract(leftProjection, rightProjection);
 			sopremoModule.getOutput(0).setInputs(new Projection(new ArrayMerger(), joinAlgorithm));

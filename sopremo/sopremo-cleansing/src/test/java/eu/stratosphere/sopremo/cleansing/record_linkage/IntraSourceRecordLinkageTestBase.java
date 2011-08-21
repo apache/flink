@@ -55,13 +55,13 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 	 */
 	@Test
 	public void pactCodeShouldPerformLikeStandardImplementation() {
-		final RecordLinkage recordLinkage = new RecordLinkage(this.createAlgorithm(), new ConstantExpression(1), 0,
-			(JsonStream) null);
+		final IntraSourceRecordLinkage recordLinkage =
+			new IntraSourceRecordLinkage(this.createAlgorithm(), new ConstantExpression(1), 0, (JsonStream) null);
 		this.sopremoTestPlan = this.createTestPlan(recordLinkage, this.useId, this.resultProjection);
 
 		EvaluationExpression resultProjection = this.resultProjection;
 		if (resultProjection == null)
-			resultProjection = EvaluationExpression.SAME_VALUE;
+			resultProjection = EvaluationExpression.VALUE;
 
 		this.generateExpectedPairs(this.sopremoTestPlan.getInput(0));
 
@@ -88,7 +88,7 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 	protected void emitCandidate(KeyValuePair<Key, PactJsonObject> left, KeyValuePair<Key, PactJsonObject> right) {
 		EvaluationExpression resultProjection = this.resultProjection;
 		if (resultProjection == null)
-			resultProjection = EvaluationExpression.SAME_VALUE;
+			resultProjection = EvaluationExpression.VALUE;
 
 		final EvaluationContext context = this.getContext();
 
@@ -127,13 +127,13 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 	 * @param projection
 	 * @return the generated test plan
 	 */
-	protected SopremoTestPlan createTestPlan(final RecordLinkage recordLinkage, final boolean useId,
+	protected SopremoTestPlan createTestPlan(final IntraSourceRecordLinkage recordLinkage, final boolean useId,
 			final EvaluationExpression projection) {
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(recordLinkage);
 		if (useId)
-			recordLinkage.getRecordLinkageInput(0).setIdProjection(new ObjectAccess("id"));
+			recordLinkage.getRecordLinkageInput().setIdProjection(new ObjectAccess("id"));
 		if (projection != null)
-			recordLinkage.getRecordLinkageInput(0).setResultProjection(projection);
+			recordLinkage.getRecordLinkageInput().setResultProjection(projection);
 
 		sopremoTestPlan.getInput(0).
 			add(createPactJsonObject("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80)).

@@ -27,7 +27,6 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 
 public class RecordLinkage extends CompositeOperator {
@@ -65,7 +64,7 @@ public class RecordLinkage extends CompositeOperator {
 		if (clusterMode) {
 			for (int index = 0, size = inputs.size(); index < size; index++) {
 				RecordLinkageInput input = inputs.get(index);
-				if (input.getIdProjection() != EvaluationExpression.SAME_VALUE
+				if (input.getIdProjection() != EvaluationExpression.VALUE
 					&& !input.getResultProjection().equals(input.getIdProjection())) {
 					resubstituteExpressions.put(index, input.getResultProjection());
 					input = input.clone();
@@ -123,91 +122,6 @@ public class RecordLinkage extends CompositeOperator {
 		singleExtractors.add(clusters);
 
 		return SopremoModule.valueOf(getName(), new Union(singleExtractors));
-	}
-
-	public class RecordLinkageInput implements JsonStream, Cloneable {
-		private final int index;
-
-		private EvaluationExpression idProjection = EvaluationExpression.SAME_VALUE;
-
-		private EvaluationExpression resultProjection = EvaluationExpression.SAME_VALUE;
-
-		private RecordLinkageInput(int index) {
-			this.index = index;
-		}
-
-		@Override
-		protected RecordLinkageInput clone() {
-			try {
-				return (RecordLinkageInput) super.clone();
-			} catch (CloneNotSupportedException e) {
-				// cannot happen
-				return null;
-			}
-		}
-
-		@Override
-		public Output getSource() {
-			return getInput(index);
-		}
-
-		public EvaluationExpression getIdProjection() {
-			return idProjection;
-		}
-
-		public void setIdProjection(EvaluationExpression idProjection) {
-			if (idProjection == null)
-				throw new NullPointerException("idProjection must not be null");
-
-			this.idProjection = idProjection;
-		}
-
-		public EvaluationExpression getResultProjection() {
-			return resultProjection;
-		}
-
-		public void setResultProjection(EvaluationExpression resultProjection) {
-			if (resultProjection == null)
-				throw new NullPointerException("resultProjection must not be null");
-
-			this.resultProjection = resultProjection;
-		}
-
-		@Override
-		public String toString() {
-			return String.format("RecordLinkageInput [index=%s, idProjection=%s, resultProjection=%s]", index,
-				idProjection, resultProjection);
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + getOuterType().hashCode();
-			result = prime * result + idProjection.hashCode();
-			result = prime * result + index;
-			result = prime * result + resultProjection.hashCode();
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-
-			RecordLinkageInput other = (RecordLinkageInput) obj;
-			return index == other.index && idProjection.equals(other.idProjection)
-				&& resultProjection.equals(other.resultProjection);
-		}
-
-		private RecordLinkage getOuterType() {
-			return RecordLinkage.this;
-		}
-
 	}
 
 	@Override

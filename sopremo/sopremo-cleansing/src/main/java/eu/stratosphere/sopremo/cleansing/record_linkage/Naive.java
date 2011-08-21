@@ -13,7 +13,6 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage.RecordLinkageInput;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;

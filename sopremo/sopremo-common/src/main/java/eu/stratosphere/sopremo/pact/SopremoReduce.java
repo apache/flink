@@ -36,11 +36,11 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 	public void reduce(final PactJsonObject.Key key, Iterator<PactJsonObject> values,
 			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
-		if (SopremoUtil.LOG.isDebugEnabled()) {
+		if (SopremoUtil.LOG.isTraceEnabled()) {
 			final ArrayList<PactJsonObject> cached = new ArrayList<PactJsonObject>();
 			while (values.hasNext())
 				cached.add(values.next());
-			SopremoUtil.LOG.debug(String.format("%s %s/%s", this.getClass().getSimpleName(), key, cached));
+			SopremoUtil.LOG.trace(String.format("%s %s/%s", getContext().operatorTrace(), key, cached));
 			values = cached.iterator();
 		}
 		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),

@@ -82,9 +82,9 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 	protected void emitCandidate(KeyValuePair<Key, PactJsonObject> left, KeyValuePair<Key, PactJsonObject> right) {
 		EvaluationExpression resultProjection1 = this.resultProjection1, resultProjection2 = this.resultProjection2;
 		if (resultProjection1 == null)
-			resultProjection1 = EvaluationExpression.SAME_VALUE;
+			resultProjection1 = EvaluationExpression.VALUE;
 		if (resultProjection2 == null)
-			resultProjection2 = EvaluationExpression.SAME_VALUE;
+			resultProjection2 = EvaluationExpression.VALUE;
 
 		final EvaluationContext context = this.getContext();
 

@@ -22,13 +22,13 @@ public class Intersection extends MultiSourceOperator<Intersection> {
 	public Intersection(final JsonStream... inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
 	}
 
 	public Intersection(final List<? extends JsonStream> inputs) {
 		super(inputs);
 
-		this.setDefaultKeyProjection(EvaluationExpression.SAME_VALUE);
+		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
 	}
 
 	@Override

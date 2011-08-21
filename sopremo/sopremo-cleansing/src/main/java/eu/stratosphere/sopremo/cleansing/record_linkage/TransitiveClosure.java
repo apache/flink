@@ -69,42 +69,62 @@ public class TransitiveClosure extends CompositeOperator {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		JsonStream input = this.getInput(0);
+
+		final SopremoModule sopremoModule = new SopremoModule(getName(), 1, 1);
+		JsonStream input = sopremoModule.getInput(0);
+
 		Operator backLookup1, backLookup2;
 		if (this.idProjection == DEFAULT_PROJECTION) {
-			final JsonStream entityExtractor = new RemoveDuplicateEntities(new FlattenPairs(input));
+			// final JsonStream entityExtractor = new RemoveDuplicateEntities(new FlattenPairs(input));
+			final JsonStream entityExtractor = new RemoveDuplicateEntities(new ValueSplitter(input)
+				.withArrayProjection(EvaluationExpression.VALUE).withKeyProjection(new ArrayAccess(0))
+				.withValueProjection(DEFAULT_PROJECTION.NULL));
 			final GlobalEnumeration globalEnumeration = new GlobalEnumeration(entityExtractor);
 			globalEnumeration.setIdGeneration(GlobalEnumeration.LONG_COMBINATION);
-			input = new Lookup(input, globalEnumeration).withInputKeyExtractor(new ArrayAccess(0));
-			input = new Lookup(input, globalEnumeration).withInputKeyExtractor(new ArrayAccess(1));
+
+			final Operator element2Id = new Projection(EvaluationExpression.VALUE, EvaluationExpression.KEY,
+				globalEnumeration);
+
+			input = new Lookup(input, element2Id).withInputKeyExtractor(new ArrayAccess(0));
+			input = new Lookup(input, element2Id).withInputKeyExtractor(new ArrayAccess(1));
 			backLookup1 = backLookup2 = globalEnumeration;
 		} else {
 			if (this.emitClusters) {
-				backLookup1 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
-					.withKeyProjection(new PathExpression(new ArrayAccess(0), this.idProjection))
-					.withValueProjection(new ArrayAccess(0));
-				backLookup2 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
-					.withKeyProjection(new PathExpression(new ArrayAccess(1), this.idProjection))
-					.withValueProjection(new ArrayAccess(1));
+				throw new UnsupportedOperationException();
+				// backLookup1 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
+				// .withKeyProjection(new PathExpression(new ArrayAccess(0), this.idProjection))
+				// .withValueProjection(new ArrayAccess(0));
+				// backLookup2 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
+				// .withKeyProjection(new PathExpression(new ArrayAccess(1), this.idProjection))
+				// .withValueProjection(new ArrayAccess(1));
 			} else {
 				final ValueSplitter valueSplitter = new ValueSplitter(input).addProjection(new ArrayAccess(0),
 					new ArrayAccess(1));
-				final Projection idExtraction = new Projection(this.idProjection, EvaluationExpression.SAME_VALUE,
+				final Projection idExtraction = new Projection(this.idProjection, EvaluationExpression.VALUE,
 					valueSplitter);
 				backLookup1 = backLookup2 = new Grouping(new ArrayAccess(0), idExtraction).withKeyProjection(
-					EvaluationExpression.SAME_KEY).withResetKey(false);
+					EvaluationExpression.KEY).withResetKey(false);
 			}
 			input = new Projection(new ArrayCreation(new PathExpression(new ArrayAccess(0), this.idProjection),
 				new PathExpression(new ArrayAccess(1), this.idProjection)), input);
 		}
 
-		final Grouping groupAll = new Grouping(EvaluationExpression.SAME_VALUE, input);
+		final Grouping groupAll = new Grouping(EvaluationExpression.VALUE, input);
 		final UnparallelClosure pairs = new UnparallelClosure(this.emitClusters, groupAll);
-		final Lookup lookupLeft = new Lookup(pairs, backLookup1).withInputKeyExtractor(new ArrayAccess(0))
-			.withDictionaryKeyExtraction(EvaluationExpression.SAME_KEY);
-		final Lookup lookupRight = new Lookup(lookupLeft, backLookup2).withInputKeyExtractor(new ArrayAccess(1))
-			.withDictionaryKeyExtraction(EvaluationExpression.SAME_KEY);
-		return SopremoModule.valueOf(this.getName(), lookupRight);
+
+		Operator output;
+		if (this.emitClusters) {
+			output = new Lookup(pairs, backLookup1).withArrayElementsReplacement(true)
+				.withDictionaryKeyExtraction(EvaluationExpression.KEY);
+		} else {
+			final Lookup lookupLeft = new Lookup(pairs, backLookup1).withInputKeyExtractor(new ArrayAccess(0))
+				.withDictionaryKeyExtraction(EvaluationExpression.KEY);
+			output = new Lookup(lookupLeft, backLookup2).withInputKeyExtractor(new ArrayAccess(1))
+				.withDictionaryKeyExtraction(EvaluationExpression.KEY);
+		}
+
+		sopremoModule.getOutput(0).setInput(0, output);
+		return sopremoModule;
 	}
 
 	public EvaluationExpression getIdProjection() {
@@ -314,7 +334,9 @@ public class TransitiveClosure extends CompositeOperator {
 						cluster.add(row);
 						for (final JsonNode column : matrix.get(row))
 							cluster.add(column);
-						remainingRows.remove(cluster);
+						for (JsonNode element : cluster)
+							remainingRows.remove(element);
+						out.collect(key, cluster);
 					}
 				} else
 					for (final JsonNode row : matrix.getRows())
