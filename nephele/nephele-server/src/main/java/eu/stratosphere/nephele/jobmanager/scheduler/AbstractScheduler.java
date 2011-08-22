@@ -29,6 +29,8 @@ import org.apache.hadoop.util.StringUtils;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AbstractInstance;
@@ -223,6 +225,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 	@Override
 	public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
+		System.out.println("Resources allocated: " + allocatedResources.size());
+
 		for (final AllocatedResource allocatedResource : allocatedResources) {
 
 			if (allocatedResources == null) {
@@ -269,17 +273,28 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 				AllocatedResource resourceToBeReplaced = null;
 				// Important: only look for instances to be replaced in the current stage
-				ExecutionGraphIterator it = new ExecutionGraphIterator(eg, indexOfCurrentStage, true, true);
-				while (it.hasNext()) {
+				final Iterator<ExecutionGroupVertex> groupIterator = new ExecutionGroupVertexIterator(eg, true,
+					indexOfCurrentStage);
+				while (groupIterator.hasNext()) {
 
-					final ExecutionVertex vertex = it.next();
-					if (vertex.getExecutionState() == ExecutionState.SCHEDULED && vertex.getAllocatedResource() != null) {
-						// In local mode, we do not consider any topology, only the instance type
-						if (vertex.getAllocatedResource().getInstanceType().equals(
-							allocatedResource.getInstanceType())) {
-							resourceToBeReplaced = vertex.getAllocatedResource();
-							break;
+					final ExecutionGroupVertex groupVertex = groupIterator.next();
+					for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+
+						final ExecutionVertex vertex = groupVertex.getGroupMember(i);
+
+						if (vertex.getExecutionState() == ExecutionState.SCHEDULED
+							&& vertex.getAllocatedResource() != null) {
+							// In local mode, we do not consider any topology, only the instance type
+							if (vertex.getAllocatedResource().getInstanceType().equals(
+								allocatedResource.getInstanceType())) {
+								resourceToBeReplaced = vertex.getAllocatedResource();
+								break;
+							}
 						}
+					}
+
+					if (resourceToBeReplaced != null) {
+						break;
 					}
 				}
 
@@ -297,7 +312,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				}
 
 				// Replace the selected instance in the entire graph with the new instance
-				it = new ExecutionGraphIterator(eg, true);
+				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
 				while (it.hasNext()) {
 					final ExecutionVertex vertex = it.next();
 					if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
