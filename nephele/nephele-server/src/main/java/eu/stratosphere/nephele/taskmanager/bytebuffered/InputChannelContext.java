@@ -89,10 +89,12 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 			// No buffers necessary
 			final EventList eventList = transferEnvelope.getEventList();
-			if (!eventList.isEmpty()) {
-				final Iterator<AbstractEvent> it = eventList.iterator();
-				while (it.hasNext()) {
-					this.byteBufferedInputChannel.processEvent(it.next());
+			if (eventList != null) {
+				if (!eventList.isEmpty()) {
+					final Iterator<AbstractEvent> it = eventList.iterator();
+					while (it.hasNext()) {
+						this.byteBufferedInputChannel.processEvent(it.next());
+					}
 				}
 			}
 
@@ -105,10 +107,12 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		// Process events
 		final EventList eventList = transferEnvelope.getEventList();
-		if (!eventList.isEmpty()) {
-			final Iterator<AbstractEvent> it = eventList.iterator();
-			while (it.hasNext()) {
-				this.byteBufferedInputChannel.processEvent(it.next());
+		if (eventList != null) {
+			if (!eventList.isEmpty()) {
+				final Iterator<AbstractEvent> it = eventList.iterator();
+				while (it.hasNext()) {
+					this.byteBufferedInputChannel.processEvent(it.next());
+				}
 			}
 		}
 

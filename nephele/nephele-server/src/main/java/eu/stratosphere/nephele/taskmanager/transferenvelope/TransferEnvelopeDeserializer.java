@@ -67,6 +67,8 @@ public class TransferEnvelopeDeserializer {
 
 	private boolean bufferExistanceDeserialized = false;
 
+	private boolean eventListExistanceDeserialized = false;
+
 	private boolean sequenceNumberDeserializationStarted = false;
 
 	private int sizeOfBuffer = -1;
@@ -152,11 +154,13 @@ public class TransferEnvelopeDeserializer {
 			this.transferEnvelope = null;
 			this.sizeOfBuffer = -1;
 			this.bufferExistanceDeserialized = false;
+			this.eventListExistanceDeserialized = false;
 			this.existanceBuffer.clear();
 			this.lengthBuffer.clear();
 			this.jobIDDeserializationBuffer.clear();
 			this.channelIDDeserializationBuffer.clear();
 			this.buffer = null;
+			this.deserializedEventList = null;
 			return false;
 		}
 
@@ -188,6 +192,26 @@ public class TransferEnvelopeDeserializer {
 	}
 
 	private boolean readNotificationList(ReadableByteChannel readableByteChannel) throws IOException {
+
+		if (!this.eventListExistanceDeserialized) {
+			readableByteChannel.read(this.existanceBuffer);
+
+			if (this.existanceBuffer.hasRemaining()) {
+				return true;
+			}
+
+			this.eventListExistanceDeserialized = true;
+			final boolean eventListFollows = (this.existanceBuffer.get(0) == (byte) 1);
+			this.existanceBuffer.clear();
+
+			if (!eventListFollows) {
+				// No event list here
+				this.transferEnvelope = new TransferEnvelope(this.deserializedSequenceNumber, this.deserializedJobID,
+					this.deserializedSourceID, this.deserializedEventList);
+				this.deserializationState = DeserializationState.NOTIFICATIONSDESERIALIZED;
+				return false;
+			}
+		}
 
 		this.deserializedEventList = this.notificationListDeserializationBuffer.readData(null, readableByteChannel);
 		if (this.deserializedEventList == null) {

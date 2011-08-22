@@ -50,6 +50,8 @@ public class TransferEnvelopeSerializer {
 
 	private boolean bufferExistanceSerialized = false;
 
+	private boolean eventListExistanceSerialized = false;
+
 	public void setTransferEnvelope(TransferEnvelope transferEnvelope) {
 
 		this.transferEnvelope = transferEnvelope;
@@ -154,20 +156,38 @@ public class TransferEnvelopeSerializer {
 	private boolean writeNotification(WritableByteChannel writableByteChannel, EventList notificationList)
 			throws IOException {
 
-		if (!writeIOReadableWritable(writableByteChannel, notificationList)) {
-			// We're done, all the data has been written to the channel
-			this.serializationState = SerializationState.NOTIFICATIONSSERIALIZED;
-			return false;
+		if (!this.eventListExistanceSerialized) {
+			this.tempBuffer.position(0);
+			if (notificationList == null) {
+				this.tempBuffer.put(0, (byte) 0);
+			} else {
+				this.tempBuffer.put(0, (byte) 1);
+			}
+			this.tempBuffer.limit(1);
+
+			writableByteChannel.write(this.tempBuffer);
+			if (this.tempBuffer.hasRemaining()) {
+				return true;
+			}
+
+			this.eventListExistanceSerialized = true;
 		}
 
-		return true;
+		if (notificationList != null) {
+			if (writeIOReadableWritable(writableByteChannel, notificationList)) {
+				return true;
+			}
+		}
 
+		this.serializationState = SerializationState.NOTIFICATIONSSERIALIZED;
+		return false;
 	}
 
 	public void reset() {
 		this.serializationState = SerializationState.NOTSERIALIZED;
 		this.serializationStarted = false;
 		this.bufferExistanceSerialized = false;
+		this.eventListExistanceSerialized = false;
 	}
 
 	private boolean writeBuffer(WritableByteChannel writableByteChannel, Buffer buffer) throws IOException {
