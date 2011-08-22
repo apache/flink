@@ -5,10 +5,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.codehaus.jackson.JsonNode;
-
-class BinarySparseMatrix {
-	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new HashMap<JsonNode, Set<JsonNode>>();
+class BinarySparseMatrix<T> {
+	private final Map<T, Set<T>> sparseMatrix = new HashMap<T, Set<T>>();
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -18,15 +16,22 @@ class BinarySparseMatrix {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final BinarySparseMatrix other = (BinarySparseMatrix) obj;
-		return this.sparseMatrix.equals(other.sparseMatrix);
+		final BinarySparseMatrix<?> other = (BinarySparseMatrix<?>) obj;
+		if (this.sparseMatrix.size() != other.sparseMatrix.size())
+			return false;
+
+		Set<T> rows = this.getRows();
+		for (T row : rows)
+			if (!this.get(row).equals(this.sparseMatrix.get(row)))
+				return false;
+		return true;
 	}
 
-	public Set<JsonNode> get(final JsonNode n) {
+	public Set<T> get(final T n) {
 		return this.sparseMatrix.get(n);
 	}
 
-	public Set<JsonNode> getRows() {
+	public Set<T> getRows() {
 		return this.sparseMatrix.keySet();
 	}
 
@@ -38,36 +43,36 @@ class BinarySparseMatrix {
 		return result;
 	}
 
-	public boolean isSet(final JsonNode n1, final JsonNode n2) {
-		final Set<JsonNode> set = this.sparseMatrix.get(n1);
+	public boolean isSet(final T n1, final T n2) {
+		final Set<T> set = this.sparseMatrix.get(n1);
 		return set != null && set.contains(n2);
 	}
 
 	void makeSymmetric() {
-		final Set<JsonNode> rows = new HashSet<JsonNode>(this.getRows());
-		for (final JsonNode row : rows)
-			for (final JsonNode column : this.get(row))
+		final Set<T> rows = new HashSet<T>(this.getRows());
+		for (final T row : rows)
+			for (final T column : this.get(row))
 				this.set(column, row);
 	}
 
-	public void set(final JsonNode n1, final JsonNode n2) {
-		Set<JsonNode> set = this.sparseMatrix.get(n1);
+	public void set(final T n1, final T n2) {
+		Set<T> set = this.sparseMatrix.get(n1);
 		if (set == null)
-			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
+			this.sparseMatrix.put(n1, set = new HashSet<T>());
 		set.add(n2);
 	}
 
-	public void setAll(final JsonNode n1, final Set<JsonNode> n2) {
-		Set<JsonNode> set = this.sparseMatrix.get(n1);
+	public void setAll(final T n1, final Set<T> n2) {
+		Set<T> set = this.sparseMatrix.get(n1);
 		if (set == null)
-			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
+			this.sparseMatrix.put(n1, set = new HashSet<T>());
 		set.addAll(n2);
 	}
 
 	@Override
 	public String toString() {
 		final StringBuilder builder = new StringBuilder("[\n");
-		for (final JsonNode row : this.getRows())
+		for (final T row : this.getRows())
 			builder.append("[").append(row).append(": ").append(this.get(row)).append("]\n");
 		return builder.append("]").toString();
 	}

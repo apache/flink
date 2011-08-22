@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
 /**
- * Tests {@link DisjunctPartitioning} {@link RecordLinkage} with two data sources.
+ * Tests {@link DisjunctPartitioning} {@link InterSourceRecordLinkage} with two data sources.
  * 
  * @author Arvid Heise
  */

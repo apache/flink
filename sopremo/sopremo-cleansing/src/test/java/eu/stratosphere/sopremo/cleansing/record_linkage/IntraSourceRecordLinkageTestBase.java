@@ -23,7 +23,7 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
 /**
- * Base for inner source {@link RecordLinkage} test cases within one source.
+ * Base for inner source {@link InterSourceRecordLinkage} test cases within one source.
  * 
  * @author Arvid Heise
  * @param <P>

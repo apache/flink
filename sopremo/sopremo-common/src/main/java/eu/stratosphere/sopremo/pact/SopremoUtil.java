@@ -217,4 +217,8 @@ public class SopremoUtil {
 	public static void trace() {
 		(((Log4JLogger) LOG).getLogger()).setLevel(Level.TRACE);
 	}
+
+	public static void untrace() {
+		(((Log4JLogger) LOG).getLogger()).setLevel((((Log4JLogger) LOG).getLogger()).getParent().getLevel());
+	}
 }

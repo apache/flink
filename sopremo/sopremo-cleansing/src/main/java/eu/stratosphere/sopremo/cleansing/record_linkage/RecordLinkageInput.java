@@ -90,16 +90,6 @@ public class RecordLinkageInput implements JsonStream, Cloneable {
 			&& resultProjection.equals(other.resultProjection);
 	}
 
-	public RecordLinkageInput minimizeResultOverhead() {
-		if (getIdProjection() != EvaluationExpression.VALUE &&
-			!getResultProjection().equals(getIdProjection())) {
-			RecordLinkageInput clone = clone();
-			clone.setResultProjection(getIdProjection());
-			return clone;
-		}
-		return this;
-	}
-
 	public JsonStream getLookupDictionary() {
 		return new Projection(getIdProjection(), getResultProjection(), recordLinkage.getInput(index));
 	}

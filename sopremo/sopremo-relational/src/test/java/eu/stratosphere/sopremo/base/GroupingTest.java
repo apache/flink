@@ -24,7 +24,6 @@ public class GroupingTest extends SopremoTest<Grouping> {
 
 	@Test
 	public void shouldGroupThreeSources() {
-
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 

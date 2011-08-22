@@ -12,7 +12,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
 /**
- * Tests {@link Naive} {@link RecordLinkage} with one data source.
+ * Tests {@link Naive} {@link InterSourceRecordLinkage} with one data source.
  * 
  * @author Arvid Heise
  */

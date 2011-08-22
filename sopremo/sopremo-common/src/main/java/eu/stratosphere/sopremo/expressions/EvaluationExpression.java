@@ -30,6 +30,11 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		}
 
 		@Override
+		public boolean equals(Object obj) {
+			return this == obj;
+		}
+
+		@Override
 		public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
 			return value;
 		}
@@ -54,7 +59,7 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 	 * Used for secondary information during plan creation only.
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
-	
+
 	public final static EvaluationExpression KEY = new EvaluationExpression() {
 		/**
 		 * 

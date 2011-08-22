@@ -43,6 +43,11 @@ public class Difference extends MultiSourceOperator<Difference> {
 
 		return leftInput;
 	}
+	
+	@Override
+	protected EvaluationExpression getDefaultValueProjection(Output source) {
+		return source == getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
+	}
 
 	public static class TwoInputDifference extends ElementaryOperator {
 		/**

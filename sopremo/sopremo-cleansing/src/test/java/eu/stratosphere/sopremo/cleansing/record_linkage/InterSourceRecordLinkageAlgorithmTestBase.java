@@ -20,7 +20,7 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
 /**
- * Base for inner source {@link RecordLinkage} test cases between at least two sources.
+ * Base for inner source {@link InterSourceRecordLinkage} test cases between at least two sources.
  * 
  * @author Arvid Heise
  * @param <P>
@@ -51,7 +51,7 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 	 */
 	@Test
 	public void pactCodeShouldPerformLikeStandardImplementation() {
-		final RecordLinkage recordLinkage = new RecordLinkage(this.createAlgorithm(), new ConstantExpression(1), 0,
+		final InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(this.createAlgorithm(), new ConstantExpression(1), 0,
 			null,
 			null);
 		this.sopremoTestPlan = createTestPlan(recordLinkage, false, this.resultProjection1, this.resultProjection2);
@@ -124,7 +124,7 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 	 * @param resultProjection2
 	 * @return the generated test plan
 	 */
-	protected static SopremoTestPlan createTestPlan(final RecordLinkage recordLinkage, final boolean useId,
+	protected static SopremoTestPlan createTestPlan(final InterSourceRecordLinkage recordLinkage, final boolean useId,
 			final EvaluationExpression resultProjection1, final EvaluationExpression resultProjection2) {
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(recordLinkage);
 		if (useId) {
