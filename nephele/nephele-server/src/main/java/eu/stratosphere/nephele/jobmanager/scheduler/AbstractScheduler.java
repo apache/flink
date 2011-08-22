@@ -225,8 +225,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 	@Override
 	public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
-		System.out.println("Resources allocated: " + allocatedResources.size());
-
 		for (final AllocatedResource allocatedResource : allocatedResources) {
 
 			if (allocatedResources == null) {
