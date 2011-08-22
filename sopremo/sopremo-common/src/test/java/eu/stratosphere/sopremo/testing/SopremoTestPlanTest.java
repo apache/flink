@@ -142,17 +142,6 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		testPlan.run();
 	}
 
-	private String getResourcePath(final String resource) {
-		try {
-			final Enumeration<URL> resources = SopremoTestPlan.class.getClassLoader().getResources(resource);
-			if (resources.hasMoreElements())
-				return resources.nextElement().toString();
-		} catch (final IOException e) {
-			throw new IllegalStateException(e);
-		}
-		throw new IllegalArgumentException("no resources found");
-	}
-
 	@Override
 	protected void initVerifier(final EqualsVerifier<SopremoTestPlan> equalVerifier) {
 		super.initVerifier(equalVerifier);
