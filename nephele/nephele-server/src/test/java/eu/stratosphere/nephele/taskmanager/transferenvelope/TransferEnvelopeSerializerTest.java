@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
