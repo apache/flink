@@ -409,7 +409,8 @@ public class ExecutionVertex {
 						final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(outputChannel
 							.getConnectedChannelID());
 						final ExecutionState state = connectedVertex.getExecutionState();
-						if (state == ExecutionState.READY || state == ExecutionState.RUNNING) {
+						if (state == ExecutionState.READY || state == ExecutionState.STARTING
+							|| state == ExecutionState.RUNNING) {
 							activeOutputChannels.add(outputChannel.getID());
 						}
 					}
