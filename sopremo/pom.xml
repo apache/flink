@@ -96,8 +96,7 @@
 
     <modules>
         <module>sopremo-common</module>
-        <module>sopremo-relational</module>
+        <module>sopremo-base</module>
         <module>sopremo-cleansing</module>
-
     </modules>
 </project>

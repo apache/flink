@@ -10,8 +10,8 @@
         <version>0.1.1</version>
 	</parent>
 
-	<artifactId>sopremo-relational</artifactId>
-	<name>sopremo-relational</name>
+	<artifactId>sopremo-base</artifactId>
+	<name>sopremo-base</name>
 
 	<packaging>jar</packaging>
 

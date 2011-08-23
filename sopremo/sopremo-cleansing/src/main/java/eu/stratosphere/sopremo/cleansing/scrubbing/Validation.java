@@ -103,8 +103,8 @@ public class Validation extends ElementaryOperator {
 				out.collect(key, value);
 			} catch (final UnresolvableEvaluationException e) {
 				// do not emit invalid record
-				if (SopremoUtil.LOG.isTraceEnabled())
-					SopremoUtil.LOG.trace(String.format("Cannot fix validation rule for tuple %s: %s", value,
+				if (SopremoUtil.LOG.isDebugEnabled())
+					SopremoUtil.LOG.debug(String.format("Cannot fix validation rule for tuple %s: %s", value,
 						e.getMessage()));
 			}
 		}

@@ -97,6 +97,20 @@ public class BuiltinFunctions {
 		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsStrings));
 	}
 
+	public static JsonNode substring(TextNode input, IntNode from, IntNode to) {
+		String string = input.getTextValue();
+		int fromPos = resolveIndex(from.getIntValue(), string.length());
+		int toPos = resolveIndex(to.getIntValue(), string.length());
+
+		return TextNode.valueOf(string.substring(fromPos, toPos));
+	}
+
+	private static int resolveIndex(final int index, final int size) {
+		if (index < 0)
+			return size + index;
+		return index;
+	}
+
 	/**
 	 * Concatenates the textual representation of the nodes.
 	 * 
