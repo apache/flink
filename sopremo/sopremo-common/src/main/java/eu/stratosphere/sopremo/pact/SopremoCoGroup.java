@@ -23,13 +23,13 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 			Iterator<PactJsonObject> values2,
 			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
-		if (SopremoUtil.LOG.isDebugEnabled()) {
+		if (SopremoUtil.LOG.isTraceEnabled()) {
 			final ArrayList<PactJsonObject> cached1 = new ArrayList<PactJsonObject>(), cached2 = new ArrayList<PactJsonObject>();
 			while (values1.hasNext())
 				cached1.add(values1.next());
 			while (values2.hasNext())
 				cached2.add(values2.next());
-			SopremoUtil.LOG.debug(String.format("%s %s/%s/%s", this.getClass().getSimpleName(), key, cached1, cached2));
+			SopremoUtil.LOG.trace(String.format("%s %s/%s/%s", getContext().operatorTrace(), key, cached1, cached2));
 			values1 = cached1.iterator();
 			values2 = cached2.iterator();
 		}

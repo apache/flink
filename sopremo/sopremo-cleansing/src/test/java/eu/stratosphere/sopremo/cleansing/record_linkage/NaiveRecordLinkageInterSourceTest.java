@@ -3,68 +3,42 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.junit.Test;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.sopremo.CompactArrayNode;
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
-import eu.stratosphere.sopremo.testing.SopremoTestPlan;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
 /**
- * Tests {@link Naive} {@link RecordLinkage} with two data sources.
+ * Tests {@link Naive} {@link InterSourceRecordLinkage} with two data sources.
  * 
  * @author Arvid Heise
  */
-public class NaiveRecordLinkageInterSourceTest extends InterSourceRecordLinkageTestBase<Naive> {
-
-	private final double threshold;
-
-	private final EvaluationExpression projection;
+public class NaiveRecordLinkageInterSourceTest extends InterSourceRecordLinkageAlgorithmTestBase<Naive> {
 
 	/**
 	 * Initializes NaiveRecordLinkageInterSourceTest with the given parameter
 	 * 
-	 * @param threshold
-	 * @param projection
+	 * @param resultProjection1
+	 * @param resultProjection2
 	 */
-	public NaiveRecordLinkageInterSourceTest(final double threshold, final EvaluationExpression projection) {
-		this.threshold = threshold;
-		this.projection = projection;
+	public NaiveRecordLinkageInterSourceTest(final EvaluationExpression resultProjection1,
+			final EvaluationExpression resultProjection2) {
+		super(resultProjection1, resultProjection2);
 	}
 
-	/**
-	 * Performs the naive record linkage in place and compares with the Pact code.
-	 */
-	@Test
-	public void pactCodeShouldPerformLikeStandardImplementation() {
-		final EvaluationExpression similarityFunction = getSimilarityFunction();
-		final RecordLinkage recordLinkage = new RecordLinkage(new Naive(), similarityFunction, this.threshold, null,
-			null);
-		final SopremoTestPlan sopremoTestPlan = createTestPlan(recordLinkage, false, this.projection);
+	@Override
+	protected void generateExpectedPairs(Input leftInput, Input rightInput) {
+		for (final KeyValuePair<Key, PactJsonObject> left : leftInput)
+			for (final KeyValuePair<Key, PactJsonObject> right : rightInput)
+				emitCandidate(left, right);
+	}
 
-		EvaluationExpression duplicateProjection = this.projection;
-		if (duplicateProjection == null)
-			duplicateProjection = new ArrayCreation(new PathExpression(new InputSelection(0),
-				recordLinkage.getIdProjection(0)), new PathExpression(new InputSelection(1),
-				recordLinkage.getIdProjection(1)));
-
-		final EvaluationContext context = sopremoTestPlan.getEvaluationContext();
-		for (final KeyValuePair<Key, PactJsonObject> left : sopremoTestPlan.getInput(0))
-			for (final KeyValuePair<Key, PactJsonObject> right : sopremoTestPlan.getInput(1)) {
-				final CompactArrayNode pair = JsonUtil.asArray(left.getValue().getValue(), right.getValue().getValue());
-				if (similarityFunction.evaluate(pair, context).getDoubleValue() > this.threshold)
-					sopremoTestPlan.getExpectedOutput(0).add(
-						new PactJsonObject(duplicateProjection.evaluate(pair, context)));
-			}
-		sopremoTestPlan.run();
+	@Override
+	protected RecordLinkageAlgorithm createAlgorithm() {
+		return new Naive();
 	}
 
 	/**
@@ -74,13 +48,12 @@ public class NaiveRecordLinkageInterSourceTest extends InterSourceRecordLinkageT
 	 */
 	@Parameters
 	public static Collection<Object[]> getParameters() {
-		final EvaluationExpression[] projections = { null, getAggregativeProjection() };
-		final double[] thresholds = { 0.0, 0.2, 0.4, 0.6, 0.8, 1.0 };
+		final EvaluationExpression[][] projections = { { null, null },
+			{ getAggregativeProjection1(), getAggregativeProjection2() }, };
 
 		final ArrayList<Object[]> parameters = new ArrayList<Object[]>();
-		for (final EvaluationExpression projection : projections)
-			for (final double threshold : thresholds)
-				parameters.add(new Object[] { threshold, projection });
+		for (final EvaluationExpression[] projection : projections)
+			parameters.add(new Object[] { projection[0], projection[1] });
 
 		return parameters;
 	}

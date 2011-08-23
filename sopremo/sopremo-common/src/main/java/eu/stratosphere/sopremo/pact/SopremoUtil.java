@@ -21,6 +21,8 @@ import java.util.Map;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.impl.Log4JLogger;
+import org.apache.log4j.Level;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
@@ -210,5 +212,13 @@ public class SopremoUtil {
 			e.printStackTrace();
 		}
 		return object;
+	}
+
+	public static void trace() {
+		(((Log4JLogger) LOG).getLogger()).setLevel(Level.TRACE);
+	}
+
+	public static void untrace() {
+		(((Log4JLogger) LOG).getLogger()).setLevel((((Log4JLogger) LOG).getLogger()).getParent().getLevel());
 	}
 }

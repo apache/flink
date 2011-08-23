@@ -1,5 +1,10 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -9,6 +14,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.NullNode;
 
+import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -59,78 +65,116 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	};
 
-	private EvaluationExpression idProjection = DEFAULT_PROJECTION;
+	// private Int2ObjectArrayMap<EvaluationExpression> idProjections = new Int2ObjectArrayMap<EvaluationExpression>();
 
-	private boolean emitClusters = true;
+	private ClosureMode closureMode = ClosureMode.LINKS;
 
 	public TransitiveClosure(final JsonStream input) {
 		super(input);
+
+		// idProjections.defaultReturnValue(DEFAULT_PROJECTION);
+	}
+
+	public ClosureMode getClosureMode() {
+		return this.closureMode;
+	}
+
+	public void setClosureMode(ClosureMode clusterMode) {
+		if (clusterMode == null)
+			throw new NullPointerException("clusterMode must not be null");
+
+		this.closureMode = clusterMode;
 	}
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		JsonStream input = this.getInput(0);
-		Operator backLookup1, backLookup2;
-		if (this.idProjection == DEFAULT_PROJECTION) {
-			final JsonStream entityExtractor = new RemoveDuplicateEntities(new FlattenPairs(input));
-			final GlobalEnumeration globalEnumeration = new GlobalEnumeration(entityExtractor);
-			globalEnumeration.setIdGeneration(GlobalEnumeration.LONG_COMBINATION);
-			input = new Lookup(input, globalEnumeration).withInputKeyExtractor(new ArrayAccess(0));
-			input = new Lookup(input, globalEnumeration).withInputKeyExtractor(new ArrayAccess(1));
-			backLookup1 = backLookup2 = globalEnumeration;
-		} else {
-			if (this.emitClusters) {
-				backLookup1 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
-					.withKeyProjection(new PathExpression(new ArrayAccess(0), this.idProjection))
-					.withValueProjection(new ArrayAccess(0));
-				backLookup2 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
-					.withKeyProjection(new PathExpression(new ArrayAccess(1), this.idProjection))
-					.withValueProjection(new ArrayAccess(1));
-			} else {
-				final ValueSplitter valueSplitter = new ValueSplitter(input).addProjection(new ArrayAccess(0),
-					new ArrayAccess(1));
-				final Projection idExtraction = new Projection(this.idProjection, EvaluationExpression.SAME_VALUE,
-					valueSplitter);
-				backLookup1= backLookup2 = new Grouping(new ArrayAccess(0), idExtraction).withKeyProjection(EvaluationExpression.SAME_KEY).withResetKey(false);
-			}
-			input = new Projection(new ArrayCreation(new PathExpression(new ArrayAccess(0), this.idProjection),
-				new PathExpression(new ArrayAccess(1), this.idProjection)), input);
-		}
 
-		final Grouping groupAll = new Grouping(EvaluationExpression.SAME_VALUE, input);
-		final UnparallelClosure pairs = new UnparallelClosure(this.emitClusters, groupAll);
-		final Lookup lookupLeft = new Lookup(pairs, backLookup1).withInputKeyExtractor(new ArrayAccess(0))
-			.withDictionaryKeyExtraction(EvaluationExpression.SAME_KEY);
-		final Lookup lookupRight = new Lookup(lookupLeft, backLookup2).withInputKeyExtractor(new ArrayAccess(1))
-			.withDictionaryKeyExtraction(EvaluationExpression.SAME_KEY);
-		return SopremoModule.valueOf(this.getName(), lookupRight);
+		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
+		JsonStream input = sopremoModule.getInput(0);
+
+		// switch (closureMode) {
+		// case LINKS:
+		//
+		// break;
+		//
+		// default:
+		// break;
+		// }
+		// Int2ObjectArrayMap<Operator> backLookup = new Int2ObjectArrayMap<Operator>();
+		// for(int index = 0; index < idProjections.)
+		//
+		// if (this.idProjection == DEFAULT_PROJECTION) {
+		// // final JsonStream entityExtractor = new RemoveDuplicateEntities(new FlattenPairs(input));
+		// final JsonStream entityExtractor = new RemoveDuplicateEntities(new ValueSplitter(input)
+		// .withArrayProjection(EvaluationExpression.VALUE).withKeyProjection(new ArrayAccess(0))
+		// .withValueProjection(EvaluationExpression.NULL));
+		// final GlobalEnumeration globalEnumeration = new GlobalEnumeration(entityExtractor);
+		// globalEnumeration.setIdGeneration(GlobalEnumeration.LONG_COMBINATION);
+		//
+		// final Operator element2Id = new Projection(EvaluationExpression.VALUE, EvaluationExpression.KEY,
+		// globalEnumeration);
+		//
+		// input = new Lookup(input, element2Id).withInputKeyExtractor(new ArrayAccess(0));
+		// input = new Lookup(input, element2Id).withInputKeyExtractor(new ArrayAccess(1));
+		// backLookup1 = backLookup2 = globalEnumeration;
+		// } else {
+		// final Operator values = new ValueSplitter(input).withArrayProjection(
+		// EvaluationExpression.VALUE).withKeyProjection(new PathExpression(new ArrayAccess(0), this.idProjection));
+		// backLookup1 = backLookup2 = new Grouping(new ArrayAccess(0), values).withKeyProjection(
+		// EvaluationExpression.KEY).withResetKey(false);
+		// if (this.closureMode.isCluster()) {
+		// // throw new UnsupportedOperationException();
+		// // backLookup1 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
+		// // .withKeyProjection(new PathExpression(new ArrayAccess(0), this.idProjection))
+		// // .withValueProjection(new ArrayAccess(0));
+		// // backLookup2 = new Grouping(new ArrayAccess(0), input).withResetKey(false)
+		// // .withKeyProjection(new PathExpression(new ArrayAccess(1), this.idProjection))
+		// // .withValueProjection(new ArrayAccess(1));
+		// } else {
+		// // final Projection idExtraction = new Projection(this.idProjection, EvaluationExpression.VALUE,
+		// // valueSplitter);
+		// // backLookup1 = backLookup2 = new Grouping(new ArrayAccess(0), idExtraction).withKeyProjection(
+		// // EvaluationExpression.KEY).withResetKey(false);
+		// }
+		// input = new Projection(new ArrayCreation(new PathExpression(new ArrayAccess(0), this.idProjection),
+		// new PathExpression(new ArrayAccess(1), this.idProjection)), input);
+		// }
+
+		final Grouping groupAll = new Grouping(EvaluationExpression.VALUE, input);
+		final UnparallelClosure pairs = new UnparallelClosure(this.closureMode, groupAll);
+
+		// Operator output;
+		// if (this.closureMode.isCluster())
+		// output = new Lookup(pairs, backLookup1).withArrayElementsReplacement(true)
+		// .withDictionaryKeyExtraction(EvaluationExpression.KEY);
+		// else {
+		// final Lookup lookupLeft = new Lookup(pairs, backLookup1).withInputKeyExtractor(new ArrayAccess(0))
+		// .withDictionaryKeyExtraction(EvaluationExpression.KEY);
+		// output = new Lookup(lookupLeft, backLookup2).withInputKeyExtractor(new ArrayAccess(1))
+		// .withDictionaryKeyExtraction(EvaluationExpression.KEY);
+		// }
+
+		sopremoModule.getOutput(0).setInput(0, pairs);
+		return sopremoModule;
 	}
 
-	public EvaluationExpression getIdProjection() {
-		return this.idProjection;
-	}
-
-	public boolean isCluster() {
-		return this.emitClusters;
-	}
-
-	public void setCluster(final boolean cluster) {
-		this.emitClusters = cluster;
-	}
-
-	public void setIdProjection(final EvaluationExpression idProjection) {
-		if (idProjection == null)
-			throw new NullPointerException("idProjection must not be null");
-
-		this.idProjection = idProjection;
-	}
+	// public EvaluationExpression getIdProjection(int index) {
+	// return this.idProjections.get(index);
+	// }
+	//
+	// public void setIdProjection(int index, final EvaluationExpression idProjection) {
+	// if (idProjection == null)
+	// throw new NullPointerException("idProjection must not be null");
+	//
+	// this.idProjections.put (index, idProjection);
+	// }
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + (this.emitClusters ? 1231 : 1237);
-		result = prime * result + this.idProjection.hashCode();
+		result = prime * result + this.closureMode.hashCode();
+		// result = prime * result + this.idProjections.hashCode();
 		return result;
 	}
 
@@ -140,25 +184,25 @@ public class TransitiveClosure extends CompositeOperator {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		TransitiveClosure other = (TransitiveClosure) obj;
-		return this.emitClusters == other.emitClusters && this.idProjection.equals(other.idProjection);
+		return this.closureMode == other.closureMode; // &&this.idProjections.equals(other.idProjections)
 	}
 
 	@Override
 	public String toString() {
-		return "TransitiveClosure [emitClusters=" + this.emitClusters + ", idProjection=" + this.idProjection + "]";
+		return "TransitiveClosure [closureMode=" + this.closureMode + "]";
 	}
 
-	public static void warshall(final BinarySparseMatrix matrix) {
+	public static void warshall(final BinarySparseMatrix<Object> matrix) {
 		// Warshall
-		for (final JsonNode row : matrix.getRows()) {
-			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
+		for (final Object row : matrix.getRows()) {
+			final Deque<Object> columnsToExplore = new LinkedList<Object>(matrix.get(row));
 			while (!columnsToExplore.isEmpty()) {
-				final JsonNode column = columnsToExplore.pop();
-				for (final JsonNode transitiveNode : matrix.get(column))
-					if (row != transitiveNode && !matrix.isSet(row, transitiveNode)) {
+				final Object column = columnsToExplore.pop();
+				for (final Object transitiveNode : matrix.get(column))
+					if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
 						matrix.set(row, transitiveNode);
 						columnsToExplore.push(transitiveNode);
 					}
@@ -203,124 +247,206 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	}
 
-	//
-	// public static class SubstituteWithKeyValueList extends CompositeOperator {
-	//
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 5213470669940261166L;
-	//
-	// public SubstituteWithKeyValueList(final JsonStream input, final JsonStream keyValueList) {
-	// super(input, keyValueList);
-	// }
-	//
-	// @Override
-	// public SopremoModule asElementaryOperators() {
-	// final Projection left = new Projection(new ArrayAccess(0), EvaluationExpression.SAME_VALUE,
-	// this.getInput(0));
-	// final ReplaceWithRightInput replacedLeft = new ReplaceWithRightInput(0, left);
-	// final Projection right = new Projection(new ArrayAccess(1), EvaluationExpression.SAME_VALUE, replacedLeft);
-	// final ReplaceWithRightInput replacedRight = new ReplaceWithRightInput(1, right);
-	//
-	// return SopremoModule.valueOf(this.getName(), replacedRight);
-	// }
-	//
-	// public static class ReplaceWithRightInput extends ElementaryOperator {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 7334161941683036846L;
-	//
-	// private final int index;
-	//
-	// public ReplaceWithRightInput(final int index, final JsonStream input) {
-	// super(input);
-	// this.index = index;
-	// }
-	//
-	// public int getIndex() {
-	// return this.index;
-	// }
-	//
-	// public static class Implementation extends
-	// SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
-	// private int index;
-	//
-	// @Override
-	// protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
-	// final JsonCollector out) {
-	// ((ArrayNode) value1).set(this.index, value2);
-	// out.collect(NullNode.getInstance(), value1);
-	// }
-	// }
-	// }
-	//
-	// public static class SwapKeyValue extends ElementaryOperator {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 311598721939565997L;
-	//
-	// public SwapKeyValue(final JsonStream input) {
-	// super(input);
-	// }
-	//
-	// public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
-	// @Override
-	// protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-	// out.collect(value, key);
-	// }
-	// }
-	// }
-	// }
-
 	public static class UnparallelClosure extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 2445030877785106855L;
 
-		private final boolean emitClusters;
+		private final ClosureMode closureMode;
 
-		public UnparallelClosure(final boolean emitClusters, final JsonStream input) {
+		public UnparallelClosure(final ClosureMode closureMode, final JsonStream input) {
 			super(input);
-			this.emitClusters = emitClusters;
+			this.closureMode = closureMode;
 		}
 
-		public boolean isEmitClusters() {
-			return this.emitClusters;
+		public ClosureMode getClosureMode() {
+			return this.closureMode;
 		}
 
-		public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
-			private boolean emitClusters;
+		@Override
+		protected Class<? extends Stub<?, ?>> getStubClass() {
+			switch (this.closureMode) {
+			case LINKS:
+				return Link.class;
+			case CLUSTER:
+				return Cluster.class;
+			case CLUSTER_PROVENANCE:
+				return Provenance.class;
 
-			@Override
-			protected void map(final JsonNode key, final JsonNode allPairs, final JsonCollector out) {
-				final BinarySparseMatrix matrix = new BinarySparseMatrix();
-				for (final JsonNode pair : allPairs) {
-					matrix.set(pair.get(0), pair.get(1));
-					matrix.set(pair.get(1), pair.get(0));
-				}
-
-				warshall(matrix);
-
-				if (this.emitClusters) {
-					final Set<JsonNode> remainingRows = new HashSet<JsonNode>(matrix.getRows());
-					while (!remainingRows.isEmpty()) {
-						final ArrayNode cluster = new ArrayNode(null);
-						final JsonNode row = remainingRows.iterator().next();
-						cluster.add(row);
-						for (final JsonNode column : matrix.get(row))
-							cluster.add(column);
-						remainingRows.remove(cluster);
-					}
-				} else
-					for (final JsonNode row : matrix.getRows())
-						for (final JsonNode column : matrix.get(row))
-							if (JsonNodeComparator.INSTANCE.compare(row, column) < 0)
-								out.collect(key, JsonUtil.asArray(row, column));
+			default:
+				throw new UnsupportedOperationException();
 			}
 		}
+
+		public static class Link extends ImplementationBase<Key, PactJsonObject, Key, PactJsonObject> {
+
+			@Override
+			protected void emit(final JsonNode key, BinarySparseMatrix<?> genMatrix, final JsonCollector out) {
+				BinarySparseMatrix<JsonNode> matrix = (BinarySparseMatrix<JsonNode>) genMatrix;
+				for (final JsonNode row : matrix.getRows())
+					for (final JsonNode column : matrix.get(row))
+						if (JsonNodeComparator.INSTANCE.compare(row, column) < 0)
+							out.collect(key, JsonUtil.asArray(row, column));
+			}
+		}
+
+		public static class Cluster extends ImplementationBase<Key, PactJsonObject, Key, PactJsonObject> {
+
+			@Override
+			protected void emit(final JsonNode key, BinarySparseMatrix genMatrix, final JsonCollector out) {
+				BinarySparseMatrix<JsonNode> matrix = genMatrix;
+
+				final Set<JsonNode> remainingRows = new HashSet<JsonNode>(matrix.getRows());
+				while (!remainingRows.isEmpty()) {
+					final ArrayNode cluster = new ArrayNode(null);
+					final JsonNode row = remainingRows.iterator().next();
+					cluster.add(row);
+					for (final JsonNode column : matrix.get(row))
+						cluster.add(column);
+					for (JsonNode element : cluster)
+						remainingRows.remove(element);
+					out.collect(key, cluster);
+				}
+			}
+		}
+
+		public static class Provenance extends ImplementationBase<Key, PactJsonObject, Key, PactJsonObject> {
+			private transient int sourceCount;
+
+			private JsonNode toProvenanceCluster(ProvenancedItem<JsonNode> row,
+					Collection<ProvenancedItem<JsonNode>> cluster) {
+				final ArrayNode[] provenanceCluster = new ArrayNode[this.sourceCount];
+				for (int index = 0; index < provenanceCluster.length; index++)
+					provenanceCluster[index] = new ArrayNode(null);
+				provenanceCluster[row.getSourceIndex()].add(row.getNode());
+				for (ProvenancedItem<JsonNode> node : cluster)
+					provenanceCluster[node.getSourceIndex()].add(node.getNode());
+				return JsonUtil.asArray(provenanceCluster);
+			}
+
+			@Override
+			protected void emit(final JsonNode key, BinarySparseMatrix genMatrix, final JsonCollector out) {
+				BinarySparseMatrix<ProvenancedItem<JsonNode>> matrix = genMatrix;
+
+				final Set<ProvenancedItem<JsonNode>> remainingRows = new HashSet<ProvenancedItem<JsonNode>>(
+					matrix.getRows());
+				while (!remainingRows.isEmpty()) {
+					final ProvenancedItem<JsonNode> row = remainingRows.iterator().next();
+
+					remainingRows.remove(row);
+					Set<ProvenancedItem<JsonNode>> cluster = matrix.get(row);
+					for (final ProvenancedItem<JsonNode> column : cluster)
+						remainingRows.remove(column);
+					out.collect(key, this.toProvenanceCluster(row, cluster));
+				}
+			}
+
+			@Override
+			protected void fillMatrix(BinarySparseMatrix<?> genMatrix, final JsonNode pairs) {
+				BinarySparseMatrix<ProvenancedItem<JsonNode>> matrix = (BinarySparseMatrix<ProvenancedItem<JsonNode>>) genMatrix;
+
+				for (final JsonNode pair : pairs) {
+					ProvenancedItem<JsonNode> value1 = null, value2 = null;
+					for (int sourceIndex = 0; sourceIndex < pair.size(); sourceIndex++) {
+						JsonNode value = pair.get(sourceIndex);
+						if (value != NullNode.getInstance())
+							if (value1 == null)
+								value1 = new ProvenancedItem<JsonNode>(value, sourceIndex);
+							else {
+								value2 = new ProvenancedItem<JsonNode>(value, sourceIndex);
+								break;
+							}
+					}
+					matrix.set(value1, value2);
+					matrix.set(value2, value1);
+				}
+
+				this.sourceCount = pairs.get(pairs.size() - 1).size();
+			}
+		}
+
+		public abstract static class ImplementationBase<IK extends PactJsonObject.Key, IV extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
+				extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+			private BinarySparseMatrix<Object> matrix = new BinarySparseMatrix<Object>();
+
+			@Override
+			protected void map(final JsonNode key, final JsonNode pairs, final JsonCollector out) {
+				this.fillMatrix(this.matrix, pairs);
+
+				warshall(this.matrix);
+
+				this.emit(key, this.matrix, out);
+
+				this.matrix = null;
+			}
+
+			protected abstract void emit(final JsonNode key, BinarySparseMatrix<?> matrix, final JsonCollector out);
+
+			protected void fillMatrix(BinarySparseMatrix<?> genMatrix, final JsonNode pairs) {
+				BinarySparseMatrix<JsonNode> matrix = (BinarySparseMatrix<JsonNode>) genMatrix;
+				for (final JsonNode pair : pairs) {
+					JsonNode value1 = null, value2 = null;
+					for (int sourceIndex = 0; sourceIndex < pair.size(); sourceIndex++) {
+						JsonNode value = pair.get(sourceIndex);
+						if (value != NullNode.getInstance())
+							if (value1 == null)
+								value1 = value;
+							else {
+								value2 = value;
+								break;
+							}
+					}
+					matrix.set(value1, value2);
+					matrix.set(value2, value1);
+				}
+			}
+		}
+	}
+
+	private static class ProvenancedItem<T> {
+		private final T node;
+
+		private final int sourceIndex;
+
+		public ProvenancedItem(T node, int sourceIndex) {
+			this.node = node;
+			this.sourceIndex = sourceIndex;
+		}
+
+		public T getNode() {
+			return this.node;
+		}
+
+		public int getSourceIndex() {
+			return this.sourceIndex;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + this.node.hashCode();
+			result = prime * result + this.sourceIndex;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (this.getClass() != obj.getClass())
+				return false;
+			ProvenancedItem other = (ProvenancedItem) obj;
+			return this.sourceIndex == other.sourceIndex && this.node.equals(other.node);
+		}
+
+		@Override
+		public String toString() {
+			return String.format("ProvenancedItem [node=%s, sourceIndex=%s]", this.node, this.sourceIndex);
+		}
+
 	}
 }

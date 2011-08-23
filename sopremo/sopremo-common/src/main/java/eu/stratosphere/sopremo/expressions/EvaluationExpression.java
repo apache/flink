@@ -26,7 +26,12 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		}
 
 		private Object readResolve() {
-			return EvaluationExpression.SAME_VALUE;
+			return EvaluationExpression.VALUE;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return this == obj;
 		}
 
 		@Override
@@ -55,13 +60,7 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
 
-	/**
-	 * Represents an unresolvable expression. The value most likely indicates a programming error and an evaluation
-	 * attempt causes an exceptions.
-	 */
-	public static final EvaluationExpression UNKNOWN = new IdentifierAccess("?");
-
-	public final static EvaluationExpression SAME_KEY = new EvaluationExpression() {
+	public final static EvaluationExpression KEY = new EvaluationExpression() {
 		/**
 		 * 
 		 */
@@ -73,7 +72,7 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		}
 
 		private Object readResolve() {
-			return EvaluationExpression.SAME_KEY;
+			return EvaluationExpression.KEY;
 		}
 
 		@Override
@@ -107,7 +106,7 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
 	 * {@link Operator}s that do not perform any transformation to the input, such as a filter operator.
 	 */
-	public static final SameValueExpression SAME_VALUE = new SameValueExpression();
+	public static final SameValueExpression VALUE = new SameValueExpression();
 
 	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
 

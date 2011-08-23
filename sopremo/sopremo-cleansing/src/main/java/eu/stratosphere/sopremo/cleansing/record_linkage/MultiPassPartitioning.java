@@ -6,13 +6,11 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Operator.Output;
-import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Union;
-import eu.stratosphere.sopremo.cleansing.record_linkage.RecordLinkage.Partitioning;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public abstract class MultiPassPartitioning extends Partitioning {
+public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 	private final List<EvaluationExpression[]> passPartitionKeys = new ArrayList<EvaluationExpression[]>();
 
 	public MultiPassPartitioning(final EvaluationExpression partitionKey) {
@@ -45,29 +43,31 @@ public abstract class MultiPassPartitioning extends Partitioning {
 	}
 
 	@Override
-	public SopremoModule asSopremoOperators(final ComparativeExpression similarityCondition, final List<Output> inputs,
-			final List<EvaluationExpression> idProjections, final EvaluationExpression duplicateProjection) {
+	public Operator getInterSource(ComparativeExpression similarityCondition, RecordLinkageInput input1,
+			RecordLinkageInput input2) {
+		final List<Operator> passes = new ArrayList<Operator>();
+		for (int index = 0; index < this.passPartitionKeys.size(); index++)
+			passes.add(this.createSinglePassInterSource(this.passPartitionKeys.get(index), similarityCondition,
+				input1, input2));
+		return new Union(passes);
+	}
+
+	@Override
+	public Operator getIntraSource(ComparativeExpression similarityCondition, RecordLinkageInput input) {
 		final List<Operator> passes = new ArrayList<Operator>();
 
-		if (inputs.size() == 1)
-			for (int index = 0; index < this.passPartitionKeys.size(); index++)
-				passes.add(this.createSinglePassIntraSource(this.passPartitionKeys.get(index)[0], similarityCondition,
-					inputs.get(0), idProjections, duplicateProjection));
-		else
-			for (int index = 0; index < this.passPartitionKeys.size(); index++)
-				passes.add(this.createSinglePassInterSource(this.passPartitionKeys.get(index), similarityCondition,
-					inputs.get(0), inputs.get(1), idProjections, duplicateProjection));
+		for (int index = 0; index < this.passPartitionKeys.size(); index++)
+			passes.add(this.createSinglePassIntraSource(this.passPartitionKeys.get(index)[0], similarityCondition,
+					input));
 
-		return SopremoModule.valueOf(this.toString(), new Union(passes));
+		return new Union(passes);
 	}
 
 	protected abstract Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,
-			ComparativeExpression similarityCondition, Operator.Output input1, Operator.Output input2,
-			List<EvaluationExpression> idProjections, EvaluationExpression duplicateProjection);
+			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2);
 
 	protected abstract Operator createSinglePassIntraSource(EvaluationExpression partitionKey,
-			ComparativeExpression similarityCondition, Operator.Output input,
-			List<EvaluationExpression> idProjections, EvaluationExpression duplicateProjection);
+			ComparativeExpression similarityCondition, RecordLinkageInput input);
 
 	@Override
 	public String toString() {

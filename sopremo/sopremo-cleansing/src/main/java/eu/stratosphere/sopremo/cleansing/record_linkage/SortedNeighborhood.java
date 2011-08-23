@@ -21,16 +21,14 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 	}
 
 	@Override
-	protected Operator createSinglePassInterSource(final EvaluationExpression[] partitionKeys,
-			final ComparativeExpression similarityCondition, final Output input1, final Output input2,
-			final List<EvaluationExpression> idProjections, final EvaluationExpression duplicateProjection) {
+	protected Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,
+			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
 		return new SinglePassInterSource(partitionKeys, similarityCondition, input1, input2);
 	}
 
 	@Override
-	protected Operator createSinglePassIntraSource(final EvaluationExpression partitionKey,
-			final ComparativeExpression similarityCondition, final Output input,
-			final List<EvaluationExpression> idProjections, final EvaluationExpression duplicateProjection) {
+	protected Operator createSinglePassIntraSource(EvaluationExpression partitionKey,
+			ComparativeExpression similarityCondition, RecordLinkageInput input) {
 		return new SinglePassIntraSource(partitionKey, similarityCondition, input);
 	}
 

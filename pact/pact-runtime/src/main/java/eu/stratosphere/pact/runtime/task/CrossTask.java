@@ -486,6 +486,14 @@ public class CrossTask extends AbstractTask
 						innerInput.reset();
 					}
 				} while (!this.taskCanceled && moreOuterBlocks);
+			} else {
+				// inner input is empty, clear outer input to close channel
+				LOG.debug("Inner input is empty, we must clear the outer input as well to close the channel");
+				do {
+					while(outerInput.hasNext()) {
+						outerInput.next();
+					}
+				} while(outerInput.nextBlock());
 			}
 				
 			// close stub implementation

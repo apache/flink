@@ -16,7 +16,7 @@ public class AggregationExpression extends EvaluationExpression {
 	private final EvaluationExpression preprocessing;
 
 	public AggregationExpression(final AggregationFunction function) {
-		this(function, EvaluationExpression.SAME_VALUE);
+		this(function, EvaluationExpression.VALUE);
 	}
 
 	public AggregationExpression(final AggregationFunction function, final EvaluationExpression preprocessing) {
@@ -46,7 +46,7 @@ public class AggregationExpression extends EvaluationExpression {
 		builder.append('.');
 		this.function.toString(builder);
 		builder.append('(');
-		if (this.preprocessing != EvaluationExpression.SAME_VALUE)
+		if (this.preprocessing != EvaluationExpression.VALUE)
 			builder.append(this.preprocessing);
 		builder.append(')');
 	}

@@ -94,6 +94,17 @@ public class ElementaryOperator extends Operator {
 	}
 
 	/**
+	 * Creates a module that delegates all input directly to the output.
+	 * 
+	 * @return a short circuit module
+	 */
+	protected PactModule createShortCircuitModule() {
+		PactModule module = new PactModule("Short circuit", 1, 1);
+		module.getOutput(0).setInput(module.getInput(0));
+		return module;
+	}
+
+	/**
 	 * Callback to add parameters to the stub configuration.<br>
 	 * The default implementation adds the context and all non-transient, non-final, non-static fields.
 	 * 

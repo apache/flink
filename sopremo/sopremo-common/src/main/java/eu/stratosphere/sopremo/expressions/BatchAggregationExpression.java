@@ -34,11 +34,11 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	public BatchAggregationExpression(final List<AggregationFunction> functions) {
 		this.partials = new ArrayList<Partial>(functions.size());
 		for (final AggregationFunction function : functions)
-			this.partials.add(new Partial(function, EvaluationExpression.SAME_VALUE, this.partials.size()));
+			this.partials.add(new Partial(function, EvaluationExpression.VALUE, this.partials.size()));
 	}
 
 	public EvaluationExpression add(final AggregationFunction function) {
-		return this.add(function, EvaluationExpression.SAME_VALUE);
+		return this.add(function, EvaluationExpression.VALUE);
 	}
 
 	public EvaluationExpression add(final AggregationFunction function, final EvaluationExpression preprocessing) {

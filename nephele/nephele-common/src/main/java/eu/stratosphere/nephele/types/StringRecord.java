@@ -48,14 +48,14 @@ import java.util.Arrays;
  */
 public class StringRecord implements Record {
 
-	private static ThreadLocal<CharsetEncoder> ENCODER_FACTORY = new ThreadLocal<CharsetEncoder>() {
+	private static final ThreadLocal<CharsetEncoder> ENCODER_FACTORY = new ThreadLocal<CharsetEncoder>() {
 		protected CharsetEncoder initialValue() {
 			return Charset.forName("UTF-8").newEncoder().onMalformedInput(CodingErrorAction.REPORT)
 				.onUnmappableCharacter(CodingErrorAction.REPORT);
 		}
 	};
 
-	private static ThreadLocal<CharsetDecoder> DECODER_FACTORY = new ThreadLocal<CharsetDecoder>() {
+	private static final ThreadLocal<CharsetDecoder> DECODER_FACTORY = new ThreadLocal<CharsetDecoder>() {
 		protected CharsetDecoder initialValue() {
 			return Charset.forName("UTF-8").newDecoder().onMalformedInput(CodingErrorAction.REPORT)
 				.onUnmappableCharacter(CodingErrorAction.REPORT);
@@ -75,19 +75,19 @@ public class StringRecord implements Record {
 	/**
 	 * Construct from a string.
 	 */
-	public StringRecord(String string) {
+	public StringRecord(final String string) {
 		set(string);
 	}
 
 	/** Construct from another text. */
-	public StringRecord(StringRecord utf8) {
+	public StringRecord(final StringRecord utf8) {
 		set(utf8);
 	}
 
 	/**
 	 * Construct from a byte array.
 	 */
-	public StringRecord(byte[] utf8) {
+	public StringRecord(final byte[] utf8) {
 		set(utf8);
 	}
 
@@ -119,7 +119,7 @@ public class StringRecord implements Record {
 		return bytesToCodePoint(bb.slice());
 	}
 
-	public int find(String what) {
+	public int find(final String what) {
 		return find(what, 0);
 	}
 
@@ -175,7 +175,7 @@ public class StringRecord implements Record {
 	/**
 	 * Set to contain the contents of a string.
 	 */
-	public void set(String string) {
+	public void set(final String string) {
 		try {
 			final ByteBuffer bb = encode(string, true);
 			this.bytes = bb.array();
@@ -188,12 +188,12 @@ public class StringRecord implements Record {
 	/**
 	 * Set to a utf8 byte array
 	 */
-	public void set(byte[] utf8) {
+	public void set(final byte[] utf8) {
 		set(utf8, 0, utf8.length);
 	}
 
 	/** copy a text. */
-	public void set(StringRecord other) {
+	public void set(final StringRecord other) {
 		set(other.getBytes(), 0, other.getLength());
 	}
 
@@ -212,7 +212,7 @@ public class StringRecord implements Record {
 	 * @param len
 	 *        the number of bytes of the new string
 	 */
-	public void set(byte[] utf8, int start, int len) {
+	public void set(final byte[] utf8, final int start, final int len) {
 		setCapacity(len, false);
 		System.arraycopy(utf8, start, bytes, 0, len);
 		this.length = len;
@@ -228,7 +228,7 @@ public class StringRecord implements Record {
 	 * @param len
 	 *        the number of bytes to append
 	 */
-	public void append(byte[] utf8, int start, int len) {
+	public void append(final byte[] utf8, final int start, final int len) {
 		setCapacity(length + len, true);
 		System.arraycopy(utf8, start, bytes, length, len);
 		this.length += len;
@@ -250,7 +250,7 @@ public class StringRecord implements Record {
 	 * @param len the number of bytes we need
 	 * @param keepData should the old data be kept
 	 */
-	private void setCapacity(int len, boolean keepData) {
+	private void setCapacity(final int len, final boolean keepData) {
 		if (this.bytes == null || this.bytes.length < len) {
 			final byte[] newBytes = new byte[len];
 			if (this.bytes != null && keepData) {
@@ -276,7 +276,7 @@ public class StringRecord implements Record {
 	/**
 	 * deserialize
 	 */
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		final int newLength = in.readInt();
 		setCapacity(newLength, false);
 		in.readFully(this.bytes, 0, newLength);
@@ -284,12 +284,12 @@ public class StringRecord implements Record {
 	}
 
 	/** Skips over one Text in the input. */
-	public static void skip(DataInput in) throws IOException {
+	public static void skip(final DataInput in) throws IOException {
 		final int length = in.readInt();
 		skipFully(in, length);
 	}
 
-	public static void skipFully(DataInput in, int len) throws IOException {
+	public static void skipFully(final DataInput in, final int len) throws IOException {
 		int total = 0;
 		int cur = 0;
 
@@ -307,7 +307,7 @@ public class StringRecord implements Record {
 	 * 
 	 * @see Writable#read(DataOutput)
 	 */
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.length);
 		out.write(this.bytes, 0, this.length);
 	}
@@ -357,11 +357,11 @@ public class StringRecord implements Record {
 	 * Converts the provided byte array to a String using the UTF-8 encoding. If
 	 * the input is malformed, replace by a default value.
 	 */
-	public static String decode(byte[] utf8) throws CharacterCodingException {
+	public static String decode(final byte[] utf8) throws CharacterCodingException {
 		return decode(ByteBuffer.wrap(utf8), true);
 	}
 
-	public static String decode(byte[] utf8, int start, int length) throws CharacterCodingException {
+	public static String decode(final byte[] utf8, final int start, final int length) throws CharacterCodingException {
 		return decode(ByteBuffer.wrap(utf8, start, length), true);
 	}
 
@@ -371,11 +371,12 @@ public class StringRecord implements Record {
 	 * substitution character, which is U+FFFD. Otherwise the method throws a
 	 * MalformedInputException.
 	 */
-	public static String decode(byte[] utf8, int start, int length, boolean replace) throws CharacterCodingException {
+	public static String decode(final byte[] utf8, final int start, final int length, final boolean replace)
+			throws CharacterCodingException {
 		return decode(ByteBuffer.wrap(utf8, start, length), replace);
 	}
 
-	private static String decode(ByteBuffer utf8, boolean replace) throws CharacterCodingException {
+	private static String decode(final ByteBuffer utf8, final boolean replace) throws CharacterCodingException {
 		final CharsetDecoder decoder = DECODER_FACTORY.get();
 		if (replace) {
 			decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPLACE);
@@ -398,7 +399,7 @@ public class StringRecord implements Record {
 	 *         ByteBuffer.limit()
 	 */
 
-	public static ByteBuffer encode(String string) throws CharacterCodingException {
+	public static ByteBuffer encode(final String string) throws CharacterCodingException {
 		return encode(string, true);
 	}
 
@@ -411,7 +412,8 @@ public class StringRecord implements Record {
 	 * @return ByteBuffer: bytes stores at ByteBuffer.array() and length is
 	 *         ByteBuffer.limit()
 	 */
-	public static ByteBuffer encode(String string, boolean replace) throws CharacterCodingException {
+	public static ByteBuffer encode(final String string, final boolean replace) throws CharacterCodingException {
+
 		final CharsetEncoder encoder = ENCODER_FACTORY.get();
 		if (replace) {
 			encoder.onMalformedInput(CodingErrorAction.REPLACE);
@@ -428,7 +430,7 @@ public class StringRecord implements Record {
 	/**
 	 * Read a UTF8 encoded string from in
 	 */
-	public static String readString(DataInput in) throws IOException {
+	public static String readString(final DataInput in) throws IOException {
 
 		if (in.readBoolean()) {
 			final int length = in.readInt();
@@ -447,7 +449,7 @@ public class StringRecord implements Record {
 	/**
 	 * Write a UTF8 encoded string to out
 	 */
-	public static int writeString(DataOutput out, String s) throws IOException {
+	public static int writeString(final DataOutput out, final String s) throws IOException {
 
 		int length = 0;
 
@@ -479,7 +481,7 @@ public class StringRecord implements Record {
 	 * @throws MalformedInputException
 	 *         if the byte array contains invalid utf-8
 	 */
-	public static void validateUTF8(byte[] utf8) throws MalformedInputException {
+	public static void validateUTF8(final byte[] utf8) throws MalformedInputException {
 		validateUTF8(utf8, 0, utf8.length);
 	}
 
@@ -495,7 +497,7 @@ public class StringRecord implements Record {
 	 * @throws MalformedInputException
 	 *         if the byte array contains invalid bytes
 	 */
-	public static void validateUTF8(byte[] utf8, int start, int len) throws MalformedInputException {
+	public static void validateUTF8(final byte[] utf8, final int start, final int len) throws MalformedInputException {
 		int count = start;
 		int leadByte = 0;
 		int length = 0;
@@ -593,7 +595,7 @@ public class StringRecord implements Record {
 	 * buffer's position will be incremented. Any mark set on this buffer will
 	 * be changed by this method!
 	 */
-	public static int bytesToCodePoint(ByteBuffer bytes) {
+	public static int bytesToCodePoint(final ByteBuffer bytes) {
 		bytes.mark();
 		final byte b = bytes.get();
 		bytes.reset();
@@ -637,7 +639,7 @@ public class StringRecord implements Record {
 	 *        text to encode
 	 * @return number of UTF-8 bytes required to encode
 	 */
-	public static int utf8Length(String string) {
+	public static int utf8Length(final String string) {
 		final CharacterIterator iter = new StringCharacterIterator(string);
 		char ch = iter.first();
 		int size = 0;

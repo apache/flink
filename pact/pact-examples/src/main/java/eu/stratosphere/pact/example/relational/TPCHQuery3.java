@@ -48,17 +48,16 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * The TPC-H is a decision support benchmark on relational data.
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .This implementation is tested with
- * the DB2 data format.  
- * THe PACT program implements a modified version of the query 3 of 
+ * the DB2 data format.
+ * THe PACT program implements a modified version of the query 3 of
  * the TPC-H benchmark including one join, some filtering and an
  * aggregation.
- * 
  * SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
- *   FROM orders, lineitem
- *   WHERE l_orderkey = o_orderkey
- *     AND o_orderstatus = "X" 
- *     AND YEAR(o_orderdate) > Y
- *     AND o_orderpriority LIKE "Z%"
+ * FROM orders, lineitem
+ * WHERE l_orderkey = o_orderkey
+ * AND o_orderstatus = "X"
+ * AND YEAR(o_orderdate) > Y
+ * AND o_orderpriority LIKE "Z%"
  * GROUP BY l_orderkey, o_shippriority;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
@@ -81,8 +80,10 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		/**
 		 * Initializes the concatenation of integer and string.
 		 * 
-		 * @param first Integer value for concatenating
-		 * @param second String value for concatenating
+		 * @param first
+		 *        Integer value for concatenating
+		 * @param second
+		 *        String value for concatenating
 		 */
 		public N_IntStringPair(PactInteger first, PactString second) {
 			super(first, second);
@@ -93,14 +94,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Map PACT implements the filter on the orders table. The SameKey
 	 * OutputContract is annotated because the key does not change during
 	 * filtering.
-	 *  
 	 */
 	@SameKey
 	public static class FilterO extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
 
 		private int yearFilter;
+
 		private String prioFilter;
-		
+
 		@Override
 		public void configure(Configuration parameters) {
 			this.yearFilter = parameters.getInteger("YEAR_FILTER", 1990);
@@ -109,14 +110,12 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		/**
 		 * Filters the orders table by year, orderstatus and orderpriority
-		 *
-		 *  o_orderstatus = "X" 
-		 *  AND YEAR(o_orderdate) > Y
-		 *  AND o_orderpriority LIKE "Z"
-	 	 *  
-	 	 * Output Schema:
-	 	 *  Key: ORDERKEY
-	 	 *  Value: 0:ORDERKEY, 1:SHIPPRIORITY
+		 * o_orderstatus = "X"
+		 * AND YEAR(o_orderdate) > Y
+		 * AND o_orderpriority LIKE "Z"
+		 * Output Schema:
+		 * Key: ORDERKEY
+		 * Value: 0:ORDERKEY, 1:SHIPPRIORITY
 		 */
 		@Override
 		public void map(final PactInteger oKey, final Tuple value, final Collector<PactInteger, Tuple> out) {
@@ -143,22 +142,19 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		}
 	}
 
-
 	/**
 	 * Map PACT implements the projection on the LineItem table. The SameKey
 	 * OutputContract is annotated because the key does not change during
 	 * projection.
-	 *
 	 */
 	@SameKey
 	public static class ProjectLi extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
 
 		/**
-		 * Does the projection on the LineItem table 
-		 *
+		 * Does the projection on the LineItem table
 		 * Output Schema:
-		 *  Key: ORDERKEY
-		 *  Value: 0:ORDERKEY, 1:EXTENDEDPRICE
+		 * Key: ORDERKEY
+		 * Value: 0:ORDERKEY, 1:EXTENDEDPRICE
 		 */
 		@Override
 		public void map(PactInteger oKey, Tuple value, Collector<PactInteger, Tuple> out) {
@@ -168,23 +164,20 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * Match PACT realizes the join between LineItem and Order table. The 
+	 * Match PACT realizes the join between LineItem and Order table. The
 	 * SuperKey OutputContract is annotated because the new key is
 	 * built of the keys of the inputs.
-	 *
 	 */
 	@SuperKey
 	public static class JoinLiO extends MatchStub<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> {
 
 		/**
-		 * Implements the join between LineItem and Order table on the 
+		 * Implements the join between LineItem and Order table on the
 		 * order key.
-		 * 
 		 * WHERE l_orderkey = o_orderkey
-		 * 
 		 * Output Schema:
-		 *  Key: ORDERKEY, SHIPPRIORITY
-		 *  Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
+		 * Key: ORDERKEY, SHIPPRIORITY
+		 * Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
 		 */
 		@Override
 		public void match(PactInteger oKey, Tuple oVal, Tuple liVal, Collector<N_IntStringPair, Tuple> out) {
@@ -199,24 +192,20 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * Reduce PACT implements the aggregation of the results. The 
+	 * Reduce PACT implements the aggregation of the results. The
 	 * Combinable annotation is set as the partial sums can be calculated
 	 * already in the combiner
-	 *
 	 */
 	@Combinable
 	public static class AggLiO extends ReduceStub<N_IntStringPair, Tuple, PactInteger, Tuple> {
 
 		/**
-		 * Does the aggregation of the query. 
-		 * 
+		 * Does the aggregation of the query.
 		 * sum(l_extendedprice) as revenue
 		 * GROUP BY l_orderkey, o_shippriority;
-		 * 
 		 * Output Schema:
-		 *  Key: ORDERKEY
-		 *  Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
-		 *
+		 * Key: ORDERKEY
+		 * Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
 		 */
 		@Override
 		public void reduce(N_IntStringPair oKeyShipPrio, Iterator<Tuple> values, Collector<PactInteger, Tuple> out) {
@@ -269,10 +258,16 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(final String... args) {
 
 		// parse program parameters
-		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-		String ordersPath    = (args.length > 1 ? args[1] : "");
+		int noSubtasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String ordersPath = (args.length > 1 ? args[1] : "");
 		String lineitemsPath = (args.length > 2 ? args[2] : "");
-		String output        = (args.length > 3 ? args[3] : "");
+		String output = (args.length > 3 ? args[3] : "");
+
+		// optional parameters to run this job on Amazon EC2
+		String awsAccessID = (args.length > 4 ? args[4] : null);
+		String awsSecretKey = (args.length > 5 ? args[5] : null);
+		String awsImageID = (args.length > 6 ? args[6] : null);
+		String sshKeyPair = (args.length > 7 ? args[7] : null);
 
 		// create DataSourceContract for Orders input
 		FileDataSourceContract<PactInteger, Tuple> orders = new FileDataSourceContract<PactInteger, Tuple>(
@@ -342,8 +337,22 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		joinLiO.setSecondInput(projectLi);
 		projectLi.setInput(lineitems);
 
+		Plan plan = new Plan(result, "TPCH Q3");
+		if (awsAccessID != null) {
+			plan.getPlanConfiguration().setNepheleString("job.ec2.awsaccessid", awsAccessID);
+		}
+		if (awsSecretKey != null) {
+			plan.getPlanConfiguration().setNepheleString("job.ec2.awssecretkey", awsSecretKey);
+		}
+		if (awsImageID != null) {
+			plan.getPlanConfiguration().setNepheleString("job.ec2.ami", awsImageID);
+		}
+		if (sshKeyPair != null) {
+			plan.getPlanConfiguration().setNepheleString("job.ec2.sshkeypair", sshKeyPair);
+		}
+
 		// return the PACT plan
-		return new Plan(result, "TPCH Q3");
+		return plan;
 	}
 
 	/**

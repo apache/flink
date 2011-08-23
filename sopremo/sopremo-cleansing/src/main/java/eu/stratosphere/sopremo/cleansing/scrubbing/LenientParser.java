@@ -84,11 +84,11 @@ public class LenientParser {
 				public JsonNode parse(final String textualValue) {
 					StringBuilder cleanedValue = new StringBuilder(this.removePattern.matcher(textualValue).replaceAll(
 						""));
-					if (!removeSuperfluxSigns(cleanedValue))
+					if (!this.removeSuperfluxSigns(cleanedValue))
 						return null;
 
 					if (defaultValue.isFloatingPointNumber())
-						remomveSuperfluxDots(cleanedValue);
+						this.remomveSuperfluxDots(cleanedValue);
 
 					return TypeCoercer.INSTANCE.coerce(TextNode.valueOf(cleanedValue.toString()), type);
 				}
@@ -193,8 +193,9 @@ public class LenientParser {
 
 		public abstract JsonNode parse(String textualValue);
 
+		@Override
 		public final JsonNode parse(TextNode textNode) {
-			return parse(textNode.getTextValue());
+			return this.parse(textNode.getTextValue());
 		}
 	}
 }

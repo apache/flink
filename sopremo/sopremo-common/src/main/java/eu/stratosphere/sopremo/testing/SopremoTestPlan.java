@@ -26,6 +26,7 @@ import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.util.ConversionIterator;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
@@ -46,6 +47,8 @@ public class SopremoTestPlan {
 	private transient TestPlan testPlan;
 
 	private final EvaluationContext evaluationContext = new EvaluationContext();
+
+	private boolean trace;
 
 	public SopremoTestPlan(final int numInputs, final int numOutputs) {
 		this.initInputsAndOutputs(numInputs, numOutputs);
@@ -91,6 +94,10 @@ public class SopremoTestPlan {
 				this.actualOutputs[index].getOperator().setInput(0, unconnectedOutputs.get(index));
 			this.expectedOutputs[index] = new ExpectedOutput(index);
 		}
+	}
+
+	public void trace() {
+		trace = true;
 	}
 
 	@Override
@@ -192,7 +199,11 @@ public class SopremoTestPlan {
 			input.prepare(this.testPlan);
 		for (final ExpectedOutput output : this.expectedOutputs)
 			output.prepare(this.testPlan);
+		if (trace)
+			SopremoUtil.trace();
 		this.testPlan.run();
+		if (trace)
+			SopremoUtil.untrace();
 		for (final ActualOutput output : this.actualOutputs)
 			output.load(this.testPlan);
 	}

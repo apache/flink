@@ -37,7 +37,7 @@ public class JobSubmissionResult extends AbstractJobResult {
 	 * @param description
 	 *        the error description
 	 */
-	public JobSubmissionResult(ReturnCode returnCode, String description) {
+	public JobSubmissionResult(final ReturnCode returnCode, final String description) {
 		super(returnCode, description);
 	}
 
@@ -54,7 +54,7 @@ public class JobSubmissionResult extends AbstractJobResult {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 	}
 
@@ -62,7 +62,7 @@ public class JobSubmissionResult extends AbstractJobResult {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 	}
 

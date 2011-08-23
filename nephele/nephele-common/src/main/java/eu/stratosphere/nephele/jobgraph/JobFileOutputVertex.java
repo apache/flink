@@ -28,14 +28,14 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
 
 /**
- * A JobFileOutputVertex is a specific subtype of a {@link JobOutputVertex} and is designed
+ * A JobFileOutputVertex is a specific subtype of a {@link AbstractJobOutputVertex} and is designed
  * for Nephele tasks which write data to a local or distributed file system. As every job output vertex
  * A JobFileOutputVertex must not have any further output.
  * 
  * @author warneke
  */
-public class JobFileOutputVertex extends JobGenericOutputVertex
-{
+public class JobFileOutputVertex extends AbstractJobOutputVertex {
+
 	/**
 	 * The path pointing to the output file/directory.
 	 */
@@ -51,7 +51,7 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobFileOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public JobFileOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
 		super(name, id, jobGraph);
 	}
 
@@ -63,7 +63,7 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobFileOutputVertex(String name, JobGraph jobGraph) {
+	public JobFileOutputVertex(final String name, final JobGraph jobGraph) {
 		super(name, null, jobGraph);
 	}
 
@@ -73,7 +73,7 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobFileOutputVertex(JobGraph jobGraph) {
+	public JobFileOutputVertex(final JobGraph jobGraph) {
 		super(null, null, jobGraph);
 	}
 
@@ -83,7 +83,7 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * @param path
 	 *        the path of the file the job file input vertex's task should write to
 	 */
-	public void setFilePath(Path path) {
+	public void setFilePath(final Path path) {
 		this.path = path;
 	}
 
@@ -104,8 +104,8 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * @param outputClass
 	 *        the class of the vertex's output task.
 	 */
-	public void setFileOutputClass(Class<? extends AbstractFileOutputTask> outputClass) {
-		this.outputClass = outputClass;
+	public void setFileOutputClass(final Class<? extends AbstractFileOutputTask> outputClass) {
+		this.invokableClass = outputClass;
 	}
 
 	/**
@@ -115,17 +115,16 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 */
 	@SuppressWarnings("unchecked")
 	public Class<? extends AbstractFileOutputTask> getFileOutputClass() {
-		return (Class<? extends AbstractFileOutputTask>) this.outputClass;
+		return (Class<? extends AbstractFileOutputTask>) this.invokableClass;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException
-	{
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
-		
+
 		// Read path of the input file
 		boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
@@ -138,8 +137,7 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException
-	{
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		// Write out the path of the input file
@@ -155,7 +153,7 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
+	public void checkConfiguration(final AbstractInvokable invokable) throws IllegalConfigurationException {
 
 		// Check if the user has specified a path
 		if (this.path == null) {
@@ -169,8 +167,8 @@ public class JobFileOutputVertex extends JobGenericOutputVertex
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable)
-	{
+	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
+
 		if (this.path == null) {
 			return 0;
 		}

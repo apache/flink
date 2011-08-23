@@ -43,7 +43,7 @@ public class EventNotificationManager {
 	 * @param eventType
 	 *        the event type the given listener object wants to be notified about
 	 */
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
+	public void subscribeToEvent(final EventListener eventListener, final Class<? extends AbstractTaskEvent> eventType) {
 
 		synchronized (this.subscriptions) {
 
@@ -65,7 +65,7 @@ public class EventNotificationManager {
 	 * @param eventType
 	 *        the event type to remove the subscription for
 	 */
-	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractEvent> eventType) {
+	public void unsubscribeFromEvent(final EventListener eventListener, final Class<? extends AbstractEvent> eventType) {
 
 		synchronized (this.subscriptions) {
 
@@ -87,7 +87,7 @@ public class EventNotificationManager {
 	 * @param event
 	 *        the event to deliver
 	 */
-	public void deliverEvent(AbstractTaskEvent event) {
+	public void deliverEvent(final AbstractTaskEvent event) {
 
 		synchronized (this.subscriptions) {
 

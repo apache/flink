@@ -16,21 +16,22 @@
 package eu.stratosphere.nephele.services;
 
 public class ServiceException extends Exception {
+
 	private static final long serialVersionUID = 8751768275700167972L;
 
 	protected ServiceException() {
 		super();
 	}
-	
-	public ServiceException(String message) {
+
+	public ServiceException(final String message) {
 		super(message);
 	}
 
-	public ServiceException(Throwable cause) {
+	public ServiceException(final Throwable cause) {
 		super(cause);
 	}
-	
-	public ServiceException(String message, Throwable cause) {
+
+	public ServiceException(final String message, final Throwable cause) {
 		super(message, cause);
 	}
 }

@@ -33,7 +33,7 @@ public class JobCancelResult extends AbstractJobResult {
 	 * @param description
 	 *        the optional error description
 	 */
-	public JobCancelResult(ReturnCode returnCode, String description) {
+	public JobCancelResult(final ReturnCode returnCode, final String description) {
 		super(returnCode, description);
 	}
 

@@ -56,7 +56,7 @@ public abstract class ValidationRule extends CleansingRule<ValidationContext> {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		ValidationRule other = (ValidationRule) obj;
 		return this.valueCorrection.equals(other.valueCorrection);

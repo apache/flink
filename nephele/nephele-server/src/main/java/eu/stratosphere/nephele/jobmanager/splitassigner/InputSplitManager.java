@@ -173,7 +173,7 @@ public final class InputSplitManager {
 
 		final InputSplit nextInputSplit = inputSplitAssigner.getNextInputSplit(vertex);
 		if (nextInputSplit != null) {
-			LOG.info(vertex + " receives input split " + nextInputSplit.getPartitionNumber());
+			LOG.info(vertex + " receives input split " + nextInputSplit.getSplitNumber());
 		}
 
 		return nextInputSplit;

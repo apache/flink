@@ -25,21 +25,27 @@ public class CompressionEvent extends AbstractEvent {
 
 	private int internalCompressionLibraryIndex = 0;
 
-	public CompressionEvent(int internalCompressionLibraryIndex) {
+	public CompressionEvent(final int internalCompressionLibraryIndex) {
 		this.internalCompressionLibraryIndex = internalCompressionLibraryIndex;
 	}
 
 	public CompressionEvent() {
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		this.internalCompressionLibraryIndex = in.readInt();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		out.writeInt(this.internalCompressionLibraryIndex);
 	}

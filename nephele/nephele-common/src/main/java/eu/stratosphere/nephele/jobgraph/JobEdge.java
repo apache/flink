@@ -58,8 +58,8 @@ public class JobEdge {
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate that this edge connects to
 	 */
-	public JobEdge(AbstractJobVertex connectedVertex, ChannelType channelType, CompressionLevel compressionLevel,
-			int indexOfInputGate) {
+	public JobEdge(final AbstractJobVertex connectedVertex, final ChannelType channelType,
+			final CompressionLevel compressionLevel, final int indexOfInputGate) {
 		this.connectedVertex = connectedVertex;
 		this.channelType = channelType;
 		this.compressionLevel = compressionLevel;
