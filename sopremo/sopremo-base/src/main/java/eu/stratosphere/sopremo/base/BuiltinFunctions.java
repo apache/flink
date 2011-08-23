@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
@@ -103,6 +105,42 @@ public class BuiltinFunctions {
 		int toPos = resolveIndex(to.getIntValue(), string.length());
 
 		return TextNode.valueOf(string.substring(fromPos, toPos));
+	}
+
+	public static JsonNode extract(TextNode pattern, TextNode input, JsonNode defaultValue) {
+		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
+		Matcher matcher = compiledPattern.matcher(input.getTextValue());
+		if (!matcher.find())
+			return defaultValue;
+
+		if (matcher.groupCount() == 1)
+			return TextNode.valueOf(matcher.group(0));
+
+		ArrayNode result = new ArrayNode(null);
+		for (int index = 1; index <= matcher.groupCount(); index++)
+			result.add(TextNode.valueOf(matcher.group(index)));
+		return result;
+	}
+
+	public static JsonNode extract(TextNode pattern, TextNode input) {
+		return extract(pattern, input, NullNode.getInstance());
+	}
+
+	public static JsonNode camelCase(TextNode input) {
+		char[] chars = input.getTextValue().toCharArray();
+
+		boolean capitalize = true;
+		for (int index = 0; index < chars.length; index++) {
+			if (Character.isWhitespace(chars[index]))
+				capitalize = true;
+			else if (capitalize) {
+				chars[index] = Character.toUpperCase(chars[index]);
+				capitalize = false;
+			} else
+				chars[index] = Character.toLowerCase(chars[index]);
+		}
+
+		return TextNode.valueOf(new String(chars));
 	}
 
 	private static int resolveIndex(final int index, final int size) {

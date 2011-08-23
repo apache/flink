@@ -182,7 +182,9 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
-			transformedNode.put(this.target, this.expression.evaluate(node, context));
+			JsonNode value = this.expression.evaluate(node, context);
+			if (!value.isNull())
+				transformedNode.put(this.target, value);
 		}
 
 		public EvaluationExpression getExpression() {

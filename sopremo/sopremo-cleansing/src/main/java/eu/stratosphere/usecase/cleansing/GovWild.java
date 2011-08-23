@@ -3,25 +3,22 @@ package eu.stratosphere.usecase.cleansing;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
-import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.TextNode;
 
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.PersistenceType;
 import eu.stratosphere.sopremo.Sink;
-import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Join;
 import eu.stratosphere.sopremo.cleansing.scrubbing.BlackListRule;
 import eu.stratosphere.sopremo.cleansing.scrubbing.PatternValidationExpression;
 import eu.stratosphere.sopremo.cleansing.scrubbing.SchemaMapping;
 import eu.stratosphere.sopremo.cleansing.scrubbing.Validation;
+import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
@@ -55,9 +52,9 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 	protected SchemaMapping mapCongressPerson(Validation congressScrub) {
 		ObjectCreation projection = new ObjectCreation();
-		projection.addMapping("firstName", projection);
-		projection.addMapping("middleName", projection);
-		projection.addMapping("lastName", projection);
+		projection.addMapping("firstName", new FunctionCall("extract", new ConstantExpression(",([^ ]+)")));
+		projection.addMapping("middleName", new FunctionCall("extract", new ConstantExpression(",[^ ]+ (.*)")));
+		projection.addMapping("lastName", new FunctionCall("camelCase", new FunctionCall("extract", new ConstantExpression("(.*),"))));
 		projection.addMapping("party", projection);
 
 		ObjectCreation birthDate = new ObjectCreation();
@@ -69,6 +66,10 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		birthDate
 			.addMapping("year", new FunctionCall("substring", new ConstantExpression(5), new ConstantExpression(9)));
 		projection.addMapping("deathDate", deathDate);
+
+//		ObjectCreation congressParty = new ObjectCreation();
+//		congressParty.addMapping("congressNumber", 0)
+//		projection.addMapping("worksFor", new ArrayCreation(null));
 
 		SchemaMapping congressMapping = new SchemaMapping(projection, congressScrub);
 		return congressMapping;
