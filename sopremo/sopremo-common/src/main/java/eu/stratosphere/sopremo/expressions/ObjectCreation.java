@@ -50,7 +50,7 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	public ObjectCreation(final Mapping... mappings) {
-		this(Arrays.asList(mappings));
+		this.mappings = new ArrayList<Mapping>(Arrays.asList(mappings));
 	}
 
 	public void addMapping(final Mapping mapping) {

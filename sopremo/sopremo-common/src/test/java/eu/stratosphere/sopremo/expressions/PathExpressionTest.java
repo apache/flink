@@ -14,6 +14,7 @@ import org.codehaus.jackson.node.TextNode;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
 @Ignore
@@ -51,5 +52,75 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 			new ArrayAccess(1)).evaluate(doc, this.context);
 
 		Assert.assertEquals(TextNode.valueOf("XML"), result);
+	}
+
+	@Test
+	public void shouldAddNewExpression() {
+		PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"));
+		expr.add(new ObjectAccess("ID"));
+		final JsonNode result = expr.evaluate(doc, this.context);
+
+		Assert.assertEquals(TextNode.valueOf("SGML"), result);
+	}
+
+	@Test
+	public void shouldRecognizeTruePrefix() {
+		final PathExpression prefix = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"));
+		final boolean result = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry")).isPrefix(prefix);
+
+		Assert.assertTrue(result);
+	}
+
+	@Test
+	public void shouldRejectWrongPrefix() {
+		final PathExpression prefix = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+			new ObjectAccess("title"));
+		final boolean result = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry")).isPrefix(prefix);
+
+		Assert.assertFalse(result);
+	}
+
+	@Test
+	public void shouldRejectPrefixWithWrongLength() {
+		final PathExpression prefix = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"));
+		final boolean result = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"))
+			.isPrefix(prefix);
+
+		Assert.assertFalse(result);
+	}
+
+	@Test
+	public void shouldReplaceRightFragment() {
+		final PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"), new ObjectAccess("ID"));
+		expr.replace(new ObjectAccess("ID"), new ObjectAccess("GlossSee"));
+
+		final JsonNode result = expr.evaluate(doc, this.context);
+
+		Assert.assertEquals(TextNode.valueOf("markup"), result);
+	}
+
+	@Test
+	public void shouldReplaceWholePath() {
+		final PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"), new ObjectAccess("ID"));
+		expr.replace(new PathExpression(new ObjectAccess("GlossDiv"), new ObjectAccess("GlossList"), new ObjectAccess(
+			"GlossEntry"), new ObjectAccess("ID")), new ObjectAccess("title"));
+
+		final JsonNode result = expr.evaluate(doc, this.context);
+
+		Assert.assertEquals(TextNode.valueOf("example glossary"), result);
+	}
+
+	@Test
+	public void shouldFindRightFragment() {
+		final SopremoExpression<EvaluationContext> result = new PathExpression(new ObjectAccess("glossary"),
+			new ObjectAccess("GlossDiv"), new ObjectAccess("GlossList")).getFragment(1);
+
+		Assert.assertEquals(new ObjectAccess("GlossDiv"), result);
 	}
 }
