@@ -62,7 +62,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds).
 	 */
-	private static final int SLEEPINTERVAL = 500;
+	private static final int SLEEPINTERVAL = 100;
 
 	/**
 	 * List of output gates created by the task.
