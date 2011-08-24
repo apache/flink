@@ -31,8 +31,6 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 
 	private final AbstractID ownerID;
 
-	private final long minimumFileSize;
-
 	private int size = 0;
 
 	private SpillingQueueElement head = null;
@@ -46,14 +44,13 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	private static final class SpillingQueueID extends AbstractID {
 	}
 
-	public SpillingQueue(final long minimumFileSize, final FileBufferManager fileBufferManager) {
-		this(new SpillingQueueID(), minimumFileSize, fileBufferManager);
+	public SpillingQueue(final FileBufferManager fileBufferManager) {
+		this(new SpillingQueueID(), fileBufferManager);
 	}
 
-	public SpillingQueue(final AbstractID ownerID, final long minimumFileSize, final FileBufferManager fileBufferManager) {
+	public SpillingQueue(final AbstractID ownerID, final FileBufferManager fileBufferManager) {
 
 		this.ownerID = ownerID;
-		this.minimumFileSize = minimumFileSize;
 		this.fileBufferManager = fileBufferManager;
 	}
 
@@ -175,12 +172,6 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		// Increase element counter
 		++this.size;
 
-		// Check if spilling the data to disk is reasonable
-		if (this.sizeOfMemoryBuffers >= this.minimumFileSize) {
-			System.out.println("Spilling data " + this.sizeOfMemoryBuffers);
-			spill();
-		}
-
 		return true;
 	}
 
@@ -249,31 +240,38 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		throw new UnsupportedOperationException("remove is not supported on this type of queue");
 	}
 
-	private void spill() {
+	private void spill(final boolean includeHead) throws IOException {
 
 		SpillingQueueElement elem = this.head;
-		if (elem == null) {
-			return;
-		}
+		if (!includeHead) {
+			if (elem == null) {
+				return;
+			}
 
-		// Skip the head;
-		elem = elem.getNextElement();
+			// Skip the head;
+			elem = elem.getNextElement();
+		}
 
 		int reclaimedMemory = 0;
 
-		try {
+		while (elem != null) {
 
-			while (elem != null) {
-
-				reclaimedMemory += elem.spill(this.ownerID, this.fileBufferManager);
-				elem = elem.getNextElement();
-			}
-
-		} catch (IOException ioe) {
-			ioe.printStackTrace();
+			reclaimedMemory += elem.spill(this.ownerID, this.fileBufferManager);
+			elem = elem.getNextElement();
 		}
 
-		System.out.println("Reclaimed " + reclaimedMemory + " bytes of main memory");
+		// System.out.println("Reclaimed " + reclaimedMemory + " bytes of main memory");
+
 		this.sizeOfMemoryBuffers -= reclaimedMemory;
+	}
+
+	public void spillSynchronouslyIncludingHead() throws IOException {
+
+		spill(true);
+	}
+
+	public long getAmountOfMainMemoryInQueue() {
+
+		return this.sizeOfMemoryBuffers;
 	}
 }
