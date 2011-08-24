@@ -60,7 +60,9 @@ public interface ExecutionListener {
 	 * transmit output records) and requires a decision how to proceed.
 	 * 
 	 * @param ee
-	 *        the environment encapsulating the task which has exhausted its inital execution resources
+	 *        the environment encapsulating the task which has exhausted its initial execution resources
+	 * @param resourceUtilizationSnapshot
+	 *        a snapshot of the task's current resource utilization
 	 */
-	void initialExecutionResourcesExhausted(Environment ee);
+	void initialExecutionResourcesExhausted(Environment ee, ResourceUtilizationSnapshot resourceUtilizationSnapshot);
 }

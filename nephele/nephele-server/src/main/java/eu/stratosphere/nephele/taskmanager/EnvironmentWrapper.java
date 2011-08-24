@@ -21,6 +21,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
 /**
@@ -110,9 +111,11 @@ public class EnvironmentWrapper implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void initialExecutionResourcesExhausted(final Environment ee) {
+	public void initialExecutionResourcesExhausted(final Environment ee,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+		
 		// TODO Coordinate decision here
-
+		System.out.println(ee.getTaskName() + " has run out of inital execution resources");
 	}
 
 }

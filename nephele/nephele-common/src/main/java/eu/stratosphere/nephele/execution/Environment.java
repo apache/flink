@@ -19,8 +19,10 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,6 +36,8 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -1175,6 +1179,34 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
 			this.getOutputGate(i).releaseAllChannelResources();
+		}
+	}
+
+	/**
+	 * Triggers the notification that the task has run out of its initial execution resources.
+	 */
+	public void initialExecutionResourcesExhausted() {
+
+		// Construct a resource utilization snapshot
+		final long timestamp = System.currentTimeMillis();
+		final Map<ChannelID, Long> outputChannelUtilization = new HashMap<ChannelID, Long>();
+
+		for (int i = 0; i < getNumberOfOutputGates(); ++i) {
+			final OutputGate<? extends Record> outputGate = getOutputGate(i);
+			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+				outputChannelUtilization.put(outputChannel.getID(),
+					Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
+			}
+		}
+
+		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization);
+
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+			while (it.hasNext()) {
+				it.next().initialExecutionResourcesExhausted(this, rus);
+			}
 		}
 	}
 }

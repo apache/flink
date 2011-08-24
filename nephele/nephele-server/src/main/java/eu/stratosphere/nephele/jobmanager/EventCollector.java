@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -147,7 +148,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void initialExecutionResourcesExhausted(final Environment ee) {
+		public void initialExecutionResourcesExhausted(final Environment ee,
+				final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 			// Nothing to do here
 		}
 	}

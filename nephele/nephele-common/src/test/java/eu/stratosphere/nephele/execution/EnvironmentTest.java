@@ -213,6 +213,16 @@ public class EnvironmentTest {
 				}
 			}
 		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void initialExecutionResourcesExhausted(Environment ee,
+				ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+			// Nothing to do here
+
+		}
 	}
 
 	/**

@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -1476,7 +1477,8 @@ public class ExecutionGraph implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void initialExecutionResourcesExhausted(final Environment ee) {
+	public void initialExecutionResourcesExhausted(final Environment ee,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 		// Nothing to do here
 	}
 
