@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.input.InputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -37,7 +37,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * DataSourceTask which is executed by a Nephele task manager.
  * The task reads data and uses an InputFormat to create records from the input.
  * 
- * @see eu.stratosphere.pact.common.io.InputFormat
+ * @see eu.stratosphere.pact.common.io.input.InputFormat
  * 
  * @author Moritz Kaufmann
  * @author Fabian Hueske

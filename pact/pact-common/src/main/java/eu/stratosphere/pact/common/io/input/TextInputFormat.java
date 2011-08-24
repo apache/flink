@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.io.input;
 
 import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType1;
 import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;
@@ -350,7 +350,7 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends Fi
 	 * 
 	 * @param split The input split to open.
 	 * 
-	 * @see eu.stratosphere.pact.common.io.FileInputFormat#open(eu.stratosphere.nephele.fs.FileInputSplit)
+	 * @see eu.stratosphere.pact.common.io.input.FileInputFormat#open(eu.stratosphere.nephele.fs.FileInputSplit)
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException

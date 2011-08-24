@@ -17,7 +17,7 @@ package eu.stratosphere.pact.common.contract;
 
 import java.lang.annotation.Annotation;
 
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.input.InputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
@@ -28,7 +28,7 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @param T The type of input format invoked by instances of this data source.
  */
-public class GenericDataSource<K extends Key, V extends Value> extends Contract 
+public class GenericDataSourceContract<K extends Key, V extends Value> extends Contract 
 	implements OutputContractConfigurable
 {
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Source>";
@@ -45,7 +45,7 @@ public class GenericDataSource<K extends Key, V extends Value> extends Contract
 	 * @param clazz The Class for the specific input format
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public GenericDataSource(Class<? extends InputFormat<?, K, V>> clazz, String name)
+	public GenericDataSourceContract(Class<? extends InputFormat<?, K, V>> clazz, String name)
 	{
 		super(name);
 		this.clazz = clazz;
@@ -56,7 +56,7 @@ public class GenericDataSource<K extends Key, V extends Value> extends Contract
 	 * 
 	 * @param clazz The Class for the specific input format
 	 */
-	public GenericDataSource(Class<? extends InputFormat<?, K, V>> clazz)
+	public GenericDataSourceContract(Class<? extends InputFormat<?, K, V>> clazz)
 	{
 		super(DEFAULT_NAME);
 		this.clazz = clazz;

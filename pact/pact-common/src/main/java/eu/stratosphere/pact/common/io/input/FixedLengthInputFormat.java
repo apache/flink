@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.io.input;
 
 import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType1;
 import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;
@@ -90,7 +90,7 @@ public abstract class FixedLengthInputFormat<K extends Key, V extends Value> ext
 	/**
 	 * size of the read buffer
 	 */
-	private int readBufferSize;
+	private int targetReadBufferSize = DEFAULT_TARGET_READ_BUFFER_SIZE;
 	
 	/**
 	 * fixed length of all records
@@ -139,14 +139,6 @@ public abstract class FixedLengthInputFormat<K extends Key, V extends Value> ext
 			throw new IllegalArgumentException("The record length parameter must be set and larger than 0.");
 		}
 		
-		// compute readBufferSize
-		if(recordLength > DEFAULT_TARGET_READ_BUFFER_SIZE) {
-			// read buffer is at least as big as record
-			this.readBufferSize = recordLength;
-		} else {
-			// extent default read buffer size such that records are not split
-			this.readBufferSize = (DEFAULT_TARGET_READ_BUFFER_SIZE % recordLength) + DEFAULT_TARGET_READ_BUFFER_SIZE;
-		}
 	}
 	
 	/**
@@ -163,21 +155,11 @@ public abstract class FixedLengthInputFormat<K extends Key, V extends Value> ext
 	 * The actual size depends on the record length since it is chosen such that records are not split.
 	 * This method has only an effect, if it is called before the input format is opened.
 	 * 
-	 * @param bufferSize The buffer size to use.
+	 * @param targetReadBufferSize The target size of the read buffer.
 	 */
 	public void setTargetReadBufferSize(int targetReadBufferSize)
 	{
-		// compute readBufferSize
-		if(recordLength > targetReadBufferSize) {
-			// read buffer is at least as big as record
-			this.readBufferSize = recordLength;
-		} else if (targetReadBufferSize % recordLength == 0) {
-			// target read buffer size is a multiple of record length, so it's ok
-			this.readBufferSize = targetReadBufferSize;
-		} else {
-			// extent default read buffer size such that records are not split
-			this.readBufferSize = (recordLength - (targetReadBufferSize % recordLength)) + targetReadBufferSize;
-		}
+		this.targetReadBufferSize = targetReadBufferSize;
 	}
 	
 	/**
@@ -208,8 +190,22 @@ public abstract class FixedLengthInputFormat<K extends Key, V extends Value> ext
 			super.stream.seek(this.start + recordOffset);			
 		}
 
+		// compute readBufferSize
+		if(recordLength > this.targetReadBufferSize) {
+			// read buffer is at least as big as record
+			this.readBuffer = new byte[recordLength];
+		} else if (this.targetReadBufferSize % recordLength == 0) {
+			// target read buffer size is a multiple of record length, so it's ok
+			this.readBuffer = new byte[this.targetReadBufferSize];
+		} else {
+			// extent default read buffer size such that records are not split
+			this.readBuffer = new byte[(recordLength - (this.targetReadBufferSize % recordLength)) + this.targetReadBufferSize];
+		}
+		
 		// initialize read buffer
-		this.readBuffer = new byte[readBufferSize];
+		
+		
+		
 		// initialize record buffer
 		this.recordBuffer = new byte[this.recordLength];
 		// initialize remaining bytes to read

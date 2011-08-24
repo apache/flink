@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.io.input;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -154,7 +154,7 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 	 * 
 	 * @param The minimum desired number of file splits.
 	 * @return The computed file splits.
-	 * @see eu.stratosphere.pact.common.io.InputFormat#createInputSplits(int)
+	 * @see eu.stratosphere.pact.common.io.input.InputFormat#createInputSplits(int)
 	 */
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException
@@ -286,7 +286,7 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 	 * The stream is actually opened in an asynchronous thread to make sure any interruptions to the thread 
 	 * working on the input format do not reach the file system.
 	 * 
-	 * @see eu.stratosphere.pact.common.io.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
+	 * @see eu.stratosphere.pact.common.io.input.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException

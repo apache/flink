@@ -19,7 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.input.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;

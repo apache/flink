@@ -25,7 +25,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
-import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.input.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactJsonObject;

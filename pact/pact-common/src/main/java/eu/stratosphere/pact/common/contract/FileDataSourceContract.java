@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.input.FileInputFormat;
+import eu.stratosphere.pact.common.io.input.InputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
@@ -26,7 +26,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Erik Nijkamp
  * @author Moritz Kaufmann
  */
-public class FileDataSourceContract<KT extends Key, VT extends Value> extends GenericDataSource<KT, VT> 
+public class FileDataSourceContract<KT extends Key, VT extends Value> extends GenericDataSourceContract<KT, VT> 
 {
 	private static String DEFAULT_NAME = "<Unnamed File Data Source>";
 	

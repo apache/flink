@@ -38,8 +38,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.io.output.FileOutputFormat;
+import eu.stratosphere.pact.common.io.output.OutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -55,7 +55,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * DataSinkTask which is executed by a Nephele task manager.
  * The task hands the data to an output format.
  * 
- * @see eu.stratosphere.pact.common.io.OutputFormat
+ * @see eu.stratosphere.pact.common.io.output.OutputFormat
  * 
  * @author Fabian Hueske
  */

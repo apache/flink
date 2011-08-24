@@ -16,7 +16,7 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.output.TextOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactString;
 

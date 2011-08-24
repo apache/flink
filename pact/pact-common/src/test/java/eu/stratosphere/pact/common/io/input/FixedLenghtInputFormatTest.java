@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.io.input;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -19,6 +19,8 @@ import org.mockito.Mock;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.io.input.FileInputFormat;
+import eu.stratosphere.pact.common.io.input.FixedLengthInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 

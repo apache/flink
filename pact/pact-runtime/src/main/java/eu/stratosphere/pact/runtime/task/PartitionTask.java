@@ -33,7 +33,7 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.input.InputFormat;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.Stub;

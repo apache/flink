@@ -27,6 +27,8 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSinkContract;
+import eu.stratosphere.pact.common.contract.GenericDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.OutputContractConfigurable;
@@ -62,8 +64,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public enum PactType {
 		Cogroup(CoGroupContract.class),
 		Cross(CrossContract.class),
-		DataSource(FileDataSourceContract.class),
-		DataSink(FileDataSinkContract.class),
+		GenericDataSource(GenericDataSourceContract.class),
+		GenericDataSink(GenericDataSinkContract.class),
+		FileDataSource(FileDataSourceContract.class),
+		FileDataSink(FileDataSinkContract.class),
 		Map(MapContract.class),
 		Match(MatchContract.class),
 		Reduce(ReduceContract.class);

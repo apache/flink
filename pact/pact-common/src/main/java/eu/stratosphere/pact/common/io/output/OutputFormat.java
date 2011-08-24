@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.io.output;
 
 import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType1;
 import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;

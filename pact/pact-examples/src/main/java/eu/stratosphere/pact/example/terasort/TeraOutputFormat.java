@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.output.TextOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 
 /**

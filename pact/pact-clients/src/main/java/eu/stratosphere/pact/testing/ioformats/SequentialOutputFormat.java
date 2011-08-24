@@ -18,7 +18,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.output.FileOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;

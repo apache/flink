@@ -18,7 +18,7 @@ package eu.stratosphere.pact.example.relational.util;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.io.input.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactString;
 

@@ -26,16 +26,15 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.contract.GenericDataSinkContract;
+import eu.stratosphere.pact.common.contract.GenericDataSourceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -192,10 +191,16 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			case Cogroup:
 				vertex = generateCoGroupVertex(node);
 				break;
-			case DataSource:
+			case GenericDataSource:
 				vertex = generateDataSourceVertex(node);
 				break;
-			case DataSink:
+			case GenericDataSink:
+				vertex = generateDataSinkVertex(node);
+				break;
+			case FileDataSource:
+				vertex = generateDataSourceVertex(node);
+				break;
+			case FileDataSink:
 				vertex = generateDataSinkVertex(node);
 				break;
 			default:
@@ -576,7 +581,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private JobInputVertex generateDataSourceVertex(OptimizerNode sourceNode) throws CompilerException
 	{
 		DataSourceNode dsn = (DataSourceNode) sourceNode;
-		GenericDataSource<?, ?> contract = dsn.getPactContract();
+		GenericDataSourceContract<?, ?> contract = dsn.getPactContract();
 
 		// create task vertex
 		JobInputVertex sourceVertex = new JobInputVertex(contract.getName(), this.jobGraph);
@@ -611,7 +616,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private AbstractJobOutputVertex generateDataSinkVertex(OptimizerNode sinkNode) throws CompilerException
 	{
 		DataSinkNode sNode = (DataSinkNode) sinkNode;
-		GenericDataSink<?, ?> sinkContract = sNode.getPactContract();
+		GenericDataSinkContract<?, ?> sinkContract = sNode.getPactContract();
 		
 		// create task vertex
 		JobOutputVertex sinkVertex = new JobOutputVertex(sinkNode.getPactContract().getName(), this.jobGraph);
@@ -705,7 +710,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		case Cogroup:
 			// ok (Partitioning exist already)
 			break;
-		case DataSink:
+		case GenericDataSink:
+			// ok
+			break;
+		case FileDataSink:
 			// ok
 			break;
 		default:
@@ -743,7 +751,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		case Cogroup:
 			// ok (Default)
 			break;
-		case DataSink:
+		case GenericDataSink:
+			// ok
+			break;
+		case FileDataSink:
 			// ok
 			break;
 		default:

@@ -123,10 +123,16 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 		// output node type
 		String type;
 		switch (visitable.getPactType()) {
-		case DataSink:
+		case GenericDataSink:
 			type = "sink";
 			break;
-		case DataSource:
+		case GenericDataSource:
+			type = "source";
+			break;
+		case FileDataSink:
+			type = "sink";
+			break;
+		case FileDataSource:
 			type = "source";
 			break;
 		default:
@@ -141,12 +147,18 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 		}
 
 		// output node contents
-		String contents;
+		String contents = "";
 		switch (visitable.getPactType()) {
-		case DataSink:
+		case GenericDataSink:
+			// no content
+			break;
+		case GenericDataSource:
+			// no content
+			break;
+		case FileDataSink:
 			contents = ((FileDataSinkContract<?, ?>) visitable.getPactContract()).getFilePath();
 			break;
-		case DataSource:
+		case FileDataSource:
 			contents = ((FileDataSourceContract<?, ?>) visitable.getPactContract()).getFilePath();
 			break;
 		default:
