@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -161,6 +162,11 @@ public class TestPlan implements Closeable, DeploymentManager {
 		@Override
 		public void userThreadStarted(final Environment ee,
 				final Thread userThread) {
+		}
+
+		@Override
+		public void initialExecutionResourcesExhausted(final Environment ee,
+				final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 		}
 	}
 
@@ -385,8 +391,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	/**
 	 * Returns the first output {@link TestPairs} of the TestPlan. If multiple
 	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getActualOutput(FileDataSinkContract)}
-	 * method to unambiguously get
-	 * the values.<br>
+	 * method to unambiguously get the values.<br>
 	 * The values are only meaningful after a {@link #run()}.
 	 * 
 	 * @return the first output of the TestPlan
@@ -423,7 +428,8 @@ public class TestPlan implements Closeable, DeploymentManager {
 	/**
 	 * Returns the output {@link TestPairs} associated with the <i>i</i>th
 	 * output of the TestPlan. If multiple contracts are tested in the TestPlan,
-	 * it is recommended to use the {@link #getActualOutput(FileDataSinkContract)} method to unambiguously get the values.<br>
+	 * it is recommended to use the {@link #getActualOutput(FileDataSinkContract)} method to unambiguously get the
+	 * values.<br>
 	 * The values are only meaningful after a {@link #run()}.
 	 * 
 	 * @param number
@@ -587,8 +593,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * Returns the expected output {@link TestPairs} associated with the
 	 * <i>i</i>th expected output of the TestPlan. If multiple contracts are
 	 * tested in the TestPlan, it is recommended to use the {@link #getExpectedOutput(FileDataSinkContract)} method to
-	 * unambiguously set
-	 * the values.
+	 * unambiguously set the values.
 	 * 
 	 * @param number
 	 *        the number of the expected output.
@@ -603,7 +608,8 @@ public class TestPlan implements Closeable, DeploymentManager {
 
 	/**
 	 * Returns the first input {@link TestPairs} of the TestPlan. If multiple
-	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getInput(FileDataSourceContract)} method
+	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getInput(FileDataSourceContract)}
+	 * method
 	 * to unambiguously set the
 	 * values.
 	 * 

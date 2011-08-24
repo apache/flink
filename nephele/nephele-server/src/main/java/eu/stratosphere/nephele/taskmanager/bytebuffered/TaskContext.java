@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferCache;
@@ -25,13 +26,18 @@ final class TaskContext implements BufferProvider {
 
 	private final LocalBufferCache localBufferCache;
 
-	private final String taskName;
+	private final Environment environment;
 
-	TaskContext(final String taskName) {
+	/**
+	 * Stores whether the initial exhaustion of memory buffers has already been reported
+	 */
+	private boolean initialExhaustionOfMemoryBuffersReported = false;
+
+	TaskContext(final Environment environment) {
 
 		this.localBufferCache = new LocalBufferCache(1, false);
 
-		this.taskName = taskName;
+		this.environment = environment;
 	}
 
 	/**
@@ -88,7 +94,19 @@ final class TaskContext implements BufferProvider {
 		final int req = this.localBufferCache.getRequestedNumberOfBuffers();
 		final int des = this.localBufferCache.getDesignatedNumberOfBuffers();
 
-		System.out.println("\t\t" + this.taskName + ": " + ava + " available, " + req + " requested, " + des
-			+ " designated");
+		System.out.println("\t\t" + this.environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
+			+ des + " designated");
+	}
+
+	/**
+	 * Called by an {@link OutputGateContext} to indicate that the task has temporarily run out of memory buffers.
+	 */
+	void reportExhaustionOfMemoryBuffers() {
+
+		if (!this.initialExhaustionOfMemoryBuffersReported) {
+
+			this.environment.triggerInitialExecutionResourcesExhaustedNotification();
+			this.initialExhaustionOfMemoryBuffersReported = true;
+		}
 	}
 }

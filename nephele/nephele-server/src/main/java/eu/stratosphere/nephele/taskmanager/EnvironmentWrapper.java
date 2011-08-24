@@ -113,9 +113,9 @@ public class EnvironmentWrapper implements ExecutionListener {
 	@Override
 	public void initialExecutionResourcesExhausted(final Environment ee,
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-		
-		// TODO Coordinate decision here
-		System.out.println(ee.getTaskName() + " has run out of inital execution resources");
+
+		this.taskManager.initialExecutionResourcesExhausted(this.environment.getJobID(), this.id,
+			resourceUtilizationSnapshot);
 	}
 
 }

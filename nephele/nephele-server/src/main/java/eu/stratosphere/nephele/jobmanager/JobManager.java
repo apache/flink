@@ -68,6 +68,7 @@ import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -1159,5 +1160,38 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		return this.inputSplitManager.getNextInputSplit(vertex);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) throws IOException {
+
+		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
+		if (graph == null) {
+			LOG.error("Cannot find execution graph to job ID " + jobID);
+			return;
+		}
+
+		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
+		if (vertex == null) {
+			LOG.error("Cannot find execution vertex with ID " + vertexID);
+			return;
+		}
+
+		final Runnable taskStateChangeRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				// The registered listeners of the vertex will make sure the appropriate actions are taken
+				vertex.getEnvironment().initialExecutionResourcesExhausted(resourceUtilizationSnapshot);
+			}
+		};
+
+		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
+		this.executorService.execute(taskStateChangeRunnable);
 	}
 }

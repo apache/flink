@@ -1185,7 +1185,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Triggers the notification that the task has run out of its initial execution resources.
 	 */
-	public void initialExecutionResourcesExhausted() {
+	public void triggerInitialExecutionResourcesExhaustedNotification() {
 
 		// Construct a resource utilization snapshot
 		final long timestamp = System.currentTimeMillis();
@@ -1202,10 +1202,25 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization);
 
+		initialExecutionResourcesExhausted(rus);
+	}
+
+	/**
+	 * Triggers the notification that the task has run out of its initial execution resources.
+	 * 
+	 * @param resourceUtilizationSnapshot
+	 *        a snapshot of the task's resource utilization taken at the time when the exhaustion occurred
+	 */
+	public void initialExecutionResourcesExhausted(final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+
+		if (resourceUtilizationSnapshot == null) {
+			throw new IllegalArgumentException("Argument resourceUtilizationSnapshot must not be null");
+		}
+
 		synchronized (this.executionListeners) {
 			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
-				it.next().initialExecutionResourcesExhausted(this, rus);
+				it.next().initialExecutionResourcesExhausted(this, resourceUtilizationSnapshot);
 			}
 		}
 	}

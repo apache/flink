@@ -43,6 +43,7 @@ import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
@@ -648,7 +649,30 @@ public class TaskManager implements TaskOperationProtocol {
 				this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
 					optionalDescription));
 			} catch (IOException e) {
-				LOG.error("Transmitting the task execution result for ID " + id + " caused an IO exception");
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
+	}
+
+	/**
+	 * Called by an {@link EnvironmentWrapper} object to indicate that a task has exhausted its initial execution
+	 * resources.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the task belongs to
+	 * @param id
+	 *        the ID of the vertex representing the task
+	 * @param resourceUtilizationSnapshot
+	 *        snapshot of the task's resource utilization taken at the point in time when the exhaustion occurred
+	 */
+	void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID id,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+
+		synchronized (this.jobManager) {
+			try {
+				this.jobManager.initialExecutionResourcesExhausted(jobID, id, resourceUtilizationSnapshot);
+			} catch (IOException e) {
+				LOG.error(StringUtils.stringifyException(e));
 			}
 		}
 	}
