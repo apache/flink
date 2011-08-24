@@ -89,4 +89,13 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 
 		this.taskManagerProfiler.registerUserThreadForCPUProfiling(ee, userThread);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(Environment ee) {
+		// TODO Auto-generated method stub
+		
+	}
 }
