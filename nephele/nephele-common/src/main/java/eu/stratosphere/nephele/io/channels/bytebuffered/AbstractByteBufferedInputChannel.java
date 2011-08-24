@@ -310,9 +310,22 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		}
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void activate() throws IOException, InterruptedException {
 		
 		transferEvent(new ByteBufferedChannelActivateEvent());
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long getAmountOfDataTransmitted() {
+		
+		//TODO: Implement me
+		return 0L;
 	}
 }

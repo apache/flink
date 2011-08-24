@@ -172,4 +172,11 @@ public abstract class AbstractChannel implements IOReadableWritable {
 	 * called in case of a task error or as a result of a cancel operation.
 	 */
 	public abstract void releaseResources();
+
+	/**
+	 * Returns the number of bytes which have been transmitted through this channel since its instantiation.
+	 * 
+	 * @return the number of bytes which have been transmitted through this channel since its instantiation
+	 */
+	public abstract long getAmountOfDataTransmitted();
 }

@@ -87,6 +87,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 */
 	private Buffer uncompressedDataBuffer = null;
 
+	/**
+	 * Stores the number of bytes transmitted through this output channel since its instantiation.
+	 */
+	private long amountOfDataTransmitted = 0L;
+
 	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedInputChannel.class);
 
 	/**
@@ -121,10 +126,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				throw this.ioException;
 			}
 
-			if(this.outputChannelBroker.hasDataLeftToTransmit()) {
+			if (this.outputChannelBroker.hasDataLeftToTransmit()) {
 				return false;
 			}
-			
+
 			synchronized (this.synchronisationObject) {
 				if (this.closeAcknowledgementReceived) {
 					return true;
@@ -188,6 +193,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.outputChannelBroker.transferEventToInputChannel(new CompressionEvent(this.compressor
 				.getCurrentInternalCompressionLibraryIndex()));
 		}
+
+		// Keep track of number of bytes transmitted through this channel
+		this.amountOfDataTransmitted += this.uncompressedDataBuffer.size();
 
 		this.outputChannelBroker.releaseWriteBuffers();
 		this.compressedDataBuffer = null;
@@ -409,5 +417,14 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (this.compressor != null) {
 			this.compressor.shutdown(getID());
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long getAmountOfDataTransmitted() {
+
+		return this.amountOfDataTransmitted;
 	}
 }
