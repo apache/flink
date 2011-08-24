@@ -123,5 +123,13 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	public void userThreadStarted(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final Environment ee) {
+		// Nothing to do here
+	}
 
 }

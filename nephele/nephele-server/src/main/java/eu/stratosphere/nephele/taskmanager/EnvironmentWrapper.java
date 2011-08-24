@@ -59,7 +59,7 @@ public class EnvironmentWrapper implements ExecutionListener {
 	 * @param environment
 	 *        the environment this wrapper belongs to
 	 */
-	public EnvironmentWrapper(TaskManager taskManager, ExecutionVertexID id, Environment environment) {
+	public EnvironmentWrapper(final TaskManager taskManager, final ExecutionVertexID id, final Environment environment) {
 
 		this.taskManager = taskManager;
 		this.id = id;
@@ -79,7 +79,8 @@ public class EnvironmentWrapper implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void executionStateChanged(Environment ee, ExecutionState newExecutionState, String optionalMessage) {
+	public void executionStateChanged(final Environment ee, final ExecutionState newExecutionState,
+			final String optionalMessage) {
 
 		if (newExecutionState == ExecutionState.FAILED) {
 			LOG.error(optionalMessage);
@@ -93,7 +94,7 @@ public class EnvironmentWrapper implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(Environment ee, Thread userThread) {
+	public void userThreadFinished(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
 
@@ -101,8 +102,17 @@ public class EnvironmentWrapper implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(Environment ee, Thread userThread) {
+	public void userThreadStarted(final Environment ee, final Thread userThread) {
 		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final Environment ee) {
+		// TODO Coordinate decision here
+
 	}
 
 }
