@@ -39,7 +39,7 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 
 	private JsonGenerator generator;
 
-	private static final String PARAMETER_ENCODING = "Encoding";
+	public static final String PARAMETER_ENCODING = "Encoding";
 
 	public JsonOutputFormat() {
 		this.keyClass = PactJsonObject.Key.class;
@@ -68,6 +68,7 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 
 		this.generator = new JsonFactory().createJsonGenerator(this.stream, this.encoding);
 		this.generator.setCodec(new ObjectMapper());
+		this.generator.useDefaultPrettyPrinter();
 		this.generator.writeStartArray();
 	}
 

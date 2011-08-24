@@ -2,8 +2,10 @@ package eu.stratosphere.sopremo.base;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -61,6 +63,13 @@ public class BuiltinFunctions {
 		@Override
 		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
 			Collections.sort(nodes, JsonNodeComparator.INSTANCE);
+			return nodes;
+		}
+	};
+	
+	public static final AggregationFunction ALL = new MaterializingAggregationFunction("all") {
+		@Override
+		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
 			return nodes;
 		}
 	};
@@ -182,6 +191,16 @@ public class BuiltinFunctions {
 		for (final JsonNode jsonNode : node)
 			nodes.add(jsonNode);
 		Collections.sort(nodes, JsonNodeComparator.INSTANCE);
+		final ArrayNode arrayNode = new ArrayNode(null);
+		arrayNode.addAll(nodes);
+		return arrayNode;
+	}
+	
+	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
+	public static JsonNode distinct(final JsonNode node) {
+		final Set<JsonNode> nodes = new HashSet<JsonNode>();
+		for (final JsonNode jsonNode : node)
+			nodes.add(jsonNode);
 		final ArrayNode arrayNode = new ArrayNode(null);
 		arrayNode.addAll(nodes);
 		return arrayNode;

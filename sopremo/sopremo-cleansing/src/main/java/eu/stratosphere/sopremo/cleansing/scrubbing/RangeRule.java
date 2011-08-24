@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
@@ -37,7 +38,7 @@ public class RangeRule extends ValidationRule {
 
 	private transient JsonNode min, max;
 
-	public RangeRule(final JsonNode min, final JsonNode max, final String... targetPath) {
+	public RangeRule(final JsonNode min, final JsonNode max, final EvaluationExpression... targetPath) {
 		super(targetPath);
 		this.min = min;
 		this.max = max;

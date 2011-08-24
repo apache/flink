@@ -28,6 +28,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -56,7 +57,7 @@ public class SopremoUtil {
 							SopremoUtil.deserialize(parameters, stubField.getName(), Serializable.class));
 					} catch (final Exception e) {
 						LOG.error(String.format("Could not set field %s of class %s: %s", stubField.getName(),
-							stub.getClass(), e));
+							stub.getClass(), StringUtils.stringifyException(e)));
 					}
 	}
 
@@ -209,6 +210,7 @@ public class SopremoUtil {
 		} catch (final IOException ex) {
 			ex.printStackTrace();
 		} catch (final ClassNotFoundException e) {
+			LOG.error(String.format("%s; classpath %s", e.getMessage(), System.getProperty("java.class.path")));
 			e.printStackTrace();
 		}
 		return object;

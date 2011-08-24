@@ -21,7 +21,7 @@ import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ArrayMerger;
-import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
@@ -42,17 +42,17 @@ public class Join extends CompositeOperator {
 	 */
 	private static final long serialVersionUID = 6428723643579047169L;
 
-	private final BooleanExpression condition;
+	private final EvaluationExpression condition;
 
 	private final EvaluationExpression expression;
 
-	public Join(final EvaluationExpression expression, final BooleanExpression condition, final JsonStream... inputs) {
+	public Join(final EvaluationExpression expression, final EvaluationExpression condition, final JsonStream... inputs) {
 		super(inputs);
 		this.condition = condition;
 		this.expression = expression;
 	}
 
-	public Join(final EvaluationExpression expression, final BooleanExpression condition,
+	public Join(final EvaluationExpression expression, final EvaluationExpression condition,
 			final List<? extends JsonStream> inputs) {
 		super(inputs);
 		this.condition = condition;
@@ -109,13 +109,13 @@ public class Join extends CompositeOperator {
 			&& this.expression.equals(((Join) obj).expression);
 	}
 
-	public BooleanExpression getCondition() {
+	public EvaluationExpression getCondition() {
 		return this.condition;
 	}
 
 	private List<TwoSourceJoin> getInitialJoinOrder(final AndExpression condition) {
 		final List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
-		for (final BooleanExpression expression : condition.getExpressions())
+		for (final EvaluationExpression expression : condition.getExpressions())
 			joins.add(this.getTwoSourceJoinForExpression(expression));
 
 		// TODO: add some kind of optimization
@@ -126,17 +126,17 @@ public class Join extends CompositeOperator {
 		return this.getInput(((ContainerExpression) expr1).find(InputSelection.class).getIndex()).getOperator();
 	}
 
-	private TwoSourceJoin getTwoSourceJoinForExpression(final BooleanExpression expression) {
-		if (expression instanceof ComparativeExpression)
+	private TwoSourceJoin getTwoSourceJoinForExpression(final EvaluationExpression condition) {
+		if (condition instanceof ComparativeExpression)
 			return new ComparisonJoin(
-				this.getInputForExpression(((ComparativeExpression) expression).getExpr1()),
-				this.getInputForExpression(((ComparativeExpression) expression).getExpr2()),
-				(ComparativeExpression) expression);
-		if (expression instanceof ElementInSetExpression)
-			return new ElementInSetJoin(this.getInputForExpression(((ElementInSetExpression) expression)
-				.getElementExpr()), this.getInputForExpression(((ElementInSetExpression) expression).getSetExpr()),
-				(ElementInSetExpression) expression);
-		throw new UnsupportedOperationException("expression " + expression + " not supported");
+				this.getInputForExpression(((ComparativeExpression) condition).getExpr1()),
+				this.getInputForExpression(((ComparativeExpression) condition).getExpr2()),
+				(ComparativeExpression) condition);
+		if (condition instanceof ElementInSetExpression)
+			return new ElementInSetJoin(this.getInputForExpression(((ElementInSetExpression) condition)
+				.getElementExpr()), this.getInputForExpression(((ElementInSetExpression) condition).getSetExpr()),
+				(ElementInSetExpression) condition);
+		throw new UnsupportedOperationException("condition " + condition + " not supported");
 	}
 
 	// @Override

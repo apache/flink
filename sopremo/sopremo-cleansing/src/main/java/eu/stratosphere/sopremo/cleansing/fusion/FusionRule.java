@@ -4,6 +4,7 @@ import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.cleansing.scrubbing.CleansingRule;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class FusionRule extends CleansingRule<FusionContext> {
 
@@ -12,7 +13,7 @@ public abstract class FusionRule extends CleansingRule<FusionContext> {
 	 */
 	private static final long serialVersionUID = -5841402171573265477L;
 
-	public FusionRule(final String... targetPath) {
+	public FusionRule(final EvaluationExpression... targetPath) {
 		super(targetPath);
 	}
 

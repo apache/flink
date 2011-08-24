@@ -21,6 +21,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
 public class Grouping extends MultiSourceOperator<Grouping> {
@@ -52,6 +53,9 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		if (inputs.size() <= 1)
 			return new GroupProjection(this.projection, inputs.get(0));
 
+		if (inputs.size() == 2)
+			return new CoGroupProjection(this.projection, inputs.get(0), inputs.get(1));
+
 		final UnionAll union = new UnionAll(inputs);
 		return new GroupProjection(new PathExpression(new AggregationExpression(new ArrayUnion()), this.projection),
 			union);
@@ -71,9 +75,9 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 
 	@Override
 	protected EvaluationExpression getDefaultValueProjection(final Output source) {
-		if(super.getDefaultValueProjection(source) != EvaluationExpression.VALUE)
+		if (super.getDefaultValueProjection(source) != EvaluationExpression.VALUE)
 			return super.getDefaultValueProjection(source);
-		if (this.getInputs().size() <= 1)
+		if (this.getInputs().size() <= 2)
 			return EvaluationExpression.VALUE;
 		final EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];
 		Arrays.fill(elements, EvaluationExpression.NULL);
@@ -113,6 +117,31 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 					((ArrayNode) mergedArray.get(index)).add(array.get(index));
 			}
 			return mergedArray;
+		}
+	}
+
+	public static class CoGroupProjection extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 561729616462154707L;
+
+		@SuppressWarnings("unused")
+		private final EvaluationExpression projection;
+
+		public CoGroupProjection(final EvaluationExpression projection, final JsonStream input1, final JsonStream input2) {
+			super(input1, input2);
+			this.projection = projection;
+		}
+
+		public static class Implementation extends
+				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			private EvaluationExpression projection;
+
+			@Override
+			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+				out.collect(key, this.projection.evaluate(JsonUtil.asArray(values1, values2), this.getContext()));
+			}
 		}
 	}
 

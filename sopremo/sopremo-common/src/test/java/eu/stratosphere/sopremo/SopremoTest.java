@@ -21,7 +21,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
+import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -167,7 +167,7 @@ public abstract class SopremoTest<T> {
 				segment = new InputSelection(Integer.parseInt(part));
 			else if (part.matches("\\[.*\\]")) {
 				if (part.charAt(1) == '*') {
-					segment = new LazyArrayProjection(createPath(parts.subList(index + 1, parts.size())));
+					segment = new ArrayProjection(createPath(parts.subList(index + 1, parts.size())));
 					index = parts.size();
 				} else if (part.contains(":")) {
 					final int delim = part.indexOf(":");

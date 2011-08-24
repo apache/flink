@@ -25,6 +25,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
@@ -45,7 +46,7 @@ public class Fusion extends ElementaryOperator {
 	 */
 	private static final long serialVersionUID = 8429199636646276642L;
 
-	private final Map<List<String>, FusionRule> rules = new HashMap<List<String>, FusionRule>();
+	private final Map<List<EvaluationExpression>, FusionRule> rules = new HashMap<List<EvaluationExpression>, FusionRule>();
 
 	private final List<Object2DoubleMap<List<String>>> weights = new ArrayList<Object2DoubleMap<List<String>>>();
 

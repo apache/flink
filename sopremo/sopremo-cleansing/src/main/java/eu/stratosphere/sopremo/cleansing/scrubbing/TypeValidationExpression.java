@@ -4,6 +4,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.TextNode;
 
 import eu.stratosphere.sopremo.TypeCoercer;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public class TypeValidationExpression extends ValidationRule {
 	/**
@@ -14,7 +15,7 @@ public class TypeValidationExpression extends ValidationRule {
 	private final Class<? extends JsonNode> type;
 
 	public TypeValidationExpression(final Class<? extends JsonNode> type,
-			final String... targetPath) {
+			final EvaluationExpression... targetPath) {
 		super(targetPath);
 		this.type = type;
 	}

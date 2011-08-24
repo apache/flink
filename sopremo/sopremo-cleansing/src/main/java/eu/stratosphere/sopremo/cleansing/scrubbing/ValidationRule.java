@@ -2,6 +2,8 @@ package eu.stratosphere.sopremo.cleansing.scrubbing;
 
 import org.codehaus.jackson.JsonNode;
 
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+
 public abstract class ValidationRule extends CleansingRule<ValidationContext> {
 	public static final UnresolvableCorrection DEFAULT_CORRECTION = UnresolvableCorrection.INSTANCE;
 
@@ -12,7 +14,7 @@ public abstract class ValidationRule extends CleansingRule<ValidationContext> {
 
 	private ValueCorrection valueCorrection = DEFAULT_CORRECTION;
 
-	public ValidationRule(final String... targetPath) {
+	public ValidationRule(final EvaluationExpression... targetPath) {
 		super(targetPath);
 	}
 

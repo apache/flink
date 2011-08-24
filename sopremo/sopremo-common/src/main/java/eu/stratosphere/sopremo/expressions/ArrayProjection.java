@@ -9,7 +9,7 @@ import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.util.ConversionIterator;
 
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
-public class LazyArrayProjection extends EvaluationExpression {
+public class ArrayProjection extends EvaluationExpression implements WritableEvaluable {
 	/**
 	 * 
 	 */
@@ -17,7 +17,7 @@ public class LazyArrayProjection extends EvaluationExpression {
 
 	private final EvaluationExpression expression;
 
-	public LazyArrayProjection(final EvaluationExpression expression) {
+	public ArrayProjection(final EvaluationExpression expression) {
 		this.expression = expression;
 	}
 
@@ -29,7 +29,7 @@ public class LazyArrayProjection extends EvaluationExpression {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final LazyArrayProjection other = (LazyArrayProjection) obj;
+		final ArrayProjection other = (ArrayProjection) obj;
 		return this.expression.equals(other.expression);
 	}
 
@@ -40,7 +40,7 @@ public class LazyArrayProjection extends EvaluationExpression {
 			return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
 				@Override
 				protected JsonNode convert(final JsonNode element) {
-					return LazyArrayProjection.this.expression.evaluate(element, context);
+					return ArrayProjection.this.expression.evaluate(element, context);
 				}
 			}, ((StreamArrayNode) node).isResettable());
 		// spread
@@ -48,6 +48,19 @@ public class LazyArrayProjection extends EvaluationExpression {
 		for (int index = 0, size = node.size(); index < size; index++)
 			arrayNode.add(this.expression.evaluate(node.get(index), context));
 		return arrayNode;
+	}
+
+	@Override
+	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+		ArrayNode arrayNode = (ArrayNode) node;
+		for (int index = 0, size = node.size(); index < size; index++)
+			arrayNode.set(index, ((WritableEvaluable) this.expression).set(node.get(index), value, context));
+		return arrayNode;
+	}
+	
+	@Override
+	public EvaluationExpression asExpression() {
+		return this;
 	}
 
 	@Override

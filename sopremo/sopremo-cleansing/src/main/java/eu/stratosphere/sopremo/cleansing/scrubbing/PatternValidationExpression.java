@@ -6,6 +6,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.TextNode;
 
 import eu.stratosphere.sopremo.TypeCoercer;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public class PatternValidationExpression extends ValidationRule {
 	/**
@@ -15,7 +16,7 @@ public class PatternValidationExpression extends ValidationRule {
 
 	private final Pattern pattern;
 
-	public PatternValidationExpression(final Pattern pattern, final String... targetPath) {
+	public PatternValidationExpression(final Pattern pattern, final EvaluationExpression... targetPath) {
 		super(targetPath);
 		this.pattern = pattern;
 	}

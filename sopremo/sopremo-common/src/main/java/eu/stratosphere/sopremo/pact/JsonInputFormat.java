@@ -15,7 +15,10 @@
 package eu.stratosphere.sopremo.pact;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 
+import org.codehaus.jackson.JsonEncoding;
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonToken;
@@ -40,8 +43,12 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 
 	private boolean end;
 
-	private JsonParser parser;	
-	
+	private JsonParser parser;
+
+	private Charset encoding;
+
+	public static final String PARAMETER_ENCODING = "Encoding";
+
 	private void checkEnd() throws IOException, JsonParseException {
 		if (this.array && this.parser.nextToken() == JsonToken.END_ARRAY || !this.array
 			&& this.parser.nextToken() == null)
@@ -57,6 +64,10 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 	@Override
 	public void configure(final Configuration parameters) {
 		super.configure(parameters);
+
+		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
+		if (encoding != null)
+			this.encoding = Charset.forName(encoding);
 	}
 
 	@Override
@@ -79,9 +90,12 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 	@Override
 	public void open(FileInputSplit split) throws JsonParseException, IOException {
 		super.open(split);
-		
+
 		this.end = false;
-		this.parser = JsonUtil.FACTORY.createJsonParser(this.stream);
+		if (encoding != null)
+			this.parser = JsonUtil.FACTORY.createJsonParser(new InputStreamReader(stream, encoding));
+		else
+			this.parser = JsonUtil.FACTORY.createJsonParser(stream);
 		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)
 			this.parser.clearCurrentToken();
@@ -93,7 +107,8 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 		return this.end;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
 	 */
 	@Override

@@ -13,6 +13,8 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.WritableEvaluable;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -79,7 +81,7 @@ public class Validation extends ElementaryOperator {
 				this.context.setContextNode(value);
 
 				for (final ValidationRule rule : this.rules) {
-					final List<String> targetPath = rule.getTargetPath();
+					final List<EvaluationExpression> targetPath = rule.getTargetPath();
 
 					if (targetPath.isEmpty()) {
 						if (!rule.validate(value, this.context)) {
@@ -90,13 +92,14 @@ public class Validation extends ElementaryOperator {
 						JsonNode parent = value;
 						final int lastIndex = targetPath.size() - 1;
 						for (int index = 0; index < lastIndex; index++)
-							parent = parent.get(targetPath.get(index));
+							parent = targetPath.get(index).evaluate(parent, context);
 
-						final String lastSegment = targetPath.get(lastIndex);
-						final JsonNode validationValue = parent.get(lastSegment);
+						final EvaluationExpression lastSegment = targetPath.get(lastIndex);
+						final JsonNode validationValue = lastSegment.evaluate(parent, context);
 						if (!rule.validate(validationValue, this.context)) {
 							this.context.setViolatedRule(rule);
-							((ObjectNode) parent).put(lastSegment, rule.fix(validationValue, this.context));
+							((WritableEvaluable) lastSegment).set(parent, rule.fix(validationValue, this.context),
+								this.context);
 						}
 					}
 				}
