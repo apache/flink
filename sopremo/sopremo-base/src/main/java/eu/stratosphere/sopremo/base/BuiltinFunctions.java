@@ -66,7 +66,7 @@ public class BuiltinFunctions {
 			return nodes;
 		}
 	};
-	
+
 	public static final AggregationFunction ALL = new MaterializingAggregationFunction("all") {
 		@Override
 		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
@@ -116,7 +116,7 @@ public class BuiltinFunctions {
 		return TextNode.valueOf(string.substring(fromPos, toPos));
 	}
 
-	public static JsonNode extract(TextNode pattern, TextNode input, JsonNode defaultValue) {
+	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
 		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
 		Matcher matcher = compiledPattern.matcher(input.getTextValue());
 		if (!matcher.find())
@@ -131,8 +131,8 @@ public class BuiltinFunctions {
 		return result;
 	}
 
-	public static JsonNode extract(TextNode pattern, TextNode input) {
-		return extract(pattern, input, NullNode.getInstance());
+	public static JsonNode extract(TextNode input, TextNode pattern) {
+		return extract(input, pattern, NullNode.getInstance());
 	}
 
 	public static JsonNode camelCase(TextNode input) {
@@ -195,7 +195,7 @@ public class BuiltinFunctions {
 		arrayNode.addAll(nodes);
 		return arrayNode;
 	}
-	
+
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
 	public static JsonNode distinct(final JsonNode node) {
 		final Set<JsonNode> nodes = new HashSet<JsonNode>();
@@ -204,6 +204,10 @@ public class BuiltinFunctions {
 		final ArrayNode arrayNode = new ArrayNode(null);
 		arrayNode.addAll(nodes);
 		return arrayNode;
+	}
+
+	public static JsonNode length(final TextNode node) {
+		return IntNode.valueOf(node.getTextValue().length());
 	}
 
 	/**

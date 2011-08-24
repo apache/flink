@@ -13,6 +13,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
@@ -28,17 +29,19 @@ public class SchemaMappingTest {
 						null) },
 
 				new Object[] {
-					Arrays.asList(new TypeValidationExpression(IntNode.class, "stringInsteadOfInteger")),
+					Arrays.asList(new TypeValidationExpression(IntNode.class,
+						new ObjectAccess("stringInsteadOfInteger"))),
 					createPactJsonObject("stringInsteadOfInteger", 12, "outsideMonthRange", 14, "shouldBeNonNull",
 						null) },
 
 				new Object[] {
-					Arrays.asList(new RangeRule(IntNode.valueOf(1), IntNode.valueOf(12), "outsideMonthRange")),
+					Arrays.asList(new RangeRule(IntNode.valueOf(1), IntNode.valueOf(12), new ObjectAccess(
+						"outsideMonthRange"))),
 					createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 12, "shouldBeNonNull",
 						null) },
 
 				new Object[] {
-					Arrays.asList(new NonNullRule("shouldBeNonNull")),
+					Arrays.asList(new NonNullRule(new ObjectAccess("shouldBeNonNull"))),
 					ERROR }
 			);
 	}
