@@ -22,11 +22,9 @@ public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJson
 
 	private char fieldDelimiter = ',';
 
-
 	private List<String> keynames = new ArrayList<String>();
 
 	private boolean end;
-	
 
 	@Override
 	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
@@ -34,10 +32,10 @@ public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJson
 	}
 
 	private void checkEnd() throws IOException {
-		if(reader.readRecord()){
-			this.end=false;
-		}else {
-			this.end=true;
+		if (reader.readRecord()) {
+			this.end = false;
+		} else {
+			this.end = true;
 			reader.close();
 		}
 	}
@@ -61,7 +59,7 @@ public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJson
 
 	private JsonNode parseCurrentLine() throws IOException {
 		ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
-		for(int i=0;i<keynames.size();i++){
+		for (int i = 0; i < keynames.size(); i++) {
 			node.put(keynames.get(i), reader.get(keynames.get(i)));
 		}
 		return node;
@@ -78,13 +76,15 @@ public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJson
 		super.open(split);
 
 		this.end = false;
-		this.reader = new CsvReader(new InputStreamReader(this.stream));
+		this.reader = new CsvReader(new InputStreamReader(this.stream, "UTF8"));
 		reader.setDelimiter(this.fieldDelimiter);
 		reader.readHeaders();
 		String[] headers = reader.getHeaders();
-		for(int i = 0;i<headers.length;i++){
+		for (int i = 0; i < headers.length; i++) {
 			keynames.add(headers[i]);
 		}
+		// for any reason, there is a BOM symbol in front of the first character
+		keynames.set(0, keynames.get(0).replaceAll("^\\ufeff", ""));
 		this.checkEnd();
 
 	}

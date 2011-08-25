@@ -27,25 +27,22 @@ public class CsvInputFormatTest {
 	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			CsvInputFormat.class, this.getResource("SopremoTestPlan/politician.csv"), "Input");
-		
-		
-		
-		//testing a bigger csv to watch the output
-		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> write = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
-				JsonOutputFormat.class, "file:///tmp/output.json", read, "Output");
-		
-		
+			CsvInputFormat.class, this.getResource("SopremoTestPlan/restaurant_short.csv"), "Input");
 
-		/*final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		// //testing a bigger csv to watch the output
+		// final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> write = new
+		// FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
+		// JsonOutputFormat.class, "file:///home/strato/Dokumente/u_s_congressperson.json", read, "Output");
+
+		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
 		final FileDataSinkContract<Key, Value> output = this.createOutput(map,
-			SequentialOutputFormat.class);*/
+			SequentialOutputFormat.class);
 
-		final TestPlan testPlan = new TestPlan(/*output*/write);
-		testPlan.getExpectedOutput(write).fromFile(JsonInputFormat.class,
+		final TestPlan testPlan = new TestPlan(output); // write
+		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class,
 			this.getResource("SopremoTestPlan/restaurant_short.json"));
 		testPlan.run();
 	}
