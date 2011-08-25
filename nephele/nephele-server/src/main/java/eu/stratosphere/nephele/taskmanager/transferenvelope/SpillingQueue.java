@@ -240,12 +240,12 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		throw new UnsupportedOperationException("remove is not supported on this type of queue");
 	}
 
-	private void spill(final boolean includeHead) throws IOException {
+	private long spill(final boolean includeHead) throws IOException {
 
 		SpillingQueueElement elem = this.head;
 		if (!includeHead) {
 			if (elem == null) {
-				return;
+				return 0L;
 			}
 
 			// Skip the head;
@@ -260,14 +260,14 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 			elem = elem.getNextElement();
 		}
 
-		// System.out.println("Reclaimed " + reclaimedMemory + " bytes of main memory");
-
 		this.sizeOfMemoryBuffers -= reclaimedMemory;
+
+		return reclaimedMemory;
 	}
 
-	public void spillSynchronouslyIncludingHead() throws IOException {
+	public long spillSynchronouslyIncludingHead() throws IOException {
 
-		spill(true);
+		return spill(true);
 	}
 
 	public long getAmountOfMainMemoryInQueue() {
