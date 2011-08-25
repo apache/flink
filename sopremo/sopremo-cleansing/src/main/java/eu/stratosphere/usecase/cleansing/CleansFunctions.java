@@ -1,8 +1,10 @@
 package eu.stratosphere.usecase.cleansing;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -10,6 +12,7 @@ import java.util.regex.Pattern;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.DoubleNode;
 import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.NumericNode;
@@ -44,6 +47,20 @@ public class CleansFunctions extends BuiltinFunctions {
 	public static JsonNode coerce(JsonNode input, TextNode type) {
 		return  TypeCoercer.INSTANCE.coerce(input, typeNameToType.get(type));
 	}
+
+	public static JsonNode average(NumericNode... inputs) {
+		double sum = 0;
+		
+		for (NumericNode numericNode : inputs) {
+			sum += numericNode.getDoubleValue();
+		}
+		
+		return DoubleNode.valueOf(sum / inputs.length);
+	}
+
+	public static JsonNode trim(TextNode input) {
+		return TextNode.valueOf(input.getTextValue().trim());
+	}
 	
 	public static JsonNode extract(TextNode input, TextNode pattern, TextNode expectedType) {
 		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
@@ -66,6 +83,16 @@ public class CleansFunctions extends BuiltinFunctions {
 
 	public static JsonNode extract(TextNode input, TextNode pattern) {
 		return extract(input, pattern, TextNode.valueOf("string"));
+	}
+	
+	public static JsonNode filter(ArrayNode input, JsonNode... elementsToFilter) {
+		ArrayNode output = new ArrayNode(null);
+		HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
+		for (int index = 0; index < output.size(); )
+			if(filterSet.contains(output.get(index)))
+				output.remove(index);
+				else index++;
+		return output;
 	}
 	
 //

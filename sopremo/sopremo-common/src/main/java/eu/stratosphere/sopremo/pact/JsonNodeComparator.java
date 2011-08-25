@@ -61,7 +61,11 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		final Class<? extends JsonNode> class2 = value2.getClass();
 		if(class1 != class2)
 			return class1.getSimpleName().compareTo(class2.getSimpleName());
-		return this.nodeComparators.get(class1).compare(value1, value2);
+		return compareStrict(value1, value2, class1);
+	}
+
+	public int compareStrict(final JsonNode value1, final JsonNode value2, final Class<? extends JsonNode> clazz) {
+		return this.nodeComparators.get(clazz).compare(value1, value2);
 	}
 	
 

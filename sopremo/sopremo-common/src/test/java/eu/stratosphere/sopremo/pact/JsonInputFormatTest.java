@@ -38,7 +38,7 @@ public class JsonInputFormatTest {
 	@Test
 	public void completeTestPasses() throws IOException {
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
+				JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");

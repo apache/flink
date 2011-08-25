@@ -68,10 +68,6 @@ public class BuiltinFunctions {
 	};
 
 	public static final AggregationFunction ALL = new MaterializingAggregationFunction("all") {
-		@Override
-		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
-			return nodes;
-		}
 	};
 
 	public static final AggregationFunction AVERAGE = new AggregationFunction("avg") {
@@ -100,12 +96,12 @@ public class BuiltinFunctions {
 	};
 
 	public static JsonNode format(TextNode format, JsonNode... params) {
-		Object[] paramsAsStrings = new String[params.length];
-		for (int index = 0; index < paramsAsStrings.length; index++)
-			paramsAsStrings[index] = params[index].isTextual() ? params[index].getTextValue() : params[index]
+		Object[] paramsAsObjects = new Object[params.length];
+		for (int index = 0; index < paramsAsObjects.length; index++)
+			paramsAsObjects[index] = params[index].isTextual() ? params[index].getTextValue() : params[index]
 				.toString();
 
-		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsStrings));
+		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsObjects));
 	}
 
 	public static JsonNode substring(TextNode input, IntNode from, IntNode to) {

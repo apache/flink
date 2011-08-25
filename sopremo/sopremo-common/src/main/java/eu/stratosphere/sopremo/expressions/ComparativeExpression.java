@@ -1,12 +1,15 @@
 package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.JsonParser.NumberType;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.TextNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.NumberCoercer;
+import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
 public class ComparativeExpression extends BooleanExpression {
@@ -79,39 +82,63 @@ public class ComparativeExpression extends BooleanExpression {
 	public static enum BinaryOperator {
 		EQUAL("=") {
 			@Override
-			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-				return e1.equals(e2);
-			};
+			public boolean isTrue(int comparisonResult) {
+				return comparisonResult  == 0;
+			}
+//			@Override
+//			public boolean evaluate(JsonNode e1, JsonNode e2) {
+//				return e1.equals(e2);
+//			};
 		},
 		NOT_EQUAL("<>") {
 			@Override
-			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-				return !e1.equals(e2);
-			};
+			public boolean isTrue(int comparisonResult) {
+				return comparisonResult  != 0;
+			}
+//			@Override
+//			public boolean evaluate(JsonNode e1, JsonNode e2) {
+//				return !e1.equals(e2);
+//			};
 		},
 		LESS("<") {
 			@Override
-			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-				return e1.compareTo(e2) < 0;
-			};
+			public boolean isTrue(int comparisonResult) {
+				return comparisonResult  < 0;
+			}
+//			@Override
+//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+//				return e1.compareTo(e2) < 0;
+//			};
 		},
 		LESS_EQUAL("<=") {
 			@Override
-			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-				return e1.compareTo(e2) <= 0;
-			};
+			public boolean isTrue(int comparisonResult) {
+				return comparisonResult  <= 0;
+			}
+//			@Override
+//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+//				return e1.compareTo(e2) <= 0;
+//			};
 		},
 		GREATER(">") {
 			@Override
-			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-				return e1.compareTo(e2) > 0;
-			};
+			public boolean isTrue(int comparisonResult) {
+				return comparisonResult  > 0;
+			}
+//			@Override
+//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+//				return e1.compareTo(e2) > 0;
+//			};
 		},
 		GREATER_EQUAL(">=") {
 			@Override
-			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-				return e1.compareTo(e2) >= 0;
-			};
+			public boolean isTrue(int comparisonResult) {
+				return comparisonResult  >= 0;
+			}
+//			@Override
+//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+//				return e1.compareTo(e2) >= 0;
+//			};
 		};
 
 		private final String sign;
@@ -121,18 +148,25 @@ public class ComparativeExpression extends BooleanExpression {
 		}
 
 		public boolean evaluate(final JsonNode e1, final JsonNode e2) {
-			if (e1 instanceof NumericNode && e2 instanceof NumericNode)
-				// TODO: improve efficiency
-				return this.evaluateComparable(((NumericNode) e1).getDecimalValue(),
-					((NumericNode) e2).getDecimalValue());
-			if (e1 instanceof TextNode && e2 instanceof TextNode)
-				return this.evaluateComparable(e1.getTextValue(), e2.getTextValue());
-			throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
+			if(e1.getClass() != e2.getClass()) {
+				if (e1 instanceof NumericNode && e2 instanceof NumericNode) {
+					NumberType widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
+					return isTrue( JsonNodeComparator.INSTANCE.compareStrict(e1, e2, NumberCoercer.INSTANCE.getImplementationType(widerType)));
+				}
+					
+				throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
+			}
+				
+			return isTrue(JsonNodeComparator.INSTANCE.compareStrict(e1, e2, 	e1.getClass()));
 		}
 
-		public <T extends Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+		public boolean isTrue(int comparisonResult) {
 			return false;
 		}
+//
+//		public boolean evaluateComparable(final T e1, final T e2) {
+//			return false;
+//		}
 
 		@Override
 		public String toString() {

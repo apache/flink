@@ -14,6 +14,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Source extends ElementaryOperator {
 	/**
@@ -45,10 +46,10 @@ public class Source extends ElementaryOperator {
 		if (this.type == PersistenceType.ADHOC) {
 			try {
 				final File tempFile = File.createTempFile("Adhoc", "source");
-				tempFile.deleteOnExit();
-				inputName = tempFile.toURI().toString();
-				name = "Adhoc";
 				writeValues(tempFile);
+				inputName = "file://localhost:80" + tempFile.getAbsolutePath();
+				SopremoUtil.LOG.info("temp file " + inputName);
+				name = "Adhoc";
 			} catch (IOException e) {
 				throw new IllegalStateException("Cannot create adhoc source", e);
 			}

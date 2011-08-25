@@ -35,20 +35,15 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 
 	private LinkageMode linkageMode = LinkageMode.LINKS_ONLY;
 
-	public LinkageMode getLinkageMode() {
-		return this.linkageMode;
-	}
-
-	public void setLinkageMode(LinkageMode linkageMode) {
-		if (linkageMode == null)
-			throw new NullPointerException("linkageMode must not be null");
-
-		this.linkageMode = linkageMode;
-	}
-
 	public InterSourceRecordLinkage(final RecordLinkageAlgorithm algorithm,
 			final EvaluationExpression similarityExpression,
 			final double threshold, final JsonStream... inputs) {
+		this(algorithm, similarityExpression, threshold, Arrays.asList(inputs));
+	}
+	
+	public InterSourceRecordLinkage(final RecordLinkageAlgorithm algorithm,
+			final EvaluationExpression similarityExpression,
+			final double threshold, final List<? extends JsonStream> inputs) {
 		super(1, inputs);
 		if (algorithm == null)
 			throw new NullPointerException();
@@ -175,6 +170,10 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 			&& this.recordLinkageInputs.equals(other.recordLinkageInputs);
 	}
 
+	public LinkageMode getLinkageMode() {
+		return this.linkageMode;
+	}
+
 	public RecordLinkageInput getRecordLinkageInput(final int index) {
 		RecordLinkageInput recordLinkageInput = this.recordLinkageInputs.get(this.getInput(index));
 		if (recordLinkageInput == null)
@@ -192,6 +191,13 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 		result = prime * result + this.similarityCondition.hashCode();
 		result = prime * result + this.recordLinkageInputs.hashCode();
 		return result;
+	}
+
+	public void setLinkageMode(LinkageMode linkageMode) {
+		if (linkageMode == null)
+			throw new NullPointerException("linkageMode must not be null");
+
+		this.linkageMode = linkageMode;
 	}
 
 }
