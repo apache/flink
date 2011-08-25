@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.pact;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -15,57 +14,55 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 
-public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJsonObject>{
+import com.csvreader.CsvReader;
 
-//	private boolean array;
-	
-	private BufferedReader reader;
-	
-	private String splitsymbol = ",";
-	private String typeidentifier = "\"";
-	
-	private String currentLine;
-	
+public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJsonObject> {
+
+	private CsvReader reader;
+
+	private char fieldDelimiter = ',';
+
+
 	private List<String> keynames = new ArrayList<String>();
 
 	private boolean end;
 	
+
 	@Override
 	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
 		return null;
 	}
-	
+
 	private void checkEnd() throws IOException {
-		currentLine= this.reader.readLine();
-		if(this.currentLine != null){
-			this.end = false;
-		} else this.end = true;		
+		if(reader.readRecord()){
+			this.end=false;
+		}else {
+			this.end=true;
+			reader.close();
+		}
 	}
-	
+
 	@Override
 	public boolean reachedEnd() {
 		return this.end;
 	}
-	
 
 	@Override
 	public boolean nextRecord(KeyValuePair<Key, PactJsonObject> record) throws IOException {
 		if (!this.end) {
-			
-			record.getValue().setValue(this.parseCurrentLine(this.currentLine));
+
+			record.getValue().setValue(this.parseCurrentLine());
 			this.checkEnd();
 			return true;
 		}
 
 		return false;
 	}
-	
 
-	private JsonNode parseCurrentLine(String currentLine) {
+	private JsonNode parseCurrentLine() throws IOException {
 		ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
-		String[] split = currentLine.replaceAll(this.typeidentifier, "").split(this.splitsymbol);
-		for(int i=0; i<split.length;i++){
-			node.put(this.keynames.get(i), split[i]);
+		for(int i=0;i<keynames.size();i++){
+			node.put(keynames.get(i), reader.get(keynames.get(i)));
 		}
 		return node;
 	}
@@ -73,24 +70,22 @@ public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJson
 	@Override
 	public KeyValuePair<PactJsonObject.Key, PactJsonObject> createPair() {
 		return new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL,
-				new PactJsonObject());
+			new PactJsonObject());
 	}
-	
 
 	@Override
-	public void open(FileInputSplit split) throws  IOException {
+	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		
+
 		this.end = false;
-		this.reader = new BufferedReader(new InputStreamReader(this.stream));
-		String firstline = this.reader.readLine();
-		if(firstline != null){
-			String[] splitLine = firstline.replaceAll(this.typeidentifier, "").split(this.splitsymbol);
-			for(int i=0;i<splitLine.length;i++){
-				keynames.add(splitLine[i]);
-			}
-			this.checkEnd();
-		} else this.end=true;
-		
+		this.reader = new CsvReader(new InputStreamReader(this.stream));
+		reader.setDelimiter(this.fieldDelimiter);
+		reader.readHeaders();
+		String[] headers = reader.getHeaders();
+		for(int i = 0;i<headers.length;i++){
+			keynames.add(headers[i]);
+		}
+		this.checkEnd();
+
 	}
 }

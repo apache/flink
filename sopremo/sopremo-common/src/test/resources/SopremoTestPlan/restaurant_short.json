@@ -6,6 +6,24 @@
   "city": "los angeles",
   "phone": "310/246-1501",
   "type": "american",
-  "class":" '0'"
+  "class": "'0'"
+},
+{
+  "id": "1",
+  "name": "arnie morton's of chicago",
+  "addr": "435 s. la cienega blv.",
+  "city": "los,angeles",
+  "phone": "310/246-1501",
+  "type": "american",
+  "class": "'0'"
+},
+{
+  "id": "1",
+  "name": "arnie morton's of chicago",
+  "addr": "435 s. la cienega blv.",
+  "city": "los \nangeles",
+  "phone": "310/246-1501",
+  "type": "american",
+  "class": "'0'"
 }
 ]
