@@ -83,8 +83,12 @@ public class CsvInputFormat extends FileInputFormat<PactJsonObject.Key, PactJson
 		for (int i = 0; i < headers.length; i++) {
 			keynames.add(headers[i]);
 		}
+
 		// for any reason, there is a BOM symbol in front of the first character
 		keynames.set(0, keynames.get(0).replaceAll("^\\ufeff", ""));
+		headers[0] = headers[0].replaceAll("^\\ufeff", "");
+		reader.setHeaders(headers);
+
 		this.checkEnd();
 
 	}

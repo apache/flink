@@ -32,7 +32,7 @@ public class CsvInputFormatTest {
 		// //testing a bigger csv to watch the output
 		// final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> write = new
 		// FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
-		// JsonOutputFormat.class, "file:///home/strato/Dokumente/u_s_congressperson.json", read, "Output");
+		// JsonOutputFormat.class, "file:///home/strato/Dokumente/employer.json", read, "Output");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
@@ -42,7 +42,7 @@ public class CsvInputFormatTest {
 			SequentialOutputFormat.class);
 
 		final TestPlan testPlan = new TestPlan(output); // write
-		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class,
+		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class,// write
 			this.getResource("SopremoTestPlan/restaurant_short.json"));
 		testPlan.run();
 	}
