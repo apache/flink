@@ -280,15 +280,30 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int getMaximumBufferSize() {
 
 		return this.inputGateContext.getMaximumBufferSize();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean isShared() {
 
 		return this.inputGateContext.isShared();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void reportAsynchronousEvent() {
+
+		this.inputGateContext.reportAsynchronousEvent();
 	}
 }

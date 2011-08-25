@@ -40,14 +40,24 @@ public final class LocalBufferCache implements BufferProvider {
 
 	private final boolean isShared;
 
+	private boolean asynchronousEventOccurred = false;
+
+	private final AsynchronousEventListener eventListener;
+
 	private final Queue<ByteBuffer> buffers = new ArrayDeque<ByteBuffer>();
 
-	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared) {
+	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared,
+			final AsynchronousEventListener eventListener) {
 
 		this.globalBufferPool = GlobalBufferPool.getInstance();
 		this.maximumBufferSize = this.globalBufferPool.getMaximumBufferSize();
 		this.designatedNumberOfBuffers = designatedNumberOfBuffers;
 		this.isShared = isShared;
+		this.eventListener = eventListener;
+	}
+
+	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared) {
+		this(designatedNumberOfBuffers, isShared, null);
 	}
 
 	/**
@@ -115,6 +125,13 @@ public final class LocalBufferCache implements BufferProvider {
 						this.requestedNumberOfBuffers++;
 						continue;
 					}
+				}
+
+				if (this.asynchronousEventOccurred) {
+					if (this.eventListener != null) {
+						this.eventListener.asynchronousEventOccurred();
+					}
+					this.asynchronousEventOccurred = false;
 				}
 
 				if (block) {
@@ -210,6 +227,18 @@ public final class LocalBufferCache implements BufferProvider {
 
 		synchronized (this.buffers) {
 			return this.requestedNumberOfBuffers;
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void reportAsynchronousEvent() {
+
+		synchronized (this.buffers) {
+			this.asynchronousEventOccurred = true;
+			this.buffers.notify();
 		}
 	}
 }

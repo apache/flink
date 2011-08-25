@@ -67,4 +67,10 @@ public interface BufferProvider {
 	 * @return <code>true</code> if this buffer provider is shared, <code>false</code> otherwise
 	 */
 	boolean isShared();
+
+	/**
+	 * Reports an asynchronous event. Calling this method interrupts each blocking method of the buffer provider and
+	 * allows the blocked thread to respond to the event.
+	 */
+	void reportAsynchronousEvent();
 }

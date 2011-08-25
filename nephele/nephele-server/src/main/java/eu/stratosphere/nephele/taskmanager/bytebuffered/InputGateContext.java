@@ -56,9 +56,21 @@ final class InputGateContext implements BufferProvider {
 		return this.taskContext.getMaximumBufferSize();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean isShared() {
 
 		return this.taskContext.isShared();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void reportAsynchronousEvent() {
+
+		this.taskContext.reportAsynchronousEvent();
 	}
 }

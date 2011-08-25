@@ -109,4 +109,13 @@ final class TaskContext implements BufferProvider {
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void reportAsynchronousEvent() {
+
+		this.localBufferCache.reportAsynchronousEvent();
+	}
 }
