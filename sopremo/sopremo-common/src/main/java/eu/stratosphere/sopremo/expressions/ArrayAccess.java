@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -89,7 +90,8 @@ public class ArrayAccess extends EvaluationExpression implements WritableEvaluab
 			}
 			return arrayNode;
 		}
-		return node.get(this.resolveIndex(this.startIndex, size));
+		JsonNode value = node.get(this.resolveIndex(this.startIndex, size));
+		return value == null ? NullNode.getInstance() : value;
 	}
 
 	@Override

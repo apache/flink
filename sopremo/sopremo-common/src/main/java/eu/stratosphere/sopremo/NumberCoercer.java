@@ -121,6 +121,14 @@ public final class NumberCoercer {
 		return this.typeCoerceMatrix[leftType.ordinal()][rightType.ordinal()];
 	}
 
+	public NumberType getWiderType(final JsonNode leftType, final JsonNode rightType) {
+		return getWiderType(leftType.getNumberType(), rightType.getNumberType());
+	}
+	
+	public Class<? extends JsonNode> getImplementationType(NumberType type) {
+		return implementationTypes.get(type);
+	}
+	
 	private static interface Coercer extends TypeCoercer.Coercer {
 		@Override
 		public NumericNode coerce(JsonNode node);

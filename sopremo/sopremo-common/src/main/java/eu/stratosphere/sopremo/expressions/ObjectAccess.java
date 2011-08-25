@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.ObjectNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -21,6 +22,8 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 
 	private final String field;
 
+	private final boolean safeDereference;
+
 	/**
 	 * Initializes FieldAccess with the given field name.
 	 * 
@@ -28,7 +31,12 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	 *        the name of the field
 	 */
 	public ObjectAccess(final String field) {
+		this(field, false);
+	}
+
+	public ObjectAccess(String field, boolean safeDereference) {
 		this.field = field;
+		this.safeDereference = safeDereference;
 	}
 
 	@Override
@@ -51,9 +59,14 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	 */
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		if (!node.isObject())
-			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", field, node.getClass().getSimpleName()));
-		return node.get(this.field);
+		if (!node.isObject()) {
+			if(node.isNull() && safeDereference) 
+				return node;
+			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", field, node
+				.getClass().getSimpleName()));
+		}
+		JsonNode value = node.get(this.field);
+		return value == null ? NullNode.getInstance() : value;
 	}
 
 	@Override

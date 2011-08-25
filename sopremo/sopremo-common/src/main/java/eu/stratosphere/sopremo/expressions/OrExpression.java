@@ -15,9 +15,9 @@ public class OrExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = 1988076954287158279L;
 
-	private final BooleanExpression[] expressions;
+	private final EvaluationExpression[] expressions;
 
-	public OrExpression(final BooleanExpression... expressions) {
+	public OrExpression(final EvaluationExpression... expressions) {
 		if (expressions.length == 0)
 			throw new IllegalArgumentException();
 		this.expressions = expressions;
@@ -37,13 +37,13 @@ public class OrExpression extends BooleanExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		for (final BooleanExpression booleanExpression : this.expressions)
+		for (final EvaluationExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, context) == BooleanNode.TRUE)
 				return BooleanNode.TRUE;
 		return BooleanNode.FALSE;
 	}
 
-	public BooleanExpression[] getExpressions() {
+	public EvaluationExpression[] getExpressions() {
 		return this.expressions;
 	}
 

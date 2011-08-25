@@ -5,15 +5,15 @@ import junit.framework.Assert;
 import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
-public class LazyArrayProjectionTest extends EvaluableExpressionTest<LazyArrayProjection> {
+public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjection> {
 	@Override
-	protected LazyArrayProjection createDefaultInstance(final int index) {
-		return new LazyArrayProjection(new ObjectAccess(String.valueOf(index)));
+	protected ArrayProjection createDefaultInstance(final int index) {
+		return new ArrayProjection(new ObjectAccess(String.valueOf(index)));
 	}
 
 	@Test
 	public void shouldAccessFieldOfArray() {
-		final JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		final JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);
@@ -22,7 +22,7 @@ public class LazyArrayProjectionTest extends EvaluableExpressionTest<LazyArrayPr
 
 	@Test
 	public void shouldAccessFieldOfStreamArray() {
-		final JsonNode result = new LazyArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		final JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createStreamArray(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);

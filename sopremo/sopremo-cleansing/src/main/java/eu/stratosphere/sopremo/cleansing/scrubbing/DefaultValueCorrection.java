@@ -1,7 +1,13 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.NullNode;
+
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class DefaultValueCorrection extends ValueCorrection {
 	/**
@@ -14,10 +20,20 @@ public class DefaultValueCorrection extends ValueCorrection {
 	 */
 	public final static DefaultValueCorrection NULL = new DefaultValueCorrection(NullNode.getInstance());
 
-	private final JsonNode defaultValue;
+	private transient JsonNode defaultValue;
 
 	public DefaultValueCorrection(final JsonNode defaultValue) {
 		this.defaultValue = defaultValue;
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.defaultValue = SopremoUtil.deserializeNode(ois, JsonNode.class);
+	}
+
+	private void writeObject(ObjectOutputStream oos) throws IOException {
+		oos.defaultWriteObject();
+		SopremoUtil.serializeNode(oos, defaultValue);
 	}
 
 	@Override

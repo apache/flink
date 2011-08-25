@@ -9,7 +9,7 @@ import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperat
 import eu.stratosphere.sopremo.expressions.BatchAggregationExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.LazyArrayProjection;
+import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -39,7 +39,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.COUNT)));
 		transformation.addMapping("expenses",
 			new PathExpression(new InputSelection(2),
-				new LazyArrayProjection(new ArithmeticExpression(new ObjectAccess("costPerItem"),
+				new ArrayProjection(new ArithmeticExpression(new ObjectAccess("costPerItem"),
 					ArithmeticOperator.MULTIPLICATION, new ObjectAccess("count"))),
 				new AggregationExpression(BuiltinFunctions.SUM)));
 
@@ -91,7 +91,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.FIRST), new ObjectAccess("dept")));
 		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
 		transformation.addMapping("emps",
-			new PathExpression(new InputSelection(0), new AggregationExpression(BuiltinFunctions.SORT,
+			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.SORT,
 				new ObjectAccess("id"))));
 		transformation.addMapping("numEmps",
 			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.COUNT)));

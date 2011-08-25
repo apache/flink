@@ -17,6 +17,7 @@ import org.codehaus.jackson.node.DecimalNode;
 import org.codehaus.jackson.node.DoubleNode;
 import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.LongNode;
+import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.ObjectNode;
 import org.codehaus.jackson.node.TextNode;
@@ -177,6 +178,8 @@ public class TypeCoercer {
 	@SuppressWarnings("unchecked")
 	public <T extends JsonNode> T coerce(final JsonNode node, final Class<T> targetType, final T defaultValue) {
 		final Map<Class<? extends JsonNode>, Coercer> toCoercer = this.coercers.get(targetType);
+		if (toCoercer == null) 
+			return defaultValue;
 		Coercer fromCoercer = toCoercer.get(node.getClass());
 		if (fromCoercer == null) {
 			for (Class<?> superType = node.getClass(); superType != JsonNode.class.getSuperclass()
@@ -190,7 +193,7 @@ public class TypeCoercer {
 
 		T result = (T) fromCoercer.coerce(node);
 		if (result == null)
-			result = defaultValue;
+			return defaultValue;
 		return result;
 	}
 
@@ -237,6 +240,12 @@ public class TypeCoercer {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
 				return BooleanNode.valueOf(node.getTextValue().length() > 0);
+			}
+		});
+		toBooleanCoercers.put(NullNode.class, new Coercer() {
+			@Override
+			public JsonNode coerce(final JsonNode node) {
+				return BooleanNode.FALSE;
 			}
 		});
 		final Coercer containerToBoolean = new Coercer() {

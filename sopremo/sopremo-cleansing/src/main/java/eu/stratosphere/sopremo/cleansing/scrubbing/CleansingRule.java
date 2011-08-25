@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.SopremoExpression;
 
 public abstract class CleansingRule<ContextType extends EvaluationContext> extends SopremoExpression<ContextType> {
@@ -13,13 +14,13 @@ public abstract class CleansingRule<ContextType extends EvaluationContext> exten
 	 */
 	private static final long serialVersionUID = -1801909303463739160L;
 
-	private final List<String> targetPath;
+	private final List<EvaluationExpression> targetPath;
 
-	public CleansingRule(final String... targetPath) {
+	public CleansingRule(final EvaluationExpression... targetPath) {
 		this.targetPath = Arrays.asList(targetPath);
 	}
 
-	public List<String> getTargetPath() {
+	public List<EvaluationExpression> getTargetPath() {
 		return this.targetPath;
 	}
 
