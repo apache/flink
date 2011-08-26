@@ -57,6 +57,8 @@ public class EC2CloudInstance extends AbstractInstance {
 
 	/** The last received heart beat. */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
+	
+	
 
 	/**
 	 * Creates a new cloud instance.

@@ -103,4 +103,10 @@ public interface TaskManagerProfiler {
 	 * and stops all its internal processes.
 	 */
 	void shutdown();
+	/**
+	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
+	 * @throws ProfilingException
+	 */
+	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException;
+	
 }

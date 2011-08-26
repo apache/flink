@@ -68,13 +68,15 @@ public class InstanceProfiler {
 
 	private long lastTramsmittedBytes = 0;
 
+	private long firstTimestamp;
+
 	public InstanceProfiler(InstanceConnectionInfo instanceConnectionInfo)
 																			throws ProfilingException {
 
 		this.instanceConnectionInfo = instanceConnectionInfo;
-
+		this.firstTimestamp = System.currentTimeMillis();
 		// Initialize counters by calling generateProfilingData once and ignore the return value
-		generateProfilingData(System.currentTimeMillis());
+		generateProfilingData(this.firstTimestamp);
 	}
 
 	InternalInstanceProfilingData generateProfilingData(long timestamp) throws ProfilingException {
@@ -310,5 +312,22 @@ public class InstanceProfiler {
 			}
 		}
 
+	}
+	/**
+	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
+	 * @throws ProfilingException 
+	 */
+	public InternalInstanceProfilingData generateCheckpointProfilingData() throws ProfilingException {
+		final long profilingInterval = System.currentTimeMillis() - this.firstTimestamp;
+
+		final InternalInstanceProfilingData profilingData = new InternalInstanceProfilingData(
+			this.instanceConnectionInfo, (int) profilingInterval);
+
+		updateCPUUtilization(profilingData);
+		updateMemoryUtilization(profilingData);
+		updateNetworkUtilization(profilingData);
+
+
+		return profilingData;
 	}
 }

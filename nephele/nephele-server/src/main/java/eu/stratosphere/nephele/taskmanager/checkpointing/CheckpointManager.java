@@ -23,6 +23,9 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
+import eu.stratosphere.nephele.profiling.ProfilingException;
+import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 
 public class CheckpointManager {
@@ -37,33 +40,17 @@ public class CheckpointManager {
 
 	private final String tmpDir;
 
+	private TaskManager taskManager;
+
 	public CheckpointManager(ByteBufferedChannelManager byteBufferedChannelManager, String tmpDir) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.tmpDir = tmpDir;
 	}
-
-	public void registerFinished(EphemeralCheckpoint checkpoint) {
-
-		final ExecutionVertexID vertexID = checkpoint.getExecutionVertexID();
-
-		synchronized (this.checkpoints) {
-
-			if (this.checkpoints.containsKey(vertexID)) {
-				LOG.error("Checkpoint for execution vertex ID " + vertexID + " is already registered");
-				return;
-			}
-
-			LOG.info("Registering finished checkpoint for vertex " + vertexID);
-			this.checkpoints.put(vertexID, checkpoint);
-		}
-
-		synchronized (this.channelIDToVertexIDMap) {
-
-			final ChannelID[] outputChannelIDs = checkpoint.getIDsOfCheckpointedOutputChannels();
-			for (int i = 0; i < outputChannelIDs.length; i++) {
-				this.channelIDToVertexIDMap.put(outputChannelIDs[i], vertexID);
-			}
-		}
+	public CheckpointManager(ByteBufferedChannelManager byteBufferedChannelManager, String tmpDir,
+			TaskManager taskManager) {
+		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.tmpDir = tmpDir;
+		this.taskManager = taskManager;
 	}
 
 	/**
@@ -86,24 +73,6 @@ public class CheckpointManager {
 			LOG.error("Cannot find checkpoint for vertex " + vertexID);
 			return;
 		}
-		
-		// Clean up channel ID to vertex ID map
-		ChannelID[] checkpointedChannels = checkpoint.getIDsOfCheckpointedOutputChannels();
-		
-		if(checkpointedChannels == null) {
-			LOG.error("Cannot remove checkpoint for vertex " + vertexID + ": list of checkpointed channels is null");
-			return;
-		}
-		
-		synchronized(this.channelIDToVertexIDMap) {
-			
-			for(int i = 0; i < checkpointedChannels.length; i++) {
-				this.channelIDToVertexIDMap.remove(checkpointedChannels[i]);
-			}
-		}
-		
-		// Finally, trigger deletion of files
-		checkpoint.remove();
 	}
 
 	public String getTmpDir() {
@@ -118,29 +87,11 @@ public class CheckpointManager {
 		}
 	}
 
-	public void recoverChannelCheckpoint(ChannelID sourceChannelID) {
-
-		ExecutionVertexID executionVertexID = null;
-		synchronized (this.channelIDToVertexIDMap) {
-			executionVertexID = this.channelIDToVertexIDMap.get(sourceChannelID);
+	
+	public CheckpointProfilingData getProfilingData() throws ProfilingException{
+		if(this.taskManager != null){
+			return this.taskManager.getCheckpointProfilingData();
 		}
-
-		if (executionVertexID == null) {
-			LOG.error("Cannot find execution vertex ID for output channel with ID " + sourceChannelID);
-			return;
-		}
-
-		EphemeralCheckpoint checkpoint = null;
-		synchronized (this.checkpoints) {
-			checkpoint = this.checkpoints.get(executionVertexID);
-		}
-
-		if (checkpoint == null) {
-			LOG.error("Cannot find checkpoint for vertex " + executionVertexID);
-			return;
-		}
-
-		LOG.info("Recovering checkpoint for channel " + sourceChannelID);
-		checkpoint.recoverIndividualChannel(this.byteBufferedChannelManager, sourceChannelID);
+		return null;
 	}
 }

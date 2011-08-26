@@ -213,6 +213,16 @@ public class EnvironmentTest {
 				}
 			}
 		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void initialExecutionResourcesExhausted(Environment ee,
+				ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+			// Nothing to do here
+
+		}
 	}
 
 	/**
@@ -400,6 +410,8 @@ public class EnvironmentTest {
 			}
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		}
 	}
 

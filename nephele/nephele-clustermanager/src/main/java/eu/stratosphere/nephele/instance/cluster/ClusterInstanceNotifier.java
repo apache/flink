@@ -15,9 +15,12 @@
 
 package eu.stratosphere.nephele.instance.cluster;
 
+import java.util.List;
+
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceListener;
+import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
  * This class is an auxiliary class to send the notification
@@ -37,21 +40,30 @@ public class ClusterInstanceNotifier extends Thread {
 	private final InstanceListener instanceListener;
 
 	/**
-	 * The instance the notification refers to.
+	 * The ID of the job the notification refers to.
 	 */
-	private final AllocatedSlice allocatedSlice;
+	private final JobID jobID;
+
+	/**
+	 * The allocated resources the notification refers to.
+	 */
+	private final List<AllocatedResource> allocatedResources;
 
 	/**
 	 * Constructs a new instance notifier object.
 	 * 
 	 * @param instanceListener
 	 *        the listener to send the notification to
-	 * @param allocatedSlice
-	 *        the slice with has been allocated for the job
+	 * @param jobID
+	 *        the ID of the job the notification refers to
+	 * @param allocatedResources
+	 *        the resources with has been allocated for the job
 	 */
-	public ClusterInstanceNotifier(InstanceListener instanceListener, AllocatedSlice allocatedSlice) {
+	public ClusterInstanceNotifier(final InstanceListener instanceListener, final JobID jobID,
+			final List<AllocatedResource> allocatedResources) {
 		this.instanceListener = instanceListener;
-		this.allocatedSlice = allocatedSlice;
+		this.jobID = jobID;
+		this.allocatedResources = allocatedResources;
 	}
 
 	/**
@@ -60,11 +72,6 @@ public class ClusterInstanceNotifier extends Thread {
 	@Override
 	public void run() {
 
-		this.instanceListener.resourceAllocated(
-			this.allocatedSlice.getJobID(),
-			new AllocatedResource(
-				this.allocatedSlice.getHostingInstance(), this.allocatedSlice.getType(), this.allocatedSlice
-					.getAllocationID()));
-
+		this.instanceListener.resourcesAllocated(this.jobID, this.allocatedResources);
 	}
 }

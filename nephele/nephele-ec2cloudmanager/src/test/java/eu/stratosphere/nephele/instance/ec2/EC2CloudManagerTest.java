@@ -46,6 +46,7 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.instance.ec2.EC2CloudInstance;
@@ -63,19 +64,22 @@ public class EC2CloudManagerTest {
 		final Map<JobID, List<AllocatedResource>> resourcesOfJobs = new HashMap<JobID, List<AllocatedResource>>();
 
 		@Override
-		public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
+		public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
 			final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
 			assertTrue(resourcesOfJob != null);
-			assertTrue(resourcesOfJob.contains(allocatedResource));
-			resourcesOfJob.remove(allocatedResource);
+
+			for (final AllocatedResource allocatedResource : allocatedResources) {
+				assertTrue(resourcesOfJob.contains(allocatedResource));
+			}
+
 			if (resourcesOfJob.isEmpty()) {
 				this.resourcesOfJobs.remove(jobID);
 			}
 		}
 
 		@Override
-		public void resourceAllocated(JobID jobID, AllocatedResource allocatedResource) {
+		public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
 			assertTrue(nrAvailable >= 0);
 			++nrAvailable;
@@ -84,8 +88,11 @@ public class EC2CloudManagerTest {
 				resourcesOfJob = new ArrayList<AllocatedResource>();
 				this.resourcesOfJobs.put(jobID, resourcesOfJob);
 			}
-			assertFalse(resourcesOfJob.contains(allocatedResource));
-			resourcesOfJob.add(allocatedResource);
+
+			for (final AllocatedResource allocatedResource : allocatedResources) {
+				assertFalse(resourcesOfJob.contains(allocatedResource));
+				resourcesOfJob.add(allocatedResource);
+			}
 		}
 	};
 
@@ -295,9 +302,11 @@ public class EC2CloudManagerTest {
 
 		// request instance
 		try {
-			Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
-			instanceMap.put(InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"), 1);
-			cm.requestInstance(jobID, conf, instanceMap, null);
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+			final InstanceType instanceType = InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10");
+			instanceRequestMap.setMinimumNumberOfInstances(instanceType, 1);
+			instanceRequestMap.setMaximumNumberOfInstances(instanceType, 1);
+			cm.requestInstance(jobID, conf, instanceRequestMap, null);
 		} catch (InstanceException e) {
 			e.printStackTrace();
 		}

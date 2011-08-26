@@ -31,9 +31,9 @@ public interface ByteBufferedInputChannelBroker {
 	 * @param event
 	 *        the event to be transferred
 	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be transmitted
+	 *         thrown if the thread is interrupted while waiting for the event to be transfered
 	 * @throws IOException
-	 *         thrown if an IO error occurs while transferring the event
+	 *         thrown if an I/O error occurs while transfering the event
 	 */
 	void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException;
 }

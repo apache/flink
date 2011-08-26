@@ -40,14 +40,15 @@ public interface InstanceManager {
 	 *        the ID of the job this instance is requested for
 	 * @param conf
 	 *        a configuration object including additional request information (e.g. credentials)
-	 * @param instanceType
-	 *        the type of the requested instance
+	 * @param instanceRequestMap
+	 *        a map specifying the instances requested by this call
 	 * @param count
-	 * 	      the number of instances
+	 *        the number of instances
 	 * @throws InstanceException
 	 *         thrown if an error occurs during the instance request
 	 */
-	void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap, List<String> splitAffinityList) throws InstanceException;
+	void requestInstance(JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
+			List<String> splitAffinityList) throws InstanceException;
 
 	/**
 	 * Releases an allocated resource from a job.

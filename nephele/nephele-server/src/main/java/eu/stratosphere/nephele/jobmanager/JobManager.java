@@ -68,6 +68,7 @@ import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -85,7 +86,8 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
-import eu.stratosphere.nephele.io.channels.AbstractChannel;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -97,6 +99,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
+import eu.stratosphere.nephele.multicast.MulticastManager;
 import eu.stratosphere.nephele.optimizer.Optimizer;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
@@ -113,6 +116,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -143,6 +147,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final AbstractScheduler scheduler;
 
+	private final MulticastManager multicastManager;
+
 	private InstanceManager instanceManager;
 
 	private final int recommendedClientPollingInterval;
@@ -158,7 +164,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	/**
 	 * Constructs a new job manager, starts its discovery service and its IPC service.
 	 */
-	public JobManager(String configDir, String executionMode) {
+	public JobManager(final String configDir, final String executionMode) {
 
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
@@ -248,6 +254,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.error("Unable to load scheduler " + schedulerClassName);
 			System.exit(FAILURERETURNCODE);
 		}
+
+		// Create multicastManager
+		this.multicastManager = new MulticastManager(this.scheduler);
 
 		// Load profiler if it should be used
 		if (GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
@@ -385,11 +394,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	@SuppressWarnings("static-access")
 	public static void main(String[] args) {
 
-		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg().withDescription(
-			"Specify configuration directory.").create("configDir");
+		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
+			.withDescription("Specify configuration directory.").create("configDir");
 
-		final Option executionModeOpt = OptionBuilder.withArgName("execution mode").hasArg().withDescription(
-			"Specify execution mode.").create("executionMode");
+		final Option executionModeOpt = OptionBuilder.withArgName("execution mode").hasArg()
+			.withDescription("Specify execution mode.").create("executionMode");
 
 		final Options options = new Options();
 		options.addOption(configDirOpt);
@@ -701,7 +710,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ConnectionInfoLookupResponse lookupConnectionInfo(JobID jobID, ChannelID sourceChannelID) {
+	public ConnectionInfoLookupResponse lookupConnectionInfo(final InstanceConnectionInfo caller, final JobID jobID,
+			final ChannelID sourceChannelID) {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 		if (eg == null) {
@@ -709,39 +719,78 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
 
-		AbstractChannel sourceChannel = eg.getOutputChannelByID(sourceChannelID);
-		if (sourceChannel == null) {
-			sourceChannel = eg.getInputChannelByID(sourceChannelID);
-			if (sourceChannel == null) {
-				LOG.error("Cannot find source channel with ID " + sourceChannelID);
-				return ConnectionInfoLookupResponse.createReceiverNotFound();
+		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
+
+		if (outputChannel == null) {
+
+			AbstractInputChannel<? extends Record> inputChannel = eg.getInputChannelByID(sourceChannelID);
+
+			final ChannelID connectedChannelID = inputChannel.getConnectedChannelID();
+			final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
+
+			final AbstractInstance assignedInstance = connectedVertex.getAllocatedResource().getInstance();
+			if (assignedInstance == null) {
+				LOG.error("Cannot resolve lookup: vertex found for channel ID " + connectedChannelID
+						+ " but no instance assigned");
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			// Check execution state
+			final ExecutionState executionState = connectedVertex.getExecutionState();
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
+				// Receiver runs on the same task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(connectedChannelID);
+			} else {
+				// Receiver runs on a different task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance
+					.getInstanceConnectionInfo());
 			}
 		}
 
-		final ChannelID targetChannelID = sourceChannel.getConnectedChannelID();
+		if (outputChannel.isBroadcastChannel()) {
 
-		final ExecutionVertex vertex = eg.getVertexByChannelID(targetChannelID);
-		if (vertex == null) {
-			LOG.error("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
-			return ConnectionInfoLookupResponse.createReceiverNotFound();
+			return multicastManager.lookupConnectionInfo(caller, jobID, sourceChannelID);
+
+		} else {
+
+			// Find vertex of connected input channel
+			final ExecutionVertex targetVertex = eg.getVertexByChannelID(outputChannel.getConnectedChannelID());
+			if (targetVertex == null) {
+				LOG.error("Cannot find vertex to input channel " + outputChannel.getConnectedChannelID());
+				return ConnectionInfoLookupResponse.createReceiverNotFound();
+			}
+
+			// Check execution state
+			final ExecutionState executionState = targetVertex.getExecutionState();
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			final AbstractInstance assignedInstance = targetVertex.getAllocatedResource().getInstance();
+			if (assignedInstance == null) {
+				LOG.error("Cannot resolve lookup: vertex found for channel ID "
+						+ outputChannel.getConnectedChannelID()
+						+ " but no instance assigned");
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+
+			if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
+				// Receiver runs on the same task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(outputChannel
+						.getConnectedChannelID());
+			} else {
+				// Receiver runs on a different task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance
+						.getInstanceConnectionInfo());
+			}
 		}
+		// LOG.error("Receiver(s) not found");
 
-		final ExecutionState executionState = vertex.getExecutionState();
-		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
-			return ConnectionInfoLookupResponse.createReceiverNotReady();
-		}
-
-		// TODO: Start vertex if in lazy mode
-
-		final AbstractInstance assignedInstance = vertex.getAllocatedResource().getInstance();
-
-		if (assignedInstance == null) {
-			LOG.debug("Cannot resolve lookup: vertex found for channel ID " + targetChannelID
-				+ " but no instance assigned");
-			return ConnectionInfoLookupResponse.createReceiverNotReady();
-		}
-
-		return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance.getInstanceConnectionInfo());
+		// return ConnectionInfoLookupResponse.createReceiverNotFound();
 	}
 
 	/**
@@ -848,8 +897,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		final List<ExecutionVertex> verticesWithCheckpoints = executionGraph.getVerticesWithCheckpoints();
 		// Group vertex IDs by assigned instance
-		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap =
-			new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
+		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap = new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
 		final Iterator<ExecutionVertex> it = verticesWithCheckpoints.iterator();
 		while (it.hasNext()) {
 
@@ -1009,6 +1057,17 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return;
 		}
 
+		for (final ExecutionVertex vertex : verticesToBeDeployed) {
+
+			// Check vertex state
+			if (vertex.getExecutionState() != ExecutionState.READY) {
+				LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
+					+ vertex.getExecutionState());
+			}
+
+			vertex.setExecutionState(ExecutionState.STARTING);
+		}
+
 		// Create a new runnable and pass it the executor service
 		final Runnable deploymentRunnable = new Runnable() {
 
@@ -1030,19 +1089,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
-					// Check vertex state
-					if (vertex.getExecutionState() != ExecutionState.READY) {
-						LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
-							+ vertex.getExecutionState());
-					}
-
 					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
-						.getExecutionGraph().getJobConfiguration()));
+						.getExecutionGraph().getJobConfiguration(), vertex.constructInitialActiveOutputChannelsSet()));
 
 					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
 				}
 
-				// TODO: Implement lazy initialization
 				List<TaskSubmissionResult> submissionResultList = null;
 
 				try {
@@ -1108,5 +1160,38 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		return this.inputSplitManager.getNextInputSplit(vertex);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) throws IOException {
+
+		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
+		if (graph == null) {
+			LOG.error("Cannot find execution graph to job ID " + jobID);
+			return;
+		}
+
+		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
+		if (vertex == null) {
+			LOG.error("Cannot find execution vertex with ID " + vertexID);
+			return;
+		}
+
+		final Runnable taskStateChangeRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				// The registered listeners of the vertex will make sure the appropriate actions are taken
+				vertex.getEnvironment().initialExecutionResourcesExhausted(resourceUtilizationSnapshot);
+			}
+		};
+
+		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
+		this.executorService.execute(taskStateChangeRunnable);
 	}
 }

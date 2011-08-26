@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -975,7 +976,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 						// Replace channels
 						final AbstractOutputChannel<? extends Record> newOutputChannel = outputGate.replaceChannel(
-							oldOutputChannel.getID(), ChannelType.INMEMORY);
+							oldOutputChannel.getID(), ChannelType.INMEMORY, false);
 						final AbstractInputChannel<? extends Record> newInputChannel = inputGate.replaceChannel(
 							oldInputChannel.getID(), ChannelType.INMEMORY);
 
@@ -1216,8 +1217,7 @@ public class ExecutionGraph implements ExecutionListener {
 		while (it.hasNext()) {
 
 			final ExecutionState s = it.next().getExecutionState();
-			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.ASSIGNING
-				&& s != ExecutionState.ASSIGNED && s != ExecutionState.READY) {
+			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.READY) {
 				return false;
 			}
 		}
@@ -1461,7 +1461,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(Environment ee, Thread userThread) {
+	public void userThreadFinished(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
 
@@ -1469,7 +1469,16 @@ public class ExecutionGraph implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(Environment ee, Thread userThread) {
+	public void userThreadStarted(final Environment ee, final Thread userThread) {
+		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final Environment ee,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 		// Nothing to do here
 	}
 

@@ -57,6 +57,8 @@ public final class WritableSpillingFile implements Closeable {
 	 */
 	private boolean readRequested = false;
 
+	private final FileID fileID;
+
 	/**
 	 * The physical file which backs this spilling file.
 	 */
@@ -78,19 +80,31 @@ public final class WritableSpillingFile implements Closeable {
 	private long currentFileSize = 0;
 
 	/**
+	 * The number of file buffers backed by this writable spilling file.
+	 */
+	private int numberOfBuffers = 0;
+
+	/**
 	 * Constructs a new writable spilling file.
 	 * 
+	 * @param fileID
+	 *        the ID of the file, must not be <code>null</code>
 	 * @param physicalFile
 	 *        the physical file which shall back this object, must not be <code>null</code>
 	 * @throws IOException
 	 *         thrown if the given file cannot be opened for writing
 	 */
-	WritableSpillingFile(final File physicalFile) throws IOException {
+	WritableSpillingFile(final FileID fileID, final File physicalFile) throws IOException {
+
+		if (fileID == null) {
+			throw new IllegalArgumentException("Argument file ID must not be null");
+		}
 
 		if (physicalFile == null) {
 			throw new IllegalArgumentException("Argument physical file must not be null");
 		}
 
+		this.fileID = fileID;
 		this.physicalFile = physicalFile;
 		this.writableFileChannel = new FileOutputStream(this.physicalFile).getChannel();
 	}
@@ -149,7 +163,7 @@ public final class WritableSpillingFile implements Closeable {
 	 * @return the byte channel if the lock operation has been successful, or <code>null</code> if the lock operation
 	 *         failed
 	 */
-	public FileChannel lockWritableFileChannel() {
+	FileChannel lockWritableFileChannel() {
 
 		if (this.writableChannelLocked) {
 			return null;
@@ -166,12 +180,14 @@ public final class WritableSpillingFile implements Closeable {
 	 * @param currentFileSize
 	 *        the current size of the spilling file in bytes
 	 */
-	public void unlockWritableFileChannel(final long currentFileSize) {
+	void unlockWritableFileChannel(final long currentFileSize) {
 
 		this.writableChannelLocked = false;
 
 		this.currentFileSize = currentFileSize;
 		this.lastUnlockTime = System.currentTimeMillis();
+		
+		++this.numberOfBuffers;
 	}
 
 	/**
@@ -179,7 +195,7 @@ public final class WritableSpillingFile implements Closeable {
 	 * 
 	 * @return <code>true</code> if a read request has been issued, <code>false</code> otherwise
 	 */
-	public boolean isReadRequested() {
+	boolean isReadRequested() {
 
 		return this.readRequested;
 	}
@@ -187,8 +203,23 @@ public final class WritableSpillingFile implements Closeable {
 	/**
 	 * Issues a read request to this spilling file.
 	 */
-	public void requestReadAccess() {
+	void requestReadAccess() {
 
 		this.readRequested = true;
+	}
+
+	/**
+	 * Returns the ID of the file which backs the file buffer.
+	 * 
+	 * @return the ID of the file which backs the file buffer
+	 */
+	FileID getFileID() {
+
+		return this.fileID;
+	}
+	
+	ReadableSpillingFile toReadableSpillingFile() throws IOException {
+		
+		return new ReadableSpillingFile(this.physicalFile, this.numberOfBuffers);
 	}
 }

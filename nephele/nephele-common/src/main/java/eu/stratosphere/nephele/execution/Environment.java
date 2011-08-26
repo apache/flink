@@ -19,17 +19,25 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -58,7 +66,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds).
 	 */
-	private static final int SLEEPINTERVAL = 500;
+	private static final int SLEEPINTERVAL = 100;
 
 	/**
 	 * List of output gates created by the task.
@@ -318,15 +326,6 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.jobID == null) {
 			LOG.warn("jobVertexID is null");
 		}
-
-		// Set the vertex ID for all the gates
-		for (int i = 0; i < this.inputGates.size(); i++) {
-			this.inputGates.get(i).setJobID(this.jobID);
-		}
-
-		for (int i = 0; i < this.outputGates.size(); i++) {
-			this.outputGates.get(i).setJobID(this.jobID);
-		}
 	}
 
 	/**
@@ -349,6 +348,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		}
 
 		try {
+
+			// Activate input channels
+			activateInputChannels();
+
 			this.invokable.invoke();
 
 			// Make sure, we enter the catch block when the task has been canceled
@@ -414,6 +417,25 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		// Finally, switch execution state to FINISHED and report to job manager
 		changeExecutionState(ExecutionState.FINISHED, null);
+	}
+
+	/**
+	 * Activates all of the task's input channels.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transmitting one of the activation requests to the corresponding
+	 *         output channels
+	 * @throws InterruptedException
+	 *         throws if the task is interrupted while waiting for the activation process to complete
+	 */
+	private void activateInputChannels() throws IOException, InterruptedException {
+
+		for (int i = 0; i < getNumberOfInputGates(); ++i) {
+			final InputGate<? extends Record> eig = getInputGate(i);
+			for (int j = 0; j < eig.getNumberOfInputChannels(); ++j) {
+				eig.getInputChannel(j).activate();
+			}
+		}
 	}
 
 	/**
@@ -584,16 +606,42 @@ public class Environment implements Runnable, IOReadableWritable {
 		final int numOuputGates = in.readInt();
 
 		for (int i = 0; i < numOuputGates; i++) {
-			final String gateClassName = StringRecord.readString(in);
-			Class<? extends Record> c = null;
+
+			final GateID gateID = new GateID();
+			gateID.read(in);
+
+			final String typeClassName = StringRecord.readString(in);
+			Class<? extends Record> type = null;
 			try {
-				c = (Class<? extends Record>) Class.forName(gateClassName, true, cl);
+				type = (Class<? extends Record>) Class.forName(typeClassName, true, cl);
 			} catch (ClassNotFoundException cnfe) {
-				throw new IOException("Class " + gateClassName + " not found in one of the supplied jar files: "
+				throw new IOException("Class " + typeClassName + " not found in one of the supplied jar files: "
 					+ StringUtils.stringifyException(cnfe));
 			}
+
+			final boolean isBroadcast = in.readBoolean();
+
+			ChannelSelector<? extends Record> channelSelector = null;
+			if (!isBroadcast) {
+
+				final String channelSelectorClassName = StringRecord.readString(in);
+				try {
+					channelSelector = (ChannelSelector<? extends Record>) Class.forName(channelSelectorClassName, true,
+						cl).newInstance();
+				} catch (InstantiationException e) {
+					throw new IOException(StringUtils.stringifyException(e));
+				} catch (IllegalAccessException e) {
+					throw new IOException(StringUtils.stringifyException(e));
+				} catch (ClassNotFoundException e) {
+					throw new IOException(StringUtils.stringifyException(e));
+				}
+
+				channelSelector.read(in);
+			}
+
 			@SuppressWarnings("rawtypes")
-			final OutputGate<? extends Record> eog = new OutputGate(c, i);
+			final OutputGate<? extends Record> eog = new OutputGate(this.jobID, gateID, type, i, channelSelector,
+				isBroadcast);
 			eog.read(in);
 			this.outputGates.add(eog);
 			// Mark as unbound for reconnection of RecordWriter
@@ -604,9 +652,48 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		for (int i = 0; i < numInputGates; i++) {
 
-			// TODO (erik) : gate.read(...) deserializes the type c anyway ...
+			final GateID gateID = new GateID();
+			gateID.read(in);
+
+			final String deserializerClassName = StringRecord.readString(in);
+			RecordDeserializer<? extends Record> recordDeserializer = null;
+			Class<? extends RecordDeserializer<? extends Record>> deserializerClass = null;
+			try {
+				deserializerClass = (Class<? extends RecordDeserializer<? extends Record>>) cl
+					.loadClass(deserializerClassName);
+				recordDeserializer = deserializerClass.newInstance();
+
+			} catch (ClassNotFoundException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (InstantiationException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (IllegalAccessException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			}
+
+			recordDeserializer.setClassLoader(cl);
+			recordDeserializer.read(in);
+
+			final String distributionPatternClassName = StringRecord.readString(in);
+			DistributionPattern distributionPattern = null;
+			Class<? extends DistributionPattern> distributionPatternClass = null;
+			try {
+				distributionPatternClass = (Class<? extends DistributionPattern>) cl
+					.loadClass(distributionPatternClassName);
+
+				distributionPattern = distributionPatternClass.newInstance();
+
+			} catch (ClassNotFoundException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (InstantiationException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			} catch (IllegalAccessException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			}
+
 			@SuppressWarnings("rawtypes")
-			final InputGate<? extends Record> eig = new InputGate(null /* c */, i, null);
+			final InputGate<? extends Record> eig = new InputGate(this.jobID, gateID, recordDeserializer, i,
+				distributionPattern);
 			eig.read(in);
 			this.inputGates.add(eig);
 			// Mark as unbound for reconnection of RecordReader
@@ -666,13 +753,27 @@ public class Environment implements Runnable, IOReadableWritable {
 		// Output gates
 		out.writeInt(getNumberOfOutputGates());
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
-			StringRecord.writeString(out, getOutputGate(i).getType().getName());
+			final OutputGate<? extends Record> outputGate = getOutputGate(i);
+			outputGate.getGateID().write(out);
+			StringRecord.writeString(out, outputGate.getType().getName());
+			out.writeBoolean(outputGate.isBroadcast());
+			if (!outputGate.isBroadcast()) {
+				// Write out class name of channel selector
+				StringRecord.writeString(out, outputGate.getChannelSelector().getClass().getName());
+				outputGate.getChannelSelector().write(out);
+			}
+
 			getOutputGate(i).write(out);
 		}
 
 		// Input gates
 		out.writeInt(getNumberOfInputGates());
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
+			final InputGate<? extends Record> inputGate = getInputGate(i);
+			inputGate.getGateID().write(out);
+			StringRecord.writeString(out, inputGate.getRecordDeserializer().getClass().getName());
+			inputGate.getRecordDeserializer().write(out);
+			StringRecord.writeString(out, inputGate.getDistributionPattern().getClass().getName());
 			getInputGate(i).write(out);
 		}
 
@@ -914,16 +1015,16 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.executionState == ExecutionState.CREATED && newExecutionState == ExecutionState.SCHEDULED) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.ASSIGNING) {
-			unexpectedStateChange = false;
-		}
-		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.ASSIGNED) {
+		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.ASSIGNED) {
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.READY) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.RUNNING) {
+		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.STARTING) {
+			unexpectedStateChange = false;
+		}
+		if (this.executionState == ExecutionState.STARTING && newExecutionState == ExecutionState.RUNNING) {
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.FINISHING) {
@@ -933,30 +1034,15 @@ public class Environment implements Runnable, IOReadableWritable {
 			unexpectedStateChange = false;
 		}
 
-		// The following error cases are not unexpected
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.ASSIGNED) {
-			/**
-			 * This transition can appear if an instance is used in different stages. In this case
-			 * the respective vertices in the upper stages may already be assigned an instance although the
-			 * scheduler did not explicitly ask for it.
-			 */
-			unexpectedStateChange = false;
-		}
 		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
 			 */
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.ASSIGNING && newExecutionState == ExecutionState.CANCELED) {
-			/**
-			 * This transition can appear if a task is canceled after an instance request has been triggered.
-			 */
-			unexpectedStateChange = false;
-		}
 		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELED) {
 			/**
-			 * This transition can appear if a task is canceled after an instance request has been triggered.
+			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
 			 */
 			unexpectedStateChange = false;
 		}
@@ -966,7 +1052,12 @@ public class Environment implements Runnable, IOReadableWritable {
 			 */
 			unexpectedStateChange = false;
 		}
-
+		if (this.executionState == ExecutionState.STARTING && newExecutionState == ExecutionState.FAILED) {
+			/**
+			 * This transition can appear if a task cannot be deployed at the assigned task manager.
+			 */
+			unexpectedStateChange = false;
+		}
 		if (this.executionState == ExecutionState.RUNNING && newExecutionState == ExecutionState.FAILED) {
 			/**
 			 * This is a regular transition in case of a task error.
@@ -1097,6 +1188,49 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
 			this.getOutputGate(i).releaseAllChannelResources();
+		}
+	}
+
+	/**
+	 * Triggers the notification that the task has run out of its initial execution resources.
+	 */
+	public void triggerInitialExecutionResourcesExhaustedNotification() {
+
+		// Construct a resource utilization snapshot
+		final long timestamp = System.currentTimeMillis();
+		final Map<ChannelID, Long> outputChannelUtilization = new HashMap<ChannelID, Long>();
+
+		for (int i = 0; i < getNumberOfOutputGates(); ++i) {
+			final OutputGate<? extends Record> outputGate = getOutputGate(i);
+			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+				outputChannelUtilization.put(outputChannel.getID(),
+					Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
+			}
+		}
+
+		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization);
+
+		initialExecutionResourcesExhausted(rus);
+	}
+
+	/**
+	 * Triggers the notification that the task has run out of its initial execution resources.
+	 * 
+	 * @param resourceUtilizationSnapshot
+	 *        a snapshot of the task's resource utilization taken at the time when the exhaustion occurred
+	 */
+	public void initialExecutionResourcesExhausted(final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+
+		if (resourceUtilizationSnapshot == null) {
+			throw new IllegalArgumentException("Argument resourceUtilizationSnapshot must not be null");
+		}
+
+		synchronized (this.executionListeners) {
+			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+			while (it.hasNext()) {
+				it.next().initialExecutionResourcesExhausted(this, resourceUtilizationSnapshot);
+			}
 		}
 	}
 }
