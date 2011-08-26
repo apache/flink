@@ -136,7 +136,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		// Subscribe to job status notifications
 		executionGraph.registerJobStatusListener(this);
 
-		// Set state of each vertex for scheduled
+		// Register execution listener for each vertex
 		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
 		while (it2.hasNext()) {
 
