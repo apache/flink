@@ -1236,6 +1236,24 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			// add the sentinel to notify the receivers that the work is done
 			this.queues.sort.add(SENTINEL);
 			LOG.debug("Reading thread done.");
+			
+			// TODO: remove
+			printFinishMsg();
+		}
+		
+		private void printFinishMsg() {
+			// TODO: remove!
+			StringBuilder bld = new StringBuilder(128);
+			bld.append("Data Receiving Finished");
+			bld.append(':').append(' ');
+			bld.append(parent.getEnvironment().getTaskName());
+			bld.append(' ').append('(');
+			bld.append(parent.getEnvironment().getIndexInSubtaskGroup() + 1);
+			bld.append('/');
+			bld.append(parent.getEnvironment().getCurrentNumberOfSubtasks());
+			bld.append(')');
+						
+			LOG.info(bld.toString());
 		}
 	}
 
@@ -1395,6 +1413,10 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 				// set lazy iterator
 				setResultIterator(iterators.size() == 1 ? iterators.get(0) : 
 					new MergeIterator<K, V>(iterators, keyComparator));
+				
+				// TODO: remove
+				printFinishMsg();
+				
 				return;
 			}			
 			
@@ -1513,6 +1535,24 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 			// done
 			LOG.debug("Spilling and merging thread done.");
+			
+			// TODO: remove
+			printFinishMsg();
+		}
+		
+		private void printFinishMsg() {
+			// TODO: remove!
+			StringBuilder bld = new StringBuilder(128);
+			bld.append("Sorting and Merging Finished");
+			bld.append(':').append(' ');
+			bld.append(parent.getEnvironment().getTaskName());
+			bld.append(' ').append('(');
+			bld.append(parent.getEnvironment().getIndexInSubtaskGroup() + 1);
+			bld.append('/');
+			bld.append(parent.getEnvironment().getCurrentNumberOfSubtasks());
+			bld.append(')');
+						
+			LOG.info(bld.toString());
 		}
 		
 		/**
