@@ -112,24 +112,24 @@ public class BuiltinFunctions {
 		return TextNode.valueOf(string.substring(fromPos, toPos));
 	}
 
-	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
-		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
-		Matcher matcher = compiledPattern.matcher(input.getTextValue());
-		if (!matcher.find())
-			return defaultValue;
-
-		if (matcher.groupCount() == 1)
-			return TextNode.valueOf(matcher.group(0));
-
-		ArrayNode result = new ArrayNode(null);
-		for (int index = 1; index <= matcher.groupCount(); index++)
-			result.add(TextNode.valueOf(matcher.group(index)));
-		return result;
-	}
-
-	public static JsonNode extract(TextNode input, TextNode pattern) {
-		return extract(input, pattern, NullNode.getInstance());
-	}
+//	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
+//		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
+//		Matcher matcher = compiledPattern.matcher(input.getTextValue());
+//		if (!matcher.find())
+//			return defaultValue;
+//
+//		if (matcher.groupCount() == 1)
+//			return TextNode.valueOf(matcher.group(0));
+//
+//		ArrayNode result = new ArrayNode(null);
+//		for (int index = 1; index <= matcher.groupCount(); index++)
+//			result.add(TextNode.valueOf(matcher.group(index)));
+//		return result;
+//	}
+//
+//	public static JsonNode extract(TextNode input, TextNode pattern) {
+//		return extract(input, pattern, NullNode.getInstance());
+//	}
 
 	public static JsonNode camelCase(TextNode input) {
 		char[] chars = input.getTextValue().toCharArray();

@@ -55,10 +55,13 @@ public class SopremoTestPlan {
 	}
 
 	public SopremoTestPlan(final Operator... sinks) {
-		final List<Operator.Output> unconnectedOutputs = new ArrayList<Operator.Output>();
+		final List<JsonStream> unconnectedOutputs = new ArrayList<JsonStream>();
 		final List<Operator> unconnectedInputs = new ArrayList<Operator>();
-		for (final Operator operator : sinks)
+		for (final Operator operator : sinks) {
 			unconnectedOutputs.addAll(operator.getOutputs());
+			if(operator instanceof Sink)
+				unconnectedOutputs.add(operator);
+		}
 
 		for (final Operator operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
 			if (operator instanceof Source)
@@ -85,11 +88,11 @@ public class SopremoTestPlan {
 			}
 		}
 		this.actualOutputs = new ActualOutput[unconnectedOutputs.size()];
-		this.expectedOutputs = new ExpectedOutput[unconnectedOutputs.size()];
+		this.expectedOutputs = new ExpectedOutput[unconnectedOutputs.size() ];
 		for (int index = 0; index < this.actualOutputs.length; index++) {
 			this.actualOutputs[index] = new ActualOutput(index);
-			if (unconnectedOutputs.get(index).getOperator() instanceof Sink)
-				this.actualOutputs[index].setOperator((Sink) unconnectedOutputs.get(index).getOperator());
+			if (unconnectedOutputs.get(index) instanceof Sink)
+				this.actualOutputs[index].setOperator((Sink) unconnectedOutputs.get(index));
 			else
 				this.actualOutputs[index].getOperator().setInput(0, unconnectedOutputs.get(index));
 			this.expectedOutputs[index] = new ExpectedOutput(index);

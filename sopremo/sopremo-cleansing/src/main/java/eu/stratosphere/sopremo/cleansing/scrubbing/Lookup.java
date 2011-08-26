@@ -16,11 +16,13 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.record_linkage.ValueSplitter;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.expressions.WritableEvaluable;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -150,13 +152,12 @@ public class Lookup extends CompositeOperator {
 
 			final Operator replacedElements = defaultExpression == FILTER_RECORDS ? new ElementStrictReplace(
 				arraySplit, right) : new ElementReplaceWithDefault(defaultExpression, arraySplit, right);
-			final Operator arrayDictionary = new UnionAll(new AssembleArray(replacedElements),
-				new Projection(EvaluationExpression.VALUE, EvaluationExpression.VALUE,
-					new Source(new ArrayCreation(new ArrayCreation()))));
+			final Operator arrayDictionary = new AssembleArray(replacedElements);
 
 			final Lookup arrayLookup = new Lookup(sopremoModule.getInput(0), arrayDictionary);
 			arrayLookup.setInputKeyExtractor(inputKeyExtractor);
-			sopremoModule.getOutput(0).setInput(0, arrayLookup);
+			Selection emptyArrays = new Selection(new UnaryExpression(inputKeyExtractor.asExpression(), true), sopremoModule.getInput(0));
+			sopremoModule.getOutput(0).setInput(0, new UnionAll(arrayLookup, emptyArrays));
 		} else {
 			final Projection left = new Projection(this.inputKeyExtractor.asExpression(),
 				EvaluationExpression.VALUE,

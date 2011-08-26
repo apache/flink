@@ -45,8 +45,13 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 			SopremoUtil.LOG.trace(String.format("%s %s/%s", getContext().operatorTrace(), key, cached));
 			values = cached.iterator();
 		}
+		try {
 		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
 			new JsonCollector(
 				out));
+	} catch(RuntimeException e) {
+		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", getContext().operatorTrace(), key, values, e));
+		throw e;
+	}
 	}
 }

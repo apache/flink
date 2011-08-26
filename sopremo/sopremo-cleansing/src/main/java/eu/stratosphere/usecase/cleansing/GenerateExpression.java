@@ -18,9 +18,9 @@ public class GenerateExpression extends EvaluationExpression {
 	public GenerateExpression(String patternString) {
 		int patternPos = patternString.indexOf("%");
 		if (patternPos == -1)
-			patternString += "%s %s";
+			patternString += "%s_%s";
 		else if (patternString.indexOf("%", patternPos + 1) == -1)
-			patternString = patternString.replaceAll("%", "%s %");
+			patternString = patternString.replaceAll("%", "%s_%");
 		this.pattern = patternString;
 	}
 

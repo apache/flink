@@ -31,7 +31,12 @@ public abstract class SopremoCross<IK1 extends PactJsonObject.Key, IV1 extends P
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s %s/%s", getContext().operatorTrace(), key1, value1, key2,
 				value2));
+		try {
 		this.cross(key1.getValue(), value1.getValue(), key2.getValue(), value2.getValue(), new JsonCollector(out));
+	} catch(RuntimeException e) {
+		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k1/v1 %s/%s k2/v2: %s", getContext().operatorTrace(), key1, value1, key2, value2, e));
+		throw e;
+	}
 	}
 
 	protected EvaluationContext getContext() {

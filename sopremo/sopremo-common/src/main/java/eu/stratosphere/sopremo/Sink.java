@@ -21,16 +21,32 @@ public class Sink extends ElementaryOperator {
 		// throw new IllegalArgumentException();
 		this.outputName = outputName;
 		this.type = type;
+		setNumberOfOutputs(0);
 	}
-
+	
+	@Override
+	public Output getSource() {
+throw new UnsupportedOperationException("Sink has not output");
+	}
+	
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
 		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
 			JsonOutputFormat.class, this.outputName, this.outputName);
 		contract.setInput(pactModule.getInput(0));
+		contract.setDegreeOfParallelism(1);
 		pactModule.addInternalOutput(contract);
 		return pactModule;
+	}
+	
+	@Override
+	public SopremoModule toElementaryOperators() {
+		SopremoModule module = new SopremoModule(getName(), 1, 0);
+		Sink clone = (Sink) clone();
+		module.addInternalOutput(clone);
+		clone.setInput(0, module.getInput(0));
+		return module;
 	}
 
 	public String getOutputName() {

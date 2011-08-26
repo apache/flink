@@ -10,6 +10,8 @@ import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
@@ -28,16 +30,29 @@ public class Source extends ElementaryOperator {
 
 	private EvaluationExpression adhocValue;
 
+	private Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputFormat;
+
 	public Source(final EvaluationExpression adhocValue) {
 		super();
 		this.adhocValue = adhocValue;
+		this.inputFormat = JsonInputFormat.class;
 		this.type = PersistenceType.ADHOC;
 	}
 
-	public Source(final PersistenceType type, final String inputName) {
+	public Source(Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputformat, final String inputName) {
 		super();
 		this.inputName = inputName;
-		this.type = type;
+		this.inputFormat = inputformat;
+		this.type = PersistenceType.HDFS;
+	}
+
+	@Deprecated
+	public Source(PersistenceType type, final String inputName) {
+		this(JsonInputFormat.class, inputName);
+	}
+
+	public Source(final String inputName) {
+		this(JsonInputFormat.class, inputName);
 	}
 
 	@Override
@@ -47,7 +62,7 @@ public class Source extends ElementaryOperator {
 			try {
 				final File tempFile = File.createTempFile("Adhoc", "source");
 				writeValues(tempFile);
-				inputName = "file://localhost:80" + tempFile.getAbsolutePath();
+				inputName = "file://localhost" + tempFile.getAbsolutePath();
 				SopremoUtil.LOG.info("temp file " + inputName);
 				name = "Adhoc";
 			} catch (IOException e) {
@@ -56,7 +71,8 @@ public class Source extends ElementaryOperator {
 		}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			JsonInputFormat.class, inputName, name);
+			inputFormat, inputName, name);
+		contract.setDegreeOfParallelism(1);
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
 		return pactModule;
