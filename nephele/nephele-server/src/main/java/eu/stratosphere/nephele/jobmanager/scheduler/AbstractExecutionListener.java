@@ -15,7 +15,13 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
@@ -25,7 +31,14 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
+import eu.stratosphere.nephele.types.Record;
 
 public abstract class AbstractExecutionListener implements ExecutionListener {
 
@@ -131,7 +144,148 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	@Override
 	public void initialExecutionResourcesExhausted(final Environment ee,
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-		// Nothing to do here
+
+		final ExecutionGraph executionGraph = this.executionVertex.getExecutionGraph();
+
+		System.out.println(this.executionVertex + " has run out of execution resources");
+
+		final Map<ExecutionVertex, Long> targetVertices = new HashMap<ExecutionVertex, Long>();
+		final Map<AllocatedResource, Long> availableResources = new HashMap<AllocatedResource, Long>();
+
+		synchronized (executionGraph) {
+
+			for (int i = 0; i < ee.getNumberOfOutputGates(); ++i) {
+				final OutputGate<? extends Record> outputGate = ee.getOutputGate(i);
+				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					final long transmittedData = resourceUtilizationSnapshot.getAmountOfDataTransmitted(outputChannel
+						.getID());
+
+					final ExecutionVertex connectedVertex = executionGraph.getVertexByChannelID(outputChannel
+						.getConnectedChannelID());
+					final ExecutionState state = connectedVertex.getExecutionState();
+					if (state == ExecutionState.SCHEDULED || state == ExecutionState.ASSIGNED) {
+						targetVertices.put(connectedVertex, Long.valueOf(transmittedData));
+						final AllocatedResource allocatedResource = connectedVertex.getAllocatedResource();
+						if (!(allocatedResource.getInstance() instanceof DummyInstance)) {
+							availableResources.put(allocatedResource, Long.valueOf(0L));
+						}
+					}
+				}
+			}
+
+			if(targetVertices.isEmpty()) {
+				return;
+			}
+			
+			final Queue<ExecutionVertex> vertexQueue = new PriorityQueue<ExecutionVertex>(targetVertices.size(),
+				new Comparator<ExecutionVertex>() {
+
+					@Override
+					public int compare(final ExecutionVertex arg0, final ExecutionVertex arg1) {
+
+						final Long l0 = targetVertices.get(arg0);
+						final Long l1 = targetVertices.get(arg1);
+
+						if (l0.longValue() == l1.longValue()) {
+							return 0;
+						}
+
+						if (l0.longValue() < l1.longValue()) {
+							return 1;
+						}
+
+						return -1;
+					}
+				});
+
+			final Queue<AllocatedResource> resourceQueue = new PriorityQueue<AllocatedResource>(
+				availableResources.size(), new Comparator<AllocatedResource>() {
+
+					@Override
+					public int compare(final AllocatedResource arg0, final AllocatedResource arg1) {
+
+						final Long l0 = availableResources.get(arg0);
+						final Long l1 = availableResources.get(arg1);
+
+						if (l0.longValue() == l1.longValue()) {
+							return 0;
+						}
+
+						if (l0.longValue() < l1.longValue()) {
+							return -1;
+						}
+
+						return 1;
+					}
+				});
+
+			Iterator<ExecutionVertex> vertexIt = targetVertices.keySet().iterator();
+			while (vertexIt.hasNext()) {
+				vertexQueue.add(vertexIt.next());
+			}
+
+			final Iterator<AllocatedResource> resourceIt = availableResources.keySet().iterator();
+			while (resourceIt.hasNext()) {
+				resourceQueue.add(resourceIt.next());
+			}
+
+			while (!vertexQueue.isEmpty()) {
+
+				final ExecutionVertex v = vertexQueue.poll();
+				final long vertexLoad = targetVertices.get(v);
+				System.out.println(v + ": " + vertexLoad);
+				final AllocatedResource ar = resourceQueue.poll();
+				final long resourceLoad = availableResources.get(ar).longValue();
+				System.out.println(ar + ": " + resourceLoad);
+				availableResources.put(ar, Long.valueOf(vertexLoad + resourceLoad));
+				resourceQueue.add(ar);
+				reassignGraphFragment(v, v.getAllocatedResource(), ar);
+			}
+
+			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
+			vertexIt = targetVertices.keySet().iterator();
+			while (vertexIt.hasNext()) {
+
+				this.scheduler.findVerticesToBeDeployed(vertexIt.next(), verticesToBeDeployed);
+			}
+
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> deploymentIt = verticesToBeDeployed
+				.entrySet().iterator();
+			
+			while (deploymentIt.hasNext()) {
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = deploymentIt.next();
+				this.scheduler.getDeploymentManager().deploy(executionGraph.getJobID(), entry.getKey(),
+					entry.getValue());
+			}
+		}
 	}
 
+	private void reassignGraphFragment(final ExecutionVertex vertex, final AllocatedResource oldResource,
+			final AllocatedResource newResource) {
+
+		if (oldResource.equals(vertex.getAllocatedResource())) {
+			vertex.setAllocatedResource(newResource);
+			if (vertex.getExecutionState() == ExecutionState.SCHEDULED) {
+				vertex.setExecutionState(ExecutionState.ASSIGNED);
+			}
+
+			final int numberOfOutputGates = vertex.getEnvironment().getNumberOfOutputGates();
+			for (int i = 0; i < numberOfOutputGates; ++i) {
+				final OutputGate<? extends Record> outputGate = vertex.getEnvironment().getOutputGate(i);
+
+				if (outputGate.getChannelType() == ChannelType.NETWORK) {
+					continue;
+				}
+
+				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+				for (int j = 0; j < numberOfOutputChannels; ++j) {
+					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
+						outputChannel.getConnectedChannelID());
+					reassignGraphFragment(connectedVertex, oldResource, newResource);
+				}
+			}
+		}
+	}
 }

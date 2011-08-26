@@ -26,6 +26,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -41,8 +43,11 @@ import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
+import eu.stratosphere.nephele.types.Record;
 
 /**
  * This abstract scheduler must be extended by a scheduler implementations for Nephele. The abstract class defines the
@@ -61,6 +66,16 @@ public abstract class AbstractScheduler implements InstanceListener {
 	protected static final Log LOG = LogFactory.getLog(AbstractScheduler.class);
 
 	/**
+	 * The configuration key to check whether task merging is allowed.
+	 */
+	private static final String ALLOW_TASK_MERGING_KEY = "scheduler.queue.allowTaskMerging";
+
+	/**
+	 * The default setting for task merging.
+	 */
+	private static final boolean DEFAULT_ALLOW_TASK_MERGING = false;
+
+	/**
 	 * The instance manager assigned to this scheduler.
 	 */
 	private final InstanceManager instanceManager;
@@ -69,6 +84,11 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * The deployment manager assigned to this scheduler.
 	 */
 	private final DeploymentManager deploymentManager;
+
+	/**
+	 * Stores whether task merging is allowed.
+	 */
+	private final boolean allowTaskMerging;
 
 	/**
 	 * Constructs a new abstract scheduler.
@@ -82,8 +102,12 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 		this.deploymentManager = deploymentManager;
 		this.instanceManager = instanceManager;
+		this.allowTaskMerging = GlobalConfiguration.getBoolean(ALLOW_TASK_MERGING_KEY,
+			DEFAULT_ALLOW_TASK_MERGING);
 
 		this.instanceManager.setInstanceListener(this);
+
+		LOG.info("initialized scheduler with task merging " + (this.allowTaskMerging ? "enabled" : "disabled"));
 	}
 
 	/**
@@ -169,6 +193,62 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 	}
 
+	void findVerticesToBeDeployed(final ExecutionVertex vertex,
+			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed) {
+
+		if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
+			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+			if (instance instanceof DummyInstance) {
+				LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
+						+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
+						+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
+						+ ") is about to be deployed on a DummyInstance");
+			}
+
+			List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
+			if (verticesForInstance == null) {
+				verticesForInstance = new ArrayList<ExecutionVertex>();
+				verticesToBeDeployed.put(instance, verticesForInstance);
+			}
+
+			vertex.setExecutionState(ExecutionState.READY);
+			verticesForInstance.add(vertex);
+		}
+
+		final Environment env = vertex.getEnvironment();
+		final int numberOfOutputGates = env.getNumberOfOutputGates();
+		for (int i = 0; i < numberOfOutputGates; ++i) {
+
+			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+			boolean deployTarget;
+
+			switch (outputGate.getChannelType()) {
+			case FILE:
+				deployTarget = false;
+				break;
+			case NETWORK:
+				deployTarget = !this.allowTaskMerging;
+				break;
+			case INMEMORY:
+				deployTarget = true;
+				break;
+			default:
+				throw new IllegalStateException("Unknown channel type");
+			}
+
+			if (deployTarget) {
+
+				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+				for (int j = 0; j < numberOfOutputChannels; ++j) {
+					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(outputChannel.getConnectedChannelID());
+					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
+				}
+			}
+		}
+	}
+
 	/**
 	 * Collects all execution vertices with the state ASSIGNED from the current execution stage and deploys them on the
 	 * assigned {@link AllocatedResource} objects.
@@ -179,30 +259,18 @@ public abstract class AbstractScheduler implements InstanceListener {
 	public void deployAssignedVertices(final ExecutionGraph executionGraph) {
 
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
-		final int indexOfCurrentExecutionStage = executionGraph.getIndexOfCurrentExecutionStage();
+		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, indexOfCurrentExecutionStage,
-			true, true);
+		for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
 
-		while (it.hasNext()) {
-			final ExecutionVertex vertex = it.next();
-			if (vertex.getExecutionState() == ExecutionState.READY) {
-				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+			final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
+			if (!startVertex.isInputVertex()) {
+				continue;
+			}
 
-				if (instance instanceof DummyInstance) {
-					LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
-						+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
-						+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
-						+ ") is about to be deployed on a DummyInstance");
-				}
-
-				List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
-				if (verticesForInstance == null) {
-					verticesForInstance = new ArrayList<ExecutionVertex>();
-					verticesToBeDeployed.put(instance, verticesForInstance);
-				}
-
-				verticesForInstance.add(vertex);
+			for(int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
+				final ExecutionVertex vertex = startVertex.getGroupMember(j);
+				findVerticesToBeDeployed(vertex, verticesToBeDeployed);
 			}
 		}
 
@@ -218,7 +286,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			}
 		}
 	}
-
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -315,7 +383,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 					final ExecutionVertex vertex = it.next();
 					if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
 						vertex.setAllocatedResource(allocatedResource);
-						vertex.setExecutionState(ExecutionState.READY);
+						vertex.setExecutionState(ExecutionState.ASSIGNED);
 					}
 				}
 			}
@@ -380,5 +448,9 @@ public abstract class AbstractScheduler implements InstanceListener {
 				}
 			}
 		}
+	}
+	
+	DeploymentManager getDeploymentManager() {
+		return this.deploymentManager;
 	}
 }
