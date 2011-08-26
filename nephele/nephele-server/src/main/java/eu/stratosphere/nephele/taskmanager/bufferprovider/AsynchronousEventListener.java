@@ -15,7 +15,9 @@
 
 package eu.stratosphere.nephele.taskmanager.bufferprovider;
 
+import java.io.IOException;
+
 public interface AsynchronousEventListener {
 
-	void asynchronousEventOccurred();
+	void asynchronousEventOccurred() throws IOException, InterruptedException;
 }

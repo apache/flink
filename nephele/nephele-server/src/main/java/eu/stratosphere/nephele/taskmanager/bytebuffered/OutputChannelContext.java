@@ -16,9 +16,7 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.Iterator;
-import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -31,6 +29,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelActivateEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class OutputChannelContext implements ByteBufferedOutputChannelBroker, ChannelContext {
@@ -61,7 +60,10 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 */
 	private volatile boolean isReceiverRunning = false;
 
-	private Queue<TransferEnvelope> queuedOutgoingEnvelopes;
+	/**
+	 * Queue to store outgoing transfer envelope in case the receiver of the envelopes is not yet running.
+	 */
+	private SpillingQueue queuedOutgoingEnvelopes;
 
 	/**
 	 * The sequence number for the next {@link TransferEnvelope} to be created.
@@ -76,7 +78,13 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
 		this.isReceiverRunning = isReceiverRunning;
 
-		this.queuedOutgoingEnvelopes = new ArrayDeque<TransferEnvelope>();
+		this.queuedOutgoingEnvelopes = new SpillingQueue(outputGateContext.getGateID(),
+			outputGateContext.getFileBufferManager());
+
+		// Register as inactive channel so queue can be spilled to disk when we run out of memory buffers
+		if (!isReceiverRunning) {
+			this.outputGateContext.registerInactiveOutputChannel(this);
+		}
 	}
 
 	/**
@@ -98,7 +106,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		final int uncompressedBufferSize = calculateBufferSize();
 
 		// TODO: This implementation breaks compression, we have to fix it later
-		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(this, uncompressedBufferSize);
+		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize, 0);
 		final BufferPairResponse bufferResponse = new BufferPairResponse(null, buffer);
 
 		// Put the buffer into the transfer envelope
@@ -141,30 +149,16 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		}
 
 		// Finish the write phase of the buffer
-		try {
-			this.outgoingTransferEnvelope.getBuffer().finishWritePhase();
-		} catch (final IOException ioe) {
-			this.byteBufferedOutputChannel.reportIOException(ioe);
-		}
+		final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
+		buffer.finishWritePhase();
 
 		if (!this.isReceiverRunning) {
-
-			final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
-			if (buffer.isBackedByMemory()) {
-				final Buffer fileBuffer = this.outputGateContext.getFileBuffer(buffer.size());
-				buffer.copyToBuffer(fileBuffer);
-				this.outgoingTransferEnvelope.setBuffer(fileBuffer);
-				buffer.recycleBuffer();
-			}
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 			this.outgoingTransferEnvelope = null;
-
 			return;
 		}
 
-		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-		}
+		flushQueuedOutgoingEnvelopes();
 
 		this.outputGateContext.processEnvelope(this, this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
@@ -186,13 +180,10 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			if (!this.isReceiverRunning) {
 
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
-
 				return;
 			}
 
-			while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-				this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-			}
+			flushQueuedOutgoingEnvelopes();
 
 			this.outputGateContext.processEnvelope(this, ephemeralTransferEnvelope);
 		}
@@ -219,6 +210,26 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		return false;
 	}
 
+	/**
+	 * Checks if this channel is active, that means the receiver of the channel's data is able to able to accept the
+	 * data.
+	 * 
+	 * @return <code>true</code> if the channel is active, <code>false</code> otherwise
+	 */
+	boolean isChannelActive() {
+
+		return this.isReceiverRunning;
+	}
+
+	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
+		
+		System.out.println("++ Flushing " + this.queuedOutgoingEnvelopes.size() + " envelopes");
+		
+		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
+			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
+		}		
+	}
+	
 	/**
 	 * Called by the framework to report events to
 	 * the attached channel object.
@@ -284,12 +295,17 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 			if (event instanceof ByteBufferedChannelActivateEvent) {
 				this.isReceiverRunning = true;
+				System.out.print("-- Activated channel " + getChannelID());
+				this.outputGateContext.reportAsynchronousEvent();
 			} else {
 				this.byteBufferedOutputChannel.processEvent(event);
 			}
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
 
@@ -297,32 +313,14 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			return true;
 		}
 
-		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-		}
-
-		return false;
+		flushQueuedOutgoingEnvelopes();
+		
+		return (!this.queuedOutgoingEnvelopes.isEmpty());
 	}
 
-	/**
-	 * Returns the number of remaining bytes that can be written to encapsulated channel's working buffer. This method
-	 * must not be called from any thread than the task thread itself.
-	 * 
-	 * @return the number of remaining bytes that can written to the encapsulated channel's working buffer or
-	 *         <code>-1</code> if the channel currently has no working buffer allocated
-	 */
-	int getRemainingBytesOfWorkingBuffer() {
+	long getAmountOfMainMemoryInQueue() {
 
-		if (this.outgoingTransferEnvelope != null) {
-			final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
-			if (buffer != null) {
-				if (buffer.isBackedByMemory()) {
-					return buffer.remaining();
-				}
-			}
-		}
-
-		return -1;
+		return this.queuedOutgoingEnvelopes.getAmountOfMainMemoryInQueue();
 	}
 
 	/**
@@ -336,5 +334,10 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	void flush() throws IOException, InterruptedException {
 
 		this.byteBufferedOutputChannel.flush();
+	}
+
+	long spillQueueWithOutgoingEnvelopes() throws IOException {
+
+		return this.queuedOutgoingEnvelopes.spillSynchronouslyIncludingHead();
 	}
 }

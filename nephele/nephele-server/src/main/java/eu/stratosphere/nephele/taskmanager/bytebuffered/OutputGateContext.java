@@ -16,17 +16,22 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
-final class OutputGateContext {
+final class OutputGateContext implements BufferProvider, AsynchronousEventListener {
 
 	private final TaskContext taskContext;
 
@@ -36,7 +41,7 @@ final class OutputGateContext {
 
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
-	private final boolean allowSenderSideSpilling;
+	private final Set<OutputChannelContext> inactiveOutputChannels;
 
 	/**
 	 * The dispatcher for received transfer envelopes.
@@ -44,8 +49,7 @@ final class OutputGateContext {
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
 	OutputGateContext(final TaskContext taskContext, final OutputGate<?> outputGate,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final FileBufferManager fileBufferManager,
-			final boolean allowSenderSideSpilling) {
+			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final FileBufferManager fileBufferManager) {
 
 		this.taskContext = taskContext;
 		this.outputGate = outputGate;
@@ -53,53 +57,73 @@ final class OutputGateContext {
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.fileBufferManager = fileBufferManager;
 
+		this.inactiveOutputChannels = new HashSet<OutputChannelContext>();
+
 		this.ephemeralCheckpoint = new EphemeralCheckpoint(this.outputGate.getGateID(),
 			(outputGate.getChannelType() == ChannelType.FILE) ? false : true, this.fileBufferManager);
 
-		this.allowSenderSideSpilling = allowSenderSideSpilling;
+		this.taskContext.registerAsynchronousEventListener(outputGate.getIndex(), this);
 	}
 
-	Buffer requestEmptyBufferBlocking(final OutputChannelContext caller, final int minimumSizeOfBuffer)
-			throws IOException, InterruptedException {
+	void registerInactiveOutputChannel(final OutputChannelContext outputChannelContext) {
 
-		Buffer buffer;
+		this.inactiveOutputChannels.add(outputChannelContext);
+	}
 
-		final ChannelType channelType = this.outputGate.getChannelType();
+	private long spillQueueWithLargestAmountOfMainMemory() {
 
-		if (channelType == ChannelType.FILE) {
+		if (this.inactiveOutputChannels.isEmpty()) {
+			return 0L;
+		}
 
-			// File channels always receive file based buffers
-			buffer = getFileBuffer(minimumSizeOfBuffer);
+		final Iterator<OutputChannelContext> it = this.inactiveOutputChannels.iterator();
 
-		} else {
+		long maxMainMemory = 0;
+		OutputChannelContext maxContext = null;
 
-			// For network and in-memory channels, try to get a memory-based buffer first
-			buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, 0);
+		while (it.hasNext()) {
 
-			// No memory-based buffer available
-			if (buffer == null) {
+			final OutputChannelContext context = it.next();
+			final long mm = context.getAmountOfMainMemoryInQueue();
 
-				// If sender-side spilling is allowed, network channels can also get a file-based buffer
-				if (channelType == ChannelType.NETWORK && this.allowSenderSideSpilling) {
-					buffer = getFileBuffer(minimumSizeOfBuffer);
-				} else {
-
-					// We are out of byte buffers
-					if (!this.ephemeralCheckpoint.isDecided()) {
-						this.ephemeralCheckpoint.destroy();
-						// this.ephemeralCheckpoint.write();
-					}
-
-					// Wait until a memory-based buffer is available
-					buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, 0);
-				}
+			if (mm > maxMainMemory) {
+				maxMainMemory = mm;
+				maxContext = context;
 			}
 		}
 
-		return buffer;
+		if (maxContext != null) {
+			try {
+				return maxContext.spillQueueWithOutgoingEnvelopes();
+			} catch (IOException ioe) {
+				maxContext.reportIOException(ioe);
+			}
+		}
+
+		return 0L;
+	}
+	
+	private void checkForActiveOutputChannels() throws IOException, InterruptedException {
+		
+		System.out.println("++ Checking " + inactiveOutputChannels.size() + " output channels");
+		final Iterator<OutputChannelContext> it = this.inactiveOutputChannels.iterator();
+		while(it.hasNext()) {
+			final OutputChannelContext channelContext = it.next();
+			if(channelContext.isChannelActive()) {
+				System.out.println("++ Channel " + channelContext.getChannelID() + " is active");
+				channelContext.flushQueuedOutgoingEnvelopes();
+				it.remove();
+			} else {
+				System.out.println("++ Channel " + channelContext.getChannelID() + " is inactive");
+			}
+		}
 	}
 
-	int getMaximumBufferSize() {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getMaximumBufferSize() {
 
 		return this.taskContext.getMaximumBufferSize();
 	}
@@ -130,8 +154,82 @@ final class OutputGateContext {
 		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
 	}
 
-	Buffer getFileBuffer(final int bufferSize) throws IOException {
+	FileBufferManager getFileBufferManager() {
 
-		return BufferFactory.createFromFile(bufferSize, this.outputGate.getGateID(), this.fileBufferManager);
+		return this.fileBufferManager;
+	}
+
+	public GateID getGateID() {
+
+		return this.outputGate.getGateID();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void asynchronousEventOccurred() throws IOException, InterruptedException {
+		
+		System.out.println("Output gate has received asynchronous event");
+		
+		checkForActiveOutputChannels();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer, int minimumReserve) throws IOException {
+		
+		throw new IllegalStateException("requestEmptyBuffer called on OutputGateContext");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, int minimumReserve) throws IOException,
+			InterruptedException {
+		
+		Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+
+		// No memory-based buffer available
+		if (buffer == null) {
+
+			// We are out of byte buffers
+			if (!this.ephemeralCheckpoint.isDecided()) {
+				this.ephemeralCheckpoint.destroy();
+				// this.ephemeralCheckpoint.write();
+			}
+
+			// Report exhaustion of memory buffers to the task context
+			this.taskContext.reportExhaustionOfMemoryBuffers();
+
+			// Spill queue that contains the largest amount of main memory, encapsulated in the queued buffers, to disk
+			spillQueueWithLargestAmountOfMainMemory();
+
+			// Wait until a memory-based buffer is available
+			buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		}
+
+		return buffer;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isShared() {
+		
+		return this.taskContext.isShared();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void reportAsynchronousEvent() {
+		
+		this.taskContext.reportAsynchronousEvent();
 	}
 }

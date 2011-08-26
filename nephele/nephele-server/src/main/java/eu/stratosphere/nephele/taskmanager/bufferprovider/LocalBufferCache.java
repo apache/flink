@@ -86,64 +86,73 @@ public final class LocalBufferCache implements BufferProvider {
 	}
 
 	private Buffer requestBufferInternal(final int minimumSizeOfBuffer, int minimumReserve, final boolean block)
-			throws InterruptedException {
+			throws IOException, InterruptedException {
 
 		if (minimumSizeOfBuffer > this.maximumBufferSize) {
 			throw new IllegalArgumentException("Buffer of " + minimumSizeOfBuffer
 				+ " bytes is requested, but maximum buffer size is " + this.maximumBufferSize);
 		}
 
-		synchronized (this.buffers) {
+		while (true) {
 
-			// Make sure we return excess buffers immediately
-			while (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
+			boolean async = false;
 
-				final ByteBuffer buffer = this.buffers.poll();
-				if (buffer == null) {
-					break;
+			synchronized (this.buffers) {
+
+				// Make sure we return excess buffers immediately
+				while (this.requestedNumberOfBuffers > this.designatedNumberOfBuffers) {
+
+					final ByteBuffer buffer = this.buffers.poll();
+					if (buffer == null) {
+						break;
+					}
+
+					this.globalBufferPool.releaseGlobalBuffer(buffer);
+					this.requestedNumberOfBuffers--;
 				}
 
-				this.globalBufferPool.releaseGlobalBuffer(buffer);
-				this.requestedNumberOfBuffers--;
-			}
+				if (minimumReserve > this.designatedNumberOfBuffers) {
+					LOG.warn("Minimum reserve " + minimumReserve + " is larger than number of designated buffers "
+						+ this.designatedNumberOfBuffers + ", reducing reserve...");
+					minimumReserve = this.designatedNumberOfBuffers;
+				}
 
-			if (minimumReserve > this.designatedNumberOfBuffers) {
-				LOG.warn("Minimum reserve " + minimumReserve + " is larger than number of designated buffers "
-					+ this.designatedNumberOfBuffers + ", reducing reserve...");
-				minimumReserve = this.designatedNumberOfBuffers;
-			}
+				while (this.buffers.size() <= minimumReserve) {
 
-			while (this.buffers.size() <= minimumReserve) {
+					// Check if the number of cached buffers matches the number of designated buffers
+					if (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
 
-				// Check if the number of cached buffers matches the number of designated buffers
-				if (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {
+						final ByteBuffer buffer = this.globalBufferPool.lockGlobalBuffer();
+						if (buffer != null) {
 
-					final ByteBuffer buffer = this.globalBufferPool.lockGlobalBuffer();
-					if (buffer != null) {
+							this.buffers.add(buffer);
+							this.requestedNumberOfBuffers++;
+							continue;
+						}
+					}
 
-						this.buffers.add(buffer);
-						this.requestedNumberOfBuffers++;
-						continue;
+					if (this.asynchronousEventOccurred) {
+						this.asynchronousEventOccurred = false;
+						async = true;
+						break;
+					}
+
+					if (block) {
+						this.buffers.wait();
+					} else {
+						return null;
 					}
 				}
 
-				if (this.asynchronousEventOccurred) {
-					if (this.eventListener != null) {
-						this.eventListener.asynchronousEventOccurred();
-					}
-					this.asynchronousEventOccurred = false;
-				}
-
-				if (block) {
-					this.buffers.wait();
-				} else {
-					return null;
+				if (!async) {
+					final ByteBuffer byteBuffer = this.buffers.poll();
+					return BufferFactory.createFromMemory(minimumSizeOfBuffer, byteBuffer, this.buffers);
 				}
 			}
 
-			final ByteBuffer byteBuffer = this.buffers.poll();
-
-			return BufferFactory.createFromMemory(minimumSizeOfBuffer, byteBuffer, this.buffers);
+			if (this.eventListener != null) {
+				this.eventListener.asynchronousEventOccurred();
+			}
 		}
 	}
 

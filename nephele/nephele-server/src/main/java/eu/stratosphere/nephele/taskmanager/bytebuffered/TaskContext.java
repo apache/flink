@@ -19,14 +19,17 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferCache;
 
-final class TaskContext implements BufferProvider {
+final class TaskContext implements BufferProvider, AsynchronousEventListener {
 
 	private final LocalBufferCache localBufferCache;
 
 	private final Environment environment;
+
+	private final AsynchronousEventListener[] subEventListener;
 
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
@@ -35,9 +38,29 @@ final class TaskContext implements BufferProvider {
 
 	TaskContext(final Environment environment) {
 
-		this.localBufferCache = new LocalBufferCache(1, false);
+		this.localBufferCache = new LocalBufferCache(1, false, this);
 
 		this.environment = environment;
+
+		// Each output gate context will register as a sub event listener
+		this.subEventListener = new AsynchronousEventListener[environment.getNumberOfOutputGates()];
+	}
+
+	void registerAsynchronousEventListener(final int index, final AsynchronousEventListener eventListener) {
+
+		if (index >= this.subEventListener.length || index < 0) {
+			throw new IllegalArgumentException("Argument index has invalid value " + index);
+		}
+
+		if (eventListener == null) {
+			throw new IllegalArgumentException("Argument eventListener must not be null");
+		}
+
+		if (this.subEventListener[index] != null) {
+			throw new IllegalStateException("There is already an event listener with index " + index + " registered");
+		}
+
+		this.subEventListener[index] = eventListener;
 	}
 
 	/**
@@ -117,5 +140,21 @@ final class TaskContext implements BufferProvider {
 	public void reportAsynchronousEvent() {
 
 		this.localBufferCache.reportAsynchronousEvent();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void asynchronousEventOccurred() throws IOException, InterruptedException {
+
+		for (int i = 0; i < this.subEventListener.length; ++i) {
+
+			if (this.subEventListener[i] == null) {
+				throw new IllegalStateException("Event listener at index " + i + " is null");
+			}
+
+			this.subEventListener[i].asynchronousEventOccurred();
+		}
 	}
 }

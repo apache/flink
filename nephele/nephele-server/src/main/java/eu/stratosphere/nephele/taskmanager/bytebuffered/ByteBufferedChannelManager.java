@@ -100,8 +100,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.transitBufferPool = new LocalBufferCache(128, true);
 
 		this.networkConnectionManager = new NetworkConnectionManager(this,
-			localInstanceConnectionInfo.getAddress(),
-			localInstanceConnectionInfo.getDataPort());
+			localInstanceConnectionInfo.getAddress(), localInstanceConnectionInfo.getDataPort());
 
 		this.allowSenderSideSpilling = GlobalConfiguration.getBoolean("channel.network.allowSenderSideSpilling",
 			DEFAULT_ALLOW_SENDER_SIDE_SPILLING);
@@ -123,12 +122,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void register(final ExecutionVertexID vertexID, final Environment environment,
 			final Set<ChannelID> activeOutputChannels) {
 
-		final TaskContext taskContext = new TaskContext(environment.getTaskName());
+		final TaskContext taskContext = new TaskContext(environment);
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
 			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate, this,
-					this.fileBufferManager, this.allowSenderSideSpilling);
+					this.fileBufferManager);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
 				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
