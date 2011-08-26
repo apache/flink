@@ -293,6 +293,8 @@ public class JobClient {
 			logErrorAndRethrow(StringUtils.stringifyException(e));
 		}
 
+		final long start = System.currentTimeMillis();
+		
 		while (true) {
 
 			if (Thread.interrupted()) {
@@ -326,6 +328,7 @@ public class JobClient {
 					final JobStatus jobStatus = jobEvent.getCurrentJobStatus();
 					if (jobStatus == JobStatus.FINISHED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
+						System.out.println("Job duration: " + ((System.currentTimeMillis()-start)/1000L));
 						return;
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
