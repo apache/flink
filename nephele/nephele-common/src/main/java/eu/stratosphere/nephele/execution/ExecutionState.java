@@ -33,6 +33,11 @@ public enum ExecutionState {
 	SCHEDULED,
 
 	/**
+	 * The task has been assigned a resource to run, but is not yet read to by deployed.
+	 */
+	ASSIGNED,
+	
+	/**
 	 * The task has been announced ready to run by the scheduler, but is not yet running.
 	 */
 	READY,

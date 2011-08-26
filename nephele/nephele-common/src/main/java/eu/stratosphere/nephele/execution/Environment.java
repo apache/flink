@@ -1015,7 +1015,10 @@ public class Environment implements Runnable, IOReadableWritable {
 		if (this.executionState == ExecutionState.CREATED && newExecutionState == ExecutionState.SCHEDULED) {
 			unexpectedStateChange = false;
 		}
-		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.READY) {
+		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.ASSIGNED) {
+			unexpectedStateChange = false;
+		}
+		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.READY) {
 			unexpectedStateChange = false;
 		}
 		if (this.executionState == ExecutionState.READY && newExecutionState == ExecutionState.STARTING) {
@@ -1032,6 +1035,12 @@ public class Environment implements Runnable, IOReadableWritable {
 		}
 
 		if (this.executionState == ExecutionState.SCHEDULED && newExecutionState == ExecutionState.CANCELED) {
+			/**
+			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
+			 */
+			unexpectedStateChange = false;
+		}
+		if (this.executionState == ExecutionState.ASSIGNED && newExecutionState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
 			 */
