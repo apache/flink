@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -149,20 +148,11 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 	
 	public static class MockMatchStub extends MatchStub {
 
-		HashSet<Integer> hashSet = new HashSet<Integer>(1000);
 
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector out)
 				throws Exception {
-			
-			/*Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value2)));
-			
-			hashSet.add(System.identityHashCode(key));
-			hashSet.add(System.identityHashCode(value1));
-			hashSet.add(System.identityHashCode(value2));*/
-			
+
 			out.collect(value1);
 			
 		}

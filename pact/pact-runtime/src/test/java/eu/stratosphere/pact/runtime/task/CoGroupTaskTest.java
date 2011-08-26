@@ -409,10 +409,10 @@ public class CoGroupTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static class MockCoGroupStub extends CoGroupStub<PactInteger> {
+	public static class MockCoGroupStub extends CoGroupStub {
 
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactRecord> records1,
+		public void coGroup(Iterator<PactRecord> records1,
 				Iterator<PactRecord> records2, Collector out) {
 			int val1Cnt = 0;
 			
@@ -423,6 +423,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 			
 			while (records2.hasNext()) {
 				PactRecord record2 = records2.next();
+				
 				if (val1Cnt == 0) {
 					out.collect(record2);
 				} else {
@@ -435,12 +436,12 @@ public class CoGroupTaskTest extends TaskTestBase {
 	
 	}
 	
-	public static class MockFailingCoGroupStub extends CoGroupStub<PactInteger> {
+	public static class MockFailingCoGroupStub extends CoGroupStub {
 		
 		int cnt = 0;
 		
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactRecord> records1,
+		public void coGroup(Iterator<PactRecord> records1,
 				Iterator<PactRecord> records2, Collector out) throws RuntimeException {
 			int val1Cnt = 0;
 			
@@ -473,10 +474,10 @@ public class CoGroupTaskTest extends TaskTestBase {
 	
 	}
 	
-	public static class MockDelayingCoGroupStub extends CoGroupStub<PactInteger> {
+	public static class MockDelayingCoGroupStub extends CoGroupStub {
 
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactRecord> records1,
+		public void coGroup(Iterator<PactRecord> records1,
 				Iterator<PactRecord> records2, Collector out) {
 			
 			while(records1.hasNext()) {

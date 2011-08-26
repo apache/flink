@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.sort.SortMergeCoGroupIterator;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
@@ -37,7 +36,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
-public class CoGroupTask extends AbstractPactTask<CoGroupStub> //TODO typing?
+public class CoGroupTask extends AbstractPactTask<CoGroupStub>
 {
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
@@ -151,7 +150,7 @@ public class CoGroupTask extends AbstractPactTask<CoGroupStub> //TODO typing?
 		final CoGroupTaskIterator coGroupIterator = this.coGroupIterator;
 		
 		while (this.running && coGroupIterator.next()) {
-			coGroupStub.coGroup(null, coGroupIterator.getValues1(), coGroupIterator.getValues2(), 
+			coGroupStub.coGroup(coGroupIterator.getValues1(), coGroupIterator.getValues2(), 
 					collector);
 		}
 	}

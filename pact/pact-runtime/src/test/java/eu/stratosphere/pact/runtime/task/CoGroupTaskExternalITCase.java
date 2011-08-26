@@ -79,10 +79,10 @@ public class CoGroupTaskExternalITCase extends TaskTestBase {
 				
 	}
 	
-	public static class MockCoGroupStub extends CoGroupStub<PactInteger> {
+	public static class MockCoGroupStub extends CoGroupStub {
 
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactRecord> records1,
+		public void coGroup(Iterator<PactRecord> records1,
 				Iterator<PactRecord> records2, Collector out) {
 			int val1Cnt = 0;
 			

@@ -17,7 +17,6 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -68,6 +67,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug(e);
+			e.printStackTrace();
 			Assert.fail("Invoke method caused exception.");
 		}
 		
@@ -128,9 +128,15 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
 		
 		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
+		int lk = 0;
 		for(PactRecord record : outList) {
 			
 			Integer key = record.getField(0, PactInteger.class).getValue();
+			
+			if (key == 0)
+			{
+				System.out.println((++lk) + ".Value for Key 14: " +record.getField(1, PactInteger.class).getValue());
+			}
 			if(!keyValCntMap.containsKey(key)) {
 				keyValCntMap.put(key,1);
 			} else {
@@ -138,6 +144,13 @@ public class SelfMatchTaskTest extends TaskTestBase {
 			}
 		}
 		for(Integer key : keyValCntMap.keySet()) {
+			if (keyValCntMap.get(key) == (valCnt*valCnt))
+			{
+				System.out.println("šhš");
+			}
+			else {
+				System.out.println("right");
+			}
 			Assert.assertTrue("Invalid value count. Value count was: "+keyValCntMap.get(key)+
 				" Expected was "+(valCnt*valCnt), keyValCntMap.get(key) == (valCnt*valCnt));
 		}
@@ -263,19 +276,9 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	
 	public static class MockMatchStub extends MatchStub {
 
-		HashSet<Integer> hashSet = new HashSet<Integer>(1000);
-		
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector out)
 				throws Exception {
-			
-			/*Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value2)));
-			
-			hashSet.add(System.identityHashCode(key));
-			hashSet.add(System.identityHashCode(value1));
-			hashSet.add(System.identityHashCode(value2));*/
 			
 			out.collect(value1);
 			

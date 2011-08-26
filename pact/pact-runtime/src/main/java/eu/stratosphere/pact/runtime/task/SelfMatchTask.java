@@ -19,40 +19,17 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
-import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
-import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
-import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
-import eu.stratosphere.pact.runtime.sort.SortMerger;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
-import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -72,7 +49,7 @@ import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
  * @author Fabian Hueske
  * @auther Matthias Ringwald
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({"unchecked"})
 public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 
 	// the minimal amount of memory for the task to operate
@@ -86,13 +63,11 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	
 	private long availableMemory;
 	
-	// output collector
-	private OutputCollector output;
+	// obtain the TaskManager's MemoryManager
+	private MemoryManager memoryManager;
+	// obtain the TaskManager's IOManager
+	private IOManager ioManager;
 
-	// copier for key and values
-	private final SerializationCopier<Key> keyCopier = new SerializationCopier<Key>();
-	private final SerializationCopier<Value> innerValCopier = new SerializationCopier<Value>();
-	
 	private int[] keyPositions;
 	private Class<? extends Key>[] keyClasses;
 	
@@ -105,7 +80,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 */
 	@Override
 	public int getNumberOfInputs() {
-		return 2; // TODO only one?
+		return 1; 
 	}
 
 	/* (non-Javadoc)
@@ -123,7 +98,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	public void prepare() throws Exception
 	{
 		// set up memory and I/O parameters
-		long availableMemory = this.config.getMemorySize();
+		availableMemory = this.config.getMemorySize();
 		final int maxFileHandles = this.config.getNumFilehandles();
 		final float spillThreshold = this.config.getSortSpillingTreshold();
 		
@@ -149,9 +124,9 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		}
 		
 		// obtain the TaskManager's MemoryManager
-		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+		memoryManager = getEnvironment().getMemoryManager();
 		// obtain the TaskManager's IOManager
-		final IOManager ioManager = getEnvironment().getIOManager();
+		ioManager = getEnvironment().getIOManager();
 		
 		keyPositions = this.config.getLocalStrategyKeyPositions(0);
 		keyClasses = this.config.getLocalStrategyKeyClasses(this.userCodeClassLoader);
@@ -164,7 +139,6 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		}
 		
 		// create the comparators
-		@SuppressWarnings("unchecked")
 		final Comparator<Key>[] comparators = new Comparator[keyPositions.length];
 		final KeyComparator kk = new KeyComparator();
 		for (int i = 0; i < comparators.length; i++) {
@@ -207,7 +181,19 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		
 		while(this.running && it.nextKey()) {
 			// cross all value of a certain key
-			crossValues(it.getKeys(), it.getValues(), output);
+			
+			
+			/*ValuesIterator valueIt = it.getValues();
+			while (valueIt.hasNext())
+			{
+				PactRecord record = valueIt.next();
+				int key = record.getField(0, PactInteger.class).getValue();
+				int value = record.getField(1, PactInteger.class).getValue();
+				
+				System.out.println("Key: " + key + "\tValue: "+value);
+			}*/
+			System.out.println("Processing Key: " + it.getKeys()[0]);
+			crossValues(it.getValues(), output);
 		}
 		
 	}
@@ -247,8 +233,9 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 *        An iterator over values that share the same key.
 	 * @param out
 	 *        The collector to write the results to.
+	 * @throws Exception 
 	 */
-	private final void crossValues(Key[] key, final Iterator<PactRecord> values, final OutputCollector out)
+	private final void crossValues(final Iterator<PactRecord> values, final OutputCollector out) throws Exception
 	{
 		// allocate buffer
 		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
@@ -258,7 +245,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
 			if(values.hasNext()) {
 				// read value into buffer
-				valBuffer[bufferValCnt] = values.next();
+				valBuffer[bufferValCnt] = values.next().createCopy();
 			} else {
 				break;
 			}
@@ -266,6 +253,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		
 		// cross values in buffer
 		for (int i = 0;i < bufferValCnt; i++) {
+			
 			// check if task was canceled
 			if (!this.running) return;
 			
@@ -283,90 +271,72 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 			// there are still value in the reader
 
 			// wrap value iterator in a reader
-			Iterator<Value> valReader = new Iterator<Value>() {
-
+			MutableObjectIterator<PactRecord> valReader = new MutableObjectIterator<PactRecord>() {
 				@Override
-				public boolean hasNext() {
-					
-					if (!running) 
+				public boolean next(PactRecord target) throws IOException {
+					if (!running || !values.hasNext()) {
 						return false;
-					else
-						return values.hasNext();
-				}
-
-				@Override
-				public PactRecord next() {
-						
-					// get next value
-					PactRecord nextVal = values.next();
-
+					}
+					values.next().copyTo(target);
+					
 					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
-						stub.match(valBuffer[i].createCopy(),nextVal.createCopy(),out);
+						try {
+							stub.match(valBuffer[i].createCopy(),target.createCopy(),out);
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 					}
 					
-					// return value
-					return nextVal;
-				}
-				
-				@Override
-				public void remove() {
-					throw new UnsupportedOperationException();
+					return true; 
 				}
 			};
 			
-			SpillingResettableIterator<Value> outerValResettableIterator = null;
-			SpillingResettableIterator<Value> innerValResettableIterator = null;
+			SpillingResettableMutableObjectIterator outerValResettableIterator = null;
+			SpillingResettableMutableObjectIterator innerValResettableIterator = null;
+			
 			
 			try {
 				//ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(stub.getFirstInValueType());
 				
 				// read values into outer resettable iterator
-				outerValResettableIterator = 
-						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(), 
-								valReader, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+				outerValResettableIterator =
+						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, valReader,  (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);
 				outerValResettableIterator.open();
 
-				// iterator returns first buffer than outer resettable iterator (all values of the incoming iterator)
+				// iterator returns first buffer then outer resettable iterator (all values of the incoming iterator)
 				BufferIncludingIterator bii = new BufferIncludingIterator(valBuffer, outerValResettableIterator);
 				
+				PactRecord outerRecord = new PactRecord();
+				PactRecord innerRecord = new PactRecord();
 				// read remaining values into inner resettable iterator
-				if(!this.taskCanceled && outerValResettableIterator.hasNext()) {
+				if(this.running && outerValResettableIterator.next(outerRecord)) { //TODO double matched
 					innerValResettableIterator =
-						new SpillingResettableIterator<Value>(getEnvironment().getMemoryManager(), getEnvironment().getIOManager(),
-								bii, (long) (this.availableMemory * (MEMORY_SHARE_RATIO/2)), v1Deserializer, this);
+						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, bii, (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);							
 					innerValResettableIterator.open();
 					
 					// reset outer iterator
 					outerValResettableIterator.reset();
 				
 					// cross remaining values
-					while(!this.taskCanceled && outerValResettableIterator.hasNext()) {
+					while(this.running && outerValResettableIterator.next(outerRecord)) {
 						
 						// fill buffer with next elements from outer resettable iterator
 						bufferValCnt = 0;
-						while(!this.taskCanceled && outerValResettableIterator.hasNext() && bufferValCnt < VALUE_BUFFER_SIZE) {
-							valBuffer[bufferValCnt++].setCopy(outerValResettableIterator.next());
-						}
+						do {
+							outerRecord.copyTo(valBuffer[bufferValCnt++]);
+						} while(this.running && outerValResettableIterator.next(outerRecord) && bufferValCnt < VALUE_BUFFER_SIZE);
 						if(bufferValCnt == 0) break;
 						
 						// cross buffer with inner iterator
-						while(!this.taskCanceled && innerValResettableIterator.hasNext()) {
-							
-							// read inner value
-							innerVal = innerValResettableIterator.next();
+						while(this.running && innerValResettableIterator.next(innerRecord)) {
 							
 							for(int i=0;i<bufferValCnt;i++) {
 								
-								// get copies
-								copyKey = keySerialization.newInstance();
-								keyCopier.getCopy(copyKey);
-								outerVal = valSerialization.newInstance();
-								valBuffer[i].getCopy(outerVal);
-								
-								stub.match(copyKey, outerVal, innerVal, out);
+								stub.match(valBuffer[i].createCopy(), innerRecord, out);
 								
 								if(i < bufferValCnt - 1)
-									innerVal = innerValResettableIterator.repeatLast();
+									innerValResettableIterator.repeatLast(innerRecord);
 							}
 						}
 						innerValResettableIterator.reset();
@@ -388,43 +358,28 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		
 	}
 	
-	private final class BufferIncludingIterator implements Iterator<Value> {
+	private final class BufferIncludingIterator implements MutableObjectIterator<PactRecord> {
 
 		int bufferIdx = 0;
 		
-		private SerializationCopier<Value>[] valBuffer;
-		private Iterator<Value> valIterator;
+		private PactRecord[] valBuffer;
+		private MutableObjectIterator<PactRecord> valIterator;
 		
-		public BufferIncludingIterator(SerializationCopier<Value>[] valBuffer, Iterator<Value> valIterator) {
+		public BufferIncludingIterator(PactRecord[] valBuffer, MutableObjectIterator<PactRecord> valIterator) {
 			this.valBuffer = valBuffer;
 			this.valIterator = valIterator;
 		}
 		
 		@Override
-		public boolean hasNext() {
-			if(taskCanceled) 
+		public boolean next(PactRecord target) throws IOException {
+			if (!running) {
 				return false;
-			
-			if(bufferIdx < VALUE_BUFFER_SIZE) 
-				return true;
-			
-			return valIterator.hasNext();
-		}
-
-		@Override
-		public Value next() {
-			if(bufferIdx < VALUE_BUFFER_SIZE) {
-				Value outVal = valSerialization.newInstance();
-				valBuffer[bufferIdx++].getCopy(outVal);
-				return outVal;
-			} else {
-				return valIterator.next();
 			}
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+			if(bufferIdx < VALUE_BUFFER_SIZE) {
+				valBuffer[bufferIdx++].copyTo(target);
+				return true;
+			}
+			return valIterator.next(target);
 		}
 		
 	};

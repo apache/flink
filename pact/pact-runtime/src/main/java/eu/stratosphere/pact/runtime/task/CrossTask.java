@@ -16,41 +16,16 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
-import java.util.Iterator;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stubs.CrossStub;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
-import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
-import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
-import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
-import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
-import eu.stratosphere.pact.runtime.task.util.SerializationCopier;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.LastRepeatableIterator;
+import eu.stratosphere.pact.runtime.util.LastRepeatableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
@@ -75,8 +50,11 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 	private boolean runBlocked = true;
 	
 	private long availableMemory;
-	private int maxFileHandles;
-	private float spillThreshold;
+	
+	// spilling iterator for inner side
+	private SpillingResettableMutableObjectIterator innerInput;
+			// blocked iterator for outer side
+	private BlockResettableMutableObjectIterator outerInput;
 
 	
 	// ------------------------------------------------------------------------
@@ -105,8 +83,6 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 	{
 		// set up memory and I/O parameters
 		availableMemory = this.config.getMemorySize();
-		maxFileHandles = this.config.getNumFilehandles();
-		spillThreshold = this.config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		final LocalStrategy ls = this.config.getLocalStrategy();
@@ -149,6 +125,7 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
 			//run Blocked
 			runBlocked = true;
+			break;
 		default:
 			//run Streamed
 			runBlocked = false;
@@ -187,10 +164,15 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 	@Override
 	public void cleanup() throws Exception
 	{
-	/*	if (this.matchIterator != null) {
-			this.matchIterator.close();
-			this.matchIterator = null;
-		}*/
+		if (this.innerInput != null) {
+			innerInput.close();
+			this.innerInput = null;
+		}
+		if (this.outerInput != null) {
+			outerInput.close();
+			this.outerInput = null;
+		}
+		
 	}
 	
 	
@@ -235,160 +217,79 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 		final MutableObjectIterator<PactRecord> outerReader = inputs[1];
 		
 		// spilling iterator for inner side
-		SpillingResettableIterator<PactRecord> innerInput = null;
+		innerInput = null;
 		// blocked iterator for outer side
-		BlockResettableMutableObjectIterator outerInput = null;
+		outerInput = null;
 
-		try {
-			final boolean firstInputIsOuter;
-		
-			// obtain iterators according to local strategy decision
-			if (this.config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
-				// obtain spilling iterator (inner side) for first input
-				try {
-					innerInput = new SpillingResettableIterator<PactRecord>(memoryManager, ioManager,
-						innerReader, availableMemory / 2, this);
-					this.spillingResetIt = innerInput;
-				}
-				catch (MemoryAllocationException mae) {
-					throw new RuntimeException("Unable to obtain SpillingResettableIterator for first input", mae);
-				}
-				// obtain blocked iterator (outer side) for second input
-				try {
-					outerInput = new BlockResettableMutableObjectIterator<KeyValuePair<Key, Value>>(memoryManager,
-							outerReader,
-							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), 
-								stub.getSecondInValueType()), this);
-					this.blockResetIt = outerInput;
-				}
-				catch (MemoryAllocationException mae) {
-					throw new RuntimeException("Unable to obtain BlockResettableIterator for second input", mae);
-				}
-				firstInputIsOuter = false;
-			}
-			else if (this.config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST) {
-				// obtain spilling iterator (inner side) for second input
-				try {
-					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-						innerReader, this.availableMemory / 2, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(),
-							stub.getSecondInValueType()), this);
-					this.spillingResetIt = innerInput;
-				} catch (MemoryAllocationException mae) {
-					throw new RuntimeException("Unable to obtain SpillingResettableIterator for second input", mae);
-				}
-				// obtain blocked iterator (outer side) for second input
-				try {
-					outerInput = new BlockResettableMutableObjectIterator<KeyValuePair<Key, Value>>(memoryManager, outerReader,
-							this.availableMemory / 2, 1, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
-							.getFirstInValueType()), this);
-					this.blockResetIt = outerInput;
-				}
-				catch (MemoryAllocationException mae) {
-					throw new RuntimeException("Unable to obtain BlockResettableIterator for first input", mae);
-				}
-				firstInputIsOuter = true;
-			}
-			else {
-				throw new RuntimeException("Invalid local strategy for CrossTask: " + config.getLocalStrategy());
-			}
+		final boolean firstInputIsOuter;
 	
-			// open spilling resettable iterator
-			try {
-				innerInput.open();
-			}
-			catch (ServiceException se) {
-				throw new RuntimeException("Unable to open SpillingResettableIterator", se);
-			}
-			catch (IOException ioe) {
-				throw new RuntimeException("Unable to open SpillingResettableIterator", ioe);
-			}
-			catch (InterruptedException ie) {
-				throw new RuntimeException("Unable to open SpillingResettableIterator", ie);
-			}
-			
-			// check if task was canceled while data was read
-			if (this.taskCanceled)
-				return;
-			
-			// open blocked resettable iterator
-			outerInput.open();
-	
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("SpillingResettable iterator obtained"));
-				LOG.debug(getLogString("BlockResettable iterator obtained"));
-			}
-	
-			// open stub implementation
-			this.stub.open();
-	
-			boolean moreOuterBlocks = false;
+		// obtain iterators according to local strategy decision
+		if (this.config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
+			// obtain spilling iterator (inner side) for first input
+			innerInput = new SpillingResettableMutableObjectIterator(memoryManager, 
+				ioManager, innerReader, availableMemory / 2, this);
+			// obtain blocked iterator (outer side) for second input
+			outerInput = new BlockResettableMutableObjectIterator(memoryManager, outerReader, availableMemory / 2, 1, this);
+			firstInputIsOuter = false;
+		}
+		else if (this.config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST) {
+			// obtain spilling iterator (inner side) for second input
+			innerInput = new SpillingResettableMutableObjectIterator(memoryManager, ioManager, 
+					innerReader, availableMemory / 2, this);
+			// obtain blocked iterator (outer side) for second input
+			outerInput = new BlockResettableMutableObjectIterator(memoryManager, outerReader, availableMemory / 2, 1, this);
+			firstInputIsOuter = true;
+		}
+		else {
+			throw new RuntimeException("Invalid local strategy for CrossTask: " + config.getLocalStrategy());
+		}
 
-			if (innerInput.hasNext()) { // avoid painful work when one input is empty
-				do {
-					// loop over the spilled resettable iterator
-					while (!this.taskCanceled && innerInput.hasNext()) {
-						// get inner pair
-						KeyValuePair<Key, Value> innerPair = innerInput.next();
-						// loop over the pairs in the current memory block
-						while (!this.taskCanceled && outerInput.hasNext()) {
-							// get outer pair
-							KeyValuePair<Key, Value> outerPair = outerInput.next();
+		// open spilling resettable iterator
+		innerInput.open();
 		
-							// call cross() method of CrossStub depending on local strategy
-							if(firstInputIsOuter) {
-								stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(), output);
-							} else {
-								stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(), output);
-							}
+		// check if task was canceled while data was read
+		if (!this.running)
+			return;
+		
+		// open blocked resettable iterator
+		outerInput.open();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(getLogString("SpillingResettable iterator obtained"));
+			LOG.debug(getLogString("BlockResettable iterator obtained"));
+		}
+
+		boolean moreOuterBlocks = false;
+
+		PactRecord innerRecord = new PactRecord();
+		PactRecord outerRecord = new PactRecord();
+		if (innerInput.next(innerRecord)) { // avoid painful work when one input is empty
+			innerInput.reset();
+			do {
+				// loop over the spilled resettable iterator
+				while (this.running && innerInput.next(innerRecord)) {
+					// loop over the pairs in the current memory block
+					while (this.running && outerInput.next(outerRecord)) {
 	
-							innerPair = innerInput.repeatLast();
+						// call cross() method of CrossStub depending on local strategy
+						if(firstInputIsOuter) {
+							stub.cross(outerRecord, innerRecord, output);
+						} else {
+							stub.cross(innerRecord, outerRecord, output);
 						}
-						// reset the memory block iterator to the beginning of the
-						// current memory block (outer side)
-						outerInput.reset();
+
+						innerInput.repeatLast(innerRecord);
 					}
-					// reset the spilling resettable iterator (inner side)
-					moreOuterBlocks = outerInput.nextBlock();
-					if(moreOuterBlocks) {
-						innerInput.reset();
-					}
-				} while (!this.taskCanceled && moreOuterBlocks);
-			}
-				
-			// close stub implementation
-			this.stub.close();
-		}
-		catch (Exception ex) {
-			// drop, if the task was canceled
-			if (!this.taskCanceled) {
-				LOG.error(getLogString("Unexpected ERROR in PACT code"));
-				throw ex;
-			}
-		}
-		finally {
-			Throwable t1 = null, t2 = null;
-			try {
-				if(innerInput != null) {
-					innerInput.close();
+					// reset the memory block iterator to the beginning of the
+					// current memory block (outer side)
+					outerInput.reset();
 				}
-			}
-			catch (Throwable t) {
-				LOG.warn(t);
-				t1 = t;
-			}
-			
-			try {
-				if(outerInput != null) {
-					outerInput.close();
+				// reset the spilling resettable iterator (inner side)
+				moreOuterBlocks = outerInput.nextBlock();
+				if(moreOuterBlocks) {
+					innerInput.reset();
 				}
-			}
-			catch (Throwable t) {
-				LOG.warn(t);
-				t2 = t;
-			}
-			
-			if(t1 != null) throw new RuntimeException("Error closing SpillingResettableIterator.", t1);
-			if(t2 != null) throw new RuntimeException("Error closung BlockResettableIterator.", t2);
+			} while (this.running && moreOuterBlocks);
 		}
 	}
 
@@ -411,8 +312,7 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 	 *         Throws a RuntimeException if something fails during
 	 *         execution.
 	 */
-	private void runStreamed()
-			throws Exception {
+	private void runStreamed() throws Exception {
 
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();  
 		final IOManager ioManager = getEnvironment().getIOManager();
@@ -423,109 +323,60 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 		// streaming is achieved by simply wrapping the input reader of the outer side
 		
 		// obtain SpillingResettableIterator for inner side
-		SpillingResettableIterator<KeyValuePair<Key, Value>> innerInput = null;
-		RepeatableIterator outerInput = null;
+		LastRepeatableMutableObjectIterator<PactRecord> repeatableInput = null;
 		
-		try {
+		final boolean firstInputIsOuter;
 		
-			final boolean firstInputIsOuter;
+		if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST) {
+			// obtain spilling resettable iterator for first input
+			innerInput = new SpillingResettableMutableObjectIterator(memoryManager, 
+					ioManager, innerReader, availableMemory, this);
+			// obtain repeatable iterator for second input
+			repeatableInput = new RepeatableMutableObjectIterator(outerReader);
 			
-			if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST) {
-				// obtain spilling resettable iterator for first input
-				try {
-					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-						innerReader, this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getSecondInKeyType(), stub
-							.getSecondInValueType()), this);
-					spillingResetIt = innerInput;
-				} catch (MemoryAllocationException mae) {
-					throw new RuntimeException("Unable to obtain SpillingResettable iterator for inner side.", mae);
-				}
-				// obtain repeatable iterator for second input
-				outerInput = new RepeatableIterator(outerReader, stub.getFirstInKeyType(), stub.getFirstInValueType());
-				
-				firstInputIsOuter = true;
-			} else if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
-				// obtain spilling resettable iterator for second input
-				try {
-					innerInput = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager,
-						innerReader, this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getFirstInKeyType(), stub
-							.getFirstInValueType()), this);
-					spillingResetIt = innerInput;
-				} catch (MemoryAllocationException mae) {
-					throw new RuntimeException("Unable to obtain SpillingResettable iterator for inner side.", mae);
-				}
-				// obtain repeatable iterator for first input
-				outerInput = new RepeatableIterator(outerReader, stub.getSecondInKeyType(), stub.getSecondInValueType());
-				
-				firstInputIsOuter = false;
-			} else {
-				throw new RuntimeException("Invalid local strategy for CrossTask: " + config.getLocalStrategy());
-			}
+			firstInputIsOuter = true;
+		} else if(config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
+			// obtain spilling resettable iterator for second input
+			innerInput = new SpillingResettableMutableObjectIterator(memoryManager, 
+					ioManager, innerReader, availableMemory, this);
+			// obtain repeatable iterator for first input
+			repeatableInput = new RepeatableMutableObjectIterator(outerReader);
 			
-			// open spilling resettable iterator
-			try {
-				innerInput.open();
-			} catch (ServiceException se) {
-				throw new RuntimeException("Unable to open SpillingResettable iterator for inner side.", se);
-			} catch (IOException ioe) {
-				throw new RuntimeException("Unable to open SpillingResettable iterator for inner side.", ioe);
-			} catch (InterruptedException ie) {
-				throw new RuntimeException("Unable to open SpillingResettable iterator for inner side.", ie);
-			}
-			
-			
-			if (this.taskCanceled)
-				return;
-	
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Resetable iterator obtained"));
-	
-			// open stub implementation
-			stub.open();
-			
-			// if (config.getLocalStrategy() == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
-			
-			// read streamed iterator of outer side
-			while (!this.taskCanceled && outerInput.hasNext()) {
-				// get outer pair
-				KeyValuePair outerPair = outerInput.next();
-	
-				// read spilled iterator of inner side
-				while (!this.taskCanceled && innerInput.hasNext()) {
-					// get inner pair
-					KeyValuePair innerPair = innerInput.next();
-	
-					// call cross() method of CrossStub depending on local strategy
-					if(firstInputIsOuter) {
-						stub.cross(outerPair.getKey(), outerPair.getValue(), innerPair.getKey(), innerPair.getValue(), output);
-					} else {
-						stub.cross(innerPair.getKey(), innerPair.getValue(), outerPair.getKey(), outerPair.getValue(), output);
-					}
-					
-					outerPair = outerInput.repeatLast();
-				}
-				// reset spilling resettable iterator of inner side
-				if(!this.taskCanceled && outerInput.hasNext()) {
-					innerInput.reset();
-				}
-			}
-			
-			// close stub implementation
-			stub.close();
-		
+			firstInputIsOuter = false;
+		} else {
+			throw new RuntimeException("Invalid local strategy for CrossTask: " + config.getLocalStrategy());
 		}
-		catch (Exception ex) {
-			
-			// drop, if the task was canceled
-			if (!this.taskCanceled) {
-				LOG.error(getLogString("Unexpected ERROR in PACT code"));
-				throw ex;
+		
+		// open spilling resettable iterator
+		innerInput.open();
+		
+		if (!this.running)
+			return;
+
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Resetable iterator obtained"));
+
+		
+		PactRecord innerRecord = new PactRecord();
+		PactRecord outerRecord = new PactRecord();
+		boolean outerValid = repeatableInput.next(outerRecord);
+		// read streamed iterator of outer side
+		while (this.running && outerValid) {
+
+			// read spilled iterator of inner side
+			while (this.running && innerInput.next(innerRecord)) {
+				// call cross() method of CrossStub depending on local strategy
+				if(firstInputIsOuter) {
+					stub.cross(outerRecord, innerRecord, output);
+				} else {
+					stub.cross(innerRecord, outerRecord, output);
+				}
+				
+				repeatableInput.repeatLast(outerRecord);
 			}
-		}
-		finally {
-			// close spilling resettable iterator
-			if(innerInput != null) {
-				innerInput.close();
+			// reset spilling resettable iterator of inner side
+			if(this.running && (outerValid = repeatableInput.next(outerRecord))) {
+				innerInput.reset();
 			}
 		}
 	}
@@ -536,42 +387,34 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 	 * Utility class that turns a standard {@link java.util.Iterator} for key/value pairs into a
 	 * {@link LastRepeatableIterator}. 
 	 */
-	private static final class RepeatableIterator implements LastRepeatableIterator<KeyValuePair<Key, Value>>
+	private static final class RepeatableMutableObjectIterator implements LastRepeatableMutableObjectIterator<PactRecord>
 	{
-		private final SerializationCopier<KeyValuePair<Key, Value>> copier = new SerializationCopier<KeyValuePair<Key,Value>>();
+		private final MutableObjectIterator<PactRecord> input;
 		
-		private final KeyValuePairDeserializer<Key, Value> deserializer;
-		
-		private final Iterator<KeyValuePair<Key,Value>> input;
-		
-		public RepeatableIterator(Iterator<KeyValuePair<Key,Value>> input, Class<Key> keyClass, Class<Value> valClass) {
+		public RepeatableMutableObjectIterator(MutableObjectIterator<PactRecord> input) {
 			this.input = input;
-			this.deserializer = new KeyValuePairDeserializer<Key, Value>(keyClass, valClass);
 		}
-		
+
+		private PactRecord lastRecord = new PactRecord();
+		private boolean lastRecordValid = false;
+
 		@Override
-		public boolean hasNext() {
-			return this.input.hasNext();
+		public boolean next(PactRecord target) throws IOException {
+			if ((lastRecordValid = input.next(lastRecord))) {
+				lastRecord.copyTo(target);
+				return true;
+			}
+			return false;
 		}
 
 		@Override
-		public KeyValuePair<Key, Value> next() {
-			KeyValuePair<Key,Value> pair = this.input.next();
-			// serialize pair
-			this.copier.setCopy(pair);	
-			return pair;
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public KeyValuePair<Key, Value> repeatLast() {
-			KeyValuePair<Key,Value> pair = this.deserializer.getInstance();
-			this.copier.getCopy(pair);	
-			return pair;
+		public boolean repeatLast(PactRecord target) {
+			if (lastRecordValid)
+			{
+				lastRecord.copyTo(target);
+				return true;
+			}
+			return false;
 		}
 	}
 	

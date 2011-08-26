@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  * @see CoGroupStub
  */
-public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
+public class CoGroupContract extends DualInputContract<CoGroupStub>
 {	
 	private static String DEFAULT_NAME = "<Unnamed Matcher>";		// the default name for contracts
 	
@@ -50,7 +50,7 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * @param firstKeyColumn The position of the key in the first input's records.
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn) {
+	public CoGroupContract(Class<? extends CoGroupStub> c, int firstKeyColumn, int secondKeyColumn) {
 		this(c, firstKeyColumn, secondKeyColumn, DEFAULT_NAME);
 	}
 	
@@ -63,7 +63,7 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param name The name of PACT.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn, String name) {
+	public CoGroupContract(Class<? extends CoGroupStub> c, int firstKeyColumn, int secondKeyColumn, String name) {
 		super(c, name);
 		this.firstKeyFieldNumber = firstKeyColumn;
 		this.secondKeyFieldNumber = secondKeyColumn;
@@ -80,7 +80,7 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn,
+	public CoGroupContract(Class<? extends CoGroupStub> c, int firstKeyColumn, int secondKeyColumn,
 															Contract input1, Contract input2)
 	{
 		this(c, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
@@ -97,7 +97,7 @@ public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
 	 * @param input2 The contract to use as the second input.
 	 * @param name The name of PACT.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn,
+	public CoGroupContract(Class<? extends CoGroupStub> c, int firstKeyColumn, int secondKeyColumn,
 													Contract input1, Contract input2, String name)
 	{
 		this(c, firstKeyColumn, secondKeyColumn, name);
