@@ -2,6 +2,10 @@ package eu.stratosphere.sopremo;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.codehaus.jackson.JsonEncoding;
 import org.codehaus.jackson.JsonGenerator;
@@ -11,7 +15,6 @@ import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
@@ -72,10 +75,22 @@ public class Source extends ElementaryOperator {
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
 			inputFormat, inputName, name);
+		if(inputFormat == JsonInputFormat.class)
 		contract.setDegreeOfParallelism(1);
+		
+		for(Entry<String, Object> parameter : parameters.entrySet()) {
+			if(parameter.getValue() instanceof Serializable)
+				SopremoUtil.serialize(contract.getParameters(), parameter.getKey(), (Serializable) parameter.getValue());
+		}
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
 		return pactModule;
+	}
+	
+	private Map<String, Object> parameters = new HashMap<String, Object>();
+	
+	public void setParameter(String key, Object value) {
+		parameters.put(key, value);
 	}
 
 	private void writeValues(final File tempFile) throws IOException, JsonProcessingException {
