@@ -182,14 +182,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			return;
 		}
 
-		SimmetricFunction baseMeasure = new SimmetricFunction(new JaroWinkler(), new InputSelection(0),
-			new InputSelection(1));
-		EvaluationExpression simmFunction = new MongeElkanSimilarity(baseMeasure,
-				new PathExpression(new InputSelection(0), new ObjectAccess("names")),
-				new PathExpression(new InputSelection(1), new ObjectAccess("names")));
+		SimmetricFunction simmFunction = new SimmetricFunction(new JaroWinkler(), 
+				new PathExpression(new InputSelection(0), new ObjectAccess("names"), new ArrayAccess(0)),
+				new PathExpression(new InputSelection(1), new ObjectAccess("names"), new ArrayAccess(0)));
 		// DisjunctPartitioning partitioning = new DisjunctPartitioning(new FunctionCall("substring", new
 		// ObjectAccess("lastName"), new ConstantExpression(0), new ConstantExpression(2)));
-		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(new Naive(), simmFunction, 0.6,
+		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(new Naive(), simmFunction, 0.8,
 			this.inputs[CONGRESS][LEGAL_ENTITY], this.inputs[EARMARK][LEGAL_ENTITY]);
 		recordLinkage.setLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT);
 
@@ -237,11 +235,15 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			return;
 		}
 
-		SimmetricFunction baseMeasure = new SimmetricFunction(new JaroWinkler(), new InputSelection(0),
-			new InputSelection(1));
-		EvaluationExpression simmFunction = new MongeElkanSimilarity(baseMeasure,
-				new PathExpression(new InputSelection(0), new ObjectAccess("names")),
-				new PathExpression(new InputSelection(1), new ObjectAccess("names")));
+//		SimmetricFunction baseMeasure = new SimmetricFunction(new JaroWinkler(), new InputSelection(0),
+//			new InputSelection(1));
+//		EvaluationExpression simmFunction = new MongeElkanSimilarity(baseMeasure,
+//				new PathExpression(new InputSelection(0), new ObjectAccess("names")),
+//				new PathExpression(new InputSelection(1), new ObjectAccess("names")));
+
+		SimmetricFunction simmFunction = new SimmetricFunction(new JaroWinkler(), 
+				new PathExpression(new InputSelection(0), new ObjectAccess("names"), new ArrayAccess(0)),
+				new PathExpression(new InputSelection(1), new ObjectAccess("names"), new ArrayAccess(0)));
 		// DisjunctPartitioning partitioning = new DisjunctPartitioning(new FunctionCall("substring", new
 		// ObjectAccess("lastName"), new ConstantExpression(0), new ConstantExpression(2)));
 		DisjunctPartitioning partitioning = new DisjunctPartitioning(
@@ -252,7 +254,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 					new ObjectAccess("zipCode"))),
 				new ConstantExpression("")),
 				new FunctionCall("extract", new ConstantExpression("([^ ])*"), new ObjectAccess("name")));
-		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(partitioning, simmFunction, 0.6,
+		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(partitioning, simmFunction, 0.8,
 			this.fused[EARMARK][LEGAL_ENTITY], this.inputs[SPENDING][LEGAL_ENTITY]);
 		recordLinkage.setLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT);
 
