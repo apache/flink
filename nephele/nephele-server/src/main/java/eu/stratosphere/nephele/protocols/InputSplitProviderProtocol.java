@@ -19,7 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 
 /**
  * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment which Nephele
@@ -36,10 +36,10 @@ public interface InputSplitProviderProtocol extends VersionedProtocol {
 	 *        the ID of the job the task to retrieve the next input split for belongs to
 	 * @param vertexID
 	 *        the ID of the task to retrieve the next input split for
-	 * @return the next input split to consume or <code>null</code> if no more input splits shall be consumed by the
-	 *         task with the given execution vertex ID
+	 * @return a wrapper containing the next input split. The wrapped input split may also be <code>null</code> in case
+	 *         no more input splits shall be consumed by the task with the given execution vertex ID
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while retrieving the new input split
 	 */
-	InputSplit requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID) throws IOException;
+	InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID) throws IOException;
 }
