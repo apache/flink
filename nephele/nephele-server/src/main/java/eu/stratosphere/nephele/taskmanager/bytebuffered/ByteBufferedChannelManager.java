@@ -589,8 +589,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 
 		if (LOG.isDebugEnabled()) {
-			System.out.println("Total number of buffers is " + totalNumberOfBuffers);
-			System.out.println("Total number of channels is " + totalNumberOfChannels);
+			LOG.debug("Total number of buffers is " + totalNumberOfBuffers);
+			LOG.debug("Total number of channels is " + totalNumberOfChannels);
 		}
 
 		if (this.localBufferPoolOwner.isEmpty()) {
