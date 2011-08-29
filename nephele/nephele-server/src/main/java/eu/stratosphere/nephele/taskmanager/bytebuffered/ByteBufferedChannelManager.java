@@ -345,8 +345,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				}
 
 				final InputChannelContext inputChannelContext = (InputChannelContext) cc;
-				// Second parameter of requestEmptyBufferBlocking must be 1 to prevent dead locks
-				final Buffer destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size(), 1);
+				final Buffer destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
 				srcBuffer.copyToBuffer(destBuffer);
 				// TODO: See if we can save one duplicate step here
 				final TransferEnvelope dup = transferEnvelope.duplicateWithoutBuffer();

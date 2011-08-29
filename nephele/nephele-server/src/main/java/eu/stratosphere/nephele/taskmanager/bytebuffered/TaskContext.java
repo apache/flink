@@ -77,19 +77,19 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
-		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, final int minimumReserve) throws IOException,
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException,
 			InterruptedException {
 
-		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
 	/**

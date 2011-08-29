@@ -159,7 +159,6 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		synchronized (this.queuedEnvelopes) {
 			this.queuedEnvelopes.add(transferEnvelope);
-			System.out.println("Size of input queue is " + this.queuedEnvelopes.size());
 		}
 
 		// Notify the channel about the new data
@@ -245,17 +244,22 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
 		throw new IllegalStateException("requestEmptyBuffer called on InputChannelContext");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
-			throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
-		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
 	/**

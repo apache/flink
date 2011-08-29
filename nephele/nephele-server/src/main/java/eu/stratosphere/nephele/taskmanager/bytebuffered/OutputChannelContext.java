@@ -106,7 +106,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		final int uncompressedBufferSize = calculateBufferSize();
 
 		// TODO: This implementation breaks compression, we have to fix it later
-		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize, 0);
+		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize);
 		final BufferPairResponse bufferResponse = new BufferPairResponse(null, buffer);
 
 		// Put the buffer into the transfer envelope
@@ -222,8 +222,6 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	}
 
 	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
-		
-		System.out.println("++ Flushing " + this.queuedOutgoingEnvelopes.size() + " envelopes");
 		
 		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
 			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());

@@ -106,16 +106,13 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	
 	private void checkForActiveOutputChannels() throws IOException, InterruptedException {
 		
-		System.out.println("++ Checking " + this.inactiveOutputChannels.size() + " output channels");
 		final Iterator<OutputChannelContext> it = this.inactiveOutputChannels.iterator();
 		while(it.hasNext()) {
 			final OutputChannelContext channelContext = it.next();
 			if(channelContext.isChannelActive()) {
-				System.out.println("++ Channel " + channelContext.getChannelID() + " is active");
 				channelContext.flushQueuedOutgoingEnvelopes();
 				it.remove();
 			} else {
-				System.out.println("++ Channel " + channelContext.getChannelID() + " is inactive");
 			}
 		}
 	}
@@ -180,7 +177,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer, int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
 		
 		throw new IllegalStateException("requestEmptyBuffer called on OutputGateContext");
 	}
@@ -189,10 +186,9 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, int minimumReserve) throws IOException,
-			InterruptedException {
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
 		
-		Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+		Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
 
 		// No memory-based buffer available
 		if (buffer == null) {
@@ -210,7 +206,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 			spillQueueWithLargestAmountOfMainMemory();
 
 			// Wait until a memory-based buffer is available
-			buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+			buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 		}
 
 		return buffer;

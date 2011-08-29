@@ -39,19 +39,18 @@ final class InputGateContext implements BufferProvider, LocalBufferPoolOwner {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
-		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
-			throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
-		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
 	/**
