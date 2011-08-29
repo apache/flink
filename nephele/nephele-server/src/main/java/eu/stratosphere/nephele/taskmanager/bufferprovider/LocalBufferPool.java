@@ -26,9 +26,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 
-public final class LocalBufferCache implements BufferProvider {
+public final class LocalBufferPool implements BufferProvider {
 
-	private final static Log LOG = LogFactory.getLog(LocalBufferCache.class);
+	private final static Log LOG = LogFactory.getLog(LocalBufferPool.class);
 
 	private final GlobalBufferPool globalBufferPool;
 
@@ -46,7 +46,7 @@ public final class LocalBufferCache implements BufferProvider {
 
 	private final Queue<ByteBuffer> buffers = new ArrayDeque<ByteBuffer>();
 
-	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared,
+	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared,
 			final AsynchronousEventListener eventListener) {
 
 		this.globalBufferPool = GlobalBufferPool.getInstance();
@@ -56,7 +56,7 @@ public final class LocalBufferCache implements BufferProvider {
 		this.eventListener = eventListener;
 	}
 
-	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared) {
+	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared) {
 		this(designatedNumberOfBuffers, isShared, null);
 	}
 

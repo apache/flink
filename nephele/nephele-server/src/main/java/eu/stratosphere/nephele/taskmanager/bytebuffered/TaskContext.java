@@ -21,15 +21,18 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferCache;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 
-final class TaskContext implements BufferProvider, AsynchronousEventListener {
+final class TaskContext implements BufferProvider, LocalBufferPoolOwner, AsynchronousEventListener {
 
-	private final LocalBufferCache localBufferCache;
+	private final LocalBufferPool localBufferPool;
 
 	private final Environment environment;
 
 	private final AsynchronousEventListener[] subEventListener;
+
+	private final int numberOfOutputChannels;
 
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
@@ -38,9 +41,16 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 
 	TaskContext(final Environment environment) {
 
-		this.localBufferCache = new LocalBufferCache(1, false, this);
+		this.localBufferPool = new LocalBufferPool(1, false, this);
 
 		this.environment = environment;
+
+		// Compute number of input input channels
+		int nooc = 0;
+		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
+		}
+		this.numberOfOutputChannels = nooc; 
 
 		// Each output gate context will register as a sub event listener
 		this.subEventListener = new AsynchronousEventListener[environment.getNumberOfOutputGates()];
@@ -69,7 +79,7 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 	@Override
 	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
 
-		return this.localBufferCache.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	/**
@@ -79,7 +89,7 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, final int minimumReserve) throws IOException,
 			InterruptedException {
 
-		return this.localBufferCache.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
 	}
 
 	/**
@@ -88,18 +98,17 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 	@Override
 	public int getMaximumBufferSize() {
 
-		return this.localBufferCache.getMaximumBufferSize();
+		return this.localBufferPool.getMaximumBufferSize();
 	}
 
-	void releaseAllResources() {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void clearLocalBufferPool() {
 
 		// Clear the buffer cache
-		this.localBufferCache.clear();
-	}
-
-	void setBufferLimit(int bufferLimit) {
-
-		this.localBufferCache.setDesignatedNumberOfBuffers(bufferLimit);
+		this.localBufferPool.clear();
 	}
 
 	/**
@@ -111,11 +120,15 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 		return false;
 	}
 
-	void logBufferUtilization() {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logBufferUtilization() {
 
-		final int ava = this.localBufferCache.getNumberOfAvailableBuffers();
-		final int req = this.localBufferCache.getRequestedNumberOfBuffers();
-		final int des = this.localBufferCache.getDesignatedNumberOfBuffers();
+		final int ava = this.localBufferPool.getNumberOfAvailableBuffers();
+		final int req = this.localBufferPool.getRequestedNumberOfBuffers();
+		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
 
 		System.out.println("\t\t" + this.environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
 			+ des + " designated");
@@ -139,7 +152,7 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 	@Override
 	public void reportAsynchronousEvent() {
 
-		this.localBufferCache.reportAsynchronousEvent();
+		this.localBufferPool.reportAsynchronousEvent();
 	}
 
 	/**
@@ -156,5 +169,23 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 
 			this.subEventListener[i].asynchronousEventOccurred();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfChannels() {
+		
+		return this.numberOfOutputChannels;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void setDesignatedNumberOfBuffers(int numberOfBuffers) {
+
+		this.localBufferPool.setDesignatedNumberOfBuffers(numberOfBuffers);
 	}
 }

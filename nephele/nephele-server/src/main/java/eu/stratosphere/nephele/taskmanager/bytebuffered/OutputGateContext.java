@@ -67,6 +67,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 
 	void registerInactiveOutputChannel(final OutputChannelContext outputChannelContext) {
 
+		System.out.println("Adding output channel context");
 		this.inactiveOutputChannels.add(outputChannelContext);
 	}
 
@@ -105,7 +106,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	
 	private void checkForActiveOutputChannels() throws IOException, InterruptedException {
 		
-		System.out.println("++ Checking " + inactiveOutputChannels.size() + " output channels");
+		System.out.println("++ Checking " + this.inactiveOutputChannels.size() + " output channels");
 		final Iterator<OutputChannelContext> it = this.inactiveOutputChannels.iterator();
 		while(it.hasNext()) {
 			final OutputChannelContext channelContext = it.next();

@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +30,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
@@ -45,7 +45,8 @@ import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferCache;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
@@ -70,9 +71,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final FileBufferManager fileBufferManager;
 
-	private final LocalBufferCache transitBufferPool;
+	private final LocalBufferPool transitBufferPool;
 
-	private final Map<ExecutionVertexID, TaskContext> taskMap = new HashMap<ExecutionVertexID, TaskContext>();
+	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
 
 	private final boolean allowSenderSideSpilling;
 
@@ -97,7 +98,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		GlobalBufferPool.getInstance();
 
 		// Initialize the transit buffer pool
-		this.transitBufferPool = new LocalBufferCache(128, true);
+		this.transitBufferPool = new LocalBufferPool(128, true);
 
 		this.networkConnectionManager = new NetworkConnectionManager(this,
 			localInstanceConnectionInfo.getAddress(), localInstanceConnectionInfo.getDataPort());
@@ -156,7 +157,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
 			final InputGate<?> inputGate = environment.getInputGate(i);
-			final InputGateContext inputGateContext = new InputGateContext(taskContext);
+			final InputGateContext inputGateContext = new InputGateContext(inputGate.getNumberOfInputChannels());
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
 				if (!(inputChannel instanceof AbstractByteBufferedInputChannel)) {
@@ -178,11 +179,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						bbic);
 				this.registeredChannels.put(bbic.getID(), inputChannelContext);
 			}
+
+			// Add input gate context to set of local buffer pool owner
+			this.localBufferPoolOwner.put(inputGate.getGateID(), inputGateContext);
 		}
 
-		synchronized (this.taskMap) {
-			this.taskMap.put(vertexID, taskContext);
-		}
+		this.localBufferPoolOwner.put(vertexID, taskContext);
 
 		redistributeGlobalBuffers();
 	}
@@ -211,16 +213,20 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
 				this.registeredChannels.remove(inputChannel.getID());
 			}
+
+			final LocalBufferPoolOwner owner = this.localBufferPoolOwner.remove(inputGate.getGateID());
+			if (owner == null) {
+				LOG.error("Cannot find local buffer pool owner for input gate " + inputGate.getGateID());
+			} else {
+				owner.clearLocalBufferPool();
+			}
 		}
 
-		synchronized (this.taskMap) {
-			final TaskContext taskContext = this.taskMap.remove(vertexID);
-			if (taskContext == null) {
-				LOG.error("taskContext is null!");
-				return;
-			}
-
-			taskContext.releaseAllResources();
+		final LocalBufferPoolOwner owner = this.localBufferPoolOwner.remove(vertexID);
+		if (owner == null) {
+			LOG.error("Cannot find local buffer pool owner for vertex ID" + vertexID);
+		} else {
+			owner.clearLocalBufferPool();
 		}
 
 		redistributeGlobalBuffers();
@@ -498,26 +504,23 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		System.out.println("\tUnused global buffers: " + GlobalBufferPool.getInstance().getCurrentNumberOfBuffers());
 
-		System.out.println("\tTask buffer pool status:");
+		System.out.println("\tLocal buffer pool status:");
 
-		synchronized (this.taskMap) {
-
-			final Iterator<TaskContext> it = this.taskMap.values().iterator();
-			while (it.hasNext()) {
-				it.next().logBufferUtilization();
-			}
+		final Iterator<LocalBufferPoolOwner> it = this.localBufferPoolOwner.values().iterator();
+		while (it.hasNext()) {
+			it.next().logBufferUtilization();
 		}
 
 		this.networkConnectionManager.logBufferUtilization();
 
 		System.out.println("\tIncoming connections:");
 
-		final Iterator<Map.Entry<ChannelID, ChannelContext>> it = this.registeredChannels.entrySet()
+		final Iterator<Map.Entry<ChannelID, ChannelContext>> it2 = this.registeredChannels.entrySet()
 				.iterator();
 
-		while (it.hasNext()) {
+		while (it2.hasNext()) {
 
-			final Map.Entry<ChannelID, ChannelContext> entry = it.next();
+			final Map.Entry<ChannelID, ChannelContext> entry = it2.next();
 			final ChannelContext context = entry.getValue();
 			if (context.isInputChannel()) {
 
@@ -574,25 +577,36 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private void redistributeGlobalBuffers() {
 
+		final int numberOfChannelsForMulticast = 10; // TODO: Make this configurable
+
 		final int totalNumberOfBuffers = GlobalBufferPool.getInstance().getTotalNumberOfBuffers();
+		int totalNumberOfChannels = this.registeredChannels.size();
+		if (this.multicastEnabled) {
+			totalNumberOfChannels += numberOfChannelsForMulticast;
+		}
+		final double buffersPerChannel = (double) totalNumberOfBuffers / (double) totalNumberOfChannels;
+		if (buffersPerChannel < 1.0) {
+			LOG.warn("System is low on memory buffers. This may result in reduced performance.");
+		}
 
-		synchronized (this.taskMap) {
+		if (LOG.isDebugEnabled()) {
+			System.out.println("Total number of buffers is " + totalNumberOfBuffers);
+			System.out.println("Total number of channels is " + totalNumberOfChannels);
+		}
 
-			if (this.taskMap.isEmpty()) {
-				return;
-			}
+		if (this.localBufferPoolOwner.isEmpty()) {
+			return;
+		}
 
-			final int numberOfTasks = this.taskMap.size() + (this.multicastEnabled ? 1 : 0);
-			final int buffersPerTask = (int) Math.ceil((double) totalNumberOfBuffers / (double) numberOfTasks);
-			System.out.println("Buffers per task: " + buffersPerTask);
-			final Iterator<TaskContext> it = this.taskMap.values().iterator();
-			while (it.hasNext()) {
-				it.next().setBufferLimit(buffersPerTask);
-			}
+		final Iterator<LocalBufferPoolOwner> it = this.localBufferPoolOwner.values().iterator();
+		while (it.hasNext()) {
+			final LocalBufferPoolOwner lbpo = it.next();
+			lbpo.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel * lbpo.getNumberOfChannels()));
+		}
 
-			if (this.multicastEnabled) {
-				this.transitBufferPool.setDesignatedNumberOfBuffers(buffersPerTask);
-			}
+		if (this.multicastEnabled) {
+			this.transitBufferPool.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel
+				* numberOfChannelsForMulticast));
 		}
 	}
 }

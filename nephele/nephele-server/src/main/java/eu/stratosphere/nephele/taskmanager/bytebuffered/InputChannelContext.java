@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
@@ -48,10 +47,6 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
-	private boolean taskHasStartedToReadChannel = false;
-
-	private int numberOfRequestedBuffers = 0;
-
 	InputChannelContext(final InputGateContext inputGateContext,
 			final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel) {
@@ -68,9 +63,6 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		TransferEnvelope transferEnvelope = null;
 
 		synchronized (this.queuedEnvelopes) {
-
-			this.taskHasStartedToReadChannel = true;
-			this.queuedEnvelopes.notify();
 
 			if (this.queuedEnvelopes.isEmpty()) {
 				return null;
@@ -167,6 +159,7 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		synchronized (this.queuedEnvelopes) {
 			this.queuedEnvelopes.add(transferEnvelope);
+			System.out.println("Size of input queue is " + this.queuedEnvelopes.size());
 		}
 
 		// Notify the channel about the new data
@@ -261,21 +254,6 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 	@Override
 	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
 			throws IOException, InterruptedException {
-
-		if (this.byteBufferedInputChannel.getType() == ChannelType.INMEMORY) {
-
-			if (this.numberOfRequestedBuffers >= 0) {
-				if (this.numberOfRequestedBuffers++ > 0) {
-					synchronized (this.queuedEnvelopes) {
-
-						while (!this.taskHasStartedToReadChannel) {
-							this.queuedEnvelopes.wait();
-						}
-					}
-					this.numberOfRequestedBuffers = -1;
-				}
-			}
-		}
 
 		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
 	}
