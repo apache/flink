@@ -140,21 +140,21 @@ public class NativeGenIntInputFormat implements InputFormat<NativeGenInputSplit,
 			
 			// Compute normalization constant on first call only
 			for (int i = 1; i <= this.maxVal; ++i) {
-				normalizationConstant = normalizationConstant + (1.0 / Math.pow((double) i, skew));
+				this.normalizationConstant = this.normalizationConstant + (1.0 / Math.pow((double) i, this.skew));
 			}
-			sumProbCache = new double[this.maxVal];
-			for (int i = 0; i < this.maxVal; ++i) {
-				this.sumProbCache[i] = -1.0f;
+			this.normalizationConstant = 1.0 / this.normalizationConstant;
+			this.sumProbCache = new double[this.maxVal];
+			double sumProb = 0.0;
+			for (int i = 1; i <= this.maxVal; ++i) {
+				sumProb = sumProb + this.normalizationConstant / Math.pow((double) i, this.skew);
+				this.sumProbCache[i - 1] = sumProb;
 			}
-			normalizationConstant = 1.0f / normalizationConstant;
-			
 		}
 
 		@Override
 		public int nextInt() {
 
 			double z; // Uniform random number (0 < z < 1)
-			double sumProb; // Sum of probabilities
 			int zipfValue = -1; // Computed exponential value to be returned
 
 			// Pull a uniform random number (0 < z < 1)
@@ -162,25 +162,30 @@ public class NativeGenIntInputFormat implements InputFormat<NativeGenInputSplit,
 				z = Math.random();
 			} while (z == 0.0f);
 
-			// Map z to the value
-			sumProb = 0;
-			for (int i = 1; i <= this.maxVal; i++) {
-				if (sumProbCache[i - 1] < 0.0f) {
-					sumProb = sumProb + normalizationConstant / Math.pow((double) i, skew);
-					sumProbCache[i - 1] = sumProb;
-				} else {
-					sumProb = sumProbCache[i - 1];
-				}
-
-				if (sumProb >= z) {
-					zipfValue = i;
-					break;
-				}
-			}
-
+			zipfValue = findRank(z, 0, this.maxVal);
+			
 			return zipfValue;
 		}
-		
+	
+		private int findRank(final double z, final int lowerBound, final int upperBound) {
+
+			final int index = lowerBound + ((upperBound - lowerBound) / 2);
+			final double sumProb = this.sumProbCache[index];
+
+			if ((upperBound - lowerBound) <= 1) {
+				return index + 1;
+			}
+
+			final double centerDiff = sumProb - z;
+			// System.out.println("Center diff is " + centerDiff);
+			if (centerDiff >= 0.0) {
+				// sum of probabilities is too large
+				return findRank(z, lowerBound, index);
+			} else {
+				// sum of probabilities is too small
+				return findRank(z, index, upperBound);
+			}
+		}
 	}
 	
 	public static class ParetoIntGenerator implements IntGenerator {
