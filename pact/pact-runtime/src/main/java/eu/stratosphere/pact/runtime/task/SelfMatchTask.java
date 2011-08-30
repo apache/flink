@@ -47,7 +47,7 @@ import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
  * 
  * @see eu.stratosphere.pact.common.stub.MatchStub
  * @author Fabian Hueske
- * @auther Matthias Ringwald
+ * @author Matthias Ringwald
  */
 @SuppressWarnings({"unchecked"})
 public class SelfMatchTask extends AbstractPactTask<MatchStub> {
@@ -67,6 +67,9 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	private MemoryManager memoryManager;
 	// obtain the TaskManager's IOManager
 	private IOManager ioManager;
+	
+	// used for tracking of exceptions for matching values in valReader
+	private Exception exceptionInMatchForValReader = null;
 
 	private int[] keyPositions;
 	private Class<? extends Key>[] keyClasses;
@@ -181,18 +184,6 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		
 		while(this.running && it.nextKey()) {
 			// cross all value of a certain key
-			
-			
-			/*ValuesIterator valueIt = it.getValues();
-			while (valueIt.hasNext())
-			{
-				PactRecord record = valueIt.next();
-				int key = record.getField(0, PactInteger.class).getValue();
-				int value = record.getField(1, PactInteger.class).getValue();
-				
-				System.out.println("Key: " + key + "\tValue: "+value);
-			}*/
-			System.out.println("Processing Key: " + it.getKeys()[0]);
 			crossValues(it.getValues(), output);
 		}
 		
@@ -209,27 +200,15 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 			this.closeableInput = null;
 		}
 	}
-	
-	
-	
-	
-	
-	
-	
-	
 
 	// ------------------------------------------------------------------------
-	
-
 	
 	/**
 	 * Crosses the values of all pairs that have the same key.
 	 * The {@link MatchStub#match(Key, Iterator, Collector)} method is called for each element of the 
 	 * Cartesian product. 
 	 * 
-	 * @param key 
-	 *        The key of all values in the iterator.
-	 * @param vals 
+	 * @param values 
 	 *        An iterator over values that share the same key.
 	 * @param out
 	 *        The collector to write the results to.
@@ -283,8 +262,8 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 						try {
 							stub.match(valBuffer[i].createCopy(),target.createCopy(),out);
 						} catch (Exception e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
+							exceptionInMatchForValReader = e;
+							return false;
 						}
 					}
 					
@@ -295,14 +274,14 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 			SpillingResettableMutableObjectIterator outerValResettableIterator = null;
 			SpillingResettableMutableObjectIterator innerValResettableIterator = null;
 			
-			
 			try {
-				//ValueDeserializer<Value> v1Deserializer = new ValueDeserializer<Value>(stub.getFirstInValueType());
-				
 				// read values into outer resettable iterator
 				outerValResettableIterator =
 						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, valReader,  (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);
 				outerValResettableIterator.open();
+				if (exceptionInMatchForValReader != null) {
+					throw exceptionInMatchForValReader;
+				}
 
 				// iterator returns first buffer then outer resettable iterator (all values of the incoming iterator)
 				BufferIncludingIterator bii = new BufferIncludingIterator(valBuffer, outerValResettableIterator);
@@ -310,7 +289,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 				PactRecord outerRecord = new PactRecord();
 				PactRecord innerRecord = new PactRecord();
 				// read remaining values into inner resettable iterator
-				if(this.running && outerValResettableIterator.next(outerRecord)) { //TODO double matched
+				if(this.running) {
 					innerValResettableIterator =
 						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, bii, (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);							
 					innerValResettableIterator.open();
@@ -325,7 +304,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 						bufferValCnt = 0;
 						do {
 							outerRecord.copyTo(valBuffer[bufferValCnt++]);
-						} while(this.running && outerValResettableIterator.next(outerRecord) && bufferValCnt < VALUE_BUFFER_SIZE);
+						} while(this.running && bufferValCnt < VALUE_BUFFER_SIZE && outerValResettableIterator.next(outerRecord));
 						if(bufferValCnt == 0) break;
 						
 						// cross buffer with inner iterator
@@ -355,7 +334,6 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 			}
 			
 		}
-		
 	}
 	
 	private final class BufferIncludingIterator implements MutableObjectIterator<PactRecord> {

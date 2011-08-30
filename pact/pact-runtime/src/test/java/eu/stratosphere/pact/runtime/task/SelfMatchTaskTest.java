@@ -128,15 +128,10 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
 		
 		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
-		int lk = 0;
 		for(PactRecord record : outList) {
 			
 			Integer key = record.getField(0, PactInteger.class).getValue();
 			
-			if (key == 0)
-			{
-				System.out.println((++lk) + ".Value for Key 14: " +record.getField(1, PactInteger.class).getValue());
-			}
 			if(!keyValCntMap.containsKey(key)) {
 				keyValCntMap.put(key,1);
 			} else {
@@ -144,13 +139,6 @@ public class SelfMatchTaskTest extends TaskTestBase {
 			}
 		}
 		for(Integer key : keyValCntMap.keySet()) {
-			if (keyValCntMap.get(key) == (valCnt*valCnt))
-			{
-				System.out.println("šhš");
-			}
-			else {
-				System.out.println("right");
-			}
 			Assert.assertTrue("Invalid value count. Value count was: "+keyValCntMap.get(key)+
 				" Expected was "+(valCnt*valCnt), keyValCntMap.get(key) == (valCnt*valCnt));
 		}
