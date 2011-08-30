@@ -455,9 +455,39 @@ public class TaskManager implements TaskOperationProtocol {
 			return submissionResultList;
 		}
 
+		// Make sure all tasks are fully registered before they are started
 		for (final TaskSubmissionWrapper tsw : tasks) {
-			submissionResultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment(),
-				tsw.getActiveOutputChannels()));
+
+			final Environment ee = tsw.getEnvironment();
+			final ExecutionVertexID id = tsw.getVertexID();
+			final Configuration jobConfiguration = tsw.getConfiguration();
+			final Set<ChannelID> activeOutputChannels = tsw.getActiveOutputChannels();
+
+			// Register task manager components in environment
+			ee.setMemoryManager(this.memoryManager);
+			ee.setIOManager(this.ioManager);
+
+			// Register a new task input split provider
+			ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
+
+			// Register the task
+			TaskSubmissionResult result = registerTask(id, jobConfiguration, ee, activeOutputChannels);
+			if (result != null) { // If result is non-null, an error occurred during task registration
+				submissionResultList.add(result);
+			} else {
+				submissionResultList.add(new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS));
+			}
+		}
+
+		// Now start the tasks
+		for (final TaskSubmissionWrapper tsw : tasks) {
+
+			final Environment ee = tsw.getEnvironment();
+			final ExecutionVertexID id = tsw.getVertexID();
+
+			// Start execution
+			LOG.debug("Starting execution of task with ID " + id);
+			ee.startExecution();
 		}
 
 		return submissionResultList;
