@@ -655,4 +655,72 @@ public class JobManagerITCase {
 		}
 	}
 
+	/**
+	 * Tests the Nephele job execution when the graph and the tasks are given no specific name.
+	 */
+	@Test
+	public void testEmptyTaskNames() {
+
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "emptyNames.jar");
+
+		try {
+
+			inputFile = ServerTestUtils.createInputFile(0);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+								+ ServerTestUtils.getRandomFilename());
+
+			// Create required jar file
+			JarFileCreator jfc = new JarFileCreator(jarFile);
+			jfc.addClass(DoubleSourceTask.class);
+			jfc.addClass(DoubleTargetTask.class);
+			jfc.createJarFile();
+
+			// Create job graph
+			final JobGraph jg = new JobGraph();
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex(jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex(jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			i1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// add jar
+			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+
+			// Create job client and launch job
+			final JobClient jobClient = new JobClient(jg, configuration);
+
+			jobClient.submitJobAndWait();
+
+		} catch (JobExecutionException e) {
+			fail(e.getMessage());
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+		}
+	}
 }

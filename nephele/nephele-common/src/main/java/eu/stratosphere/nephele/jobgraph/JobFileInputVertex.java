@@ -23,20 +23,19 @@ import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
-import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * A JobFileInputVertex is a specific subtype of a {@link JobInputVertex} and is designed
+ * A JobFileInputVertex is a specific subtype of a {@link AbstractJobInputVertex} and is designed
  * for Nephele tasks which read data from a local or distributed file system. As every job input vertex
  * A JobFileInputVertex must not have any further input.
  * 
  * @author warneke
  */
-public class JobFileInputVertex extends JobGenericInputVertex
-{
+public final class JobFileInputVertex extends AbstractJobInputVertex {
+
 	/**
 	 * The path pointing to the input file/directory.
 	 */
@@ -52,7 +51,7 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobFileInputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public JobFileInputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
 		super(name, id, jobGraph);
 	}
 
@@ -64,7 +63,7 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobFileInputVertex(String name, JobGraph jobGraph) {
+	public JobFileInputVertex(final String name, final JobGraph jobGraph) {
 		super(name, null, jobGraph);
 	}
 
@@ -74,7 +73,7 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobFileInputVertex(JobGraph jobGraph) {
+	public JobFileInputVertex(final JobGraph jobGraph) {
 		super(null, null, jobGraph);
 	}
 
@@ -84,7 +83,7 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * @param path
 	 *        the path of the file the job file input vertex's task should read from
 	 */
-	public void setFilePath(Path path) {
+	public void setFilePath(final Path path) {
 		this.path = path;
 	}
 
@@ -104,8 +103,8 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * @param inputClass
 	 *        the class of the vertex's input task.
 	 */
-	public void setFileInputClass(Class<? extends AbstractFileInputTask> inputClass) {
-		this.inputClass = (Class<? extends AbstractInputTask<?>>) inputClass;
+	public void setFileInputClass(final Class<? extends AbstractFileInputTask> inputClass) {
+		this.invokableClass = inputClass;
 	}
 
 	/**
@@ -115,19 +114,18 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 */
 	@SuppressWarnings("unchecked")
 	public Class<? extends AbstractFileInputTask> getFileInputClass() {
-		return (Class<? extends AbstractFileInputTask>) this.inputClass;
+		return (Class<? extends AbstractFileInputTask>) this.invokableClass;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException
-	{
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 
 		// Read path of the input file
-		boolean isNotNull = in.readBoolean();
+		final boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.path = new Path();
 			this.path.read(in);
@@ -138,8 +136,7 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException
-	{
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		// Write out the path of the input file
@@ -156,7 +153,7 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException {
+	public void checkConfiguration(final AbstractInvokable invokable) throws IllegalConfigurationException {
 
 		// Check if the user has specified a path
 		if (this.path == null) {
@@ -170,14 +167,14 @@ public class JobFileInputVertex extends JobGenericInputVertex
 			if (f == null) {
 				throw new IOException(path.toString() + " led to a null object");
 			}
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			throw new IllegalConfigurationException("Cannot access file or directory: "
 				+ StringUtils.stringifyException(e));
 		}
-		
+
 		// register the path in the configuration
-		invokable.getRuntimeConfiguration().setString(AbstractFileInputTask.INPUT_PATH_CONFIG_KEY, this.path.toString());
+		invokable.getRuntimeConfiguration()
+			.setString(AbstractFileInputTask.INPUT_PATH_CONFIG_KEY, this.path.toString());
 
 		// Finally, see if the task itself has a valid configuration
 		super.checkConfiguration(invokable);
@@ -187,7 +184,7 @@ public class JobFileInputVertex extends JobGenericInputVertex
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable) {
+	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
 
 		int numberOfBlocks = -1;
 

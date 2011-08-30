@@ -691,6 +691,7 @@ public class PactCompiler {
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
 		plan.setInstanceTypeName(instanceName);
+		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
 		
 		return plan;
 	}
@@ -706,8 +707,10 @@ public class PactCompiler {
 	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan) {
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, -1, -1, false);
 		pactPlan.accept(graphCreator);
-		return new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
-			pactPlan.getJobName());
+		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
+				pactPlan.getJobName());
+		optPlan.setPlanConfiguration(pactPlan.getPlanConfiguration());
+		return optPlan;
 	}
 
 	/**
@@ -1482,6 +1485,8 @@ public class PactCompiler {
 				
 				// duplicate DataSourceNode
 				DataSourceNode duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
+				duplicateDataSource.setDegreeOfParallelism(sourcePact.getDegreeOfParallelism());
+				duplicateDataSource.setInstancesPerMachine(sourcePact.getInstancesPerMachine());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				

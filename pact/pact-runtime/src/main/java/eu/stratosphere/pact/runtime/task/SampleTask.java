@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.Stub;
@@ -67,14 +68,14 @@ public class SampleTask extends AbstractTask {
 	// output collector
 	private OutputCollector<Key, Value> output;
 
-	// map stub implementation
-	private Stub stub;
-
 	// task configuration (including stub parameters)
 	private TaskConfig config;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+
+	private Class keyType;
+	private Class valueType;
 
 	/**
 	 * {@inheritDoc}
@@ -193,10 +194,20 @@ public class SampleTask extends AbstractTask {
 		try {
 			// obtain stub class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends Stub> stubClass = config.getStubClass(Stub.class, cl);
-			// obtain stub instance
-			stub = stubClass.newInstance();
-
+			Class<?> userClass = config.getStubClass(Object.class, cl);
+			if(Stub.class.isAssignableFrom(userClass)) {
+				Stub stub = (Stub) userClass.newInstance();
+				keyType = stub.getOutKeyType();
+				valueType = stub.getOutValueType();
+			}
+			else if(InputFormat.class.isAssignableFrom(userClass)) {
+				InputFormat format = (InputFormat) userClass.newInstance();
+				KeyValuePair pair = format.createPair();
+				keyType = (Class<Key>) pair.getKey().getClass();
+				valueType = (Class<Value>) pair.getValue().getClass();
+			} else {
+				throw new RuntimeException("Unsupported task type " + userClass);
+			}
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -218,7 +229,7 @@ public class SampleTask extends AbstractTask {
 
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(
-				stub.getOutKeyType(), stub.getOutValueType());
+				keyType, valueType);
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;

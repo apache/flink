@@ -28,7 +28,7 @@ import java.util.Set;
  * 
  * @author warneke
  */
-public class NativeCodeLoader {
+public final class NativeCodeLoader {
 
 	/**
 	 * Set of the native libraries which are already loaded.
@@ -36,7 +36,7 @@ public class NativeCodeLoader {
 	private static Set<String> loadedLibrarySet = new HashSet<String>();
 
 	/**
-	 * Directory prefix for native libraries inside JAR files
+	 * Directory prefix for native libraries inside JAR files.
 	 */
 	private static final String JAR_PREFIX = "META-INF/lib/";
 
@@ -58,15 +58,10 @@ public class NativeCodeLoader {
 	 *        the directory in which the library is supposed to be located
 	 * @param filename
 	 *        filename of the library to be loaded
-	 * @throws SecurityException
-	 *         thrown if a security exception occurs.
-	 * @throws UnsatisfiedLinkError
-	 *         thrown if the library contains unsatisfied links
 	 * @throws IOException
 	 *         thrown if an internal native library cannot be extracted
 	 */
-	public static void loadLibraryFromFile(String directory, String filename) throws SecurityException,
-			UnsatisfiedLinkError, IOException {
+	public static void loadLibraryFromFile(final String directory, final String filename) throws IOException {
 
 		final String libraryPath = directory + File.separator + filename;
 
@@ -101,7 +96,7 @@ public class NativeCodeLoader {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while copying the data
 	 */
-	private static void copy(InputStream in, OutputStream out) throws IOException {
+	private static void copy(final InputStream in, final OutputStream out) throws IOException {
 
 		final byte[] buf = new byte[BUFSIZE];
 		int len = 0;
@@ -121,7 +116,7 @@ public class NativeCodeLoader {
 	 *        the filename of the library to check
 	 * @return <code>true</code> if the library is already loaded, <code>false</code> otherwise
 	 */
-	public static boolean isLibraryLoaded(String libraryName) {
+	public static boolean isLibraryLoaded(final String libraryName) {
 
 		synchronized (loadedLibrarySet) {
 			return loadedLibrarySet.contains(libraryName);

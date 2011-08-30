@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
@@ -92,11 +93,13 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType)
-				throws InstanceException {
+		public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+				List<String> splitAffinityList) throws InstanceException {
 
 			throw new IllegalStateException("requestInstance called on TestInstanceManager");
 		}
+		
+		
 
 		/**
 		 * {@inheritDoc}

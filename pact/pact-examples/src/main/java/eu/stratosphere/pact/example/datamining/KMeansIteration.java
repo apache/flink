@@ -657,14 +657,14 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 
 		// create DataSourceContract for data point input
 		FileDataSourceContract<PactInteger, CoordVector> dataPoints = new FileDataSourceContract<PactInteger, CoordVector>(
-				PointInFormat.class, dataPointInput, "Read Data Points");
+				PointInFormat.class, dataPointInput, "Data Points");
 		dataPoints.setParameter(PointInFormat.RECORD_DELIMITER, "\n");
 		dataPoints.setDegreeOfParallelism(noSubTasks);
 		dataPoints.setOutputContract(UniqueKey.class);
 
 		// create DataSourceContract for cluster center input
 		FileDataSourceContract<PactInteger, CoordVector> clusterPoints = new FileDataSourceContract<PactInteger, CoordVector>(
-				PointInFormat.class, clusterInput, "Read Centers");
+				PointInFormat.class, clusterInput, "Centers");
 		clusterPoints.setParameter(PointInFormat.RECORD_DELIMITER, "\n");
 		clusterPoints.setDegreeOfParallelism(1);
 		clusterPoints.setOutputContract(UniqueKey.class);
@@ -689,7 +689,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 
 		// create DataSinkContract for writing the new cluster positions
 		FileDataSinkContract<PactInteger, CoordVector> newClusterPoints = new FileDataSinkContract<PactInteger, CoordVector>(
-				PointOutFormat.class, output, "Write new Center Positions");
+				PointOutFormat.class, output, "New Centers");
 		newClusterPoints.setDegreeOfParallelism(noSubTasks);
 
 		// assemble the PACT plan

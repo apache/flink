@@ -76,14 +76,14 @@
 	<dependency>
 		<groupId>org.powermock</groupId>
 		<artifactId>powermock-module-junit4</artifactId>
-		<version>1.4.7</version>
+		<version>1.4.9</version>
 		<type>jar</type>
 	</dependency>
 	
 	<dependency>
 		<groupId>org.powermock</groupId>
 		<artifactId>powermock-api-mockito</artifactId>
-		<version>1.4.7</version>
+		<version>1.4.9</version>
 		<type>jar</type>
 	</dependency>
 
@@ -123,9 +123,6 @@
 					<forkMode>always</forkMode>
 					<threadCount>1</threadCount>
 					<perCoreThreadCount>false</perCoreThreadCount>
-					<excludes>
-						<exclude>**/CrossITCase.class</exclude>
-					</excludes>
 				</configuration>
 			</plugin>
       

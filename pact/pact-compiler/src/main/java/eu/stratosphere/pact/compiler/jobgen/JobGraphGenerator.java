@@ -27,12 +27,12 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobGenericInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobGenericOutputVertex;
+import eu.stratosphere.nephele.jobgraph.JobInputVertex;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
+import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
@@ -110,7 +110,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		this.vertices = new HashMap<OptimizerNode, AbstractJobVertex>();
 		this.auxVertices = new ArrayList<AbstractJobVertex>();
 		this.maxDegreeVertex = null;
-
+		
+		// set Nephele JobGraph config
+		pactPlan.getPlanConfiguration().extractNepheleConfiguration(this.jobGraph.getJobConfiguration());
+		
 		// generate Nephele job graph
 		pactPlan.accept(this);
 
@@ -146,7 +149,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// return job graph
 		return graph;
 	}
-
+	
 	/**
 	 * This methods implements the pre-visiting during a depth-first traversal. It create the job vertex and
 	 * sets local strategy.
@@ -257,6 +260,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				case FORWARD:
 					connectWithForwardStrategy(connection, outputVertex, inputVertex);
 					break;
+				case PARTITION_LOCAL_HASH:
 				case PARTITION_HASH:
 					connectWithPartitionStrategy(connection, outputVertex, inputVertex);
 					break;
@@ -281,7 +285,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
 		}
 	}
-
+	
 	// ------------------------------------------------------------------------
 	// Methods for creating individual vertices
 	// ------------------------------------------------------------------------
@@ -289,7 +293,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private boolean isDistributionGiven(PactConnection connection) {
 		return (connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass() != null);
 	}
-
+	
 	/**
 	 * @param mapNode
 	 * @return
@@ -575,7 +579,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		GenericDataSource<?, ?> contract = dsn.getPactContract();
 
 		// create task vertex
-		JobGenericInputVertex sourceVertex = new JobGenericInputVertex(contract.getName(), this.jobGraph);
+		JobInputVertex sourceVertex = new JobInputVertex(contract.getName(), this.jobGraph);
 		// set task class
 		sourceVertex.setInputClass(DataSourceTask.class);
 
@@ -604,19 +608,20 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobOutputVertex generateDataSinkVertex(OptimizerNode sinkNode) throws CompilerException
+	private AbstractJobOutputVertex generateDataSinkVertex(OptimizerNode sinkNode) throws CompilerException
 	{
 		DataSinkNode sNode = (DataSinkNode) sinkNode;
 		GenericDataSink<?, ?> sinkContract = sNode.getPactContract();
 		
 		// create task vertex
-		JobGenericOutputVertex sinkVertex = new JobGenericOutputVertex(sinkNode.getPactContract().getName(), this.jobGraph);
+		JobOutputVertex sinkVertex = new JobOutputVertex(sinkNode.getPactContract().getName(), this.jobGraph);
 		// set task class
 		sinkVertex.setOutputClass(DataSinkTask.class);
 		
 		// set the degree-of-parallelism into the config to have it available during the output path checking.
 		sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, sinkNode.getDegreeOfParallelism());
-		
+		// set the sort order into config (can also be NONE)
+		sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getKeyOrder().name());
 		// get task configuration object
 		TaskConfig sinkConfig = new TaskConfig(sinkVertex.getConfiguration());
 		// set user code class
@@ -640,11 +645,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		//HACK: Copied from Reduce task, is memory always assigned even if not needed?
 		//		could be same problem in reduce task
 		assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
-		
-		// forward stub parameters to task and data format
-		sinkNode.getPactContract().setParameter(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getKeyOrder().name());
-		sinkConfig.setStubParameters(sinkNode.getPactContract().getParameters());
-
 		return sinkVertex;
 	}
 
@@ -653,7 +653,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @param dop
 	 * @return
 	 */
-	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop) {
+	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop, int instancesPerMachine) {
 		// create task vertex
 		JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
 		// set task class
@@ -668,6 +668,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// set degree of parallelism
 		tempVertex.setNumberOfSubtasks(dop);
+		tempVertex.setNumberOfSubtasksPerInstance(instancesPerMachine);
 
 		return tempVertex;
 	}
@@ -815,7 +816,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
 		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
 		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-		// int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
 		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
 		
 		//TODO: Check for which pact types it makes sense
@@ -884,10 +885,11 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		
 		//Add temp vertex to avoid blocking
 		JobTaskVertex tempVertex = generateTempVertex(
-			// source pact stub contains out key and value
-				(Class<?>) connection.getSourcePact().getPactContract().getUserCodeClass(),
+				// source pact stub contains out key and value
+				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of source pact
-				sourceDOP);
+				sourceDOP, sourceIPM);
+		
 		tempVertex.setVertexToShareInstancesWith(outputVertex);
 		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
@@ -926,7 +928,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
 		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
 		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-		// int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
 		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
 		
 		//When parallelism is one there is nothing to partition
@@ -1021,18 +1023,21 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			break;
 		case TEMP_SENDER_SIDE:
 			// create tempTask
-			int pd = connection.getSourcePact().getDegreeOfParallelism();
+			int degreeOfParallelism = connection.getSourcePact().getDegreeOfParallelism();
+			int instancesPerMachine = connection.getSourcePact().getInstancesPerMachine();
 
 			JobTaskVertex tempVertex = generateTempVertex(
 			// source pact stub contains out key and value
 				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of source pact
-				pd);
+				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 			tempVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
 
+			tempVertex.setVertexToShareInstancesWith(outputVertex);
+			
 			// get tempVertex config
 			tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
@@ -1044,19 +1049,22 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			break;
 		case TEMP_RECEIVER_SIDE:
-			int pdr = connection.getTargetPact().getDegreeOfParallelism();
+			degreeOfParallelism = connection.getTargetPact().getDegreeOfParallelism();
+			instancesPerMachine = connection.getTargetPact().getInstancesPerMachine();
 
 			// create tempVertex
 			tempVertex = generateTempVertex(
 			// source pact stub contains out key and value
 				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of target pact
-				pdr);
+				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, channelType, CompressionLevel.NO_COMPRESSION);
 			tempVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
+			tempVertex.setVertexToShareInstancesWith(inputVertex);
+			
 			// get tempVertex config
 			tempConfig = new TaskConfig(tempVertex.getConfiguration());
 

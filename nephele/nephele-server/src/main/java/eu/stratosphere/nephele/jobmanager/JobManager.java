@@ -95,6 +95,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
+import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.optimizer.Optimizer;
@@ -110,7 +111,6 @@ import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -1093,7 +1093,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputSplit requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID) throws IOException {
+	public InputSplitWrapper requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID)
+			throws IOException {
 
 		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
 		if (graph == null) {
@@ -1107,6 +1108,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return null;
 		}
 
-		return this.inputSplitManager.getNextInputSplit(vertex);
+		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex));
 	}
 }

@@ -197,22 +197,30 @@ public class DataSourceNode extends OptimizerNode
 			this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerRecord()) + 1;
 		}
 
-		// the key cardinality is either explicitly specified, or we assume for robustness reasons
-		// that every record has a unique key. key cardinality overestimation results in more robust plans
-		if (hints.getKeyCardinality() < 1) {
-			this.estimatedKeyCardinality = this.estimatedNumRecords;
-		} else {
+		// the key cardinality is either explicitly specified, derived from an avgNumValuesPerKey hint, 
+		// or we assume for robustness reasons that every record has a unique key. 
+		// Key cardinality overestimation results in more robust plans
+		
+		if (hints.getKeyCardinality() != -1) {
 			this.estimatedKeyCardinality = hints.getKeyCardinality();
+		} else if (this.estimatedNumRecords != -1 && hints.getAvgNumValuesPerKey() != -1) {
+			this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) >= 1 ?
+					(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
+		} else {
+			this.estimatedKeyCardinality = this.estimatedNumRecords;
+		}
 
-			// if we have the key cardinality and an average number of values per key, we can estimate the number
-			// of rows
-			if (this.estimatedNumRecords == -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
-				this.estimatedNumRecords = (long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) + 1;
-
-				if (this.estimatedOutputSize == -1 && hints.getAvgBytesPerRecord() >= 1.0f) {
-					this.estimatedOutputSize = (long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) + 1;
-				}
-			}
+		// if we have the key cardinality and an average number of values per key, we can estimate the number
+		// of rows
+		if (this.estimatedNumRecords == -1 && this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
+			this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) >= 1 ? 
+				(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
+		}
+		
+		// Estimate output size
+		if (this.estimatedOutputSize == -1 && this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() >= 1.0f) {
+			this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) >= 1 ? 
+				(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
 		}
 	}
 

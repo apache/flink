@@ -485,6 +485,14 @@ public class CrossTask extends AbstractTask
 						innerInput.reset();
 					}
 				} while (!this.taskCanceled && moreOuterBlocks);
+			} else {
+				// inner input is empty, clear outer input to close channel
+				LOG.debug("Inner input is empty, we must clear the outer input as well to close the channel");
+				do {
+					while(outerInput.hasNext()) {
+						outerInput.next();
+					}
+				} while(outerInput.nextBlock());
 			}
 				
 			// close stub implementation
@@ -718,7 +726,7 @@ public class CrossTask extends AbstractTask
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('"');
+		bld.append(' ').append('(');
 		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
 		bld.append('/');
 		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());

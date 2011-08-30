@@ -48,7 +48,7 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 	 * @param request
 	 *        the library cache profile request the response belongs to
 	 */
-	public LibraryCacheProfileResponse(LibraryCacheProfileRequest request) {
+	public LibraryCacheProfileResponse(final LibraryCacheProfileRequest request) {
 
 		this.requiredLibraries = request.getRequiredLibraries();
 		this.cached = new boolean[this.requiredLibraries.length];
@@ -69,7 +69,7 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 	 * @param cached
 	 *        <code>true</code> if the library at the given position is in the local cache, <code>false</code> otherwise
 	 */
-	public void setCached(int pos, boolean cached) {
+	public void setCached(final int pos, final boolean cached) {
 
 		if (pos < this.cached.length) {
 			this.cached[pos] = cached;
@@ -84,7 +84,7 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 	 * @return <code>true</code> if the library at the given position is in the local cache, <code>false</code>
 	 *         otherwise
 	 */
-	public boolean isCached(int pos) {
+	public boolean isCached(final int pos) {
 
 		if (pos < this.cached.length) {
 			return this.cached[pos];
@@ -97,7 +97,7 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read the names of the required jar files
 		this.requiredLibraries = new String[in.readInt()];
@@ -117,7 +117,7 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		if (this.requiredLibraries == null) {
 			throw new IOException("requiredLibraries is null");

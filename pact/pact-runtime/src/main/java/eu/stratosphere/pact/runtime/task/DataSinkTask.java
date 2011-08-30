@@ -56,16 +56,18 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * The task hands the data to an output format.
  * 
  * @see eu.stratosphere.pact.common.io.OutputFormat
+ * 
+ * @author Fabian Hueske
  */
 @SuppressWarnings( { "unchecked", "rawtypes" })
 public class DataSinkTask extends AbstractOutputTask
 {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
 	
+	public static final String SORT_ORDER = "sink.sort.order";
+	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
-
-	public static final String SORT_ORDER = "sink.sort.order";
 
 	// input reader
 	private RecordReader<KeyValuePair<Key, Value>> reader;
@@ -78,7 +80,7 @@ public class DataSinkTask extends AbstractOutputTask
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
-
+	
 	// the memory dedicated to the sorter
 	private long availableMemory;
 
@@ -102,11 +104,6 @@ public class DataSinkTask extends AbstractOutputTask
 		// initialize input reader
 		initInputReader();
 
-		// set up memory and I/O parameters
-		this.availableMemory = config.getMemorySize();
-		this.maxFileHandles = config.getNumFilehandles();
-		this.spillThreshold = config.getSortSpillingTreshold();
-
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Finished registering input and output"));
 	}
@@ -122,20 +119,25 @@ public class DataSinkTask extends AbstractOutputTask
 
 		final OutputFormat format = this.format;
 		
-		// obtain grouped iterator
-		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
-
+		//Input is wrapped so that it can also be sorted if required
+		CloseableInputProvider<KeyValuePair<Key, Value>> inputProvider = null;
+		
 		try {
-			sortedInputProvider = obtainInput();
-			Iterator<KeyValuePair<Key, Value>> iter = sortedInputProvider.getIterator();
-
 			// check if task has been canceled
 			if (this.taskCanceled) {
 				return;
 			}
 
-			if (LOG.isDebugEnabled())
+			inputProvider = obtainInput();
+			Iterator<KeyValuePair<Key, Value>> iter = inputProvider.getIterator();
+			
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
 				LOG.debug(getLogString("Starting to produce output"));
+			}
 
 			// open
 			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
@@ -162,10 +164,10 @@ public class DataSinkTask extends AbstractOutputTask
 			}
 		}
 		finally {
-			if (sortedInputProvider != null) {
-				sortedInputProvider.close();
+			if (inputProvider != null) {
+				inputProvider.close();
 			}
-
+			
 			if (this.format != null) {
 				// close format, if it has not been closed, yet.
 				// This should only be the case if we had a previous error, or were cancelled.
@@ -185,7 +187,8 @@ public class DataSinkTask extends AbstractOutputTask
 
 			if (LOG.isInfoEnabled())
 				LOG.info(getLogString("Finished PACT code"));
-		} else {
+		}
+		else {
 			if (LOG.isWarnEnabled())
 				LOG.warn(getLogString("PACT code cancelled"));
 		}
@@ -275,13 +278,12 @@ public class DataSinkTask extends AbstractOutputTask
 		// map has only one input, so we create one reader (id=0).
 		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
 
+		// set up memory and I/O parameters in case of sorting
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
 	}
 	
-	// ------------------------------------------------------------------------
-	//                     Degree of parallelism & checks
-	// ------------------------------------------------------------------------
-	
-
 	/**
 	 * Returns an iterator over all k-v pairs of the ReduceTasks input. The
 	 * pairs which are returned by the iterator are grouped by their keys.
@@ -292,7 +294,7 @@ public class DataSinkTask extends AbstractOutputTask
 	 *         grouped iterator.
 	 */
 	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
-
+		
 		// obtain the MemoryManager of the TaskManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 		// obtain the IOManager of the TaskManager
@@ -337,19 +339,20 @@ public class DataSinkTask extends AbstractOutputTask
 				}
 
 			};
-
-			return new SimpleCloseableInputProvider<KeyValuePair<Key, Value>>(iter);
+			
+			return new SimpleCloseableInputProvider<KeyValuePair<Key,Value>>(iter);
 		}
 
 			// local strategy is SORT
 			// The input is grouped using a sort-merge strategy.
 			// An iterator on the sorted pairs is created and returned.
 		case SORT: {
-			final Order sortOrder = Order.valueOf(config.getStubParameters().getString(SORT_ORDER, ""));
+			final Order sortOrder = Order.valueOf(getRuntimeConfiguration().getString(SORT_ORDER, ""));
+			
 			// create a key comparator
 			final Comparator<Key> keyComparator;
-
-			if (sortOrder == Order.ASCENDING || sortOrder == Order.ANY) {
+			
+			if(sortOrder == Order.ASCENDING || sortOrder == Order.ANY) {
 				keyComparator = new Comparator<Key>() {
 					@Override
 					public int compare(Key k1, Key k2) {
@@ -365,11 +368,12 @@ public class DataSinkTask extends AbstractOutputTask
 				};
 			}
 
+
 			try {
-				// instantiate a sort-merge
+				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
-						this.availableMemory, this.maxFileHandles, keySerialization, valSerialization,
-						keyComparator, reader, this, this.spillThreshold);
+					this.availableMemory, this.maxFileHandles, keySerialization,
+					valSerialization, keyComparator, reader, this, this.spillThreshold);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
 			} catch (MemoryAllocationException mae) {
@@ -379,12 +383,16 @@ public class DataSinkTask extends AbstractOutputTask
 				throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
 			}
 		}
-
 		default:
 			throw new RuntimeException("Invalid local strategy provided for ReduceTask.");
 		}
-	}
 
+	}
+	
+	// ------------------------------------------------------------------------
+	//                     Degree of parallelism & checks
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -452,9 +460,9 @@ public class DataSinkTask extends AbstractOutputTask
 	}
 
 	// ------------------------------------------------------------------------
-	// Utilities
+	//                               Utilities
 	// ------------------------------------------------------------------------
-
+	
 	/**
 	 * Utility function that composes a string for logging purposes. The string includes the given message and
 	 * the index of the task in its task group together with the number of tasks in the task group.

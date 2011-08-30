@@ -13,11 +13,31 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.example.grep;
+package eu.stratosphere.nephele.template;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
+/**
+ * An input task that processes generic input splits (partitions).
+ */
+public abstract class AbstractGenericInputTask extends AbstractInputTask<GenericInputSplit> {
 
-public interface Job {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public GenericInputSplit[] computeInputSplits(final int requestedMinNumber) throws Exception {
+		GenericInputSplit[] splits = new GenericInputSplit[requestedMinNumber];
+		for (int i = 0; i < requestedMinNumber; i++) {
+			splits[i] = new GenericInputSplit(i);
+		}
+		return splits;
+	}
 
-	public JobGraph getJobGraph();
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Class<GenericInputSplit> getInputSplitType() {
+
+		return GenericInputSplit.class;
+	}
 }

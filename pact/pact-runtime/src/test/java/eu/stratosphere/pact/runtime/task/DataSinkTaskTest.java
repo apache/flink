@@ -66,9 +66,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		
 		DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
-		Configuration stubParams = new Configuration();
-		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
-		super.getTaskConfig().setStubParameters(stubParams);
+		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
 		
@@ -130,9 +128,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		Configuration stubParams = new Configuration();
-		stubParams.setString(DataSinkTask.SORT_ORDER, Order.ASCENDING.name());
-		super.getTaskConfig().setStubParameters(stubParams);
+		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.ASCENDING.name());
 		
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
 		
@@ -186,9 +182,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		Configuration stubParams = new Configuration();
-		stubParams.setString(DataSinkTask.SORT_ORDER, Order.DESCENDING.name());
-		super.getTaskConfig().setStubParameters(stubParams);
+		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.DESCENDING.name());
 		
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
 		

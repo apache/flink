@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -39,5 +38,5 @@ public interface ChannelSelector<T extends Record> extends IOReadableWritable {
 	 * @return a (possibly empty) array of integer numbers which indicate the indices of the output channels through
 	 *         which the record shall be forwarded
 	 */
-	int[] selectChannels(T record, int numberOfOutpuChannels);
+	int[] selectChannels(T record, int numberOfOutputChannels);
 }

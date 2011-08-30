@@ -13,33 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cloud;
+package eu.stratosphere.nephele.jobgraph;
 
-import static org.junit.Assert.*;
+/**
+ * An abstract base class for output vertices in Nephele.
+ * 
+ * @author warneke
+ */
+public abstract class AbstractJobOutputVertex extends AbstractJobVertex {
 
-import java.net.InetSocketAddress;
+	/**
+	 * Constructs a new job output vertex with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job output vertex
+	 * @param id
+	 *        the ID of this vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	protected AbstractJobOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+		super(name, id, jobGraph);
 
-import org.junit.Test;
-
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.cloud.FloatingInstance;
-
-public class FloatingInstanceTest {
-
-	@Test
-	public void testHeartBeat() {
-
-		FloatingInstance fi = new FloatingInstance("i-1234ABCD", new InstanceConnectionInfo(new InetSocketAddress(
-			"localhost", 6122).getAddress(), 6122, 6121), System.currentTimeMillis(), 100000);
-
-		long lastHeartBeat = fi.getLastReceivedHeartBeat();
-		try {
-			Thread.sleep(1);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		fi.updateLastReceivedHeartBeat();
-
-		assertTrue(fi.getLastReceivedHeartBeat() - lastHeartBeat > 0);
+		jobGraph.addVertex(this);
 	}
 }
