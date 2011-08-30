@@ -33,10 +33,12 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
@@ -144,6 +146,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					continue;
 				}
 
+				// Add routing entry to receiver cache to reduce latency
+				if (bboc.getType() == ChannelType.INMEMORY) {
+					addReceiverListHint(bboc);
+				}
+
 				final boolean isActive = activeOutputChannels.contains(bboc.getID());
 
 				LOG.info("Registering byte buffered output channel " + bboc.getID() + " ("
@@ -171,6 +178,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				if (this.registeredChannels.containsKey(bbic.getID())) {
 					LOG.error("Byte buffered input channel " + bbic.getID() + " is already registered");
 					continue;
+				}
+
+				// Add routing entry to receiver cache to reduce latency
+				if (bbic.getType() == ChannelType.INMEMORY) {
+					addReceiverListHint(bbic);
 				}
 
 				LOG.info("Registering byte buffered input channel " + bbic.getID());
@@ -204,6 +216,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
 				this.registeredChannels.remove(outputChannel.getID());
+				this.receiverCache.remove(outputChannel.getID());
 			}
 		}
 
@@ -212,6 +225,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
 				this.registeredChannels.remove(inputChannel.getID());
+				this.receiverCache.remove(inputChannel.getID());
 			}
 
 			final LocalBufferPoolOwner owner = this.localBufferPoolOwner.remove(inputGate.getGateID());
@@ -398,6 +412,15 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 
 		return true;
+	}
+
+	private void addReceiverListHint(final AbstractChannel channel) {
+
+		TransferEnvelopeReceiverList receiverList = new TransferEnvelopeReceiverList(channel);
+
+		if (this.receiverCache.put(channel.getID(), receiverList) != null) {
+			LOG.warn("Receiver cache already contained entry for " + channel.getID());
+		}
 	}
 
 	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID)
