@@ -230,7 +230,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		 * Send close event to indicate the input channel has successfully
 		 * processed all data it is interested in.
 		 */
-		if (getType() == ChannelType.NETWORK) {
+		final ChannelType type = getType();
+		if (type == ChannelType.NETWORK || type == ChannelType.INMEMORY) {
 			transferEvent(new ByteBufferedChannelCloseEvent());
 		}
 	}
