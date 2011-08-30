@@ -67,7 +67,6 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 
 	void registerInactiveOutputChannel(final OutputChannelContext outputChannelContext) {
 
-		System.out.println("Adding output channel context");
 		this.inactiveOutputChannels.add(outputChannelContext);
 	}
 
@@ -103,13 +102,13 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 
 		return 0L;
 	}
-	
+
 	private void checkForActiveOutputChannels() throws IOException, InterruptedException {
-		
+
 		final Iterator<OutputChannelContext> it = this.inactiveOutputChannels.iterator();
-		while(it.hasNext()) {
+		while (it.hasNext()) {
 			final OutputChannelContext channelContext = it.next();
-			if(channelContext.isChannelActive()) {
+			if (channelContext.isChannelActive()) {
 				channelContext.flushQueuedOutgoingEnvelopes();
 				it.remove();
 			} else {
@@ -167,9 +166,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
-		
-		System.out.println("Output gate has received asynchronous event");
-		
+
 		checkForActiveOutputChannels();
 	}
 
@@ -178,7 +175,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
-		
+
 		throw new IllegalStateException("requestEmptyBuffer called on OutputGateContext");
 	}
 
@@ -187,7 +184,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
-		
+
 		Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
 
 		// No memory-based buffer available
@@ -217,7 +214,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public boolean isShared() {
-		
+
 		return this.taskContext.isShared();
 	}
 
@@ -226,7 +223,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public void reportAsynchronousEvent() {
-		
+
 		this.taskContext.reportAsynchronousEvent();
 	}
 }

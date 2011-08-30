@@ -293,7 +293,6 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 			if (event instanceof ByteBufferedChannelActivateEvent) {
 				this.isReceiverRunning = true;
-				System.out.print("-- Activated channel " + getChannelID());
 				this.outputGateContext.reportAsynchronousEvent();
 			} else {
 				this.byteBufferedOutputChannel.processEvent(event);
