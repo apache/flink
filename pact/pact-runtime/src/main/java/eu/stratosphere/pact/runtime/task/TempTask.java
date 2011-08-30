@@ -121,4 +121,16 @@ public class TempTask extends AbstractPactTask<Stub>
 			this.tempIterator = null;
 		}
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		super.cancel();
+		if (this.tempIterator != null) {
+			tempIterator.abort();
+		}
+	}
 }

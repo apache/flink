@@ -75,6 +75,8 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	private Class<? extends Key>[] keyClasses;
 	
 	private CloseableInputProvider<PactRecord> closeableInput;
+	private SpillingResettableMutableObjectIterator outerValResettableIterator = null;
+	private SpillingResettableMutableObjectIterator innerValResettableIterator = null;
 
 	// ------------------------------------------------------------------------
 	
@@ -200,6 +202,21 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 			this.closeableInput = null;
 		}
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		super.cancel();
+		if (this.innerValResettableIterator != null) {
+			innerValResettableIterator.abort();
+		}
+		if (this.outerValResettableIterator != null) {
+			outerValResettableIterator.abort();
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	
@@ -271,8 +288,8 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 				}
 			};
 			
-			SpillingResettableMutableObjectIterator outerValResettableIterator = null;
-			SpillingResettableMutableObjectIterator innerValResettableIterator = null;
+			outerValResettableIterator = null;
+			innerValResettableIterator = null;
 			
 			try {
 				// read values into outer resettable iterator

@@ -175,6 +175,18 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 		
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		super.cancel();
+		if (this.innerInput != null) {
+			innerInput.abort();
+		}
+	}
+	
 	
 	
 	
