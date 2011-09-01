@@ -44,14 +44,14 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	private static final class SpillingQueueID extends AbstractID {
 	}
 
-	public SpillingQueue(final FileBufferManager fileBufferManager) {
-		this(new SpillingQueueID(), fileBufferManager);
+	public SpillingQueue() {
+		this(new SpillingQueueID());
 	}
 
-	public SpillingQueue(final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+	public SpillingQueue(final AbstractID ownerID) {
 
 		this.ownerID = ownerID;
-		this.fileBufferManager = fileBufferManager;
+		this.fileBufferManager = FileBufferManager.getInstance();
 	}
 
 	/**

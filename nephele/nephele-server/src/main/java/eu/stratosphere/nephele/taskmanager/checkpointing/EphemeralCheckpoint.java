@@ -15,19 +15,30 @@
 
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
+import java.util.Iterator;
 import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.taskmanager.transferenvelope.AbstractSerializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 
 /**
  * An ephemeral checkpoint is a checkpoint that can be used to recover from
@@ -49,19 +60,59 @@ public class EphemeralCheckpoint {
 	private static final Log LOG = LogFactory.getLog(EphemeralCheckpoint.class);
 
 	/**
-	 * The enveloped which are currently queued until the state of the checkpoint is decided
+	 * The prefix for the name of the file containing the checkpoint meta data.
+	 */
+	private static final String METADATA_PREFIX = "checkpoint";
+
+	/**
+	 * The number of envelopes to be stored in a single meta data file.
+	 */
+	private static final int ENVELOPES_PER_META_DATA_FILE = 100;
+
+	/**
+	 * The enveloped which are currently queued until the state of the checkpoint is decided.
 	 */
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
 	/**
-	 * The ID of the gate this ephemeral checkpoint belongs to.
+	 * The serializer to convert a transfer envelope into a byte stream.
 	 */
-	private final GateID gateID;
+	private final AbstractSerializer transferEnvelopeSerializer = new CheckpointSerializer();
+
+	/**
+	 * The ID of the vertex this ephemeral checkpoint belongs to.
+	 */
+	private final ExecutionVertexID vertexID;
+
+	/**
+	 * The number of channels connected to this checkpoint.
+	 */
+	private final int numberOfConnectedChannels;
+
+	/**
+	 * The number of channels which can confirmed not to send any further data.
+	 */
+	private int numberOfClosedChannels = 0;
+
+	/**
+	 * The current suffix for the name of the file containing the meta data.
+	 */
+	private int metaDataSuffix = 0;
 
 	/**
 	 * The file buffer manager used to allocate file buffers.
 	 */
 	private final FileBufferManager fileBufferManager;
+
+	/**
+	 * The file channel to write the checkpoint's meta data.
+	 */
+	private FileChannel metaDataFileChannel = null;
+
+	/**
+	 * A counter for the number of serialized transfer envelopes.
+	 */
+	private int numberOfSerializedTransferEnvelopes = 0;
 
 	/**
 	 * This enumeration reflects the possible states an ephemeral
@@ -78,12 +129,17 @@ public class EphemeralCheckpoint {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
-	public EphemeralCheckpoint(final GateID gateID, final boolean ephemeral, final FileBufferManager fileBufferManager) {
-		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
-			: CheckpointingDecisionState.NO_CHECKPOINTING);
+	public EphemeralCheckpoint(final ExecutionVertexID vertexID, final int numberOfConnectedChannels, final boolean ephemeral) {
 
-		this.gateID = gateID;
-		this.fileBufferManager = fileBufferManager;
+		this.vertexID = vertexID;
+		this.numberOfConnectedChannels = numberOfConnectedChannels;
+
+		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
+			: CheckpointingDecisionState.CHECKPOINTING);
+
+		this.fileBufferManager = FileBufferManager.getInstance();
+		
+		LOG.info("Created checkpoint for vertex " + this.vertexID + ", state " + this.checkpointingDecision);
 	}
 
 	/**
@@ -162,14 +218,63 @@ public class EphemeralCheckpoint {
 			if (buffer.isBackedByMemory()) {
 
 				// Make sure we transfer the encapsulated buffer to a file and release the memory buffer again
-				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.gateID,
+				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.vertexID,
 					this.fileBufferManager);
 				buffer.copyToBuffer(fileBuffer);
 				transferEnvelope.setBuffer(fileBuffer);
 				buffer.recycleBuffer();
 			}
 		}
-		
-		//TODO: Implement to write meta data to disk
+
+		// Write the meta data of the transfer envelope to disk
+		if (this.numberOfSerializedTransferEnvelopes % ENVELOPES_PER_META_DATA_FILE == 0) {
+
+			if (this.metaDataFileChannel != null) {
+				this.metaDataFileChannel.close();
+				this.metaDataFileChannel = null;
+
+				// Increase the meta data suffix
+				++this.metaDataSuffix;
+			}
+		}
+
+		if (this.metaDataFileChannel == null) {
+
+			final String checkpointDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
+			}
+			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator + METADATA_PREFIX
+				+ "_" + this.vertexID + "_" + this.metaDataSuffix);
+			this.metaDataFileChannel = fos.getChannel();
+		}
+
+		this.transferEnvelopeSerializer.setTransferEnvelope(transferEnvelope);
+		while (this.transferEnvelopeSerializer.write(this.metaDataFileChannel)) {
+		}
+
+		// Look for close event
+		final EventList eventList = transferEnvelope.getEventList();
+		if (eventList != null) {
+			final Iterator<AbstractEvent> it = eventList.iterator();
+			while (it.hasNext()) {
+				if (it.next() instanceof ByteBufferedChannelCloseEvent) {
+					++this.numberOfClosedChannels;
+				}
+			}
+		}
+
+		// Increase the number of serialized transfer envelopes
+		++this.numberOfSerializedTransferEnvelopes;
+
+		if (this.numberOfClosedChannels == this.numberOfConnectedChannels) {
+
+			if (this.metaDataFileChannel != null) {
+				this.metaDataFileChannel.close();
+			}
+
+			// TODO: Send notification that checkpoint is completed
+		}
 	}
 }

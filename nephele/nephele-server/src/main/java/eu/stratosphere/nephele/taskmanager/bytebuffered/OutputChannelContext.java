@@ -78,8 +78,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
 		this.isReceiverRunning = isReceiverRunning;
 
-		this.queuedOutgoingEnvelopes = new SpillingQueue(outputGateContext.getGateID(),
-			outputGateContext.getFileBufferManager());
+		this.queuedOutgoingEnvelopes = new SpillingQueue(outputGateContext.getFileOwnerID());
 
 		// Register as inactive channel so queue can be spilled to disk when we run out of memory buffers
 		if (!isReceiverRunning) {
@@ -160,7 +159,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 		flushQueuedOutgoingEnvelopes();
 
-		this.outputGateContext.processEnvelope(this, this.outgoingTransferEnvelope);
+		this.outputGateContext.processEnvelope(this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
 	}
 
@@ -185,7 +184,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 			flushQueuedOutgoingEnvelopes();
 
-			this.outputGateContext.processEnvelope(this, ephemeralTransferEnvelope);
+			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope);
 		}
 	}
 
@@ -222,12 +221,12 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	}
 
 	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
-		
-		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
-			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-		}		
+
+		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
+			this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
+		}
 	}
-	
+
 	/**
 	 * Called by the framework to report events to
 	 * the attached channel object.
@@ -311,7 +310,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		}
 
 		flushQueuedOutgoingEnvelopes();
-		
+
 		return (!this.queuedOutgoingEnvelopes.isEmpty());
 	}
 

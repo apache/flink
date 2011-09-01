@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.util.FileUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -41,7 +40,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class FileBufferManager {
+public final class FileBufferManager {
 
 	/**
 	 * The logging object.
@@ -49,7 +48,7 @@ public class FileBufferManager {
 	private static final Log LOG = LogFactory.getLog(FileBufferManager.class);
 
 	public static final String FILE_BUFFER_PREFIX = "fb_";
-	
+
 	/**
 	 * Stores the location of the directory for temporary files.
 	 */
@@ -59,7 +58,18 @@ public class FileBufferManager {
 
 	private final Map<AbstractID, Map<FileID, ReadableSpillingFile>> readableSpillingFileMap = new HashMap<AbstractID, Map<FileID, ReadableSpillingFile>>();
 
-	public FileBufferManager() {
+	private static FileBufferManager instance = null;
+
+	public static synchronized FileBufferManager getInstance() {
+
+		if (instance == null) {
+			instance = new FileBufferManager();
+		}
+
+		return instance;
+	}
+
+	private FileBufferManager() {
 
 		this.tmpDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);

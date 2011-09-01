@@ -305,4 +305,23 @@ public class FileBuffer implements InternalBuffer {
 		return this.writeMode;
 	}
 
+	/**
+	 * Returns the ID of the file which backs this buffers.
+	 * 
+	 * @return the ID of the file which backs this buffer
+	 */
+	public FileID getFileID() {
+
+		return this.fileID;
+	}
+
+	/**
+	 * Returns the offset in bytes which marks the begin of the buffer's data in the underlying file.
+	 * 
+	 * @return the buffer's offset in bytes
+	 */
+	public long getOffset() {
+
+		return this.offset;
+	}
 }

@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 
-public class TransferEnvelopeSerializer {
+public abstract class AbstractSerializer {
 
 	private enum SerializationState {
 		NOTSERIALIZED,
@@ -52,13 +52,22 @@ public class TransferEnvelopeSerializer {
 
 	private boolean eventListExistanceSerialized = false;
 
-	public void setTransferEnvelope(TransferEnvelope transferEnvelope) {
+	public final void setTransferEnvelope(TransferEnvelope transferEnvelope) {
 
 		this.transferEnvelope = transferEnvelope;
 		reset();
 	}
 
-	public boolean write(WritableByteChannel writableByteChannel) throws IOException {
+	protected final SerializationBuffer<IOReadableWritable> getSerializationBuffer() {
+
+		return this.serializationBuffer;
+	}
+
+	protected final ByteBuffer getTempBuffer() {
+		return this.tempBuffer;
+	}
+
+	public final boolean write(WritableByteChannel writableByteChannel) throws IOException {
 
 		while (true) {
 
@@ -226,9 +235,7 @@ public class TransferEnvelopeSerializer {
 
 			} else {
 
-				buffer.read(writableByteChannel);
-
-				if (!buffer.hasRemaining()) {
+				if (!writeBufferData(writableByteChannel, buffer)) {
 					this.serializationState = SerializationState.FULLYSERIALIZED;
 					return false;
 				}
@@ -237,6 +244,20 @@ public class TransferEnvelopeSerializer {
 			}
 		}
 	}
+
+	/**
+	 * Writes the buffer's actual data.
+	 * 
+	 * @param writableByteChannel
+	 *        the channel to write the buffer data to
+	 * @param buffer
+	 *        the buffer whose data shall be written
+	 * @return <code>true</code> if the buffer has more data to be written, <code>false</code> otherwise
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while writing the buffer's data
+	 */
+	protected abstract boolean writeBufferData(WritableByteChannel writableByteChannel, Buffer buffer)
+			throws IOException;
 
 	private void integerToByteBuffer(int integerToSerialize, int offset, ByteBuffer byteBuffer) throws IOException {
 

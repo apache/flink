@@ -71,8 +71,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final InstanceConnectionInfo localConnectionInfo;
 
-	private final FileBufferManager fileBufferManager;
-
 	private final LocalBufferPool transitBufferPool;
 
 	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
@@ -94,8 +92,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		this.localConnectionInfo = localInstanceConnectionInfo;
 
-		this.fileBufferManager = new FileBufferManager();
-
+		// Initialized the file buffer manager
+		FileBufferManager.getInstance();
+		
 		// Initialize the global buffer pool
 		GlobalBufferPool.getInstance();
 
@@ -125,12 +124,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void register(final ExecutionVertexID vertexID, final Environment environment,
 			final Set<ChannelID> activeOutputChannels) {
 
-		final TaskContext taskContext = new TaskContext(environment);
+		final TaskContext taskContext = new TaskContext(vertexID, environment, this);
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
-			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate, this,
-					this.fileBufferManager);
+			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate.getIndex());
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
 				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
@@ -554,15 +552,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						+ numberOfQueuedEnvelopes + ")");
 			}
 		}
-	}
-
-	/**
-	 * Returns the instance of the file buffer manager that is used by this byte buffered channel manager.
-	 * 
-	 * @return the instance of the file buffer manager that is used by this byte buffered channel manager.
-	 */
-	public FileBufferManager getFileBufferManager() {
-		return this.fileBufferManager;
 	}
 
 	@Override

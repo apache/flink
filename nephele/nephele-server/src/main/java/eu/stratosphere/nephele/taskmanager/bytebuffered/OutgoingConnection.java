@@ -29,7 +29,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 
 /**
  * This class represents an outgoing TCP connection through which {@link TransferEnvelope} objects can be sent.
@@ -67,9 +67,9 @@ public class OutgoingConnection {
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
 	/**
-	 * The {@link TransferEnvelopeSerializer} object used to transform the envelopes into a byte stream.
+	 * The {@link DefaultSerializer} object used to transform the envelopes into a byte stream.
 	 */
-	private final TransferEnvelopeSerializer serializer = new TransferEnvelopeSerializer();
+	private final DefaultSerializer serializer = new DefaultSerializer();
 
 	/**
 	 * The {@link TransferEnvelope} that is currently processed.

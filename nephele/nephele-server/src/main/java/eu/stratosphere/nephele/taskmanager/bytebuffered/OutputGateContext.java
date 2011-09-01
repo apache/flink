@@ -20,49 +20,24 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 final class OutputGateContext implements BufferProvider, AsynchronousEventListener {
 
 	private final TaskContext taskContext;
-
-	private final OutputGate<?> outputGate;
-
-	private final FileBufferManager fileBufferManager;
-
-	private final EphemeralCheckpoint ephemeralCheckpoint;
-
+	
 	private final Set<OutputChannelContext> inactiveOutputChannels;
 
-	/**
-	 * The dispatcher for received transfer envelopes.
-	 */
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
-
-	OutputGateContext(final TaskContext taskContext, final OutputGate<?> outputGate,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final FileBufferManager fileBufferManager) {
+	OutputGateContext(final TaskContext taskContext, final int outputGateIndex) {
 
 		this.taskContext = taskContext;
-		this.outputGate = outputGate;
-
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
-		this.fileBufferManager = fileBufferManager;
-
 		this.inactiveOutputChannels = new HashSet<OutputChannelContext>();
-
-		this.ephemeralCheckpoint = new EphemeralCheckpoint(this.outputGate.getGateID(),
-			(outputGate.getChannelType() == ChannelType.FILE) ? false : true, this.fileBufferManager);
-
-		this.taskContext.registerAsynchronousEventListener(outputGate.getIndex(), this);
+		
+		this.taskContext.registerAsynchronousEventListener(outputGateIndex, this);
 	}
 
 	void registerInactiveOutputChannel(final OutputChannelContext outputChannelContext) {
@@ -70,6 +45,11 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 		this.inactiveOutputChannels.add(outputChannelContext);
 	}
 
+	AbstractID getFileOwnerID() {
+		
+		return this.taskContext.getFileOwnerID();
+	}
+	
 	private long spillQueueWithLargestAmountOfMainMemory() {
 
 		if (this.inactiveOutputChannels.isEmpty()) {
@@ -137,28 +117,11 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
-	void processEnvelope(final OutputChannelContext caller, final TransferEnvelope outgoingTransferEnvelope)
-			throws IOException,
-			InterruptedException {
+	void processEnvelope(final TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
 
-		/*
-		 * if (!this.ephemeralCheckpoint.isDiscarded()) {
-		 * final TransferEnvelope dup = outgoingTransferEnvelope.duplicate();
-		 * this.ephemeralCheckpoint.addTransferEnvelope(dup);
-		 * }
-		 */
-
-		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
-	}
-
-	FileBufferManager getFileBufferManager() {
-
-		return this.fileBufferManager;
-	}
-
-	public GateID getGateID() {
-
-		return this.outputGate.getGateID();
+		
+		
+		this.taskContext.processEnvelope(outgoingTransferEnvelope);
 	}
 
 	/**
@@ -189,12 +152,6 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 
 		// No memory-based buffer available
 		if (buffer == null) {
-
-			// We are out of byte buffers
-			if (!this.ephemeralCheckpoint.isDecided()) {
-				this.ephemeralCheckpoint.destroy();
-				// this.ephemeralCheckpoint.write();
-			}
 
 			// Report exhaustion of memory buffers to the task context
 			this.taskContext.reportExhaustionOfMemoryBuffers();

@@ -18,11 +18,19 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.types.Record;
 
 final class TaskContext implements BufferProvider, LocalBufferPoolOwner, AsynchronousEventListener {
 
@@ -32,26 +40,47 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 	private final AsynchronousEventListener[] subEventListener;
 
+	private final ExecutionVertexID vertexID;
+	
 	private final int numberOfOutputChannels;
 
+	final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+
+	private final EphemeralCheckpoint ephemeralCheckpoint;
+
+	private final boolean forwardTransferEnvelopes;
+	
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
 	 */
 	private boolean initialExhaustionOfMemoryBuffersReported = false;
 
-	TaskContext(final Environment environment) {
+	TaskContext(final ExecutionVertexID vertexID, final Environment environment,
+			final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 
+		this.vertexID = vertexID;
 		this.environment = environment;
 
-		// Compute number of input input channels
+		// Compute number of output input channels
 		int nooc = 0;
+		boolean allOutputGatesOfTypeFile = true;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
+			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			nooc += outputGate.getNumberOfOutputChannels();
+			if (outputGate.getChannelType() != ChannelType.FILE) {
+				allOutputGatesOfTypeFile = false;
+			}
 		}
-		this.numberOfOutputChannels = nooc; 
+		this.numberOfOutputChannels = nooc;
+		this.forwardTransferEnvelopes = !allOutputGatesOfTypeFile;
 
+		this.ephemeralCheckpoint = new EphemeralCheckpoint(vertexID,
+			this.numberOfOutputChannels, allOutputGatesOfTypeFile);
+
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		
 		// Each output gate context will register as a sub event listener
 		this.subEventListener = new AsynchronousEventListener[environment.getNumberOfOutputGates()];
 	}
@@ -142,6 +171,13 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		if (!this.initialExhaustionOfMemoryBuffersReported) {
 
 			this.environment.triggerInitialExecutionResourcesExhaustedNotification();
+			
+			// We are out of byte buffers
+			if (!this.ephemeralCheckpoint.isDecided()) {
+				this.ephemeralCheckpoint.destroy();
+				// this.ephemeralCheckpoint.write();
+			}
+			
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}
 	}
@@ -176,7 +212,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	 */
 	@Override
 	public int getNumberOfChannels() {
-		
+
 		return this.numberOfOutputChannels;
 	}
 
@@ -187,5 +223,41 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	public void setDesignatedNumberOfBuffers(int numberOfBuffers) {
 
 		this.localBufferPool.setDesignatedNumberOfBuffers(numberOfBuffers);
+	}
+	
+	/**
+	 * Called by the attached output gate context to forward a {@link TransferEnvelope} object
+	 * to its final destination. Within this method the provided transfer envelope is possibly also
+	 * forwarded to the assigned ephemeral checkpoint.
+	 * 
+	 * @param outgoingTransferEnvelope
+	 *        the transfer envelope to be forwarded
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while processing the envelope
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
+	 */
+	void processEnvelope(final TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
+
+		if (!this.ephemeralCheckpoint.isDiscarded()) {
+			final TransferEnvelope dup = outgoingTransferEnvelope.duplicate();
+			this.ephemeralCheckpoint.addTransferEnvelope(dup);
+		}
+
+		if (this.forwardTransferEnvelopes) {
+			// Simply discard the envelope
+			final Buffer buffer = outgoingTransferEnvelope.getBuffer();
+			if (buffer != null) {
+				buffer.recycleBuffer();
+			}
+		} else {
+			// Immediately forward the envelope
+			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
+		}
+	}
+	
+	AbstractID getFileOwnerID() {
+		
+		return this.vertexID;
 	}
 }
