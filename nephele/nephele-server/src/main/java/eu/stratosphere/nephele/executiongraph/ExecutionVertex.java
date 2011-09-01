@@ -398,6 +398,7 @@ public class ExecutionVertex {
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
 					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 					if (channelType == ChannelType.FILE) {
+						activeOutputChannels.add(outputChannel.getID());
 						continue;
 					}
 					if (channelType == ChannelType.INMEMORY) {

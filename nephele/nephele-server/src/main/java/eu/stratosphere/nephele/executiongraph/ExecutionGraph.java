@@ -452,7 +452,13 @@ public class ExecutionGraph implements ExecutionListener {
 					target.getCurrentNumberOfGroupMembers())) {
 					createChannel(sourceVertex, outputGate, targetVertex, inputGate, channelType, compressionLevel);
 				}
+
+				// Update channel type of input gate
+				inputGate.setChannelType(channelType);
 			}
+
+			// Update channel type of output gate
+			outputGate.setChannelType(channelType);
 		}
 
 	}
