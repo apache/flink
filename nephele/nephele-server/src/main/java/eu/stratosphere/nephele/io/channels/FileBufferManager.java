@@ -48,6 +48,8 @@ public class FileBufferManager {
 	 */
 	private static final Log LOG = LogFactory.getLog(FileBufferManager.class);
 
+	public static final String FILE_BUFFER_PREFIX = "fb_";
+	
 	/**
 	 * Stores the location of the directory for temporary files.
 	 */
@@ -178,8 +180,9 @@ public class FileBufferManager {
 
 			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
 			if (writableSpillingFile == null) {
-				final String filename = this.tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
-				writableSpillingFile = new WritableSpillingFile(new FileID(), new File(filename));
+				final FileID fileID = new FileID();
+				final String filename = this.tmpDir + File.separator + FILE_BUFFER_PREFIX + fileID;
+				writableSpillingFile = new WritableSpillingFile(fileID, new File(filename));
 				this.writableSpillingFileMap.put(ownerID, writableSpillingFile);
 			}
 
