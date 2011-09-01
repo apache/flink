@@ -16,19 +16,12 @@
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
-import eu.stratosphere.nephele.profiling.ProfilingException;
-import eu.stratosphere.nephele.taskmanager.TaskManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 public class CheckpointManager {
@@ -75,6 +68,16 @@ public class CheckpointManager {
 		}
 
 		return false;
+	}
+
+	public void replayCheckpoint(final ExecutionVertexID vertexID) {
+
+		final CheckpointReplayTask replayTask = new CheckpointReplayTask(vertexID, this.checkpointDirectory,
+			this.transferEnvelopeDispatcher, hasCompleteCheckpointAvailable(vertexID));
+		
+		replayTask.start();
+
+		LOG.info("Replaying checkpoint for vertex " + vertexID);
 	}
 
 	/**

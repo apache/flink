@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.fs.FileStatus;
@@ -847,6 +848,12 @@ public class TestPlan implements Closeable, DeploymentManager {
 			if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
 				fail(submissionResult.getDescription());
 		}
+	}
+
+	@Override
+	public void replayCheckpoints(JobID jobID, AbstractInstance instance, List<ExecutionVertexID> vertexIDs) {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

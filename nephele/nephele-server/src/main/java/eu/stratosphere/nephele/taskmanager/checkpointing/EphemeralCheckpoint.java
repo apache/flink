@@ -190,6 +190,7 @@ public class EphemeralCheckpoint {
 			final TransferEnvelope transferEnvelope = this.queuedEnvelopes.poll();
 			final Buffer buffer = transferEnvelope.getBuffer();
 			if (buffer != null) {
+				System.out.println("Recycling buffer");
 				buffer.recycleBuffer();
 			}
 		}

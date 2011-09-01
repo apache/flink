@@ -172,12 +172,10 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 			this.environment.triggerInitialExecutionResourcesExhaustedNotification();
 
 			// We are out of byte buffers
-			/*
-			 * if (!this.ephemeralCheckpoint.isDecided()) {
-			 * this.ephemeralCheckpoint.destroy();
-			 * // this.ephemeralCheckpoint.write();
-			 * }
-			 */
+			if (!this.ephemeralCheckpoint.isDecided()) {
+				System.out.println("Destroying checkpoint");
+				this.ephemeralCheckpoint.destroy();
+			 }
 
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}

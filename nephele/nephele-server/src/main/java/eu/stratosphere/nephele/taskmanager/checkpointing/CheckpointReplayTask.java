@@ -15,15 +15,32 @@
 
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
-import eu.stratosphere.nephele.execution.Environment;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 class CheckpointReplayTask extends Thread {
 
-	CheckpointReplayTask(final ExecutionVertexID vertexID, final Environment environment,
-			final String checkpointDirectory, final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+	private final ExecutionVertexID vertexID;
 
+	private final String checkpointDirectory;
+
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+
+	private final boolean isCheckpointComplete;
+
+	CheckpointReplayTask(final ExecutionVertexID vertexID, final String checkpointDirectory,
+			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final boolean isCheckpointComplete) {
+
+		this.vertexID = vertexID;
+		this.checkpointDirectory = checkpointDirectory;
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.isCheckpointComplete = isCheckpointComplete;
 	}
 
 	/**
@@ -32,6 +49,41 @@ class CheckpointReplayTask extends Thread {
 	@Override
 	public void run() {
 
-		// TODO: Implement me
+		try {
+			replayCheckpoint();
+		} catch (IOException ioe) {
+			// TODO: Handle this correctly
+			ioe.printStackTrace();
+		} catch(InterruptedException ie) {
+			// TODO: Handle this correctly
+			ie.printStackTrace();
+		}
+	}
+
+	private void replayCheckpoint() throws IOException, InterruptedException {
+
+		int metaDataIndex = 0;
+		while (true) {
+
+			// Try to locate the meta data file
+			final File metaDataFile = new File(this.checkpointDirectory + File.separator
+				+ CheckpointManager.METADATA_PREFIX + "_" + this.vertexID + "_" + metaDataIndex);
+
+			while (!metaDataFile.exists()) {
+				if (metaDataIndex == 0 || this.isCheckpointComplete) {
+					throw new FileNotFoundException("Cannot find meta data file " + metaDataIndex
+						+ " for checkpoint of vertex " + this.vertexID);
+				}
+
+				// Wait for the file to be created
+				Thread.sleep(100);
+			}
+			
+			final FileInputStream fis = new FileInputStream(metaDataFile);
+			final FileChannel fileChannel = fis.getChannel();
+			
+			
+		}
+
 	}
 }
