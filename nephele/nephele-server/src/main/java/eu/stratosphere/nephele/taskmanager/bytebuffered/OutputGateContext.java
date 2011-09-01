@@ -20,8 +20,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -29,14 +33,18 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 final class OutputGateContext implements BufferProvider, AsynchronousEventListener {
 
 	private final TaskContext taskContext;
-	
+
+	private final ChannelType channelType;
+
 	private final Set<OutputChannelContext> inactiveOutputChannels;
 
-	OutputGateContext(final TaskContext taskContext, final int outputGateIndex) {
+	OutputGateContext(final TaskContext taskContext, final ChannelType channelType, final int outputGateIndex) {
 
 		this.taskContext = taskContext;
+		this.channelType = channelType;
+
 		this.inactiveOutputChannels = new HashSet<OutputChannelContext>();
-		
+
 		this.taskContext.registerAsynchronousEventListener(outputGateIndex, this);
 	}
 
@@ -46,10 +54,10 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	}
 
 	AbstractID getFileOwnerID() {
-		
+
 		return this.taskContext.getFileOwnerID();
 	}
-	
+
 	private long spillQueueWithLargestAmountOfMainMemory() {
 
 		if (this.inactiveOutputChannels.isEmpty()) {
@@ -110,6 +118,8 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * to its final destination. Within this method the provided transfer envelope is possibly also
 	 * forwarded to the assigned ephemeral checkpoint.
 	 * 
+	 * @param caller
+	 *        the output channel context calling this method
 	 * @param outgoingTransferEnvelope
 	 *        the transfer envelope to be forwarded
 	 * @throws IOException
@@ -117,11 +127,24 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
-	void processEnvelope(final TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
+	void processEnvelope(final OutputChannelContext caller, final TransferEnvelope outgoingTransferEnvelope)
+			throws IOException, InterruptedException {
 
-		
-		
 		this.taskContext.processEnvelope(outgoingTransferEnvelope);
+
+		if (this.channelType == ChannelType.FILE) {
+			// Check if the event list of the envelope contains a close event and acknowledge it
+			final EventList eventList = outgoingTransferEnvelope.getEventList();
+			if (eventList != null) {
+				final Iterator<AbstractEvent> it = eventList.iterator();
+				while (it.hasNext()) {
+					final AbstractEvent event = it.next();
+					if (event instanceof ByteBufferedChannelCloseEvent) {
+						caller.processEvent(event);
+					}
+				}
+			}
+		}
 	}
 
 	/**

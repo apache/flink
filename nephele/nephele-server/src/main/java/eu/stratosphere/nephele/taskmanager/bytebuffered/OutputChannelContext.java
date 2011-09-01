@@ -159,7 +159,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 		flushQueuedOutgoingEnvelopes();
 
-		this.outputGateContext.processEnvelope(this.outgoingTransferEnvelope);
+		this.outputGateContext.processEnvelope(this, this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
 	}
 
@@ -184,7 +184,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 			flushQueuedOutgoingEnvelopes();
 
-			this.outputGateContext.processEnvelope(ephemeralTransferEnvelope);
+			this.outputGateContext.processEnvelope(this, ephemeralTransferEnvelope);
 		}
 	}
 
@@ -223,7 +223,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
 
 		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-			this.outputGateContext.processEnvelope(this.queuedOutgoingEnvelopes.poll());
+			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
 		}
 	}
 

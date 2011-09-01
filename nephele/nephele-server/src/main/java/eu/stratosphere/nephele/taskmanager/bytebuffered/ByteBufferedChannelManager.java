@@ -94,7 +94,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		// Initialized the file buffer manager
 		FileBufferManager.getInstance();
-		
+
 		// Initialize the global buffer pool
 		GlobalBufferPool.getInstance();
 
@@ -128,7 +128,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
-			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate.getIndex());
+			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate.getChannelType(),
+				outputGate.getIndex());
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
 				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {

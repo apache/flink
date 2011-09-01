@@ -41,7 +41,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	private final AsynchronousEventListener[] subEventListener;
 
 	private final ExecutionVertexID vertexID;
-	
+
 	private final int numberOfOutputChannels;
 
 	final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
@@ -49,7 +49,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
 	private final boolean forwardTransferEnvelopes;
-	
+
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
 	 */
@@ -65,22 +65,21 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 		// Compute number of output input channels
 		int nooc = 0;
-		boolean allOutputGatesOfTypeFile = true;
+		boolean ephemeral = true;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
 			nooc += outputGate.getNumberOfOutputChannels();
-			if (outputGate.getChannelType() != ChannelType.FILE) {
-				allOutputGatesOfTypeFile = false;
+			if (outputGate.getChannelType() == ChannelType.FILE) {
+				ephemeral = false;
 			}
 		}
 		this.numberOfOutputChannels = nooc;
-		this.forwardTransferEnvelopes = !allOutputGatesOfTypeFile;
+		this.forwardTransferEnvelopes = ephemeral;
 
-		this.ephemeralCheckpoint = new EphemeralCheckpoint(vertexID,
-			this.numberOfOutputChannels, allOutputGatesOfTypeFile);
+		this.ephemeralCheckpoint = new EphemeralCheckpoint(vertexID, this.numberOfOutputChannels, ephemeral);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
-		
+
 		// Each output gate context will register as a sub event listener
 		this.subEventListener = new AsynchronousEventListener[environment.getNumberOfOutputGates()];
 	}
@@ -171,13 +170,15 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		if (!this.initialExhaustionOfMemoryBuffersReported) {
 
 			this.environment.triggerInitialExecutionResourcesExhaustedNotification();
-			
+
 			// We are out of byte buffers
-			if (!this.ephemeralCheckpoint.isDecided()) {
-				this.ephemeralCheckpoint.destroy();
-				// this.ephemeralCheckpoint.write();
-			}
-			
+			/*
+			 * if (!this.ephemeralCheckpoint.isDecided()) {
+			 * this.ephemeralCheckpoint.destroy();
+			 * // this.ephemeralCheckpoint.write();
+			 * }
+			 */
+
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}
 	}
@@ -224,7 +225,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 		this.localBufferPool.setDesignatedNumberOfBuffers(numberOfBuffers);
 	}
-	
+
 	/**
 	 * Called by the attached output gate context to forward a {@link TransferEnvelope} object
 	 * to its final destination. Within this method the provided transfer envelope is possibly also
@@ -245,19 +246,19 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		}
 
 		if (this.forwardTransferEnvelopes) {
+			// Immediately forward the envelope
+			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
+		} else {
 			// Simply discard the envelope
 			final Buffer buffer = outgoingTransferEnvelope.getBuffer();
 			if (buffer != null) {
 				buffer.recycleBuffer();
 			}
-		} else {
-			// Immediately forward the envelope
-			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
 		}
 	}
-	
+
 	AbstractID getFileOwnerID() {
-		
+
 		return this.vertexID;
 	}
 }

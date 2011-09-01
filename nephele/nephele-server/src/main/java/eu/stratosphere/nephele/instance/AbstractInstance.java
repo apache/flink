@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
+import eu.stratosphere.nephele.taskmanager.CheckpointReplayResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -204,6 +205,12 @@ public abstract class AbstractInstance extends NetworkNode {
 			throws IOException {
 
 		return getTaskManager().submitTasks(tasks);
+	}
+
+	public synchronized List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs)
+			throws IOException {
+
+		return getTaskManager().replayCheckpoints(vertexIDs);
 	}
 
 	/**

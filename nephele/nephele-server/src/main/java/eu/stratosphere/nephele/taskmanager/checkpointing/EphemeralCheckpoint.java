@@ -29,7 +29,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.AbstractSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
@@ -58,11 +57,6 @@ public class EphemeralCheckpoint {
 	 * The log object used to report problems.
 	 */
 	private static final Log LOG = LogFactory.getLog(EphemeralCheckpoint.class);
-
-	/**
-	 * The prefix for the name of the file containing the checkpoint meta data.
-	 */
-	private static final String METADATA_PREFIX = "checkpoint";
 
 	/**
 	 * The number of envelopes to be stored in a single meta data file.
@@ -129,7 +123,8 @@ public class EphemeralCheckpoint {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
-	public EphemeralCheckpoint(final ExecutionVertexID vertexID, final int numberOfConnectedChannels, final boolean ephemeral) {
+	public EphemeralCheckpoint(final ExecutionVertexID vertexID, final int numberOfConnectedChannels,
+			final boolean ephemeral) {
 
 		this.vertexID = vertexID;
 		this.numberOfConnectedChannels = numberOfConnectedChannels;
@@ -138,7 +133,7 @@ public class EphemeralCheckpoint {
 			: CheckpointingDecisionState.CHECKPOINTING);
 
 		this.fileBufferManager = FileBufferManager.getInstance();
-		
+
 		LOG.info("Created checkpoint for vertex " + this.vertexID + ", state " + this.checkpointingDecision);
 	}
 
@@ -240,12 +235,13 @@ public class EphemeralCheckpoint {
 
 		if (this.metaDataFileChannel == null) {
 
-			final String checkpointDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+			final String checkpointDir = GlobalConfiguration.getString(CheckpointManager.CHECKPOINT_DIRECTORY_KEY,
+				CheckpointManager.DEFAULT_CHECKPOINT_DIRECTORY);
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
 			}
-			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator + METADATA_PREFIX
+			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator
+				+ CheckpointManager.METADATA_PREFIX
 				+ "_" + this.vertexID + "_" + this.metaDataSuffix);
 			this.metaDataFileChannel = fos.getChannel();
 		}
@@ -273,6 +269,14 @@ public class EphemeralCheckpoint {
 			if (this.metaDataFileChannel != null) {
 				this.metaDataFileChannel.close();
 			}
+
+			final String checkpointDir = GlobalConfiguration.getString(CheckpointManager.CHECKPOINT_DIRECTORY_KEY,
+				CheckpointManager.DEFAULT_CHECKPOINT_DIRECTORY);
+
+			new FileOutputStream(checkpointDir + File.separator + CheckpointManager.METADATA_PREFIX + "_"
+				+ this.vertexID + "_final").close();
+
+			LOG.info("Finished persistent checkpoint for vertex " + this.vertexID);
 
 			// TODO: Send notification that checkpoint is completed
 		}

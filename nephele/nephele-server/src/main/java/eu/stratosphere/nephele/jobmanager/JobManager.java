@@ -109,6 +109,7 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
+import eu.stratosphere.nephele.taskmanager.CheckpointReplayResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -1133,6 +1134,54 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					if (tsr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
 						// Change the execution state to failed and let the scheduler deal with the rest
 						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, tsr.getDescription());
+					}
+				}
+			}
+		};
+
+		this.executorService.execute(deploymentRunnable);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void replayCheckpoints(final JobID jobID, final AbstractInstance instance,
+			final List<ExecutionVertexID> vertexIDs) {
+
+		if (vertexIDs.isEmpty()) {
+			LOG.error("Method 'replayCheckpoints' called but list of checkpoints to be replayed is empty");
+			return;
+		}
+
+		// Create a new runnable and pass it the executor service
+		final Runnable deploymentRunnable = new Runnable() {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void run() {
+
+				List<CheckpointReplayResult> checkpointResultList = null;
+
+				try {
+					checkpointResultList = instance.replayCheckpoints(vertexIDs);
+				} catch (final IOException ioe) {
+					final String errorMsg = StringUtils.stringifyException(ioe);
+					// TODO: Handle this correctly
+					LOG.error(errorMsg);
+				}
+
+				if (vertexIDs.size() != checkpointResultList.size()) {
+					LOG.error("size of submission result list does not match size of list with vertices to be deployed");
+				}
+
+				for (final CheckpointReplayResult ccr : checkpointResultList) {
+
+					if (ccr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+						// TODO: Handle this correctly
+						LOG.error(ccr.getDescription());
 					}
 				}
 			}

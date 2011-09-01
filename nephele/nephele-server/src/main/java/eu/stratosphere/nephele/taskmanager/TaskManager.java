@@ -68,6 +68,7 @@ import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -269,7 +270,7 @@ public class TaskManager implements TaskOperationProtocol {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
 		// Initialize the checkpoint manager
-		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath, this);
+		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager);
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -436,7 +437,9 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		// Start execution
-		LOG.debug("Starting execution of task with ID " + id);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Starting execution of task with ID " + id);
+		}
 		ee.startExecution();
 
 		return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
@@ -449,11 +452,6 @@ public class TaskManager implements TaskOperationProtocol {
 	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
 
 		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
-
-		if (tasks.isEmpty()) {
-			LOG.error("Received list of submitted tasks with zero length!");
-			return submissionResultList;
-		}
 
 		// Make sure all tasks are fully registered before they are started
 		for (final TaskSubmissionWrapper tsw : tasks) {
@@ -486,7 +484,9 @@ public class TaskManager implements TaskOperationProtocol {
 			final ExecutionVertexID id = tsw.getVertexID();
 
 			// Start execution
-			LOG.debug("Starting execution of task with ID " + id);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Starting execution of task with ID " + id);
+			}
 			ee.startExecution();
 		}
 
@@ -573,6 +573,45 @@ public class TaskManager implements TaskOperationProtocol {
 		// The environment itself will put the task into the running task map
 
 		return null;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public List<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs) throws IOException {
+
+		final List<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
+
+		for (final ExecutionVertexID vertexID : vertexIDs) {
+
+			if (!this.checkpointManager.hasCompleteCheckpointAvailable(vertexID)) {
+
+				if (this.checkpointManager.hasPartialCheckpointAvailable(vertexID)) {
+					synchronized (this.runningTasks) {
+						if (!this.runningTasks.containsKey(vertexID)) {
+							final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
+							result
+								.setDescription("Checkpoint is only partial and corresponding task is no longer running");
+							checkpointResultList.add(result);
+							continue;
+						}
+					}
+				} else {
+					final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
+					result.setDescription("No checkpoint found");
+					checkpointResultList.add(result);
+					continue;
+				}
+			}
+
+			// TODO: Implement replay from checkpoint
+			System.out.println("Replaying checkpoint for " + vertexID);
+
+			checkpointResultList.add(new CheckpointReplayResult(vertexID, ReturnCode.SUCCESS));
+		}
+
+		return checkpointResultList;
 	}
 
 	/**

@@ -13,26 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.checkpointing;
+package eu.stratosphere.nephele.taskmanager;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
-public class CheckpointRecoveryThread extends Thread {
+public class CheckpointReplayResult extends AbstractTaskResult {
 
-	public CheckpointRecoveryThread(final NetworkConnectionManager networkConnectionManager,
-			final FileBufferManager fileBufferManager, final ChannelID sourceChannelID) {
-		super("CheckpointRecoveryThread for channel " + sourceChannelID);
-
+	/**
+	 * Constructs a new checkpoint replay result.
+	 * 
+	 * @param vertexID
+	 *        the task ID this result belongs to
+	 * @param returnCode
+	 *        the return code of the submission
+	 */
+	public CheckpointReplayResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
+		super(vertexID, returnCode);
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Constructs an empty checkpoint replay result.
 	 */
-	@Override
-	public void run() {
-
-		//TODO: Implement me
+	public CheckpointReplayResult() {
+		super();
 	}
 }

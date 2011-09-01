@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
@@ -47,6 +48,7 @@ import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * This abstract scheduler must be extended by a scheduler implementations for Nephele. The abstract class defines the
@@ -241,7 +243,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
 					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(outputChannel.getConnectedChannelID());
+					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
+						outputChannel.getConnectedChannelID());
 					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
 				}
 			}
@@ -267,7 +270,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				continue;
 			}
 
-			for(int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
+			for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
 				final ExecutionVertex vertex = startVertex.getGroupMember(j);
 				findVerticesToBeDeployed(vertex, verticesToBeDeployed);
 			}
@@ -285,7 +288,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			}
 		}
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -440,8 +443,38 @@ public abstract class AbstractScheduler implements InstanceListener {
 			}
 		}
 	}
-	
+
 	DeploymentManager getDeploymentManager() {
 		return this.deploymentManager;
+	}
+
+	protected void replayCheckpointsFromPreviousStage(final ExecutionGraph executionGraph) {
+
+		final int currentStageIndex = executionGraph.getIndexOfCurrentExecutionStage();
+		final ExecutionStage previousStage = executionGraph.getStage(currentStageIndex - 1);
+
+		final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToReplay = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
+
+		for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
+
+			final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
+			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+			List<ExecutionVertexID> vertexIDs = checkpointsToReplay.get(instance);
+			if (vertexIDs == null) {
+				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
+				checkpointsToReplay.put(instance, vertexIDs);
+			}
+
+			vertexIDs.add(vertex.getID());
+		}
+
+		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
+			.iterator();
+		while (it.hasNext()) {
+			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
+			this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
+		}
+
 	}
 }

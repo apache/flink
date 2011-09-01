@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.taskmanager.CheckpointReplayResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -105,6 +106,8 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
 
+	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
+	
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
 	 * 
