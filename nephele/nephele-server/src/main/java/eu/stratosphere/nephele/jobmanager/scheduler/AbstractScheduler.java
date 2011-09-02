@@ -424,9 +424,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 				final ExecutionVertex vertex = it.next();
 				final ExecutionState state = vertex.getExecutionState();
 
-				if (state == ExecutionState.SCHEDULED || state == ExecutionState.READY
-					|| state == ExecutionState.RUNNING || state == ExecutionState.FINISHING
-					|| state == ExecutionState.CANCELING) {
+				if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
+					&& state != ExecutionState.FAILED) {
 					instanceCanBeReleased = false;
 					break;
 				}
