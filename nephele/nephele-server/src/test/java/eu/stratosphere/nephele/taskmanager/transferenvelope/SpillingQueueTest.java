@@ -1,41 +1,20 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
-
-import java.util.ArrayDeque;
-import java.util.LinkedList;
-import java.util.Queue;
-
-import org.junit.Test;
-
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.jobgraph.JobID;
 
 public class SpillingQueueTest {
 
-	@Test
-	public void testCapacity() {
-		
-		final JobID jobID = new JobID();
-		final ChannelID channelID = new ChannelID();
-		
-		
-		int count = 0;
-		
-		try {
-		
-			final Queue<TransferEnvelope> queue = new SpillingQueue(0, null);
-			//final Queue<TransferEnvelope> queue = new ArrayDeque<TransferEnvelope>();
-			//final Queue<TransferEnvelope> queue = new LinkedList<TransferEnvelope>();
-			
-			while(true) {
-				
-				final TransferEnvelope te = new TransferEnvelope(count++, jobID, channelID);
-				queue.add(te);
-			}
-			
-		} catch(Throwable t) {
-			System.gc();
-		}
-		
-		System.out.println("Inserted " + count + " elements");
-	}
 }

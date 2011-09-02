@@ -605,8 +605,8 @@ public class TaskManager implements TaskOperationProtocol {
 				}
 			}
 
-			// TODO: Implement replay from checkpoint
-			System.out.println("Replaying checkpoint for " + vertexID);
+			// Replay the checkpoint
+			this.checkpointManager.replayCheckpoint(vertexID);
 
 			checkpointResultList.add(new CheckpointReplayResult(vertexID, ReturnCode.SUCCESS));
 		}
