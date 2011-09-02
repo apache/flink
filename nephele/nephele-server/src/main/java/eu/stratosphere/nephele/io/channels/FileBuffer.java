@@ -32,7 +32,7 @@ public class FileBuffer implements InternalBuffer {
 
 	private final AbstractID ownerID;
 
-	private FileID fileID = null;
+	private FileID fileID;
 
 	private FileChannel fileChannel;
 
@@ -42,12 +42,18 @@ public class FileBuffer implements InternalBuffer {
 
 	private long totalBytesRead = 0;
 
-	private long offset = 0;
+	private long offset;
 
-	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+	FileBuffer(final int bufferSize, final FileID fileID, final long offset, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
 		this.bufferSize = bufferSize;
+		this.fileID = fileID;
+		this.offset = offset;
 		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
+	}
+	
+	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+		this(bufferSize, null, 0, ownerID, fileBufferManager);
 	}
 
 	@Override

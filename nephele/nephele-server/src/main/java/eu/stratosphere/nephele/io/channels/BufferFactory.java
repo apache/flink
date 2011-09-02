@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.io.channels;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Queue;
 
@@ -28,6 +29,15 @@ public abstract class BufferFactory {
 			final FileBufferManager fileBufferManager) {
 
 		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, ownerID, fileBufferManager);
+		return new Buffer(internalBuffer);
+	}
+
+	public static Buffer createFromCheckpoint(final int bufferSize, final FileID fileID, final long offset,
+			final AbstractID ownerID, final FileBufferManager fileBufferManager) throws IOException {
+
+		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, fileID, offset, ownerID, fileBufferManager);
+		internalBuffer.finishWritePhase();
+		
 		return new Buffer(internalBuffer);
 	}
 

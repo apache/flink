@@ -249,4 +249,30 @@ public final class FileBufferManager {
 
 		return writableSpillingFile.getFileID();
 	}
+	
+	public void registerExternalReadableSpillingFile(final AbstractID ownerID, final FileID fileID) throws IOException {
+	
+		Map<FileID, ReadableSpillingFile> map = null;
+		synchronized (this.readableSpillingFileMap) {
+			map = this.readableSpillingFileMap.get(ownerID);
+			if (map == null) {
+				map = new HashMap<FileID, ReadableSpillingFile>();
+				this.readableSpillingFileMap.put(ownerID, map);
+			}
+		}
+		
+		ReadableSpillingFile readableSpillingFile = null;
+		synchronized (map) {
+			readableSpillingFile = map.get(fileID);
+			if(readableSpillingFile == null) {
+				final String filename = this.tmpDir + File.separator + FILE_BUFFER_PREFIX + fileID;
+				readableSpillingFile = new ReadableSpillingFile(new File(filename), 1); //Use 1 here to make sure the file is not immediately deleted
+				map.put(fileID, readableSpillingFile);
+				map.notify();
+			}
+		}
+		
+		readableSpillingFile.increaseNumberOfBuffers();
+		
+	}
 }

@@ -53,9 +53,7 @@ public abstract class AbstractDeserializer {
 	private final DeserializationBuffer<EventList> notificationListDeserializationBuffer = new DeserializationBuffer<EventList>(
 		new DefaultRecordDeserializer<EventList>(EventList.class), true);
 
-	private final ByteBuffer existanceBuffer = ByteBuffer.allocate(1); // 1 byte for existence of buffer
-
-	private final ByteBuffer lengthBuffer = ByteBuffer.allocate(SIZEOFINT);
+	private final ByteBuffer tempBuffer = ByteBuffer.allocate(8); // TODO: Make this configurable
 
 	private boolean bufferExistanceDeserialized = false;
 
@@ -110,32 +108,37 @@ public abstract class AbstractDeserializer {
 		}
 	}
 
+	protected final ByteBuffer getTempBuffer() {
+		return this.tempBuffer;
+	}
+
 	protected void setBuffer(final Buffer buffer) {
 		this.buffer = buffer;
 	}
-	
+
 	protected int getSizeOfBuffer() {
 		return this.sizeOfBuffer;
 	}
-	
+
 	protected JobID getDeserializedJobID() {
 		return this.deserializedJobID;
 	}
-	
+
 	protected ChannelID getDeserializedSourceID() {
 		return this.deserializedSourceID;
 	}
-	
+
 	private boolean readSequenceNumber(ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.sequenceNumberDeserializationStarted) {
-			this.lengthBuffer.clear();
+			this.tempBuffer.position(0);
+			this.tempBuffer.limit(SIZEOFINT);
 			this.sequenceNumberDeserializationStarted = true;
 		}
 
-		if (readableByteChannel.read(this.lengthBuffer) == -1) {
+		if (readableByteChannel.read(this.tempBuffer) == -1) {
 
-			if (this.lengthBuffer.position() == 0) {
+			if (this.tempBuffer.position() == 0) {
 				// Regular end of stream
 				throw new EOFException();
 			} else {
@@ -143,9 +146,9 @@ public abstract class AbstractDeserializer {
 			}
 		}
 
-		if (!this.lengthBuffer.hasRemaining()) {
+		if (!this.tempBuffer.hasRemaining()) {
 
-			this.deserializedSequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);
+			this.deserializedSequenceNumber = byteBufferToInteger(this.tempBuffer, 0);
 			if (this.deserializedSequenceNumber < 0) {
 				throw new IOException("Received invalid sequence number: " + this.deserializedSequenceNumber);
 			}
@@ -156,8 +159,8 @@ public abstract class AbstractDeserializer {
 			this.sizeOfBuffer = -1;
 			this.bufferExistanceDeserialized = false;
 			this.eventListExistanceDeserialized = false;
-			this.existanceBuffer.clear();
-			this.lengthBuffer.clear();
+			this.tempBuffer.clear();
+			this.buffer = null;
 			this.jobIDDeserializationBuffer.clear();
 			this.channelIDDeserializationBuffer.clear();
 			this.deserializedEventList = null;
@@ -194,15 +197,17 @@ public abstract class AbstractDeserializer {
 	private boolean readNotificationList(ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.eventListExistanceDeserialized) {
-			readableByteChannel.read(this.existanceBuffer);
+			this.tempBuffer.position(0);
+			this.tempBuffer.limit(1);
+			readableByteChannel.read(this.tempBuffer);
 
-			if (this.existanceBuffer.hasRemaining()) {
+			if (this.tempBuffer.hasRemaining()) {
 				return true;
 			}
 
 			this.eventListExistanceDeserialized = true;
-			final boolean eventListFollows = (this.existanceBuffer.get(0) == (byte) 1);
-			this.existanceBuffer.clear();
+			final boolean eventListFollows = (this.tempBuffer.get(0) == (byte) 1);
+			this.tempBuffer.clear();
 
 			if (!eventListFollows) {
 				// No event list here
@@ -225,29 +230,31 @@ public abstract class AbstractDeserializer {
 	}
 
 	/**
-	 * Reconstructs the transfer envelope's buffer from the stream.
+	 * Read the buffer's actual data from the stream.
 	 * 
 	 * @param readableByteChannel
-	 *        the stream to reconstruct the buffer from.
-	 * @return <code>true</code> if the buffer has been successfully reconstructed, <code>false</code> if more data from
-	 *         the stream is required
-	 * 
-	 * @throws IOException thrown if an I/O error occurred while reading data from the stream
+	 *        the stream to read the buffer data from
+	 * @return <code>true</code> if more buffer data need to be read from the stream, <code>false</code> otherwise
+	 * @throws IOException
+	 *         thrown if an I/O error occurred while reading data from the stream
 	 */
-	protected abstract boolean reconstructBufferFromStream(ReadableByteChannel readableByteChannel) throws IOException;
+	protected abstract boolean readBufferData(ReadableByteChannel readableByteChannel) throws IOException;
 
 	private boolean readBuffer(ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.bufferExistanceDeserialized) {
 
-			final int bytesRead = readableByteChannel.read(this.existanceBuffer);
+			this.tempBuffer.position(0);
+			this.tempBuffer.limit(1);
+
+			final int bytesRead = readableByteChannel.read(this.tempBuffer);
 			if (bytesRead == -1) {
-				if (this.existanceBuffer.get(0) == 0 && this.existanceBuffer.position() == 1) { // Regular end, no
+				if (this.tempBuffer.get(0) == 0 && this.tempBuffer.position() == 1) { // Regular end, no
 					// buffer will follow
 					throw new EOFException();
 				} else {
 					throw new IOException("Deserialization error: Expected at least "
-						+ this.existanceBuffer.remaining() + " more bytes to follow");
+						+ this.tempBuffer.remaining() + " more bytes to follow");
 				}
 			} else if (bytesRead == 0) {
 				try {
@@ -256,9 +263,11 @@ public abstract class AbstractDeserializer {
 				}
 			}
 
-			if (!this.existanceBuffer.hasRemaining()) {
+			if (!this.tempBuffer.hasRemaining()) {
 				this.bufferExistanceDeserialized = true;
-				if (this.existanceBuffer.get(0) == 0) {
+				this.tempBuffer.position(0);
+				this.tempBuffer.limit(SIZEOFINT);
+				if (this.tempBuffer.get(0) == 0) {
 					// No buffer will follow, we are done
 					this.transferEnvelope.setBuffer(null);
 					this.deserializationState = DeserializationState.FULLYDESERIALIZED;
@@ -272,14 +281,14 @@ public abstract class AbstractDeserializer {
 		if (this.sizeOfBuffer < 0) {
 
 			// We need to deserialize the size of the buffer
-			final int bytesRead = readableByteChannel.read(this.lengthBuffer);
+			final int bytesRead = readableByteChannel.read(this.tempBuffer);
 			if (bytesRead == -1) {
-				throw new IOException("Deserialization error: Expected at least " + this.existanceBuffer.remaining()
+				throw new IOException("Deserialization error: Expected at least " + this.tempBuffer.remaining()
 					+ " more bytes to follow");
 			}
 
-			if (!this.lengthBuffer.hasRemaining()) {
-				this.sizeOfBuffer = byteBufferToInteger(this.lengthBuffer, 0);
+			if (!this.tempBuffer.hasRemaining()) {
+				this.sizeOfBuffer = byteBufferToInteger(this.tempBuffer, 0);
 				// System.out.println("INCOMING: Buffer size is " + this.sizeOfBuffer);
 
 				if (this.sizeOfBuffer <= 0) {
@@ -290,7 +299,7 @@ public abstract class AbstractDeserializer {
 			}
 		}
 
-		if (!reconstructBufferFromStream(readableByteChannel)) {
+		if (readBufferData(readableByteChannel)) {
 			return true;
 		}
 

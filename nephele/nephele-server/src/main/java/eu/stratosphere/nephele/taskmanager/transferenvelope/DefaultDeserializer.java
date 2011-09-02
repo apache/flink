@@ -9,23 +9,26 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 
-
 public final class DefaultDeserializer extends AbstractDeserializer {
 
 	private final BufferProviderBroker bufferProviderBroker;
+
 	private BufferProvider bufferProvider = null;
-	
+
 	private JobID lastDeserializedJobID = null;
-	
+
 	private ChannelID lastDeserializedSourceID = null;
-	
+
 	public DefaultDeserializer(final BufferProviderBroker bufferProviderBroker) {
 		this.bufferProviderBroker = bufferProviderBroker;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected boolean reconstructBufferFromStream(ReadableByteChannel readableByteChannel) throws IOException {
-	
+	protected boolean readBufferData(final ReadableByteChannel readableByteChannel) throws IOException {
+
 		if (getBuffer() == null) {
 
 			try {
@@ -48,32 +51,33 @@ public final class DefaultDeserializer extends AbstractDeserializer {
 					// Wait for 100 milliseconds, so the NIO thread won't do busy
 					// waiting...
 
-					return false;
+					return true;
 				}
 			} catch (InterruptedException e) {
-				return false;
+				return true;
 			}
 
 		} else {
 
 			final Buffer buffer = getBuffer();
-			
+
 			final int bytesWritten = buffer.write(readableByteChannel);
 
 			if (!buffer.hasRemaining()) {
 				// We are done, the buffer has been fully read
 				buffer.finishWritePhase();
-				return true;
+				return false;
 			} else {
 				if (bytesWritten == -1) {
-					throw new IOException("Deserialization error: Expected at least " + buffer.remaining() + " more bytes to follow");
+					throw new IOException("Deserialization error: Expected at least " + buffer.remaining()
+						+ " more bytes to follow");
 				}
 			}
 		}
 
-		return false;
+		return true;
 	}
-	
+
 	public BufferProvider getBufferProvider() {
 
 		return this.bufferProvider;
