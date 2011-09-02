@@ -15,8 +15,7 @@
 
 package eu.stratosphere.nephele.io.compression.library.lzma;
 
-import java.io.IOException;
-
+import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.AbstractCompressor;
 
 /**
@@ -27,25 +26,17 @@ import eu.stratosphere.nephele.io.compression.AbstractCompressor;
  */
 public class LzmaCompressor extends AbstractCompressor {
 
-	private static final int SIZE_LENGTH = 13;
+	public LzmaCompressor(AbstractCompressionLibrary compressionLibrary) {
+		super(compressionLibrary);
+	}
 
 	native static void initIDs();
 
 	protected native int compressBytesDirect(int offset);
 
 	@Override
-	public void compress() throws IOException {
-		this.compressedDataBuffer.clear();
-		this.uncompressedDataBufferLength = this.uncompressedDataBuffer.position();
-
-		final int numberOfCompressedBytes = compressBytesDirect(0);
-
-		System.out.println("Compression library (LZMA)" + this.uncompressedDataBuffer.position() + " to "
-			+ numberOfCompressedBytes + " bytes");
-
-		this.compressedDataBuffer.position(numberOfCompressedBytes + SIZE_LENGTH);
-
-		// If everything went ok, prepare buffers for next run
-		this.uncompressedBuffer.finishWritePhase();
+	protected void freeInternalResources() {
+		// TODO Auto-generated method stub
+		
 	}
 }

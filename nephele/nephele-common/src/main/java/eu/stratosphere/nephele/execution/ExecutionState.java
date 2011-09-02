@@ -77,10 +77,17 @@ public enum ExecutionState {
 	 * The task has been aborted due to a failure during execution.
 	 */
 	FAILED,
+	
 	/**
 	 * The task has been failed and will be restarted.
 	 */
 	RECOVERING, 
+	
+	/**
+	 * The task is restarting during recovery.
+	 */
+	RESTARTING,
+	
 	/**
 	 * Recovery is finished the job is running normal again.
 	 */

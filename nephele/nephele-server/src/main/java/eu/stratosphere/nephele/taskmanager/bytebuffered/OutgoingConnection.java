@@ -225,10 +225,10 @@ public class OutgoingConnection {
 			if (this.currentEnvelope != null) {
 				this.byteBufferedChannelManager
 					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
-//				if (this.currentEnvelope.getBuffer() != null) {
-//					this.currentEnvelope.getBuffer().recycleBuffer();
-//					this.currentEnvelope = null;
-//				}
+				if (this.currentEnvelope.getBuffer() != null) {
+					this.currentEnvelope.getProcessingLog().setSentViaNetwork();
+					this.currentEnvelope = null;
+				}
 			}
 
 			// Notify all other tasks which are waiting for data to be transmitted
@@ -237,13 +237,13 @@ public class OutgoingConnection {
 				final TransferEnvelope envelope = iter.next();
 				iter.remove();
 				this.byteBufferedChannelManager.reportIOExceptionForOutputChannel(envelope.getSource(), ioe);
-				// Recycle the buffer inside the envelope
-//				if (envelope.getBuffer() != null) {
-//					envelope.getBuffer().recycleBuffer();
-//				}
+				// Set Envelope send via Network so the Buffer will be recycled if possible
+				if (envelope.getBuffer() != null) {
+					envelope.getProcessingLog().setSentViaNetwork();
+				}
 			}
 
-//			this.queuedEnvelopes.clear();
+			this.queuedEnvelopes.clear();
 		}
 	}
 

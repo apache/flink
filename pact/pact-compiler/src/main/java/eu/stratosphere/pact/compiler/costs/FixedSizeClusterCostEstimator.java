@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.costs;
 
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -48,20 +49,33 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 */
 	@Override
 	public void getRangePartitionCost(PactConnection conn, Costs costs) {
-		// TODO: get a realistic estimate for range partitioning costs.
-		// currently, the sole purpose is to make range partitioning more expensive than hash partitioning
-		// initial mock estimate: we need to ship 1.5 times the data over the network to establish the partitioning.
-		// no disk costs.
-		final long estOutShipSize = conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
-		
-		if (estOutShipSize == -1) {
-			costs.setNetworkCost(-1);
-		} else {
-			final long cost = (long) (1.5f * estOutShipSize);
-			costs.setNetworkCost(cost);
-		}
+		Class<? extends DataDistribution> distribution =
+			conn.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();
+		if(distribution == null) {
+			//Assume sampling of 10% of the data
+			final long estOutShipSize = (long) (conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize() * 1.1);
 
-		costs.setSecondaryStorageCost(0);
+			if (estOutShipSize == -1) {
+				costs.setNetworkCost(-1);
+			} else {
+				final long cost = (long) (1.5f * estOutShipSize);
+				costs.setNetworkCost(cost);
+			}
+
+			// we assume a two phase merge sort, so all in all 2 I/O operations per block
+			costs.setSecondaryStorageCost(estOutShipSize == -1 ? -1 : 2 * estOutShipSize);
+		} else {
+			//If data distribution is given, no extra sampling has to be done => same cost as HashPartitioning
+			final long estOutShipSize = conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
+
+			if (estOutShipSize == -1) {
+				costs.setNetworkCost(-1);
+			} else {
+				costs.setNetworkCost(estOutShipSize);
+			}
+
+			costs.setSecondaryStorageCost(0);
+		}
 	}
 
 	/*
@@ -93,12 +107,10 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 */
 	@Override
 	public void getBroadcastCost(PactConnection conn, Costs costs) {
+		// estimate: we need ship the whole data over the network to each node.
 		final int replicationFactor = conn.getReplicationFactor() < 1 ? 100 : conn.getReplicationFactor();
 		final long estOutShipSize = replicationFactor * conn.getSourcePact().getEstimatedOutputSize();
 
-		// estimate: we need ship the whole data over the network to each node.
-		// assume a pessimistic number of 100 nodes. in any large setup, the compiler
-		// should have access to the number of nodes information anyways.
 		if (estOutShipSize == -1) {
 			costs.setNetworkCost(-1);
 		} else {
@@ -235,10 +247,12 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 
 		// we assume that the build side has to spill and requires one recursive repartitioning
 		// so 4 I/O operations per block on the build side, and 2 on the probe side
+		// NOTE: This is currently artificially expensive to prevent the compiler from using the hash-strategies, which are
+		// being reworked from in-memory and grace towards a gradually degrading hybrid hash join
 		long bs = buildSideInput.getSourcePact().getEstimatedOutputSize() * buildSideInput.getReplicationFactor();
 		long ps = probeSideInput.getSourcePact().getEstimatedOutputSize() * probeSideInput.getReplicationFactor();
 
-		costs.setSecondaryStorageCost(bs == -1 || ps == -1 ? -1 : 4 * bs + 2 * ps);
+		costs.setSecondaryStorageCost(bs == -1 || ps == -1 ? -1 : 2 * bs + ps);
 	}
 
 	/*
@@ -266,13 +280,19 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 */
 	@Override
 	public void getStreamedNestedLoopsCosts(OptimizerNode node, PactConnection outerSide, PactConnection innerSide,
-			Costs costs) {
+			int bufferSize, Costs costs)
+	{
 		costs.setNetworkCost(0);
 
 		long is = innerSide.getSourcePact().getEstimatedOutputSize() * innerSide.getReplicationFactor();
 		long oc = outerSide.getSourcePact().getEstimatedNumRecords() * outerSide.getReplicationFactor();
+		
+		// check whether the inner side can be cached
+		if (is < (bufferSize * innerSide.getReplicationFactor())) {
+			is = 0;
+		}
 
-		costs.setSecondaryStorageCost(is == -1 ? -1 : oc * is);
+		costs.setSecondaryStorageCost(is >= 0 && oc >= 0 ? oc * is : -1);
 	}
 
 	/*
@@ -286,13 +306,14 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 */
 	@Override
 	public void getBlockNestedLoopsCosts(OptimizerNode node, PactConnection outerSide, PactConnection innerSide,
-			int blockSize, Costs costs) {
+			int blockSize, Costs costs)
+	{
 		costs.setNetworkCost(0);
 
 		long is = innerSide.getSourcePact().getEstimatedOutputSize() * innerSide.getReplicationFactor();
-		long oc = outerSide.getSourcePact().getEstimatedKeyCardinality();
+		long os = outerSide.getSourcePact().getEstimatedOutputSize() * outerSide.getReplicationFactor();
 
-		long loops = oc == -1 ? 1000 : oc / blockSize;
+		long loops = Math.max(os < 0 ? 1000 : os / blockSize, 1);
 
 		costs.setSecondaryStorageCost(is == -1 ? -1 : loops * is);
 	}

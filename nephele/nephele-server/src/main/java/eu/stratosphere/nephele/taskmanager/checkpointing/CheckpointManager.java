@@ -157,6 +157,34 @@ public class CheckpointManager {
 		
 		
 	}
+	public void readChannelCheckpoint(ChannelID sourceChannelID) {
+
+		ExecutionVertexID executionVertexID = null;
+		synchronized (this.channelIDToVertexIDMap) {
+			executionVertexID = this.channelIDToVertexIDMap.get(sourceChannelID);
+		}
+
+		if (executionVertexID == null) {
+			LOG.error("Cannot find execution vertex ID for output channel with ID " + sourceChannelID);
+			return;
+		}
+
+		EphemeralCheckpoint checkpoint = null;
+		synchronized (this.finishedCheckpoints) {
+			checkpoint = this.finishedCheckpoints.get(executionVertexID);
+		}
+
+		if (checkpoint == null) {
+			LOG.error("Cannot find checkpoint for vertex " + executionVertexID);
+			return;
+		}
+
+		LOG.info("Recovering checkpoint for channel " + sourceChannelID);
+		checkpoint.readIndividualChannel(this.byteBufferedChannelManager, sourceChannelID);
+		
+		
+		
+	}
 	public CheckpointProfilingData getProfilingData() throws ProfilingException{
 		if(this.taskManager != null){
 			return this.taskManager.getCheckpointProfilingData();

@@ -68,6 +68,7 @@ public class CheckpointFileBuffer implements InternalBuffer {
 				this.fileChannel.position(this.offset);
 			}
 		}
+		System.out.println("CHECKPOINTFILEBUFFER Position: " + this.fileChannel.position() + "position to write to " + this.offset + this.totalBytesRead );
 		if (this.totalBytesRead >= this.bufferSize) {
 			return -1;
 		}
@@ -75,7 +76,7 @@ public class CheckpointFileBuffer implements InternalBuffer {
 		final long bytesRead = this.fileChannel.transferTo(this.offset + this.totalBytesRead, this.bufferSize
 			- this.totalBytesRead, writableByteChannel);
 		this.totalBytesRead += bytesRead;
-
+		System.out.println("CHECKPOINTFILEBUFFER Position after transfer: " + this.fileChannel.position() + " bytes read "+ bytesRead+ " total " + this.totalBytesRead);
 		return (int) bytesRead;
 	}
 
@@ -167,5 +168,13 @@ public class CheckpointFileBuffer implements InternalBuffer {
 	public InternalBuffer duplicate() {
 
 		throw new IllegalStateException("duplicate called on CheckpointFileBuffer");
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.channels.InternalBuffer#rewind()
+	 */
+	@Override
+	public void rewind() {
+		//Nothing to do here
 	}
 }

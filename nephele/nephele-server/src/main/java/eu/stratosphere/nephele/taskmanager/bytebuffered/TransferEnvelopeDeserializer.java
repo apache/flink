@@ -120,7 +120,7 @@ public class TransferEnvelopeDeserializer {
 
 			if (this.lengthBuffer.position() == 0) {
 				// Regular end of stream
-				throw new EOFException();
+				throw new EOFException("EOF");
 			} else {
 				throw new IOException("Unexpected end of stream while deserializing the sequence number");
 			}

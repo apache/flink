@@ -121,4 +121,11 @@ public final class TransferEnvelope {
 
 		return duplicatedTransferEnvelope;
 	}
+	
+	public String toString(){
+		return "Sequenznumber " + this.sequenceNumber + "\n"
+		+ "Target " + this.target + "\n" 
+		+ "Source " + this.source;
+		
+	}
 }

@@ -12,6 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+
 package eu.stratosphere.pact.testing;
 
 import java.io.Closeable;
@@ -28,16 +29,16 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.FormatUtil;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.testing.ioformats.FormatUtil;
+import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Represents the input or output values of a {@link TestPlan}. The class is
@@ -104,7 +105,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 
 	private Configuration configuration;
 
-	private Class<? extends InputFormat<K, V>> inputFormatClass;
+	private Class<? extends FileInputFormat<K, V>> inputFormatClass;
 
 	private final List<KeyValuePair<K, V>> pairs = new ArrayList<KeyValuePair<K, V>>();
 
@@ -274,14 +275,14 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 * Initializes this {@link TestPairs} from the given file.
 	 * 
 	 * @param inputFormatClass
-	 *        the class of the {@link InputFormat}
+	 *        the class of the {@link FileInputFormat}
 	 * @param file
 	 *        the path to the file, can be relative
 	 * @return this
 	 */
 	@SuppressWarnings("rawtypes")
 	public TestPairs<K, V> fromFile(
-			final Class<? extends InputFormat> inputFormatClass,
+			final Class<? extends FileInputFormat> inputFormatClass,
 			final String file) {
 		this.fromFile(inputFormatClass, file, new Configuration());
 		return this;
@@ -291,19 +292,19 @@ public class TestPairs<K extends Key, V extends Value> implements
 	 * Initializes this {@link TestPairs} from the given file.
 	 * 
 	 * @param inputFormatClass
-	 *        the class of the {@link InputFormat}
+	 *        the class of the {@link FileInputFormat}
 	 * @param file
 	 *        the path to the file, can be relative
 	 * @param configuration
-	 *        the configuration for the {@link InputFormat}.
+	 *        the configuration for the {@link FileInputFormat}.
 	 * @return this
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public TestPairs<K, V> fromFile(
-			final Class<? extends InputFormat> inputFormatClass,
+			final Class<? extends FileInputFormat> inputFormatClass,
 			final String file, final Configuration configuration) {
 		this.path = file;
-		this.inputFormatClass = (Class<? extends InputFormat<K, V>>) inputFormatClass;
+		this.inputFormatClass = (Class<? extends FileInputFormat<K, V>>) inputFormatClass;
 		this.configuration = configuration;
 		setEmpty(false);
 		return this;
@@ -396,7 +397,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 
 		final Iterator<KeyValuePair<K, V>> iterator = this.iterator();
 		while (iterator.hasNext())
-			outputFormat.writePair((KeyValuePair<Key, Value>) iterator.next());
+			outputFormat.writeRecord((KeyValuePair<Key, Value>) iterator.next());
 	}
 
 	@Override

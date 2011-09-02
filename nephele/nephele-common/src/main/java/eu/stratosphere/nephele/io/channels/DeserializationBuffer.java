@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
+
 import eu.stratosphere.nephele.io.DataInputBuffer;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.RecordDeserializer;
@@ -106,7 +107,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 			}
 
 			this.recordLength = byteArrayToInt(this.lengthBuf.array());
-			System.out.println("INCOMING record length " + this.recordLength);
+			//System.out.println("INCOMING record length " + this.recordLength);
 
 			if (this.tempBuffer == null) {
 				this.tempBuffer = ByteBuffer.allocate(this.recordLength);
@@ -118,7 +119,12 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 
 			// Important: limit the number of bytes that can be read into the buffer
 			this.tempBuffer.position(0);
-			this.tempBuffer.limit(this.recordLength);
+			
+			try{this.tempBuffer.limit(this.recordLength);
+			}catch(IllegalArgumentException e){
+				
+				System.out.println("ERROR New Limit " + this.recordLength);
+			}
 		}
 
 		if (readableByteChannel.read(tempBuffer) == -1 && this.propagateEndOfStream) {

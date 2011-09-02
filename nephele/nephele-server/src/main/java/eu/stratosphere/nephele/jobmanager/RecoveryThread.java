@@ -75,7 +75,8 @@ public class RecoveryThread extends Thread {
 		super();
 		this.job = job;
 		this.jobManager = jobManager;
-		this.failedVertices = job.getFailedVertices();
+		this.failedVertices = new ArrayList<ExecutionVertex>();
+		this.failedVertices.addAll(job.getFailedVertices());
 		this.checkpoints = job.getVerticesWithCheckpoints();
 		LOG.info("RecoveryThread");
 	
@@ -91,48 +92,62 @@ public class RecoveryThread extends Thread {
 		if(this.failedVertices.isEmpty()){
 			LOG.error("No failed vertices to recover" );
 		}
-		Iterator<ExecutionVertex> vertexIter = failedVertices.iterator();
+		Iterator<ExecutionVertex> vertexIter = this.failedVertices.iterator();
 		//Change InputChannels for every Vertex
 		while(vertexIter.hasNext()){
 			
-			//collect incoming channels
-			ArrayList<AbstractInputChannel> channels = new ArrayList<AbstractInputChannel>();
+			
+//			ArrayList<AbstractInputChannel> channels = new ArrayList<AbstractInputChannel>();
 			ExecutionVertex failed = vertexIter.next();
 			List<ExecutionVertex> restart = findRestarts(failed);
-			for (int j = 0; j < failed.getEnvironment().getNumberOfInputGates(); j++) {
-				InputGate<? extends Record> ingate = failed.getEnvironment().getInputGate(j);
-				for (int k = 0; k < ingate.getNumberOfInputChannels(); k++) {
-					 AbstractInputChannel<? extends Record> channel = ingate.getInputChannel(k);
-					 channel.releaseResources();
-					 channels.add(channel);
-					
-				}
-			}
-			for (int i = 0; i < failed.getNumberOfPredecessors(); i++) {
-				ExecutionVertex predecessor = failed.getPredecessor(i);
-				
-				if(this.globalConsistentCheckpoint.contains(predecessor)){
-					for (int j = 0; j < predecessor.getEnvironment().getNumberOfOutputGates(); j++) {
-					OutputGate<? extends Record> outgate = predecessor.getEnvironment().getOutputGate(j);
-					for (int k = 0; k < outgate.getNumberOfOutputChannels(); k++) {
-						 AbstractOutputChannel<? extends Record> channel = outgate.getOutputChannel(k);
-						 if(channels.contains(channel.getConnectedChannelID())){
-							 predecessor.getAllocatedResource().getInstance().recover(channel.getID());
-						 }
-						
-					}
-				}
-						
-				}
-
-				
-			}
-			Iterator<ExecutionVertex> restartIterator = restart.iterator();
 			
-			LOG.info("Checkpoints are");
-			for(int k = 0; k< this.globalConsistentCheckpoint.size();k++){
-				LOG.info(this.globalConsistentCheckpoint.get(k).getName());
+			//collect incoming channels
+//			for (int j = 0; j < failed.getEnvironment().getNumberOfInputGates(); j++) {
+//				InputGate<? extends Record> ingate = failed.getEnvironment().getInputGate(j);
+//				for (int k = 0; k < ingate.getNumberOfInputChannels(); k++) {
+//					 AbstractInputChannel<? extends Record> channel = ingate.getInputChannel(k);
+//					 channel.releaseResources();
+//					 channels.add(channel);
+//					
+//				}
+//			}
+//			for (int i = 0; i < failed.getNumberOfPredecessors(); i++) {
+//				ExecutionVertex predecessor = failed.getPredecessor(i);
+//				
+//				if(this.globalConsistentCheckpoint.contains(predecessor)){
+//					for (int j = 0; j < predecessor.getEnvironment().getNumberOfOutputGates(); j++) {
+//					OutputGate<? extends Record> outgate = predecessor.getEnvironment().getOutputGate(j);
+//					for (int k = 0; k < outgate.getNumberOfOutputChannels(); k++) {
+//						 AbstractOutputChannel<? extends Record> channel = outgate.getOutputChannel(k);
+//						 if(channels.contains(channel.getConnectedChannelID())){
+//							 predecessor.getAllocatedResource().getInstance().recover(channel.getID());
+//						 }
+//						
+//					}
+//				}
+//						
+//				}
+//
+//				
+//			}
+			
+			Iterator<ExecutionVertex> restartIterator = restart.iterator();
+			while(restartIterator.hasNext()){
+				ExecutionVertex vertex = restartIterator.next();
+				
+				if(!vertex.equals(failed)){
+				LOG.info("---------------");
+				LOG.info("Restarting " + vertex.getName() );
+				vertex.getAllocatedResource().getInstance().restart(vertex.getID());
+				LOG.info("---------------");
+				}
+				
+				
 			}
+//			LOG.info("Checkpoints are");
+//			for(int k = 0; k< this.globalConsistentCheckpoint.size();k++){
+//				LOG.info(this.globalConsistentCheckpoint.get(k).getName());
+//			}
 		
 			Iterator<ExecutionVertex> checkpointIterator = this.globalConsistentCheckpoint.iterator();
 			while(checkpointIterator.hasNext()){
@@ -156,20 +171,13 @@ public class RecoveryThread extends Thread {
 
 				instance.recoverAll(checkpoint.getEnvironment().getOutputGate(0).getOutputChannel(0).getID());
 			}
-			while(restartIterator.hasNext()){
-				ExecutionVertex vertex = restartIterator.next();
-				LOG.info("'Test Restarting " + vertex.getName() );
-				if(!vertex.equals(failed)){
-				LOG.info("Restarting " + vertex.getName() );
-				
-				vertex.getEnvironment().restartExecution();
-				
-				}
-			}
+
+			LOG.info("Finished recovery for " + failed);
 		}
 		
 		this.job.executionStateChanged(null, ExecutionState.RERUNNING, null);
-	}
+		LOG.info("Recovery Finsihed");
+		}
 
 
 	/**
@@ -186,7 +194,7 @@ public class RecoveryThread extends Thread {
 		while(!totest.isEmpty()){
 			//Add all followers
 			ExecutionVertex vertex = totest.poll();
-			
+			System.out.println("Testing " + vertex.getName());
 			if(!restart.contains(vertex)){
 				restart.add(vertex);
 			}
@@ -196,7 +204,8 @@ public class RecoveryThread extends Thread {
 				if(successor.isCheckpoint()){
 					this.checkpoints.remove(successor);
 				}
-				System.out.println("add " + successor.getName() + " torestart");
+				restart.add(successor);
+				LOG.info("add " + successor.getName() + " torestart");
 				List<ExecutionVertex> follower = findFollowers(successor, restart);
 				restart.addAll(follower);
 				Iterator<ExecutionVertex> iter = follower.iterator();
@@ -210,7 +219,7 @@ public class RecoveryThread extends Thread {
 			for(int j = 0; j < vertex.getNumberOfPredecessors(); j++){
 				ExecutionVertex predecessor = vertex.getPredecessor(j);
 				if(!predecessor.isCheckpoint()){
-					System.out.println("add " + predecessor.getName() + " torestart");
+					LOG.info("add " + predecessor.getName() + " torestart");
 
 					restart.add(predecessor);
 					if(!visited.contains(predecessor)){
@@ -218,12 +227,12 @@ public class RecoveryThread extends Thread {
 					}
 				}else{
 					if(!this.globalConsistentCheckpoint.contains(predecessor)){
-					this.globalConsistentCheckpoint.add(predecessor);
+						this.globalConsistentCheckpoint.add(predecessor);
 					}
-					System.out.println(predecessor.getName() + " is checkpoint");
+					
 					List<ExecutionVertex> follower = findFollowers(predecessor, restart);
 					for (int i = 0; i < follower.size(); i++) {
-						System.out.println("add " + follower.get(i) + " torestart");
+						LOG.info("add " + follower.get(i) + " torestart");
 					}
 					restart.addAll(follower);
 					Iterator<ExecutionVertex> iter = follower.iterator();

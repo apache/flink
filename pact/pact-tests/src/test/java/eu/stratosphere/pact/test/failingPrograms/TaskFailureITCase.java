@@ -28,8 +28,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
@@ -100,9 +100,9 @@ public class TaskFailureITCase extends FailingTestBase {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
 		// init data source 
-		DataSourceContract<PactString, PactString> input = new DataSourceContract<PactString, PactString>(
+		FileDataSourceContract<PactString, PactString> input = new FileDataSourceContract<PactString, PactString>(
 			MapTestInFormat.class, pathPrefix+"/mapInput");
-		input.setFormatParameter("delimiter", "\n");
+		input.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init failing map task
@@ -110,7 +110,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink
-		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
+		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
 			MapTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
@@ -140,9 +140,9 @@ public class TaskFailureITCase extends FailingTestBase {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
 		// init data source 
-		DataSourceContract<PactString, PactString> input = new DataSourceContract<PactString, PactString>(
+		FileDataSourceContract<PactString, PactString> input = new FileDataSourceContract<PactString, PactString>(
 			MapTestInFormat.class, pathPrefix+"/mapInput");
-		input.setFormatParameter("delimiter", "\n");
+		input.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init (working) map task
@@ -151,7 +151,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink
-		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
+		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
 			MapTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 

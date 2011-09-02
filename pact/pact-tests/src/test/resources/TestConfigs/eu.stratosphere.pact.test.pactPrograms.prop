@@ -2,3 +2,4 @@ TPCHQuery3ITCase=local1TM,local4TM
 TPCHQuery4ITCase=local1TM,local4TM
 TPCHQuery9ITCase=local1TM,local4TM
 TPCHQuery10ITCase=local1TM,local4TM
+GlobalSortingITCase=local1TM,local4TM

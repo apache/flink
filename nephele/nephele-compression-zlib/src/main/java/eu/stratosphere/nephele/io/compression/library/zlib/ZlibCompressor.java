@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.io.compression.library.zlib;
 
+import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.AbstractCompressor;
 
 /**
@@ -25,7 +26,18 @@ import eu.stratosphere.nephele.io.compression.AbstractCompressor;
  */
 public class ZlibCompressor extends AbstractCompressor {
 
+	public ZlibCompressor(AbstractCompressionLibrary compressionLibrary) {
+		super(compressionLibrary);
+		// TODO Auto-generated constructor stub
+	}
+
 	native static void initIDs();
 
 	protected native int compressBytesDirect(int offset);
+
+	@Override
+	protected void freeInternalResources() {
+		// TODO Auto-generated method stub
+		
+	}
 }

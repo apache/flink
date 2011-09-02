@@ -15,23 +15,21 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.tools.ant.taskdefs.Sleep;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionStage;
+import eu.stratosphere.nephele.executiongraph.ExecutionStageListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
@@ -43,7 +41,8 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
+import eu.stratosphere.nephele.jobmanager.DeploymentManager;
+import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 
 /**
@@ -51,12 +50,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
  * 
  * @author warneke
  */
-public class QueueScheduler implements Scheduler, JobStatusListener {
-
-	/**
-	 * The LOG object to report events within the scheduler.
-	 */
-	private static final Log LOG = LogFactory.getLog(QueueScheduler.class);
+public class QueueScheduler extends AbstractScheduler implements JobStatusListener, ExecutionStageListener {
 
 	/**
 	 * The job queue where all submitted jobs go to.
@@ -64,105 +58,15 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	private Deque<ExecutionGraph> jobQueue = new ArrayDeque<ExecutionGraph>();
 
 	/**
-	 * The instance manager assigned to this scheduler.
-	 */
-	private final InstanceManager instanceManager;
-
-	/**
 	 * Constructs a new queue scheduler.
 	 * 
+	 * @param deploymentManager
+	 *        the deployment manager assigned to this scheduler
 	 * @param instanceManager
 	 *        the instance manager to be used with this scheduler
 	 */
-	public QueueScheduler(final InstanceManager instanceManager) {
-
-		this.instanceManager = instanceManager;
-		this.instanceManager.setInstanceListener(this);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Set<ExecutionVertex> getVerticesReadyToBeExecuted() {
-
-		final Set<ExecutionVertex> verticesReadyToRun = new HashSet<ExecutionVertex>();
-
-		synchronized (this.jobQueue) {
-
-			if (jobQueue.isEmpty()) {
-				// Return empty queue
-				return verticesReadyToRun;
-			}
-
-			final ExecutionGraph executionGraph = jobQueue.getFirst();
-
-			/*
-			 * Request any instance of the job that might still be missing
-			 * for completing the job's current execution stage.
-			 */
-			try {
-				requestInstances(executionGraph);
-			} catch (InstanceException e) {
-				// This exception will never occur for the local instance manager
-				LOG.error(e);
-			}
-
-			final ExecutionGraphIterator it = new ExecutionGraphIterator(executionGraph, executionGraph
-				.getIndexOfCurrentExecutionStage(), true, false);
-			while (it.hasNext()) {
-				final ExecutionVertex vertex = it.next();
-				if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
-					vertex.setExecutionState(ExecutionState.READY);
-					verticesReadyToRun.add(vertex);
-				}
-			}
-		}
-
-		return verticesReadyToRun;
-	}
-
-	/**
-	 * Collects the instances required to run the job from the given {@link ExecutionGraph} and requests them at the
-	 * loaded instance
-	 * manager.
-	 * 
-	 * @param executionGraph
-	 *        the execution graph to collect the required instances from
-	 * @throws InstanceException
-	 *         thrown if the given execution graph is already processing its final stage
-	 */
-	private void requestInstances(final ExecutionGraph executionGraph) throws InstanceException {
-
-		final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
-		executionGraph.collectInstanceTypesRequiredForCurrentStage(requiredInstances, ExecutionState.SCHEDULED);
-
-		if (requiredInstances.isEmpty()) {
-			return;
-		}
-
-		final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstances.entrySet().iterator();
-		while (it.hasNext()) {
-
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-
-			for (int i = 0; i < entry.getValue().intValue(); i++) {
-				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
-				this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
-					entry.getKey());
-			}
-		}
-
-		// Switch vertex state to assigning
-		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, executionGraph
-			.getIndexOfCurrentExecutionStage(), true, true);
-		while (it2.hasNext()) {
-
-			final ExecutionVertex vertex = it2.next();
-			if (vertex.getExecutionState() == ExecutionState.SCHEDULED) {
-				vertex.setExecutionState(ExecutionState.ASSIGNING);
-			}
-		}
+	public QueueScheduler(final DeploymentManager deploymentManager, final InstanceManager instanceManager) {
+		super(deploymentManager, instanceManager);
 	}
 
 	/**
@@ -208,15 +112,15 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	 */
 	void checkAndReleaseAllocatedResource(final ExecutionGraph executionGraph, final AllocatedResource allocatedResource) {
 
-		if(allocatedResource.getInstance() == null) {
+		if (allocatedResource.getInstance() == null) {
 			LOG.error("Instance of allocated resource is null");
 			return;
 		}
-		
-		if(allocatedResource.getInstance() instanceof DummyInstance) {
+
+		if (allocatedResource.getInstance() instanceof DummyInstance) {
 			return;
 		}
-		
+
 		synchronized (this.jobQueue) {
 
 			final List<ExecutionVertex> assignedVertices = executionGraph
@@ -242,7 +146,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 			if (instanceCanBeReleased) {
 				LOG.info("Releasing instance " + allocatedResource.getInstance());
 				try {
-					this.instanceManager.releaseAllocatedResource(executionGraph.getJobID(), executionGraph
+					getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
 						.getJobConfiguration(), allocatedResource);
 				} catch (InstanceException e) {
 					LOG.error(StringUtils.stringifyException(e));
@@ -258,18 +162,23 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
 
 		// First, check if there are enough resources to run this job
-		final Map<InstanceType, InstanceTypeDescription> availableInstances = this.instanceManager
+
+		// Get Map of all available Instance types
+		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
 			.getMapOfAvailableInstanceTypes();
 
 		for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
 
 			final Map<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
-			executionGraph.collectInstanceTypesRequiredForStage(i, requiredInstanceTypes, ExecutionState.CREATED);
+			final ExecutionStage stage = executionGraph.getStage(i);
+			stage.collectRequiredInstanceTypes(requiredInstanceTypes, ExecutionState.CREATED);
 
+			// Iterator over required Instances
 			final Iterator<Map.Entry<InstanceType, Integer>> it = requiredInstanceTypes.entrySet().iterator();
 			while (it.hasNext()) {
 
 				final Map.Entry<InstanceType, Integer> entry = it.next();
+
 				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
 				if (descr == null) {
 					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
@@ -302,8 +211,23 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 			vertex.setExecutionState(ExecutionState.SCHEDULED);
 		}
 
+		// Register the scheduler as an execution stage listener
+		executionGraph.registerExecutionStageListener(this);
+
+		// Add job to the job queue (important to add job to queue before requesting instances)
 		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
+
+			// Request resources for the first stage of the job
+			final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
+			try {
+				requestInstances(executionStage);
+			} catch (InstanceException e) {
+				final String exceptionMessage = StringUtils.stringifyException(e);
+				LOG.error(exceptionMessage);
+				this.jobQueue.remove(executionGraph);
+				throw new SchedulingException(exceptionMessage);
+			}
 		}
 	}
 
@@ -344,13 +268,6 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 			return;
 		}
 
-		// Check if all required libraries are available on the instance
-		try {
-			allocatedResource.getInstance().checkLibraryAvailability(jobID);
-		} catch (IOException ioe) {
-			LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
-		}
-
 		synchronized (this.jobQueue) {
 
 			final ExecutionGraph eg = getExecutionGraphByID(jobID);
@@ -360,16 +277,18 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 				 * we release the instance immediately.
 				 */
 				try {
-					this.instanceManager.releaseAllocatedResource(jobID, null, allocatedResource);
+					getInstanceManager().releaseAllocatedResource(jobID, null, allocatedResource);
 				} catch (InstanceException e) {
 					LOG.error(e);
 				}
 				return;
 			}
 
+			final int indexOfCurrentStage = eg.getIndexOfCurrentExecutionStage();
+
 			AllocatedResource resourceToBeReplaced = null;
 			// Important: only look for instances to be replaced in the current stage
-			ExecutionGraphIterator it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(), true, true);
+			ExecutionGraphIterator it = new ExecutionGraphIterator(eg, indexOfCurrentStage, true, true);
 			while (it.hasNext()) {
 
 				final ExecutionVertex vertex = it.next();
@@ -387,7 +306,7 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 			if (resourceToBeReplaced == null) {
 				LOG.warn("Instance " + allocatedResource.getInstance() + " is not required for job" + eg.getJobID());
 				try {
-					this.instanceManager.releaseAllocatedResource(jobID, eg.getJobConfiguration(), allocatedResource);
+					getInstanceManager().releaseAllocatedResource(jobID, eg.getJobConfiguration(), allocatedResource);
 				} catch (InstanceException e) {
 					LOG.error(e);
 				}
@@ -401,8 +320,13 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 				if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
 					vertex.setAllocatedResource(allocatedResource);
 					vertex.setExecutionState(ExecutionState.ASSIGNED);
+				}else{
+					
 				}
 			}
+
+			// Deploy the assigned vertices
+			deployAssignedVertices(eg);
 		}
 
 	}
@@ -413,7 +337,6 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 	@Override
 	public void allocatedResourceDied(final JobID jobID, final AllocatedResource allocatedResource) {
 			LOG.info("Resource on " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
-		// TODO (marrus) 
 				
 			
 			ExecutionGraph job = this.jobQueue.getFirst();
@@ -446,12 +369,36 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 			
 			try {
 				LOG.info("Trying to allocate instance of type " + allocatedResource.getInstanceType().getIdentifier());
-				this.instanceManager.requestInstance(jobID, job.getJobConfiguration(),allocatedResource.getInstanceType());
+				 Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
+				 instanceMap.put(allocatedResource.getInstanceType(), 1);
+				this.instanceManager.requestInstance(jobID, job.getJobConfiguration(),instanceMap,null);
+				//resourceAllocated(jobID, allocatedResource);
 			} catch (InstanceException e) {
 				e.printStackTrace();
 			}
-			job.executionStateChanged(vertices.get(0).getEnvironment(), ExecutionState.RECOVERING, null);
+			super.deployAssignedVertices(job);
+			//wait till all failed vertices are assigned
+			boolean notAssigend = true;
+			while(notAssigend){
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				notAssigend = false;
+				for (int i = 0; i < vertices.size(); i++) {
+					
+					if(vertices.get(i).getExecutionState() == ExecutionState.ASSIGNING){
+						notAssigend = true;
+						super.deployAssignedVertices(job);
+						break;
+					}
+					
+				}
+				
+			}
 			
+			job.executionStateChanged(vertices.get(0).getEnvironment(), ExecutionState.RECOVERING, null);
 	}
 
 	/**
@@ -487,9 +434,28 @@ public class QueueScheduler implements Scheduler, JobStatusListener {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.jobmanager.scheduler.Scheduler#reportPersistenCheckpoint(eu.stratosphere.nephele.executiongraph.ExecutionVertexID, eu.stratosphere.nephele.jobgraph.JobID)
+	/**
+	 * {@inheritDoc}
 	 */
+	@Override
+	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
+
+		synchronized (this.jobQueue) {
+
+			// Request new instances if necessary
+			try {
+				requestInstances(executionStage);
+			} catch (InstanceException e) {
+				// TODO: Handle error correctly
+				LOG.error(StringUtils.stringifyException(e));
+			}
+
+			// Deploy the assigned vertices
+			deployAssignedVertices(executionStage.getExecutionGraph());
+		}
+	}
+
+	
 	@Override
 	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
 		getExecutionGraphByID(jobID).getVertexByID(executionVertexID).setCheckpoint();

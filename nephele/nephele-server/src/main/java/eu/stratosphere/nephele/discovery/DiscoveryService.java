@@ -608,6 +608,10 @@ public class DiscoveryService implements Runnable {
 					// check all IPs bound to network interfaces
 					for (InterfaceAddress adr : nic.getInterfaceAddresses()) {
 
+						if (adr == null) {
+							continue;
+						}
+
 						// collect all broadcast addresses
 						if (USE_IPV6) {
 							try {

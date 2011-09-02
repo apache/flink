@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 
 /**
  * This is a wrapper class for the {@link LocalScheduler} to receive
@@ -50,7 +49,7 @@ public class LocalExecutionListener implements ExecutionListener {
 	 * @param executionVertex
 	 *        the {@link ExecutionVertex} the received notification refer to
 	 */
-	public LocalExecutionListener(LocalScheduler localScheduler, ExecutionVertex executionVertex) {
+	public LocalExecutionListener(final LocalScheduler localScheduler, final ExecutionVertex executionVertex) {
 		this.localScheduler = localScheduler;
 		this.executionVertex = executionVertex;
 	}
@@ -59,7 +58,8 @@ public class LocalExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void executionStateChanged(Environment ee, ExecutionState newExecutionState, String optionalMessage) {
+	public void executionStateChanged(final Environment ee, final ExecutionState newExecutionState,
+			final String optionalMessage) {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
@@ -76,20 +76,13 @@ public class LocalExecutionListener implements ExecutionListener {
 				this.executionVertex.setExecutionState(ExecutionState.SCHEDULED);
 			}
 		}
-
-		final ExecutionGraph executionGraph = this.executionVertex.getExecutionGraph();
-		final InternalJobStatus jobStatus = executionGraph.getJobStatus();
-
-		if (jobStatus == InternalJobStatus.FAILED || jobStatus == InternalJobStatus.FINISHED || jobStatus == InternalJobStatus.CANCELED) {
-			this.localScheduler.removeJobFromSchedule(executionGraph);
-		}
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(Environment ee, Thread userThread) {
+	public void userThreadFinished(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
 
@@ -97,7 +90,7 @@ public class LocalExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(Environment ee, Thread userThread) {
+	public void userThreadStarted(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
 

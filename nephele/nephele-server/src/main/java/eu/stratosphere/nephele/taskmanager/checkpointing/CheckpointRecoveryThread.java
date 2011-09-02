@@ -24,12 +24,15 @@ public class CheckpointRecoveryThread extends Thread {
 
 	private final ChannelCheckpoint channelCheckpoint;
 
+	private boolean reading = false;
+
 	public CheckpointRecoveryThread(ByteBufferedChannelManager byteBufferedChannelManager,
-			ChannelCheckpoint channelCheckpoint, ChannelID sourceChannelID) {
+			ChannelCheckpoint channelCheckpoint, ChannelID sourceChannelID,boolean reading) {
 		super("CheckpointRecoveryThread for channel " + sourceChannelID);
 
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.channelCheckpoint = channelCheckpoint;
+		this.reading  = reading;
 	}
 
 	/**
@@ -37,7 +40,13 @@ public class CheckpointRecoveryThread extends Thread {
 	 */
 	@Override
 	public void run() {
-
-		this.channelCheckpoint.recover(this.byteBufferedChannelManager);
+		if(this.reading){
+			this.channelCheckpoint.read(this.byteBufferedChannelManager);
+		}
+		else{
+			this.channelCheckpoint.recover(this.byteBufferedChannelManager);
+		}
+		
 	}
+	
 }

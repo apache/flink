@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * be assigned to other tasks.
  *
  * @author Alexander Alexandrov
- * @author Stephan Ewen
  */
 public interface MemoryManager {
 	
@@ -51,6 +50,9 @@ public interface MemoryManager {
 	 *                                   specified minimal segment size.
 	 */
 	List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
+	throws MemoryAllocationException;
+	
+	List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
 	throws MemoryAllocationException;
 	
 	/**

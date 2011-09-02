@@ -156,8 +156,9 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 * 
 	 * @param sourceChannelID
 	 *        the ID of the output channel to be included
+	 * @param byteBufferedChannelManager 
 	 */
-	public synchronized void registerOutputChannel(ChannelID sourceChannelID) {
+	public synchronized void registerOutputChannel(ChannelID sourceChannelID, ByteBufferedChannelManager byteBufferedChannelManager) {
 
 		if (this.channelCheckpoints.containsKey(sourceChannelID)) {
 			LOG.error("Output channel " + sourceChannelID + " is already registered");
@@ -165,7 +166,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		}
 
 		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(this.executionVertexID, sourceChannelID,
-			this.checkpointManager.getTmpDir());
+			this.checkpointManager.getTmpDir(),byteBufferedChannelManager );
 		if (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
 			try {
 				channelCheckpoint.makePersistent();
@@ -244,25 +245,18 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			e.printStackTrace();
 		}
 		if(profilingData != null){
-			if(profilingData.getTransmittedBytes() == 0 || profilingData.getReceivedBytes() == 0){
-				//Input/output?
-				//FIXME (marrus) 
-				discardCheckpoint();
-			}else{
-				//just for testing random checkpointing
-				//Random random = new Random(System.currentTimeMillis());
-				//boolean checkp = random.nextBoolean();
-				
+			
+				//FIXME(marrus) always checkpoint for testing
 				
 					makeCheckpointPersistent();
 				
-			}
+			
 		}else{
 			LOG.info("Discarding Checkpoint no profiling data");
 			discardCheckpoint();
 		}
 		
-		//discardCheckpoint();
+		
 		
 	}
 
@@ -342,7 +336,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		}
 
 		final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
-			channelCheckpoint, sourceChannelID);
+			channelCheckpoint, sourceChannelID, false);
 
 		thread.start();
 	}
@@ -361,11 +355,10 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		while(channelIDIterator.hasNext()){
 			
 			ChannelID channelID = channelIDIterator.next();
-			LOG.info("Recovering " +channelID);
-		final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
-			this.channelCheckpoints.get(channelID), channelID);
+			final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
+			this.channelCheckpoints.get(channelID), channelID, false);
 
-		thread.start();
+			thread.start();
 		}
 	}
 	/**
@@ -414,7 +407,6 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 				this.checkpointManager.reportPersistenCheckpoint(this.executionVertexID,next.getSourceChannelID() );
 				next.makePersistent();
 			}
-			LOG.info("All Checkpoints persistent");
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			LOG.error(ioe);
@@ -441,5 +433,22 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		while(channelCheckpointIterator.hasNext()){
 			channelCheckpointIterator.next().finishCheckpoint();
 		}
+	}
+
+	/**
+	 * @param byteBufferedChannelManager
+	 * @param sourceChannelID
+	 */
+	public void readIndividualChannel(ByteBufferedChannelManager byteBufferedChannelManager, ChannelID sourceChannelID) {
+		final ChannelCheckpoint channelCheckpoint = this.channelCheckpoints.get(sourceChannelID);
+
+		if (channelCheckpoint == null) {
+			LOG.error("Cannot find channel checkpoint for channel " + sourceChannelID);
+		}
+
+		final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
+			channelCheckpoint, sourceChannelID, true);
+
+		thread.start();
 	}
 }

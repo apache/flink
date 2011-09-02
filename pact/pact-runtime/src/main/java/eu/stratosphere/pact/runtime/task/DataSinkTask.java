@@ -15,40 +15,57 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
+import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
-import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.runtime.sort.SortMerger;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * DataSinkTask which is executed by a Nephele task manager.
- * The task writes data to files and uses an OutputFormat to serialize KeyValuePairs to a binary data stream.
- * Currently, the distributed Hadoop Filesystem (HDFS) is the only supported data storage.
+ * The task hands the data to an output format.
  * 
  * @see eu.stratosphere.pact.common.io.OutputFormat
+ * 
  * @author Fabian Hueske
  */
 @SuppressWarnings( { "unchecked", "rawtypes" })
-public class DataSinkTask extends AbstractFileOutputTask {
-
+public class DataSinkTask extends AbstractOutputTask
+{
+	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
+	
+	public static final String SORT_ORDER = "sink.sort.order";
+	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
 
@@ -59,113 +76,121 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	private OutputFormat format;
 
 	// task configuration
-	private DataSinkConfig config;
+	private TaskConfig config;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+	
+	// the memory dedicated to the sorter
+	private long availableMemory;
+
+	// maximum number of file handles
+	private int maxFileHandles;
+
+	// the fill fraction of the buffers that triggers the spilling
+	private float spillThreshold;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput() {
-		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void registerInputOutput()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start registering input and output"));
 
 		// initialize OutputFormat
 		initOutputFormat();
 		// initialize input reader
 		initInputReader();
 
-		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception {
-		
-		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void invoke() throws Exception
+	{
+		if (LOG.isInfoEnabled())
+			LOG.info(getLogString("Start PACT code"));
 
-		final Path path = getFileOutputPath();
-		final RecordReader<KeyValuePair<Key, Value>> reader = this.reader;
 		final OutputFormat format = this.format;
-
-		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(path, 
-			this.getEnvironment().getIndexInSubtaskGroup() + 1, 10000);
-		opot.start();
 		
-		FSDataOutputStream fdos = null;
+		//Input is wrapped so that it can also be sorted if required
+		CloseableInputProvider<KeyValuePair<Key, Value>> inputProvider = null;
 		
 		try {
-			// get FSDataOutputStream
-			fdos = opot.getFSDataOutputStream();
-
 			// check if task has been canceled
 			if (this.taskCanceled) {
 				return;
 			}
 
-			LOG.debug("Start writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
-				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			inputProvider = obtainInput();
+			Iterator<KeyValuePair<Key, Value>> iter = inputProvider.getIterator();
+			
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
-			format.setOutput(fdos);
-			format.open();
+				LOG.debug(getLogString("Starting to produce output"));
+			}
 
-			while (!this.taskCanceled && reader.hasNext()) {
-				KeyValuePair pair = reader.next();
-				format.writePair(pair);
+			// open
+			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+
+			// work
+			while (!this.taskCanceled && iter.hasNext())
+			{
+				KeyValuePair pair = iter.next();
+				format.writeRecord(pair);
+			}
+			
+			// close. We close here such that a regular close throwing an exception marks a task as failed.
+			if (!this.taskCanceled) {
+				this.format.close();
+				this.format = null;
 			}
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				if (LOG.isErrorEnabled())
+					LOG.error(getLogString("Error in Pact user code: " + ex.getMessage()), ex);
 				throw ex;
 			}
-				
 		}
 		finally {
+			if (inputProvider != null) {
+				inputProvider.close();
+			}
 			
 			if (this.format != null) {
-				// close format
+				// close format, if it has not been closed, yet.
+				// This should only be the case if we had a previous error, or were cancelled.
 				try {
 					this.format.close();
 				}
-				catch (Throwable t) {}
-			}
-				
-			if (fdos != null) {
-				// close file stream
-				try {
-					fdos.close();
+				catch (Throwable t) {
+					if (LOG.isWarnEnabled())
+						LOG.warn(getLogString("Error closing the ouput format."), t);
 				}
-				catch (Throwable t) {}
 			}
 		}
 
 		if (!this.taskCanceled) {
-			LOG.debug("Finished writing output to " + path.toString() + " : " + this.getEnvironment().getTaskName()
-				+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Finished producing output"));
 
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		} else {
-			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isInfoEnabled())
+				LOG.info(getLogString("Finished PACT code"));
+		}
+		else {
+			if (LOG.isWarnEnabled())
+				LOG.warn(getLogString("PACT code cancelled"));
 		}
 	}
 
@@ -174,11 +199,11 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception {
+	public void cancel() throws Exception
+	{
 		this.taskCanceled = true;
-		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isWarnEnabled())
+			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 
 	/**
@@ -188,29 +213,38 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 *         Throws if instance of OutputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initOutputFormat() throws RuntimeException {
-
+	private void initOutputFormat()
+	{
 		// obtain task configuration (including stub parameters)
-		config = new DataSinkConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
 		ClassLoader cl;
 		try {
 			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends OutputFormat> formatClass = config.getStubClass(OutputFormat.class, cl);
+			Class<? extends OutputFormat> formatClass = this.config.getStubClass(OutputFormat.class, cl);
 			// obtain instance of stub implementation
 			this.format = formatClass.newInstance();
-			// configure stub implementation
-			this.format.configure(this.config.getStubParameters());
-
-		} catch (IOException ioe) {
+		}
+		catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		} catch (ClassNotFoundException cnfe) {
+		}
+		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("OutputFormat implementation class was not found.", cnfe);
-		} catch (InstantiationException ie) {
+		}
+		catch (InstantiationException ie) {
 			throw new RuntimeException("OutputFormat implementation could not be instanciated.", ie);
-		} catch (IllegalAccessException iae) {
+		}
+		catch (IllegalAccessException iae) {
 			throw new RuntimeException("OutputFormat implementations nullary constructor is not accessible.", iae);
+		}
+		
+		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
+		try {
+			this.format.configure(this.config.getStubParameters());
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
 		}
 	}
 
@@ -220,11 +254,11 @@ public class DataSinkTask extends AbstractFileOutputTask {
 	 * @throws RuntimeException
 	 *         Thrown if no input ship strategy was provided.
 	 */
-	private void initInputReader() throws RuntimeException {
-
+	private void initInputReader()
+	{
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(
-			format.getOutKeyType(), format.getOutValueType());
+			this.format.getKeyType(), format.getValueType());
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
@@ -232,6 +266,9 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
+			break;
+		case PARTITION_RANGE:
+			dp = new BipartiteDistributionPattern();
 			break;
 		default:
 			throw new RuntimeException("No valid input ship strategy provided for DataSinkTask.");
@@ -241,155 +278,209 @@ public class DataSinkTask extends AbstractFileOutputTask {
 		// map has only one input, so we create one reader (id=0).
 		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
 
+		// set up memory and I/O parameters in case of sorting
+		this.availableMemory = config.getMemorySize();
+		this.maxFileHandles = config.getNumFilehandles();
+		this.spillThreshold = config.getSortSpillingTreshold();
 	}
-
-	public static class DataSinkConfig extends TaskConfig {
-
-		private static final String FORMAT_CLASS = "formatClass";
-
-		private static final String FILE_PATH = "outputPath";
-
-		public DataSinkConfig(Configuration config) {
-			super(config);
-		}
-
-		@Override
-		public void setStubClass(Class<? extends Stub<?, ?>> formatClass) {
-			config.setString(FORMAT_CLASS, formatClass.getName());
-		}
-
-		@Override
-		public <T extends Stub<?, ?>> Class<? extends T> getStubClass(Class<T> formatClass, ClassLoader cl)
-				throws ClassNotFoundException {
-			String formatClassName = config.getString(FORMAT_CLASS, null);
-			if (formatClassName == null) {
-				throw new IllegalStateException("format class missing");
-			}
-
-			return Class.forName(formatClassName, true, cl).asSubclass(formatClass);
-		}
-
-		public void setFilePath(String filePath) {
-			config.setString(FILE_PATH, filePath);
-		}
-
-		public String getFilePath() {
-			return config.getString(FILE_PATH, null);
-		}
-	}
-
+	
 	/**
-	 * Obtains a DataOutputStream in an thread that is not interrupted.
-	 * The HDFS client is very sensitive to InterruptedExceptions.
+	 * Returns an iterator over all k-v pairs of the ReduceTasks input. The
+	 * pairs which are returned by the iterator are grouped by their keys.
 	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @return A key-grouped iterator over all input key-value pairs.
+	 * @throws RuntimeException
+	 *         Throws RuntimeException if it is not possible to obtain a
+	 *         grouped iterator.
 	 */
-	public static class OutputPathOpenThread extends Thread {
-
-		private final Object lock = new Object();
+	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
 		
-		private final Path path;
-		
-		private final long timeoutMillies;
+		// obtain the MemoryManager of the TaskManager
+		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+		// obtain the IOManager of the TaskManager
+		final IOManager ioManager = getEnvironment().getIOManager();
 
-		private final int taskIndex;
+		// obtain input key type
+		final Class<Key> keyClass = format.getKeyType();
+		// obtain input value type
+		final Class<Value> valueClass = format.getValueType();
 
-		private volatile FSDataOutputStream fdos;
+		// obtain key serializer
+		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
+		// obtain value serializer
+		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>(valueClass);
 
-		private volatile Exception exception;
-		
-		private volatile boolean canceled = false;
-		
+		// obtain grouped iterator defined by local strategy
+		switch (config.getLocalStrategy()) {
 
-		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
-			this.path = path;
-			this.timeoutMillies = timeoutMillies;
-			this.taskIndex = taskIndex;
-		}
+		// local strategy is NONE
+		// input is already grouped, an iterator that wraps the reader is
+		// created and returned
+		case NONE: {
+			// iterator wraps input reader
+			Iterator<KeyValuePair<Key, Value>> iter = new Iterator<KeyValuePair<Key, Value>>() {
 
-		@Override
-		public void run() {
-			
-			try {
-				final FileSystem fs = path.getFileSystem();
-				Path p = this.path;
-				
-				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
-					// write output in directory
-					p = this.path.suffix("/" + this.taskIndex);
+				@Override
+				public boolean hasNext() {
+					return reader.hasNext();
 				}
-				
-				final FSDataOutputStream stream = fs.create(p, true);
 
-				// create output file
-				synchronized (this.lock) {
-					this.lock.notifyAll();
-					
-					if (!this.canceled) {
-						this.fdos = stream;
-					}
-					else {
-						this.fdos = null;
-						stream.close();
-					}
-				}
-			}
-			catch (Exception t) {
-				synchronized (this.lock) {
-					this.canceled = true;
-					this.exception = t;
-				}
-			}
-		}
-
-		public FSDataOutputStream getFSDataOutputStream()
-		throws Exception
-		{
-			long start = System.currentTimeMillis();
-			long remaining = this.timeoutMillies;
-			
-			if (this.exception != null) {
-				throw this.exception;
-			}
-			if (this.fdos != null) {
-				return this.fdos;
-			}
-			
-			synchronized (this.lock) {
-				do {
+				@Override
+				public KeyValuePair<Key, Value> next() {
 					try {
-						this.lock.wait(remaining);
-					}
-					catch (InterruptedException iex) {
-						this.canceled = true;
-						if (this.fdos != null) {
-							try  {
-								this.fdos.close();
-							} catch (Throwable t) {}
-						}
-						throw new Exception("Output Path Opener was interrupted.");
+						return reader.next();
+					} catch (Exception e) {
+						throw new RuntimeException(e);
 					}
 				}
-				while (this.exception == null && this.fdos == null &&
-						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
+
+				@Override
+				public void remove() {
+				}
+
+			};
 			
-				if (this.exception != null) {
-					if (this.fdos != null) {
-						try  {
-							this.fdos.close();
-						} catch (Throwable t) {}
+			return new SimpleCloseableInputProvider<KeyValuePair<Key,Value>>(iter);
+		}
+
+			// local strategy is SORT
+			// The input is grouped using a sort-merge strategy.
+			// An iterator on the sorted pairs is created and returned.
+		case SORT: {
+			final Order sortOrder = Order.valueOf(getRuntimeConfiguration().getString(SORT_ORDER, ""));
+			
+			// create a key comparator
+			final Comparator<Key> keyComparator;
+			
+			if(sortOrder == Order.ASCENDING || sortOrder == Order.ANY) {
+				keyComparator = new Comparator<Key>() {
+					@Override
+					public int compare(Key k1, Key k2) {
+						return k1.compareTo(k2);
 					}
-					throw this.exception;
+				};
+			} else {
+				keyComparator = new Comparator<Key>() {
+					@Override
+					public int compare(Key k1, Key k2) {
+						return k2.compareTo(k1);
+					}
+				};
+			}
+
+
+			try {
+				// instantiate a sort-merger
+				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
+					this.availableMemory, this.maxFileHandles, keySerialization,
+					valSerialization, keyComparator, reader, this, this.spillThreshold);
+				// obtain and return a grouped iterator from the sort-merger
+				return sortMerger;
+			} catch (MemoryAllocationException mae) {
+				throw new RuntimeException(
+					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
+			} catch (IOException ioe) {
+				throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
+			}
+		}
+		default:
+			throw new RuntimeException("Invalid local strategy provided for ReduceTask.");
+		}
+
+	}
+	
+	// ------------------------------------------------------------------------
+	//                     Degree of parallelism & checks
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getMaximumNumberOfSubtasks()
+	{
+		if (!(this.format instanceof FileOutputFormat)) {
+			return -1;
+		}
+		
+		// ----------------- This code applies only to file inputs ------------------
+		
+		final String pathName = this.config.getStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, null);
+		final Path path;
+		
+		if (pathName == null) {
+			return 0;
+		}
+		
+		try {
+			path = new Path(pathName);
+		}
+		catch (Throwable t) {
+			return 0;
+		}
+
+		// Check if the path is valid
+		try {
+			final FileSystem fs = path.getFileSystem();
+			try {
+				final FileStatus f = fs.getFileStatus(path);
+				if (f == null) {
+					return 1;
 				}
-				
-				if (this.fdos != null) {
-					return this.fdos;
+				// If the path points to a directory we allow an infinity number of subtasks
+				if (f.isDir()) {
+					return -1;
+				}
+				else {
+					// path points to an existing file. delete it, to prevent errors appearing
+					// when overwriting the file (HDFS causes non-deterministic errors there)
+					fs.delete(path, false);
+					return 1;
 				}
 			}
-			
-			// try to forcefully shut this thread down
-			throw new Exception("Output Path Opener timed out.");
+			catch (FileNotFoundException fnfex) {
+				// The exception is thrown if the requested file/directory does not exist.
+				// if the degree of parallelism is > 1, we create a directory for this path
+				int dop = getRuntimeConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
+				if (dop == 1) {
+					// a none existing file and a degree of parallelism that is one
+					return 1;
+				}
+
+				// a degree of parallelism greater one, or an unspecified one. in all cases, create a directory
+				// the output
+				fs.mkdirs(path);
+				return -1;
+			}
+		}
+		catch (IOException e) {
+			// any other kind of I/O exception: we assume only a degree of one here
+			return 1;
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//                               Utilities
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Utility function that composes a string for logging purposes. The string includes the given message and
+	 * the index of the task in its task group together with the number of tasks in the task group.
+	 *  
+	 * @param message The main message for the log.
+	 * @return The string ready for logging.
+	 */
+	private String getLogString(String message)
+	{
+		StringBuilder bld = new StringBuilder(128);	
+		bld.append(message);
+		bld.append(':').append(' ');
+		bld.append(this.getEnvironment().getTaskName());
+		bld.append(' ').append('(');
+		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		bld.append('/');
+		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
+		bld.append(')');
+		return bld.toString();
+	}
 }

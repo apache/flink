@@ -148,14 +148,9 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 
 		// Check if the provided envelope must be sent via the network
 		if (processingLog.mustBeSentViaNetwork() && !processingLog.isSentViaNetwork()) {
-			//If we just want to finish the checkpoint mark the envelope as send.
-//			if(this.finishCheckpoint){
-//				System.out.println("FINSIHING CHECKPOINT");
-//				outgoingTransferEnvelope.getProcessingLog().isSentViaNetwork();
-//				
-//			}else{
+
 				this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(outgoingTransferEnvelope);
-//			}
+
 		}
 
 		if (outgoingTransferEnvelope.getBuffer() != null) {
@@ -197,7 +192,7 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 	public void registerOutputChannel(ChannelID channelID) {
 
 		if (this.ephemeralCheckpoint != null) {
-			this.ephemeralCheckpoint.registerOutputChannel(channelID);
+			this.ephemeralCheckpoint.registerOutputChannel(channelID,byteBufferedChannelManager);
 		}
 	}
 
@@ -278,6 +273,6 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 	 */
 	public void finishCheckpoint() {
 		this.finishCheckpoint  = true;
-		ephemeralCheckpoint.finishCheckpoint();
+		this.ephemeralCheckpoint.finishCheckpoint();
 	}
 }

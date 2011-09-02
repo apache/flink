@@ -36,4 +36,6 @@ public interface InternalBuffer extends ReadableByteChannel, WritableByteChannel
 	boolean isBackedByMemory();
 
 	InternalBuffer duplicate();
+
+	void rewind();
 }

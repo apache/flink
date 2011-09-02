@@ -284,4 +284,12 @@ public class FileBuffer implements InternalBuffer {
 		throw new RuntimeException("Not yet implemented");
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.channels.InternalBuffer#rewind()
+	 */
+	@Override
+	public void rewind() {
+		//Nothing to do here
+	}
+
 }

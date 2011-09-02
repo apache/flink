@@ -90,10 +90,10 @@ public class CombineTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput() {
-		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+	public void registerInputOutput()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start registering input and output"));
 
 		// open stub implementation
 		initStub();
@@ -104,9 +104,8 @@ public class CombineTask extends AbstractTask {
 		// Initializes output writers and collector
 		initOutputCollector();
 
-		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 	/**
@@ -115,13 +114,11 @@ public class CombineTask extends AbstractTask {
 	@Override
 	public void invoke() throws Exception 
 	{
-		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isInfoEnabled())
+			LOG.info(getLogString("Start PACT code"));
 
-		LOG.debug("Start obtaining iterator: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Start obtaining iterator"));
 		
 		// obtain combining iterator
 		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
@@ -130,9 +127,8 @@ public class CombineTask extends AbstractTask {
 			Iterator<KeyValuePair<Key, Value>> iterator = sortedInputProvider.getIterator();
 			KeyGroupedIterator<Key, Value> kgIterator = new KeyGroupedIterator<Key, Value>(iterator);
 
-			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+			if (LOG.isDebugEnabled())
+				LOG.debug(getLogString("Iterator obtained"));
 			
 			ReduceStub stub = this.stub;
 			OutputCollector output = this.output;
@@ -142,30 +138,28 @@ public class CombineTask extends AbstractTask {
 				stub.combine(kgIterator.getKey(), kgIterator.getValues(), output);
 			}
 		
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
-					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+				if (LOG.isErrorEnabled())
+					LOG.error(getLogString("Unexpected ERROR in PACT code"));
 				throw ex;
 			}
 		}
-		
 		finally {
 			if (sortedInputProvider != null) {
 				sortedInputProvider.close();
 			}
 		}
 		
-		if(!this.taskCanceled) {
-			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-		} else {
-			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (!this.taskCanceled) {
+			if (LOG.isInfoEnabled())
+				LOG.info(getLogString("Finished PACT code"));
+		}
+		else {
+			if (LOG.isWarnEnabled())
+				LOG.warn(getLogString("PACT code cancelled"));
 		}
 	}
 	
@@ -176,9 +170,8 @@ public class CombineTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
-			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		if (LOG.isWarnEnabled())
+			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 
 	/**
@@ -219,13 +212,17 @@ public class CombineTask extends AbstractTask {
 			stub = stubClass.newInstance();
 			// configure stub instance
 			stub.configure(config.getStubParameters());
-		} catch (IOException ioe) {
+		}
+		catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		} catch (ClassNotFoundException cnfe) {
+		}
+		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("Stub implementation class was not found.", cnfe);
-		} catch (InstantiationException ie) {
+		}
+		catch (InstantiationException ie) {
 			throw new RuntimeException("Stub implementation could not be instanciated.", ie);
-		} catch (IllegalAccessException iae) {
+		}
+		catch (IllegalAccessException iae) {
 			throw new RuntimeException("Stub implementations nullary constructor is not accessible.", iae);
 		}
 	}
@@ -344,4 +341,28 @@ public class CombineTask extends AbstractTask {
 
 	}
 
+	// ------------------------------------------------------------------------
+	//                               Utilities
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Utility function that composes a string for logging purposes. The string includes the given message and
+	 * the index of the task in its task group together with the number of tasks in the task group.
+	 *  
+	 * @param message The main message for the log.
+	 * @return The string ready for logging.
+	 */
+	private String getLogString(String message)
+	{
+		StringBuilder bld = new StringBuilder(128);	
+		bld.append(message);
+		bld.append(':').append(' ');
+		bld.append(this.getEnvironment().getTaskName());
+		bld.append(' ').append('(');
+		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
+		bld.append('/');
+		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
+		bld.append(')');
+		return bld.toString();
+	}
 }

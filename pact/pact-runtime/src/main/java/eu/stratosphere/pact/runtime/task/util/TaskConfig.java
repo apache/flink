@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -69,10 +68,6 @@ public class TaskConfig {
 		NONE
 	}
 
-	public enum PostprocessingStrategy {
-
-	}
-
 	private static final String STUB_CLASS = "pact.stub.class";
 
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
@@ -82,8 +77,6 @@ public class TaskConfig {
 	private static final String OUTPUT_SHIP_STRATEGY = "pact.output.ship.strategy.";
 
 	private static final String LOCAL_STRATEGY = "pact.local.strategy";
-
-	private static final String POSTPROCESSING_STRATEGY = "pact.postprocessing.strategy";
 
 	private static final String NUM_INPUTS = "pact.inputs.number";
 
@@ -101,11 +94,11 @@ public class TaskConfig {
 		this.config = config;
 	}
 
-	public void setStubClass(Class<? extends Stub<?, ?>> stubClass) {
+	public void setStubClass(Class<?> stubClass) {
 		config.setString(STUB_CLASS, stubClass.getName());
 	}
 
-	public <T extends Stub<?, ?>> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
+	public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
 			throws ClassNotFoundException {
 		String stubClassName = config.getString(STUB_CLASS, null);
 		if (stubClassName == null) {
@@ -113,14 +106,18 @@ public class TaskConfig {
 		}
 		return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
-	public void setStubParameters(Configuration parameters) {
+	public void setStubParameters(Configuration parameters)
+	{
 		for (String key : parameters.keySet()) {
-			config.setString(STUB_PARAM_PREFIX + key, parameters.getString(key, null));
+			this.config.setString(STUB_PARAM_PREFIX + key, parameters.getString(key, null));
 		}
 	}
 
-	public Configuration getStubParameters() {
+	public Configuration getStubParameters()
+	{
 		Configuration parameters = new Configuration();
 		for (String key : config.keySet()) {
 			if (key.startsWith(STUB_PARAM_PREFIX)) {
@@ -129,6 +126,18 @@ public class TaskConfig {
 		}
 		return parameters;
 	}
+	
+	public void setStubParameter(String key, String value)
+	{
+		config.setString(STUB_PARAM_PREFIX + key, value);
+	}
+
+	public String getStubParameter(String key, String defaultValue)
+	{
+		return config.getString(STUB_PARAM_PREFIX + key, defaultValue);
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	public void addInputShipStrategy(ShipStrategy strategy) {
 		int inputCnt = config.getInteger(NUM_INPUTS, 0);
@@ -164,14 +173,6 @@ public class TaskConfig {
 
 	public LocalStrategy getLocalStrategy() {
 		return LocalStrategy.valueOf(config.getString(LOCAL_STRATEGY, ""));
-	}
-
-	public void setPostprocessingStrategy(PostprocessingStrategy strategy) {
-		config.setString(POSTPROCESSING_STRATEGY, strategy.name());
-	}
-
-	public PostprocessingStrategy getPostprocessingStrategy() {
-		return PostprocessingStrategy.valueOf(config.getString(POSTPROCESSING_STRATEGY, ""));
 	}
 
 	public int getNumOutputs() {

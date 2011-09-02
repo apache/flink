@@ -600,5 +600,27 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
 		}
+		
+		
+	}
+	/**
+	 * Registers a vertex with the job progress collector. The collector will subscribe
+	 * to state changes of the individual subtasks. A separate
+	 * deregistration is not necessary since the job progress collector
+	 * periodically discards outdated progress information.
+	 * 
+	 * @param vertex
+	 *        the execution vertex
+	 * @param jobID
+	 * 			the ID the veretx belongs to
+	 */
+	public void registerVertex(ExecutionVertex vertex, JobID jobID){
+		// Register the listener object which will pass state changes on to the collector
+		vertex.getEnvironment().registerExecutionListener(
+			new ExecutionListenerWrapper(this, vertex.getGroupVertex().getJobVertexID(), vertex.getID()));
+
+		// Register the listener object which will pass assignment changes on to the collector
+		vertex
+			.registerVertexAssignmentListener(new VertexAssignmentListenerWrapper(this, jobID));
 	}
 }

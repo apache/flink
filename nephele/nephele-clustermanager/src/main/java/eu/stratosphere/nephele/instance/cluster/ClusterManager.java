@@ -228,12 +228,10 @@ public class ClusterManager implements InstanceManager {
 							}
 
 							if (instanceListener != null) {
-								instanceListener.allocatedResourceDied(
-									removedSlice.getJobID(),
-									new AllocatedResource(
-										removedSlice.getHostingInstance(), removedSlice.getType(), removedSlice
-											.getAllocationID()));
-								
+
+								instanceListener.allocatedResourceDied(removedSlice.getJobID(),
+									new AllocatedResource(removedSlice.getHostingInstance(), removedSlice.getType(),
+										removedSlice.getAllocationID()));
 							}
 						}
 						
@@ -270,24 +268,22 @@ public class ClusterManager implements InstanceManager {
 
 		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
 
-		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(
-			CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
+		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
 
 		if (tmpCleanUpInterval < 10) { // Clean up interval must be at least ten seconds
-			LOG.warn("Invalid clean up interval. Reverting to default cleanup interval of " +
-				DEFAULT_CLEANUP_INTERVAL + " secs.");
+			LOG.warn("Invalid clean up interval. Reverting to default cleanup interval of " + DEFAULT_CLEANUP_INTERVAL
+				+ " secs.");
 			tmpCleanUpInterval = DEFAULT_CLEANUP_INTERVAL;
 		}
 
 		this.cleanUpInterval = tmpCleanUpInterval;
 
-		int tmpDefaultInstanceTypeIndex = GlobalConfiguration.getInteger(
-			DEFAULT_INSTANCE_TYPE_INDEX_KEY,
+		int tmpDefaultInstanceTypeIndex = GlobalConfiguration.getInteger(DEFAULT_INSTANCE_TYPE_INDEX_KEY,
 			ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
 
 		if (tmpDefaultInstanceTypeIndex > this.availableInstanceTypes.length) {
-			LOG.warn("Incorrect index to for default instance type (" + tmpDefaultInstanceTypeIndex +
-				"), switching to default index " + ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
+			LOG.warn("Incorrect index to for default instance type (" + tmpDefaultInstanceTypeIndex
+				+ "), switching to default index " + ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX);
 
 			tmpDefaultInstanceTypeIndex = ConfigConstants.DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX;
 		}
@@ -452,8 +448,8 @@ public class ClusterManager implements InstanceManager {
 
 			if (descr == null) {
 				if (count == 1) {
-					LOG.error("Configuration does not contain at least one definition for an instance type, " +
-							"using default instance type: " + ConfigConstants.DEFAULT_INSTANCE_TYPE);
+					LOG.error("Configuration does not contain at least one definition for an instance type, "
+						+ "using default instance type: " + ConfigConstants.DEFAULT_INSTANCE_TYPE);
 
 					descr = ConfigConstants.DEFAULT_INSTANCE_TYPE;
 				} else {
@@ -468,8 +464,8 @@ public class ClusterManager implements InstanceManager {
 				LOG.info("Loaded instance type " + instanceType.getIdentifier() + " from the configuration");
 				instanceTypes.add(instanceType);
 			} catch (Throwable t) {
-				LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: " +
-					ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
+				LOG.error("Error parsing " + key + ":" + descr + ". Using default using default instance type: "
+					+ ConfigConstants.DEFAULT_INSTANCE_TYPE + " for instance type " + count + ".", t);
 
 				break;
 			}
@@ -704,13 +700,51 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType)
-			throws InstanceException {
+	public synchronized void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+			List<String> splitAffinityList) throws InstanceException {
 
-		// TODO: Introduce topology awareness here
-		for (ClusterInstance host : registeredHosts.values()) {
-			final AllocatedSlice slice = host.createSlice(instanceType, jobID);
-			if (slice != null) {
+		// Iterate over all instance types
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceMap.entrySet().iterator();
+		while (it.hasNext()) {
+
+			// Iterate over all requested instances of a specific type
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+			LOG.info("Needing " + entry.getValue().intValue() + "of" + entry.getKey());
+			for (int i = 0; i < entry.getValue().intValue(); i++) {
+
+				LOG.info("Trying to allocate instance "+ i + " / " + entry.getValue().intValue() +"  of type " + entry.getKey().getIdentifier());
+
+				// TODO: Introduce topology awareness here
+				// TODO: Daniel: Code taken from AbstractScheduler..
+				AllocatedSlice slice = null;
+
+				// Try to match the instance type without slicing first
+				for (final ClusterInstance host : this.registeredHosts.values()) {
+					if (host.getType().equals(entry.getKey())) {
+						slice = host.createSlice(entry.getKey(), jobID);
+						LOG.info("Created Slice on " + host.getName());
+						if (slice != null) {
+							break;
+						}
+					}
+				}
+
+				// Use slicing now if necessary
+				if (slice == null) {
+
+					for (final ClusterInstance host : this.registeredHosts.values()) {
+						slice = host.createSlice(entry.getKey(), jobID);
+						LOG.info("Created Slice on " + host.getName());
+						if (slice != null) {
+							break;
+						}
+					}
+
+				}
+
+				if (slice == null) {
+					throw new InstanceException("Could not find a suitable instance");
+				}
 
 				List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.get(jobID);
 				if (allocatedSlices == null) {
@@ -723,14 +757,20 @@ public class ClusterManager implements InstanceManager {
 					ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
 						this.instanceListener, slice);
 					clusterInstanceNotifier.start();
+				}else{
+					LOG.error("InstanceListener is null");
 				}
-				LOG.info("Created Slice on " + host.getName());
-				return;
+
+
+
 			}
 		}
+		return;
 
-		throw new InstanceException("Could not find a suitable instance");
 	}
+
+		
+	
 
 	/**
 	 * {@inheritDoc}
@@ -817,8 +857,8 @@ public class ClusterManager implements InstanceManager {
 			if (minNumberOfCPUCores < Integer.MAX_VALUE && minSizeOfPhysicalMemory < Long.MAX_VALUE
 				&& minSizeOfFreeMemory < Long.MAX_VALUE) {
 
-				pessimisticHardwareDescription = HardwareDescriptionFactory.construct(
-					minNumberOfCPUCores, minSizeOfPhysicalMemory, minSizeOfFreeMemory);
+				pessimisticHardwareDescription = HardwareDescriptionFactory.construct(minNumberOfCPUCores,
+					minSizeOfPhysicalMemory, minSizeOfFreeMemory);
 
 			} else {
 

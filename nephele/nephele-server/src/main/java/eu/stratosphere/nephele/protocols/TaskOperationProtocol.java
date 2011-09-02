@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 
 /**
  * The task submission protocol is implemented by the task manager and allows the job manager
@@ -53,6 +54,17 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee)
 			throws IOException;
+
+	/**
+	 * Submits a list of tasks to the task manager.
+	 * 
+	 * @param tasks
+	 *        the tasks to be submitted
+	 * @return the result of the task submission
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks) throws IOException;
 
 	/**
 	 * Advises the task manager to cancel the task with the given ID
@@ -116,4 +128,9 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * 
 	 */
 	void recoverAll(ChannelID sourceChannelID);
+
+	/**
+	 * @param executionVertexID
+	 */
+	void restart(ExecutionVertexID executionVertexID);
 }

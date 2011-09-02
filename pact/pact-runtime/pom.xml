@@ -7,12 +7,12 @@
 	<parent>
 		<artifactId>pact</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.1</version>
+		<version>0.1.1</version>
 	</parent>
 
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>pact-runtime</artifactId>
-	<version>0.1</version>
+	<version>0.1.1</version>
 	<name>pact-runtime</name>
 
 	<packaging>jar</packaging>
@@ -48,6 +48,8 @@
 				<configuration>
 					<excludes>
 						<exclude>**/TestData.java</exclude>
+						<!--  Performance Tests are excluded -->
+						<exclude>**/HashVsSortTest.java</exclude>
 					</excludes>
 					<forkMode>once</forkMode>
 					<argLine>-Xms512m -Xmx1024m</argLine>

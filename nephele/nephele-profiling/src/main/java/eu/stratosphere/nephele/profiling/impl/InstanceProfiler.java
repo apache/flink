@@ -204,8 +204,8 @@ public class InstanceProfiler {
 	private void updateCPUUtilization(InternalInstanceProfilingData profilingData) throws ProfilingException {
 
 		try {
-
-			final BufferedReader in = new BufferedReader(new FileReader(PROC_STAT));
+			FileReader fileReader = new FileReader(PROC_STAT);
+			final BufferedReader in = new BufferedReader(fileReader);
 			final String output = in.readLine();
 			if (output == null) {
 				throw new ProfilingException("Cannot read CPU utilization, return value is null");
@@ -277,13 +277,14 @@ public class InstanceProfiler {
 			this.lastCpuIOWait = cpuIOWait;
 			this.lastCpuIrq = cpuIrq;
 			this.lastCpuSoftirq = cpuSoftirq;
-
+			
+			fileReader.close();
 		} catch (IOException ioe) {
 			throw new ProfilingException("Error while reading CPU utilization: " + StringUtils.stringifyException(ioe));
 		} catch (NumberFormatException nfe) {
 			throw new ProfilingException("Error while reading CPU utilization: " + StringUtils.stringifyException(nfe));
 		}
-
+		
 	}
 	/**
 	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
