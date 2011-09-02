@@ -296,11 +296,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				+ transferEnvelope.getSource() + " has not have a receiver list");
 		}
 
-		if (receiverList.getTotalNumberOfReceivers() == 0) {
-			throw new IOException("Total number of receivers for envelope " + transferEnvelope.getSequenceNumber()
-				+ " from source channel " + transferEnvelope.getSource() + " is 0");
-		}
-
 		// This envelope is known to have either no buffer or an memory-based input buffer
 		if (transferEnvelope.getBuffer() == null) {
 			processEnvelopeEnvelopeWithoutBuffer(transferEnvelope, receiverList);
