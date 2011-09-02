@@ -24,16 +24,20 @@ import static org.mockito.Mockito.doThrow;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.internal.matchers.Any;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.CheckpointOutgoingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeProcessingLog;
@@ -79,6 +83,8 @@ public class ChannelCheckpointTest {
 	@Mock
 	private IncomingConnection incomingConnection;
 
+	@Mock
+	private CheckpointOutgoingConnection outgoingConnection;
 	/**
 	 * Initializes the Mockito stubs.
 	 */
@@ -95,7 +101,7 @@ public class ChannelCheckpointTest {
 
 		final String tmpDir = ServerTestUtils.getTempDir();
 
-		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir);
+		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir, byteBufferedChannelManager);
 		final TransferEnvelope transferEnvelope = generateTransferEnvelope(SOURCE_CHANNEL_ID, TARGET_CHANNEL_ID, 0);
 
 		try {
@@ -123,7 +129,7 @@ public class ChannelCheckpointTest {
 	public void testUnexpectedSourceChannelID() {
 
 		final String tmpDir = ServerTestUtils.getTempDir();
-		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir);
+		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir, byteBufferedChannelManager);
 		final TransferEnvelope transferEnvelope = generateTransferEnvelope(new ChannelID(), TARGET_CHANNEL_ID, 0);
 
 		try {
@@ -145,7 +151,7 @@ public class ChannelCheckpointTest {
 	public void testUnexpectedSequenceNumber() {
 
 		final String tmpDir = ServerTestUtils.getTempDir();
-		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir);
+		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir, byteBufferedChannelManager);
 		final TransferEnvelope transferEnvelope = generateTransferEnvelope(SOURCE_CHANNEL_ID, TARGET_CHANNEL_ID, 1);
 
 		try {
@@ -166,13 +172,15 @@ public class ChannelCheckpointTest {
 	public void testRecovery() {
 
 		final String tmpDir = ServerTestUtils.getTempDir();
-		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir);
+		final ChannelCheckpoint channelCheckpoint = new ChannelCheckpoint(VERTEX_ID, SOURCE_CHANNEL_ID, tmpDir, byteBufferedChannelManager);
 
 		// Mock behavior of internal objects
 		when(this.byteBufferedChannelManager.getFileBufferManager()).thenReturn(this.fileBufferManager);
-
+		
+		when(this.byteBufferedChannelManager.createOutgoingCheckpointConnection(Matchers.any(ByteBufferedChannelManager.class), Matchers.any(FileChannel.class), Matchers.any(ChannelID.class))).thenReturn(this.outgoingConnection);
 		try {
 			doThrow(new EOFException()).when(this.incomingConnection).read();
+			doThrow(new EOFException()).when(this.outgoingConnection).write();
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
 		} catch (InterruptedException e) {

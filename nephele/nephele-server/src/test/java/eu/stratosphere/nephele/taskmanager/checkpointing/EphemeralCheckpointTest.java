@@ -89,7 +89,7 @@ public class EphemeralCheckpointTest {
 
 		final Iterator<ChannelID> it = testChannelIDs.iterator();
 		while (it.hasNext()) {
-			fileEC.registerOutputChannel(it.next());
+			fileEC.registerOutputChannel(it.next(), null);
 		}
 
 		final ChannelID[] registeredOutputChanelIDs = fileEC.getIDsOfCheckpointedOutputChannels();
@@ -114,7 +114,7 @@ public class EphemeralCheckpointTest {
 
 		final Iterator<ChannelID> it = testChannelIDs.iterator();
 		while (it.hasNext()) {
-			fileEC.registerOutputChannel(it.next());
+			fileEC.registerOutputChannel(it.next(), null);
 		}
 
 		assertFalse(fileEC.isFinished());
