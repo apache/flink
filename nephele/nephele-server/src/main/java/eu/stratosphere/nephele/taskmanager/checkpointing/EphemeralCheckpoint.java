@@ -26,7 +26,6 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.taskmanager.transferenvelope.AbstractSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -71,7 +70,7 @@ public class EphemeralCheckpoint {
 	/**
 	 * The serializer to convert a transfer envelope into a byte stream.
 	 */
-	private final AbstractSerializer transferEnvelopeSerializer = new CheckpointSerializer();
+	private final CheckpointSerializer transferEnvelopeSerializer = new CheckpointSerializer();
 
 	/**
 	 * The ID of the vertex this ephemeral checkpoint belongs to.
@@ -145,7 +144,7 @@ public class EphemeralCheckpoint {
 	 * @throws IOException
 	 *         thrown when an I/O error occurs while writing the envelope to disk
 	 */
-	public void addTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException {
+	public void addTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
 		if (this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING) {
 			final Buffer buffer = transferEnvelope.getBuffer();
@@ -198,7 +197,7 @@ public class EphemeralCheckpoint {
 		this.checkpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
 	}
 
-	public void write() throws IOException {
+	public void write() throws IOException, InterruptedException {
 
 		while (!this.queuedEnvelopes.isEmpty()) {
 			writeTransferEnvelope(this.queuedEnvelopes.poll());
@@ -207,7 +206,7 @@ public class EphemeralCheckpoint {
 		this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 	}
 
-	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException {
+	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
 		final Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
@@ -276,6 +275,9 @@ public class EphemeralCheckpoint {
 
 			new FileOutputStream(checkpointDir + File.separator + CheckpointManager.METADATA_PREFIX + "_"
 				+ this.vertexID + "_final").close();
+
+			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
+			this.fileBufferManager.forceCloseOfWritableSpillingFile(this.vertexID);
 
 			LOG.info("Finished persistent checkpoint for vertex " + this.vertexID);
 

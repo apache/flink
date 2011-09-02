@@ -36,7 +36,7 @@ public class FileBuffer implements InternalBuffer {
 
 	private FileChannel fileChannel;
 
-	private volatile boolean writeMode = true;
+	private volatile boolean writeMode;
 
 	private long totalBytesWritten = 0;
 
@@ -50,10 +50,17 @@ public class FileBuffer implements InternalBuffer {
 		this.offset = offset;
 		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
+		this.writeMode = false;
 	}
 	
 	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
-		this(bufferSize, null, 0, ownerID, fileBufferManager);
+		
+		this.bufferSize = bufferSize;
+		this.fileID = null;
+		this.offset = 0L;
+		this.ownerID = ownerID;
+		this.fileBufferManager = fileBufferManager;
+		this.writeMode = true;
 	}
 
 	@Override

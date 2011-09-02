@@ -249,9 +249,9 @@ public final class FileBufferManager {
 
 		return writableSpillingFile.getFileID();
 	}
-	
+
 	public void registerExternalReadableSpillingFile(final AbstractID ownerID, final FileID fileID) throws IOException {
-	
+
 		Map<FileID, ReadableSpillingFile> map = null;
 		synchronized (this.readableSpillingFileMap) {
 			map = this.readableSpillingFileMap.get(ownerID);
@@ -260,19 +260,36 @@ public final class FileBufferManager {
 				this.readableSpillingFileMap.put(ownerID, map);
 			}
 		}
-		
+
 		ReadableSpillingFile readableSpillingFile = null;
 		synchronized (map) {
 			readableSpillingFile = map.get(fileID);
-			if(readableSpillingFile == null) {
+			if (readableSpillingFile == null) {
 				final String filename = this.tmpDir + File.separator + FILE_BUFFER_PREFIX + fileID;
-				readableSpillingFile = new ReadableSpillingFile(new File(filename), 1); //Use 1 here to make sure the file is not immediately deleted
+				readableSpillingFile = new ReadableSpillingFile(new File(filename), 1); // Use 1 here to make sure the
+																						// file is not immediately
+																						// deleted
 				map.put(fileID, readableSpillingFile);
 				map.notify();
 			}
 		}
-		
+
 		readableSpillingFile.increaseNumberOfBuffers();
-		
+
+	}
+
+	public void forceCloseOfWritableSpillingFile(final AbstractID ownerID) throws IOException, InterruptedException {
+
+		FileID fileID = null;
+		synchronized (this.writableSpillingFileMap) {
+			final WritableSpillingFile w = this.writableSpillingFileMap.get(ownerID);
+			if (w != null) {
+				fileID = w.getFileID();
+			}
+		}
+
+		if (fileID != null) {
+			getReadableSpillingFile(ownerID, fileID);
+		}
 	}
 }
