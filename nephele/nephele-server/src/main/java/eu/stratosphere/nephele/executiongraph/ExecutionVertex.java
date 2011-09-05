@@ -100,6 +100,17 @@ public class ExecutionVertex {
 	private List<VertexAssignmentListener> vertexAssignmentListeners = new ArrayList<VertexAssignmentListener>();
 
 	/**
+	 * A list of {@link CheckpointStateChangeListener} objects to be notified about state changes of the vertex's
+	 * checkpoint.
+	 */
+	private List<CheckpointStateChangeListener> checkpointStateChangeListeners = new ArrayList<CheckpointStateChangeListener>();
+
+	/**
+	 * The current checkpoint state of this vertex.
+	 */
+	private CheckpointState checkpointState = CheckpointState.NONE;
+
+	/**
 	 * Create a new execution vertex and instantiates its environment.
 	 * 
 	 * @param jobID
@@ -545,7 +556,7 @@ public class ExecutionVertex {
 	 * @param vertexAssignmentListener
 	 *        the object to be notified about reassignments of this vertex to another instance
 	 */
-	public synchronized void registerVertexAssignmentListener(VertexAssignmentListener vertexAssignmentListener) {
+	public synchronized void registerVertexAssignmentListener(final VertexAssignmentListener vertexAssignmentListener) {
 
 		if (!this.vertexAssignmentListeners.contains(vertexAssignmentListener)) {
 			this.vertexAssignmentListeners.add(vertexAssignmentListener);
@@ -559,8 +570,47 @@ public class ExecutionVertex {
 	 * @param vertexAssignmentListener
 	 *        the listener to be unregistered
 	 */
-	public void unregisterVertexAssignmentListener(VertexAssignmentListener vertexAssignmentListener) {
+	public synchronized void unregisterVertexAssignmentListener(final VertexAssignmentListener vertexAssignmentListener) {
 
 		this.vertexAssignmentListeners.remove(vertexAssignmentListener);
 	}
+
+	/**
+	 * Registers the {@link CheckpointStateChangeListener} object for this vertex. This object
+	 * will be notified about state changes regarding the vertex's checkpoint.
+	 * 
+	 * @param checkpointStateChangeListener
+	 *        the object to be notified about checkpoint state changes
+	 */
+	public synchronized void registerCheckpointStateChangeListener(
+			final CheckpointStateChangeListener checkpointStateChangeListener) {
+
+		if (!this.checkpointStateChangeListeners.contains(checkpointStateChangeListener)) {
+			this.checkpointStateChangeListeners.add(checkpointStateChangeListener);
+		}
+	}
+
+	/**
+	 * Unregisters the {@link CheckpointStateChangeListener} object for this vertex. This object
+	 * will no longer be notified about state changes regarding the vertex's checkpoint.
+	 * 
+	 * @param checkpointStateChangeListener
+	 *        the listener to be unregistered
+	 */
+	public synchronized void unregisterCheckpointStateChangeListener(
+			final CheckpointStateChangeListener checkpointStateChangeListener) {
+
+		this.checkpointStateChangeListeners.remove(checkpointStateChangeListener);
+	}
+
+	/**
+	 * Returns the current state of this vertex's checkpoint.
+	 * 
+	 * @return the current state of this vertex's checkpoint
+	 */
+	public CheckpointState getCheckpointState() {
+
+		return this.checkpointState;
+	}
+
 }

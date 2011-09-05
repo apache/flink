@@ -19,9 +19,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointState;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.util.EnumUtils;
+import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * An {@link CheckpointStateChangeEvent} can be used to notify other objects about changes of a vertex's checkpoint
@@ -39,7 +38,7 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 	/**
 	 * The new state of the vertex's checkpoint.
 	 */
-	private CheckpointState newCheckpointState;
+	private String newCheckpointState;
 
 	/**
 	 * Constructs a checkpoint state change event object.
@@ -52,7 +51,7 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 	 *        the new state of the vertex's checkpoint
 	 */
 	public CheckpointStateChangeEvent(final long timestamp, final ManagementVertexID managementVertexID,
-			final CheckpointState newCheckpointState) {
+			final String newCheckpointState) {
 
 		super(timestamp);
 		this.managementVertexID = managementVertexID;
@@ -67,7 +66,7 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 	public CheckpointStateChangeEvent() {
 
 		this.managementVertexID = new ManagementVertexID();
-		this.newCheckpointState = CheckpointState.NONE;
+		this.newCheckpointState = null;
 	}
 
 	/**
@@ -84,7 +83,7 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 	 * 
 	 * @return the new state of the vertex's checkpoint
 	 */
-	public CheckpointState getNewCheckpointState() {
+	public String getNewCheckpointState() {
 		return this.newCheckpointState;
 	}
 
@@ -97,7 +96,7 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 		super.read(in);
 
 		this.managementVertexID.read(in);
-		this.newCheckpointState = EnumUtils.readEnum(in, CheckpointState.class);
+		this.newCheckpointState = StringRecord.readString(in);
 	}
 
 	/**
@@ -109,7 +108,7 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 		super.write(out);
 
 		this.managementVertexID.write(out);
-		EnumUtils.writeEnum(out, this.newCheckpointState);
+		StringRecord.writeString(out, this.newCheckpointState);
 	}
 
 	/**

@@ -13,29 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.checkpointing;
+package eu.stratosphere.nephele.executiongraph;
 
 /**
- * This enumeration defines the possibles states a checkpoint of a task can be in.
+ * Classes implementing the {@link CheckpointStateChangeListener} interface can register for notifications about state changes
+ * of
+ * a vertex's checkpoint.
  * 
  * @author warneke
  */
-public enum CheckpointState {
+public interface CheckpointStateChangeListener {
 
 	/**
-	 * The vertex has no checkpoint and cannot be recovered.
+	 * Called to notify a change in the vertex's checkpoint state
+	 * 
+	 * @param id
+	 *        the ID of the vertex whose checkpoint state has changed
+	 * @param newCheckpointState
+	 *        the new state of the vertex's checkpoint
 	 */
-	NONE,
-
-	/**
-	 * The checkpoint is currently being written. The checkpoint can be used for recovery as long as the task which
-	 * initiated it keeps adding data to the checkpoint.
-	 */
-	PARTIAL,
-
-	/**
-	 * The checkpoint is complete and can be used for recovery no matter if the task that has previously created the
-	 * checkpoint is still running.
-	 */
-	COMPLETE;
+	void checkpointStateChanged(ExecutionVertexID id, CheckpointState newCheckpointState);
 }
