@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
@@ -183,7 +184,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
 			writeMemSize, readMemSize,
@@ -260,7 +261,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
 				long writeMemSize, long readMemSize,
-				AbstractTask parentTask)
+				AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 

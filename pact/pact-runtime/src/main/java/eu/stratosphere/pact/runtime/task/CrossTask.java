@@ -295,6 +295,37 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 					// reset the memory block iterator to the beginning of the
 					// current memory block (outer side)
 					outerInput.reset();
+//					// reset the spilling resettable iterator (inner side)
+//					moreOuterBlocks = outerInput.nextBlock();
+//					if(moreOuterBlocks) {
+//						innerInput.reset();
+//					}
+//				} while (!this.taskCanceled && moreOuterBlocks);
+//			} else {
+//				// inner input is empty, clear outer input to close channel
+//				LOG.debug("Inner input is empty, we must clear the outer input as well to close the channel");
+//				do {
+//					while(outerInput.hasNext()) {
+//						outerInput.next();
+//					}
+//				} while(outerInput.nextBlock());
+//			}
+//				
+//			// close stub implementation
+//			this.stub.close();
+//		}
+//		catch (Exception ex) {
+//			// drop, if the task was canceled
+//			if (!this.taskCanceled) {
+//				LOG.error(getLogString("Unexpected ERROR in PACT code"));
+//				throw ex;
+//			}
+//		}
+//		finally {
+//			Throwable t1 = null, t2 = null;
+//			try {
+//				if(innerInput != null) {
+//					innerInput.close();
 				}
 				// reset the spilling resettable iterator (inner side)
 				moreOuterBlocks = outerInput.nextBlock();
@@ -429,5 +460,4 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 			return false;
 		}
 	}
-	
 }

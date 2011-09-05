@@ -21,6 +21,7 @@ import java.util.Comparator;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -87,7 +88,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		this.bufferIterator = new BufferQueueIterator(queues);
 		setResultIterator(this.bufferIterator);
@@ -126,7 +127,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
 				long writeMemSize, long readMemSize,
-				AbstractTask parentTask)
+				AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "Partial Sorter Iterator Thread.", queues, parentTask);
 		}

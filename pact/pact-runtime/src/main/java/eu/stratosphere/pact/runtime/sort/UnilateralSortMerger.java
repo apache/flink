@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -140,7 +141,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The parent task that owns this sorter.
 	 */
-	protected final AbstractTask parent;
+	protected final AbstractInvokable parent;
 	
 	/**
 	 * The monitor which guards the iterator field.
@@ -562,7 +563,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @return The sorting thread.
 	 */
 	protected ThreadBase getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		return new SortingThread(exceptionHandler, queues, parentTask);
 	}
@@ -583,7 +584,7 @@ public class UnilateralSortMerger implements SortMerger
 	 */
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, writeMemSize,
 			readMemSize, parentTask);
@@ -904,7 +905,7 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * The parent task at whom the thread needs to register.
 		 */
-		private final AbstractTask parentTask;
+		private final AbstractInvokable parentTask;
 
 		/**
 		 * The flag marking this thread as alive.
@@ -922,7 +923,7 @@ public class UnilateralSortMerger implements SortMerger
 		 *        The queues used to pass buffers between the threads.
 		 */
 		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues queues,
-				AbstractTask parentTask)
+				AbstractInvokable parentTask)
 		{
 			// thread setup
 			super(name);
@@ -1231,7 +1232,7 @@ public class UnilateralSortMerger implements SortMerger
 		 *        The queues used to pass buffers between the threads.
 		 */
 		public SortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				AbstractTask parentTask) {
+				AbstractInvokable parentTask) {
 			super(exceptionHandler, "SortMerger sorting thread", queues, parentTask);
 
 			// members
@@ -1298,7 +1299,7 @@ public class UnilateralSortMerger implements SortMerger
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
-				long writeMemSize, long readMemSize, AbstractTask parentTask)
+				long writeMemSize, long readMemSize, AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 

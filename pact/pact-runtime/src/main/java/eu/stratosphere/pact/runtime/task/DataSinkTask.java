@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-
+import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
@@ -50,6 +50,8 @@ public class DataSinkTask extends AbstractOutputTask
 {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
 	
+	public static final String SORT_ORDER = "sink.sort.order";
+	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
 
@@ -66,7 +68,7 @@ public class DataSinkTask extends AbstractOutputTask
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
-
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -104,8 +106,13 @@ public class DataSinkTask extends AbstractOutputTask
 				return;
 			}
 
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
 				LOG.debug(getLogString("Starting to produce output"));
+			}
 
 			// open
 			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
@@ -224,6 +231,9 @@ public class DataSinkTask extends AbstractOutputTask
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
 			break;
+		case PARTITION_RANGE:
+			dp = new BipartiteDistributionPattern();
+			break;
 		default:
 			throw new RuntimeException("No valid input ship strategy provided for DataSinkTask.");
 		}
@@ -271,10 +281,15 @@ public class DataSinkTask extends AbstractOutputTask
 					return 1;
 				}
 				// If the path points to a directory we allow an infinity number of subtasks
-				if (f.isDir())
+				if (f.isDir()) {
 					return -1;
-				else
+				}
+				else {
+					// path points to an existing file. delete it, to prevent errors appearing
+					// when overwriting the file (HDFS causes non-deterministic errors there)
+					fs.delete(path, false);
 					return 1;
+				}
 			}
 			catch (FileNotFoundException fnfex) {
 				// The exception is thrown if the requested file/directory does not exist.
