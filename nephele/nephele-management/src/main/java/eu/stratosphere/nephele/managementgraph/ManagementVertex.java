@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointState;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -71,6 +72,11 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 * The type of the instance the vertex represented by this management vertex currently runs on.
 	 */
 	private String instanceType;
+
+	/**
+	 * The current state of the vertex's checkpoint.
+	 */
+	private CheckpointState checkpointState = CheckpointState.NONE;
 
 	/**
 	 * The index of this vertex in the management group vertex it belongs to.
@@ -283,6 +289,25 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	}
 
 	/**
+	 * Sets the checkpoint state of this vertex.
+	 * 
+	 * @param checkpointState
+	 *        the checkpoint state of this vertex
+	 */
+	public void setCheckpointState(final CheckpointState checkpointState) {
+		this.checkpointState = checkpointState;
+	}
+
+	/**
+	 * Returns the checkpoint state of the vertex.
+	 * 
+	 * @return the checkpoint state of the vertex
+	 */
+	public CheckpointState getCheckpointState() {
+		return this.checkpointState;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -306,6 +331,10 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 			final String recordType = StringRecord.readString(in);
 			new ManagementGate(this, i, false, recordType);
 		}
+
+		this.instanceName = StringRecord.readString(in);
+		this.instanceType = StringRecord.readString(in);
+		this.checkpointState = EnumUtils.readEnum(in, CheckpointState.class);
 	}
 
 	/**
@@ -334,5 +363,9 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 			final ManagementGate managementGate = it.next();
 			StringRecord.writeString(out, managementGate.getRecordType());
 		}
+
+		StringRecord.writeString(out, this.instanceName);
+		StringRecord.writeString(out, this.instanceType);
+		EnumUtils.writeEnum(out, this.checkpointState);
 	}
 }
