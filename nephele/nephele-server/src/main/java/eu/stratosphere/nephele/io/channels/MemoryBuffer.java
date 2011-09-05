@@ -19,27 +19,37 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Deque;
+import java.util.Queue;
 
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
 public class MemoryBuffer implements InternalBuffer {
 
+	private final MemoryBufferRecycler bufferRecycler;
+	
 	private final ByteBuffer byteBuffer;
-
+	
 	private volatile boolean writeMode = true;
 
-	private final Deque<ByteBuffer> queueForRecycledBuffers;
-
-	MemoryBuffer(int bufferSize, ByteBuffer byteBuffer, Deque<ByteBuffer> queueForRecycledBuffers) {
-
-		this.queueForRecycledBuffers = queueForRecycledBuffers;
+	MemoryBuffer(int bufferSize, ByteBuffer byteBuffer, Queue<ByteBuffer> queueForRecycledBuffers) {
 
 		if (bufferSize > byteBuffer.capacity()) {
 			throw new IllegalArgumentException("Requested buffer size is " + bufferSize
 				+ ", but provided byte buffer only has a capacity of " + byteBuffer.capacity());
 		}
+		
+		this.bufferRecycler = new MemoryBufferRecycler(byteBuffer, queueForRecycledBuffers);
+		
+		this.byteBuffer = byteBuffer;
+		this.byteBuffer.position(0);
+		this.byteBuffer.limit(bufferSize);
+	}
+	
+	private MemoryBuffer(int bufferSize, ByteBuffer byteBuffer, MemoryBufferRecycler bufferRecycler) {
+		
+		this.bufferRecycler = bufferRecycler;
 
+		
 		this.byteBuffer = byteBuffer;
 		this.byteBuffer.position(0);
 		this.byteBuffer.limit(bufferSize);
@@ -155,14 +165,7 @@ public class MemoryBuffer implements InternalBuffer {
 	@Override
 	public void recycleBuffer() {
 
-		this.byteBuffer.clear();
-
-		synchronized (this.queueForRecycledBuffers) {
-			this.queueForRecycledBuffers.add(this.byteBuffer);
-			this.queueForRecycledBuffers.notify();
-			// System.out.println("Recycled buffer: " + this.queueForRecycledBuffers.size() + " (" +
-			// this.queueForRecycledBuffers.hashCode() + ")");
-		}
+		this.bufferRecycler.decreaseReferenceCounter();
 	}
 
 	@Override
@@ -186,12 +189,38 @@ public class MemoryBuffer implements InternalBuffer {
 	public InternalBuffer duplicate() {
 
 		final MemoryBuffer duplicatedMemoryBuffer = new MemoryBuffer(this.byteBuffer.limit(), this.byteBuffer
-			.duplicate(), this.queueForRecycledBuffers);
+			.duplicate(), this.bufferRecycler);
+		
+		this.bufferRecycler.increaseReferenceCounter();
 
 		duplicatedMemoryBuffer.byteBuffer.position(this.byteBuffer.position());
 		duplicatedMemoryBuffer.byteBuffer.limit(this.byteBuffer.limit());
 		duplicatedMemoryBuffer.writeMode = this.writeMode;
 
 		return duplicatedMemoryBuffer;
+	}
+
+	@Override
+	public void copyToBuffer(Buffer destinationBuffer) throws IOException {
+		
+		final int oldPos = this.byteBuffer.position();
+		this.byteBuffer.position(0);
+		
+		while(remaining() > 0) {
+			destinationBuffer.write(this);
+		}
+		
+		this.byteBuffer.position(oldPos);
+		
+		destinationBuffer.finishWritePhase();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isInWriteMode() {
+		
+		return this.writeMode;
 	}
 }

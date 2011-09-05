@@ -68,13 +68,15 @@ public class InstanceProfiler {
 
 	private long lastTramsmittedBytes = 0;
 
+	private long firstTimestamp;
+
 	public InstanceProfiler(InstanceConnectionInfo instanceConnectionInfo)
 																			throws ProfilingException {
 
 		this.instanceConnectionInfo = instanceConnectionInfo;
-
+		this.firstTimestamp = System.currentTimeMillis();
 		// Initialize counters by calling generateProfilingData once and ignore the return value
-		generateProfilingData(System.currentTimeMillis());
+		generateProfilingData(this.firstTimestamp);
 	}
 
 	InternalInstanceProfilingData generateProfilingData(long timestamp) throws ProfilingException {
@@ -96,10 +98,11 @@ public class InstanceProfiler {
 
 	private void updateMemoryUtilization(InternalInstanceProfilingData profilingData) throws ProfilingException {
 
+		BufferedReader in = null;
+
 		try {
 
-			final FileReader memReader = new FileReader(PROC_MEMINFO);
-			final BufferedReader in = new BufferedReader(memReader);
+			in = new BufferedReader(new FileReader(PROC_MEMINFO));
 
 			long freeMemory = 0;
 			long totalMemory = 0;
@@ -143,6 +146,13 @@ public class InstanceProfiler {
 		} catch (IOException ioe) {
 			throw new ProfilingException("Error while reading network utilization: "
 				+ StringUtils.stringifyException(ioe));
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
+				}
+			}
 		}
 
 	}
@@ -159,9 +169,11 @@ public class InstanceProfiler {
 
 	private void updateNetworkUtilization(InternalInstanceProfilingData profilingData) throws ProfilingException {
 
+		BufferedReader in = null;
+
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader(PROC_NET_DEV));
+			in = new BufferedReader(new FileReader(PROC_NET_DEV));
 
 			long receivedSum = 0;
 			long transmittedSum = 0;
@@ -182,6 +194,7 @@ public class InstanceProfiler {
 			}
 
 			in.close();
+			in = null;
 
 			profilingData.setReceivedBytes(receivedSum - this.lastReceivedBytes);
 			profilingData.setTransmittedBytes(transmittedSum - this.lastTramsmittedBytes);
@@ -196,20 +209,30 @@ public class InstanceProfiler {
 		} catch (NumberFormatException nfe) {
 			throw new ProfilingException("Error while reading network utilization: "
 				+ StringUtils.stringifyException(nfe));
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
+				}
+			}
 		}
 	}
 
 	private void updateCPUUtilization(InternalInstanceProfilingData profilingData) throws ProfilingException {
 
+		BufferedReader in = null;
+
 		try {
 
-			final BufferedReader in = new BufferedReader(new FileReader(PROC_STAT));
+			in = new BufferedReader(new FileReader(PROC_STAT));
 			final String output = in.readLine();
 			if (output == null) {
 				throw new ProfilingException("Cannot read CPU utilization, return value is null");
 			}
 
 			in.close();
+			in = null;
 
 			final Matcher cpuMatcher = CPU_PATTERN.matcher(output);
 			if (!cpuMatcher.matches()) {
@@ -280,7 +303,31 @@ public class InstanceProfiler {
 			throw new ProfilingException("Error while reading CPU utilization: " + StringUtils.stringifyException(ioe));
 		} catch (NumberFormatException nfe) {
 			throw new ProfilingException("Error while reading CPU utilization: " + StringUtils.stringifyException(nfe));
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
+				}
+			}
 		}
 
+	}
+	/**
+	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
+	 * @throws ProfilingException 
+	 */
+	public InternalInstanceProfilingData generateCheckpointProfilingData() throws ProfilingException {
+		final long profilingInterval = System.currentTimeMillis() - this.firstTimestamp;
+
+		final InternalInstanceProfilingData profilingData = new InternalInstanceProfilingData(
+			this.instanceConnectionInfo, (int) profilingInterval);
+
+		updateCPUUtilization(profilingData);
+		updateMemoryUtilization(profilingData);
+		updateNetworkUtilization(profilingData);
+
+
+		return profilingData;
 	}
 }

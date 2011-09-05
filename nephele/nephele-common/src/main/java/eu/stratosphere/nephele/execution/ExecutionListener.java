@@ -54,4 +54,15 @@ public interface ExecutionListener {
 	 *        the user thread which has finished
 	 */
 	void userThreadFinished(Environment ee, Thread userThread);
+
+	/**
+	 * Called when the task has exhausted its initial execution resources (for example its initial memory buffers to
+	 * transmit output records) and requires a decision how to proceed.
+	 * 
+	 * @param ee
+	 *        the environment encapsulating the task which has exhausted its initial execution resources
+	 * @param resourceUtilizationSnapshot
+	 *        a snapshot of the task's current resource utilization
+	 */
+	void initialExecutionResourcesExhausted(Environment ee, ResourceUtilizationSnapshot resourceUtilizationSnapshot);
 }

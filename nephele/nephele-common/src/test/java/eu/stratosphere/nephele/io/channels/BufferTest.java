@@ -119,7 +119,7 @@ public class BufferTest {
 		IntegerRecord record = new IntegerRecord();
 		// Deserialze a Record
 		try {
-			record = intDeserialitionBuffer.readData(readable);
+			record = intDeserialitionBuffer.readData(record, readable);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
@@ -128,7 +128,7 @@ public class BufferTest {
 		assertEquals(i, record.getValue());
 		// File empty, another read should throw IOException
 		try {
-			record = intDeserialitionBuffer.readData(readable);
+			record = intDeserialitionBuffer.readData(record, readable);
 			fail();
 		} catch (IOException e) {
 		}
@@ -174,14 +174,14 @@ public class BufferTest {
 		StringRecord record = new StringRecord();
 		// Deserialize and check record are correct
 		try {
-			record = stringDeserialitionBuffer.readData(readable);
+			record = stringDeserialitionBuffer.readData(record, readable);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
 		}
 		assertEquals(str, record.toString());
 		try {
-			record = stringDeserialitionBuffer.readData(readable);
+			record = stringDeserialitionBuffer.readData(record, readable);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();

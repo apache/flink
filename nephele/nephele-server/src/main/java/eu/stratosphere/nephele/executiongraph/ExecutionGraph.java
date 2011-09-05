@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -38,16 +39,15 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.AbstractJobInputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobEdge;
 import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
@@ -153,11 +153,15 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @throws GraphConversionException
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
-	public ExecutionGraph(JobGraph job, InstanceManager instanceManager)
-																		throws GraphConversionException {
+	public ExecutionGraph(JobGraph job, InstanceManager instanceManager) throws GraphConversionException {
 		this(job.getJobID(), job.getName());
+
 		// Start constructing the new execution graph from given job graph
-		constructExecutionGraph(job, instanceManager);
+		try {
+			constructExecutionGraph(job, instanceManager);
+		} catch (Exception e) {
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
 	}
 
 	/**
@@ -543,8 +547,8 @@ public class ExecutionGraph implements ExecutionListener {
 		try {
 			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
 				groupVertex);
-		} catch (Exception e) {
-			throw new GraphConversionException(StringUtils.stringifyException(e));
+		} catch (Throwable t) {
+			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
 
 		// Run the configuration check the user has provided for the vertex
@@ -590,25 +594,32 @@ public class ExecutionGraph implements ExecutionListener {
 			null));
 
 		// Register input and output vertices separately
-		if (jobVertex instanceof JobInputVertex) {
+		if (jobVertex instanceof AbstractJobInputVertex) {
+
 			final InputSplit[] inputSplits;
-			
+
 			// let the task code compute the input splits
 			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
 				try {
-					inputSplits = ((AbstractInputTask) ev.getEnvironment().getInvokable()).
+					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable()).
 							computeInputSplits(jobVertex.getNumberOfSubtasks());
-				}
-				catch (Exception e) {
-					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName() + ": "
+				} catch (Exception e) {
+					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
+						+ ": "
 							+ StringUtils.stringifyException(e));
 				}
-			}
-			else {
+			} else {
 				throw new GraphConversionException(
 					"BUG: JobInputVertex contained a task class which was not an input task.");
 			}
-			
+
+			if (inputSplits == null) {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated 0 input splits");
+			} else {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated " + inputSplits.length
+					+ " input splits");
+			}
+
 			// assign input splits
 			groupVertex.setInputSplits(inputSplits);
 		}
@@ -911,35 +922,6 @@ public class ExecutionGraph implements ExecutionListener {
 		return (getJobStatus() == InternalJobStatus.FINISHED);
 	}
 
-	public void prepareChannelsForExecution(ExecutionVertex executionVertex) throws ChannelSetupException {
-
-		// Prepare channels
-		for (int k = 0; k < executionVertex.getEnvironment().getNumberOfOutputGates(); k++) {
-			final OutputGate<? extends Record> outputGate = executionVertex.getEnvironment().getOutputGate(k);
-			for (int l = 0; l < outputGate.getNumberOfOutputChannels(); l++) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(l);
-				final AbstractInputChannel<? extends Record> inputChannel = this.inputChannelMap.get(outputChannel
-					.getConnectedChannelID());
-				if (inputChannel == null) {
-					throw new ChannelSetupException("Cannot find input channel to output channel "
-						+ outputChannel.getID());
-				}
-
-				final ExecutionVertex targetVertex = this.channelToVertexMap.get(inputChannel.getID());
-				final AllocatedResource targetResources = targetVertex.getAllocatedResource();
-				if (targetResources == null) {
-					throw new ChannelSetupException("Cannot find allocated resources for target vertex "
-						+ targetVertex.getID() + " in instance map");
-				}
-
-				if (targetResources.getInstance() instanceof DummyInstance) {
-					throw new ChannelSetupException("Allocated instance for " + targetVertex.getID()
-						+ " is a dummy vertex!");
-				}
-			}
-		}
-	}
-
 	/**
 	 * Returns the job ID of the job configuration this execution graph was originally constructed from.
 	 * 
@@ -994,7 +976,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 						// Replace channels
 						final AbstractOutputChannel<? extends Record> newOutputChannel = outputGate.replaceChannel(
-							oldOutputChannel.getID(), ChannelType.INMEMORY);
+							oldOutputChannel.getID(), ChannelType.INMEMORY, false);
 						final AbstractInputChannel<? extends Record> newInputChannel = inputGate.replaceChannel(
 							oldInputChannel.getID(), ChannelType.INMEMORY);
 
@@ -1235,8 +1217,7 @@ public class ExecutionGraph implements ExecutionListener {
 		while (it.hasNext()) {
 
 			final ExecutionState s = it.next().getExecutionState();
-			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.ASSIGNING
-				&& s != ExecutionState.ASSIGNED && s != ExecutionState.READY) {
+			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.READY) {
 				return false;
 			}
 		}
@@ -1480,7 +1461,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(Environment ee, Thread userThread) {
+	public void userThreadFinished(final Environment ee, final Thread userThread) {
 		// Nothing to do here
 	}
 
@@ -1488,7 +1469,16 @@ public class ExecutionGraph implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(Environment ee, Thread userThread) {
+	public void userThreadStarted(final Environment ee, final Thread userThread) {
+		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final Environment ee,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 		// Nothing to do here
 	}
 

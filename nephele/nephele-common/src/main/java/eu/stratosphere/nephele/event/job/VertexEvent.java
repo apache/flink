@@ -81,8 +81,9 @@ public class VertexEvent extends AbstractEvent {
 	 * @param description
 	 *        an optional description
 	 */
-	public VertexEvent(long timestamp, JobVertexID jobVertexID, String jobVertexName, int totalNumberOfSubtasks,
-			int indexOfSubtask, ExecutionState currentExecutionState, String description) {
+	public VertexEvent(final long timestamp, final JobVertexID jobVertexID, final String jobVertexName,
+			final int totalNumberOfSubtasks, final int indexOfSubtask, final ExecutionState currentExecutionState,
+			final String description) {
 		super(timestamp);
 		this.jobVertexID = jobVertexID;
 		this.jobVertexName = jobVertexName;
@@ -112,7 +113,7 @@ public class VertexEvent extends AbstractEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		super.read(in);
 
@@ -128,7 +129,7 @@ public class VertexEvent extends AbstractEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		super.write(out);
 
@@ -210,7 +211,7 @@ public class VertexEvent extends AbstractEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!super.equals(obj)) {
 			return false;

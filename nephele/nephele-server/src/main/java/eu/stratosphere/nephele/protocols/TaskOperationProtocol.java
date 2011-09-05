@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
@@ -24,9 +25,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 
 /**
  * The task submission protocol is implemented by the task manager and allows the job manager
@@ -46,11 +49,26 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *        the job configuration that has been attached to the original job graph
 	 * @param ee
 	 *        the environment containing the task
+	 * @param activeOutputChannels
+	 *        the set of initially active output channels
 	 * @return the result of the task submission
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee)
+	TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee,
+			Set<ChannelID> activeOutputChannels)
+			throws IOException;
+
+	/**
+	 * Submits a list of tasks to the task manager.
+	 * 
+	 * @param tasks
+	 *        the tasks to be submitted
+	 * @return the result of the task submission
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks)
 			throws IOException;
 
 	/**

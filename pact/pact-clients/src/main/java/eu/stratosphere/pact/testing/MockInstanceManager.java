@@ -15,7 +15,9 @@
 
 package eu.stratosphere.pact.testing;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -26,6 +28,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
@@ -61,8 +64,16 @@ class MockInstanceManager implements InstanceManager {
 		return INSTANCE;
 	}
 
-	private final AllocatedResource allocatedResource = new AllocatedResource(
-			new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT, new AllocationID());
+	private final List<AllocatedResource> allocatedResources;
+
+	public MockInstanceManager() {
+
+		final AllocatedResource ar = new AllocatedResource(new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT,
+			new AllocationID());
+
+		this.allocatedResources = new ArrayList<AllocatedResource>(1);
+		this.allocatedResources.add(ar);
+	}
 
 	private InstanceListener instanceListener;
 
@@ -100,9 +111,9 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public void requestInstance(final JobID jobID, final Configuration conf,
-			final InstanceType instanceType) throws InstanceException {
-		this.instanceListener.resourceAllocated(jobID, this.allocatedResource);
+	public void requestInstance(JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
+			List<String> splitAffinityList) throws InstanceException {
+		this.instanceListener.resourcesAllocated(jobID, this.allocatedResources);
 	}
 
 	@Override

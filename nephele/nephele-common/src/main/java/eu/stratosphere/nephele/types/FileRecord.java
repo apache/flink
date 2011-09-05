@@ -33,12 +33,12 @@ public class FileRecord implements Record {
 		fileName = "empty";
 	}
 
-	public FileRecord(String fileName) {
+	public FileRecord(final String fileName) {
 		this.bytes = EMPTY_BYTES;
 		this.fileName = fileName;
 	}
 
-	public void setFileName(String fileName) {
+	public void setFileName(final String fileName) {
 		this.fileName = fileName;
 	}
 
@@ -60,13 +60,14 @@ public class FileRecord implements Record {
 	 * @param len
 	 *        the number of bytes to append
 	 */
-	public void append(byte[] data, int start, int len) {
+	public void append(final byte[] data, final int start, final int len) {
 		final int oldLength = this.bytes.length;
 		setCapacity(this.bytes.length + len, true);
 		System.arraycopy(data, start, this.bytes, oldLength, len);
 	}
 
-	private void setCapacity(int len, boolean keepData) {
+	private void setCapacity(final int len, final boolean keepData) {
+
 		if (this.bytes == null || this.bytes.length < len) {
 			final byte[] newBytes = new byte[len];
 			if (this.bytes != null && keepData) {

@@ -32,13 +32,15 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
  * An execution vertex represents an instance of a task in a Nephele job. An execution vertex
@@ -291,18 +293,6 @@ public class ExecutionVertex {
 	}
 
 	/**
-	 * Prepares the channels of the execution vertex for the upcoming execution on the
-	 * assigned instance.
-	 * 
-	 * @throws ChannelSetupException
-	 *         thrown if an error occurs while setting up the channels
-	 */
-	public void prepareChannels() throws ChannelSetupException {
-
-		this.executionGraph.prepareChannelsForExecution(this);
-	}
-
-	/**
 	 * Returns the number of predecessors, i.e. the number of vertices
 	 * which connect to this vertex.
 	 * 
@@ -393,6 +383,44 @@ public class ExecutionVertex {
 		return this.groupVertex.isOutputVertex();
 	}
 
+	public SerializableHashSet<ChannelID> constructInitialActiveOutputChannelsSet() {
+
+		final SerializableHashSet<ChannelID> activeOutputChannels = new SerializableHashSet<ChannelID>();
+
+		synchronized (this) {
+
+			final int numberOfOutputGates = this.environment.getNumberOfOutputGates();
+			for (int i = 0; i < numberOfOutputGates; ++i) {
+
+				final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
+				final ChannelType channelType = outputGate.getChannelType();
+				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+				for (int j = 0; j < numberOfOutputChannels; ++j) {
+					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					if (channelType == ChannelType.FILE) {
+						continue;
+					}
+					if (channelType == ChannelType.INMEMORY) {
+						activeOutputChannels.add(outputChannel.getID());
+						continue;
+					}
+					if (channelType == ChannelType.NETWORK) {
+
+						final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(outputChannel
+							.getConnectedChannelID());
+						final ExecutionState state = connectedVertex.getExecutionState();
+						if (state == ExecutionState.READY || state == ExecutionState.STARTING
+							|| state == ExecutionState.RUNNING) {
+							activeOutputChannels.add(outputChannel.getID());
+						}
+					}
+				}
+			}
+		}
+
+		return activeOutputChannels;
+	}
+
 	/**
 	 * Deploys and starts the task represented by this vertex
 	 * on the assigned instance.
@@ -411,21 +439,15 @@ public class ExecutionVertex {
 				return result;
 			}
 
-			try {
-				// Prepare channels for execution
-				prepareChannels();
-			} catch (ChannelSetupException e) {
-				final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
-					AbstractTaskResult.ReturnCode.ERROR);
-				result.setDescription(StringUtils.stringifyException(e));
-				return result;
-			}
 			allocatedRes = this.allocatedResource;
 			env = this.environment;
 		}
 
+		final SerializableHashSet<ChannelID> activeOutputChannels = constructInitialActiveOutputChannelsSet();
+
 		try {
-			return allocatedRes.getInstance().submitTask(this.vertexID, this.executionGraph.getJobConfiguration(), env);
+			return allocatedRes.getInstance().submitTask(this.vertexID, this.executionGraph.getJobConfiguration(), env,
+				activeOutputChannels);
 		} catch (IOException e) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
 			result.setDescription(StringUtils.stringifyException(e));

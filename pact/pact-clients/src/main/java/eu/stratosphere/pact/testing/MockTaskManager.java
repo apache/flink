@@ -16,7 +16,9 @@
 package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -28,13 +30,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
-import eu.stratosphere.nephele.io.channels.direct.AbstractDirectInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.AbstractDirectOutputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -43,7 +39,7 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -54,11 +50,6 @@ import eu.stratosphere.nephele.types.Record;
  * @author Arvid Heise
  */
 class MockTaskManager implements TaskOperationProtocol {
-	/**
-	 * The instance of the {@link DirectChannelManager} which is responsible for
-	 * setting up and cleaning up the direct channels of the tasks.
-	 */
-	private final DirectChannelManager directChannelManager;
 
 	private final IOManager ioManager;
 
@@ -71,9 +62,6 @@ class MockTaskManager implements TaskOperationProtocol {
 		final String tmpDirPath = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
 		this.ioManager = new IOManager(tmpDirPath);
-
-		// Initialize the direct channel manager
-		this.directChannelManager = new DirectChannelManager();
 	}
 
 	@Override
@@ -116,27 +104,10 @@ class MockTaskManager implements TaskOperationProtocol {
 	 * 
 	 * @param eig
 	 *        the input gate whose input channels should be registered
-	 * @throws ChannelSetupException
-	 *         thrown if one of the channels could not be set up correctly
 	 */
-	private void registerInputChannels(final InputGate<? extends Record> eig) throws ChannelSetupException {
+	private void registerInputChannels(final InputGate<? extends Record> eig) {
 
-		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
-
-			final AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
-
-			// if (eic instanceof NetworkInputChannel<?>) {
-			// this.networkChannelManager.registerNetworkInputChannel((NetworkInputChannel<? extends Record>) eic);
-			// } else
-			// if (eic instanceof FileInputChannel<?>)
-			// this.fileConnectionManager.registerFileInputChannel((FileInputChannel<? extends Record>) eic);
-			// else
-			if (eic instanceof InMemoryInputChannel<?>)
-				this.directChannelManager
-					.registerDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
-			else
-				throw new ChannelSetupException("Type of input channel " + eic.getType() + " is not supported");
-		}
+		throw new RuntimeException("Type of input channel " + eig.getChannelType() + " is not supported");
 	}
 
 	/**
@@ -144,47 +115,29 @@ class MockTaskManager implements TaskOperationProtocol {
 	 * 
 	 * @param eig
 	 *        the output gate whose input channels should be registered
-	 * @throws ChannelSetupException
-	 *         thrown if one of the channels could not be registered
 	 */
-	private void registerOutputChannels(final OutputGate<? extends Record> eog) throws ChannelSetupException {
+	private void registerOutputChannels(final OutputGate<? extends Record> eog) {
 
-		for (int i = 0; i < eog.getNumberOfOutputChannels(); i++) {
-
-			final AbstractOutputChannel<? extends Record> eoc = eog.getOutputChannel(i);
-			// if (eoc instanceof NetworkOutputChannel<?>) {
-			// this.networkChannelManager.registerNetworkOutputChannel((NetworkOutputChannel<? extends Record>) eoc);
-			// } else
-			// if (eoc instanceof FileOutputChannel<?>)
-			// this.fileConnectionManager.registerFileOutputChannel((FileOutputChannel<? extends Record>) eoc);
-			// else
-			if (eoc instanceof InMemoryOutputChannel<?>)
-				this.directChannelManager
-					.registerDirectOutputChannel((AbstractDirectOutputChannel<? extends Record>) eoc);
-			else
-				throw new ChannelSetupException("Type of output channel " + eoc.getType() + " is not supported");
-		}
+		throw new RuntimeException("Type of output channel " + eog.getChannelType() + " is not supported");
 	}
 
 	private void setupChannels(final ExecutionVertexID id, final Environment ee) {
 		// Check if the task has unbound input/output gates
 		if (ee.hasUnboundInputGates() || ee.hasUnboundOutputGates())
 			TestPlan.fail("Task with ID " + id + " has unbound gates", ee, id);
-		try {
-			// Register input gates
-			for (int i = 0; i < ee.getNumberOfInputGates(); i++)
-				this.registerInputChannels(ee.getInputGate(i));
-			// Register output gates
-			for (int i = 0; i < ee.getNumberOfOutputGates(); i++)
-				this.registerOutputChannels(ee.getOutputGate(i));
-		} catch (final ChannelSetupException e) {
-			TestPlan.fail(e, ee, id);
-		}
+
+		// Register input gates
+		for (int i = 0; i < ee.getNumberOfInputGates(); i++)
+			this.registerInputChannels(ee.getInputGate(i));
+		// Register output gates
+		for (int i = 0; i < ee.getNumberOfOutputGates(); i++)
+			this.registerOutputChannels(ee.getOutputGate(i));
+
 	}
 
 	@Override
 	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment ee) throws IOException {
+			final Environment ee, Set<ChannelID> activeOutputChannels) throws IOException {
 		// Register task manager components in environment
 		ee.setMemoryManager(this.memoryManager);
 		ee.setIOManager(this.ioManager);
@@ -210,4 +163,16 @@ class MockTaskManager implements TaskOperationProtocol {
 	public void logBufferUtilization() throws IOException {
 	}
 
+	@Override
+	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
+
+		final List<TaskSubmissionResult> resultList = new ArrayList<TaskSubmissionResult>();
+
+		for (final TaskSubmissionWrapper tsw : tasks) {
+			resultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment(),
+				tsw.getActiveOutputChannels()));
+		}
+
+		return resultList;
+	}
 }

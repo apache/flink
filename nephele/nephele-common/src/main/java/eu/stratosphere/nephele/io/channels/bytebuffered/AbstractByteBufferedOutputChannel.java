@@ -52,7 +52,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private boolean closeRequested = false;
 
 	/**
-	 * Stores whether the channel has received the acknowledgement
+	 * Stores whether the channel has received the acknowledgment
 	 * for the close request from its connected input channel.
 	 */
 	private boolean closeAcknowledgementReceived = false;
@@ -87,6 +87,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 */
 	private Buffer uncompressedDataBuffer = null;
 
+	/**
+	 * Stores the number of bytes transmitted through this output channel since its instantiation.
+	 */
+	private long amountOfDataTransmitted = 0L;
+
 	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedInputChannel.class);
 
 	/**
@@ -105,20 +110,24 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			CompressionLevel compressionLevel) {
 		super(outputGate, channelIndex, channelID, compressionLevel);
 
-		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel);
+		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel, this);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean isClosed() throws IOException {
+	public boolean isClosed() throws IOException, InterruptedException {
 
 		if (this.closeRequested && this.uncompressedDataBuffer == null
 			&& !this.serializationBuffer.dataLeftFromPreviousSerialization()) {
 
 			if (this.ioException != null) {
 				throw this.ioException;
+			}
+
+			if (this.outputChannelBroker.hasDataLeftToTransmit()) {
+				return false;
 			}
 
 			synchronized (this.synchronisationObject) {
@@ -139,7 +148,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
-			transferEvent(new ByteBufferedChannelCloseEvent());
+
+			if (!isBroadcastChannel() || getChannelIndex() == 0) {
+				transferEvent(new ByteBufferedChannelCloseEvent());
+			}
 		}
 	}
 
@@ -150,9 +162,11 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * This method blocks until the requested number of buffers is available.
 	 * 
 	 * @throws InterruptedException
-	 *         throws if the thread is interrupted while waiting for the buffers
+	 *         thrown if the thread is interrupted while waiting for the buffers
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while waiting for the buffers
 	 */
-	private void requestWriteBuffersFromBroker() throws InterruptedException {
+	private void requestWriteBuffersFromBroker() throws InterruptedException, IOException {
 
 		final BufferPairResponse bufferPair = this.outputChannelBroker.requestEmptyWriteBuffers();
 		this.compressedDataBuffer = bufferPair.getCompressedDataBuffer();
@@ -169,9 +183,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * further processing.
 	 * 
 	 * @throws IOException
-	 *         thrown if an I/O error while releasing the buffers
+	 *         thrown if an I/O error occurs while releasing the buffers
 	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the buffers to be released
+	 *         thrown if the thread is interrupted while releasing the buffers
 	 */
 	private void releaseWriteBuffers() throws IOException, InterruptedException {
 
@@ -179,6 +193,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.outputChannelBroker.transferEventToInputChannel(new CompressionEvent(this.compressor
 				.getCurrentInternalCompressionLibraryIndex()));
 		}
+
+		// Keep track of number of bytes transmitted through this channel
+		this.amountOfDataTransmitted += this.uncompressedDataBuffer.size();
 
 		this.outputChannelBroker.releaseWriteBuffers();
 		this.compressedDataBuffer = null;
@@ -269,6 +286,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 *        the output channel broker the channel should contact to request and release write buffers
 	 */
 	public void setByteBufferedOutputChannelBroker(ByteBufferedOutputChannelBroker byteBufferedOutputChannelBroker) {
+
 		this.outputChannelBroker = byteBufferedOutputChannelBroker;
 	}
 
@@ -395,9 +413,18 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.uncompressedDataBuffer.recycleBuffer();
 			this.uncompressedDataBuffer = null;
 		}
-		
-		if(this.compressor != null) {
-			this.compressor.shutdown();
+
+		if (this.compressor != null) {
+			this.compressor.shutdown(getID());
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long getAmountOfDataTransmitted() {
+
+		return this.amountOfDataTransmitted;
 	}
 }

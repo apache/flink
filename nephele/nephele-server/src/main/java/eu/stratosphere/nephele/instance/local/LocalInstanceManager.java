@@ -16,6 +16,9 @@
 package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -32,6 +35,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
@@ -112,7 +116,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 * @param configDir
 	 *        the path to the configuration directory
 	 */
-	public LocalInstanceManager(String configDir) {
+	public LocalInstanceManager(final String configDir) {
 
 		final Configuration config = GlobalConfiguration.getConfiguration();
 
@@ -152,7 +156,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InstanceType getInstanceTypeByName(String instanceTypeName) {
+	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
 
 		if (this.defaultInstanceType.getIdentifier().equals(instanceTypeName)) {
 			return this.defaultInstanceType;
@@ -165,8 +169,8 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InstanceType getSuitableInstanceType(int minNumComputeUnits, int minNumCPUCores, int minMemorySize,
-			int minDiskCapacity, int maxPricePerHour) {
+	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
+			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
 
 		if (minNumComputeUnits > this.defaultInstanceType.getNumberOfComputeUnits()) {
 			return null;
@@ -195,7 +199,8 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseAllocatedResource(JobID jobID, Configuration conf, AllocatedResource allocatedResource)
+	public void releaseAllocatedResource(final JobID jobID, final Configuration conf,
+			final AllocatedResource allocatedResource)
 			throws InstanceException {
 
 		synchronized (this.synchronizationObject) {
@@ -218,34 +223,8 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType) throws InstanceException {
-
-		boolean assignmentSuccessful = false;
-		AllocatedResource allocatedResource = null;
-		synchronized (this.synchronizationObject) {
-
-			if (this.localInstance != null) { // Instance is available
-				if (this.allocatedResource == null) { // Instance is not used by another job
-					allocatedResource = new AllocatedResource(this.localInstance, instanceType, new AllocationID());
-					this.allocatedResource = allocatedResource;
-					assignmentSuccessful = true;
-				}
-			}
-		}
-
-		if (assignmentSuccessful) {
-			// Spawn a new thread to send the notification
-			new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResource).start();
-		} else {
-			throw new InstanceException("No instance of type " + instanceType + " available");
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription) {
+	public void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
+			final HardwareDescription hardwareDescription) {
 
 		synchronized (this.synchronizationObject) {
 			if (this.localInstance == null) {
@@ -287,7 +266,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkTopology getNetworkTopology(JobID jobID) {
+	public NetworkTopology getNetworkTopology(final JobID jobID) {
 
 		return this.networkTopology;
 	}
@@ -296,7 +275,7 @@ public class LocalInstanceManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setInstanceListener(InstanceListener instanceListener) {
+	public void setInstanceListener(final InstanceListener instanceListener) {
 
 		this.instanceListener = instanceListener;
 	}
@@ -333,5 +312,49 @@ public class LocalInstanceManager implements InstanceManager {
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
 		return this.instanceTypeDescriptionMap;
+	}
+
+	@Override
+	public void requestInstance(final JobID jobID, final Configuration conf, final InstanceRequestMap instanceRequestMap,
+			final List<String> splitAffinityList) throws InstanceException {
+		
+		// TODO: This can be implemented way simpler...
+		// Iterate over all instance types
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
+		while (it.hasNext()) {
+
+			// Iterate over all requested instances of a specific type
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+
+			for (int i = 0; i < entry.getValue().intValue(); i++) {
+
+				boolean assignmentSuccessful = false;
+				AllocatedResource allocatedResource = null;
+				synchronized (this.synchronizationObject) {
+
+					if (this.localInstance != null) { // Instance is available
+						if (this.allocatedResource == null) { // Instance is not used by another job
+							allocatedResource = new AllocatedResource(this.localInstance, entry.getKey(),
+								new AllocationID());
+							this.allocatedResource = allocatedResource;
+							assignmentSuccessful = true;
+						}
+					}
+				}
+
+				final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>(1);
+				allocatedResources.add(this.allocatedResource);
+				
+				if (assignmentSuccessful) {
+					// Spawn a new thread to send the notification
+					new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResources).start();
+				} else {
+					throw new InstanceException("No instance of type " + entry.getKey() + " available");
+				}
+
+			}
+
+		}
+
 	}
 }

@@ -21,6 +21,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
 public class EnvironmentListenerImpl implements ExecutionListener {
@@ -66,7 +67,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(Environment ee, Thread userThread) {
+	public void userThreadFinished(final Environment ee, final Thread userThread) {
 
 		// Make sure the user thread is not the task's main thread
 		if (ee.getExecutingThread() == userThread) {
@@ -80,7 +81,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(Environment ee, Thread userThread) {
+	public void userThreadStarted(final Environment ee, final Thread userThread) {
 
 		// Make sure the user thread is not the task's main thread
 		if (ee.getExecutingThread() == userThread) {
@@ -88,5 +89,14 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		}
 
 		this.taskManagerProfiler.registerUserThreadForCPUProfiling(ee, userThread);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final Environment ee,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+		// Nothing to do here
 	}
 }

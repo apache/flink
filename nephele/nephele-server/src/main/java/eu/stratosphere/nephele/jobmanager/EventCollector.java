@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -98,7 +99,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * @param executionVertexID
 		 *        the ID of the execution vertex this wrapper object belongs to
 		 */
-		public ExecutionListenerWrapper(EventCollector eventCollector, JobVertexID jobVertexID,
+		public ExecutionListenerWrapper(final EventCollector eventCollector, final JobVertexID jobVertexID,
 				ExecutionVertexID executionVertexID) {
 			this.eventCollector = eventCollector;
 			this.jobVertexID = jobVertexID;
@@ -109,7 +110,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void executionStateChanged(Environment ee, ExecutionState newExecutionState, String optionalMessage) {
+		public void executionStateChanged(final Environment ee, final ExecutionState newExecutionState,
+				final String optionalMessage) {
 
 			final long timestamp = System.currentTimeMillis();
 
@@ -130,7 +132,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void userThreadFinished(Environment ee, Thread userThread) {
+		public void userThreadFinished(final Environment ee, final Thread userThread) {
 			// Nothing to do here
 		}
 
@@ -138,7 +140,16 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void userThreadStarted(Environment ee, Thread userThread) {
+		public void userThreadStarted(final Environment ee, final Thread userThread) {
+			// Nothing to do here
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void initialExecutionResourcesExhausted(final Environment ee,
+				final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 			// Nothing to do here
 		}
 	}
@@ -178,7 +189,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * @param isProfilingAvailable
 		 *        <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise
 		 */
-		public JobStatusListenerWrapper(EventCollector eventCollector, String jobName, boolean isProfilingAvailable) {
+		public JobStatusListenerWrapper(final EventCollector eventCollector, final String jobName,
+				final boolean isProfilingAvailable) {
 			this.eventCollector = eventCollector;
 			this.jobName = jobName;
 			this.isProfilingAvailable = isProfilingAvailable;
@@ -188,8 +200,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
-				String optionalMessage) {
+		public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
+				final String optionalMessage) {
 
 			final JobID jobID = executionGraph.getJobID();
 
@@ -237,7 +249,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * @param jobID
 		 *        the ID of the job
 		 */
-		public VertexAssignmentListenerWrapper(EventCollector eventCollector, JobID jobID) {
+		public VertexAssignmentListenerWrapper(final EventCollector eventCollector, final JobID jobID) {
 			this.eventCollector = eventCollector;
 			this.jobID = jobID;
 		}
@@ -246,7 +258,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void vertexAssignmentChanged(ExecutionVertexID id, AllocatedResource newAllocatedResource) {
+		public void vertexAssignmentChanged(final ExecutionVertexID id, final AllocatedResource newAllocatedResource) {
 
 			// Create a new vertex assignment event
 			final ManagementVertexID managementVertexID = id.toManagementVertexID();

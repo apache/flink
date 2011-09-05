@@ -3,7 +3,7 @@
   <parent>
     <groupId>eu.stratosphere</groupId>
     <artifactId>nephele</artifactId>
-    <version>0.1</version>
+    <version>0.2</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
@@ -11,7 +11,7 @@
   <groupId>eu.stratosphere</groupId>
   <artifactId>nephele-clustermanager</artifactId>
   <name>nephele-clustermanager</name>
-  <version>0.1</version>
+  <version>0.2</version>
   <url>http://maven.apache.org</url>
 
    <dependencies>

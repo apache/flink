@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 
 /**
@@ -270,17 +271,18 @@ public class ExecutionStage {
 	 * of the job graph. The required instance types and the number of instances are collected in the given map. Note
 	 * that this method does not clear the map before collecting the instances.
 	 * 
-	 * @param instanceTypeMap
+	 * @param instanceRequestMap
 	 *        the map containing the instances types and the required number of instances of the respective type
 	 * @param executionState
 	 *        the execution state the considered vertices must be in
 	 */
-	public void collectRequiredInstanceTypes(final Map<InstanceType, Integer> instanceTypeMap,
+	public void collectRequiredInstanceTypes(final InstanceRequestMap instanceRequestMap,
 			final ExecutionState executionState) {
 
 		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
 
 		for (int i = 0; i < getNumberOfStageMembers(); i++) {
+
 			final ExecutionGroupVertex groupVertex = getStageMember(i);
 
 			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
@@ -296,14 +298,30 @@ public class ExecutionStage {
 					}
 
 					if (instance instanceof DummyInstance) {
-						Integer num = instanceTypeMap.get(instance.getType());
-						num = (num == null) ? Integer.valueOf(1) : Integer.valueOf(num.intValue() + 1);
-						instanceTypeMap.put(instance.getType(), num);
+
+						final InstanceType instanceType = instance.getType();
+						int num = instanceRequestMap.getMaximumNumberOfInstances(instanceType);
+						++num;
+						instanceRequestMap.setMaximumNumberOfInstances(instanceType, num);
+						if (groupVertex.isInputVertex()) {
+							num = instanceRequestMap.getMinimumNumberOfInstances(instanceType);
+							++num;
+							instanceRequestMap.setMinimumNumberOfInstances(instanceType, num);
+						}
 					} else {
 						LOG.debug("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
 							+ ") is already assigned to non-dummy instance, skipping...");
 					}
 				}
+			}
+		}
+
+		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
+		while (it.hasNext()) {
+
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+			if (instanceRequestMap.getMinimumNumberOfInstances(entry.getKey()) == 0) {
+				instanceRequestMap.setMinimumNumberOfInstances(entry.getKey(), entry.getValue());
 			}
 		}
 	}

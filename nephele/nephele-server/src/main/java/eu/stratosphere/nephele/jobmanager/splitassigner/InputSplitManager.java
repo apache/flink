@@ -132,6 +132,15 @@ public final class InputSplitManager {
 		while (it.hasNext()) {
 
 			final ExecutionGroupVertex groupVertex = it.next();
+			final InputSplit[] inputSplits = groupVertex.getInputSplits();
+
+			if (inputSplits == null) {
+				continue;
+			}
+
+			if (inputSplits.length == 0) {
+				continue;
+			}
 
 			final InputSplitAssigner assigner = this.assignerCache.remove(groupVertex);
 			if (assigner == null) {
@@ -162,7 +171,12 @@ public final class InputSplitManager {
 			return null;
 		}
 
-		return inputSplitAssigner.getNextInputSplit(vertex);
+		final InputSplit nextInputSplit = inputSplitAssigner.getNextInputSplit(vertex);
+		if (nextInputSplit != null) {
+			LOG.info(vertex + " receives input split " + nextInputSplit.getSplitNumber());
+		}
+
+		return nextInputSplit;
 	}
 
 	/**

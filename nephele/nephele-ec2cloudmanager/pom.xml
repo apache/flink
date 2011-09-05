@@ -7,7 +7,7 @@
     <parent>
         <artifactId>nephele</artifactId>
         <groupId>eu.stratosphere</groupId>
-        <version>0.1</version>
+        <version>0.2</version>
     </parent>
 
     <groupId>eu.stratosphere</groupId>
@@ -15,7 +15,7 @@
     <name>nephele-ec2cloudmanager</name>
     <packaging>jar</packaging>
 
-    <version>0.1</version>
+    <version>0.2</version>
     
     <dependencies>
       <dependency>
@@ -36,12 +36,13 @@
          <version>3.0</version>
       </dependency>
         
-      <dependency>
-        <groupId>com.google.code.typica</groupId>
-        <artifactId>typica</artifactId>
-        <version>1.6</version>
-      </dependency>
     	
+      <dependency>
+	    <groupId>com.amazonaws</groupId>
+	    <artifactId>aws-java-sdk</artifactId>
+	    <version>1.2.1</version>
+	</dependency>
+	
     </dependencies>
     
     <build>

@@ -15,14 +15,16 @@
 
 package eu.stratosphere.nephele.io.compression.library.zlib;
 
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.util.NativeCodeLoader;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class ZlibLibrary implements CompressionLibrary {
+public class ZlibLibrary extends AbstractCompressionLibrary {
 
 	/**
 	 * The file name of the native zlib library.
@@ -45,18 +47,6 @@ public class ZlibLibrary implements CompressionLibrary {
 	}
 
 	@Override
-	public Compressor getCompressor() throws CompressionException {
-
-		return new ZlibCompressor();
-	}
-
-	@Override
-	public Decompressor getDecompressor() throws CompressionException {
-
-		return new ZlibDecompressor();
-	}
-
-	@Override
 	public int getUncompressedBufferSize(int compressedBufferSize) {
 
 		return ((compressedBufferSize - 6) / 2501) * 2500;
@@ -67,5 +57,19 @@ public class ZlibLibrary implements CompressionLibrary {
 	@Override
 	public String getLibraryName() {
 		return "ZLIB";
+	}
+
+	@Override
+	protected Compressor initNewCompressor(AbstractByteBufferedOutputChannel<?> outputChannel)
+			throws CompressionException {
+
+		return new ZlibCompressor(this);
+	}
+
+	@Override
+	protected Decompressor initNewDecompressor(AbstractByteBufferedInputChannel<?> inputChannel)
+			throws CompressionException {
+
+		return new ZlibDecompressor(this);
 	}
 }

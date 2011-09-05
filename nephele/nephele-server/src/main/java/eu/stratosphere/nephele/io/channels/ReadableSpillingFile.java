@@ -26,15 +26,13 @@ public final class ReadableSpillingFile {
 
 	private final File physicalFile;
 
-	private final long fileSize;
-
-	private long lastPosition = 0;
-
 	private final FileChannel readableFileChannel;
 
-	public ReadableSpillingFile(final File physicalFile) throws IOException {
+	private int numberOfBuffers;
+	
+	public ReadableSpillingFile(final File physicalFile, int numberOfBuffers) throws IOException {
 		this.physicalFile = physicalFile;
-		this.fileSize = physicalFile.length();
+		this.numberOfBuffers = numberOfBuffers;
 		this.readableFileChannel = new FileInputStream(this.physicalFile).getChannel();
 	}
 
@@ -47,24 +45,13 @@ public final class ReadableSpillingFile {
 		return this.physicalFile;
 	}
 
-	public synchronized FileChannel lockReadableFileChannel()
-			throws InterruptedException {
+	public synchronized FileChannel lockReadableFileChannel() {
 
-		while (this.readableChannelLocked) {
-
-			this.wait();
+		if (this.readableChannelLocked) {
+			return null;
 		}
 
 		this.readableChannelLocked = true;
-
-		/*
-		 * try {
-		 * System.out.println("---- Locking read channel at position " + this.readableFileChannel.position() + " for " +
-		 * sourceChannelID);
-		 * } catch(IOException ioe) {
-		 * ioe.printStackTrace();
-		 * }
-		 */
 
 		return this.readableFileChannel;
 	}
@@ -74,22 +61,16 @@ public final class ReadableSpillingFile {
 		if (!this.readableChannelLocked) {
 			return;
 		}
-
+		
 		this.readableChannelLocked = false;
 		this.notify();
-
-		if (this.readableFileChannel.position() < this.lastPosition) {
-			System.out.println("READ Invalid position " + this.readableFileChannel.position() + ", last was"
-				+ this.lastPosition);
-		}
-		this.lastPosition = this.readableFileChannel.position();
-		// System.out.println("---- Unlocking read channel at position " + this.lastPosition + " for " +
-		// sourceChannelID);
 	}
 
 	public synchronized boolean checkForEndOfFile() throws IOException {
 
-		if (this.readableFileChannel.position() >= this.fileSize) {
+		--this.numberOfBuffers;
+		
+		if (this.numberOfBuffers == 0) {
 			// Close the file
 			this.readableFileChannel.close();
 
@@ -100,4 +81,8 @@ public final class ReadableSpillingFile {
 		return false;
 	}
 
+	public synchronized void increaseNumberOfBuffers() {
+		
+		++this.numberOfBuffers;
+	}
 }
