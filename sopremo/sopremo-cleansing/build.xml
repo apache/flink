@@ -31,4 +31,8 @@
 		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem07:~/strat/lib" trust="true" />
 		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem08:~/strat/lib" trust="true" />
 	</target>
+
+	<target name="deploy-on-stratosphere2" depends="make-jar" description="copy JAR to stratosphere server">
+		<scp file="${project.name}.jar" todir="localhost:1337@tenemhead2:~/strat/lib" trust="true" />
+	</target>
 </project>
