@@ -19,21 +19,17 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
+@Ignore
 public class CsvInputFormatTest {
 	/**
 	 * Tests if a {@link TestPlan} can be executed.
 	 * 
 	 * @throws IOException
 	 */
-	@Ignore
+	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			CsvInputFormat.class, this.getResource("SopremoTestPlan/marriage_union_type.csv"), "Input");
-
-		 //testing a bigger csv to watch the output
-		 final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> write = new
-		 FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
-		 JsonOutputFormat.class, "file:///home/strato/Dokumente/marriage_union.json", read, "Output");
+			CsvInputFormat.class, this.getResource("SopremoTestPlan/restaurant_short.csv"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
@@ -42,8 +38,8 @@ public class CsvInputFormatTest {
 		final FileDataSinkContract<Key, Value> output = this.createOutput(map,
 			SequentialOutputFormat.class);
 
-		final TestPlan testPlan = new TestPlan(write); // write
-		testPlan.getExpectedOutput(write).fromFile(JsonInputFormat.class,// write
+		final TestPlan testPlan = new TestPlan(output); // write
+		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class,// write
 			this.getResource("SopremoTestPlan/restaurant_short.json"));
 		testPlan.run();
 	}

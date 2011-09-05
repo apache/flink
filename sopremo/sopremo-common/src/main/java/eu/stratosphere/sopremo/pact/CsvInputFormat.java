@@ -30,8 +30,6 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 
 	private String[] keyNames;
 
-//	private boolean end = false;
-
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
@@ -46,21 +44,6 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 		return new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL,
 			new PactJsonObject());
 	}
-
-	//
-	// @Override
-	// public boolean nextRecord(KeyValuePair<Key, PactJsonObject> record) throws IOException {
-	// if (!this.end) {
-	// if (this.reader.readRecord()) {
-	// record.getValue().setValue(this.parseCurrentLine());
-	// return true;
-	// }
-	//
-	// this.end = true;
-	// }
-	//
-	// return false;
-	// }
 
 	@Override
 	public void open(FileInputSplit split) throws IOException {
