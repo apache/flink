@@ -59,7 +59,8 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the environment of this task or <code>null</code> if the environment has not yet been set
 	 */
-	public final Environment getEnvironment() {
+	//TODO: This method should be final
+	public Environment getEnvironment() {
 		return this.environment;
 	}
 	
