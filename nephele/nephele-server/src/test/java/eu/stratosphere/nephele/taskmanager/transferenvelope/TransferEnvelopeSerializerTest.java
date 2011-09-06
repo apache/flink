@@ -238,16 +238,20 @@ public class TransferEnvelopeSerializerTest {
 	 */
 	private void readAndCheckNotificationList(FileInputStream fileInputStream) throws IOException {
 
-		byte[] temp = new byte[SIZE_OF_INTEGER];
-		fileInputStream.read(temp);
-		final int sizeOfDataBlock = bufferToInteger(temp);
+		if (fileInputStream.read() != 0) {
 
-		assertEquals(SIZE_OF_INTEGER, sizeOfDataBlock);
+			byte[] temp = new byte[SIZE_OF_INTEGER];
 
-		fileInputStream.read(temp);
-		final int sizeOfNotificationList = bufferToInteger(temp);
+			fileInputStream.read(temp);
+			final int sizeOfDataBlock = bufferToInteger(temp);
 
-		assertEquals(0, sizeOfNotificationList);
+			assertEquals(SIZE_OF_INTEGER, sizeOfDataBlock);
+
+			fileInputStream.read(temp);
+			final int sizeOfNotificationList = bufferToInteger(temp);
+
+			assertEquals(0, sizeOfNotificationList);
+		}
 	}
 
 	/**
