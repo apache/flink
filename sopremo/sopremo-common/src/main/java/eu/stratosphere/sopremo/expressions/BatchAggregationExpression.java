@@ -85,4 +85,34 @@ public class BatchAggregationExpression extends EvaluationExpression {
 			return BatchAggregationExpression.this.evaluate(node, context).get(this.index);
 		}
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((partials == null) ? 0 : partials.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		BatchAggregationExpression other = (BatchAggregationExpression) obj;
+		if (partials == null) {
+			if (other.partials != null)
+				return false;
+		} else if (!partials.equals(other.partials))
+			return false;
+		return true;
+	}
+
+	@Override
+	protected void toString(StringBuilder builder) {
+		builder.append("batch");
+	}
 }
