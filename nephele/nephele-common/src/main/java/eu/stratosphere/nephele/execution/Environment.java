@@ -18,8 +18,8 @@ package eu.stratosphere.nephele.execution;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -43,10 +43,11 @@ import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * In Nephele every task runs inside an <code>Environment</code> object. At the beginning of a task
- * execution the corresponding environment object is sent the responsible task manager and is registered
- * there. The <code>Environment</code> object takes care of the correct initialization of a task and spans
- * the thread that executes the actual task program.
+ * The user code of every Nephele task runs inside an <code>Environment</code> object. The environment provides
+ * important services to the task. It keeps track of setting up the communication channels and provides access to input
+ * splits, memory manager, etc.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -65,22 +66,22 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * List of output gates created by the task.
 	 */
-	private final List<OutputGate<? extends Record>> outputGates = new ArrayList<OutputGate<? extends Record>>();
+	private final List<OutputGate<? extends Record>> outputGates = new CopyOnWriteArrayList<OutputGate<? extends Record>>();
 
 	/**
 	 * List of input gates created by the task.
 	 */
-	private final List<InputGate<? extends Record>> inputGates = new ArrayList<InputGate<? extends Record>>();
+	private final List<InputGate<? extends Record>> inputGates = new CopyOnWriteArrayList<InputGate<? extends Record>>();
 
 	/**
 	 * List of output gates which have to be rebound to a task after transferring the environment to a TaskManager.
 	 */
-	private final List<OutputGate<? extends Record>> unboundOutputGates = new ArrayList<OutputGate<? extends Record>>();
+	private final List<OutputGate<? extends Record>> unboundOutputGates = new CopyOnWriteArrayList<OutputGate<? extends Record>>();
 
 	/**
 	 * List of input gates which have to be rebound to a task after transferring the environment to a TaskManager.
 	 */
-	private final List<InputGate<? extends Record>> unboundInputGates = new ArrayList<InputGate<? extends Record>>();
+	private final List<InputGate<? extends Record>> unboundInputGates = new CopyOnWriteArrayList<InputGate<? extends Record>>();
 
 	/**
 	 * The memory manager of the current environment (currently the one associated with the executing TaskManager).
@@ -95,27 +96,27 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * Class of the task to run in this environment.
 	 */
-	private Class<? extends AbstractInvokable> invokableClass = null;
+	private volatile Class<? extends AbstractInvokable> invokableClass = null;
 
 	/**
 	 * Instance of the class to be run in this environment.
 	 */
-	private AbstractInvokable invokable = null;
+	private volatile AbstractInvokable invokable = null;
 
 	/**
 	 * The thread executing the task in the environment.
 	 */
-	private Thread executingThread = null;
+	private volatile Thread executingThread = null;
 
 	/**
 	 * The ID of the job this task belongs to.
 	 */
-	private JobID jobID = null;
+	private volatile JobID jobID = null;
 
 	/**
 	 * The runtime configuration of the task encapsulated in the environment object.
 	 */
-	private Configuration runtimeConfiguration = null;
+	private volatile Configuration runtimeConfiguration = null;
 
 	/**
 	 * The input split provider that can be queried for new input splits.
@@ -130,17 +131,17 @@ public class Environment implements Runnable, IOReadableWritable {
 	/**
 	 * The current number of subtasks the respective task is split into.
 	 */
-	private int currentNumberOfSubtasks = 1;
+	private volatile int currentNumberOfSubtasks = 1;
 
 	/**
 	 * The index of this subtask in the subtask group.
 	 */
-	private int indexInSubtaskGroup = 0;
+	private volatile int indexInSubtaskGroup = 0;
 
 	/**
 	 * The name of the task running in this environment.
 	 */
-	private String taskName;
+	private volatile String taskName;
 
 	/**
 	 * Creates a new environment object which contains the runtime information for the encapsulated Nephele task.
@@ -218,7 +219,9 @@ public class Environment implements Runnable, IOReadableWritable {
 	public OutputGate<? extends Record> getUnboundOutputGate(final int gateID) {
 
 		if (this.unboundOutputGates.size() == 0) {
-			LOG.debug("No unbound output gates");
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("No unbound output gates");
+			}
 			return null;
 		}
 		return this.unboundOutputGates.remove(gateID);
@@ -234,7 +237,9 @@ public class Environment implements Runnable, IOReadableWritable {
 	public InputGate<? extends Record> getUnboundInputGate(final int gateID) {
 
 		if (this.unboundInputGates.size() == 0) {
-			LOG.debug("No unbound input gates");
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("No unbound input gates");
+			}
 			return null;
 		}
 
@@ -251,17 +256,21 @@ public class Environment implements Runnable, IOReadableWritable {
 	 */
 	public void instantiateInvokable() throws Exception {
 
-		if (this.invokableClass == null) {
-			LOG.fatal("InvokableClass is null");
-			return;
-		}
+		// Test and set, protected by synchronized block
+		synchronized (this) {
 
-		try {
-			this.invokable = this.invokableClass.newInstance();
-		} catch (InstantiationException e) {
-			LOG.error(e);
-		} catch (IllegalAccessException e) {
-			LOG.error(e);
+			if (this.invokableClass == null) {
+				LOG.fatal("InvokableClass is null");
+				return;
+			}
+
+			try {
+				this.invokable = this.invokableClass.newInstance();
+			} catch (InstantiationException e) {
+				LOG.error(e);
+			} catch (IllegalAccessException e) {
+				LOG.error(e);
+			}
 		}
 
 		this.invokable.setEnvironment(this);
@@ -389,7 +398,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 *        the output gate to be registered with the environment
 	 */
 	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
-		LOG.debug("Registering output gate");
+		
 		this.outputGates.add(outputGate);
 	}
 
@@ -400,7 +409,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 *        the input gate to be registered with the environment
 	 */
 	public void registerInputGate(final InputGate<? extends Record> inputGate) {
-		LOG.debug("Registering input gate");
+		
 		this.inputGates.add(inputGate);
 	}
 

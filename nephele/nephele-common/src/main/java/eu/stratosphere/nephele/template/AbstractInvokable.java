@@ -28,7 +28,7 @@ public abstract class AbstractInvokable {
 	/**
 	 * The environment assigned to this invokable.
 	 */
-	private Environment environment = null;
+	private volatile Environment environment = null;
 
 	/**
 	 * Must be overwritten by the concrete task to instantiate the required record reader and record writer.
@@ -50,7 +50,7 @@ public abstract class AbstractInvokable {
 	 * @param environment
 	 *        the environment of this task
 	 */
-	public final void setEnvironment(Environment environment) {
+	public final void setEnvironment(final Environment environment) {
 		this.environment = environment;
 	}
 
@@ -59,11 +59,10 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the environment of this task or <code>null</code> if the environment has not yet been set
 	 */
-	//TODO: This method should be final
-	public Environment getEnvironment() {
+	public final Environment getEnvironment() {
 		return this.environment;
 	}
-
+	
 	/**
 	 * Overwrite this method to implement task specific checks if the
 	 * respective task has been configured properly.
