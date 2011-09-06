@@ -857,12 +857,12 @@ public class ExecutionGraphTest {
 				true, true);
 			while (it.hasNext()) {
 				final ExecutionVertex ev = it.next();
-				ev.setExecutionState(ExecutionState.SCHEDULED);
-				ev.setExecutionState(ExecutionState.READY);
-				ev.setExecutionState(ExecutionState.STARTING);
-				ev.setExecutionState(ExecutionState.RUNNING);
-				ev.setExecutionState(ExecutionState.FINISHING);
-				ev.setExecutionState(ExecutionState.FINISHED);
+				ev.updateExecutionState(ExecutionState.SCHEDULED);
+				ev.updateExecutionState(ExecutionState.READY);
+				ev.updateExecutionState(ExecutionState.STARTING);
+				ev.updateExecutionState(ExecutionState.RUNNING);
+				ev.updateExecutionState(ExecutionState.FINISHING);
+				ev.updateExecutionState(ExecutionState.FINISHED);
 			}
 			instanceRequestMap.clear();
 			executionStage = eg.getCurrentExecutionStage();

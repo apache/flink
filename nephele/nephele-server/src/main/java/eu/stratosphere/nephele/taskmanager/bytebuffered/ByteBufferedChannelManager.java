@@ -44,6 +44,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInpu
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
@@ -114,17 +115,16 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	/**
 	 * Registers the given task with the byte buffered channel manager.
 	 * 
-	 * @param vertexID
-	 *        the ID of the task to be registered
-	 * @param environment
-	 *        the environment of the task
+	 * @param task
+	 *        the task to be registered
 	 * @param the
 	 *        set of output channels which are initially active
 	 */
-	public void register(final ExecutionVertexID vertexID, final Environment environment,
-			final Set<ChannelID> activeOutputChannels) {
+	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
 
-		final TaskContext taskContext = new TaskContext(vertexID, environment, this);
+		final Environment environment = task.getEnvironment();
+		
+		final TaskContext taskContext = new TaskContext(task, this);
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
@@ -195,7 +195,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			this.localBufferPoolOwner.put(inputGate.getGateID(), inputGateContext);
 		}
 
-		this.localBufferPoolOwner.put(vertexID, taskContext);
+		this.localBufferPoolOwner.put(task.getVertexID(), taskContext);
 
 		redistributeGlobalBuffers();
 	}
@@ -205,11 +205,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * 
 	 * @param vertexID
 	 *        the ID of the task to be unregistered
-	 * @param environment
-	 *        the environment of the task
+	 * @param task the task to be unregistered
 	 */
-	public void unregister(final ExecutionVertexID vertexID, final Environment environment) {
+	public void unregister(final ExecutionVertexID vertexID, final Task task) {
 
+		final Environment environment = task.getEnvironment();
+		
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {

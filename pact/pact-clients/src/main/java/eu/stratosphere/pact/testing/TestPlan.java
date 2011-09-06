@@ -146,29 +146,40 @@ public class TestPlan implements Closeable, DeploymentManager {
 		}
 
 		@Override
-		public void executionStateChanged(final Environment ee,
+		public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
 				final ExecutionState newExecutionState,
-				final String optionalMessage) {
+				String optionalMessage) {
 			if (newExecutionState == ExecutionState.FAILED) {
 				TestPlan.this.erroneousVertex = this.executionVertex;
 				TestPlan.this.executionError = optionalMessage;
 			}
+
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
-		public void userThreadFinished(final Environment ee,
-				final Thread userThread) {
+		public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
+
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
-		public void userThreadStarted(final Environment ee,
-				final Thread userThread) {
+		public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
+
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
-		public void initialExecutionResourcesExhausted(final Environment ee,
+		public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
 				final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 		}
+
 	}
 
 	private final Map<FileDataSinkContract<?, ?>, TestPairs<?, ?>> actualOutputs = new IdentityHashMap<FileDataSinkContract<?, ?>, TestPairs<?, ?>>();
@@ -839,8 +850,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 
 			final ExecutionVertex executionVertex = it.next();
 
-			executionVertex.getEnvironment().registerExecutionListener(
-				new ExecutionExceptionHandler(executionVertex));
+			executionVertex.registerExecutionListener(new ExecutionExceptionHandler(executionVertex));
 
 			final TaskSubmissionResult submissionResult = executionVertex
 				.startTask();
@@ -853,7 +863,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	@Override
 	public void replayCheckpoints(JobID jobID, AbstractInstance instance, List<ExecutionVertexID> vertexIDs) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 }

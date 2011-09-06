@@ -188,7 +188,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 				final ExecutionVertex vertex = it2.next();
 				if (vertex.getExecutionState() == ExecutionState.CREATED) {
-					vertex.setExecutionState(ExecutionState.SCHEDULED);
+					vertex.updateExecutionState(ExecutionState.SCHEDULED);
 				}
 			}
 		}
@@ -213,7 +213,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				verticesToBeDeployed.put(instance, verticesForInstance);
 			}
 
-			vertex.setExecutionState(ExecutionState.READY);
+			vertex.updateExecutionState(ExecutionState.READY);
 			verticesForInstance.add(vertex);
 		}
 
@@ -377,7 +377,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 					final ExecutionVertex vertex = it.next();
 					if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
 						vertex.setAllocatedResource(allocatedResource);
-						vertex.setExecutionState(ExecutionState.ASSIGNED);
+						vertex.updateExecutionState(ExecutionState.ASSIGNED);
 					}
 				}
 			}

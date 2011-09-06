@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -101,7 +101,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 * is stored inside this map and its thread status is TERMINATED, this indicates a virtual machine error.
 	 * As a result, task status will switch to FAILED and reported to the {@link JobManager}.
 	 */
-	private final Map<ExecutionVertexID, Environment> runningTasks = new HashMap<ExecutionVertexID, Environment>();
+	private final Map<ExecutionVertexID, Task> runningTasks = new HashMap<ExecutionVertexID, Task>();
 
 	private final InstanceConnectionInfo localInstanceConnectionInfo;
 
@@ -383,23 +383,23 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException {
+	public TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
 		// Check if the task is registered with our task manager
-		Environment tmpEnvironment;
+		Task tmpTask;
 
 		synchronized (this.runningTasks) {
 
-			tmpEnvironment = this.runningTasks.get(id);
+			tmpTask = this.runningTasks.get(id);
 
-			if (tmpEnvironment == null) {
+			if (tmpTask == null) {
 				final TaskCancelResult taskCancelResult = new TaskCancelResult(id, AbstractTaskResult.ReturnCode.ERROR);
 				taskCancelResult.setDescription("No task with ID + " + id + " is currently running");
 				return taskCancelResult;
 			}
 		}
 
-		final Environment environment = tmpEnvironment;
+		final Task task = tmpTask;
 		// Execute call in a new thread so IPC thread can return immediately
 		final Thread tmpThread = new Thread(new Runnable() {
 
@@ -407,7 +407,7 @@ public class TaskManager implements TaskOperationProtocol {
 			public void run() {
 
 				// Finally, request user code to cancel
-				environment.cancelExecution();
+				task.cancelExecution();
 			}
 		});
 		tmpThread.start();
@@ -430,8 +430,12 @@ public class TaskManager implements TaskOperationProtocol {
 		// Register a new task input split provider
 		ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
 
+		// Create task object and register it with the environment
+		final Task task = new Task(id, ee, this);
+		ee.setExecutionObserver(task);
+
 		// Register the task
-		TaskSubmissionResult result = registerTask(id, jobConfiguration, ee, activeOutputChannels);
+		TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
 		if (result != null) { // If result is non-null, an error occurred during task registration
 			return result;
 		}
@@ -440,7 +444,7 @@ public class TaskManager implements TaskOperationProtocol {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Starting execution of task with ID " + id);
 		}
-		ee.startExecution();
+		task.startExecution();
 
 		return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
 	}
@@ -452,6 +456,7 @@ public class TaskManager implements TaskOperationProtocol {
 	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
 
 		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
+		final List<Task> tasksToStart = new ArrayList<Task>();
 
 		// Make sure all tasks are fully registered before they are started
 		for (final TaskSubmissionWrapper tsw : tasks) {
@@ -468,26 +473,24 @@ public class TaskManager implements TaskOperationProtocol {
 			// Register a new task input split provider
 			ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
 
+			// Create task object and register it with the environment
+			final Task task = new Task(id, ee, this);
+			ee.setExecutionObserver(task);
+
 			// Register the task
-			TaskSubmissionResult result = registerTask(id, jobConfiguration, ee, activeOutputChannels);
+			TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
 			if (result != null) { // If result is non-null, an error occurred during task registration
 				submissionResultList.add(result);
 			} else {
 				submissionResultList.add(new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS));
 			}
+
+			tasksToStart.add(task);
 		}
 
 		// Now start the tasks
-		for (final TaskSubmissionWrapper tsw : tasks) {
-
-			final Environment ee = tsw.getEnvironment();
-			final ExecutionVertexID id = tsw.getVertexID();
-
-			// Start execution
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Starting execution of task with ID " + id);
-			}
-			ee.startExecution();
+		for (final Task task : tasksToStart) {
+			task.startExecution();
 		}
 
 		return submissionResultList;
@@ -500,30 +503,22 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the ID of the task to register
 	 * @param jobConfiguration
 	 *        the job configuration that has been attached to the original job graph
-	 * @param ee
-	 *        the environment of the task to register
+	 * @param task
+	 *        the task to register
 	 * @param activeOutputChannels
 	 *        the set of initially active output channels
 	 * @return <code>null</code> if the registration has been successful or a {@link TaskSubmissionResult} containing
 	 *         the error that occurred
 	 */
 	private TaskSubmissionResult registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment ee, final Set<ChannelID> activeOutputChannels) {
+			final Task task, final Set<ChannelID> activeOutputChannels) {
 
-		// Check if incoming task has an ID
 		if (id == null) {
-			LOG.debug("Incoming task has no ID");
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription("Incoming task has no ID");
-			return result;
+			throw new IllegalArgumentException("Argument id is null");
 		}
 
-		// Check if the received environment is not null
-		if (ee == null) {
-			LOG.debug("Incoming environment is null");
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription("Incoming task with ID " + id + " has no environment");
-			return result;
+		if (task == null) {
+			throw new IllegalArgumentException("Argument task is null");
 		}
 
 		// Check if the task is already running
@@ -536,6 +531,8 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 
+		final Environment ee = task.getEnvironment();
+
 		// Check if the task has unbound input/output gates
 		if (ee.hasUnboundInputGates() || ee.hasUnboundOutputGates()) {
 			LOG.debug("Task with ID " + id + " has unbound gates");
@@ -544,12 +541,8 @@ public class TaskManager implements TaskOperationProtocol {
 			return result;
 		}
 
-		// Create wrapper object and register it as an observer
-		final EnvironmentWrapper wrapper = new EnvironmentWrapper(this, id, ee);
-		ee.registerExecutionListener(wrapper);
-
 		// Register the task with the byte buffered channel manager
-		this.byteBufferedChannelManager.register(id, ee, activeOutputChannels);
+		this.byteBufferedChannelManager.register(task, activeOutputChannels);
 
 		boolean enableProfiling = false;
 		if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
@@ -559,7 +552,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// Register environment, input, and output gates for profiling
 		if (enableProfiling) {
 
-			this.profiler.registerExecutionListener(id, jobConfiguration, ee);
+			this.profiler.registerExecutionListener(task, jobConfiguration);
 
 			for (int i = 0; i < ee.getNumberOfInputGates(); i++) {
 				this.profiler.registerInputGateListener(id, jobConfiguration, ee.getInputGate(i));
@@ -619,13 +612,13 @@ public class TaskManager implements TaskOperationProtocol {
 	 * 
 	 * @param id
 	 *        the ID of the task to be unregistered
-	 * @param environment
-	 *        the {@link Environment} of the task to be unregistered
+	 * @param task
+	 *        the {@link Task} to be unregistered
 	 */
-	private void unregisterTask(ExecutionVertexID id, Environment environment) {
+	private void unregisterTask(final ExecutionVertexID id, final Task task) {
 
 		// Unregister task from the byte buffered channel manager
-		this.byteBufferedChannelManager.unregister(id, environment);
+		this.byteBufferedChannelManager.unregister(id, task);
 
 		// Unregister task from profiling
 		if (this.profiler != null) {
@@ -636,16 +629,16 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Unregister task from memory manager
 		if (this.memoryManager != null) {
-			this.memoryManager.releaseAll(environment.getInvokable());
+			this.memoryManager.releaseAll(task.getEnvironment().getInvokable());
 		}
 
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
-			final Iterator<Environment> iterator = this.runningTasks.values().iterator();
+			final Iterator<Task> iterator = this.runningTasks.values().iterator();
 			while (iterator.hasNext()) {
-				final Environment candidateEnvironment = iterator.next();
-				if (environment.getJobID().equals(candidateEnvironment.getJobID())) {
+				final Task candidateTask = iterator.next();
+				if (task.getJobID().equals(candidateTask.getJobID())) {
 					numberOfVerticesBelongingToThisJob++;
 				}
 			}
@@ -654,7 +647,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// If there are no other vertices belonging to the same job, we can unregister the job's class loader
 		if (numberOfVerticesBelongingToThisJob == 0) {
 			try {
-				LibraryCacheManager.unregister(environment.getJobID());
+				LibraryCacheManager.unregister(task.getJobID());
 			} catch (IOException e) {
 				LOG.debug("Unregistering the job vertex ID " + id + " caused an IOException");
 			}
@@ -689,13 +682,13 @@ public class TaskManager implements TaskOperationProtocol {
 		// Nothing to to here
 	}
 
-	void executionStateChanged(JobID jobID, ExecutionVertexID id, Environment environment,
-			ExecutionState newExecutionState, String optionalDescription) {
+	void executionStateChanged(final JobID jobID, final ExecutionVertexID id, final Task task,
+			final ExecutionState newExecutionState, final String optionalDescription) {
 
 		if (newExecutionState == ExecutionState.RUNNING) {
 			// Mark task as running by putting it in the corresponding map
 			synchronized (this.runningTasks) {
-				this.runningTasks.put(id, environment);
+				this.runningTasks.put(id, task);
 			}
 		}
 
@@ -709,7 +702,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 
 			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...
-			unregisterTask(id, environment);
+			unregisterTask(id, task);
 		}
 
 		// Get lock on the jobManager object and propagate the state change
@@ -801,27 +794,27 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private void checkTaskExecution() {
 
-		final List<Environment> crashEnvironments = new LinkedList<Environment>();
+		final List<Task> failedTasks = new ArrayList<Task>();
 
 		synchronized (this.runningTasks) {
 
 			final Iterator<ExecutionVertexID> it = this.runningTasks.keySet().iterator();
 			while (it.hasNext()) {
 				final ExecutionVertexID executionVertexID = it.next();
-				final Environment environment = this.runningTasks.get(executionVertexID);
+				final Task task = this.runningTasks.get(executionVertexID);
 
-				if (environment.getExecutingThread().getState() == Thread.State.TERMINATED) {
+				if (task.isTerminated()) {
 					// Remove entry from the running tasks map
 					it.remove();
 					// Don't to IPC call while holding a lock on the runningTasks map
-					crashEnvironments.add(environment);
+					failedTasks.add(task);
 				}
 			}
 		}
 
-		final Iterator<Environment> it2 = crashEnvironments.iterator();
+		final Iterator<Task> it2 = failedTasks.iterator();
 		while (it2.hasNext()) {
-			it2.next().changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
+			it2.next().markAsFailed();
 		}
 	}
 

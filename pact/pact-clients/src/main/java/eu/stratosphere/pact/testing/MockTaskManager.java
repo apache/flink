@@ -145,7 +145,8 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		this.setupChannels(id, ee);
 
-		ee.startExecution();
+		// TODO: Fix me
+		// ee.startExecution();
 
 		return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
 	}

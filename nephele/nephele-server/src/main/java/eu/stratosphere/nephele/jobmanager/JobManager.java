@@ -111,6 +111,7 @@ import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.CheckpointReplayResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -621,8 +622,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			public void run() {
 
 				// The registered listeners of the vertex will make sure the appropriate actions are taken
-				vertex.getEnvironment().changeExecutionState(executionState.getExecutionState(),
-					executionState.getDescription());
+				vertex.updateExecutionState(executionState.getExecutionState(), executionState.getDescription());
 			}
 		};
 
@@ -738,10 +738,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			// Check execution state
 			final ExecutionState executionState = connectedVertex.getExecutionState();
-			if(executionState == ExecutionState.FINISHED) {
+			if (executionState == ExecutionState.FINISHED) {
 				return ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 			}
-			
+
 			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
@@ -1070,7 +1070,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					+ vertex.getExecutionState());
 			}
 
-			vertex.setExecutionState(ExecutionState.STARTING);
+			vertex.updateExecutionState(ExecutionState.STARTING, null);
 		}
 
 		// Create a new runnable and pass it the executor service
@@ -1107,7 +1107,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				} catch (final IOException ioe) {
 					final String errorMsg = StringUtils.stringifyException(ioe);
 					for (final ExecutionVertex vertex : verticesToBeDeployed) {
-						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, errorMsg);
+						vertex.updateExecutionState(ExecutionState.FAILED, errorMsg);
 					}
 				}
 
@@ -1137,7 +1137,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 					if (tsr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
 						// Change the execution state to failed and let the scheduler deal with the rest
-						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, tsr.getDescription());
+						vertex.updateExecutionState(ExecutionState.FAILED, tsr.getDescription());
 					}
 				}
 			}
@@ -1241,11 +1241,20 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			public void run() {
 
 				// The registered listeners of the vertex will make sure the appropriate actions are taken
-				vertex.getEnvironment().initialExecutionResourcesExhausted(resourceUtilizationSnapshot);
+				vertex.initialExecutionResourcesExhausted(resourceUtilizationSnapshot);
 			}
 		};
 
 		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
 		this.executorService.execute(taskStateChangeRunnable);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void updateCheckpointState(final TaskCheckpointState taskCheckpointState) throws IOException {
+		// TODO Auto-generated method stub
+
 	}
 }

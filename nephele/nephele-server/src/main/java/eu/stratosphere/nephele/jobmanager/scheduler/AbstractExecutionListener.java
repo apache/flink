@@ -31,12 +31,14 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.types.Record;
 
@@ -69,8 +71,8 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void executionStateChanged(final Environment ee, final ExecutionState newExecutionState,
-			final String optionalMessage) {
+	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
+			final ExecutionState newExecutionState, final String optionalMessage) {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
@@ -81,7 +83,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
 				if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
 					groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
-					groupMember.setExecutionState(ExecutionState.READY);
+					groupMember.updateExecutionState(ExecutionState.READY);
 
 					this.scheduler.deployAssignedVertices(eg);
 					return;
@@ -97,7 +99,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 					if (nextVertex.getAllocatedResource().getInstanceType()
 						.equals(this.executionVertex.getAllocatedResource().getInstanceType())) {
 						nextVertex.setAllocatedResource(this.executionVertex.getAllocatedResource());
-						nextVertex.setExecutionState(ExecutionState.READY);
+						nextVertex.updateExecutionState(ExecutionState.READY);
 
 						this.scheduler.deployAssignedVertices(eg);
 
@@ -117,7 +119,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		if (newExecutionState == ExecutionState.FAILED) {
 			if (this.executionVertex.hasRetriesLeft()) {
 				// Reschedule vertex
-				this.executionVertex.setExecutionState(ExecutionState.SCHEDULED);
+				this.executionVertex.updateExecutionState(ExecutionState.SCHEDULED);
 			}
 		}
 	}
@@ -126,7 +128,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(final Environment ee, final Thread userThread) {
+	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// Nothing to do here
 	}
 
@@ -134,7 +136,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(final Environment ee, final Thread userThread) {
+	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// Nothing to do here
 	}
 
@@ -142,7 +144,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void initialExecutionResourcesExhausted(final Environment ee,
+	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 
 		final ExecutionGraph executionGraph = this.executionVertex.getExecutionGraph();
@@ -151,6 +153,8 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 
 		final Map<ExecutionVertex, Long> targetVertices = new HashMap<ExecutionVertex, Long>();
 		final Map<AllocatedResource, Long> availableResources = new HashMap<AllocatedResource, Long>();
+
+		final Environment ee = this.executionVertex.getEnvironment();
 
 		synchronized (executionGraph) {
 
@@ -174,10 +178,10 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 				}
 			}
 
-			if(targetVertices.isEmpty()) {
+			if (targetVertices.isEmpty()) {
 				return;
 			}
-			
+
 			final Queue<ExecutionVertex> vertexQueue = new PriorityQueue<ExecutionVertex>(targetVertices.size(),
 				new Comparator<ExecutionVertex>() {
 
@@ -252,7 +256,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 
 			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> deploymentIt = verticesToBeDeployed
 				.entrySet().iterator();
-			
+
 			while (deploymentIt.hasNext()) {
 				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = deploymentIt.next();
 				this.scheduler.getDeploymentManager().deploy(executionGraph.getJobID(), entry.getKey(),
@@ -267,7 +271,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		if (oldResource.equals(vertex.getAllocatedResource())) {
 			vertex.setAllocatedResource(newResource);
 			if (vertex.getExecutionState() == ExecutionState.SCHEDULED) {
-				vertex.setExecutionState(ExecutionState.ASSIGNED);
+				vertex.updateExecutionState(ExecutionState.ASSIGNED);
 			}
 
 			final int numberOfOutputGates = vertex.getEnvironment().getNumberOfOutputGates();

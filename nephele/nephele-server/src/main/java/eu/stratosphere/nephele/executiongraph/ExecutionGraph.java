@@ -27,7 +27,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
-import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -1340,8 +1339,8 @@ public class ExecutionGraph implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void executionStateChanged(Environment ee, ExecutionState newExecutionState,
-			String optionalMessage) {
+	public synchronized void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
+			final ExecutionState newExecutionState, String optionalMessage) {
 
 		final InternalJobStatus oldStatus = this.jobStatus;
 
@@ -1357,7 +1356,7 @@ public class ExecutionGraph implements ExecutionListener {
 					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
 					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
 					while (it.hasNext()) {
-						it.next().nextExecutionStageEntered(ee.getJobID(), nextExecutionStage);
+						it.next().nextExecutionStageEntered(jobID, nextExecutionStage);
 					}
 				}
 			}
@@ -1464,31 +1463,6 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadFinished(final Environment ee, final Thread userThread) {
-		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadStarted(final Environment ee, final Thread userThread) {
-		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void initialExecutionResourcesExhausted(final Environment ee,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-		// Nothing to do here
-	}
-
-	/**
 	 * Returns a list of vertices which are contained in this execution graph and have a finished checkpoint.
 	 * 
 	 * @return list of vertices which are contained in this execution graph and have a finished checkpoint
@@ -1516,5 +1490,33 @@ public class ExecutionGraph implements ExecutionListener {
 		}
 
 		return list;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+
+		// Nothing to do here
 	}
 }

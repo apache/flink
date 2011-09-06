@@ -18,11 +18,11 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
@@ -36,11 +36,9 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 	private final LocalBufferPool localBufferPool;
 
-	private final Environment environment;
+	private final Task task;
 
 	private final AsynchronousEventListener[] subEventListener;
-
-	private final ExecutionVertexID vertexID;
 
 	private final int numberOfOutputChannels;
 
@@ -55,13 +53,12 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	 */
 	private boolean initialExhaustionOfMemoryBuffersReported = false;
 
-	TaskContext(final ExecutionVertexID vertexID, final Environment environment,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+	TaskContext(final Task task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
+		this.task = task;
 
-		this.vertexID = vertexID;
-		this.environment = environment;
+		final Environment environment = task.getEnvironment();
 
 		// Compute number of output input channels
 		int nooc = 0;
@@ -76,7 +73,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		this.numberOfOutputChannels = nooc;
 		this.forwardTransferEnvelopes = ephemeral;
 
-		this.ephemeralCheckpoint = new EphemeralCheckpoint(vertexID, this.numberOfOutputChannels, ephemeral);
+		this.ephemeralCheckpoint = new EphemeralCheckpoint(task.getVertexID(), this.numberOfOutputChannels, ephemeral);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 
@@ -158,7 +155,9 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		final int req = this.localBufferPool.getRequestedNumberOfBuffers();
 		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
 
-		System.out.println("\t\t" + this.environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
+		final Environment environment = this.task.getEnvironment();
+
+		System.out.println("\t\t" + environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
 			+ des + " designated");
 	}
 
@@ -169,13 +168,13 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 		if (!this.initialExhaustionOfMemoryBuffersReported) {
 
-			this.environment.triggerInitialExecutionResourcesExhaustedNotification();
+			this.task.initialExecutionResourcesExhausted();
 
 			// We are out of byte buffers
 			if (!this.ephemeralCheckpoint.isDecided()) {
 				System.out.println("Destroying checkpoint");
 				this.ephemeralCheckpoint.destroy();
-			 }
+			}
 
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}
@@ -257,6 +256,6 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 	AbstractID getFileOwnerID() {
 
-		return this.vertexID;
+		return this.task.getVertexID();
 	}
 }

@@ -47,6 +47,7 @@ import eu.stratosphere.nephele.profiling.impl.types.InternalInputGateProfilingDa
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalOutputGateProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -112,11 +113,10 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerExecutionListener(ExecutionVertexID id, Configuration jobConfiguration,
-			Environment environment) {
+	public void registerExecutionListener(final Task task, final Configuration jobConfiguration) {
 
 		// Register profiling hook for the environment
-		environment.registerExecutionListener(new EnvironmentListenerImpl(this, id, environment, this.timerInterval));
+		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getEnvironment()));
 	}
 
 	@Override

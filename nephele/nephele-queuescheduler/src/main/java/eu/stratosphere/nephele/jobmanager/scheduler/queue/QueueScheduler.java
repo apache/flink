@@ -141,7 +141,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		while (it2.hasNext()) {
 
 			final ExecutionVertex vertex = it2.next();
-			vertex.getEnvironment().registerExecutionListener(new QueueExecutionListener(this, vertex));
+			vertex.registerExecutionListener(new QueueExecutionListener(this, vertex));
 		}
 
 		// Register the scheduler as an execution stage listener

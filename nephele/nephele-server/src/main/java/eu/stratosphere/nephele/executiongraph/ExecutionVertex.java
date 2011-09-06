@@ -25,7 +25,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ExecutionStateTransition;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -106,6 +109,17 @@ public class ExecutionVertex {
 	private List<CheckpointStateChangeListener> checkpointStateChangeListeners = new ArrayList<CheckpointStateChangeListener>();
 
 	/**
+	 * A list of {@link ExecutionListener} objects to be notified about state changes of the vertex's
+	 * checkpoint.
+	 */
+	private List<ExecutionListener> executionListeners = new ArrayList<ExecutionListener>();
+
+	/**
+	 * The current execution state of the task represented by this vertex
+	 */
+	private ExecutionState executionState = ExecutionState.CREATED;
+
+	/**
 	 * The current checkpoint state of this vertex.
 	 */
 	private CheckpointState checkpointState = CheckpointState.NONE;
@@ -138,7 +152,7 @@ public class ExecutionVertex {
 		this.environment = new Environment(jobID, groupVertex.getName(), invokableClass, groupVertex.getConfiguration());
 
 		// Register the vertex itself as a listener for state changes
-		this.environment.registerExecutionListener(this.executionGraph);
+		registerExecutionListener(this.executionGraph);
 		this.environment.instantiateInvokable();
 	}
 
@@ -244,17 +258,56 @@ public class ExecutionVertex {
 	 * @return this execution vertex's current execution status
 	 */
 	public synchronized ExecutionState getExecutionState() {
-		return this.environment.getExecutionState();
+		return this.executionState;
 	}
 
 	/**
-	 * Sets this execution vertex's current execution state.
+	 * Updates the vertex's current execution state.
 	 * 
-	 * @param executionState
+	 * @param newExecutionState
 	 *        the new execution state
 	 */
-	public synchronized void setExecutionState(ExecutionState executionState) {
-		this.environment.changeExecutionState(executionState, null);
+	public void updateExecutionState(final ExecutionState newExecutionState) {
+		updateExecutionState(newExecutionState, null);
+	}
+	
+	/**
+	 * Updates the vertex's current execution state.
+	 * 
+	 * @param newExecutionState
+	 *        the new execution state
+	 * @param optionalMessage
+	 *        an optional message related to the state change
+	 */
+	public synchronized void updateExecutionState(final ExecutionState newExecutionState, final String optionalMessage) {
+
+		if (this.executionState == newExecutionState) {
+			return;
+		}
+
+		// Check the transition
+		ExecutionStateTransition.checkTransition(getName(), this.executionState, newExecutionState);
+
+		// Notify the listener objects
+		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		while (it.hasNext()) {
+			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
+				optionalMessage);
+		}
+
+		// Save the new execution state
+		this.executionState = newExecutionState;
+	}
+
+	public synchronized void initialExecutionResourcesExhausted(
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+
+		// Notify the listener objects
+		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		while (it.hasNext()) {
+			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID,
+				resourceUtilizationSnapshot);
+		}
 	}
 
 	/**
@@ -483,19 +536,18 @@ public class ExecutionVertex {
 
 			if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
 				// Set to canceled directly
-				setExecutionState(ExecutionState.CANCELED);
+				updateExecutionState(ExecutionState.CANCELED, null);
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
-			final ExecutionState es = this.environment.getExecutionState();
-			if (es == ExecutionState.FINISHED || es == ExecutionState.FAILED) {
+			if (this.executionState == ExecutionState.FINISHED || this.executionState == ExecutionState.FAILED) {
 				// Ignore this call
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
-			if (es != ExecutionState.RUNNING && es != ExecutionState.FINISHING) {
+			if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.FINISHING) {
 				// Set to canceled directly
-				setExecutionState(ExecutionState.CANCELED);
+				updateExecutionState(ExecutionState.CANCELED, null);
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
@@ -601,6 +653,32 @@ public class ExecutionVertex {
 			final CheckpointStateChangeListener checkpointStateChangeListener) {
 
 		this.checkpointStateChangeListeners.remove(checkpointStateChangeListener);
+	}
+
+	/**
+	 * Registers the {@link ExecutionListener} object for this vertex. This object
+	 * will be notified about particular events during the vertex's lifetime.
+	 * 
+	 * @param executionListener
+	 *        the object to be notified about particular events during the vertex's lifetime
+	 */
+	public synchronized void registerExecutionListener(final ExecutionListener executionListener) {
+
+		if (!this.executionListeners.contains(executionListener)) {
+			this.executionListeners.add(executionListener);
+		}
+	}
+
+	/**
+	 * Unregisters the {@link ExecutionListener} object for this vertex. This object
+	 * will no longer be notified about particular events during the vertex's lifetime.
+	 * 
+	 * @param checkpointStateChangeListener
+	 *        the object to be unregistered
+	 */
+	public synchronized void unregisterExecutionListener(final ExecutionListener executionListener) {
+
+		this.executionListeners.remove(executionListener);
 	}
 
 	/**

@@ -130,7 +130,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		while (it2.hasNext()) {
 
 			final ExecutionVertex vertex = it2.next();
-			vertex.getEnvironment().registerExecutionListener(new LocalExecutionListener(this, vertex));
+			vertex.registerExecutionListener(new LocalExecutionListener(this, vertex));
 		}
 
 		// Register the scheduler as an execution stage listener
