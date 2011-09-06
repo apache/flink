@@ -175,6 +175,9 @@ public class ExecutionVertex {
 		this.executionGraph = executionGraph;
 		this.groupVertex = groupVertex;
 
+		// Register the vertex itself as a listener for state changes
+		registerExecutionListener(this.executionGraph);
+
 		// Duplication of environment is done in method duplicateVertex
 	}
 
@@ -270,7 +273,7 @@ public class ExecutionVertex {
 	public void updateExecutionState(final ExecutionState newExecutionState) {
 		updateExecutionState(newExecutionState, null);
 	}
-	
+
 	/**
 	 * Updates the vertex's current execution state.
 	 * 
@@ -288,15 +291,15 @@ public class ExecutionVertex {
 		// Check the transition
 		ExecutionStateTransition.checkTransition(getName(), this.executionState, newExecutionState);
 
+		// Save the new execution state
+		this.executionState = newExecutionState;
+
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
 				optionalMessage);
 		}
-
-		// Save the new execution state
-		this.executionState = newExecutionState;
 	}
 
 	public synchronized void initialExecutionResourcesExhausted(

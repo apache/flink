@@ -855,9 +855,11 @@ public class ExecutionGraphTest {
 			// Fake transition to next stage by triggering execution state changes manually
 			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
 				true, true);
+
 			while (it.hasNext()) {
 				final ExecutionVertex ev = it.next();
 				ev.updateExecutionState(ExecutionState.SCHEDULED);
+				ev.updateExecutionState(ExecutionState.ASSIGNED);
 				ev.updateExecutionState(ExecutionState.READY);
 				ev.updateExecutionState(ExecutionState.STARTING);
 				ev.updateExecutionState(ExecutionState.RUNNING);
@@ -866,7 +868,8 @@ public class ExecutionGraphTest {
 			}
 			instanceRequestMap.clear();
 			executionStage = eg.getCurrentExecutionStage();
-			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.SCHEDULED);
+			assertEquals(1, executionStage.getStageNumber());
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 			assertEquals(1, instanceRequestMap.size());
 			assertEquals(8,
 				(int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER
