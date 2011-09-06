@@ -8,6 +8,7 @@ import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
+import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 
 /**
  * Tests {@link BuiltinFunctions}

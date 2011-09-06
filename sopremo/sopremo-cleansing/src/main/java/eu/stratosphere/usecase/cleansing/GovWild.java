@@ -22,7 +22,7 @@ import eu.stratosphere.sopremo.PersistenceType;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
+import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Grouping;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.UnionAll;

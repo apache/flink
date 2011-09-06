@@ -6,7 +6,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
+import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpressionTest;
