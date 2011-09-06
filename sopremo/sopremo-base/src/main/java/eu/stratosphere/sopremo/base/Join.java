@@ -17,6 +17,7 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
@@ -61,18 +62,19 @@ public class Join extends CompositeOperator {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		List<TwoSourceJoin> joins;
-		if (this.condition instanceof AndExpression)
-			joins = this.getInitialJoinOrder((AndExpression) this.condition);
-		else
-			joins = Arrays.asList(this.getTwoSourceJoinForExpression(this.condition));
 
 		final int numInputs = this.getInputs().size();
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
+		
+		List<TwoSourceJoin> joins;
+		if (this.condition instanceof AndExpression)
+			joins = this.getInitialJoinOrder((AndExpression) this.condition, module);
+		else
+			joins = Arrays.asList(this.getTwoSourceJoinForExpression(this.condition, module));
 
 		final List<Operator> inputs = new ArrayList<Operator>();
 		for (int index = 0; index < numInputs; index++) {
-			final EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];
+			final EvaluationExpression[] elements = new EvaluationExpression[numInputs];
 			Arrays.fill(elements, EvaluationExpression.NULL);
 			elements[index] = EvaluationExpression.VALUE;
 			inputs.add(new Projection(new ArrayCreation(elements), module.getInput(index)));
@@ -81,12 +83,13 @@ public class Join extends CompositeOperator {
 		for (final TwoSourceJoin twoSourceJoin : joins) {
 			final List<Output> operatorInputs = twoSourceJoin.getInputs();
 			final Output[] actualInputs = new Output[2];
+			List<Source> moduleInput = Arrays.asList( module.getInputs());
 			for (int index = 0; index < operatorInputs.size(); index++) {
-				final int inputIndex = this.getInputs().indexOf(operatorInputs.get(index));
+				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
 				actualInputs[index] = inputs.get(inputIndex).getSource();
 			}
 			for (int index = 0; index < operatorInputs.size(); index++) {
-				final int inputIndex = this.getInputs().indexOf(operatorInputs.get(index));
+				final int inputIndex =  moduleInput.indexOf(operatorInputs.get(index).getOperator());
 				inputs.set(inputIndex, twoSourceJoin);
 			}
 			twoSourceJoin.setInputs(actualInputs);
@@ -113,28 +116,29 @@ public class Join extends CompositeOperator {
 		return this.condition;
 	}
 
-	private List<TwoSourceJoin> getInitialJoinOrder(final AndExpression condition) {
+	private List<TwoSourceJoin> getInitialJoinOrder(final AndExpression condition, SopremoModule module) {
 		final List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
 		for (final EvaluationExpression expression : condition.getExpressions())
-			joins.add(this.getTwoSourceJoinForExpression(expression));
+			joins.add(this.getTwoSourceJoinForExpression(expression, module));
 
 		// TODO: add some kind of optimization
 		return joins;
 	}
 
-	private Operator getInputForExpression(final EvaluationExpression expr1) {
-		return this.getInput(((ContainerExpression) expr1).find(InputSelection.class).getIndex()).getOperator();
+	private int getInputIndex(final EvaluationExpression expr1) {
+		return ((ContainerExpression) expr1).find(InputSelection.class).getIndex();
 	}
 
-	private TwoSourceJoin getTwoSourceJoinForExpression(final EvaluationExpression condition) {
+	private TwoSourceJoin getTwoSourceJoinForExpression(final EvaluationExpression condition, SopremoModule module) {
 		if (condition instanceof ComparativeExpression)
 			return new ComparisonJoin(
-				this.getInputForExpression(((ComparativeExpression) condition).getExpr1()),
-				this.getInputForExpression(((ComparativeExpression) condition).getExpr2()),
+				module.getInput(getInputIndex(((ComparativeExpression) condition).getExpr1())),
+				module.getInput(getInputIndex(((ComparativeExpression) condition).getExpr2())),
 				(ComparativeExpression) condition);
 		if (condition instanceof ElementInSetExpression)
-			return new ElementInSetJoin(this.getInputForExpression(((ElementInSetExpression) condition)
-				.getElementExpr()), this.getInputForExpression(((ElementInSetExpression) condition).getSetExpr()),
+			return new ElementInSetJoin(
+				module.getInput(getInputIndex(((ElementInSetExpression) condition)				.getElementExpr())), 
+				module.getInput(getInputIndex(((ElementInSetExpression) condition).getSetExpr())),
 				(ElementInSetExpression) condition);
 		throw new UnsupportedOperationException("condition " + condition + " not supported");
 	}

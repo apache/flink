@@ -17,6 +17,8 @@ public class RecordLinkageInput implements JsonStream, Cloneable {
 	private EvaluationExpression idProjection = EvaluationExpression.VALUE;
 
 	private EvaluationExpression resultProjection = EvaluationExpression.VALUE;
+	
+	private Output source;
 
 	RecordLinkageInput(Operator recordLinkage, int index) {
 		this.recordLinkage = recordLinkage;
@@ -35,8 +37,18 @@ public class RecordLinkageInput implements JsonStream, Cloneable {
 
 	@Override
 	public Output getSource() {
+		if(source != null)
+			return this.source;
+		
 		return this.recordLinkage.getInput(index);
 	}
+	
+public void setSource(Output source) {
+	if (source == null)
+		throw new NullPointerException("source must not be null");
+
+	this.source = source;
+}
 
 	public EvaluationExpression getIdProjection() {
 		return idProjection;
@@ -88,9 +100,5 @@ public class RecordLinkageInput implements JsonStream, Cloneable {
 		RecordLinkageInput other = (RecordLinkageInput) obj;
 		return index == other.index && idProjection.equals(other.idProjection)
 			&& resultProjection.equals(other.resultProjection);
-	}
-
-	public JsonStream getLookupDictionary() {
-		return new Projection(getIdProjection(), getResultProjection(), recordLinkage.getInput(index));
 	}
 }

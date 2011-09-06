@@ -97,6 +97,8 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 		else
 			this.parser = JsonUtil.FACTORY.createJsonParser(stream);
 		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
+		this.parser.enable(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS);
+		this.parser.enable(JsonParser.Feature.INTERN_FIELD_NAMES);
 		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)
 			this.parser.clearCurrentToken();
 		this.checkEnd();

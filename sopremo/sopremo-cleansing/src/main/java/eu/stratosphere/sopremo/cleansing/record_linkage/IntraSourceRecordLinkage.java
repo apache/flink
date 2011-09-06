@@ -9,7 +9,6 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.Selection;
-import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.scrubbing.Lookup;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
@@ -58,7 +57,10 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
+		SopremoModule module = new SopremoModule(getName(), 1, 1);
+		
 		RecordLinkageInput recordLinkageInput = this.recordLinkageInput.clone();
+		recordLinkageInput.setSource(module.getInput(0).getSource());
 		EvaluationExpression resultProjection = this.recordLinkageInput.getResultProjection();
 		if (this.linkageMode.ordinal() >= LinkageMode.TRANSITIVE_LINKS.ordinal() &&
 				!recordLinkageInput.getResultProjection().equals(recordLinkageInput.getIdProjection()))
@@ -71,9 +73,11 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 		else
 			duplicatePairs = this.simulateIntraSource();
 
-		if (this.linkageMode == LinkageMode.LINKS_ONLY)
-			return SopremoModule.valueOf(this.getName(), duplicatePairs);
-
+		if (this.linkageMode == LinkageMode.LINKS_ONLY) {
+			module.getOutput(0).setInput(0, duplicatePairs);
+			return module;
+		}
+		
 		Operator output;
 		final TransitiveClosure closure = new TransitiveClosure(duplicatePairs);
 		ClosureMode closureMode = this.linkageMode.getClosureMode();
@@ -86,27 +90,33 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 		output = closure;
 
 		if (recordLinkageInput.getResultProjection() != resultProjection) {
-			Lookup reverseLookup = new Lookup(closure, this.recordLinkageInput.getLookupDictionary());
+			Lookup reverseLookup = new Lookup(closure, module.getInput(0));
+			reverseLookup.withDictionaryKeyExtraction(this.recordLinkageInput.getIdProjection());
+			reverseLookup.withDictionaryValueExtraction(this.recordLinkageInput.getResultProjection());
 			reverseLookup.setArrayElementsReplacement(true);
 			output = reverseLookup;
 		}
 
-		if (!this.linkageMode.isWithSingles())
-			return SopremoModule.valueOf(this.getName(), output);
+		if (!this.linkageMode.isWithSingles()) {
+			module.getOutput(0).setInput(0, output);
+			return module;
+		}
 
 		ValueSplitter allTuples = new ValueSplitter(closure).
 			withArrayProjection(EvaluationExpression.VALUE).
 			withKeyProjection(new ArrayAccess(0)).
 			withValueProjection(EvaluationExpression.NULL);
 		allTuples.setName("all tuples");
-		Operator singleRecords = new Difference(this.recordLinkageInput, allTuples).
+		Operator singleRecords = new Difference(module.getInput(0), allTuples).
 				withKeyProjection(0, this.recordLinkageInput.getIdProjection()).
 				withValueProjection(0, this.recordLinkageInput.getResultProjection()).
 				withKeyProjection(1, EvaluationExpression.KEY);
 		singleRecords.setName("singleRecords");
 
 		final Projection wrappedInArray = new Projection(new ArrayCreation(EvaluationExpression.VALUE), singleRecords);
-		return SopremoModule.valueOf(this.getName(), new UnionAll(wrappedInArray, output));
+		
+		module.getOutput(0).setInput(0, new UnionAll(wrappedInArray, output));
+		return module;
 	}
 
 	private Operator simulateIntraSource() {

@@ -97,10 +97,14 @@ public final class NumberCoercer {
 
 	@SuppressWarnings("unchecked")
 	public <T extends NumericNode> T coerce(final NumericNode node, final Class<T> targetType) {
+		if(node.getClass() == targetType)
+			return (T) node;
 		return (T) this.classCoercers.get(targetType).coerce(node);
 	}
 
 	public NumericNode coerce(final NumericNode node, final NumberType targetType) {
+		if(node.getNumberType() == targetType)
+			return node;
 		return this.coercers.get(targetType).coerce(node);
 	}
 

@@ -38,7 +38,7 @@ public class UnionAll extends CompositeOperator {
 		Operator leftInput = module.getInput(0);
 		for (int index = 1; index < inputs.size(); index++)
 			leftInput = new TwoInputUnionAll(leftInput, module.getInput(index));
-		
+
 		module.getOutput(0).setInput(0, leftInput);
 		
 		return module;

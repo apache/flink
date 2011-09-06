@@ -79,6 +79,13 @@ public abstract class CompositeOperator extends Operator {
 	 */
 	public abstract SopremoModule asElementaryOperators();
 
+//	@Override
+//	public SopremoModule toElementaryOperators() {
+//		SopremoModule elementary = asElementaryOperators().asElementary();
+//		System.out.println(getName() + " -> "+ elementary);
+//		return elementary;
+//	}
+	
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		if (LOG.isTraceEnabled())

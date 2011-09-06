@@ -62,14 +62,22 @@ public class CleansFunctions extends BuiltinFunctions {
 		return TextNode.valueOf(input.getTextValue().trim());
 	}
 	
-	public static JsonNode extract(TextNode input, TextNode pattern, TextNode expectedType) {
+	public static JsonNode split(TextNode input, TextNode splitString) {
+		String[] split = input.getTextValue().split(splitString.getTextValue());
+		ArrayNode splitNode = new ArrayNode(null);
+		for (String string : split) 
+			splitNode.add(TextNode.valueOf(string));
+		return splitNode;
+	}
+	
+	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
 		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
 		Matcher matcher = compiledPattern.matcher(input.getTextValue());
 
 		if (!matcher.find())
-			return NullNode.getInstance();
+			return defaultValue;
 
-		if (matcher.groupCount() ==0)
+		if (matcher.groupCount() == 0)
 			return TextNode.valueOf(matcher.group(0));
 			
 		if (matcher.groupCount() == 1)
@@ -82,16 +90,19 @@ public class CleansFunctions extends BuiltinFunctions {
 	}
 
 	public static JsonNode extract(TextNode input, TextNode pattern) {
-		return extract(input, pattern, TextNode.valueOf("string"));
+		return extract(input, pattern, NullNode.getInstance());
+	}
+
+	public static JsonNode replace(TextNode input, TextNode search, TextNode replace) {
+		return TextNode.valueOf(input.getTextValue().replaceAll(search.getTextValue(), replace.getTextValue()));
 	}
 	
 	public static JsonNode filter(ArrayNode input, JsonNode... elementsToFilter) {
 		ArrayNode output = new ArrayNode(null);
 		HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
-		for (int index = 0; index < output.size(); )
-			if(filterSet.contains(output.get(index)))
-				output.remove(index);
-				else index++;
+		for (int index = 0; index < input.size(); index++)
+			if(!filterSet.contains(input.get(index)))
+				output.add(input.get(index));
 		return output;
 	}
 	

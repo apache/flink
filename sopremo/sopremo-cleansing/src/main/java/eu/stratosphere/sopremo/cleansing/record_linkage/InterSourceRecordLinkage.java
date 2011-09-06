@@ -40,7 +40,7 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 			final double threshold, final JsonStream... inputs) {
 		this(algorithm, similarityExpression, threshold, Arrays.asList(inputs));
 	}
-	
+
 	public InterSourceRecordLinkage(final RecordLinkageAlgorithm algorithm,
 			final EvaluationExpression similarityExpression,
 			final double threshold, final List<? extends JsonStream> inputs) {
@@ -54,6 +54,7 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
+		SopremoModule module = new SopremoModule(getName(), getInputs().size(), 1);
 
 		final List<RecordLinkageInput> originalInputs = new ArrayList<RecordLinkageInput>();
 		for (int index = 0, size = this.getInputs().size(); index < size; index++)
@@ -66,11 +67,15 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 				inputs.set(index, inputs.get(index).clone());
 				inputs.get(index).setResultProjection(inputs.get(index).getIdProjection());
 			}
+		for (int index = 0, size = inputs.size(); index < size; index++)
+			inputs.get(index).setSource(module.getInput(index).getSource());
 
 		Operator duplicatePairs = this.algorithm.getDuplicatePairStream(this.similarityCondition, inputs);
 
-		if (this.linkageMode == LinkageMode.LINKS_ONLY)
-			return SopremoModule.valueOf(this.getName(), duplicatePairs);
+		if (this.linkageMode == LinkageMode.LINKS_ONLY) {
+			module.getOutput(0).setInput(0, duplicatePairs);
+			return module;
+		}
 
 		Operator output;
 		final TransitiveClosure closure = new TransitiveClosure(duplicatePairs);
@@ -83,14 +88,18 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 		if (this.linkageMode.getClosureMode().isProvenance())
 			for (int index = 0, size = inputs.size(); index < size; index++)
 				if (inputs.get(index).getResultProjection() != originalInputs.get(index).getResultProjection()) {
-					Lookup reverseLookup = new Lookup(output, originalInputs.get(index).getLookupDictionary());
+					Lookup reverseLookup = new Lookup(output, inputs.get(index));
+					reverseLookup.withDictionaryKeyExtraction(originalInputs.get(index).getIdProjection());
+					reverseLookup.withDictionaryValueExtraction(originalInputs.get(index).getResultProjection());
 					reverseLookup.withInputKeyExtractor(new ArrayAccess(index));
 					reverseLookup.setArrayElementsReplacement(true);
 					output = reverseLookup;
 				}
 
-		if (!this.linkageMode.isWithSingles())
-			return SopremoModule.valueOf(this.getName(), output);
+		if (!this.linkageMode.isWithSingles()) {
+			module.getOutput(0).setInput(0, output);
+			return module;
+		}
 
 		// List<Operator> singleExtractors = new ArrayList<Operator>();
 		// for (int index = 0; index < originalInputs.size(); index++) {
@@ -116,6 +125,8 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 		// singleExtractors.add(clusters);
 		List<Operator> outputs = new ArrayList<Operator>();
 
+		outputs.add(output);
+		
 		if (this.linkageMode.getClosureMode().isProvenance())
 			for (int index = 0; index < originalInputs.size(); index++) {
 				ValueSplitter allTuples = new ValueSplitter(closure).
@@ -123,7 +134,7 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 					withKeyProjection(new ArrayAccess(0)).
 					withValueProjection(EvaluationExpression.NULL);
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
-				Operator singleRecords = new Difference(recordLinkageInput, allTuples).
+				Operator singleRecords = new Difference(module.getInput(index), allTuples).
 					withKeyProjection(0, recordLinkageInput.getIdProjection()).
 					withValueProjection(0, recordLinkageInput.getResultProjection()).
 					withKeyProjection(1, EvaluationExpression.KEY);
@@ -142,7 +153,7 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 
 			for (int index = 0; index < originalInputs.size(); index++) {
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
-				Operator singleRecords = new Difference(recordLinkageInput, allTuples).
+				Operator singleRecords = new Difference(module.getInput(index), allTuples).
 					withKeyProjection(0, recordLinkageInput.getResultProjection()).
 					withValueProjection(0, recordLinkageInput.getResultProjection()).
 					withKeyProjection(1, EvaluationExpression.KEY);
@@ -150,9 +161,8 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 			}
 		}
 
-		outputs.add(output);
-
-		return SopremoModule.valueOf(this.getName(), new UnionAll(outputs));
+		module.getOutput(0).setInput(0, new UnionAll(outputs));
+		return module;
 	}
 
 	@Override

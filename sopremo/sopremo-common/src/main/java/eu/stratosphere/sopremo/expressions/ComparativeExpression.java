@@ -151,7 +151,8 @@ public class ComparativeExpression extends BooleanExpression {
 			if(e1.getClass() != e2.getClass()) {
 				if (e1 instanceof NumericNode && e2 instanceof NumericNode) {
 					NumberType widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
-					return isTrue( JsonNodeComparator.INSTANCE.compareStrict(e1, e2, NumberCoercer.INSTANCE.getImplementationType(widerType)));
+					return isTrue( JsonNodeComparator.INSTANCE.compareStrict(NumberCoercer.INSTANCE.coerce((NumericNode) e1, widerType), 
+						NumberCoercer.INSTANCE.coerce((NumericNode) e2, widerType), NumberCoercer.INSTANCE.getImplementationType(widerType)));
 				}
 					
 				throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));

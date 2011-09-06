@@ -32,6 +32,11 @@ public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends Pa
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s/%s", getContext().operatorTrace(), key, value1, value2));
+		try {
 		this.match(key.getValue(), value1.getValue(), value2.getValue(), new JsonCollector(out));
+	} catch(RuntimeException e) {
+		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", getContext().operatorTrace(), key, value1, value2, e));
+		throw e;
+	}
 	}
 }

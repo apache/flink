@@ -1,15 +1,18 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import junit.framework.Assert;
+import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.ObjectNode;
 import org.codehaus.jackson.node.TextNode;
-import org.junit.Ignore;
 import org.junit.Test;
 
-@Ignore
 public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> {
 
 	@Override
@@ -60,5 +63,13 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 		mapping.evaluate(result, (JsonNode) createArrayNode("3", "4"), this.context);
 
 		Assert.assertEquals(createObjectNode("fieldname", "test", "testname", "3"), result);
+	}
+	
+	@Override
+	protected void initVerifier(EqualsVerifier<ObjectCreation> equalVerifier) {
+		super.initVerifier(equalVerifier);
+		equalVerifier.withPrefabValues(List.class, 
+			new ArrayList<Object>(), 
+			new ArrayList<Object>(Arrays.asList(new ObjectCreation.CopyFields(new ObjectAccess("field")))));
 	}
 }
