@@ -472,9 +472,9 @@ public class Environment implements Runnable, IOReadableWritable {
 
 			if (this.executingThread == null) {
 				if (this.taskName == null) {
-					this.executingThread = new Thread(this, this.taskName);
-				} else {
 					this.executingThread = new Thread(this);
+				} else {
+					this.executingThread = new Thread(this, this.taskName);
 				}
 			}
 
