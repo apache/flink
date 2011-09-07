@@ -572,7 +572,8 @@ public final class ExecutionVertex {
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 		}
 
-		if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.FINISHING) {
+		if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.STARTING
+			&& this.executionState != ExecutionState.FINISHING) {
 			// Set to canceled directly
 			updateExecutionState(ExecutionState.CANCELED, null);
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);

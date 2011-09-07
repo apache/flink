@@ -264,10 +264,6 @@ public class ExecutionGroupVertex {
 	 */
 	void setMaxMemberSize(final int maxSize) {
 
-		if (maxSize < 0) {
-			throw new IllegalArgumentException("Argument maxSize must be greater or equal to 0");
-		}
-
 		this.maxMemberSize = maxSize;
 	}
 
@@ -278,10 +274,6 @@ public class ExecutionGroupVertex {
 	 *        the minimum number of members this group vertex must have
 	 */
 	void setMinMemberSize(final int minSize) {
-
-		if (minSize < 0) {
-			throw new IllegalArgumentException("Argument minSize must be greater or equal to 0");
-		}
 
 		this.minMemberSize = minSize;
 	}

@@ -197,55 +197,60 @@ public abstract class AbstractScheduler implements InstanceListener {
 	void findVerticesToBeDeployed(final ExecutionVertex vertex,
 			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed) {
 
-		if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
-			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+		final ExecutionGraph executionGraph = vertex.getExecutionGraph();
 
-			if (instance instanceof DummyInstance) {
-				LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
+		synchronized (executionGraph) {
+
+			if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
+				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+				if (instance instanceof DummyInstance) {
+					LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
 						+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
 						+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
 						+ ") is about to be deployed on a DummyInstance");
+				}
+
+				List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
+				if (verticesForInstance == null) {
+					verticesForInstance = new ArrayList<ExecutionVertex>();
+					verticesToBeDeployed.put(instance, verticesForInstance);
+				}
+
+				vertex.updateExecutionState(ExecutionState.READY);
+				verticesForInstance.add(vertex);
 			}
 
-			List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
-			if (verticesForInstance == null) {
-				verticesForInstance = new ArrayList<ExecutionVertex>();
-				verticesToBeDeployed.put(instance, verticesForInstance);
-			}
+			final Environment env = vertex.getEnvironment();
+			final int numberOfOutputGates = env.getNumberOfOutputGates();
+			for (int i = 0; i < numberOfOutputGates; ++i) {
 
-			vertex.updateExecutionState(ExecutionState.READY);
-			verticesForInstance.add(vertex);
-		}
+				final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+				boolean deployTarget;
 
-		final Environment env = vertex.getEnvironment();
-		final int numberOfOutputGates = env.getNumberOfOutputGates();
-		for (int i = 0; i < numberOfOutputGates; ++i) {
+				switch (outputGate.getChannelType()) {
+				case FILE:
+					deployTarget = false;
+					break;
+				case NETWORK:
+					deployTarget = !this.allowTaskMerging;
+					break;
+				case INMEMORY:
+					deployTarget = true;
+					break;
+				default:
+					throw new IllegalStateException("Unknown channel type");
+				}
 
-			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
-			boolean deployTarget;
+				if (deployTarget) {
 
-			switch (outputGate.getChannelType()) {
-			case FILE:
-				deployTarget = false;
-				break;
-			case NETWORK:
-				deployTarget = !this.allowTaskMerging;
-				break;
-			case INMEMORY:
-				deployTarget = true;
-				break;
-			default:
-				throw new IllegalStateException("Unknown channel type");
-			}
-
-			if (deployTarget) {
-
-				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
-				for (int j = 0; j < numberOfOutputChannels; ++j) {
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
-						outputChannel.getConnectedChannelID());
-					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
+					final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+					for (int j = 0; j < numberOfOutputChannels; ++j) {
+						final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+						final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
+							outputChannel.getConnectedChannelID());
+						findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
+					}
 				}
 			}
 		}
@@ -263,28 +268,32 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 
-		for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
+		synchronized (executionGraph) {
 
-			final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
-			if (!startVertex.isInputVertex()) {
-				continue;
+			for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
+
+				final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
+				if (!startVertex.isInputVertex()) {
+					continue;
+				}
+
+				for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
+					final ExecutionVertex vertex = startVertex.getGroupMember(j);
+					findVerticesToBeDeployed(vertex, verticesToBeDeployed);
+				}
 			}
 
-			for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
-				final ExecutionVertex vertex = startVertex.getGroupMember(j);
-				findVerticesToBeDeployed(vertex, verticesToBeDeployed);
-			}
-		}
+			if (!verticesToBeDeployed.isEmpty()) {
 
-		if (!verticesToBeDeployed.isEmpty()) {
+				final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+					.entrySet()
+					.iterator();
 
-			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed.entrySet()
-				.iterator();
+				while (it2.hasNext()) {
 
-			while (it2.hasNext()) {
-
-				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
-				this.deploymentManager.deploy(executionGraph.getJobID(), entry.getKey(), entry.getValue());
+					final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+					this.deploymentManager.deploy(executionGraph.getJobID(), entry.getKey(), entry.getValue());
+				}
 			}
 		}
 	}
@@ -452,28 +461,30 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final int currentStageIndex = executionGraph.getIndexOfCurrentExecutionStage();
 		final ExecutionStage previousStage = executionGraph.getStage(currentStageIndex - 1);
 
-		final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToReplay = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
+		synchronized (executionGraph) {
 
-		for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
+			final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToReplay = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
 
-			final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
-			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+			for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
 
-			List<ExecutionVertexID> vertexIDs = checkpointsToReplay.get(instance);
-			if (vertexIDs == null) {
-				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
-				checkpointsToReplay.put(instance, vertexIDs);
+				final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
+				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
+				List<ExecutionVertexID> vertexIDs = checkpointsToReplay.get(instance);
+				if (vertexIDs == null) {
+					vertexIDs = new SerializableArrayList<ExecutionVertexID>();
+					checkpointsToReplay.put(instance, vertexIDs);
+				}
+
+				vertexIDs.add(vertex.getID());
 			}
 
-			vertexIDs.add(vertex.getID());
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
+				.iterator();
+			while (it.hasNext()) {
+				final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
+				this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
+			}
 		}
-
-		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
-			.iterator();
-		while (it.hasNext()) {
-			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
-			this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
-		}
-
 	}
 }

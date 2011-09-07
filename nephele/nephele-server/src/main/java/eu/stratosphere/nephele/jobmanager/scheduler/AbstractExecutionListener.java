@@ -76,50 +76,54 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 
 		final ExecutionGraph eg = this.executionVertex.getExecutionGraph();
 
-		if (newExecutionState == ExecutionState.FINISHED) {
+		synchronized (eg) {
 
-			final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
-			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
-				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
-				if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
-					groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
-					groupMember.updateExecutionState(ExecutionState.READY);
+			if (newExecutionState == ExecutionState.FINISHED) {
 
-					this.scheduler.deployAssignedVertices(eg);
-					return;
-				}
-			}
-
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
-				true, true);
-			while (it.hasNext()) {
-
-				final ExecutionVertex nextVertex = it.next();
-				if (nextVertex.getExecutionState() == ExecutionState.SCHEDULED) {
-					if (nextVertex.getAllocatedResource().getInstanceType()
-						.equals(this.executionVertex.getAllocatedResource().getInstanceType())) {
-						nextVertex.setAllocatedResource(this.executionVertex.getAllocatedResource());
-						nextVertex.updateExecutionState(ExecutionState.READY);
+				final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
+				for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+					final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
+					if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
+						groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
+						groupMember.updateExecutionState(ExecutionState.READY);
 
 						this.scheduler.deployAssignedVertices(eg);
-
 						return;
 					}
 				}
+
+				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg,
+					eg.getIndexOfCurrentExecutionStage(),
+					true, true);
+				while (it.hasNext()) {
+
+					final ExecutionVertex nextVertex = it.next();
+					if (nextVertex.getExecutionState() == ExecutionState.SCHEDULED) {
+						if (nextVertex.getAllocatedResource().getInstanceType()
+							.equals(this.executionVertex.getAllocatedResource().getInstanceType())) {
+							nextVertex.setAllocatedResource(this.executionVertex.getAllocatedResource());
+							nextVertex.updateExecutionState(ExecutionState.READY);
+
+							this.scheduler.deployAssignedVertices(eg);
+
+							return;
+						}
+					}
+				}
 			}
-		}
 
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
-			|| newExecutionState == ExecutionState.FAILED) {
-			// Check if instance can be released
-			this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
-		}
+			if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
+				|| newExecutionState == ExecutionState.FAILED) {
+				// Check if instance can be released
+				this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
+			}
 
-		// In case of an error, check if vertex can be rescheduled
-		if (newExecutionState == ExecutionState.FAILED) {
-			if (this.executionVertex.hasRetriesLeft()) {
-				// Reschedule vertex
-				this.executionVertex.updateExecutionState(ExecutionState.SCHEDULED);
+			// In case of an error, check if vertex can be rescheduled
+			if (newExecutionState == ExecutionState.FAILED) {
+				if (this.executionVertex.hasRetriesLeft()) {
+					// Reschedule vertex
+					this.executionVertex.updateExecutionState(ExecutionState.SCHEDULED);
+				}
 			}
 		}
 	}
@@ -154,9 +158,9 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		final Map<ExecutionVertex, Long> targetVertices = new HashMap<ExecutionVertex, Long>();
 		final Map<AllocatedResource, Long> availableResources = new HashMap<AllocatedResource, Long>();
 
-		final Environment ee = this.executionVertex.getEnvironment();
-
 		synchronized (executionGraph) {
+
+			final Environment ee = this.executionVertex.getEnvironment();
 
 			for (int i = 0; i < ee.getNumberOfOutputGates(); ++i) {
 				final OutputGate<? extends Record> outputGate = ee.getOutputGate(i);
@@ -268,26 +272,29 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	private void reassignGraphFragment(final ExecutionVertex vertex, final AllocatedResource oldResource,
 			final AllocatedResource newResource) {
 
-		if (oldResource.equals(vertex.getAllocatedResource())) {
-			vertex.setAllocatedResource(newResource);
-			if (vertex.getExecutionState() == ExecutionState.SCHEDULED) {
-				vertex.updateExecutionState(ExecutionState.ASSIGNED);
-			}
+		synchronized (vertex.getExecutionGraph()) {
 
-			final int numberOfOutputGates = vertex.getEnvironment().getNumberOfOutputGates();
-			for (int i = 0; i < numberOfOutputGates; ++i) {
-				final OutputGate<? extends Record> outputGate = vertex.getEnvironment().getOutputGate(i);
-
-				if (outputGate.getChannelType() == ChannelType.NETWORK) {
-					continue;
+			if (oldResource.equals(vertex.getAllocatedResource())) {
+				vertex.setAllocatedResource(newResource);
+				if (vertex.getExecutionState() == ExecutionState.SCHEDULED) {
+					vertex.updateExecutionState(ExecutionState.ASSIGNED);
 				}
 
-				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
-				for (int j = 0; j < numberOfOutputChannels; ++j) {
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
-						outputChannel.getConnectedChannelID());
-					reassignGraphFragment(connectedVertex, oldResource, newResource);
+				final int numberOfOutputGates = vertex.getEnvironment().getNumberOfOutputGates();
+				for (int i = 0; i < numberOfOutputGates; ++i) {
+					final OutputGate<? extends Record> outputGate = vertex.getEnvironment().getOutputGate(i);
+
+					if (outputGate.getChannelType() == ChannelType.NETWORK) {
+						continue;
+					}
+
+					final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+					for (int j = 0; j < numberOfOutputChannels; ++j) {
+						final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+						final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
+							outputChannel.getConnectedChannelID());
+						reassignGraphFragment(connectedVertex, oldResource, newResource);
+					}
 				}
 			}
 		}

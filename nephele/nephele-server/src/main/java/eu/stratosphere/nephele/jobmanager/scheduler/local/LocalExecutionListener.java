@@ -22,6 +22,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
  * This is a wrapper class for the {@link LocalScheduler} to receive
  * notifications about state changes of vertices belonging
  * to scheduled jobs.
+ * <p>
  * This class is thread-safe.
  * 
  * @author warneke

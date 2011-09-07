@@ -61,7 +61,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		super(deploymentManager, instanceManager);
 	}
 
-	void removeJobFromSchedule(ExecutionGraph executionGraphToRemove) {
+	void removeJobFromSchedule(final ExecutionGraph executionGraphToRemove) {
 
 		boolean removedFromQueue = false;
 
@@ -71,11 +71,13 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 			while (it.hasNext()) {
 
 				final ExecutionGraph executionGraph = it.next();
+				// Field jobID of executionGraph is immutable, so no synchronization needed
 				if (executionGraph.getJobID().equals(executionGraphToRemove.getJobID())) {
 					removedFromQueue = true;
 					it.remove();
 					break;
 				}
+
 			}
 		}
 
@@ -89,58 +91,63 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void schedulJob(ExecutionGraph executionGraph) throws SchedulingException {
+	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
 
-		// Get Map of all available Instance types
-		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
-			.getMapOfAvailableInstanceTypes();
+		synchronized (executionGraph) {
 
-		for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
+			// Get Map of all available Instance types
+			final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
+				.getMapOfAvailableInstanceTypes();
 
-			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
-			final ExecutionStage stage = executionGraph.getStage(i);
-			stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+			for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
 
-			// Iterator over required Instances
-			final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
-			while (it.hasNext()) {
+				final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+				final ExecutionStage stage = executionGraph.getStage(i);
+				stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
-				final Map.Entry<InstanceType, Integer> entry = it.next();
+				// Iterator over required Instances
+				final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
+				while (it.hasNext()) {
 
-				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
-				if (descr == null) {
-					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
-						+ " available");
-				}
+					final Map.Entry<InstanceType, Integer> entry = it.next();
 
-				if (descr.getMaximumNumberOfAvailableInstances() != -1
-					&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
-					throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
-						+ " instances of type " + entry.getKey() + " required, but only "
-						+ descr.getMaximumNumberOfAvailableInstances() + " are available");
+					final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
+					if (descr == null) {
+						throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
+							+ " available");
+					}
+
+					if (descr.getMaximumNumberOfAvailableInstances() != -1
+						&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
+						throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
+							+ " instances of type " + entry.getKey() + " required, but only "
+							+ descr.getMaximumNumberOfAvailableInstances() + " are available");
+					}
 				}
 			}
+
+			// Subscribe to job status notifications
+			executionGraph.registerJobStatusListener(this);
+
+			// Set state of each vertex for scheduled
+			final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
+			while (it2.hasNext()) {
+
+				final ExecutionVertex vertex = it2.next();
+				vertex.registerExecutionListener(new LocalExecutionListener(this, vertex));
+			}
+
+			// Register the scheduler as an execution stage listener
+			executionGraph.registerExecutionStageListener(this);
 		}
-
-		// Subscribe to job status notifications
-		executionGraph.registerJobStatusListener(this);
-
-		// Set state of each vertex for scheduled
-		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
-		while (it2.hasNext()) {
-
-			final ExecutionVertex vertex = it2.next();
-			vertex.registerExecutionListener(new LocalExecutionListener(this, vertex));
-		}
-
-		// Register the scheduler as an execution stage listener
-		executionGraph.registerExecutionStageListener(this);
 
 		// Add job to the job queue (important to add job to queue before requesting instances)
 		synchronized (this.jobQueue) {
 			this.jobQueue.add(executionGraph);
-
-			// Request resources for the first stage of the job
+		}
+	
+		// Request resources for the first stage of the job
+		synchronized (executionGraph) {
 			final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 			try {
 				requestInstances(executionStage);
@@ -157,7 +164,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ExecutionGraph getExecutionGraphByID(JobID jobID) {
+	public ExecutionGraph getExecutionGraphByID(final JobID jobID) {
 
 		synchronized (this.jobQueue) {
 
@@ -224,7 +231,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 
 		// Deploy the assigned vertices
 		deployAssignedVertices(executionStage.getExecutionGraph());
-		
+
 		// Initialize the replay of the previous stage's checkpoints
 		replayCheckpointsFromPreviousStage(executionStage.getExecutionGraph());
 	}
