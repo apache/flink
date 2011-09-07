@@ -58,6 +58,8 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * The event collector collects events which occurred during the execution of a job and prepares them
  * for being fetched by a client. The collected events have an expiration time. In a configurable interval
  * the event collector removes all intervals which are older than the interval.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -304,8 +306,14 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 */
 	private final Map<JobID, RecentJobEvent> recentJobs = new HashMap<JobID, RecentJobEvent>();
 
+	/**
+	 * Map of management graphs belonging to recently started jobs with the time stamp of the last received job event.
+	 */
 	private final Map<JobID, ManagementGraph> recentManagementGraphs = new HashMap<JobID, ManagementGraph>();
 
+	/**
+	 * Map of network topologies belonging to recently started jobs with the time stamp of the last received job event.
+	 */
 	private final Map<JobID, NetworkTopology> recentNetworkTopologies = new HashMap<JobID, NetworkTopology>();
 
 	/**
