@@ -15,30 +15,22 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-
 /**
- * A class for statistically unique execution vertex IDs.
+ * Classes implementing the {@link CheckpointStateListener} interface can register for notifications about state changes
+ * of
+ * a vertex's checkpoint.
  * 
  * @author warneke
  */
-public class ExecutionVertexID extends AbstractID {
+public interface CheckpointStateListener {
 
 	/**
-	 * Converts the execution vertex ID into a
-	 * management vertex ID. The new management vertex ID
-	 * will be equal to the execution vertex ID in the sense
-	 * that the <code>equals</code> method will return <code>
-	 * true</code> when both IDs are compared.
+	 * Called to notify a change in the vertex's checkpoint state
 	 * 
-	 * @return the new management vertex ID
+	 * @param id
+	 *        the ID of the vertex whose checkpoint state has changed
+	 * @param newCheckpointState
+	 *        the new state of the vertex's checkpoint
 	 */
-	public ManagementVertexID toManagementVertexID() {
-
-		final ManagementVertexID newId = new ManagementVertexID();
-		newId.setID(this);
-
-		return newId;
-	}
+	void checkpointStateChanged(ExecutionVertexID id, CheckpointState newCheckpointState);
 }

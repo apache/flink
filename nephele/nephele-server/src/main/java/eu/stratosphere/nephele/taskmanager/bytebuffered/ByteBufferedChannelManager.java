@@ -391,8 +391,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			final ChannelContext channelContext = this.registeredChannels.get(localReceiver);
 			if (channelContext == null) {
-				LOG.error("Cannot find local receiver " + localReceiver + " for job "
+				if(LOG.isDebugEnabled()) {
+					LOG.debug("Cannot find local receiver " + localReceiver + " for job "
 						+ transferEnvelope.getJobID());
+				}
 				continue;
 			}
 			channelContext.queueTransferEnvelope(transferEnvelope);

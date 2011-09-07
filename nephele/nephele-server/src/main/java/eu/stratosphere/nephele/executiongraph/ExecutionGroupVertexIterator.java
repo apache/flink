@@ -27,6 +27,7 @@ import java.util.Stack;
  * traverse an execution graph and visit every reachable group vertex exactly once. The order
  * in which the group vertices are visited corresponds to the order of their discovery in a depth first
  * search.
+ * <p>
  * This class is not thread-safe.
  * 
  * @author warneke
@@ -88,7 +89,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 		 * @param currentLink
 		 *        the link index to use to visit the next group vertex
 		 */
-		public TraversalEntry(ExecutionGroupVertex groupVertex, int currentLink) {
+		public TraversalEntry(final ExecutionGroupVertex groupVertex, final int currentLink) {
 			this.groupVertex = groupVertex;
 			this.currentLink = currentLink;
 		}
@@ -131,7 +132,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	 *        the number of the stage whose vertices should be traversed or -1 if all stages should be included in the
 	 *        traversal
 	 */
-	public ExecutionGroupVertexIterator(ExecutionGraph executionGraph, boolean forward, int stage) {
+	public ExecutionGroupVertexIterator(final ExecutionGraph executionGraph, final boolean forward, final int stage) {
 
 		this.forward = forward;
 		this.stage = stage;
@@ -162,7 +163,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	 * @param stage
 	 *        the number of the stage whose input vertices should be collected
 	 */
-	private void collectStartVertices(ExecutionStage stage) {
+	private void collectStartVertices(final ExecutionStage stage) {
 
 		for (int i = 0; i < stage.getNumberOfStageMembers(); i++) {
 
@@ -194,7 +195,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	 * @return <code>true</code> if all incoming or outgoing links (depends on the forward switch) come from other
 	 *         stages, <code>false</code> otherwise
 	 */
-	private boolean allConnectionsFromOtherStage(ExecutionGroupVertex groupVertex, boolean forward) {
+	private boolean allConnectionsFromOtherStage(final ExecutionGroupVertex groupVertex, final boolean forward) {
 
 		if (forward) {
 			for (int i = 0; i < groupVertex.getNumberOfBackwardLinks(); i++) {
@@ -281,7 +282,7 @@ public class ExecutionGroupVertexIterator implements Iterator<ExecutionGroupVert
 	 *        reverse order
 	 * @return a candidate group vertex which could potentially be visited next
 	 */
-	private ExecutionGroupVertex getCandidateVertex(TraversalEntry te, boolean forward) {
+	private ExecutionGroupVertex getCandidateVertex(final TraversalEntry te, final boolean forward) {
 
 		while (true) {
 

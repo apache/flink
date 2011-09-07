@@ -34,11 +34,12 @@ import eu.stratosphere.nephele.instance.InstanceType;
  * An execution stage contains all execution group vertices (and as a result all execution vertices) which
  * must run at the same time. The execution of a job progresses in terms of stages, i.e. the next stage of a
  * job can only start to execute if the execution of its preceding stage is complete.
- * This class is thread-safe.
+ * <p>
+ * This class is not thread-safe.
  * 
  * @author warneke
  */
-public class ExecutionStage {
+public final class ExecutionStage {
 
 	/**
 	 * The log object used for debugging.
@@ -79,7 +80,7 @@ public class ExecutionStage {
 	 * @param stageNum
 	 *        the new number of this execution stage
 	 */
-	public synchronized void setStageNumber(int stageNum) {
+	public void setStageNumber(int stageNum) {
 		this.stageNum = stageNum;
 	}
 
@@ -88,7 +89,7 @@ public class ExecutionStage {
 	 * 
 	 * @return the number of this execution stage
 	 */
-	public synchronized int getStageNumber() {
+	public int getStageNumber() {
 
 		return this.stageNum;
 	}
@@ -101,11 +102,8 @@ public class ExecutionStage {
 	 */
 	public void addStageMember(ExecutionGroupVertex groupVertex) {
 
-		synchronized (this.stageMembers) {
-
-			if (!this.stageMembers.contains(groupVertex)) {
-				this.stageMembers.add(groupVertex);
-			}
+		if (!this.stageMembers.contains(groupVertex)) {
+			this.stageMembers.add(groupVertex);
 		}
 
 		groupVertex.setExecutionStage(this);
@@ -119,9 +117,7 @@ public class ExecutionStage {
 	 */
 	public void removeStageMember(ExecutionGroupVertex groupVertex) {
 
-		synchronized (this.stageMembers) {
-			this.stageMembers.remove(groupVertex);
-		}
+		this.stageMembers.remove(groupVertex);
 	}
 
 	/**
@@ -131,9 +127,7 @@ public class ExecutionStage {
 	 */
 	public int getNumberOfStageMembers() {
 
-		synchronized (this.stageMembers) {
-			return this.stageMembers.size();
-		}
+		return this.stageMembers.size();
 	}
 
 	/**
@@ -146,11 +140,8 @@ public class ExecutionStage {
 	 */
 	public ExecutionGroupVertex getStageMember(int index) {
 
-		synchronized (this.stageMembers) {
-
-			if (index < this.stageMembers.size()) {
-				return this.stageMembers.get(index);
-			}
+		if (index < this.stageMembers.size()) {
+			return this.stageMembers.get(index);
 		}
 
 		return null;
@@ -167,15 +158,12 @@ public class ExecutionStage {
 
 		int retVal = 0;
 
-		synchronized (this.stageMembers) {
+		final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
+		while (it.hasNext()) {
 
-			final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
-			while (it.hasNext()) {
-
-				final ExecutionGroupVertex groupVertex = it.next();
-				if (groupVertex.isInputVertex()) {
-					retVal += groupVertex.getCurrentNumberOfGroupMembers();
-				}
+			final ExecutionGroupVertex groupVertex = it.next();
+			if (groupVertex.isInputVertex()) {
+				retVal += groupVertex.getCurrentNumberOfGroupMembers();
 			}
 		}
 
@@ -193,15 +181,12 @@ public class ExecutionStage {
 
 		int retVal = 0;
 
-		synchronized (this.stageMembers) {
+		final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
+		while (it.hasNext()) {
 
-			final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
-			while (it.hasNext()) {
-
-				final ExecutionGroupVertex groupVertex = it.next();
-				if (groupVertex.isOutputVertex()) {
-					retVal += groupVertex.getCurrentNumberOfGroupMembers();
-				}
+			final ExecutionGroupVertex groupVertex = it.next();
+			if (groupVertex.isOutputVertex()) {
+				retVal += groupVertex.getCurrentNumberOfGroupMembers();
 			}
 		}
 
@@ -217,19 +202,16 @@ public class ExecutionStage {
 	 */
 	public ExecutionVertex getInputExecutionVertex(int index) {
 
-		synchronized (this.stageMembers) {
+		final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
+		while (it.hasNext()) {
 
-			final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
-			while (it.hasNext()) {
-
-				final ExecutionGroupVertex groupVertex = it.next();
-				if (groupVertex.isInputVertex()) {
-					final int numberOfMembers = groupVertex.getCurrentNumberOfGroupMembers();
-					if (index >= numberOfMembers) {
-						index -= numberOfMembers;
-					} else {
-						return groupVertex.getGroupMember(index);
-					}
+			final ExecutionGroupVertex groupVertex = it.next();
+			if (groupVertex.isInputVertex()) {
+				final int numberOfMembers = groupVertex.getCurrentNumberOfGroupMembers();
+				if (index >= numberOfMembers) {
+					index -= numberOfMembers;
+				} else {
+					return groupVertex.getGroupMember(index);
 				}
 			}
 		}
@@ -246,19 +228,16 @@ public class ExecutionStage {
 	 */
 	public ExecutionVertex getOutputExecutionVertex(int index) {
 
-		synchronized (this.stageMembers) {
+		final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
+		while (it.hasNext()) {
 
-			final Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
-			while (it.hasNext()) {
-
-				final ExecutionGroupVertex groupVertex = it.next();
-				if (groupVertex.isOutputVertex()) {
-					final int numberOfMembers = groupVertex.getCurrentNumberOfGroupMembers();
-					if (index >= numberOfMembers) {
-						index -= numberOfMembers;
-					} else {
-						return groupVertex.getGroupMember(index);
-					}
+			final ExecutionGroupVertex groupVertex = it.next();
+			if (groupVertex.isOutputVertex()) {
+				final int numberOfMembers = groupVertex.getCurrentNumberOfGroupMembers();
+				if (index >= numberOfMembers) {
+					index -= numberOfMembers;
+				} else {
+					return groupVertex.getGroupMember(index);
 				}
 			}
 		}
