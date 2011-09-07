@@ -50,6 +50,19 @@ public class TaskCheckpointState implements IOReadableWritable {
 	 *        the new checkpoint to be reported
 	 */
 	public TaskCheckpointState(final JobID jobID, final ExecutionVertexID id, final CheckpointState checkpointState) {
+
+		if (jobID == null) {
+			throw new IllegalArgumentException("Argument jobID must not be null");
+		}
+
+		if (id == null) {
+			throw new IllegalArgumentException("Argument id must not be null");
+		}
+
+		if (checkpointState == null) {
+			throw new IllegalArgumentException("Argument checkpointState must not be null");
+		}
+
 		this.jobID = jobID;
 		this.executionVertexID = id;
 		this.checkpointState = checkpointState;
@@ -115,4 +128,30 @@ public class TaskCheckpointState implements IOReadableWritable {
 		EnumUtils.writeEnum(out, this.checkpointState);
 	}
 
+	/**
+	 * Returns the ID of the job this update belongs to.
+	 * 
+	 * @return the ID of the job this update belongs to
+	 */
+	public JobID getJobID() {
+		return this.jobID;
+	}
+
+	/**
+	 * Returns the ID of the vertex this update refers to
+	 * 
+	 * @return the ID of the vertex this update refers to
+	 */
+	public ExecutionVertexID getVertexID() {
+		return this.executionVertexID;
+	}
+
+	/**
+	 * Returns the new checkpoint state.
+	 * 
+	 * @return the new checkpoint state
+	 */
+	public CheckpointState getCheckpointState() {
+		return this.checkpointState;
+	}
 }

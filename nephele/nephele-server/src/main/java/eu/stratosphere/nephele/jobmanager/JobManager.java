@@ -1254,7 +1254,21 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@Override
 	public void updateCheckpointState(final TaskCheckpointState taskCheckpointState) throws IOException {
-		// TODO Auto-generated method stub
 
+		// Get the graph object for this
+		final ExecutionGraph executionGraph = this.scheduler.getExecutionGraphByID(taskCheckpointState.getJobID());
+		if (executionGraph == null) {
+			LOG.error("Cannot find execution graph for job " + taskCheckpointState.getJobID()
+				+ " to update checkpoint state");
+			return;
+		}
+
+		final ExecutionVertex vertex = executionGraph.getVertexByID(taskCheckpointState.getVertexID());
+		if (vertex == null) {
+			LOG.error("Cannot find vertex with ID " + taskCheckpointState.getVertexID() + " to update checkpoint state");
+			return;
+		}
+
+		vertex.updateCheckpointState(taskCheckpointState.getCheckpointState());
 	}
 }

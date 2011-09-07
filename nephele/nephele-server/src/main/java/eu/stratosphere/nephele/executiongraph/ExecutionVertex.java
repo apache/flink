@@ -103,10 +103,10 @@ public class ExecutionVertex {
 	private List<VertexAssignmentListener> vertexAssignmentListeners = new ArrayList<VertexAssignmentListener>();
 
 	/**
-	 * A list of {@link CheckpointStateChangeListener} objects to be notified about state changes of the vertex's
+	 * A list of {@link CheckpointStateListener} objects to be notified about state changes of the vertex's
 	 * checkpoint.
 	 */
-	private List<CheckpointStateChangeListener> checkpointStateChangeListeners = new ArrayList<CheckpointStateChangeListener>();
+	private List<CheckpointStateListener> checkpointStateListeners = new ArrayList<CheckpointStateListener>();
 
 	/**
 	 * A list of {@link ExecutionListener} objects to be notified about state changes of the vertex's
@@ -299,6 +299,21 @@ public class ExecutionVertex {
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
 				optionalMessage);
+		}
+	}
+
+	public synchronized void updateCheckpointState(final CheckpointState newCheckpointState) {
+
+		if (this.checkpointState == newCheckpointState) {
+			return;
+		}
+
+		this.checkpointState = newCheckpointState;
+
+		// Notify the listener objects
+		final Iterator<CheckpointStateListener> it = this.checkpointStateListeners.iterator();
+		while (it.hasNext()) {
+			it.next().checkpointStateChanged(this.vertexID, newCheckpointState);
 		}
 	}
 
@@ -631,31 +646,31 @@ public class ExecutionVertex {
 	}
 
 	/**
-	 * Registers the {@link CheckpointStateChangeListener} object for this vertex. This object
+	 * Registers the {@link CheckpointStateListener} object for this vertex. This object
 	 * will be notified about state changes regarding the vertex's checkpoint.
 	 * 
-	 * @param checkpointStateChangeListener
+	 * @param checkpointStateListener
 	 *        the object to be notified about checkpoint state changes
 	 */
-	public synchronized void registerCheckpointStateChangeListener(
-			final CheckpointStateChangeListener checkpointStateChangeListener) {
+	public synchronized void registerCheckpointStateListener(
+			final CheckpointStateListener checkpointStateListener) {
 
-		if (!this.checkpointStateChangeListeners.contains(checkpointStateChangeListener)) {
-			this.checkpointStateChangeListeners.add(checkpointStateChangeListener);
+		if (!this.checkpointStateListeners.contains(checkpointStateListener)) {
+			this.checkpointStateListeners.add(checkpointStateListener);
 		}
 	}
 
 	/**
-	 * Unregisters the {@link CheckpointStateChangeListener} object for this vertex. This object
+	 * Unregisters the {@link CheckpointStateListener} object for this vertex. This object
 	 * will no longer be notified about state changes regarding the vertex's checkpoint.
 	 * 
-	 * @param checkpointStateChangeListener
+	 * @param checkpointStateListener
 	 *        the listener to be unregistered
 	 */
-	public synchronized void unregisterCheckpointStateChangeListener(
-			final CheckpointStateChangeListener checkpointStateChangeListener) {
+	public synchronized void unregisterCheckpointStateListener(
+			final CheckpointStateListener checkpointStateListener) {
 
-		this.checkpointStateChangeListeners.remove(checkpointStateChangeListener);
+		this.checkpointStateListeners.remove(checkpointStateListener);
 	}
 
 	/**
