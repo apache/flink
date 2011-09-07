@@ -73,7 +73,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		this.numberOfOutputChannels = nooc;
 		this.forwardTransferEnvelopes = ephemeral;
 
-		this.ephemeralCheckpoint = new EphemeralCheckpoint(task.getVertexID(), this.numberOfOutputChannels, ephemeral);
+		this.ephemeralCheckpoint = new EphemeralCheckpoint(task, ephemeral);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 

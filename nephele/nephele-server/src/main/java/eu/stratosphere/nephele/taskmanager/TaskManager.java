@@ -48,6 +48,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
@@ -57,8 +58,6 @@ import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
-import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
@@ -739,6 +738,17 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 	}
 
+	void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id, final CheckpointState newCheckpointState) {
+
+		synchronized (this.jobManager) {
+			try {
+				this.jobManager.updateCheckpointState(new TaskCheckpointState(jobID, id, newCheckpointState));
+			} catch (IOException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
+	}
+
 	/**
 	 * Shuts the task manager down.
 	 */
@@ -837,12 +847,5 @@ public class TaskManager implements TaskOperationProtocol {
 	public void logBufferUtilization() throws IOException {
 
 		this.byteBufferedChannelManager.logBufferUtilization();
-	}
-
-	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException {
-		if (profiler != null) {
-			return this.profiler.getCheckpointProfilingData();
-		}
-		return null;
 	}
 }

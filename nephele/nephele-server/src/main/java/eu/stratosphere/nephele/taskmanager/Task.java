@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
@@ -258,6 +259,15 @@ public class Task implements ExecutionObserver {
 		while (it.hasNext()) {
 			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID, rus);
 		}
+
+		// Finally, propagate event to the job manager
+		this.taskManager.initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID, rus);
+	}
+
+	public void checkpointStateChanged(final CheckpointState newCheckpointState) {
+
+		// Propagate event to the job manager
+		this.taskManager.checkpointStateChanged(this.environment.getJobID(), this.vertexID, newCheckpointState);
 	}
 
 	/**

@@ -26,13 +26,14 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
@@ -73,9 +74,9 @@ public class EphemeralCheckpoint {
 	private final CheckpointSerializer transferEnvelopeSerializer = new CheckpointSerializer();
 
 	/**
-	 * The ID of the vertex this ephemeral checkpoint belongs to.
+	 * The task this checkpoint is created for.
 	 */
-	private final ExecutionVertexID vertexID;
+	private final Task task;
 
 	/**
 	 * The number of channels connected to this checkpoint.
@@ -122,18 +123,28 @@ public class EphemeralCheckpoint {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
-	public EphemeralCheckpoint(final ExecutionVertexID vertexID, final int numberOfConnectedChannels,
-			final boolean ephemeral) {
+	public EphemeralCheckpoint(final Task task, final boolean ephemeral) {
 
-		this.vertexID = vertexID;
-		this.numberOfConnectedChannels = numberOfConnectedChannels;
+		this.task = task;
+
+		// Determine number of output channel
+		int nooc = 0;
+		final Environment environment = task.getEnvironment();
+		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
+		}
+		this.numberOfConnectedChannels = nooc;
 
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.CHECKPOINTING);
 
 		this.fileBufferManager = FileBufferManager.getInstance();
 
-		LOG.info("Created checkpoint for vertex " + this.vertexID + ", state " + this.checkpointingDecision);
+		LOG.info("Created checkpoint for vertex " + task.getVertexID() + ", state " + this.checkpointingDecision);
+
+		if (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
+			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
+		}
 	}
 
 	/**
@@ -199,21 +210,26 @@ public class EphemeralCheckpoint {
 
 	public void write() throws IOException, InterruptedException {
 
-		while (!this.queuedEnvelopes.isEmpty()) {
-			writeTransferEnvelope(this.queuedEnvelopes.poll());
-		}
+		if (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED) {
 
-		this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
+			this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
+			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
+
+			while (!this.queuedEnvelopes.isEmpty()) {
+				writeTransferEnvelope(this.queuedEnvelopes.poll());
+			}
+		}
 	}
 
-	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
+	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException,
+			InterruptedException {
 
 		final Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
 			if (buffer.isBackedByMemory()) {
 
 				// Make sure we transfer the encapsulated buffer to a file and release the memory buffer again
-				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.vertexID,
+				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.task.getVertexID(),
 					this.fileBufferManager);
 				buffer.copyToBuffer(fileBuffer);
 				transferEnvelope.setBuffer(fileBuffer);
@@ -242,7 +258,7 @@ public class EphemeralCheckpoint {
 			}
 			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator
 				+ CheckpointManager.METADATA_PREFIX
-				+ "_" + this.vertexID + "_" + this.metaDataSuffix);
+				+ "_" + this.task.getVertexID() + "_" + this.metaDataSuffix);
 			this.metaDataFileChannel = fos.getChannel();
 		}
 
@@ -274,14 +290,15 @@ public class EphemeralCheckpoint {
 				CheckpointManager.DEFAULT_CHECKPOINT_DIRECTORY);
 
 			new FileOutputStream(checkpointDir + File.separator + CheckpointManager.METADATA_PREFIX + "_"
-				+ this.vertexID + "_final").close();
+				+ this.task.getVertexID() + "_final").close();
 
 			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
-			this.fileBufferManager.forceCloseOfWritableSpillingFile(this.vertexID);
+			this.fileBufferManager.forceCloseOfWritableSpillingFile(this.task.getVertexID());
 
-			LOG.info("Finished persistent checkpoint for vertex " + this.vertexID);
+			LOG.info("Finished persistent checkpoint for vertex " + this.task.getVertexID());
 
-			// TODO: Send notification that checkpoint is completed
+			// Send notification that checkpoint is completed
+			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
 		}
 	}
 }
