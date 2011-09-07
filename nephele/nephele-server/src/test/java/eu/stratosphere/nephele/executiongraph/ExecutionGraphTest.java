@@ -1114,7 +1114,7 @@ public class ExecutionGraphTest {
 			// connect vertices
 			input1.connectTo(forward1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 			forward1.connectTo(forward2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			forward2.connectTo(forward3, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			forward2.connectTo(forward3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 			forward3.connectTo(output1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// setup instance sharing
@@ -1133,7 +1133,7 @@ public class ExecutionGraphTest {
 
 			// Check number of vertices in stage
 			final ExecutionStage stage = eg.getStage(0);
-			assertEquals(4, stage.getNumberOfStageMembers());
+			assertEquals(5, stage.getNumberOfStageMembers());
 
 			// Check number of required instances
 			Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
@@ -1143,7 +1143,6 @@ public class ExecutionGraphTest {
 			assertEquals(1, instanceMap.size());
 
 			final Integer numberOfRequiredInstances = instanceMap.values().iterator().next();
-			System.out.println(numberOfRequiredInstances);
 			assertEquals(degreeOfParallelism, numberOfRequiredInstances.intValue());
 
 		} catch (GraphConversionException e) {
