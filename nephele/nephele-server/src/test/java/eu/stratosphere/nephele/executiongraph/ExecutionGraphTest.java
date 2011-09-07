@@ -1120,7 +1120,8 @@ public class ExecutionGraphTest {
 			// setup instance sharing
 			input1.setVertexToShareInstancesWith(forward1);
 			forward1.setVertexToShareInstancesWith(forward2);
-			forward2.setVertexToShareInstancesWith(output1);
+			forward2.setVertexToShareInstancesWith(forward3);
+			forward3.setVertexToShareInstancesWith(output1);
 
 			LibraryCacheManager.register(jobID, new String[0]);
 
