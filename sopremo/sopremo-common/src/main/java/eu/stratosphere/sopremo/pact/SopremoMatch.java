@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.pact;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -15,6 +16,7 @@ public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends Pa
 	@Override
 	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 
@@ -30,6 +32,11 @@ public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends Pa
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s/%s", getContext().operatorTrace(), key, value1, value2));
+		try {
 		this.match(key.getValue(), value1.getValue(), value2.getValue(), new JsonCollector(out));
+	} catch(RuntimeException e) {
+		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", getContext().operatorTrace(), key, value1, value2, e));
+		throw e;
+	}
 	}
 }

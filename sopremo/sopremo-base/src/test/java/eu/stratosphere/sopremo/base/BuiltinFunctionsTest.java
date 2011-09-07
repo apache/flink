@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoTest;
+import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 
 /**
  * Tests {@link BuiltinFunctions}

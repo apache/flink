@@ -41,6 +41,37 @@ public class AggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((function == null) ? 0 : function.hashCode());
+		result = prime * result + ((preprocessing == null) ? 0 : preprocessing.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		AggregationExpression other = (AggregationExpression) obj;
+		if (function == null) {
+			if (other.function != null)
+				return false;
+		} else if (!function.equals(other.function))
+			return false;
+		if (preprocessing == null) {
+			if (other.preprocessing != null)
+				return false;
+		} else if (!preprocessing.equals(other.preprocessing))
+			return false;
+		return true;
+	}
+
+	@Override
 	protected void toString(final StringBuilder builder) {
 		super.toString(builder);
 		builder.append('.');

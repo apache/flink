@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
  * Base class for all Sopremo operators. Every operator consumes and produces a specific number of {@link JsonStream}s.
@@ -24,7 +25,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
-	private transient final List<Operator.Output> inputs = new ArrayList<Operator.Output>();
+	private transient List<Operator.Output> inputs = new ArrayList<Operator.Output>();
 
 	private String name;
 
@@ -94,11 +95,25 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @return the {@link PactModule} representing this operator
 	 */
 	public abstract PactModule asPactModule(EvaluationContext context);
+	
+	public SopremoModule toElementaryOperators() {
+		SopremoModule module = new SopremoModule(getName(), getInputs().size(), getOutputs().size());
+		Operator clone = clone();
+		for (int index = 0; index < getInputs().size(); index++) 
+			clone.setInput(index, module.getInput(index));
+		for (int index = 0; index < getOutputs().size(); index++)
+			module.getOutput(index).setInput(index, clone. getOutput(index));
+		return module;
+	}
 
 	@Override
 	public Operator clone() {
 		try {
-			return (Operator) super.clone();
+			Operator clone = (Operator) super.clone();
+			clone.inputs = new ArrayList<Operator.Output>(this.inputs);
+			clone.setNumberOfOutputs(0);
+			clone.setNumberOfOutputs(this.outputs.length);
+			return clone;
 		} catch (final CloneNotSupportedException e) {
 			// cannot happen
 			return null;
@@ -167,7 +182,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @return a list of outputs that produce the input of this operator
 	 */
 	public List<Operator.Output> getInputs() {
-		return this.inputs;
+		return new ArrayList<Operator.Output>(this.inputs);
 	}
 
 	/**
@@ -297,7 +312,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * 
 	 * @author Arvid Heise
 	 */
-	public class Output implements JsonStream {
+	public class Output implements JsonStream, Cloneable {
 		private final int index;
 
 		private Output(final int index) {
@@ -315,7 +330,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 			final Output other = (Output) obj;
 			return this.index == other.index && this.getOperator() == other.getOperator();
 		}
-
+		
 		/**
 		 * Returns the index of this output in the list of outputs of the associated operator.
 		 * 

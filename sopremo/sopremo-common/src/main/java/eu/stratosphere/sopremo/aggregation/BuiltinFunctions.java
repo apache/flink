@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.base;
+package eu.stratosphere.sopremo.aggregation;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,9 +20,6 @@ import org.codehaus.jackson.node.TextNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.sopremo.aggregation.AggregationFunction;
-import eu.stratosphere.sopremo.aggregation.MaterializingAggregationFunction;
-import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
@@ -66,12 +63,8 @@ public class BuiltinFunctions {
 			return nodes;
 		}
 	};
-	
+
 	public static final AggregationFunction ALL = new MaterializingAggregationFunction("all") {
-		@Override
-		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
-			return nodes;
-		}
 	};
 
 	public static final AggregationFunction AVERAGE = new AggregationFunction("avg") {
@@ -100,12 +93,12 @@ public class BuiltinFunctions {
 	};
 
 	public static JsonNode format(TextNode format, JsonNode... params) {
-		Object[] paramsAsStrings = new String[params.length];
-		for (int index = 0; index < paramsAsStrings.length; index++)
-			paramsAsStrings[index] = params[index].isTextual() ? params[index].getTextValue() : params[index]
+		Object[] paramsAsObjects = new Object[params.length];
+		for (int index = 0; index < paramsAsObjects.length; index++)
+			paramsAsObjects[index] = params[index].isTextual() ? params[index].getTextValue() : params[index]
 				.toString();
 
-		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsStrings));
+		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsObjects));
 	}
 
 	public static JsonNode substring(TextNode input, IntNode from, IntNode to) {
@@ -116,24 +109,24 @@ public class BuiltinFunctions {
 		return TextNode.valueOf(string.substring(fromPos, toPos));
 	}
 
-	public static JsonNode extract(TextNode pattern, TextNode input, JsonNode defaultValue) {
-		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
-		Matcher matcher = compiledPattern.matcher(input.getTextValue());
-		if (!matcher.find())
-			return defaultValue;
-
-		if (matcher.groupCount() == 1)
-			return TextNode.valueOf(matcher.group(0));
-
-		ArrayNode result = new ArrayNode(null);
-		for (int index = 1; index <= matcher.groupCount(); index++)
-			result.add(TextNode.valueOf(matcher.group(index)));
-		return result;
-	}
-
-	public static JsonNode extract(TextNode pattern, TextNode input) {
-		return extract(pattern, input, NullNode.getInstance());
-	}
+//	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
+//		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
+//		Matcher matcher = compiledPattern.matcher(input.getTextValue());
+//		if (!matcher.find())
+//			return defaultValue;
+//
+//		if (matcher.groupCount() == 1)
+//			return TextNode.valueOf(matcher.group(0));
+//
+//		ArrayNode result = new ArrayNode(null);
+//		for (int index = 1; index <= matcher.groupCount(); index++)
+//			result.add(TextNode.valueOf(matcher.group(index)));
+//		return result;
+//	}
+//
+//	public static JsonNode extract(TextNode input, TextNode pattern) {
+//		return extract(input, pattern, NullNode.getInstance());
+//	}
 
 	public static JsonNode camelCase(TextNode input) {
 		char[] chars = input.getTextValue().toCharArray();
@@ -195,7 +188,7 @@ public class BuiltinFunctions {
 		arrayNode.addAll(nodes);
 		return arrayNode;
 	}
-	
+
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
 	public static JsonNode distinct(final JsonNode node) {
 		final Set<JsonNode> nodes = new HashSet<JsonNode>();
@@ -204,6 +197,10 @@ public class BuiltinFunctions {
 		final ArrayNode arrayNode = new ArrayNode(null);
 		arrayNode.addAll(nodes);
 		return arrayNode;
+	}
+
+	public static JsonNode length(final TextNode node) {
+		return IntNode.valueOf(node.getTextValue().length());
 	}
 
 	/**

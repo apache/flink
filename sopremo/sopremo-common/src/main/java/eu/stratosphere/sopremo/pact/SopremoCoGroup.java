@@ -6,6 +6,7 @@ import java.util.Iterator;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -33,14 +34,20 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 			values1 = cached1.iterator();
 			values2 = cached2.iterator();
 		}
+		try {
 		this.coGroup(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values1), values1),
 			JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values2), values2),
 			new JsonCollector(out));
+	} catch(RuntimeException e) {
+		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", getContext().operatorTrace(), key, values1, values2, e));
+		throw e;
+	}
 	}
 
 	@Override
 	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 

@@ -59,7 +59,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author Arvid Heise
  */
 class MockTaskManager implements TaskOperationProtocol {
-	private static final int MEMORY_SIZE = 192 << 20;
+	private static final long MEMORY_SIZE = Math.max(192<<16, Runtime.getRuntime().maxMemory() / 2);
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 
@@ -75,7 +75,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private MockTaskManager() {
 		// 256 mb
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, (int) (MEMORY_SIZE / 10));
 //		this.memoryManager = new MockMemoryManager();
 		// Initialize the io manager
 		final String tmpDirPath = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,

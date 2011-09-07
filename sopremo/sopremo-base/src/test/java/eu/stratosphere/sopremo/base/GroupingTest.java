@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.base;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
+import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
@@ -91,7 +92,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.FIRST), new ObjectAccess("dept")));
 		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
 		transformation.addMapping("emps",
-			new PathExpression(new InputSelection(0), new AggregationExpression(BuiltinFunctions.SORT,
+			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.SORT,
 				new ObjectAccess("id"))));
 		transformation.addMapping("numEmps",
 			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.COUNT)));

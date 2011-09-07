@@ -2,8 +2,13 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import junit.framework.Assert;
+
+import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParseException;
@@ -17,7 +22,6 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
-@Ignore
 public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> {
 
 	private static JsonNode doc = getJsonNode();
@@ -122,5 +126,13 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 			new ObjectAccess("GlossDiv"), new ObjectAccess("GlossList")).getFragment(1);
 
 		Assert.assertEquals(new ObjectAccess("GlossDiv"), result);
+	}
+	
+	@Override
+	protected void initVerifier(EqualsVerifier<PathExpression> equalVerifier) {
+		super.initVerifier(equalVerifier);
+		equalVerifier.withPrefabValues(List.class, 
+			new ArrayList<Object>(), 
+			new ArrayList<Object>(Arrays.asList(new ObjectAccess("field"))));
 	}
 }

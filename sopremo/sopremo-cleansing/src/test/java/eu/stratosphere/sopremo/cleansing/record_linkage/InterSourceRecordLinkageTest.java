@@ -17,7 +17,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
+import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
@@ -190,7 +190,7 @@ public class InterSourceRecordLinkageTest {
 			add(this.deepArrayOfElements(testPlan, new int[] { 4 }, new int[] { 14 })).
 			add(this.deepArrayOfElements(testPlan, new int[] { 5 }, new int[] { 151, 152 })).
 			add(this.deepArrayOfElements(testPlan, new int[] { 3 }, new int[] {}));
-
+		
 		testPlan.run();
 	}
 

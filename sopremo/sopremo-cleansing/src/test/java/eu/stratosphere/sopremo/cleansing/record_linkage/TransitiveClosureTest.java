@@ -53,7 +53,6 @@ public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
 
 	@Test
 	public void testTransitiveClosureWithIdAndPairMode() {
-		SopremoUtil.trace();
 		final TransitiveClosure transitiveClosure = new TransitiveClosure(null);
 		transitiveClosure.setClosureMode(ClosureMode.LINKS);
 //		transitiveClosure.setIdProjection(new ObjectAccess("id"));

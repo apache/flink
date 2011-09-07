@@ -18,6 +18,9 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -71,17 +74,26 @@ public abstract class FileOutputFormat<K extends Key, V extends Value> extends O
 	@Override
 	public void open(int taskNumber) throws IOException
 	{
-		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, 10000);
-		opot.start();
+//		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
+//		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, 10000);
+//		opot.start();
+
+		final FileSystem fs = this.outputFilePath.getFileSystem();
+		Path p = this.outputFilePath;
 		
-		try {
-			// get FSDataOutputStream
-			this.stream = opot.getFSDataOutputStream();
+		if (fs.exists(this.outputFilePath) && fs.getFileStatus(this.outputFilePath).isDir()) {
+			// write output in directory
+			p = this.outputFilePath.suffix("/" + taskNumber);
 		}
-		catch (Exception e) {
-			throw new RuntimeException("Stream to output file could not be opened: " + e.getMessage(), e);
-		}
+		
+		this.stream = fs.create(p, true);
+//		try {
+//			// get FSDataOutputStream
+//			this.stream = opot.getFSDataOutputStream();
+//		}
+//		catch (Exception e) {
+//			throw new RuntimeException("Stream to output file could not be opened: " + e.getMessage(), e);
+//		}
 	}
 
 
@@ -96,119 +108,121 @@ public abstract class FileOutputFormat<K extends Key, V extends Value> extends O
 		}
 	}
 	
-	// ============================================================================================
-	
-	/**
-	 * Obtains a DataOutputStream in an thread that is not interrupted.
-	 * The HDFS client is very sensitive to InterruptedExceptions.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 */
-	private static class OutputPathOpenThread extends Thread {
-
-		private final Object lock = new Object();
-		
-		private final Path path;
-		
-		private final long timeoutMillies;
-
-		private final int taskIndex;
-
-		private volatile FSDataOutputStream fdos;
-
-		private volatile Exception exception;
-		
-		private volatile boolean canceled = false;
-		
-
-		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
-			this.path = path;
-			this.timeoutMillies = timeoutMillies;
-			this.taskIndex = taskIndex;
-		}
-
-		@Override
-		public void run() {
-			
-			try {
-				final FileSystem fs = path.getFileSystem();
-				Path p = this.path;
-				
-				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
-					// write output in directory
-					p = this.path.suffix("/" + this.taskIndex);
-				}
-				
-				final FSDataOutputStream stream = fs.create(p, true);
-
-				// create output file
-				synchronized (this.lock) {
-					this.lock.notifyAll();
-					
-					if (!this.canceled) {
-						this.fdos = stream;
-					}
-					else {
-						this.fdos = null;
-						stream.close();
-					}
-				}
-			}
-			catch (Exception t) {
-				synchronized (this.lock) {
-					this.canceled = true;
-					this.exception = t;
-				}
-			}
-		}
-
-		public FSDataOutputStream getFSDataOutputStream()
-		throws Exception
-		{
-			long start = System.currentTimeMillis();
-			long remaining = this.timeoutMillies;
-			
-			if (this.exception != null) {
-				throw this.exception;
-			}
-			if (this.fdos != null) {
-				return this.fdos;
-			}
-			
-			synchronized (this.lock) {
-				do {
-					try {
-						this.lock.wait(remaining);
-					}
-					catch (InterruptedException iex) {
-						this.canceled = true;
-						if (this.fdos != null) {
-							try  {
-								this.fdos.close();
-							} catch (Throwable t) {}
-						}
-						throw new Exception("Output Path Opener was interrupted.");
-					}
-				}
-				while (this.exception == null && this.fdos == null &&
-						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
-			
-				if (this.exception != null) {
-					if (this.fdos != null) {
-						try  {
-							this.fdos.close();
-						} catch (Throwable t) {}
-					}
-					throw this.exception;
-				}
-				
-				if (this.fdos != null) {
-					return this.fdos;
-				}
-			}
-			
-			// try to forcefully shut this thread down
-			throw new Exception("Output Path Opener timed out.");
-		}
-	}
+//	// ============================================================================================
+//	
+//	/**
+//	 * Obtains a DataOutputStream in an thread that is not interrupted.
+//	 * The HDFS client is very sensitive to InterruptedExceptions.
+//	 * 
+//	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+//	 */
+//	private static class OutputPathOpenThread extends Thread {
+//
+//		private final Object lock = new Object();
+//		
+//		private final Path path;
+//		
+//		private final long timeoutMillies;
+//
+//		private final int taskIndex;
+//
+//		private volatile FSDataOutputStream fdos;
+//
+//		private volatile Exception exception;
+//		
+//		private volatile boolean canceled = false;
+//		
+//
+//		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
+//			this.path = path;
+//			this.timeoutMillies = timeoutMillies;
+//			this.taskIndex = taskIndex;
+//		}
+//
+//		@Override
+//		public void run() {
+//			
+//			try {
+//				final FileSystem fs = path.getFileSystem();
+//				Path p = this.path;
+//				
+//				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
+//					// write output in directory
+//					p = this.path.suffix("/" + this.taskIndex);
+//				}
+//				
+//				final FSDataOutputStream stream = fs.create(p, true);
+//
+//				// create output file
+//				synchronized (this.lock) {
+//					this.lock.notifyAll();
+//					
+//					if (!this.canceled) {
+//						this.fdos = stream;
+//					}
+//					else {
+//						this.fdos = null;
+//						stream.close();
+//					}
+//				}
+//			}
+//			catch (Exception t) {
+//				LogFactory.getLog("file").error("cannot open blub", t);
+//				synchronized (this.lock) {
+//					this.canceled = true;
+//					this.exception = t;
+//					
+//				}
+//			}
+//		}
+//
+//		public FSDataOutputStream getFSDataOutputStream()
+//		throws Exception
+//		{
+//			long start = System.currentTimeMillis();
+//			long remaining = this.timeoutMillies;
+//			
+//			if (this.exception != null) {
+//				throw this.exception;
+//			}
+//			if (this.fdos != null) {
+//				return this.fdos;
+//			}
+//			
+//			synchronized (this.lock) {
+//				do {
+//					try {
+//						this.lock.wait(remaining);
+//					}
+//					catch (InterruptedException iex) {
+//						this.canceled = true;
+//						if (this.fdos != null) {
+//							try  {
+//								this.fdos.close();
+//							} catch (Throwable t) {}
+//						}
+//						throw new Exception("Output Path Opener was interrupted.");
+//					}
+//				}
+//				while (this.exception == null && this.fdos == null &&
+//						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
+//			
+//				if (this.exception != null) {
+//					if (this.fdos != null) {
+//						try  {
+//							this.fdos.close();
+//						} catch (Throwable t) {}
+//					}
+//					throw this.exception;
+//				}
+//				
+//				if (this.fdos != null) {
+//					return this.fdos;
+//				}
+//			}
+//			
+//			// try to forcefully shut this thread down
+//			throw new Exception("Output Path Opener timed out.");
+//		}
+//	}
 }

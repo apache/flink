@@ -6,6 +6,7 @@ import java.util.Iterator;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -19,6 +20,7 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 	@Override
 	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 
@@ -43,8 +45,13 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 			SopremoUtil.LOG.trace(String.format("%s %s/%s", getContext().operatorTrace(), key, cached));
 			values = cached.iterator();
 		}
+		try {
 		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
 			new JsonCollector(
 				out));
+	} catch(RuntimeException e) {
+		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", getContext().operatorTrace(), key, values, e));
+		throw e;
+	}
 	}
 }
