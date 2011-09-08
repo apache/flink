@@ -1,5 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
-
+import static eu.stratosphere.sopremo.JsonUtil.*;
 import junit.framework.Assert;
 
 import org.codehaus.jackson.JsonNode;
