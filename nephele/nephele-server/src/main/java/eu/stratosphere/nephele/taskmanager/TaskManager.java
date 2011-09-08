@@ -848,4 +848,13 @@ public class TaskManager implements TaskOperationProtocol {
 
 		this.byteBufferedChannelManager.logBufferUtilization();
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void reportCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions) throws IOException {
+
+		this.byteBufferedChannelManager.reportCheckpointDecisions(checkpointDecisions);
+	}
 }

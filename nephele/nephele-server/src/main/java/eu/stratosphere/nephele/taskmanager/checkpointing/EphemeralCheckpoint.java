@@ -123,6 +123,8 @@ public class EphemeralCheckpoint {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
+	private volatile CheckpointingDecisionState asynchronousCheckpointingDecision;
+	
 	public EphemeralCheckpoint(final Task task, final boolean ephemeral) {
 
 		this.task = task;
@@ -137,6 +139,7 @@ public class EphemeralCheckpoint {
 
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.CHECKPOINTING);
+		this.asynchronousCheckpointingDecision = this.checkpointingDecision;
 
 		this.fileBufferManager = FileBufferManager.getInstance();
 
@@ -193,31 +196,22 @@ public class EphemeralCheckpoint {
 		return this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING;
 	}
 
-	public void destroy() {
+	private void destroy() {
 
 		while (!this.queuedEnvelopes.isEmpty()) {
 
 			final TransferEnvelope transferEnvelope = this.queuedEnvelopes.poll();
 			final Buffer buffer = transferEnvelope.getBuffer();
 			if (buffer != null) {
-				System.out.println("Recycling buffer");
 				buffer.recycleBuffer();
 			}
 		}
-
-		this.checkpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
 	}
 
-	public void write() throws IOException, InterruptedException {
+	private void write() throws IOException, InterruptedException {
 
-		if (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED) {
-
-			this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
-			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
-
-			while (!this.queuedEnvelopes.isEmpty()) {
-				writeTransferEnvelope(this.queuedEnvelopes.poll());
-			}
+		while (!this.queuedEnvelopes.isEmpty()) {
+			writeTransferEnvelope(this.queuedEnvelopes.poll());
 		}
 	}
 
@@ -300,5 +294,34 @@ public class EphemeralCheckpoint {
 			// Send notification that checkpoint is completed
 			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
 		}
+	}
+	
+	public void setCheckpointDecisionAsynchronously(final boolean checkpointDecision) {
+		
+		if(checkpointDecision) {
+			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
+		} else {
+			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
+		}
+	}
+	
+	public void checkAsynchronousCheckpointDecision() throws IOException, InterruptedException {
+		
+		if(this.asynchronousCheckpointingDecision == this.checkpointingDecision) {
+			return;
+		}
+		
+		if(this.asynchronousCheckpointingDecision == CheckpointingDecisionState.UNDECIDED) {
+			LOG.error("Asynchronous checkpoint decision is UNDECIDED");
+			return;
+		}
+		
+		if(this.asynchronousCheckpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
+			write();
+		} else {
+			destroy();
+		}
+		
+		this.checkpointingDecision = this.asynchronousCheckpointingDecision;
 	}
 }

@@ -16,8 +16,10 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
+import java.util.Map;
 
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
@@ -53,7 +55,8 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	 */
 	private boolean initialExhaustionOfMemoryBuffersReported = false;
 
-	TaskContext(final Task task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+	TaskContext(final Task task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			final Map<ExecutionVertexID, TaskContext> tasksWithUndecidedCheckpoints) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
@@ -74,6 +77,9 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		this.forwardTransferEnvelopes = ephemeral;
 
 		this.ephemeralCheckpoint = new EphemeralCheckpoint(task, ephemeral);
+		if (ephemeral) {
+			tasksWithUndecidedCheckpoints.put(task.getVertexID(), this);
+		}
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 
@@ -169,13 +175,6 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		if (!this.initialExhaustionOfMemoryBuffersReported) {
 
 			this.task.initialExecutionResourcesExhausted();
-
-			// We are out of byte buffers
-			if (!this.ephemeralCheckpoint.isDecided()) {
-				System.out.println("Destroying checkpoint");
-				this.ephemeralCheckpoint.destroy();
-			}
-
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}
 	}
@@ -203,6 +202,9 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 			this.subEventListener[i].asynchronousEventOccurred();
 		}
+
+		// Check if the checkpoint decision changed
+		this.ephemeralCheckpoint.checkAsynchronousCheckpointDecision();
 	}
 
 	/**
@@ -257,5 +259,11 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	AbstractID getFileOwnerID() {
 
 		return this.task.getVertexID();
+	}
+
+	void setCheckpointDecisionAsynchronously(final boolean checkpointDecision) {
+
+		// Simply delegate call
+		this.ephemeralCheckpoint.setCheckpointDecisionAsynchronously(checkpointDecision);
 	}
 }
