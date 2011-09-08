@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo;
+import static eu.stratosphere.sopremo.JsonUtil.*;
 
 import java.io.IOException;
 import java.net.URL;
@@ -124,25 +125,7 @@ public abstract class SopremoTest<T> {
 		equalVerifier.verify();
 	}
 
-	public static ArrayNode createArrayNode(final Object... constants) {
-		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
-	}
-
-	public static CompactArrayNode createCompactArray(final Object... constants) {
-		final JsonNode[] nodes = new JsonNode[constants.length];
-		for (int index = 0; index < nodes.length; index++)
-			nodes[index] = createValueNode(constants[index]);
-		return JsonUtil.asArray(nodes);
-	}
-
-	public static ObjectNode createObjectNode(final Object... fields) {
-		if (fields.length % 2 != 0)
-			throw new IllegalArgumentException("must have an even number of params");
-		final ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
-		for (int index = 0; index < fields.length; index += 2)
-			objectNode.put(fields[index].toString(), JsonUtil.OBJECT_MAPPER.valueToTree(fields[index + 1]));
-		return objectNode;
-	}
+	
 
 	public static PactJsonObject createPactJsonArray(final Object... constants) {
 		return new PactJsonObject(createArrayNode(constants));
@@ -156,43 +139,13 @@ public abstract class SopremoTest<T> {
 		return new PactJsonObject(createValueNode(value));
 	}
 
-	public static PathExpression createPath(final List<String> parts) {
-		final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
-		for (int index = 0; index < parts.size(); index++) {
-			EvaluationExpression segment;
-			final String part = parts.get(index);
-			if (part.equals("$"))
-				segment = new InputSelection(0);
-			else if (part.matches("[0-9]+"))
-				segment = new InputSelection(Integer.parseInt(part));
-			else if (part.matches("\\[.*\\]")) {
-				if (part.charAt(1) == '*') {
-					segment = new ArrayProjection(createPath(parts.subList(index + 1, parts.size())));
-					index = parts.size();
-				} else if (part.contains(":")) {
-					final int delim = part.indexOf(":");
-					segment = new ArrayAccess(Integer.parseInt(part.substring(1, delim)),
-						Integer.parseInt(part.substring(delim + 1, part.length() - 1)));
-				} else
-					segment = new ArrayAccess(Integer.parseInt(part.substring(1, part.length() - 1)));
-			} else
-				segment = new ObjectAccess(part);
-			fragments.add(segment);
-		}
-		return new PathExpression(fragments);
-	}
-
-	public static PathExpression createPath(final String... parts) {
-		return createPath(Arrays.asList(parts));
-	}
+	
 
 	public static StreamArrayNode createStreamArray(final Object... constants) {
 		return StreamArrayNode.valueOf(createArrayNode(constants).getElements(), true);
 	}
 
-	public static JsonNode createValueNode(final Object value) {
-		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
-	}
+	
 
 	public static String getResourcePath(final String resource) {
 		try {

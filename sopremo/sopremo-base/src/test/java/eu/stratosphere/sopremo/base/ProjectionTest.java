@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.base;
+import static eu.stratosphere.sopremo.JsonUtil.*;
 
 import org.junit.Test;
 

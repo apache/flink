@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+import static eu.stratosphere.sopremo.JsonUtil.*;
 
 import java.util.ArrayList;
 import java.util.Iterator;

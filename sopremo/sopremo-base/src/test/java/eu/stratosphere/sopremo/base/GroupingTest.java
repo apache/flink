@@ -1,9 +1,9 @@
 package eu.stratosphere.sopremo.base;
-
+import static eu.stratosphere.sopremo.JsonUtil.*;
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;

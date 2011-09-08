@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+import static eu.stratosphere.sopremo.JsonUtil.*;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.IntNode;

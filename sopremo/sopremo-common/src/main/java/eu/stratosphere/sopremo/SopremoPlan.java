@@ -27,6 +27,8 @@ public class SopremoPlan {
 		this.module = new SopremoModule("plan", 0, 0);
 		for (final Sink sink : sinks)
 			this.module.addInternalOutput(sink);
+				
+		context.getFunctionRegistry().register(BuiltinFunctions.class);
 	}
 
 	/**

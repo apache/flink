@@ -2,7 +2,8 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonArray;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
-import static eu.stratosphere.sopremo.SopremoTest.createPath;
+import static eu.stratosphere.sopremo.JsonUtil.*;
+
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +17,8 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
+import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.aggregation.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;

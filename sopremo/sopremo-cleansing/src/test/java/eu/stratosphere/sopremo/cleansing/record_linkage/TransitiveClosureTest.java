@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
+import static eu.stratosphere.sopremo.JsonUtil.*;
 
 import junit.framework.Assert;
 

@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.similarity;
+import static eu.stratosphere.sopremo.JsonUtil.*;
 
 import junit.framework.Assert;
 

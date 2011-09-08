@@ -6,6 +6,7 @@ import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.JsonUtil;
+import static eu.stratosphere.sopremo.JsonUtil.*;
 
 public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 

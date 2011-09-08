@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.aggregation;
+package eu.stratosphere.sopremo;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,9 +17,9 @@ import org.codehaus.jackson.node.NullNode;
 import org.codehaus.jackson.node.NumericNode;
 import org.codehaus.jackson.node.TextNode;
 
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.aggregation.MaterializingAggregationFunction;
+import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
