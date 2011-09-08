@@ -61,7 +61,7 @@ public class EphemeralCheckpoint {
 	/**
 	 * The number of envelopes to be stored in a single meta data file.
 	 */
-	private static final int ENVELOPES_PER_META_DATA_FILE = 100;
+	private static final int ENVELOPES_PER_META_DATA_FILE = 10000;
 
 	/**
 	 * The enveloped which are currently queued until the state of the checkpoint is decided.
@@ -124,7 +124,7 @@ public class EphemeralCheckpoint {
 	private CheckpointingDecisionState checkpointingDecision;
 
 	private volatile CheckpointingDecisionState asynchronousCheckpointingDecision;
-	
+
 	public EphemeralCheckpoint(final Task task, final boolean ephemeral) {
 
 		this.task = task;
@@ -245,7 +245,8 @@ public class EphemeralCheckpoint {
 
 		if (this.metaDataFileChannel == null) {
 
-			final String checkpointDir = GlobalConfiguration.getString(CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
+			final String checkpointDir = GlobalConfiguration.getString(
+				CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
 				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
@@ -280,7 +281,8 @@ public class EphemeralCheckpoint {
 				this.metaDataFileChannel.close();
 			}
 
-			final String checkpointDir = GlobalConfiguration.getString(CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
+			final String checkpointDir = GlobalConfiguration.getString(
+				CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
 				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 
 			new FileOutputStream(checkpointDir + File.separator + CheckpointReplayManager.METADATA_PREFIX + "_"
@@ -295,33 +297,36 @@ public class EphemeralCheckpoint {
 			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
 		}
 	}
-	
+
 	public void setCheckpointDecisionAsynchronously(final boolean checkpointDecision) {
-		
-		if(checkpointDecision) {
+
+		if (checkpointDecision) {
 			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 		} else {
 			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
 		}
 	}
-	
+
 	public void checkAsynchronousCheckpointDecision() throws IOException, InterruptedException {
-		
-		if(this.asynchronousCheckpointingDecision == this.checkpointingDecision) {
+
+		if (this.asynchronousCheckpointingDecision == this.checkpointingDecision) {
 			return;
 		}
-		
-		if(this.asynchronousCheckpointingDecision == CheckpointingDecisionState.UNDECIDED) {
+
+		if (this.asynchronousCheckpointingDecision == CheckpointingDecisionState.UNDECIDED) {
 			LOG.error("Asynchronous checkpoint decision is UNDECIDED");
 			return;
 		}
-		
-		if(this.asynchronousCheckpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
+
+		if (this.asynchronousCheckpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
+			// Write the data which has been queued so far and update checkpoint state
 			write();
+			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
 		} else {
+			// Simply destroy the checkpoint
 			destroy();
 		}
-		
+
 		this.checkpointingDecision = this.asynchronousCheckpointingDecision;
 	}
 }

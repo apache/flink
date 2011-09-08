@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.checkpointing;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
-import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 
 public class CheckpointReplayResult extends AbstractTaskResult {
 
