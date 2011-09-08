@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
@@ -48,10 +47,6 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
-	private boolean taskHasStartedToReadChannel = false;
-
-	private int numberOfRequestedBuffers = 0;
-
 	InputChannelContext(final InputGateContext inputGateContext,
 			final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel) {
@@ -68,9 +63,6 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		TransferEnvelope transferEnvelope = null;
 
 		synchronized (this.queuedEnvelopes) {
-
-			this.taskHasStartedToReadChannel = true;
-			this.queuedEnvelopes.notify();
 
 			if (this.queuedEnvelopes.isEmpty()) {
 				return null;
@@ -252,32 +244,22 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
 		throw new IllegalStateException("requestEmptyBuffer called on InputChannelContext");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
-			throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
-		if (this.byteBufferedInputChannel.getType() == ChannelType.INMEMORY) {
-
-			if (this.numberOfRequestedBuffers >= 0) {
-				if (this.numberOfRequestedBuffers++ > 0) {
-					synchronized (this.queuedEnvelopes) {
-
-						while (!this.taskHasStartedToReadChannel) {
-							this.queuedEnvelopes.wait();
-						}
-					}
-					this.numberOfRequestedBuffers = -1;
-				}
-			}
-		}
-
-		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		return this.inputGateContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
 	/**

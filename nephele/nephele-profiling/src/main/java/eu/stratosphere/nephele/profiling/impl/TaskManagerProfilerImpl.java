@@ -38,7 +38,6 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
 import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
@@ -47,6 +46,7 @@ import eu.stratosphere.nephele.profiling.impl.types.InternalInputGateProfilingDa
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalOutputGateProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -112,11 +112,10 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerExecutionListener(ExecutionVertexID id, Configuration jobConfiguration,
-			Environment environment) {
+	public void registerExecutionListener(final Task task, final Configuration jobConfiguration) {
 
 		// Register profiling hook for the environment
-		environment.registerExecutionListener(new EnvironmentListenerImpl(this, id, environment, this.timerInterval));
+		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getEnvironment()));
 	}
 
 	@Override
@@ -331,27 +330,4 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		}
 
 	}
-	/**
-	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
-	 * @throws ProfilingException
-	 */
-	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException{
-		InternalInstanceProfilingData data = this.instanceProfiler.generateCheckpointProfilingData();
-		int allReadRecords = 0;
-//		for(InputGateListenerImpl inGateListener : this.monitoredInputGates.values()){
-//			allReadRecords += inGateListener.getReadRecords();
-//		}
-		int allWrittenRecords = 0;
-//		for(OutputGateListenerImpl outGateListener : this.monitoredOutputGates.values()){
-//			allWrittenRecords += outGateListener.getWrittenRecords();
-//		}
-		return new CheckpointProfilingData(data.getIOWaitCPU(), data.getIdleCPU(), data.getUserCPU(),
-			data.getSystemCPU(), data.getHardIrqCPU(), data.getSoftIrqCPU(), data.getReceivedBytes(), data.getTransmittedBytes(),allReadRecords,allWrittenRecords);
-	}
-	/*
-	 * public void publishProfilingData(InternalProfilingData profilingData) {
-	 * this.profilingDataContainer.addProfilingData(profilingData);
-	 * }
-	 */
-
 }

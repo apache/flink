@@ -32,22 +32,35 @@ public class FileBuffer implements InternalBuffer {
 
 	private final AbstractID ownerID;
 
-	private FileID fileID = null;
+	private FileID fileID;
 
 	private FileChannel fileChannel;
 
-	private volatile boolean writeMode = true;
+	private volatile boolean writeMode;
 
 	private long totalBytesWritten = 0;
 
 	private long totalBytesRead = 0;
 
-	private long offset = 0;
+	private long offset;
 
-	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+	FileBuffer(final int bufferSize, final FileID fileID, final long offset, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
 		this.bufferSize = bufferSize;
+		this.fileID = fileID;
+		this.offset = offset;
 		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
+		this.writeMode = false;
+	}
+	
+	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+		
+		this.bufferSize = bufferSize;
+		this.fileID = null;
+		this.offset = 0L;
+		this.ownerID = ownerID;
+		this.fileBufferManager = fileBufferManager;
+		this.writeMode = true;
 	}
 
 	@Override
@@ -305,4 +318,23 @@ public class FileBuffer implements InternalBuffer {
 		return this.writeMode;
 	}
 
+	/**
+	 * Returns the ID of the file which backs this buffers.
+	 * 
+	 * @return the ID of the file which backs this buffer
+	 */
+	public FileID getFileID() {
+
+		return this.fileID;
+	}
+
+	/**
+	 * Returns the offset in bytes which marks the begin of the buffer's data in the underlying file.
+	 * 
+	 * @return the buffer's offset in bytes
+	 */
+	public long getOffset() {
+
+		return this.offset;
+	}
 }

@@ -16,13 +16,13 @@
 package eu.stratosphere.nephele.profiling;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.InputGateListener;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.OutputGateListener;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -36,14 +36,12 @@ public interface TaskManagerProfiler {
 	/**
 	 * Registers an {@link ExecutionListener} object for profiling.
 	 * 
-	 * @param id
-	 *        the {@link ExecutionVertexID} of the task
+	 * @param task
+	 *        task to be register a profiling listener for
 	 * @param jobConfiguration
 	 *        the job configuration sent with the task
-	 * @param environment
-	 *        the {@link Environment} object to register the listener for
 	 */
-	void registerExecutionListener(ExecutionVertexID id, Configuration jobConfiguration, Environment environment);
+	void registerExecutionListener(Task task, Configuration jobConfiguration);
 
 	/**
 	 * Registers a {@link InputGateListener} object for the given input gate.
@@ -103,10 +101,4 @@ public interface TaskManagerProfiler {
 	 * and stops all its internal processes.
 	 */
 	void shutdown();
-	/**
-	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
-	 * @throws ProfilingException
-	 */
-	public CheckpointProfilingData getCheckpointProfilingData() throws ProfilingException;
-	
 }

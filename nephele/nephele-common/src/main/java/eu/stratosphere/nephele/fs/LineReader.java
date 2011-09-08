@@ -23,9 +23,8 @@ package eu.stratosphere.nephele.fs;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-
 public class LineReader {
+
 	private static final int CR = '\r';
 
 	private static final int LF = '\n';
@@ -44,11 +43,11 @@ public class LineReader {
 
 	private boolean overLimit;
 
-	public LineReader(FSDataInputStream strm, long start, long length, int buffersize)
-																						throws IOException {
+	public LineReader(final FSDataInputStream strm, final long start, final long length, final int buffersize)
+			throws IOException {
 		this.stream = strm;
-		readBuffer = new byte[buffersize];
-		wrapBuffer = new byte[256];
+		this.readBuffer = new byte[buffersize];
+		this.wrapBuffer = new byte[256];
 
 		this.lengthLeft = length;
 		this.readPos = 0;
@@ -63,36 +62,38 @@ public class LineReader {
 	}
 
 	private final boolean fillBuffer() throws IOException {
-		int toRead = lengthLeft > readBuffer.length ? readBuffer.length : (int) lengthLeft;
-		if (lengthLeft <= 0) {
-			toRead = readBuffer.length;
-			overLimit = true;
+
+		int toRead = this.lengthLeft > this.readBuffer.length ? this.readBuffer.length : (int) this.lengthLeft;
+		if (this.lengthLeft <= 0) {
+			toRead = this.readBuffer.length;
+			this.overLimit = true;
 		}
 
-		int read = stream.read(readBuffer, 0, toRead);
+		int read = this.stream.read(this.readBuffer, 0, toRead);
 
 		if (read == -1) {
-			stream.close();
-			stream = null;
+			this.stream.close();
+			this.stream = null;
 			return false;
 		} else {
-			lengthLeft -= read;
-			readPos = 0;
-			limit = read;
+			this.lengthLeft -= read;
+			this.readPos = 0;
+			this.limit = read;
 			return true;
 		}
 
 	}
 
 	public void close() throws IOException {
-		wrapBuffer = null;
-		readBuffer = null;
-		if (stream != null)
-			stream.close();
+		this.wrapBuffer = null;
+		this.readBuffer = null;
+		if (this.stream != null) {
+			this.stream.close();
+		}
 	}
 
 	public byte[] readLine() throws IOException {
-		if (stream == null || overLimit) {
+		if (this.stream == null || this.overLimit) {
 			return null;
 		}
 
@@ -100,11 +101,11 @@ public class LineReader {
 		int countInWrapBuffer = 0;
 
 		while (true) {
-			if (readPos >= limit) {
+			if (this.readPos >= this.limit) {
 				if (!fillBuffer()) {
 					if (countInWrapBuffer > 0) {
 						byte[] tmp = new byte[countInWrapBuffer];
-						System.arraycopy(wrapBuffer, 0, tmp, 0, countInWrapBuffer);
+						System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
 						return tmp;
 					} else {
 						return null;
@@ -112,45 +113,45 @@ public class LineReader {
 				}
 			}
 
-			int startPos = readPos;
+			int startPos = this.readPos;
 			int count = 0;
 
-			while (readPos < limit && (curr = readBuffer[readPos++]) != LF)
-				;
+			while (this.readPos < this.limit && (curr = this.readBuffer[this.readPos++]) != LF) {
+			}
 
 			// check why we dropped out
 			if (curr == LF) {
 				// line end
-				count = readPos - startPos - 1;
-				if (readPos == 1 && countInWrapBuffer > 0 && wrapBuffer[countInWrapBuffer - 1] == CR) {
+				count = this.readPos - startPos - 1;
+				if (this.readPos == 1 && countInWrapBuffer > 0 && this.wrapBuffer[countInWrapBuffer - 1] == CR) {
 					countInWrapBuffer--;
-				} else if (readPos > startPos + 1 && readBuffer[readPos - 2] == CR) {
+				} else if (this.readPos > startPos + 1 && this.readBuffer[this.readPos - 2] == CR) {
 					count--;
 				}
 
 				// copy to byte array
 				if (countInWrapBuffer > 0) {
 					byte[] end = new byte[countInWrapBuffer + count];
-					System.arraycopy(wrapBuffer, 0, end, 0, countInWrapBuffer);
-					System.arraycopy(readBuffer, 0, end, countInWrapBuffer, count);
+					System.arraycopy(this.wrapBuffer, 0, end, 0, countInWrapBuffer);
+					System.arraycopy(this.readBuffer, 0, end, countInWrapBuffer, count);
 					return end;
 				} else {
 					byte[] end = new byte[count];
-					System.arraycopy(readBuffer, startPos, end, 0, count);
+					System.arraycopy(this.readBuffer, startPos, end, 0, count);
 					return end;
 				}
 			} else {
-				count = limit - startPos;
+				count = this.limit - startPos;
 
 				// buffer exhausted
-				while (wrapBuffer.length - countInWrapBuffer < count) {
+				while (this.wrapBuffer.length - countInWrapBuffer < count) {
 					// reallocate
-					byte[] tmp = new byte[wrapBuffer.length * 2];
-					System.arraycopy(wrapBuffer, 0, tmp, 0, countInWrapBuffer);
-					wrapBuffer = tmp;
+					byte[] tmp = new byte[this.wrapBuffer.length * 2];
+					System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
+					this.wrapBuffer = tmp;
 				}
 
-				System.arraycopy(readBuffer, startPos, wrapBuffer, countInWrapBuffer, count);
+				System.arraycopy(this.readBuffer, startPos, this.wrapBuffer, countInWrapBuffer, count);
 				countInWrapBuffer += count;
 			}
 		}

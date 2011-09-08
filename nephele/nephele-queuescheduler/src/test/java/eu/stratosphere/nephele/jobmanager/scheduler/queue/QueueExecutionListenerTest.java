@@ -25,12 +25,13 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
  * This class checks the functionality of the {@link QueueExecutionListener} class
@@ -47,7 +48,8 @@ public class QueueExecutionListenerTest {
 	@Test
 	public void testExecutionStateChanged() {
 
-		final Environment ee = mock(Environment.class);
+		final JobID jobID = new JobID();
+		final ExecutionVertexID vertexID = new ExecutionVertexID();
 
 		final QueueScheduler localScheduler = mock(QueueScheduler.class);
 		final ExecutionVertex executionVertex = mock(ExecutionVertex.class);
@@ -60,19 +62,19 @@ public class QueueExecutionListenerTest {
 		// State change to RUNNING
 		when(executionGraph.getJobStatus()).thenReturn(InternalJobStatus.RUNNING);
 		ExecutionState newExecutionState = ExecutionState.FINISHING;
-		toTest.executionStateChanged(ee, newExecutionState, "");
+		toTest.executionStateChanged(jobID, vertexID, newExecutionState, "");
 		verify(localScheduler, times(0)).checkAndReleaseAllocatedResource(executionGraph, allocatedResource);
 		verify(localScheduler, times(0)).removeJobFromSchedule(executionGraph);
 		// Job finished
 		newExecutionState = ExecutionState.FINISHED;
 		when(executionGraph.getJobStatus()).thenReturn(InternalJobStatus.FINISHED);
-		toTest.executionStateChanged(ee, newExecutionState, "");
+		toTest.executionStateChanged(jobID, vertexID, newExecutionState, "");
 		verify(localScheduler).checkAndReleaseAllocatedResource(executionGraph, allocatedResource);
 		// execution state changed to fails, vertex should be rescheduled
 		newExecutionState = ExecutionState.FAILED;
 		when(executionVertex.hasRetriesLeft()).thenReturn(true);
-		toTest.executionStateChanged(ee, newExecutionState, "");
-		verify(executionVertex).setExecutionState(ExecutionState.SCHEDULED);
+		toTest.executionStateChanged(jobID, vertexID, newExecutionState, "");
+		verify(executionVertex).updateExecutionState(ExecutionState.SCHEDULED);
 
 	}
 

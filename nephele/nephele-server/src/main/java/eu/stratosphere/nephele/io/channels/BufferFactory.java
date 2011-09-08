@@ -31,6 +31,14 @@ public abstract class BufferFactory {
 		return new Buffer(internalBuffer);
 	}
 
+	public static Buffer createFromCheckpoint(final int bufferSize, final FileID fileID, final long offset,
+			final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+
+		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, fileID, offset, ownerID, fileBufferManager);
+		
+		return new Buffer(internalBuffer);
+	}
+
 	public static Buffer createFromMemory(final int bufferSize, final ByteBuffer byteBuffer,
 			final Queue<ByteBuffer> queueForRecycledBuffers) {
 

@@ -19,32 +19,38 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 
-final class InputGateContext implements BufferProvider {
+final class InputGateContext implements BufferProvider, LocalBufferPoolOwner {
 
-	private TaskContext taskContext;
+	private final LocalBufferPool localBufferPool;
 
-	InputGateContext(final TaskContext taskContext) {
-		this.taskContext = taskContext;
+	private final int numberOfInputChannels;
+
+	InputGateContext(final int numberOfInputChannels) {
+
+		this.localBufferPool = new LocalBufferPool(1, false);
+
+		this.numberOfInputChannels = numberOfInputChannels;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
-		return this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
-			throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
-		return this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
 	/**
@@ -53,7 +59,7 @@ final class InputGateContext implements BufferProvider {
 	@Override
 	public int getMaximumBufferSize() {
 
-		return this.taskContext.getMaximumBufferSize();
+		return this.localBufferPool.getMaximumBufferSize();
 	}
 
 	/**
@@ -62,7 +68,7 @@ final class InputGateContext implements BufferProvider {
 	@Override
 	public boolean isShared() {
 
-		return this.taskContext.isShared();
+		return this.localBufferPool.isShared();
 	}
 
 	/**
@@ -71,6 +77,44 @@ final class InputGateContext implements BufferProvider {
 	@Override
 	public void reportAsynchronousEvent() {
 
-		this.taskContext.reportAsynchronousEvent();
+		this.localBufferPool.reportAsynchronousEvent();
+	}
+
+	@Override
+	public int getNumberOfChannels() {
+
+		return this.numberOfInputChannels;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void setDesignatedNumberOfBuffers(int numberOfBuffers) {
+
+		this.localBufferPool.setDesignatedNumberOfBuffers(numberOfBuffers);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void clearLocalBufferPool() {
+
+		this.localBufferPool.clear();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logBufferUtilization() {
+
+		final int ava = this.localBufferPool.getNumberOfAvailableBuffers();
+		final int req = this.localBufferPool.getRequestedNumberOfBuffers();
+		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
+
+		System.out
+			.println("\t\tInputGateContext: " + ava + " available, " + req + " requested, " + des + " designated");
 	}
 }

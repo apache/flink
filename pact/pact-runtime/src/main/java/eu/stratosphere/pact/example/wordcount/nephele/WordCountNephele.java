@@ -207,9 +207,19 @@ public class WordCountNephele
 		sinkConfig.addInputShipStrategy(ShipStrategy.FORWARD);
 		
 		sourceVertex.connectTo(mapVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-		mapVertex.connectTo(reduceVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		mapVertex.connectTo(reduceVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 		reduceVertex.connectTo(sinkVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 		
+		if (numReceivingTasks > numSendingTasks) {
+			sourceVertex.setVertexToShareInstancesWith(reduceVertex);
+			mapVertex.setVertexToShareInstancesWith(reduceVertex);
+			sinkVertex.setVertexToShareInstancesWith(reduceVertex);
+		}
+		else {
+			sourceVertex.setVertexToShareInstancesWith(mapVertex);
+			reduceVertex.setVertexToShareInstancesWith(mapVertex);
+			sinkVertex.setVertexToShareInstancesWith(mapVertex);
+		}
 		
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");

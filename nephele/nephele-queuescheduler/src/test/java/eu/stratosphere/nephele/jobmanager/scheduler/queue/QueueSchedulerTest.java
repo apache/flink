@@ -237,7 +237,7 @@ public class QueueSchedulerTest {
 		when(resource.getInstanceType()).thenReturn(instanceType);
 
 		toTest.resourcesAllocated(jobid, resources);
-		verify(this.vertex1, times(4)).setExecutionState(ExecutionState.READY);
+		verify(this.vertex1, times(4)).updateExecutionState(ExecutionState.READY);
 
 	}
 

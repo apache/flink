@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * class to be invoked at runtime as well as a cryptographic hash of all the JAR files which are required to
  * instantiate the class and run it. The execution is the basis for feedback learning as it enables the profiler
  * to recognize particular parts of a job. Execution signature objects are immutable and, consequently, thread-safe.
+ * <p>
  * This class is thread-safe.
  * 
  * @author warneke
@@ -64,7 +65,7 @@ public final class ExecutionSignature {
 	 * @param signature
 	 *        the byte buffer containing the signature.
 	 */
-	private ExecutionSignature(byte[] signature) {
+	private ExecutionSignature(final byte[] signature) {
 		this.signature = signature;
 	}
 
@@ -77,7 +78,8 @@ public final class ExecutionSignature {
 	 *        the ID of the job
 	 * @return the cryptographic signature of this vertex
 	 */
-	public static ExecutionSignature createSignature(Class<? extends AbstractInvokable> invokableClass, JobID jobID) {
+	public static synchronized ExecutionSignature createSignature(
+			final Class<? extends AbstractInvokable> invokableClass, final JobID jobID) {
 
 		// First, try to load message digest algorithm, if necessary
 		if (messageDigest == null) {
@@ -118,7 +120,7 @@ public final class ExecutionSignature {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (obj instanceof ExecutionSignature) {
 

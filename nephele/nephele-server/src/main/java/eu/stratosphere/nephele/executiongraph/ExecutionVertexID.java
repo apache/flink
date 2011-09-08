@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
 /**
  * A class for statistically unique execution vertex IDs.
- * This class is thread-safe.
  * 
  * @author warneke
  */

@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.util.FileUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -41,12 +40,14 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class FileBufferManager {
+public final class FileBufferManager {
 
 	/**
 	 * The logging object.
 	 */
 	private static final Log LOG = LogFactory.getLog(FileBufferManager.class);
+
+	public static final String FILE_BUFFER_PREFIX = "fb_";
 
 	/**
 	 * Stores the location of the directory for temporary files.
@@ -57,7 +58,18 @@ public class FileBufferManager {
 
 	private final Map<AbstractID, Map<FileID, ReadableSpillingFile>> readableSpillingFileMap = new HashMap<AbstractID, Map<FileID, ReadableSpillingFile>>();
 
-	public FileBufferManager() {
+	private static FileBufferManager instance = null;
+
+	public static synchronized FileBufferManager getInstance() {
+
+		if (instance == null) {
+			instance = new FileBufferManager();
+		}
+
+		return instance;
+	}
+
+	private FileBufferManager() {
 
 		this.tmpDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
@@ -178,8 +190,9 @@ public class FileBufferManager {
 
 			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
 			if (writableSpillingFile == null) {
-				final String filename = this.tmpDir + File.separator + FileUtils.getRandomFilename("fb_");
-				writableSpillingFile = new WritableSpillingFile(new FileID(), new File(filename));
+				final FileID fileID = new FileID();
+				final String filename = this.tmpDir + File.separator + FILE_BUFFER_PREFIX + fileID;
+				writableSpillingFile = new WritableSpillingFile(fileID, new File(filename));
 				this.writableSpillingFileMap.put(ownerID, writableSpillingFile);
 			}
 
@@ -235,5 +248,48 @@ public class FileBufferManager {
 		}
 
 		return writableSpillingFile.getFileID();
+	}
+
+	public void registerExternalReadableSpillingFile(final AbstractID ownerID, final FileID fileID) throws IOException {
+
+		Map<FileID, ReadableSpillingFile> map = null;
+		synchronized (this.readableSpillingFileMap) {
+			map = this.readableSpillingFileMap.get(ownerID);
+			if (map == null) {
+				map = new HashMap<FileID, ReadableSpillingFile>();
+				this.readableSpillingFileMap.put(ownerID, map);
+			}
+		}
+
+		ReadableSpillingFile readableSpillingFile = null;
+		synchronized (map) {
+			readableSpillingFile = map.get(fileID);
+			if (readableSpillingFile == null) {
+				final String filename = this.tmpDir + File.separator + FILE_BUFFER_PREFIX + fileID;
+				readableSpillingFile = new ReadableSpillingFile(new File(filename), 1); // Use 1 here to make sure the
+																						// file is not immediately
+																						// deleted
+				map.put(fileID, readableSpillingFile);
+				map.notify();
+			}
+		}
+
+		readableSpillingFile.increaseNumberOfBuffers();
+
+	}
+
+	public void forceCloseOfWritableSpillingFile(final AbstractID ownerID) throws IOException, InterruptedException {
+
+		FileID fileID = null;
+		synchronized (this.writableSpillingFileMap) {
+			final WritableSpillingFile w = this.writableSpillingFileMap.get(ownerID);
+			if (w != null) {
+				fileID = w.getFileID();
+			}
+		}
+
+		if (fileID != null) {
+			getReadableSpillingFile(ownerID, fileID);
+		}
 	}
 }

@@ -35,7 +35,7 @@ import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeSerializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
@@ -134,7 +134,7 @@ public class TransferEnvelopeSerializerTest {
 		final FileOutputStream outputStream = new FileOutputStream(outputFile);
 		final FileChannel fileChannel = outputStream.getChannel();
 		final Deque<ByteBuffer> recycleQueue = new ArrayDeque<ByteBuffer>();
-		final TransferEnvelopeSerializer serializer = new TransferEnvelopeSerializer();
+		final DefaultSerializer serializer = new DefaultSerializer();
 		final ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 		final ByteBuffer initBuffer = ByteBuffer.allocate(1);
 
@@ -238,16 +238,20 @@ public class TransferEnvelopeSerializerTest {
 	 */
 	private void readAndCheckNotificationList(FileInputStream fileInputStream) throws IOException {
 
-		byte[] temp = new byte[SIZE_OF_INTEGER];
-		fileInputStream.read(temp);
-		final int sizeOfDataBlock = bufferToInteger(temp);
+		if (fileInputStream.read() != 0) {
 
-		assertEquals(SIZE_OF_INTEGER, sizeOfDataBlock);
+			byte[] temp = new byte[SIZE_OF_INTEGER];
 
-		fileInputStream.read(temp);
-		final int sizeOfNotificationList = bufferToInteger(temp);
+			fileInputStream.read(temp);
+			final int sizeOfDataBlock = bufferToInteger(temp);
 
-		assertEquals(0, sizeOfNotificationList);
+			assertEquals(SIZE_OF_INTEGER, sizeOfDataBlock);
+
+			fileInputStream.read(temp);
+			final int sizeOfNotificationList = bufferToInteger(temp);
+
+			assertEquals(0, sizeOfNotificationList);
+		}
 	}
 
 	/**

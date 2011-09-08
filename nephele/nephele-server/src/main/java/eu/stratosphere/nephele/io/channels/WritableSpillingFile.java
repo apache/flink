@@ -186,7 +186,7 @@ public final class WritableSpillingFile implements Closeable {
 
 		this.currentFileSize = currentFileSize;
 		this.lastUnlockTime = System.currentTimeMillis();
-		
+
 		++this.numberOfBuffers;
 	}
 
@@ -217,9 +217,9 @@ public final class WritableSpillingFile implements Closeable {
 
 		return this.fileID;
 	}
-	
+
 	ReadableSpillingFile toReadableSpillingFile() throws IOException {
-		
+
 		return new ReadableSpillingFile(this.physicalFile, this.numberOfBuffers);
 	}
 }

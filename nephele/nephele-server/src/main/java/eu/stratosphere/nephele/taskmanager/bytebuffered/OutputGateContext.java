@@ -20,54 +20,42 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 final class OutputGateContext implements BufferProvider, AsynchronousEventListener {
 
 	private final TaskContext taskContext;
 
-	private final OutputGate<?> outputGate;
-
-	private final FileBufferManager fileBufferManager;
-
-	private final EphemeralCheckpoint ephemeralCheckpoint;
+	private final ChannelType channelType;
 
 	private final Set<OutputChannelContext> inactiveOutputChannels;
 
-	/**
-	 * The dispatcher for received transfer envelopes.
-	 */
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
-
-	OutputGateContext(final TaskContext taskContext, final OutputGate<?> outputGate,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final FileBufferManager fileBufferManager) {
+	OutputGateContext(final TaskContext taskContext, final ChannelType channelType, final int outputGateIndex) {
 
 		this.taskContext = taskContext;
-		this.outputGate = outputGate;
-
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
-		this.fileBufferManager = fileBufferManager;
+		this.channelType = channelType;
 
 		this.inactiveOutputChannels = new HashSet<OutputChannelContext>();
 
-		this.ephemeralCheckpoint = new EphemeralCheckpoint(this.outputGate.getGateID(),
-			(outputGate.getChannelType() == ChannelType.FILE) ? false : true, this.fileBufferManager);
-
-		this.taskContext.registerAsynchronousEventListener(outputGate.getIndex(), this);
+		this.taskContext.registerAsynchronousEventListener(outputGateIndex, this);
 	}
 
 	void registerInactiveOutputChannel(final OutputChannelContext outputChannelContext) {
 
 		this.inactiveOutputChannels.add(outputChannelContext);
+	}
+
+	AbstractID getFileOwnerID() {
+
+		return this.taskContext.getFileOwnerID();
 	}
 
 	private long spillQueueWithLargestAmountOfMainMemory() {
@@ -102,19 +90,16 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 
 		return 0L;
 	}
-	
+
 	private void checkForActiveOutputChannels() throws IOException, InterruptedException {
-		
-		System.out.println("++ Checking " + inactiveOutputChannels.size() + " output channels");
+
 		final Iterator<OutputChannelContext> it = this.inactiveOutputChannels.iterator();
-		while(it.hasNext()) {
+		while (it.hasNext()) {
 			final OutputChannelContext channelContext = it.next();
-			if(channelContext.isChannelActive()) {
-				System.out.println("++ Channel " + channelContext.getChannelID() + " is active");
+			if (channelContext.isChannelActive()) {
 				channelContext.flushQueuedOutgoingEnvelopes();
 				it.remove();
 			} else {
-				System.out.println("++ Channel " + channelContext.getChannelID() + " is inactive");
 			}
 		}
 	}
@@ -133,6 +118,8 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * to its final destination. Within this method the provided transfer envelope is possibly also
 	 * forwarded to the assigned ephemeral checkpoint.
 	 * 
+	 * @param caller
+	 *        the output channel context calling this method
 	 * @param outgoingTransferEnvelope
 	 *        the transfer envelope to be forwarded
 	 * @throws IOException
@@ -141,27 +128,23 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
 	 */
 	void processEnvelope(final OutputChannelContext caller, final TransferEnvelope outgoingTransferEnvelope)
-			throws IOException,
-			InterruptedException {
+			throws IOException, InterruptedException {
 
-		/*
-		 * if (!this.ephemeralCheckpoint.isDiscarded()) {
-		 * final TransferEnvelope dup = outgoingTransferEnvelope.duplicate();
-		 * this.ephemeralCheckpoint.addTransferEnvelope(dup);
-		 * }
-		 */
+		this.taskContext.processEnvelope(outgoingTransferEnvelope);
 
-		this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
-	}
-
-	FileBufferManager getFileBufferManager() {
-
-		return this.fileBufferManager;
-	}
-
-	public GateID getGateID() {
-
-		return this.outputGate.getGateID();
+		if (this.channelType == ChannelType.FILE) {
+			// Check if the event list of the envelope contains a close event and acknowledge it
+			final EventList eventList = outgoingTransferEnvelope.getEventList();
+			if (eventList != null) {
+				final Iterator<AbstractEvent> it = eventList.iterator();
+				while (it.hasNext()) {
+					final AbstractEvent event = it.next();
+					if (event instanceof ByteBufferedChannelCloseEvent) {
+						caller.processEvent(event);
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -169,9 +152,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
-		
-		System.out.println("Output gate has received asynchronous event");
-		
+
 		checkForActiveOutputChannels();
 	}
 
@@ -179,8 +160,8 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer, int minimumReserve) throws IOException {
-		
+	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
+
 		throw new IllegalStateException("requestEmptyBuffer called on OutputGateContext");
 	}
 
@@ -188,19 +169,12 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, int minimumReserve) throws IOException,
-			InterruptedException {
-		
-		Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException, InterruptedException {
+
+		Buffer buffer = this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
 
 		// No memory-based buffer available
 		if (buffer == null) {
-
-			// We are out of byte buffers
-			if (!this.ephemeralCheckpoint.isDecided()) {
-				this.ephemeralCheckpoint.destroy();
-				// this.ephemeralCheckpoint.write();
-			}
 
 			// Report exhaustion of memory buffers to the task context
 			this.taskContext.reportExhaustionOfMemoryBuffers();
@@ -209,7 +183,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 			spillQueueWithLargestAmountOfMainMemory();
 
 			// Wait until a memory-based buffer is available
-			buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+			buffer = this.taskContext.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 		}
 
 		return buffer;
@@ -220,7 +194,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public boolean isShared() {
-		
+
 		return this.taskContext.isShared();
 	}
 
@@ -229,7 +203,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	 */
 	@Override
 	public void reportAsynchronousEvent() {
-		
+
 		this.taskContext.reportAsynchronousEvent();
 	}
 }

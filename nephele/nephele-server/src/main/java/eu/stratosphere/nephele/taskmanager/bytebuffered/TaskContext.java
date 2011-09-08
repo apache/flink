@@ -18,29 +18,64 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferCache;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.types.Record;
 
-final class TaskContext implements BufferProvider, AsynchronousEventListener {
+final class TaskContext implements BufferProvider, LocalBufferPoolOwner, AsynchronousEventListener {
 
-	private final LocalBufferCache localBufferCache;
+	private final LocalBufferPool localBufferPool;
 
-	private final Environment environment;
+	private final Task task;
 
 	private final AsynchronousEventListener[] subEventListener;
+
+	private final int numberOfOutputChannels;
+
+	final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+
+	private final EphemeralCheckpoint ephemeralCheckpoint;
+
+	private final boolean forwardTransferEnvelopes;
 
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
 	 */
 	private boolean initialExhaustionOfMemoryBuffersReported = false;
 
-	TaskContext(final Environment environment) {
+	TaskContext(final Task task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 
-		this.localBufferCache = new LocalBufferCache(1, false, this);
+		this.localBufferPool = new LocalBufferPool(1, false, this);
+		this.task = task;
 
-		this.environment = environment;
+		final Environment environment = task.getEnvironment();
+
+		// Compute number of output input channels
+		int nooc = 0;
+		boolean ephemeral = true;
+		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			nooc += outputGate.getNumberOfOutputChannels();
+			if (outputGate.getChannelType() == ChannelType.FILE) {
+				ephemeral = false;
+			}
+		}
+		this.numberOfOutputChannels = nooc;
+		this.forwardTransferEnvelopes = ephemeral;
+
+		this.ephemeralCheckpoint = new EphemeralCheckpoint(task, ephemeral);
+
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 
 		// Each output gate context will register as a sub event listener
 		this.subEventListener = new AsynchronousEventListener[environment.getNumberOfOutputGates()];
@@ -67,19 +102,19 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
-		return this.localBufferCache.requestEmptyBuffer(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, final int minimumReserve) throws IOException,
+	public Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException,
 			InterruptedException {
 
-		return this.localBufferCache.requestEmptyBufferBlocking(minimumSizeOfBuffer, minimumReserve);
+		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
 
 	/**
@@ -88,18 +123,17 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 	@Override
 	public int getMaximumBufferSize() {
 
-		return this.localBufferCache.getMaximumBufferSize();
+		return this.localBufferPool.getMaximumBufferSize();
 	}
 
-	void releaseAllResources() {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void clearLocalBufferPool() {
 
 		// Clear the buffer cache
-		this.localBufferCache.clear();
-	}
-
-	void setBufferLimit(int bufferLimit) {
-
-		this.localBufferCache.setDesignatedNumberOfBuffers(bufferLimit);
+		this.localBufferPool.clear();
 	}
 
 	/**
@@ -111,13 +145,19 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 		return false;
 	}
 
-	void logBufferUtilization() {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logBufferUtilization() {
 
-		final int ava = this.localBufferCache.getNumberOfAvailableBuffers();
-		final int req = this.localBufferCache.getRequestedNumberOfBuffers();
-		final int des = this.localBufferCache.getDesignatedNumberOfBuffers();
+		final int ava = this.localBufferPool.getNumberOfAvailableBuffers();
+		final int req = this.localBufferPool.getRequestedNumberOfBuffers();
+		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
 
-		System.out.println("\t\t" + this.environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
+		final Environment environment = this.task.getEnvironment();
+
+		System.out.println("\t\t" + environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
 			+ des + " designated");
 	}
 
@@ -128,7 +168,14 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 
 		if (!this.initialExhaustionOfMemoryBuffersReported) {
 
-			this.environment.triggerInitialExecutionResourcesExhaustedNotification();
+			this.task.initialExecutionResourcesExhausted();
+
+			// We are out of byte buffers
+			if (!this.ephemeralCheckpoint.isDecided()) {
+				System.out.println("Destroying checkpoint");
+				this.ephemeralCheckpoint.destroy();
+			}
+
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}
 	}
@@ -139,7 +186,7 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 	@Override
 	public void reportAsynchronousEvent() {
 
-		this.localBufferCache.reportAsynchronousEvent();
+		this.localBufferPool.reportAsynchronousEvent();
 	}
 
 	/**
@@ -156,5 +203,59 @@ final class TaskContext implements BufferProvider, AsynchronousEventListener {
 
 			this.subEventListener[i].asynchronousEventOccurred();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfChannels() {
+
+		return this.numberOfOutputChannels;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void setDesignatedNumberOfBuffers(int numberOfBuffers) {
+
+		this.localBufferPool.setDesignatedNumberOfBuffers(numberOfBuffers);
+	}
+
+	/**
+	 * Called by the attached output gate context to forward a {@link TransferEnvelope} object
+	 * to its final destination. Within this method the provided transfer envelope is possibly also
+	 * forwarded to the assigned ephemeral checkpoint.
+	 * 
+	 * @param outgoingTransferEnvelope
+	 *        the transfer envelope to be forwarded
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while processing the envelope
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
+	 */
+	void processEnvelope(final TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
+
+		if (!this.ephemeralCheckpoint.isDiscarded()) {
+			final TransferEnvelope dup = outgoingTransferEnvelope.duplicate();
+			this.ephemeralCheckpoint.addTransferEnvelope(dup);
+		}
+
+		if (this.forwardTransferEnvelopes) {
+			// Immediately forward the envelope
+			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
+		} else {
+			// Simply discard the envelope
+			final Buffer buffer = outgoingTransferEnvelope.getBuffer();
+			if (buffer != null) {
+				buffer.recycleBuffer();
+			}
+		}
+	}
+
+	AbstractID getFileOwnerID() {
+
+		return this.task.getVertexID();
 	}
 }

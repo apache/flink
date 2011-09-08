@@ -129,7 +129,7 @@ public class ManagementGraphFactory {
 				(ev.getAllocatedResource().getInstance().getInstanceConnectionInfo() != null) ? ev
 					.getAllocatedResource().getInstance().getInstanceConnectionInfo().toString() : ev
 					.getAllocatedResource().getInstance().toString(), ev.getAllocatedResource().getInstance().getType()
-					.toString(), ev.getEnvironment().getIndexInSubtaskGroup());
+					.toString(), ev.getCheckpointState().toString(), ev.getEnvironment().getIndexInSubtaskGroup());
 			managementVertex.setExecutionState(ev.getExecutionState());
 			vertexMap.put(ev, managementVertex);
 

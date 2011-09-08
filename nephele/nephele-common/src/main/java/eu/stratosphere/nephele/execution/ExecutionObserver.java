@@ -15,54 +15,38 @@
 
 package eu.stratosphere.nephele.execution;
 
-/**
- * This interface must be implemented by classes which should be able to receive notifications about
- * changes of a task's execution state.
- * 
- * @author warneke
- */
-public interface ExecutionListener {
+public interface ExecutionObserver {
 
 	/**
 	 * Called when the execution state of the associated task has changed.
 	 * 
-	 * @param ee
-	 *        the execution environment of the task
 	 * @param newExecutionState
 	 *        the execution state the task has just switched to
 	 * @param optionalMessage
 	 *        an optional message providing further information on the state change
 	 */
-	void executionStateChanged(Environment ee, ExecutionState newExecutionState, String optionalMessage);
+	void executionStateChanged(ExecutionState newExecutionState, String optionalMessage);
 
 	/**
 	 * Called when the user task has started a new thread.
 	 * 
-	 * @param ee
-	 *        the execution environment the newly started thread belongs to
 	 * @param userThread
 	 *        the user thread which has been started
 	 */
-	void userThreadStarted(Environment ee, Thread userThread);
+	void userThreadStarted(Thread userThread);
 
 	/**
 	 * Called when a thread spawn by a user task has finished.
 	 * 
-	 * @param ee
-	 *        the execution environment the finished thread belongs to
 	 * @param userThread
 	 *        the user thread which has finished
 	 */
-	void userThreadFinished(Environment ee, Thread userThread);
+	void userThreadFinished(Thread userThread);
 
 	/**
-	 * Called when the task has exhausted its initial execution resources (for example its initial memory buffers to
-	 * transmit output records) and requires a decision how to proceed.
+	 * Returns whether the task has been canceled.
 	 * 
-	 * @param ee
-	 *        the environment encapsulating the task which has exhausted its initial execution resources
-	 * @param resourceUtilizationSnapshot
-	 *        a snapshot of the task's current resource utilization
+	 * @return <code>true</code> if the task has been canceled, <code>false</code> otherwise
 	 */
-	void initialExecutionResourcesExhausted(Environment ee, ResourceUtilizationSnapshot resourceUtilizationSnapshot);
+	boolean isCanceled();
 }

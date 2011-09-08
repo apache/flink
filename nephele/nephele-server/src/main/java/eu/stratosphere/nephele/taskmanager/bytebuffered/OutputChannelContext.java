@@ -78,8 +78,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
 		this.isReceiverRunning = isReceiverRunning;
 
-		this.queuedOutgoingEnvelopes = new SpillingQueue(outputGateContext.getGateID(),
-			outputGateContext.getFileBufferManager());
+		this.queuedOutgoingEnvelopes = new SpillingQueue(outputGateContext.getFileOwnerID());
 
 		// Register as inactive channel so queue can be spilled to disk when we run out of memory buffers
 		if (!isReceiverRunning) {
@@ -106,7 +105,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		final int uncompressedBufferSize = calculateBufferSize();
 
 		// TODO: This implementation breaks compression, we have to fix it later
-		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize, 0);
+		final Buffer buffer = this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize);
 		final BufferPairResponse bufferResponse = new BufferPairResponse(null, buffer);
 
 		// Put the buffer into the transfer envelope
@@ -222,14 +221,12 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	}
 
 	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
-		
-//		System.out.println("++ Flushing " + this.queuedOutgoingEnvelopes.size() + " envelopes");
-		
-		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
+
+		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
 			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-		}		
+		}
 	}
-	
+
 	/**
 	 * Called by the framework to report events to
 	 * the attached channel object.
@@ -295,7 +292,6 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 			if (event instanceof ByteBufferedChannelActivateEvent) {
 				this.isReceiverRunning = true;
-				System.out.print("-- Activated channel " + getChannelID());
 				this.outputGateContext.reportAsynchronousEvent();
 			} else {
 				this.byteBufferedOutputChannel.processEvent(event);
@@ -314,7 +310,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		}
 
 		flushQueuedOutgoingEnvelopes();
-		
+
 		return (!this.queuedOutgoingEnvelopes.isEmpty());
 	}
 

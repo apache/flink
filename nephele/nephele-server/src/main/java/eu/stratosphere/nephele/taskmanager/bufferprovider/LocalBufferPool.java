@@ -26,9 +26,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 
-public final class LocalBufferCache implements BufferProvider {
+public final class LocalBufferPool implements BufferProvider {
 
-	private final static Log LOG = LogFactory.getLog(LocalBufferCache.class);
+	private final static Log LOG = LogFactory.getLog(LocalBufferPool.class);
 
 	private final GlobalBufferPool globalBufferPool;
 
@@ -46,7 +46,7 @@ public final class LocalBufferCache implements BufferProvider {
 
 	private final Queue<ByteBuffer> buffers = new ArrayDeque<ByteBuffer>();
 
-	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared,
+	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared,
 			final AsynchronousEventListener eventListener) {
 
 		this.globalBufferPool = GlobalBufferPool.getInstance();
@@ -56,7 +56,7 @@ public final class LocalBufferCache implements BufferProvider {
 		this.eventListener = eventListener;
 	}
 
-	public LocalBufferCache(final int designatedNumberOfBuffers, final boolean isShared) {
+	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared) {
 		this(designatedNumberOfBuffers, isShared, null);
 	}
 
@@ -64,10 +64,10 @@ public final class LocalBufferCache implements BufferProvider {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer, final int minimumReserve) throws IOException {
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
 		try {
-			return requestBufferInternal(minimumSizeOfBuffer, minimumReserve, false);
+			return requestBufferInternal(minimumSizeOfBuffer, false);
 		} catch (InterruptedException e) {
 			LOG.error("Caught unexpected InterruptedException");
 		}
@@ -79,14 +79,13 @@ public final class LocalBufferCache implements BufferProvider {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer, final int minimumReserve)
-			throws IOException, InterruptedException {
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
 
-		return requestBufferInternal(minimumSizeOfBuffer, minimumReserve, true);
+		return requestBufferInternal(minimumSizeOfBuffer, true);
 	}
 
-	private Buffer requestBufferInternal(final int minimumSizeOfBuffer, int minimumReserve, final boolean block)
-			throws IOException, InterruptedException {
+	private Buffer requestBufferInternal(final int minimumSizeOfBuffer, final boolean block) throws IOException,
+			InterruptedException {
 
 		if (minimumSizeOfBuffer > this.maximumBufferSize) {
 			throw new IllegalArgumentException("Buffer of " + minimumSizeOfBuffer
@@ -111,13 +110,7 @@ public final class LocalBufferCache implements BufferProvider {
 					this.requestedNumberOfBuffers--;
 				}
 
-				if (minimumReserve > this.designatedNumberOfBuffers) {
-					LOG.warn("Minimum reserve " + minimumReserve + " is larger than number of designated buffers "
-						+ this.designatedNumberOfBuffers + ", reducing reserve...");
-					minimumReserve = this.designatedNumberOfBuffers;
-				}
-
-				while (this.buffers.size() <= minimumReserve) {
+				while (this.buffers.isEmpty()) {
 
 					// Check if the number of cached buffers matches the number of designated buffers
 					if (this.requestedNumberOfBuffers < this.designatedNumberOfBuffers) {

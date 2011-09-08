@@ -13,26 +13,31 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.checkpointing;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.NetworkConnectionManager;
+import java.io.IOException;
+import java.nio.channels.WritableByteChannel;
 
-public class CheckpointRecoveryThread extends Thread {
+import eu.stratosphere.nephele.io.channels.Buffer;
 
-	public CheckpointRecoveryThread(final NetworkConnectionManager networkConnectionManager,
-			final FileBufferManager fileBufferManager, final ChannelID sourceChannelID) {
-		super("CheckpointRecoveryThread for channel " + sourceChannelID);
-
-	}
+/**
+ * This class is the default implementation to serialize a {@link TransferEnvelope} into a byte stream. In case the
+ * transfer envelope contains a buffer, this implementation copies the buffer's data into the byte stream.
+ * 
+ * @author warneke
+ */
+public class DefaultSerializer extends AbstractSerializer {
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void run() {
+	protected boolean writeBufferData(final WritableByteChannel writableByteChannel, final Buffer buffer)
+			throws IOException {
 
-		//TODO: Implement me
+		buffer.read(writableByteChannel);
+
+		return buffer.hasRemaining();
 	}
+
 }

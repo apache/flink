@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 import java.util.List;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
@@ -36,6 +37,13 @@ public class TestDeploymentManager implements DeploymentManager {
 	@Override
 	public void deploy(final JobID jobID, final AbstractInstance instance,
 			final List<ExecutionVertex> verticesToBeDeployed) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void replayCheckpoints(final JobID jobID, final AbstractInstance instance,
+			final List<ExecutionVertexID> vertexIDs) {
 		// TODO Auto-generated method stub
 
 	}

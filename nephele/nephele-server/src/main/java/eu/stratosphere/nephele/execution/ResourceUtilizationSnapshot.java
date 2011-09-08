@@ -42,7 +42,7 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	 */
 	private final Map<ChannelID, Long> channelUtilization;
 
-	ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization) {
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization) {
 
 		if (timestamp <= 0L) {
 			throw new IllegalArgumentException("Argument timestamp must be larger than zero");

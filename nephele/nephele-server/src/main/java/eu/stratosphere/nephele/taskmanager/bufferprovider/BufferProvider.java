@@ -28,13 +28,11 @@ public interface BufferProvider {
 	 * 
 	 * @param minimumSizeOfBuffer
 	 *        the minimum size of the requested read buffer in bytes
-	 * @param minimumReserve
-	 *        the minimum buffer reserve that must be kept by the buffer provider
 	 * @return the buffer with at least the requested size or <code>null</code> if no such buffer is currently available
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while allocating the buffer
 	 */
-	Buffer requestEmptyBuffer(int minimumSizeOfBuffer, int minimumReserve) throws IOException;
+	Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException;
 
 	/**
 	 * Requests an empty buffer with a minimum size of <code>minimumSizeOfBuffer</code>. The method blocks
@@ -43,15 +41,13 @@ public interface BufferProvider {
 	 * 
 	 * @param minimumSizeOfBuffer
 	 *        the minimum size of the requested read buffer in bytes
-	 * @param minimumReserve
-	 *        the minimum buffer reserve that must be kept by the buffer provider
 	 * @return the buffer with at least the requested size
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while allocating the buffer
 	 * @throws InterruptedException
 	 *         thrown if the thread waiting for the buffer is interrupted
 	 */
-	Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer, int minimumReserve) throws IOException,
+	Buffer requestEmptyBufferBlocking(int minimumSizeOfBuffer) throws IOException,
 			InterruptedException;
 
 	/**

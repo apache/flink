@@ -15,42 +15,69 @@
 
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
-import eu.stratosphere.nephele.profiling.ProfilingException;
-import eu.stratosphere.nephele.taskmanager.TaskManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 public class CheckpointManager {
 
 	private static final Log LOG = LogFactory.getLog(CheckpointManager.class);
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	public static final String CHECKPOINT_DIRECTORY_KEY = "channel.checkpoint.directory";
 
-	private final Map<ExecutionVertexID, EphemeralCheckpoint> checkpoints = new HashMap<ExecutionVertexID, EphemeralCheckpoint>();
+	public static final String DEFAULT_CHECKPOINT_DIRECTORY = "/tmp";
 
-	private final Map<ChannelID, ExecutionVertexID> channelIDToVertexIDMap = new HashMap<ChannelID, ExecutionVertexID>();
+	/**
+	 * The prefix for the name of the file containing the checkpoint meta data.
+	 */
+	public static final String METADATA_PREFIX = "checkpoint";
 
-	private final String tmpDir;
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
-	private TaskManager taskManager;
+	private final String checkpointDirectory;
 
-	public CheckpointManager(ByteBufferedChannelManager byteBufferedChannelManager, String tmpDir) {
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.tmpDir = tmpDir;
+	public CheckpointManager(final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+
+		this.checkpointDirectory = GlobalConfiguration
+			.getString(CHECKPOINT_DIRECTORY_KEY, DEFAULT_CHECKPOINT_DIRECTORY);
 	}
-	public CheckpointManager(ByteBufferedChannelManager byteBufferedChannelManager, String tmpDir,
-			TaskManager taskManager) {
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.tmpDir = tmpDir;
-		this.taskManager = taskManager;
+
+	public boolean hasCompleteCheckpointAvailable(final ExecutionVertexID vertexID) {
+
+		final File file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID
+			+ "_final");
+		if (file.exists()) {
+			return true;
+		}
+
+		return false;
+	}
+
+	public boolean hasPartialCheckpointAvailable(final ExecutionVertexID vertexID) {
+
+		final File file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
+		if (file.exists()) {
+			return true;
+		}
+
+		return false;
+	}
+
+	public void replayCheckpoint(final ExecutionVertexID vertexID) {
+
+		final CheckpointReplayTask replayTask = new CheckpointReplayTask(vertexID, this.checkpointDirectory,
+			this.transferEnvelopeDispatcher, hasCompleteCheckpointAvailable(vertexID));
+		
+		replayTask.start();
+
+		LOG.info("Replaying checkpoint for vertex " + vertexID);
 	}
 
 	/**
@@ -59,39 +86,9 @@ public class CheckpointManager {
 	 * @param vertexID
 	 *        the vertex whose checkpoint shall be removed
 	 */
-	public void removeCheckpoint(ExecutionVertexID vertexID) {
+	public void removeCheckpoint(final ExecutionVertexID vertexID) {
 
-		EphemeralCheckpoint checkpoint = null;
-		
-		// Remove checkpoint from list of available checkpoints
-		synchronized(this.checkpoints) {
-			
-			checkpoint = this.checkpoints.remove(vertexID);
-		}
-		
-		if(checkpoint == null) {
-			LOG.error("Cannot find checkpoint for vertex " + vertexID);
-			return;
-		}
+		// TODO: Implement me
 	}
 
-	public String getTmpDir() {
-
-		return this.tmpDir;
-	}
-
-	public ExecutionVertexID getExecutionVertexIDByOutputChannelID(ChannelID outputChannelID) {
-
-		synchronized (this.channelIDToVertexIDMap) {
-			return this.channelIDToVertexIDMap.get(outputChannelID);
-		}
-	}
-
-	
-	public CheckpointProfilingData getProfilingData() throws ProfilingException{
-		if(this.taskManager != null){
-			return this.taskManager.getCheckpointProfilingData();
-		}
-		return null;
-	}
 }

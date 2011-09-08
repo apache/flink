@@ -26,10 +26,8 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 
-public class TransferEnvelopeDeserializer {
+public abstract class AbstractDeserializer {
 
 	private enum DeserializationState {
 		NOTDESERIALIZED,
@@ -55,15 +53,7 @@ public class TransferEnvelopeDeserializer {
 	private final DeserializationBuffer<EventList> notificationListDeserializationBuffer = new DeserializationBuffer<EventList>(
 		new DefaultRecordDeserializer<EventList>(EventList.class), true);
 
-	private final BufferProviderBroker bufferProviderBroker;
-
-	private BufferProvider bufferProvider = null;
-
-	private final ByteBuffer existanceBuffer = ByteBuffer.allocate(1); // 1 byte for existence of buffer
-
-	private final ByteBuffer lengthBuffer = ByteBuffer.allocate(SIZEOFINT);
-
-	private Buffer buffer = null;
+	private final ByteBuffer tempBuffer = ByteBuffer.allocate(8); // TODO: Make this configurable
 
 	private boolean bufferExistanceDeserialized = false;
 
@@ -75,20 +65,13 @@ public class TransferEnvelopeDeserializer {
 
 	private int deserializedSequenceNumber = -1;
 
-	private JobID deserializedJobID = null;
+	private Buffer buffer = null;
 
-	private JobID lastDeserializedJobID = null;
+	private JobID deserializedJobID = null;
 
 	private ChannelID deserializedSourceID = null;
 
-	private ChannelID lastDeserializedSourceID = null;
-
 	private EventList deserializedEventList = null;
-
-	public TransferEnvelopeDeserializer(final BufferProviderBroker bufferProviderBroker) {
-
-		this.bufferProviderBroker = bufferProviderBroker;
-	}
 
 	public void read(ReadableByteChannel readableByteChannel) throws IOException {
 
@@ -125,16 +108,37 @@ public class TransferEnvelopeDeserializer {
 		}
 	}
 
+	protected final ByteBuffer getTempBuffer() {
+		return this.tempBuffer;
+	}
+
+	protected void setBuffer(final Buffer buffer) {
+		this.buffer = buffer;
+	}
+
+	protected int getSizeOfBuffer() {
+		return this.sizeOfBuffer;
+	}
+
+	protected JobID getDeserializedJobID() {
+		return this.deserializedJobID;
+	}
+
+	protected ChannelID getDeserializedSourceID() {
+		return this.deserializedSourceID;
+	}
+
 	private boolean readSequenceNumber(ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.sequenceNumberDeserializationStarted) {
-			this.lengthBuffer.clear();
+			this.tempBuffer.position(0);
+			this.tempBuffer.limit(SIZEOFINT);
 			this.sequenceNumberDeserializationStarted = true;
 		}
 
-		if (readableByteChannel.read(this.lengthBuffer) == -1) {
+		if (readableByteChannel.read(this.tempBuffer) == -1) {
 
-			if (this.lengthBuffer.position() == 0) {
+			if (this.tempBuffer.position() == 0) {
 				// Regular end of stream
 				throw new EOFException();
 			} else {
@@ -142,9 +146,9 @@ public class TransferEnvelopeDeserializer {
 			}
 		}
 
-		if (!this.lengthBuffer.hasRemaining()) {
+		if (!this.tempBuffer.hasRemaining()) {
 
-			this.deserializedSequenceNumber = byteBufferToInteger(this.lengthBuffer, 0);
+			this.deserializedSequenceNumber = byteBufferToInteger(this.tempBuffer, 0);
 			if (this.deserializedSequenceNumber < 0) {
 				throw new IOException("Received invalid sequence number: " + this.deserializedSequenceNumber);
 			}
@@ -155,11 +159,10 @@ public class TransferEnvelopeDeserializer {
 			this.sizeOfBuffer = -1;
 			this.bufferExistanceDeserialized = false;
 			this.eventListExistanceDeserialized = false;
-			this.existanceBuffer.clear();
-			this.lengthBuffer.clear();
+			this.tempBuffer.clear();
+			this.buffer = null;
 			this.jobIDDeserializationBuffer.clear();
 			this.channelIDDeserializationBuffer.clear();
-			this.buffer = null;
 			this.deserializedEventList = null;
 			return false;
 		}
@@ -194,15 +197,17 @@ public class TransferEnvelopeDeserializer {
 	private boolean readNotificationList(ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.eventListExistanceDeserialized) {
-			readableByteChannel.read(this.existanceBuffer);
+			this.tempBuffer.position(0);
+			this.tempBuffer.limit(1);
+			readableByteChannel.read(this.tempBuffer);
 
-			if (this.existanceBuffer.hasRemaining()) {
+			if (this.tempBuffer.hasRemaining()) {
 				return true;
 			}
 
 			this.eventListExistanceDeserialized = true;
-			final boolean eventListFollows = (this.existanceBuffer.get(0) == (byte) 1);
-			this.existanceBuffer.clear();
+			final boolean eventListFollows = (this.tempBuffer.get(0) == (byte) 1);
+			this.tempBuffer.clear();
 
 			if (!eventListFollows) {
 				// No event list here
@@ -224,18 +229,32 @@ public class TransferEnvelopeDeserializer {
 		}
 	}
 
+	/**
+	 * Read the buffer's actual data from the stream.
+	 * 
+	 * @param readableByteChannel
+	 *        the stream to read the buffer data from
+	 * @return <code>true</code> if more buffer data need to be read from the stream, <code>false</code> otherwise
+	 * @throws IOException
+	 *         thrown if an I/O error occurred while reading data from the stream
+	 */
+	protected abstract boolean readBufferData(ReadableByteChannel readableByteChannel) throws IOException;
+
 	private boolean readBuffer(ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.bufferExistanceDeserialized) {
 
-			final int bytesRead = readableByteChannel.read(this.existanceBuffer);
+			this.tempBuffer.position(0);
+			this.tempBuffer.limit(1);
+
+			final int bytesRead = readableByteChannel.read(this.tempBuffer);
 			if (bytesRead == -1) {
-				if (this.existanceBuffer.get(0) == 0 && this.existanceBuffer.position() == 1) { // Regular end, no
+				if (this.tempBuffer.get(0) == 0 && this.tempBuffer.position() == 1) { // Regular end, no
 					// buffer will follow
 					throw new EOFException();
 				} else {
 					throw new IOException("Deserialization error: Expected at least "
-						+ this.existanceBuffer.remaining() + " more bytes to follow");
+						+ this.tempBuffer.remaining() + " more bytes to follow");
 				}
 			} else if (bytesRead == 0) {
 				try {
@@ -244,9 +263,11 @@ public class TransferEnvelopeDeserializer {
 				}
 			}
 
-			if (!this.existanceBuffer.hasRemaining()) {
+			if (!this.tempBuffer.hasRemaining()) {
 				this.bufferExistanceDeserialized = true;
-				if (this.existanceBuffer.get(0) == 0) {
+				this.tempBuffer.position(0);
+				this.tempBuffer.limit(SIZEOFINT);
+				if (this.tempBuffer.get(0) == 0) {
 					// No buffer will follow, we are done
 					this.transferEnvelope.setBuffer(null);
 					this.deserializationState = DeserializationState.FULLYDESERIALIZED;
@@ -260,14 +281,14 @@ public class TransferEnvelopeDeserializer {
 		if (this.sizeOfBuffer < 0) {
 
 			// We need to deserialize the size of the buffer
-			final int bytesRead = readableByteChannel.read(this.lengthBuffer);
+			final int bytesRead = readableByteChannel.read(this.tempBuffer);
 			if (bytesRead == -1) {
-				throw new IOException("Deserialization error: Expected at least " + this.existanceBuffer.remaining()
+				throw new IOException("Deserialization error: Expected at least " + this.tempBuffer.remaining()
 					+ " more bytes to follow");
 			}
 
-			if (!this.lengthBuffer.hasRemaining()) {
-				this.sizeOfBuffer = byteBufferToInteger(this.lengthBuffer, 0);
+			if (!this.tempBuffer.hasRemaining()) {
+				this.sizeOfBuffer = byteBufferToInteger(this.tempBuffer, 0);
 				// System.out.println("INCOMING: Buffer size is " + this.sizeOfBuffer);
 
 				if (this.sizeOfBuffer <= 0) {
@@ -278,55 +299,13 @@ public class TransferEnvelopeDeserializer {
 			}
 		}
 
-		if (this.buffer == null) {
-
-			try {
-				// Find buffer provider for this channel
-				if (!this.deserializedJobID.equals(this.lastDeserializedJobID)
-					|| !this.deserializedSourceID.equals(this.lastDeserializedSourceID)) {
-
-					this.bufferProvider = this.bufferProviderBroker.getBufferProvider(this.deserializedJobID,
-						this.deserializedSourceID);
-
-					this.lastDeserializedJobID = this.deserializedJobID;
-					this.lastDeserializedSourceID = this.deserializedSourceID;
-				}
-
-				final int minimumReserve = this.bufferProvider.isShared() ? 0 : 1;
-
-				this.buffer = this.bufferProvider.requestEmptyBufferBlocking(this.sizeOfBuffer, minimumReserve);
-
-				if (this.buffer == null) {
-
-					Thread.sleep(100);
-					// Wait for 100 milliseconds, so the NIO thread won't do busy
-					// waiting...
-
-					return true;
-				}
-			} catch (InterruptedException e) {
-				return true;
-			}
-
-		} else {
-
-			final int bytesWritten = this.buffer.write(readableByteChannel);
-
-			if (!this.buffer.hasRemaining()) {
-				// We are done, the buffer has been fully read
-				this.buffer.finishWritePhase();
-				this.transferEnvelope.setBuffer(this.buffer);
-				this.deserializationState = DeserializationState.FULLYDESERIALIZED;
-				return false;
-			} else {
-				if (bytesWritten == -1) {
-					throw new IOException("Deserialization error: Expected at least " + this.buffer.remaining()
-						+ " more bytes to follow");
-				}
-			}
+		if (readBufferData(readableByteChannel)) {
+			return true;
 		}
 
-		return true;
+		this.transferEnvelope.setBuffer(this.buffer);
+		this.deserializationState = DeserializationState.FULLYDESERIALIZED;
+		return false;
 	}
 
 	public TransferEnvelope getFullyDeserializedTransferEnvelope() {
@@ -371,10 +350,5 @@ public class TransferEnvelopeDeserializer {
 		}
 
 		return integer;
-	}
-
-	public BufferProvider getBufferProvider() {
-
-		return this.bufferProvider;
 	}
 }
