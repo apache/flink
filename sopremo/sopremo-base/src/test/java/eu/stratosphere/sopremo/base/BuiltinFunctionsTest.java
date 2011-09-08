@@ -5,9 +5,14 @@ import java.math.BigDecimal;
 import junit.framework.Assert;
 
 import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.DoubleNode;
+import org.codehaus.jackson.node.IntNode;
+import org.codehaus.jackson.node.TextNode;
 import org.junit.Test;
 
+
 import eu.stratosphere.sopremo.BuiltinFunctions;
+
 import eu.stratosphere.sopremo.SopremoTest;
 import static eu.stratosphere.sopremo.JsonUtil.*;
 
@@ -15,6 +20,8 @@ import static eu.stratosphere.sopremo.JsonUtil.*;
  * Tests {@link BuiltinFunctions}
  */
 public class BuiltinFunctionsTest {
+
+	protected EvaluationContext context = new EvaluationContext();
 
 	/**
 	 * 
@@ -93,6 +100,7 @@ public class BuiltinFunctionsTest {
 			BuiltinFunctions.count(createArrayNode()));
 	}
 
+
 //	/**
 //	 * 
 //	 */
@@ -100,6 +108,7 @@ public class BuiltinFunctionsTest {
 //	public void shouldFailIfIncompatible() {
 //		BuiltinFunctions.sort(createArrayNode(3.14, 4, 1.2, 2));
 //	}
+
 
 	/**
 	 * 
@@ -232,5 +241,51 @@ public class BuiltinFunctionsTest {
 			SopremoTest.createStreamArray(1, 2, 3, 4, 5, 6),
 			BuiltinFunctions.unionAll(SopremoTest.createStreamArray(1, 2, 3), SopremoTest.createStreamArray(4, 5),
 				SopremoTest.createStreamArray(6)));
+	}
+
+	@Test
+	public void shouldCalculateAvg() {
+		BuiltinFunctions.AVERAGE.initialize();
+		BuiltinFunctions.AVERAGE.aggregate(IntNode.valueOf(50), this.context);
+		BuiltinFunctions.AVERAGE.aggregate(IntNode.valueOf(25), this.context);
+		BuiltinFunctions.AVERAGE.aggregate(IntNode.valueOf(75), this.context);
+
+		Assert.assertEquals(DoubleNode.valueOf(50.0), BuiltinFunctions.AVERAGE.getFinalAggregate());
+	}
+
+	@Test
+	public void shouldCalculateAvgWithDifferentNodes() {
+		BuiltinFunctions.AVERAGE.initialize();
+
+		for (int i = 1; i < 500; i++) {
+			BuiltinFunctions.AVERAGE.aggregate((i % 2 == 0) ? IntNode.valueOf(i) : DoubleNode.valueOf(i),
+				this.context);
+		}
+
+		Assert.assertEquals(DoubleNode.valueOf(250), BuiltinFunctions.AVERAGE.getFinalAggregate());
+	}
+
+	// Assertion failed: Expected <NaN> but was: <NaN>
+	// @Test
+	// public void shouldReturnNanIfAvgNotAggregated() {
+	// BuiltinFunctions.AVERAGE.initialize();
+	//
+	// Assert.assertEquals(DoubleNode.valueOf(Double.NaN),
+	// BuiltinFunctions.AVERAGE.getFinalAggregate());
+	// }
+
+	@Test
+	public void shouldReturnCorrectSubstring() {
+		final JsonNode result = BuiltinFunctions.substring(TextNode.valueOf("0123456789"), IntNode.valueOf(3),
+			IntNode.valueOf(6));
+
+		Assert.assertEquals(TextNode.valueOf("345"), result);
+	}
+
+	@Test
+	public void shouldCreateRightCamelCaseRepresentation() {
+		Assert.assertEquals(
+			TextNode.valueOf("This Is Just A Test !!!"),
+			BuiltinFunctions.camelCase(TextNode.valueOf("this iS JusT a TEST !!!")));
 	}
 }

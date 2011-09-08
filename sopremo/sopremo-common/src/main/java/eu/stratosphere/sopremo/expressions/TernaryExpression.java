@@ -36,4 +36,44 @@ public class TernaryExpression extends EvaluationExpression {
 		builder.append(" : ");
 		thenExpression.toString(builder);
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((ifClause == null) ? 0 : ifClause.hashCode());
+		result = prime * result + ((ifExpression == null) ? 0 : ifExpression.hashCode());
+		result = prime * result + ((thenExpression == null) ? 0 : thenExpression.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+
+		TernaryExpression other = (TernaryExpression) obj;
+		if (ifClause == null) {
+			if (other.ifClause != null)
+				return false;
+		} else if (!ifClause.equals(other.ifClause))
+			return false;
+		if (ifExpression == null) {
+			if (other.ifExpression != null)
+				return false;
+		} else if (!ifExpression.equals(other.ifExpression))
+			return false;
+		if (thenExpression == null) {
+			if (other.thenExpression != null)
+				return false;
+		} else if (!thenExpression.equals(other.thenExpression))
+			return false;
+
+		return true;
+	}
+
 }
