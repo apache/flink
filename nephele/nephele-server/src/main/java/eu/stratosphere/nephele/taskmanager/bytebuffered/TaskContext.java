@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.IOException;
 import java.util.Map;
 
+import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.AbstractID;
@@ -29,7 +30,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListe
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.types.Record;
@@ -194,6 +194,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	@Override
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
 
+		// First, notify all the listeners about the asynchronous event
 		for (int i = 0; i < this.subEventListener.length; ++i) {
 
 			if (this.subEventListener[i] == null) {
@@ -203,7 +204,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 			this.subEventListener[i].asynchronousEventOccurred();
 		}
 
-		// Check if the checkpoint decision changed
+		// Second, check if the checkpoint decision changed
 		this.ephemeralCheckpoint.checkAsynchronousCheckpointDecision();
 	}
 

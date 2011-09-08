@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.checkpointing;
+package eu.stratosphere.nephele.checkpointing;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -245,13 +245,13 @@ public class EphemeralCheckpoint {
 
 		if (this.metaDataFileChannel == null) {
 
-			final String checkpointDir = GlobalConfiguration.getString(CheckpointManager.CHECKPOINT_DIRECTORY_KEY,
-				CheckpointManager.DEFAULT_CHECKPOINT_DIRECTORY);
+			final String checkpointDir = GlobalConfiguration.getString(CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
+				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
 			}
 			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator
-				+ CheckpointManager.METADATA_PREFIX
+				+ CheckpointReplayManager.METADATA_PREFIX
 				+ "_" + this.task.getVertexID() + "_" + this.metaDataSuffix);
 			this.metaDataFileChannel = fos.getChannel();
 		}
@@ -280,10 +280,10 @@ public class EphemeralCheckpoint {
 				this.metaDataFileChannel.close();
 			}
 
-			final String checkpointDir = GlobalConfiguration.getString(CheckpointManager.CHECKPOINT_DIRECTORY_KEY,
-				CheckpointManager.DEFAULT_CHECKPOINT_DIRECTORY);
+			final String checkpointDir = GlobalConfiguration.getString(CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
+				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 
-			new FileOutputStream(checkpointDir + File.separator + CheckpointManager.METADATA_PREFIX + "_"
+			new FileOutputStream(checkpointDir + File.separator + CheckpointReplayManager.METADATA_PREFIX + "_"
 				+ this.task.getVertexID() + "_final").close();
 
 			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.

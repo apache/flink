@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager;
+package eu.stratosphere.nephele.checkpointing;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -42,7 +42,7 @@ public final class CheckpointDecision implements IOReadableWritable {
 	 * @param checkpointRequired
 	 *        <code>true</code> to indicate the checkpoint shall be materialized, <code>false</code> to discard it
 	 */
-	public CheckpointDecision(final ExecutionVertexID vertexID, final boolean checkpointRequired) {
+	CheckpointDecision(final ExecutionVertexID vertexID, final boolean checkpointRequired) {
 		this.vertexID = vertexID;
 		this.checkpointRequired = checkpointRequired;
 	}

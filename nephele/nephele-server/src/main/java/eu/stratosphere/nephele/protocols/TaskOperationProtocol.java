@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
@@ -27,8 +29,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
-import eu.stratosphere.nephele.taskmanager.CheckpointDecision;
-import eu.stratosphere.nephele.taskmanager.CheckpointReplayResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -109,7 +109,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 
 	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
 	
-	void reportCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
+	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
 	
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
