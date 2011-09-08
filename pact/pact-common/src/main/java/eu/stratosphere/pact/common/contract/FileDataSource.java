@@ -40,6 +40,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat>
 	{
 		super(clazz, name);
 		this.filePath = filePath;
+		this.parameters.setString(FileInputFormat.FILE_PARAMETER_KEY, filePath);
 	}
 
 	/**

@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
@@ -29,14 +29,14 @@ import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
  */
 public final class NepheleReaderIterator implements MutableObjectIterator<PactRecord>
 {
-	private final RecordReader<PactRecord> reader;		// the source
+	private final MutableRecordReader<PactRecord> reader;		// the source
 
 	/**
 	 * Creates a new iterator, wrapping the given reader.
 	 * 
 	 * @param reader The reader to wrap.
 	 */
-	public NepheleReaderIterator(RecordReader<PactRecord> reader)
+	public NepheleReaderIterator(MutableRecordReader<PactRecord> reader)
 	{
 		this.reader = reader;
 	}
@@ -47,20 +47,11 @@ public final class NepheleReaderIterator implements MutableObjectIterator<PactRe
 	@Override
 	public boolean next(PactRecord target) throws IOException
 	{
-		if (this.reader.hasNext()) {
-			try {
-				PactRecord rec = this.reader.next();
-				rec.copyTo(target);
-				return true;
-			}
-			catch (InterruptedException e) {
-				throw new IOException("The reading thread has been interrupted.", e);
-			}
+		try {
+			return this.reader.next(target);
 		}
-		else {
-			return false;
+		catch (InterruptedException iex) {
+			throw new IOException("Reader was interrupted.");
 		}
 	}
-	
-	
 }

@@ -33,34 +33,6 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 
 public class OutputCollectorTest {
 
-	@Test
-	public void testAddWriter() {
-		OutputCollector oc = new OutputCollector();
-
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 0);
-		oc.addWriter(null, true); // 1 -> 1
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 1);
-		oc.addWriter(null, false); // 2 -> 0
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 1);
-		oc.addWriter(null, false); // 4 -> 0
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 1);
-		oc.addWriter(null, true); // 8 -> 8
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 9);
-		oc.addWriter(null, true); // 16 -> 16
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 25);
-		oc.addWriter(null, false); // 32 -> 0
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 25);
-		oc.addWriter(null, false); // 64 -> 0
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 25);
-		oc.addWriter(null, true); // 128 -> 128
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 153);
-		oc.addWriter(null, true); // 256 -> 256
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 409);
-		oc.addWriter(null, true); // 512 -> 512
-		Assert.assertTrue("Copy-flag bitmask not correctly computed", oc.fwdCopyFlags == 921);
-
-	}
-
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testCollect() {
@@ -98,12 +70,12 @@ public class OutputCollectorTest {
 
 		OutputCollector oc = new OutputCollector();
 
-		oc.addWriter(rwMock1, false);
-		oc.addWriter(rwMock2, true);
-		oc.addWriter(rwMock3, true);
-		oc.addWriter(rwMock4, true);
-		oc.addWriter(rwMock5, false);
-		oc.addWriter(rwMock6, true);
+		oc.addWriter(rwMock1);
+		oc.addWriter(rwMock2);
+		oc.addWriter(rwMock3);
+		oc.addWriter(rwMock4);
+		oc.addWriter(rwMock5);
+		oc.addWriter(rwMock6);
 
 		PactRecord record = new PactRecord();
 		record.addField(new PactInteger(1));

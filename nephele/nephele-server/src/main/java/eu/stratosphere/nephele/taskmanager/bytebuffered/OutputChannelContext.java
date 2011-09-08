@@ -223,7 +223,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
 		
-		System.out.println("++ Flushing " + this.queuedOutgoingEnvelopes.size() + " envelopes");
+//		System.out.println("++ Flushing " + this.queuedOutgoingEnvelopes.size() + " envelopes");
 		
 		while(!this.queuedOutgoingEnvelopes.isEmpty()) {
 			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());

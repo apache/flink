@@ -109,7 +109,7 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 		final float spillThreshold = this.config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
-		LocalStrategy ls = config.getLocalStrategy();
+		LocalStrategy ls = this.config.getLocalStrategy();
 		if ((ls == LocalStrategy.SORT || ls == LocalStrategy.COMBININGSORT) && availableMemory < MIN_REQUIRED_MEMORY)
 		{
 			throw new Exception("The Reduce task was initialized with too little memory for local strategy " +

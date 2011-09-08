@@ -22,8 +22,8 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -145,7 +145,6 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			catch (Throwable t) {
 				// if the preparation caused an error, clean up
 				// errors during clean-up are swallowed, because we have already a root exception
-				try { cleanup(); } catch (Throwable t2) {}
 				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() + 
 					"' , caused an error: " + t.getMessage(), t);
 			}
@@ -282,7 +281,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 					i + ": " + shipStrategy.name());
 			}
 			
-			inputs[i] = new NepheleReaderIterator(new RecordReader<PactRecord>(this, PactRecord.class, dp));
+			inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
 		}
 		this.inputs = inputs;
 	}
@@ -296,7 +295,6 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		final int numOutputs = config.getNumOutputs();
 		
 		// create output collector
-		boolean fwdCopyFlag = false;
 		this.output = new OutputCollector();
 		
 		final JobID jobId = getEnvironment().getJobID();
@@ -331,8 +329,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			RecordWriter<PactRecord> writer= new RecordWriter<PactRecord>(this, PactRecord.class, oe);
 
 			// add writer to output collector
-			output.addWriter(writer, fwdCopyFlag);
-			fwdCopyFlag = true;
+			output.addWriter(writer);
 		}
 	}
 	

@@ -51,6 +51,8 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	// Fields
 	// ------------------------------------------------------------------------
 	
+	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
+	
 	private ShipStrategy strategy;				// the shipping strategy used by this output emitter
 	
 	private int[] channels;						// the reused array defining target channels
@@ -76,7 +78,7 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	 */
 	public OutputEmitter()
 	{
-		this(ShipStrategy.NONE, null, null, null);
+		this(ShipStrategy.NONE);
 	}
 
 	/**
@@ -87,20 +89,25 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	 */
 	public OutputEmitter(ShipStrategy strategy)
 	{
-		this(strategy, null, null, null);
+		this.strategy = strategy;
+		this.salt = DEFAULT_SALT;
 	}	
 		
 	public OutputEmitter(ShipStrategy strategy, JobID jobId, int[] keyPositions, Class<? extends Key>[] keyTypes)
 	{
-		this(strategy, jobId, new byte[] { 17, 31, 47, 51, 83, 1 }, keyPositions, keyTypes);
+		this(strategy, jobId, DEFAULT_SALT, keyPositions, keyTypes);
 	}
 	
 	public OutputEmitter(ShipStrategy strategy, JobID jobId, byte[] salt , int[] keyPositions, Class<? extends Key>[] keyTypes)
 	{
+		if (strategy == null | jobId == null | salt == null | keyPositions == null | keyTypes == null) { 
+			throw new NullPointerException();
+		}
 		this.strategy = strategy;
 		this.salt = salt;
 		this.keyPositions = keyPositions;
 		this.keyClasses = keyTypes;
+		this.jobId = jobId;
 	}
 
 	// ------------------------------------------------------------------------

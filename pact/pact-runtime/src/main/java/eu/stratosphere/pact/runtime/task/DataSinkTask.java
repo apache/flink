@@ -27,8 +27,8 @@ import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
@@ -107,10 +107,6 @@ public class DataSinkTask extends AbstractOutputTask
 			}
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
-				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
-				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
-
 				LOG.debug(getLogString("Starting to produce output"));
 			}
 
@@ -239,7 +235,7 @@ public class DataSinkTask extends AbstractOutputTask
 		}
 
 		// create reader
-		this.reader = new NepheleReaderIterator(new RecordReader<PactRecord>(this, PactRecord.class, dp));
+		this.reader = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
 	}
 	
 	// ------------------------------------------------------------------------
