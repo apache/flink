@@ -179,6 +179,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 		
 		this.readBufferLimit = 0;
 		this.readBufferPos = 0;
+		this.exhausted = false;
 		fillReadBuffer();
 	}
 

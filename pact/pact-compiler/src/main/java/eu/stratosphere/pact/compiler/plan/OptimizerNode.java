@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +28,6 @@ import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContractConfigurable;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
@@ -38,7 +36,6 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.OutputContract;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -113,7 +110,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
 
-	private final OutputContract outputContract; // the outputContract
+//	private final OutputContract outputContract; // the outputContract
 
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
@@ -171,7 +168,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.localProps = new LocalProperties();
 		this.globalProps = new GlobalProperties();
 
-		this.outputContract = determineOutputContractFromStub();
+//		this.outputContract = determineOutputContractFromStub();
 	}
 
 	/**
@@ -193,7 +190,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.pactContract = toClone.pactContract;
 		this.localStrategy = toClone.localStrategy;
 
-		this.outputContract = toClone.outputContract;
+//		this.outputContract = toClone.outputContract;
 
 		this.localProps = localProps;
 		this.globalProps = globalProps;
@@ -372,14 +369,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return PactType.getType(pactContract.getClass());
 	}
 
-	/**
-	 * Gets the output contract declared on the user function that is wrapped in the PACT of this node.
-	 * 
-	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
-	 */
-	public OutputContract getOutputContract() {
-		return outputContract;
-	}
+//	/**
+//	 * Gets the output contract declared on the user function that is wrapped in the PACT of this node.
+//	 * 
+//	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
+//	 */
+//	public OutputContract getOutputContract() {
+//		return outputContract;
+//	}
 
 	/**
 	 * Gets the degree of parallelism for the contract represented by this optimizer node.
@@ -620,55 +617,55 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.intProps = props.isEmpty() ? Collections.<InterestingProperties> emptyList() : props;
 	}
 
-	/**
-	 * Utility method that gets the output contract declared on a user function.
-	 * 
-	 * @return The <tt>OutputContract</tt> enum for the declared output contract, or <tt>OutputContract.None</tt>,
-	 *         if none is declared.
-	 * @throws CompilerException
-	 *         Thrown, if more than one output contract is declared on the user function.
-	 */
-	protected OutputContract determineOutputContractFromStub() {
-		Class<? extends Annotation> clazz = null;
-		OutputContract oc = null;
-
-		// Check whether output Contact is overridden
-		if (getPactContract() instanceof OutputContractConfigurable) {
-			clazz = ((OutputContractConfigurable) getPactContract()).getOutputContract();
-			if (clazz != null) {
-				OutputContract cc = OutputContract.getOutputContract(clazz);
-				if (cc != null) {
-					oc = cc;
-				}
-			}
-		}
-
-		// get all annotations on the class
-		if (oc == null) {
-			Class<?> stubClass = getPactContract().getUserCodeClass();
-			Annotation[] allAnnotations = stubClass.getAnnotations();
-
-			// for each annotation, see if it is a output contract annotation
-			for (int i = 0; i < allAnnotations.length; i++) {
-				clazz = allAnnotations[i].annotationType();
-
-				// check if this is an output contract annotation
-				if (clazz.getEnclosingClass().equals(eu.stratosphere.pact.common.contract.OutputContract.class)) {
-					OutputContract cc = OutputContract.getOutputContract(clazz);
-					if (cc != null) {
-						if (oc == null) {
-							oc = cc;
-						} else {
-							throw new CompilerException("Contract '" + pactContract.getName() + "' ("
-								+ getPactType().name() + ") has more than one output contract.");
-						}
-					}
-				}
-			}
-		}
-
-		return oc == null ? OutputContract.None : oc;
-	}
+//	/**
+//	 * Utility method that gets the output contract declared on a user function.
+//	 * 
+//	 * @return The <tt>OutputContract</tt> enum for the declared output contract, or <tt>OutputContract.None</tt>,
+//	 *         if none is declared.
+//	 * @throws CompilerException
+//	 *         Thrown, if more than one output contract is declared on the user function.
+//	 */
+//	protected OutputContract determineOutputContractFromStub() {
+//		Class<? extends Annotation> clazz = null;
+//		OutputContract oc = null;
+//
+//		// Check whether output Contact is overridden
+//		if (getPactContract() instanceof OutputContractConfigurable) {
+//			clazz = ((OutputContractConfigurable) getPactContract()).getOutputContract();
+//			if (clazz != null) {
+//				OutputContract cc = OutputContract.getOutputContract(clazz);
+//				if (cc != null) {
+//					oc = cc;
+//				}
+//			}
+//		}
+//
+//		// get all annotations on the class
+//		if (oc == null) {
+//			Class<?> stubClass = getPactContract().getUserCodeClass();
+//			Annotation[] allAnnotations = stubClass.getAnnotations();
+//
+//			// for each annotation, see if it is a output contract annotation
+//			for (int i = 0; i < allAnnotations.length; i++) {
+//				clazz = allAnnotations[i].annotationType();
+//
+//				// check if this is an output contract annotation
+//				if (clazz.getEnclosingClass().equals(eu.stratosphere.pact.common.contract.OutputContract.class)) {
+//					OutputContract cc = OutputContract.getOutputContract(clazz);
+//					if (cc != null) {
+//						if (oc == null) {
+//							oc = cc;
+//						} else {
+//							throw new CompilerException("Contract '" + pactContract.getName() + "' ("
+//								+ getPactType().name() + ") has more than one output contract.");
+//						}
+//					}
+//				}
+//			}
+//		}
+//
+//		return oc == null ? OutputContract.None : oc;
+//	}
 
 	/**
 	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
