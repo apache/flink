@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -48,7 +48,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The data sink contract object.
 	 */
-	public DataSinkNode(DataSinkContract<?, ?> pactContract) {
+	public DataSinkNode(FileDataSinkContract<?, ?> pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
@@ -116,8 +116,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * 
 	 * @return The contract.
 	 */
-	public DataSinkContract<?, ?> getPactContract() {
-		return (DataSinkContract<?, ?>) super.getPactContract();
+	public FileDataSinkContract<?, ?> getPactContract() {
+		return (FileDataSinkContract<?, ?>) super.getPactContract();
 	}
 
 	/*
@@ -135,7 +135,11 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public int getMemoryConsumerCount() {
-		return 0;
+		switch(this.localStrategy) {
+			case SORT:          return 1;
+			case NONE:          return 0;
+			default:	        return 0;
+		}
 	}
 
 	/*
@@ -153,7 +157,7 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		Contract child = ((DataSinkContract<?, ?>) getPactContract()).getInput();
+		Contract child = ((FileDataSinkContract<?, ?>) getPactContract()).getInput();
 
 		OptimizerNode pred = contractToNode.get(child);
 

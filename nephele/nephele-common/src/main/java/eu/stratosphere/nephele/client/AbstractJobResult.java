@@ -38,7 +38,16 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 * @author warneke
 	 */
 	public enum ReturnCode {
-		SUCCESS, ERROR
+
+		/**
+		 * The success return code.
+		 */
+		SUCCESS,
+
+		/**
+		 * The error return code.
+		 */
+		ERROR
 	};
 
 	/**
@@ -156,23 +165,23 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 
 		return true;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public int hashCode() {
-		
+
 		long hashCode = 0;
-		
-		if(this.returnCode != null) {
+
+		if (this.returnCode != null) {
 			hashCode += this.returnCode.hashCode();
 		}
 
-		if(this.description != null) {
+		if (this.description != null) {
 			hashCode += this.description.hashCode();
 		}
-		
+
 		return (int) (hashCode % Integer.MAX_VALUE);
 	}
 }

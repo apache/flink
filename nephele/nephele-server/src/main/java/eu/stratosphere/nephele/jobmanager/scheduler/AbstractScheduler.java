@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
@@ -37,7 +36,6 @@ import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 
@@ -60,7 +58,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 	/**
 	 * The instance manager assigned to this scheduler.
 	 */
-	protected final InstanceManager instanceManager;
+	private final InstanceManager instanceManager;
+
 
 	/**
 	 * The deployment manager assigned to this scheduler.
@@ -211,5 +210,5 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * @param jobID
 	 */
 	public abstract void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID);
-	
+
 }

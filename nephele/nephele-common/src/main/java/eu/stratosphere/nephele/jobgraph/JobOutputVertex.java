@@ -15,26 +15,70 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
+import eu.stratosphere.nephele.template.AbstractOutputTask;
+
 /**
- * An abstract base class for output vertices in Nephele.
+ * A JobOutputVertex is a specific subtype of a {@link AbstractJobOutputVertex} and is designed
+ * for Nephele tasks which sink data in a not further specified way. As every job output vertex,
+ * a JobOutputVertex must not have any further output.
  * 
  * @author warneke
  */
-public abstract class JobOutputVertex extends AbstractJobVertex {
+public class JobOutputVertex extends AbstractJobOutputVertex {
 
 	/**
-	 * Constructs a new job output vertex with the given name.
+	 * Creates a new job file output vertex with the specified name.
 	 * 
 	 * @param name
-	 *        the name of the new job output vertex
+	 *        the name of the new job file output vertex
 	 * @param id
 	 *        the ID of this vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	protected JobOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public JobOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
 		super(name, id, jobGraph);
+	}
 
-		jobGraph.addVertex(this);
+	/**
+	 * Creates a new job file output vertex with the specified name.
+	 * 
+	 * @param name
+	 *        the name of the new job file output vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	public JobOutputVertex(final String name, final JobGraph jobGraph) {
+		super(name, null, jobGraph);
+	}
+
+	/**
+	 * Creates a new job file input vertex.
+	 * 
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	public JobOutputVertex(final JobGraph jobGraph) {
+		super(null, null, jobGraph);
+	}
+
+	/**
+	 * Sets the class of the vertex's output task.
+	 * 
+	 * @param outputClass
+	 *        The class of the vertex's output task.
+	 */
+	public void setOutputClass(final Class<? extends AbstractOutputTask> outputClass) {
+		this.invokableClass = outputClass;
+	}
+
+	/**
+	 * Returns the class of the vertex's output task.
+	 * 
+	 * @return The class of the vertex's output task or <code>null</code> if no task has yet been set.
+	 */
+	@SuppressWarnings("unchecked")
+	public Class<? extends AbstractOutputTask> getOutputClass() {
+		return (Class<? extends AbstractOutputTask>) this.invokableClass;
 	}
 }

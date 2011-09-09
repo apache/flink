@@ -21,6 +21,8 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
+import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 
 /**
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
@@ -57,7 +59,7 @@ public abstract class CostEstimator {
 			PactConnection probeSideInput, Costs costs);
 
 	public abstract void getStreamedNestedLoopsCosts(OptimizerNode node, PactConnection outerSide,
-			PactConnection innerSide, Costs costs);
+			PactConnection innerSide, int bufferSize, Costs costs);
 
 	public abstract void getBlockNestedLoopsCosts(OptimizerNode node, PactConnection outerSide, PactConnection innerSide, 
 			int blockSize, Costs costs);
@@ -198,16 +200,20 @@ public abstract class CostEstimator {
 			getMainMemHashCosts(n, secConn, primConn, locCost);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-			getBlockNestedLoopsCosts(n, primConn, secConn, 2, locCost);
+			getBlockNestedLoopsCosts(n, primConn, secConn, BlockResettableIterator.MIN_BUFFER_SIZE, locCost);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-			getBlockNestedLoopsCosts(n, secConn, primConn, 2, locCost);
+			getBlockNestedLoopsCosts(n, secConn, primConn, BlockResettableIterator.MIN_BUFFER_SIZE, locCost);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_FIRST:
-			getStreamedNestedLoopsCosts(n, primConn, secConn, locCost);
+			getStreamedNestedLoopsCosts(n, primConn, secConn,
+				SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * SpillingResettableIterator.MIN_BUFFER_SIZE,
+				locCost);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_SECOND:
-			getStreamedNestedLoopsCosts(n, secConn, primConn, locCost);
+			getStreamedNestedLoopsCosts(n, secConn, primConn,
+				SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * SpillingResettableIterator.MIN_BUFFER_SIZE,
+				locCost);
 			break;
 		default:
 			throw new CompilerException("Unknown local strategy: " + n.getLocalStrategy().name());

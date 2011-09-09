@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 
 /**
  * A management vertex ID uniquely identifies a {@link ManagementVertex}.
@@ -24,5 +24,5 @@ import eu.stratosphere.nephele.io.ID;
  * 
  * @author warneke
  */
-public final class ManagementVertexID extends ID {
+public final class ManagementVertexID extends AbstractID {
 }

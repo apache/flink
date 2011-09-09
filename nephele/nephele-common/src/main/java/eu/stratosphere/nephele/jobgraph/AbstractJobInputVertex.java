@@ -12,15 +12,29 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.example.relational;
+
+package eu.stratosphere.nephele.jobgraph;
 
 /**
- * Small base class for the tpc-h queries.
+ * An abstract base class for input vertices in Nephele.
  * 
- * 
- * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- *
+ * @author warneke
  */
-public class TPCHBase {
+public abstract class AbstractJobInputVertex extends AbstractJobVertex {
 
+	/**
+	 * Constructs a new job input vertex with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job input vertex
+	 * @param id
+	 *        the ID of this vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	protected AbstractJobInputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+		super(name, id, jobGraph);
+
+		jobGraph.addVertex(this);
+	}
 }

@@ -43,12 +43,13 @@ public abstract class FileSystem {
 	private static final String DISTRIBUTED_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.hdfs.DistributedFileSystem";
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.file.LocalFileSystem";
-	
-	
+
+	private static final String S3_FILESYSTEM_CLASS = "eu.stratosphere.nephele.fs.s3.S3FileSystem";
+
 	/**
-	 * Object used to synchronized calls to specific methods.
+	 * Object used to protect calls to specific methods.
 	 */
-	private static final Object synchronizationObject = new Object();
+	private static final Object SYNCHRONIZATION_OBJECT = new Object();
 
 	/**
 	 * An auxiliary class to identify a file system by its scheme
@@ -77,7 +78,7 @@ public abstract class FileSystem {
 		 * @param authority
 		 *        the authority of the file system
 		 */
-		public FSKey(String scheme, String authority) {
+		public FSKey(final String scheme, final String authority) {
 			this.scheme = scheme;
 			this.authority = authority;
 		}
@@ -86,7 +87,7 @@ public abstract class FileSystem {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 
 			if (obj instanceof FSKey) {
 				final FSKey key = (FSKey) obj;
@@ -113,21 +114,21 @@ public abstract class FileSystem {
 
 			return false;
 		}
-		
+
 		/**
 		 * {@inheritDoc}
 		 */
 		@Override
 		public int hashCode() {
-			
-			if(this.scheme != null) {
+
+			if (this.scheme != null) {
 				return this.scheme.hashCode();
 			}
-			
-			if(this.authority != null) {
+
+			if (this.authority != null) {
 				return this.authority.hashCode();
 			}
-			
+
 			return super.hashCode();
 		}
 	}
@@ -135,17 +136,18 @@ public abstract class FileSystem {
 	/**
 	 * Data structure mapping file system keys (scheme + authority) to cached file system objects.
 	 */
-	private final static Map<FSKey, FileSystem> CACHE = new HashMap<FSKey, FileSystem>();
+	private static final Map<FSKey, FileSystem> CACHE = new HashMap<FSKey, FileSystem>();
 
 	/**
 	 * Data structure mapping file system schemes to the corresponding implementations
 	 */
-	private final static Map<String, String> FSDIRECTORY = new HashMap<String, String>();
+	private static final Map<String, String> FSDIRECTORY = new HashMap<String, String>();
 
 	static {
 		// TODO: Use configuration to retrieve this mapping
 		FSDIRECTORY.put("hdfs", DISTRIBUTED_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LOCAL_FILESYSTEM_CLASS);
+		FSDIRECTORY.put("s3", S3_FILESYSTEM_CLASS);
 	}
 
 	/**
@@ -181,11 +183,11 @@ public abstract class FileSystem {
 	 * @throws IOException
 	 *         thrown if a reference to the file system instance could not be obtained
 	 */
-	public static FileSystem get(URI uri) throws IOException {
+	public static FileSystem get(final URI uri) throws IOException {
 
 		FileSystem fs = null;
 
-		synchronized (synchronizationObject) {
+		synchronized (SYNCHRONIZATION_OBJECT) {
 
 			if (uri.getScheme() == null) {
 				throw new IOException("FileSystem: Scheme is null");
@@ -311,7 +313,7 @@ public abstract class FileSystem {
 	 * @param f
 	 *        source file
 	 */
-	public boolean exists(Path f) throws IOException {
+	public boolean exists(final Path f) throws IOException {
 
 		try {
 			return (getFileStatus(f) != null);
@@ -324,20 +326,24 @@ public abstract class FileSystem {
 	 * Delete a file.
 	 * 
 	 * @param f
-	 *        the path to delete.
+	 *        the path to delete
 	 * @param recursive
-	 *        if path is a directory and set to
-	 *        true, the directory is deleted else throws an exception. In
-	 *        case of a file the recursive can be set to either true or false.
-	 * @return true if delete is successful else false.
+	 *        if path is a directory and set to <code>true</code>, the directory is deleted else throws an exception. In
+	 *        case of a file the recursive can be set to either <code>true</code> or <code>false</code>
+	 * @return <code>true</code> if delete is successful, <code>false</code> otherwise
 	 * @throws IOException
 	 */
 	public abstract boolean delete(Path f, boolean recursive) throws IOException;
 
 	/**
-	 * Make the given file and all non-existent parents into
-	 * directories. Has the semantics of Unix 'mkdir -p'.
+	 * Make the given file and all non-existent parents into directories. Has the semantics of Unix 'mkdir -p'.
 	 * Existence of the directory hierarchy is not an error.
+	 * 
+	 * @param f
+	 *        the directory/directories to be created
+	 * @return <code>true</code> if at least one new directory has been created, <code>false</code> otherwise
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while creating the directory
 	 */
 	public abstract boolean mkdirs(Path f) throws IOException;
 
@@ -373,14 +379,14 @@ public abstract class FileSystem {
 
 	/**
 	 * Returns the number of blocks this file/directory consists of
-	 * assuming the file system's standard block size
+	 * assuming the file system's standard block size.
 	 * 
 	 * @param file
 	 *        the file
 	 * @return the number of block's thie file/directory consists of
 	 * @throws IOException
 	 */
-	public int getNumberOfBlocks(FileStatus file) throws IOException {
+	public int getNumberOfBlocks(final FileStatus file) throws IOException {
 
 		int numberOfBlocks = 0;
 
@@ -394,7 +400,7 @@ public abstract class FileSystem {
 		}
 
 		// file is a directory
-		FileStatus[] files = this.listStatus(file.getPath());
+		final FileStatus[] files = this.listStatus(file.getPath());
 		for (int i = 0; i < files.length; i++) {
 
 			if (!files[i].isDir()) {
@@ -405,12 +411,12 @@ public abstract class FileSystem {
 		return numberOfBlocks;
 	}
 
-	private int getNumberOfBlocks(long length, long blocksize) {
+	private int getNumberOfBlocks(final long length, final long blocksize) {
 
-		if(blocksize != 0) {
+		if (blocksize != 0) {
 			int numberOfBlocks;
 			numberOfBlocks = (int) (length / blocksize);
-	
+
 			if ((length % blocksize) != 0) {
 				numberOfBlocks++;
 			}

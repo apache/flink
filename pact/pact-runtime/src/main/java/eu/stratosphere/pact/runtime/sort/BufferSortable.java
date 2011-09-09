@@ -35,6 +35,8 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
+ * This class is legacy code and here only because some older code still references it.
+ * 
  * @author Erik Nijkamp
  * @author Stephan Ewen
  * 
@@ -89,8 +91,8 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 	private static final int ACCTSIZE = 2; // total #fields in acct
 
-	private static final int RECSIZE = (ACCTSIZE + 1) * 4; // acct bytes per record // TODO why +1? (en)
-
+	private static final int RECSIZE = (ACCTSIZE + 1) * 4; // acct bytes per record 
+	
 	private int[] kvoffsets; // indices into kvindices
 
 	private int[] kvindices; // offsets into the byte[] segment
@@ -144,8 +146,8 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 			recordCapacity -= recordCapacity % RECSIZE;
 			recordCapacity /= RECSIZE;
 
-			kvoffsets = new int[recordCapacity];
-			kvindices = new int[recordCapacity * ACCTSIZE];
+			this.kvoffsets = new int[recordCapacity];
+			this.kvindices = new int[recordCapacity * ACCTSIZE];
 
 			// reset counters
 			reset();
@@ -158,18 +160,18 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	public void reset() {
 		try {
 			// memory segment
-			memory.outputView.reset();
+			this.memory.outputView.reset();
 
 			// buffer
-			position = 0;
+			this.position = 0;
 
 			// serialization
-			keySerializer.open(memory.outputView);
-			valSerializer.open(memory.outputView);
+			this.keySerializer.open(this.memory.outputView);
+			this.valSerializer.open(this.memory.outputView);
 
 			// accounting
-			kvindex = 0;
-			kvlast = 0;
+			this.kvindex = 0;
+			this.kvlast = 0;
 		} catch (IOException iex) {
 			throw new RuntimeException(iex);
 		}
@@ -180,15 +182,15 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	// -------------------------------------------------------------------------
 
 	protected int getRemainingBytes() {
-		return memory.size() - memory.outputView.getPosition();
+		return this.memory.size() - this.memory.outputView.getPosition();
 	}
 
 	protected boolean isEmpty() {
-		return memory.outputView.getPosition() == 0;
+		return this.memory.outputView.getPosition() == 0;
 	}
 
 	public int getPosition() {
-		return position;
+		return this.position;
 	}
 
 	// -------------------------------------------------------------------------
@@ -208,16 +210,16 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	 *         the number of key/value pairs in the buffer.
 	 */
 	public K getKey(int position) throws IOException {
-		keyDeserializer.open(memory.inputView);
+		this.keyDeserializer.open(this.memory.inputView);
 
-		int index = kvoffsets[position];
+		int index = this.kvoffsets[position];
 
-		int keyStart = kvindices[index + KEYSTART];
+		int keyStart = this.kvindices[index + KEYSTART];
 
-		K key = keySerialization.newInstance();
+		K key = this.keySerialization.newInstance();
 
-		memory.inputView.setPosition(keyStart);
-		keyDeserializer.deserialize(key);
+		this.memory.inputView.setPosition(keyStart);
+		this.keyDeserializer.deserialize(key);
 
 		return key;
 	}
@@ -235,15 +237,15 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 	 *         the number of key/value pairs in the buffer.
 	 */
 	public V getValue(int position) throws IOException {
-		valDeserializer.open(memory.inputView);
+		this.valDeserializer.open(this.memory.inputView);
 
-		int index = kvoffsets[position];
-		int valStart = kvindices[index + VALSTART];
+		int index = this.kvoffsets[position];
+		int valStart = this.kvindices[index + VALSTART];
 
-		V val = valSerialization.newInstance();
+		V val = this.valSerialization.newInstance();
 
-		memory.inputView.setPosition(valStart);
-		valDeserializer.deserialize(val);
+		this.memory.inputView.setPosition(valStart);
+		this.valDeserializer.deserialize(val);
 
 		return val;
 	}
@@ -267,30 +269,24 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 				return false;
 			}
 
-			// reserve 4 bytes for length
-			memory.outputView.skip(4);
-
 			// serialize key bytes into buffer
 			final int keystart = memory.outputView.getPosition();
-			keySerializer.serialize(pair.getKey());
+			this.keySerializer.serialize(pair.getKey());
 
 			// serialize value bytes into buffer
 			final int valstart = memory.outputView.getPosition();
-			valSerializer.serialize(pair.getValue());
-
-			// serialize object length
-			memory.randomAccessView.putInt(position, memory.outputView.getPosition() - position - 4);
+			this.valSerializer.serialize(pair.getValue());
 
 			// update accounting info
-			final int index = kvindex * ACCTSIZE;
-			kvoffsets[kvindex] = index;
-			kvindices[index + KEYSTART] = keystart;
-			kvindices[index + VALSTART] = valstart;
-			kvindex = kvnext;
-			kvlast = keystart;
+			final int index = this.kvindex * ACCTSIZE;
+			this.kvoffsets[kvindex] = index;
+			this.kvindices[index + KEYSTART] = keystart;
+			this.kvindices[index + VALSTART] = valstart;
+			this.kvindex = kvnext;
+			this.kvlast = keystart;
 
 			// update current write position
-			position = memory.outputView.getPosition();
+			this.position = this.memory.outputView.getPosition();
 			return true;
 		} catch (IOException e) {
 			return false;
@@ -319,9 +315,8 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 			// start and end within memory segment
 			int kvstart = kvindices[index + KEYSTART];
-			int kvend = kvindices[index + ACCTSIZE] - 4;
+			int kvend = kvindices[index + ACCTSIZE];
 			// -> kvend = kvstart of next pair
-			// -> 4 = kv-length -> see write(...)
 
 			// for the last written pair kvindices[index + ACCTSIZE] does not exist
 			if (kvstart == kvlast) {
@@ -359,7 +354,7 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 			// start and end within memory segment
 			int kvstart = kvindices[index + KEYSTART];
-			int kvend = kvindices[index + ACCTSIZE] - 4;
+			int kvend = kvindices[index + ACCTSIZE];
 
 			// for the last written pair kvindices[index + ACCTSIZE] does not exist
 			if (kvstart == kvlast) {
@@ -383,15 +378,15 @@ public final class BufferSortable<K extends Key, V extends Value> extends Memory
 
 	@Override
 	public int compare(int i, int j) {
-		final byte[] backingArray = memory.randomAccessView.getBackingArray();
+		final byte[] backingArray = memory.getBackingArray();
 		
 		// index
 		final int ii = kvoffsets[i];
 		final int ij = kvoffsets[j];
 
 		// keys
-		final int indexi = memory.randomAccessView.translateOffset(kvindices[ii + KEYSTART]);
-		final int indexj = memory.randomAccessView.translateOffset(kvindices[ij + KEYSTART]);
+		final int indexi = memory.translateOffset(kvindices[ii + KEYSTART]);
+		final int indexj = memory.translateOffset(kvindices[ij + KEYSTART]);
 		
 		return comparator.compare(backingArray, backingArray, indexi, indexj);
 	}

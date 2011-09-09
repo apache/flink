@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.pact.testing;
 
 import static org.junit.Assert.assertEquals;
@@ -22,18 +37,15 @@ import org.junit.internal.ArrayComparisonFailure;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.JsonInputFormat;
-import eu.stratosphere.pact.common.io.JsonOutputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
@@ -50,6 +62,9 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.testing.ioformats.JsonInputFormat;
+import eu.stratosphere.pact.testing.ioformats.JsonOutputFormat;
+import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Tests {@link TestPlan}.
@@ -184,14 +199,14 @@ public class TestPlanTest extends TestPlanTestCase {
 	 */
 	@Test
 	public void completeTestPasses() {
-		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
+		final FileDataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
 			"TestPlan/test.json");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
 		map.setInput(read);
 
-		DataSinkContract<Key, Value> output = createOutput(map, SequentialOutputFormat.class);
+		FileDataSinkContract<Key, Value> output = createOutput(map, SequentialOutputFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.run();
@@ -236,14 +251,14 @@ public class TestPlanTest extends TestPlanTestCase {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		final DataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
+		final FileDataSourceContract<PactLong, PactJsonObject> read = createInput(JsonInputFormat.class,
 			"TestPlan/test.json");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
-		DataSinkContract<PactNull, PactJsonObject> output = createOutput(map, JsonOutputFormat.class);
+		FileDataSinkContract<PactNull, PactJsonObject> output = createOutput(map, JsonOutputFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class, getResourcePath("TestPlan/test.json"));
@@ -383,10 +398,10 @@ public class TestPlanTest extends TestPlanTestCase {
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		// first and second input are added in TestPlan
-		testPlan.getInput((DataSourceContract<PactInteger, PactString>) crossContract.getFirstInput()).
+		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getFirstInput()).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getInput((DataSourceContract<PactInteger, PactString>) crossContract.getSecondInput()).
+		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getSecondInput()).
 			add(new PactInteger(3), new PactString("test3")).
 			add(new PactInteger(4), new PactString("test4"));
 
@@ -426,12 +441,12 @@ public class TestPlanTest extends TestPlanTestCase {
 	 *        the input from which the values are read
 	 * @param outputFormatClass
 	 *        the output format
-	 * @return the {@link DataSinkContract} for the temporary file
+	 * @return the {@link FileDataSinkContract} for the temporary file
 	 */
-	private <K extends Key, V extends Value> DataSinkContract<K, V> createOutput(final Contract input,
-			final Class<? extends OutputFormat<K, V>> outputFormatClass) {
+	private <K extends Key, V extends Value> FileDataSinkContract<K, V> createOutput(final Contract input,
+			final Class<? extends FileOutputFormat<K, V>> outputFormatClass) {
 		try {
-			final DataSinkContract<K, V> out = new DataSinkContract<K, V>(outputFormatClass, File.createTempFile(
+			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File.createTempFile(
 				"output", null).toURI().toString(), "Output");
 			out.setInput(input);
 			return out;
@@ -442,17 +457,17 @@ public class TestPlanTest extends TestPlanTestCase {
 	}
 
 	/**
-	 * Creates an {@link DataSourceContract} contract for the specified resource file in the temporary folder for
+	 * Creates an {@link FileDataSourceContract} contract for the specified resource file in the temporary folder for
 	 * arbitrary key/value pairs coming from the given input
 	 * contract.
 	 * 
 	 * @param input
 	 *        the input from which the values are read
-	 * @return the {@link DataSinkContract} for the temporary file
+	 * @return the {@link FileDataSinkContract} for the temporary file
 	 */
-	private <K extends Key, V extends Value> DataSourceContract<K, V> createInput(
-			Class<? extends InputFormat<K, V>> inputFormat, String resource) {
-		final DataSourceContract<K, V> read = new DataSourceContract<K, V>(inputFormat, getResourcePath(resource),
+	private <K extends Key, V extends Value> FileDataSourceContract<K, V> createInput(
+			Class<? extends FileInputFormat<K, V>> inputFormat, String resource) {
+		final FileDataSourceContract<K, V> read = new FileDataSourceContract<K, V>(inputFormat, getResourcePath(resource),
 			"Input");
 		return read;
 	}

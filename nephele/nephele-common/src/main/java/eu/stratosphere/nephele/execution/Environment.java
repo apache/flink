@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
@@ -106,11 +106,6 @@ public class Environment implements Runnable, IOReadableWritable {
 	private volatile Thread executingThread = null;
 
 	/**
-	 * List of input splits assigned to this environment.
-	 */
-	private final ArrayList<InputSplit> inputSplits = new ArrayList<InputSplit>();
-
-	/**
 	 * Current execution state of the task associated with this environment.
 	 */
 	private volatile ExecutionState executionState = ExecutionState.CREATED;
@@ -129,6 +124,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * The runtime configuration of the task encapsulated in the environment object.
 	 */
 	private Configuration runtimeConfiguration = null;
+
+	/**
+	 * The input split provider that can be queried for new input splits.
+	 */
+	private InputSplitProvider inputSplitProvider = null;
 
 	/**
 	 * The current number of subtasks the respective task is split into.
@@ -164,8 +164,8 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param runtimeConfiguration
 	 *        the configuration object which was attached to the original {@link JobVertex}
 	 */
-	public Environment(JobID jobID, String taskName, Class<? extends AbstractInvokable> invokableClass,
-			Configuration runtimeConfiguration) {
+	public Environment(final JobID jobID, final String taskName,
+			final Class<? extends AbstractInvokable> invokableClass, final Configuration runtimeConfiguration) {
 		this.jobID = jobID;
 		this.taskName = taskName;
 		this.invokableClass = invokableClass;
@@ -214,7 +214,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param executionListener
 	 *        the object to be notified for important events during the task execution
 	 */
-	public void registerExecutionListener(ExecutionListener executionListener) {
+	public void registerExecutionListener(final ExecutionListener executionListener) {
 
 		synchronized (this.executionListeners) {
 
@@ -231,7 +231,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param executionListener
 	 *        the lister object to be unregistered
 	 */
-	public void unregisterExecutionListener(ExecutionListener executionListener) {
+	public void unregisterExecutionListener(final ExecutionListener executionListener) {
 
 		synchronized (this.executionListeners) {
 			this.executionListeners.remove(executionListener);
@@ -265,7 +265,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 *        the index of the unbound output gate
 	 * @return the unbound output gate with the given ID, or <code>null</code> if no such gate exists
 	 */
-	public OutputGate<? extends Record> getUnboundOutputGate(int gateID) {
+	public OutputGate<? extends Record> getUnboundOutputGate(final int gateID) {
 
 		if (this.unboundOutputGates.size() == 0) {
 			LOG.debug("No unbound output gates");
@@ -281,7 +281,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 *        the index of the unbound input gate
 	 * @return the unbound input gate with the given ID, or <code>null</code> if no such gate exists
 	 */
-	public InputGate<? extends Record> getUnboundInputGate(int gateID) {
+	public InputGate<? extends Record> getUnboundInputGate(final int gateID) {
 
 		if (this.unboundInputGates.size() == 0) {
 			LOG.debug("No unbound input gates");
@@ -372,7 +372,7 @@ public class Environment implements Runnable, IOReadableWritable {
 
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
-			
+
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
@@ -424,7 +424,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param outputGate
 	 *        the output gate to be registered with the environment
 	 */
-	public void registerOutputGate(OutputGate<? extends Record> outputGate) {
+	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
 		LOG.debug("Registering output gate");
 		this.outputGates.add(outputGate);
 	}
@@ -435,7 +435,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param inputGate
 	 *        the input gate to be registered with the environment
 	 */
-	public void registerInputGate(InputGate<? extends Record> inputGate) {
+	public void registerInputGate(final InputGate<? extends Record> inputGate) {
 		LOG.debug("Registering input gate");
 		this.inputGates.add(inputGate);
 	}
@@ -465,7 +465,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 *        the index of the input gate to return
 	 * @return the input gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public InputGate<? extends Record> getInputGate(int pos) {
+	public InputGate<? extends Record> getInputGate(final int pos) {
 		if (pos < this.inputGates.size()) {
 			return this.inputGates.get(pos);
 		}
@@ -480,7 +480,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 *        the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public OutputGate<? extends Record> getOutputGate(int pos) {
+	public OutputGate<? extends Record> getOutputGate(final int pos) {
 		if (pos < this.outputGates.size()) {
 			return this.outputGates.get(pos);
 		}
@@ -494,7 +494,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	public void startExecution() {
 
 		if (this.executingThread == null) {
-			this.executingThread = new Thread(this, this.taskName);
+			if (this.taskName != null) {
+				this.executingThread = new Thread(this, this.taskName);
+			} else {
+				this.executingThread = new Thread(this);
+			}
 			this.executingThread.start();
 		}
 	}
@@ -573,7 +577,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read job vertex id
 		this.jobID = new JobID();
@@ -640,32 +644,6 @@ public class Environment implements Runnable, IOReadableWritable {
 			this.unboundInputGates.add(eig);
 		}
 
-		// Read input splits
-		final int numInputSplits = in.readInt();
-		for (int i = 0; i < numInputSplits; i++) {
-			final boolean isNotNull = in.readBoolean();
-			if (isNotNull) {
-				final String className = StringRecord.readString(in);
-				Class<? extends IOReadableWritable> c = null;
-				try {
-					c = (Class<? extends IOReadableWritable>) Class.forName(className, true, cl);
-				} catch (ClassNotFoundException cnfe) {
-					throw new IOException("Class " + className + " not found in one of the supplied jar files: "
-						+ StringUtils.stringifyException(cnfe));
-				}
-
-				try {
-					final InputSplit inputSplit = (InputSplit) c.newInstance();
-					inputSplit.read(in);
-					this.inputSplits.add(inputSplit);
-				} catch (InstantiationException e) {
-					throw new IOException(e);
-				} catch (IllegalAccessException e) {
-					throw new IOException(e);
-				}
-			}
-		}
-
 		// The configuration object
 		this.runtimeConfiguration = new Configuration();
 		this.runtimeConfiguration.read(in);
@@ -689,7 +667,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write out job vertex id
 		if (this.jobID == null) {
@@ -727,19 +705,6 @@ public class Environment implements Runnable, IOReadableWritable {
 		out.writeInt(getNumberOfInputGates());
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
 			getInputGate(i).write(out);
-		}
-
-		// Write out number of input splits
-		out.writeInt(this.inputSplits.size());
-		for (int i = 0; i < this.inputSplits.size(); i++) {
-			final InputSplit inputSplit = this.inputSplits.get(i);
-			if (inputSplit == null) {
-				out.writeBoolean(false);
-			} else {
-				out.writeBoolean(true);
-				StringRecord.writeString(out, inputSplit.getClass().getName());
-				inputSplit.write(out);
-			}
 		}
 
 		// The configuration object
@@ -845,31 +810,6 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
-	 * Adds an input to the environment.
-	 * 
-	 * @param inputSplit
-	 *        the input split to be added
-	 */
-	public void addInputSplit(InputSplit inputSplit) {
-
-		this.inputSplits.add(inputSplit);
-	}
-
-	public InputSplit[] getInputSplits() {
-
-		return this.inputSplits.toArray(new InputSplit[0]);
-	}
-
-	/**
-	 * Returns the number of input splits assigned to this environment.
-	 * 
-	 * @return the number of input splits assigned to this environment
-	 */
-	public int getNumberOfInputSplits() {
-		return this.inputSplits.size();
-	}
-
-	/**
 	 * Returns a duplicate (deep copy) of this environment object. However, duplication
 	 * does not cover the gates arrays. They must be manually reconstructed.
 	 * 
@@ -883,12 +823,6 @@ public class Environment implements Runnable, IOReadableWritable {
 		final Environment duplicatedEnvironment = new Environment();
 		duplicatedEnvironment.invokableClass = this.invokableClass;
 		duplicatedEnvironment.executionState = this.executionState;
-		// Input splits should be immutable, so we do not create deep copies of them
-		duplicatedEnvironment.inputSplits.clear();
-		final Iterator<InputSplit> it = this.inputSplits.iterator();
-		while (it.hasNext()) {
-			duplicatedEnvironment.inputSplits.add(it.next());
-		}
 		duplicatedEnvironment.jobID = this.jobID;
 		duplicatedEnvironment.taskName = this.taskName;
 		duplicatedEnvironment.executingThread = this.executingThread;
@@ -919,7 +853,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param memoryManager
 	 *        the new {@link IOManager}
 	 */
-	public void setIOManager(IOManager ioManager) {
+	public void setIOManager(final IOManager ioManager) {
 		this.ioManager = ioManager;
 	}
 
@@ -938,7 +872,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param memoryManager
 	 *        the new {@link MemoryManager}
 	 */
-	public void setMemoryManager(MemoryManager memoryManager) {
+	public void setMemoryManager(final MemoryManager memoryManager) {
 		this.memoryManager = memoryManager;
 	}
 
@@ -967,7 +901,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param currentNumberOfSubtasks
 	 *        the current number of subtasks the respective task is split into
 	 */
-	public void setCurrentNumberOfSubtasks(int currentNumberOfSubtasks) {
+	public void setCurrentNumberOfSubtasks(final int currentNumberOfSubtasks) {
 
 		this.currentNumberOfSubtasks = currentNumberOfSubtasks;
 	}
@@ -988,12 +922,12 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param indexInSubtaskGroup
 	 *        the index of this subtask in the subtask group
 	 */
-	public void setIndexInSubtaskGroup(int indexInSubtaskGroup) {
+	public void setIndexInSubtaskGroup(final int indexInSubtaskGroup) {
 
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
 	}
 
-	public void changeExecutionState(ExecutionState newExecutionState, String optionalMessage) {
+	public void changeExecutionState(final ExecutionState newExecutionState, final String optionalMessage) {
 
 		// Ignore state changes in final states
 		if (this.executionState == ExecutionState.CANCELED || this.executionState == ExecutionState.FINISHED) {
@@ -1143,13 +1077,32 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
+	 * Sets the input split provider for this environment.
+	 * 
+	 * @param inputSplitProvider
+	 *        the input split provider for this environment
+	 */
+	public void setInputSplitProvider(final InputSplitProvider inputSplitProvider) {
+		this.inputSplitProvider = inputSplitProvider;
+	}
+
+	/**
+	 * Returns the input split provider assigned to this environment.
+	 * 
+	 * @return the input split provider or <code>null</code> if no such provider has been assigned to this environment.
+	 */
+	public InputSplitProvider getInputSplitProvider() {
+		return this.inputSplitProvider;
+	}
+
+	/**
 	 * Sends a notification to all registered {@link ExecutionListener} objects that a new user thread has been
 	 * started.
 	 * 
 	 * @param userThread
 	 *        the user thread which has been started
 	 */
-	public void userThreadStarted(Thread userThread) {
+	public void userThreadStarted(final Thread userThread) {
 
 		synchronized (this.executionListeners) {
 			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
@@ -1166,7 +1119,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * @param userThread
 	 *        the user thread which has finished
 	 */
-	public void userThreadFinished(Thread userThread) {
+	public void userThreadFinished(final Thread userThread) {
 
 		synchronized (this.executionListeners) {
 			final Iterator<ExecutionListener> it = this.executionListeners.iterator();

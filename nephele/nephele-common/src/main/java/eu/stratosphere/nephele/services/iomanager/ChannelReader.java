@@ -25,12 +25,12 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 /**
- * A reader from an underlying channel.
+ * A reader from an underlying stream channel.
  * 
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public final class ChannelReader extends StreamChannelAccess<Buffer.Input> implements Reader
+public final class ChannelReader extends StreamChannelAccess<Buffer.Input, ReadRequest> implements Reader
 {
 	/**
 	 * The input wrapper, which manages reads that span the border of two buffers.
@@ -58,11 +58,6 @@ public final class ChannelReader extends StreamChannelAccess<Buffer.Input> imple
 	private volatile boolean allRead; 
 	
 	/**
-	 * Flag marking this channel as closed.
-	 */
-	private volatile boolean closed = false;
-	
-	/**
 	 * Flag indicating that the reader has returned all pairs it has.
 	 */
 	private boolean done;
@@ -79,7 +74,7 @@ public final class ChannelReader extends StreamChannelAccess<Buffer.Input> imple
 	 * @param deleteWhenDone
 	 * @throws IOException
 	 */
-	protected ChannelReader(Channel.ID channelID, RequestQueue<IORequest<Buffer.Input>> requestQueue,
+	protected ChannelReader(Channel.ID channelID, RequestQueue<ReadRequest> requestQueue,
 			Collection<Buffer.Input> buffers, boolean deleteWhenDone)
 	throws IOException
 	{
@@ -91,18 +86,8 @@ public final class ChannelReader extends StreamChannelAccess<Buffer.Input> imple
 
 		// add all buffers to the request queue
 		for (Buffer.Input buffer : buffers) {
-			this.requestQueue.add(new IORequest<Buffer.Input>(this, buffer));
+			this.requestQueue.add(new BufferReadRequest(this, buffer));
 		}
-	}
-	
-	
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
-	 */
-	@Override
-	public boolean isClosed() {
-		return this.closed;
 	}
 
 	/* (non-Javadoc)
@@ -224,7 +209,7 @@ public final class ChannelReader extends StreamChannelAccess<Buffer.Input> imple
 				}
 			
 				// issue request for the next piece of data
-				this.requestQueue.add(new IORequest<Buffer.Input>(this, buffer));
+				this.requestQueue.add(new BufferReadRequest(this, buffer));
 			}
 			else {
 				// no further requests necessary, return the buffer
@@ -412,4 +397,39 @@ public final class ChannelReader extends StreamChannelAccess<Buffer.Input> imple
 		}
 	}
 	
+}
+
+// --------------------------------------------------------------------------------------------
+
+final class BufferReadRequest implements ReadRequest
+{
+	private final ChannelReader channel;
+	
+	private final Buffer.Input buffer;
+	
+	protected BufferReadRequest(ChannelReader targetChannel, Buffer.Input buffer)
+	{
+		this.channel = targetChannel;
+		this.buffer = buffer;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
+	 */
+	@Override
+	public void read() throws IOException
+	{
+		if (!this.buffer.memory.isFree()) {
+			this.buffer.readFromChannel(this.channel.fileChannel);
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
+	 */
+	@Override
+	public void requestDone(IOException ioex)
+	{
+		this.channel.handleProcessedBuffer(this.buffer, ioex);
+	}
 }

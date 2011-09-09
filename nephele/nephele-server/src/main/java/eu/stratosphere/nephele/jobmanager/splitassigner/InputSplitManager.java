@@ -173,7 +173,7 @@ public final class InputSplitManager {
 
 		final InputSplit nextInputSplit = inputSplitAssigner.getNextInputSplit(vertex);
 		if (nextInputSplit != null) {
-			LOG.debug(vertex + " receives input split " + nextInputSplit.getPartitionNumber());
+			LOG.info(vertex + " receives input split " + nextInputSplit.getSplitNumber());
 		}
 
 		return nextInputSplit;
@@ -231,8 +231,12 @@ public final class InputSplitManager {
 		String assignerClassName = GlobalConfiguration.getString(assignerKey, null);
 
 		// Provide hard-wired default configuration for FileInputSplit objects to make configuration more robust
-		if (assignerClassName == null && FileInputSplit.class.getSimpleName().equals(typeClassName)) {
-			assignerClassName = FileInputSplitAssigner.class.getName();
+		if (assignerClassName == null) {
+			if (FileInputSplit.class.getSimpleName().equals(typeClassName)) {
+				assignerClassName = FileInputSplitAssigner.class.getName();
+			} else {
+				return null;
+			}
 		}
 
 		try {

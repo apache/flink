@@ -57,27 +57,9 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	void updateTaskExecutionState(TaskExecutionState executionResult) throws IOException;
 
 	/**
-	 * Sends a profiling record to the job manager
-	 * 
-	 * @param profilingRecord
-	 *        the profiling record to be submitted
-	 * @throws IOException
-	 *         thrown if an error occurs during this remote procedure call
-	 */
-	// void sendProfilingRecord(ProfilingRecord profilingRecord) throws IOException;
-	/**
-	 * Sends a task profiling recorder to the job manager.
-	 * 
-	 * @param recorder
-	 *        the profiling recorder to be submitted.
-	 */
-	// void sendTaskProfilingRecorder(TaskRecorder recorder);
-	
-	void reconnectChannel(ExecutionVertex failed, ExecutionVertex predecessor);
-
-	/**
 	 * @param executionVertexID
 	 * @param jobID 
 	 */
 	void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID);
+
 }

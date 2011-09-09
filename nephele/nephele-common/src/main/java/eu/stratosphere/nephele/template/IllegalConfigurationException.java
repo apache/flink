@@ -28,7 +28,7 @@ public class IllegalConfigurationException extends Exception {
 	/**
 	 * Generated serial UID.
 	 */
-	private static final long serialVersionUID = 1443568308605707452L;
+	private static final long serialVersionUID = 695506964810499989L;
 
 	/**
 	 * Constructs an new illegal configuration exception with the given error message.
@@ -36,7 +36,20 @@ public class IllegalConfigurationException extends Exception {
 	 * @param errorMsg
 	 *        the error message to be included in the exception
 	 */
-	public IllegalConfigurationException(String errorMsg) {
+	public IllegalConfigurationException(final String errorMsg) {
 		super(errorMsg);
+	}
+
+	/**
+	 * Constructs an new illegal configuration exception with the given error message
+	 * and a given cause.
+	 * 
+	 * @param errorMsg
+	 *        The error message to be included in the exception.
+	 * @param cause
+	 *        The exception that caused this exception.
+	 */
+	public IllegalConfigurationException(final String errorMsg, final Throwable cause) {
+		super(errorMsg, cause);
 	}
 }

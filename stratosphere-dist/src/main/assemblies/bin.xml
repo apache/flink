@@ -4,7 +4,7 @@
     <id>bin</id>
     <formats>
         <format>dir</format>
-		<format>tar.gz</format>
+		    <format>tar.gz</format>
         <format>zip</format>
     </formats>
 
@@ -65,8 +65,8 @@
     	<fileSet>
     	<!-- copy JavaDocs -->
     		<!--
-    		<directory>../target/apidocs</directory>
-    		-->
+    		<directory>../target/apidocs</directory
+		-->
     		<directory>../target</directory>
     		<includes>
     			<include>stratosphere-*-javadoc.jar</include>

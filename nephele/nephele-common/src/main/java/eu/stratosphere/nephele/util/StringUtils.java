@@ -29,7 +29,7 @@ import java.io.StringWriter;
  * 
  * @author warneke
  */
-public class StringUtils {
+public final class StringUtils {
 
 	/**
 	 * Empty private constructor to overwrite public one.
@@ -44,7 +44,7 @@ public class StringUtils {
 	 *        the exception to stringify
 	 * @return A string with exception name and call stack.
 	 */
-	public static String stringifyException(Throwable e) {
+	public static String stringifyException(final Throwable e) {
 		final StringWriter stm = new StringWriter();
 		final PrintWriter wrt = new PrintWriter(stm);
 		e.printStackTrace(wrt);
@@ -64,7 +64,7 @@ public class StringUtils {
 	 *        end index, exclusively
 	 * @return hex string representation of the byte array
 	 */
-	public static String byteToHexString(byte[] bytes, int start, int end) {
+	public static String byteToHexString(final byte[] bytes, final int start, final int end) {
 		if (bytes == null) {
 			throw new IllegalArgumentException("bytes == null");
 		}
@@ -83,7 +83,7 @@ public class StringUtils {
 	 *        the bytes to convert in a hex string
 	 * @return hex string representation of the byte array
 	 */
-	public static String byteToHexString(byte bytes[]) {
+	public static String byteToHexString(final byte[] bytes) {
 		return byteToHexString(bytes, 0, bytes.length);
 	}
 
@@ -96,7 +96,7 @@ public class StringUtils {
 	 * @return a byte array that is a hex string representation of the given
 	 *         string. The size of the byte array is therefore hex.length/2
 	 */
-	public static byte[] hexStringToByte(String hex) {
+	public static byte[] hexStringToByte(final String hex) {
 		final byte[] bts = new byte[hex.length() / 2];
 		for (int i = 0; i < bts.length; i++) {
 			bts[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);

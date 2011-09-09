@@ -29,7 +29,7 @@ import java.util.Deque;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -82,7 +82,7 @@ public class TransferEnvelopeSerializerTest {
 	 * 
 	 * @author warneke
 	 */
-	private static class SerializationTestChannelID extends ID {
+	private static class SerializationTestChannelID extends AbstractID {
 
 		/**
 		 * Constructs a new ID.
@@ -292,7 +292,7 @@ public class TransferEnvelopeSerializerTest {
 		byte[] channelid = new byte[sizeOfChannelID];
 		fileInputStream.read(channelid);
 
-		final ID channelID = new SerializationTestChannelID(channelid);
+		final AbstractID channelID = new SerializationTestChannelID(channelid);
 		assertEquals(expectedChannelID, channelID);
 	}
 

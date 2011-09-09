@@ -92,7 +92,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		super(inputGate, channelIndex, channelID, compressionLevel);
 		this.deserializationBuffer = new DeserializationBuffer<T>(deserializer, false);
 
-		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel);
+		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel, this);
 	}
 
 	/**
@@ -209,6 +209,23 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			releasedConsumedReadBuffer();
 		}
 
+		// This code fragment makes sure the isClosed method works in case the channel input has not been fully consumed
+		if (this.getType() == ChannelType.NETWORK) {
+			synchronized (this.synchronisationObject) {
+				if (!this.brokerAggreedToCloseChannel) {
+					while (!this.brokerAggreedToCloseChannel) {
+
+						requestReadBuffersFromBroker();
+						if (this.uncompressedDataBuffer != null || this.compressedDataBuffer != null) {
+							releasedConsumedReadBuffer();
+						}
+						this.synchronisationObject.wait(500);
+					}
+					this.bufferedRecord = null;
+				}
+			}
+		}
+
 		/*
 		 * Send close event to indicate the input channel has successfully
 		 * processed all data it is interested in.
@@ -289,7 +306,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		// The buffers are recycled by the input channel wrapper
 
 		if (this.decompressor != null) {
-			this.decompressor.shutdown();
+			this.decompressor.shutdown(getID());
 		}
 	}
 }

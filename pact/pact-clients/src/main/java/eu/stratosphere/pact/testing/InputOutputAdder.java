@@ -12,6 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+
 package eu.stratosphere.pact.testing;
 
 import java.util.Arrays;
@@ -23,8 +24,8 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DataSinkContract;
-import eu.stratosphere.pact.common.contract.DataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
@@ -32,7 +33,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
- * Adds missing {@link DataSourceContract} and {@link DataSinkContract} to an incomplete plan.
+ * Adds missing {@link FileDataSourceContract} and {@link FileDataSinkContract} to an incomplete plan.
  * 
  * @author Arvid Heise
  */
@@ -44,8 +45,8 @@ class InputOutputAdder implements Visitor<Contract> {
 	private final LinkedList<Integer> inputs = new LinkedList<Integer>(Arrays.asList(0));
 
 	private void addDefaultInput(final Contract contract) {
-		if (contract instanceof DataSinkContract<?, ?>)
-			((DataSinkContract<?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName() + "-input"));
+		if (contract instanceof FileDataSinkContract<?, ?>)
+			((FileDataSinkContract<?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName() + "-input"));
 		else if (contract instanceof SingleInputContract<?, ?, ?, ?>)
 			((SingleInputContract<?, ?, ?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName()
 				+ "-input"));
@@ -75,7 +76,7 @@ class InputOutputAdder implements Visitor<Contract> {
 	@Override
 	public void postVisit(final Contract visitable) {
 		final Integer actualInputs = this.inputs.pop();
-		if (this.inputs.size() == 1 && !(visitable instanceof DataSinkContract<?, ?>))
+		if (this.inputs.size() == 1 && !(visitable instanceof FileDataSinkContract<?, ?>))
 			this.contractsWithoutOutput.add(visitable);
 		if (this.getExpectedInputs(visitable.getClass()) != actualInputs)
 			this.contractsWithoutInput.add(visitable);
@@ -104,7 +105,7 @@ class InputOutputAdder implements Visitor<Contract> {
 	}
 
 	private Contract replaceWithDefaultOutput(final Contract contract) {
-		final DataSinkContract<Key, Value> defaultSink = TestPlan.createDefaultSink(contract.getName() + "-output");
+		final FileDataSinkContract<Key, Value> defaultSink = TestPlan.createDefaultSink(contract.getName() + "-output");
 		defaultSink.setInput(contract);
 		return defaultSink;
 	}
@@ -112,8 +113,8 @@ class InputOutputAdder implements Visitor<Contract> {
 	@SuppressWarnings("serial")
 	private final static Map<Class<? extends Contract>, Integer> EXPECTED_INPUTS = new HashMap<Class<? extends Contract>, Integer>() {
 		{
-			this.put(DataSourceContract.class, 0);
-			this.put(DataSinkContract.class, 1);
+			this.put(FileDataSourceContract.class, 0);
+			this.put(FileDataSinkContract.class, 1);
 			this.put(SingleInputContract.class, 1);
 			this.put(DualInputContract.class, 2);
 		}

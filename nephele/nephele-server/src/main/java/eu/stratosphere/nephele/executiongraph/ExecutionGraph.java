@@ -17,11 +17,9 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -31,7 +29,6 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionSignature;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -41,18 +38,19 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.AbstractJobInputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobEdge;
 import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
+import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
+import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -129,6 +127,11 @@ public class ExecutionGraph implements ExecutionListener {
 	private List<ExecutionVertex> recovering = new ArrayList<ExecutionVertex>();
 
 	/**
+	 * List of listeners which are notified in case the execution stage of a job has changed.
+	 */
+	private List<ExecutionStageListener> executionStageListeners = new ArrayList<ExecutionStageListener>();
+
+	/**
 	 * Private constructor used for duplicating execution vertices.
 	 * 
 	 * @param jobID
@@ -151,11 +154,15 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @throws GraphConversionException
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
-	public ExecutionGraph(JobGraph job, InstanceManager instanceManager)
-																		throws GraphConversionException {
+	public ExecutionGraph(JobGraph job, InstanceManager instanceManager) throws GraphConversionException {
 		this(job.getJobID(), job.getName());
+
 		// Start constructing the new execution graph from given job graph
-		constructExecutionGraph(job, instanceManager);
+		try {
+			constructExecutionGraph(job, instanceManager);
+		} catch (Exception e) {
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
 	}
 
 	/**
@@ -249,7 +256,7 @@ public class ExecutionGraph implements ExecutionListener {
 		this.jobConfiguration = jobGraph.getJobConfiguration();
 
 		// Initially, create only one execution stage that contains all group vertices
-		final ExecutionStage initialExecutionStage = new ExecutionStage(0);
+		final ExecutionStage initialExecutionStage = new ExecutionStage(this, 0);
 		this.stages.add(initialExecutionStage);
 
 		// Convert job vertices to execution vertices and initialize them
@@ -541,8 +548,8 @@ public class ExecutionGraph implements ExecutionListener {
 		try {
 			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
 				groupVertex);
-		} catch (Exception e) {
-			throw new GraphConversionException(StringUtils.stringifyException(e));
+		} catch (Throwable t) {
+			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
 
 		// Run the configuration check the user has provided for the vertex
@@ -588,14 +595,34 @@ public class ExecutionGraph implements ExecutionListener {
 			null));
 
 		// Register input and output vertices separately
-		if (jobVertex instanceof JobInputVertex) {
-			// Assign input splits
-			try {
-				groupVertex.setInputSplits(((JobInputVertex) jobVertex).getInputSplits());
-			} catch (IllegalConfigurationException e) {
-				throw new GraphConversionException("Cannot assign input splits to " + groupVertex.getName() + ": "
-					+ StringUtils.stringifyException(e));
+		if (jobVertex instanceof AbstractJobInputVertex) {
+
+			final InputSplit[] inputSplits;
+
+			// let the task code compute the input splits
+			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
+				try {
+					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable()).
+							computeInputSplits(jobVertex.getNumberOfSubtasks());
+				} catch (Exception e) {
+					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
+						+ ": "
+							+ StringUtils.stringifyException(e));
+				}
+			} else {
+				throw new GraphConversionException(
+					"BUG: JobInputVertex contained a task class which was not an input task.");
 			}
+
+			if (inputSplits == null) {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated 0 input splits");
+			} else {
+				LOG.info("Job input vertex " + jobVertex.getName() + " generated " + inputSplits.length
+					+ " input splits");
+			}
+
+			// assign input splits
+			groupVertex.setInputSplits(inputSplits);
 		}
 		// TODO: This is a quick workaround, problem can be solved in a more generic way
 		if (jobVertex instanceof JobFileOutputVertex) {
@@ -896,35 +923,6 @@ public class ExecutionGraph implements ExecutionListener {
 		return (getJobStatus() == InternalJobStatus.FINISHED);
 	}
 
-	public void prepareChannelsForExecution(ExecutionVertex executionVertex) throws ChannelSetupException {
-
-		// Prepare channels
-		for (int k = 0; k < executionVertex.getEnvironment().getNumberOfOutputGates(); k++) {
-			final OutputGate<? extends Record> outputGate = executionVertex.getEnvironment().getOutputGate(k);
-			for (int l = 0; l < outputGate.getNumberOfOutputChannels(); l++) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(l);
-				final AbstractInputChannel<? extends Record> inputChannel = this.inputChannelMap.get(outputChannel
-					.getConnectedChannelID());
-				if (inputChannel == null) {
-					throw new ChannelSetupException("Cannot find input channel to output channel "
-						+ outputChannel.getID());
-				}
-
-				final ExecutionVertex targetVertex = this.channelToVertexMap.get(inputChannel.getID());
-				final AllocatedResource targetResources = targetVertex.getAllocatedResource();
-				if (targetResources == null) {
-					throw new ChannelSetupException("Cannot find allocated resources for target vertex "
-						+ targetVertex.getID() + " in instance map");
-				}
-
-				if (targetResources.getInstance() instanceof DummyInstance) {
-					throw new ChannelSetupException("Allocated instance for " + targetVertex.getID()
-						+ " is a dummy vertex!");
-				}
-			}
-		}
-	}
-
 	/**
 	 * Returns the job ID of the job configuration this execution graph was originally constructed from.
 	 * 
@@ -1016,83 +1014,6 @@ public class ExecutionGraph implements ExecutionListener {
 		return this.stages.get(this.indexToCurrentExecutionStage);
 	}
 
-	/**
-	 * Checks which instance types and how many instances of these types are required to execute the current stage
-	 * of this job graph. The required instance types and the number of instances are collected in the given map. Note
-	 * that this method does not clear the map before collecting the instances.
-	 * 
-	 * @param instanceTypeMap
-	 *        the map containing the instances types and the required number of instances of the respective type
-	 * @param executionState
-	 *        the execution state the considered vertices must be in
-	 */
-	public void collectInstanceTypesRequiredForCurrentStage(final Map<InstanceType, Integer> instanceTypeMap,
-			final ExecutionState executionState) {
-
-		collectInstanceTypesRequiredForStage(this.indexToCurrentExecutionStage, instanceTypeMap, executionState);
-	}
-
-	/**
-	 * Checks which instance types and how many instances of these types are required to execute the given stage
-	 * of this job graph. The required instance types and the number of instances are collected in the given map. Note
-	 * that this method does not clear the map before collecting the instances.
-	 * 
-	 * @param stage
-	 *        the stage in which the required instance types are collected.
-	 * @param instanceTypeMap
-	 *        the map containing the instances types and the required number of instances of the respective type
-	 * @param executionState
-	 *        the execution state the considered vertices must be in
-	 */
-	public void collectInstanceTypesRequiredForStage(final int stage, final Map<InstanceType, Integer> instanceTypeMap,
-			final ExecutionState executionState) {
-
-		if (stage >= this.stages.size()) {
-			LOG.error("Illegal stage  " + stage + " requested");
-			return;
-		}
-
-		final ExecutionStage nextStage = this.stages.get(this.indexToCurrentExecutionStage);
-		if (nextStage == null) {
-			LOG.error("Stage " + stage + " is not a valid execution stage");
-			return;
-		}
-
-		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
-		
-		for (int i = 0; i < nextStage.getNumberOfStageMembers(); i++) {
-			final ExecutionGroupVertex groupVertex = nextStage.getStageMember(i);
-
-			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
-				// Get the instance type from the execution vertex if it
-				final ExecutionVertex vertex = groupVertex.getGroupMember(j);
-				
-				if (vertex.getExecutionState() == executionState) {
-					LOG.info("stage " + nextStage.getStageNumber() + " members " + nextStage.getNumberOfStageMembers());
-					LOG.info("Found " + groupVertex.getName());
-					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-					if (collectedInstances.contains(instance)) {
-						
-						continue;
-					} else {
-						collectedInstances.add(instance);
-					}
-					
-					if (instance instanceof DummyInstance) {
-						LOG.info("Dummy Instace");
-						Integer num = instanceTypeMap.get(instance.getType());
-						num = (num == null) ? Integer.valueOf(1) : Integer.valueOf(num.intValue() + 1);
-						instanceTypeMap.put(instance.getType(), num);
-					} else {
-						LOG.info("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
-							+ ") is already assigned to non-dummy instance, skipping...");
-					}
-				}
-			}
-		}
-	}
-
 	public void repairStages() {
 
 		final Map<ExecutionGroupVertex, Integer> stageNumbers = new HashMap<ExecutionGroupVertex, Integer>();
@@ -1177,7 +1098,7 @@ public class ExecutionGraph implements ExecutionListener {
 			ExecutionStage executionStage = this.stages.get(stageNumber);
 			// If the stage not yet exists,
 			if (executionStage == null) {
-				executionStage = new ExecutionStage(stageNumber);
+				executionStage = new ExecutionStage(this, stageNumber);
 				this.stages.set(stageNumber, executionStage);
 			}
 
@@ -1441,6 +1362,14 @@ public class ExecutionGraph implements ExecutionListener {
 			if (this.isCurrentStageCompleted()) {
 				// Increase current execution stage
 				++this.indexToCurrentExecutionStage;
+
+				if (this.indexToCurrentExecutionStage < this.stages.size()) {
+					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
+					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
+					while (it.hasNext()) {
+						it.next().nextExecutionStageEntered(ee.getJobID(), nextExecutionStage);
+					}
+				}
 			}
 		}
 		if (this.jobStatus == InternalJobStatus.RECOVERING){
@@ -1476,7 +1405,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @param jobStatusListener
 	 *        the listener object to register
 	 */
-	public synchronized void registerJobStatusListener(JobStatusListener jobStatusListener) {
+	public synchronized void registerJobStatusListener(final JobStatusListener jobStatusListener) {
 
 		if (jobStatusListener == null) {
 			return;
@@ -1495,13 +1424,48 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @param jobStatusListener
 	 *        the listener object to unregister
 	 */
-	public synchronized void unregisterJobStatusListener(JobStatusListener jobStatusListener) {
+	public synchronized void unregisterJobStatusListener(final JobStatusListener jobStatusListener) {
 
 		if (jobStatusListener == null) {
 			return;
 		}
 
 		this.jobStatusListeners.remove(jobStatusListener);
+	}
+
+	/**
+	 * Registers a new {@link ExecutionStageListener} object with this execution graph. After being registered the
+	 * object will receive a notification whenever the job has entered its next execution stage. Note that a
+	 * notification is not sent when the job has entered its initial execution stage.
+	 * 
+	 * @param executionStageListener
+	 *        the listener object to register
+	 */
+	public synchronized void registerExecutionStageListener(final ExecutionStageListener executionStageListener) {
+
+		if (executionStageListener == null) {
+			return;
+		}
+
+		if (!this.executionStageListeners.contains(executionStageListener)) {
+			this.executionStageListeners.add(executionStageListener);
+		}
+	}
+
+	/**
+	 * Unregisters the given {@link ExecutionStageListener} object. After having called this method, the object will no
+	 * longer receiver notifications about the execution stage progress.
+	 * 
+	 * @param executionStageListener
+	 *        the listener object to unregister
+	 */
+	public synchronized void unregisterExecutionStageListener(final ExecutionStageListener executionStageListener) {
+
+		if (executionStageListener == null) {
+			return;
+		}
+
+		this.executionStageListeners.remove(executionStageListener);
 	}
 
 	/**

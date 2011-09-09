@@ -46,7 +46,7 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		out.writeInt(size());
 		final Iterator<E> it = iterator();
@@ -64,9 +64,8 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 	 * {@inheritDoc}
 	 */
 	@SuppressWarnings("unchecked")
-	// TODO: See if type safety can be improved here
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Make sure the list is empty
 		clear();

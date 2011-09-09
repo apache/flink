@@ -53,8 +53,9 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 	
 	private int[] channels;						// the reused array defining target channels
 	
-	private int nextChannelToSendTo = 0;		// counter to go over channels round robin 
-
+	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
+	
+	private PartitionFunction partitionFunction;
 
 	// ------------------------------------------------------------------------
 	//                           Constructors
@@ -106,9 +107,23 @@ public class OutputEmitter<K extends Key, V extends Value> implements ChannelSel
 			return partition(pair, numberOfChannels);
 		case FORWARD:
 			return robin(numberOfChannels);
+		case PARTITION_RANGE:
+			return partition_range(pair, numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
+	}
+	
+	/**
+	 * Set the partition function that is used for range partitioning
+	 * @param func
+	 */
+	public void setPartitionFunction(PartitionFunction func) {
+		this.partitionFunction = func;
+	}
+
+	private int[] partition_range(KeyValuePair<K, V> pair, int numberOfChannels) {
+		return partitionFunction.selectChannels(pair.getKey(), numberOfChannels);
 	}
 
 	private final int[] robin(int numberOfChannels) {

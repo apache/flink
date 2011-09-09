@@ -63,7 +63,7 @@ public final class ExecutionSignature {
 	 * @param signature
 	 *        the byte buffer containing the signature.
 	 */
-	private ExecutionSignature(byte[] signature) {
+	private ExecutionSignature(final byte[] signature) {
 		this.signature = signature;
 	}
 
@@ -76,7 +76,8 @@ public final class ExecutionSignature {
 	 *        the ID of the job
 	 * @return the cryptographic signature of this vertex
 	 */
-	public static ExecutionSignature createSignature(Class<? extends AbstractInvokable> invokableClass, JobID jobID) {
+	public static ExecutionSignature createSignature(final Class<? extends AbstractInvokable> invokableClass,
+			final JobID jobID) {
 
 		// First, try to load message digest algorithm, if necessary
 		if (messageDigest == null) {
@@ -117,7 +118,7 @@ public final class ExecutionSignature {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (obj instanceof ExecutionSignature) {
 

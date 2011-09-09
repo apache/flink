@@ -1,38 +1,32 @@
 <?xml version="1.0"?>
 <configuration>
 
-  <!-- number of instance types defined in the cloud -->
-  <property>
-    <key>cloudmgr.nrtypes</key>
-    <value>5</value>
-  </property>
-  
   <!-- definition of instances in format -->
   <!-- instancename,numComputeUnits,numCores,memorySize,diskCapacity,pricePerHour -->
   <property>
-    <key>cloudmgr.instancetype.1</key>
+    <key>instancemanager.ec2.type.1</key>
     <value>m1.small,1,1,2048,40,10</value>
   </property>
   <property>
-    <key>cloudmgr.instancetype.2</key>
+    <key>instancemanager.ec2.type.2</key>
     <value>c1.medium,2,2,4096,80,20</value>
   </property>
   <property>
-    <key>cloudmgr.instancetype.3</key>
+    <key>instancemanager.ec2.type.3</key>
     <value>m1.large,4,4,6144,160,40</value>
   </property>
   <property>
-    <key>cloudmgr.instancetype.4</key>
+    <key>instancemanager.ec2.type.4</key>
     <value>m1.xlarge,4,4,12288,160,60</value>
   </property>
   <property>
-    <key>cloudmgr.instancetype.5</key>
+    <key>instancemanager.ec2.type.5</key>
     <value>c1.xlarge,8,8,28672,280,80</value>
   </property>
 
   <!-- default instance type -->
   <property>
-    <key>cloudmgr.instancetype.defaultInstance</key>
-    <value>m1.small</value>
+    <key>instancemanager.ec2.defaulttype</key>
+    <value>1</value>
   </property>
 </configuration>
